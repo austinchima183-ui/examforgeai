@@ -99,6 +99,21 @@ import '../features/results/data/repositories/results_repository_impl.dart';
 import '../features/results/domain/repositories/results_repository.dart';
 import '../features/results/domain/usecases/results_usecases.dart';
 import '../features/results/presentation/providers/results_providers.dart';
+import '../features/student_portal/data/datasources/student_portal_remote_datasource.dart';
+import '../features/student_portal/data/repositories/student_portal_repository_impl.dart';
+import '../features/student_portal/domain/repositories/student_portal_repository.dart';
+import '../features/student_portal/domain/usecases/student_portal_usecases.dart' hide GenerateQuestionsFromContentUseCase;
+import '../features/student_portal/presentation/providers/ai_tutor_provider.dart';
+import '../features/student_portal/presentation/providers/assignment_provider.dart';
+import '../features/student_portal/presentation/providers/document_chat_provider.dart';
+import '../features/student_portal/presentation/providers/flashcard_provider.dart';
+import '../features/student_portal/presentation/providers/goals_provider.dart';
+import '../features/student_portal/presentation/providers/practice_provider.dart';
+import '../features/student_portal/presentation/providers/progress_provider.dart';
+import '../features/student_portal/presentation/providers/resource_provider.dart';
+import '../features/student_portal/presentation/providers/student_dashboard_provider.dart';
+import '../features/student_portal/presentation/providers/student_notification_provider.dart';
+import '../features/student_portal/presentation/providers/study_planner_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // INFRASTRUCTURE PROVIDERS
@@ -1518,4 +1533,275 @@ final generateQuestionsProvider =
     generateQuestionsFromContentUseCase:
         ref.watch(generateQuestionsFromContentUseCaseProvider),
   );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// STUDENT PORTAL MODULE
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Student Portal Data Layer ───────────────────────────────────────
+
+/// Provides the [StudentPortalRemoteDataSource] implementation.
+final studentPortalRemoteDataSourceProvider =
+    Provider<StudentPortalRemoteDatasource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return StudentPortalRemoteDatasource(supabaseClient: supabaseClient);
+});
+
+/// Provides the [StudentPortalRepository] implementation.
+final studentPortalRepositoryProvider =
+    Provider<StudentPortalRepository>((ref) {
+  final remoteDataSource = ref.watch(studentPortalRemoteDataSourceProvider);
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return StudentPortalRepositoryImpl(
+    remoteDatasource: remoteDataSource,
+    supabaseClient: supabaseClient,
+  );
+});
+
+// ─── Student Portal — AI Tutor Use Cases ─────────────────────────────
+
+final createConversationUseCaseProvider =
+    Provider<CreateConversationUseCase>((ref) {
+  return CreateConversationUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final getConversationsUseCaseProvider =
+    Provider<GetConversationsUseCase>((ref) {
+  return GetConversationsUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final getConversationDetailUseCaseProvider =
+    Provider<GetConversationDetailUseCase>((ref) {
+  return GetConversationDetailUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final sendMessageUseCaseProvider = Provider<SendMessageUseCase>((ref) {
+  return SendMessageUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final deleteConversationUseCaseProvider =
+    Provider<DeleteConversationUseCase>((ref) {
+  return DeleteConversationUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Practice Session Use Cases ─────────────────────
+
+final createPracticeSessionUseCaseProvider =
+    Provider<CreatePracticeSessionUseCase>((ref) {
+  return CreatePracticeSessionUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final getPracticeSessionsUseCaseProvider =
+    Provider<GetPracticeSessionsUseCase>((ref) {
+  return GetPracticeSessionsUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final getPracticeSessionDetailUseCaseProvider =
+    Provider<GetPracticeSessionDetailUseCase>((ref) {
+  return GetPracticeSessionDetailUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final submitPracticeAnswerUseCaseProvider =
+    Provider<SubmitPracticeAnswerUseCase>((ref) {
+  return SubmitPracticeAnswerUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final completePracticeSessionUseCaseProvider =
+    Provider<CompletePracticeSessionUseCase>((ref) {
+  return CompletePracticeSessionUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Assignment Submission Use Cases ────────────────
+
+final getSubmissionsUseCaseProvider = Provider<GetSubmissionsUseCase>((ref) {
+  return GetSubmissionsUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final getSubmissionDetailUseCaseProvider =
+    Provider<GetSubmissionDetailUseCase>((ref) {
+  return GetSubmissionDetailUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final createSubmissionUseCaseProvider =
+    Provider<CreateSubmissionUseCase>((ref) {
+  return CreateSubmissionUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final submitAssignmentUseCaseProvider =
+    Provider<SubmitAssignmentUseCase>((ref) {
+  return SubmitAssignmentUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final getAssignedAssignmentsUseCaseProvider =
+    Provider<GetAssignedAssignmentsUseCase>((ref) {
+  return GetAssignedAssignmentsUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Learning Resources Use Cases ───────────────────
+
+final studentGetResourcesUseCaseProvider =
+    Provider<GetStudentResourcesUseCase>((ref) {
+  return GetStudentResourcesUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final getResourceDetailUseCaseProvider =
+    Provider<GetResourceDetailUseCase>((ref) {
+  return GetResourceDetailUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final logResourceAccessUseCaseProvider =
+    Provider<LogResourceAccessUseCase>((ref) {
+  return LogResourceAccessUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Document Chat Use Cases ────────────────────────
+
+final uploadDocumentUseCaseProvider = Provider<UploadDocumentUseCase>((ref) {
+  return UploadDocumentUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final getDocumentsUseCaseProvider = Provider<GetDocumentsUseCase>((ref) {
+  return GetDocumentsUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final sendDocumentMessageUseCaseProvider =
+    Provider<SendDocumentMessageUseCase>((ref) {
+  return SendDocumentMessageUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Flashcard Use Cases ────────────────────────────
+
+final getFlashcardDecksUseCaseProvider =
+    Provider<GetFlashcardDecksUseCase>((ref) {
+  return GetFlashcardDecksUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final createFlashcardDeckUseCaseProvider =
+    Provider<CreateFlashcardDeckUseCase>((ref) {
+  return CreateFlashcardDeckUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final getFlashcardsUseCaseProvider = Provider<GetFlashcardsUseCase>((ref) {
+  return GetFlashcardsUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final createFlashcardUseCaseProvider =
+    Provider<CreateFlashcardUseCase>((ref) {
+  return CreateFlashcardUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final rateFlashcardUseCaseProvider = Provider<RateFlashcardUseCase>((ref) {
+  return RateFlashcardUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final generateFlashcardsUseCaseProvider =
+    Provider<GenerateFlashcardsUseCase>((ref) {
+  return GenerateFlashcardsUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final deleteFlashcardDeckUseCaseProvider =
+    Provider<DeleteFlashcardDeckUseCase>((ref) {
+  return DeleteFlashcardDeckUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Study Planner Use Cases ────────────────────────
+
+final getStudyPlansUseCaseProvider = Provider<GetStudyPlansUseCase>((ref) {
+  return GetStudyPlansUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final createStudyPlanUseCaseProvider =
+    Provider<CreateStudyPlanUseCase>((ref) {
+  return CreateStudyPlanUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final updateStudyTaskUseCaseProvider =
+    Provider<UpdateStudyTaskUseCase>((ref) {
+  return UpdateStudyTaskUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final suggestStudyPlanUseCaseProvider =
+    Provider<SuggestStudyPlanUseCase>((ref) {
+  return SuggestStudyPlanUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final deleteStudyPlanUseCaseProvider =
+    Provider<DeleteStudyPlanUseCase>((ref) {
+  return DeleteStudyPlanUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Goals Use Cases ────────────────────────────────
+
+final getGoalsUseCaseProvider = Provider<GetGoalsUseCase>((ref) {
+  return GetGoalsUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final createGoalUseCaseProvider = Provider<CreateGoalUseCase>((ref) {
+  return CreateGoalUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final updateGoalUseCaseProvider = Provider<UpdateGoalUseCase>((ref) {
+  return UpdateGoalUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Progress & Analytics Use Cases ─────────────────
+
+final getProgressUseCaseProvider = Provider<GetProgressUseCase>((ref) {
+  return GetProgressUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final getLatestProgressUseCaseProvider =
+    Provider<GetLatestProgressUseCase>((ref) {
+  return GetLatestProgressUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final getDashboardStatsUseCaseProvider =
+    Provider<GetDashboardStatsUseCase>((ref) {
+  return GetDashboardStatsUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+// ─── Student Portal — Notification Use Cases ─────────────────────────
+
+final getNotificationsUseCaseProvider =
+    Provider<GetNotificationsUseCase>((ref) {
+  return GetNotificationsUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final markNotificationReadUseCaseProvider =
+    Provider<MarkNotificationReadUseCase>((ref) {
+  return MarkNotificationReadUseCase(
+      ref.watch(studentPortalRepositoryProvider));
+});
+
+final markAllNotificationsReadUseCaseProvider =
+    Provider<MarkAllNotificationsReadUseCase>((ref) {
+  return MarkAllNotificationsReadUseCase(
+      ref.watch(studentPortalRepositoryProvider));
 });

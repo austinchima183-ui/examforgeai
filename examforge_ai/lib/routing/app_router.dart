@@ -64,6 +64,17 @@ import '../features/teacher_workspace/presentation/pages/teaching_resources_page
 import '../features/teacher_workspace/presentation/pages/content_assistant_page.dart';
 import '../features/teacher_workspace/presentation/pages/resource_library_page.dart';
 import '../features/teacher_workspace/presentation/pages/calendar_planner_page.dart';
+import '../features/student_portal/presentation/pages/student_portal_dashboard_page.dart';
+import '../features/student_portal/presentation/pages/ai_tutor_page.dart';
+import '../features/student_portal/presentation/pages/practice_mode_page.dart';
+import '../features/student_portal/presentation/pages/assignment_portal_page.dart';
+import '../features/student_portal/presentation/pages/learning_resources_page.dart';
+import '../features/student_portal/presentation/pages/document_chat_page.dart';
+import '../features/student_portal/presentation/pages/flashcard_page.dart';
+import '../features/student_portal/presentation/pages/study_planner_page.dart';
+import '../features/student_portal/presentation/pages/goals_page.dart';
+import '../features/student_portal/presentation/pages/progress_page.dart';
+import '../features/student_portal/presentation/pages/student_notifications_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -589,6 +600,68 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.calendarPlanner,
             name: 'calendarPlanner',
             builder: (context, state) => const CalendarPlannerPage(),
+          ),
+
+          // ── Student Portal Routes ─────────────────────────────────────
+          GoRoute(
+            path: RouteNames.studentPortal,
+            name: 'studentPortal',
+            builder: (context, state) => const StudentPortalDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.studentPortalDashboard,
+            name: 'studentPortalDashboard',
+            builder: (context, state) => const StudentPortalDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiTutor,
+            name: 'aiTutor',
+            builder: (context, state) => const AiTutorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.practiceMode,
+            name: 'practiceMode',
+            builder: (context, state) => const PracticeModePage(),
+          ),
+          GoRoute(
+            path: RouteNames.assignmentPortal,
+            name: 'assignmentPortal',
+            builder: (context, state) => const AssignmentPortalPage(),
+          ),
+          GoRoute(
+            path: RouteNames.learningResources,
+            name: 'learningResources',
+            builder: (context, state) => const LearningResourcesPage(),
+          ),
+          GoRoute(
+            path: RouteNames.documentChat,
+            name: 'documentChat',
+            builder: (context, state) => const DocumentChatPage(),
+          ),
+          GoRoute(
+            path: RouteNames.flashcards,
+            name: 'flashcards',
+            builder: (context, state) => const FlashcardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.studyPlanner,
+            name: 'studyPlanner',
+            builder: (context, state) => const StudyPlannerPage(),
+          ),
+          GoRoute(
+            path: RouteNames.studentGoals,
+            name: 'studentGoals',
+            builder: (context, state) => const GoalsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.studentProgress,
+            name: 'studentProgress',
+            builder: (context, state) => const ProgressPage(),
+          ),
+          GoRoute(
+            path: RouteNames.studentNotifications,
+            name: 'studentNotifications',
+            builder: (context, state) => const StudentNotificationsPage(),
           ),
         ],
       ),

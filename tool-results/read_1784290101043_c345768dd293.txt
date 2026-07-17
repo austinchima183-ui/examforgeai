@@ -1,0 +1,690 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../config/dependency_injection.dart';
+     6→import '../features/auth/presentation/pages/forgot_password_page.dart';
+     7→import '../features/auth/presentation/pages/login_page.dart';
+     8→import '../features/auth/presentation/pages/register_page.dart';
+     9→import '../features/auth/presentation/pages/reset_password_page.dart';
+    10→import '../features/auth/presentation/pages/verify_email_page.dart';
+    11→import '../features/dashboard/presentation/pages/dashboard_redirector.dart';
+    12→import '../features/dashboard/presentation/pages/dashboard_shell.dart';
+    13→import '../features/dashboard/presentation/pages/school_admin_dashboard_page.dart';
+    14→import '../features/dashboard/presentation/pages/student_dashboard_page.dart';
+    15→import '../features/dashboard/presentation/pages/super_admin_dashboard_page.dart';
+    16→import '../features/dashboard/presentation/pages/teacher_dashboard_page.dart';
+    17→import '../features/notifications/presentation/pages/notifications_page.dart';
+    18→import '../features/onboarding/presentation/onboarding_page.dart';
+    19→import '../features/profile/presentation/pages/profile_page.dart';
+    20→import '../features/settings/presentation/pages/settings_page.dart';
+    21→import '../features/splash/presentation/splash_page.dart';
+    22→import '../features/question_bank/presentation/pages/question_bank_dashboard_page.dart';
+    23→import '../features/question_bank/presentation/pages/question_list_page.dart';
+    24→import '../features/question_bank/presentation/pages/question_editor_page.dart';
+    25→import '../features/question_bank/presentation/pages/question_detail_page.dart';
+    26→import '../features/question_bank/presentation/pages/question_import_page.dart';
+    27→import '../features/question_bank/presentation/pages/question_export_page.dart';
+    28→import '../features/question_bank/presentation/pages/collections_page.dart';
+    29→import '../features/ai_generator/presentation/pages/ai_dashboard_page.dart';
+    30→import '../features/ai_generator/presentation/pages/ai_generate_page.dart';
+    31→import '../features/ai_generator/presentation/pages/ai_review_page.dart';
+    32→import '../features/ai_generator/presentation/pages/ai_improve_page.dart';
+    33→import '../features/ai_generator/presentation/pages/ai_document_page.dart';
+    34→import '../features/ai_generator/presentation/pages/ai_history_page.dart';
+    35→import '../features/ai_generator/presentation/pages/ai_prompts_page.dart';
+    36→import '../features/cbt_engine/presentation/pages/teacher/exam_list_page.dart';
+    37→import '../features/cbt_engine/presentation/pages/teacher/exam_builder_page.dart';
+    38→import '../features/cbt_engine/presentation/pages/teacher/exam_detail_page.dart';
+    39→import '../features/cbt_engine/presentation/pages/teacher/exam_monitor_page.dart';
+    40→import '../features/cbt_engine/presentation/pages/teacher/exam_results_page.dart';
+    41→import '../features/cbt_engine/presentation/pages/student/exam_take_page.dart';
+    42→import '../features/cbt_engine/presentation/pages/student/student_exams_page.dart';
+    43→import '../features/cbt_engine/presentation/pages/student/exam_result_view_page.dart';
+    44→import '../features/results/presentation/pages/teacher/teacher_grading_page.dart';
+    45→import '../features/results/presentation/pages/teacher/class_results_page.dart';
+    46→import '../features/results/presentation/pages/teacher/grade_scales_page.dart';
+    47→import '../features/results/presentation/pages/teacher/result_management_page.dart';
+    48→import '../features/results/presentation/pages/student/student_results_page.dart';
+    49→import '../features/results/presentation/pages/student/topic_mastery_page.dart';
+    50→import '../features/results/presentation/pages/admin/school_analytics_page.dart';
+    51→import '../features/results/presentation/pages/admin/reports_page.dart';
+    52→import '../features/teacher_workspace/presentation/pages/teacher_workspace_dashboard_page.dart';
+    53→import '../features/teacher_workspace/presentation/pages/lesson_plan_generator_page.dart';
+    54→import '../features/teacher_workspace/presentation/pages/lesson_plan_list_page.dart';
+    55→import '../features/teacher_workspace/presentation/pages/lesson_plan_detail_page.dart';
+    56→import '../features/teacher_workspace/presentation/pages/scheme_of_work_generator_page.dart';
+    57→import '../features/teacher_workspace/presentation/pages/scheme_of_work_list_page.dart';
+    58→import '../features/teacher_workspace/presentation/pages/worksheet_generator_page.dart';
+    59→import '../features/teacher_workspace/presentation/pages/worksheet_list_page.dart';
+    60→import '../features/teacher_workspace/presentation/pages/assignment_generator_page.dart';
+    61→import '../features/teacher_workspace/presentation/pages/assignment_list_page.dart';
+    62→import '../features/teacher_workspace/presentation/pages/report_comment_generator_page.dart';
+    63→import '../features/teacher_workspace/presentation/pages/teaching_resources_page.dart';
+    64→import '../features/teacher_workspace/presentation/pages/content_assistant_page.dart';
+    65→import '../features/teacher_workspace/presentation/pages/resource_library_page.dart';
+    66→import '../features/teacher_workspace/presentation/pages/calendar_planner_page.dart';
+    67→import 'route_guards.dart';
+    68→import 'route_names.dart';
+    69→
+    70→// ═══════════════════════════════════════════════════════════════════════
+    71→// NAVIGATOR KEYS
+    72→// ═══════════════════════════════════════════════════════════════════════
+    73→
+    74→/// Root navigator key — owns the top-level navigation stack.
+    75→final _rootNavigatorKey = GlobalKey<NavigatorState>();
+    76→
+    77→/// Shell navigator key — owns the nested navigation stack inside the
+    78→/// [DashboardShell]. This allows the shell (sidebar / bottom nav) to
+    79→/// remain mounted while inner pages transition.
+    80→final _shellNavigatorKey = GlobalKey<NavigatorState>();
+    81→
+    82→// ═══════════════════════════════════════════════════════════════════════
+    83→// APP ROUTER PROVIDER
+    84→// ═══════════════════════════════════════════════════════════════════════
+    85→
+    86→/// Riverpod provider for the application's [GoRouter].
+    87→///
+    88→/// Watches [authStateProvider] so that the router automatically
+    89→/// re-evaluates its [redirect] callback whenever the authentication
+    90→/// state changes (sign-in, sign-out, token refresh).
+    91→///
+    92→/// Usage in `main.dart`:
+    93→/// ```dart
+    94→/// final router = ref.read(appRouterProvider);
+    95→/// MaterialApp.router(routerConfig: router);
+    96→/// ```
+    97→final appRouterProvider = Provider<GoRouter>((ref) {
+    98→  // Watch auth state so the router re-evaluates redirects on change.
+    99→  final authState = ref.watch(authStateProvider);
+   100→
+   101→  // Also watch onboarding state and role so those redirects stay live.
+   102→  ref.watch(onboardingCompleteProvider);
+   103→  ref.watch(userRoleProvider);
+   104→
+   105→  return GoRouter(
+   106→    navigatorKey: _rootNavigatorKey,
+   107→    initialLocation: RouteNames.splash,
+   108→    debugLogDiagnostics: true,
+   109→
+   110→    // ─── Global Redirect ──────────────────────────────────────────
+   111→    redirect: (context, state) {
+   112→      final currentPath = state.matchedLocation;
+   113→      final isAuthenticated = authState.when(
+   114→        data: (authData) => authData.session != null,
+   115→        loading: () {
+   116→          // While loading, only allow splash. Everything else redirects
+   117→          // to splash so we don't flash the login page briefly.
+   118→          if (currentPath != RouteNames.splash) {
+   119→            return RouteNames.splash;
+   120→          }
+   121→          return null;
+   122→        },
+   123→        error: (_, __) => false,
+   124→      );
+   125→
+   126→      // ── Auth Guard ────────────────────────────────────────────
+   127→      final authRedirect = AuthGuard.evaluate(
+   128→        isAuthenticated: isAuthenticated,
+   129→        currentPath: currentPath,
+   130→      );
+   131→      if (authRedirect != null) return authRedirect;
+   132→
+   133→      // ── Onboarding Guard ─────────────────────────────────────
+   134→      final onboardingAsync = ref.read(onboardingCompleteProvider);
+   135→      final isOnboardingComplete = onboardingAsync.when(
+   136→        data: (complete) => complete,
+   137→        loading: () => true, // Assume complete while loading to avoid flicker.
+   138→        error: (_, __) => true,
+   139→      );
+   140→
+   141→      final onboardingRedirect = OnboardingGuard.evaluate(
+   142→        isAuthenticated: isAuthenticated,
+   143→        isOnboardingComplete: isOnboardingComplete,
+   144→        currentPath: currentPath,
+   145→      );
+   146→      if (onboardingRedirect != null) return onboardingRedirect;
+   147→
+   148→      // ── Role-Based Guard ─────────────────────────────────────
+   149→      final roleAsync = ref.read(userRoleProvider);
+   150→      final userRole = roleAsync.when(
+   151→        data: UserRole.fromString,
+   152→        loading: () => null,
+   153→        error: (_, __) => null,
+   154→      );
+   155→
+   156→      final roleRedirect = RoleBasedGuard.evaluate(
+   157→        userRole: userRole,
+   158→        currentPath: currentPath,
+   159→      );
+   160→      if (roleRedirect != null) return roleRedirect;
+   161→
+   162→      // No redirect needed — proceed as requested.
+   163→      return null;
+   164→    },
+   165→
+   166→    // ─── Route Tree ───────────────────────────────────────────────
+   167→    routes: [
+   168→      // ── Splash ────────────────────────────────────────────────
+   169→      GoRoute(
+   170→        path: RouteNames.splash,
+   171→        name: 'splash',
+   172→        builder: (context, state) => const SplashPage(),
+   173→      ),
+   174→
+   175→      // ── Onboarding ───────────────────────────────────────────
+   176→      GoRoute(
+   177→        path: RouteNames.onboarding,
+   178→        name: 'onboarding',
+   179→        builder: (context, state) => const OnboardingPage(),
+   180→      ),
+   181→
+   182→      // ── Auth Routes ──────────────────────────────────────────
+   183→      GoRoute(
+   184→        path: RouteNames.login,
+   185→        name: 'login',
+   186→        builder: (context, state) => const LoginPage(),
+   187→      ),
+   188→      GoRoute(
+   189→        path: RouteNames.register,
+   190→        name: 'register',
+   191→        builder: (context, state) => const RegisterPage(),
+   192→      ),
+   193→      GoRoute(
+   194→        path: RouteNames.forgotPassword,
+   195→        name: 'forgotPassword',
+   196→        builder: (context, state) => const ForgotPasswordPage(),
+   197→      ),
+   198→      GoRoute(
+   199→        path: RouteNames.verifyEmail,
+   200→        name: 'verifyEmail',
+   201→        builder: (context, state) => const VerifyEmailPage(),
+   202→      ),
+   203→      GoRoute(
+   204→        path: RouteNames.resetPassword,
+   205→        name: 'resetPassword',
+   206→        builder: (context, state) => const ResetPasswordPage(),
+   207→      ),
+   208→
+   209→      // ── Protected Shell Route ─────────────────────────────────
+   210→      // All routes inside this shell share the [DashboardShell]
+   211→      // wrapper which provides the sidebar / bottom nav and app bar.
+   212→      ShellRoute(
+   213→        navigatorKey: _shellNavigatorKey,
+   214→        builder: (context, state, child) => DashboardShell(child: child),
+   215→        routes: [
+   216→          // Dashboard with role-based sub-routes.
+   217→          GoRoute(
+   218→            path: RouteNames.dashboard,
+   219→            name: 'dashboard',
+   220→            builder: (context, state) => const DashboardRedirector(),
+   221→            routes: [
+   222→              GoRoute(
+   223→                path: 'teacher',
+   224→                name: 'teacherDashboard',
+   225→                builder: (context, state) => const TeacherDashboardPage(),
+   226→              ),
+   227→              GoRoute(
+   228→                path: 'student',
+   229→                name: 'studentDashboard',
+   230→                builder: (context, state) => const StudentDashboardPage(),
+   231→              ),
+   232→              GoRoute(
+   233→                path: 'school-admin',
+   234→                name: 'schoolAdminDashboard',
+   235→                builder: (context, state) => const SchoolAdminDashboardPage(),
+   236→              ),
+   237→              GoRoute(
+   238→                path: 'super-admin',
+   239→                name: 'superAdminDashboard',
+   240→                builder: (context, state) => const SuperAdminDashboardPage(),
+   241→              ),
+   242→            ],
+   243→          ),
+   244→
+   245→          // Profile.
+   246→          GoRoute(
+   247→            path: RouteNames.profile,
+   248→            name: 'profile',
+   249→            builder: (context, state) => const ProfilePage(),
+   250→          ),
+   251→
+   252→          // Settings.
+   253→          GoRoute(
+   254→            path: RouteNames.settings,
+   255→            name: 'settings',
+   256→            builder: (context, state) => const SettingsPage(),
+   257→          ),
+   258→
+   259→          // Notifications.
+   260→          GoRoute(
+   261→            path: RouteNames.notifications,
+   262→            name: 'notifications',
+   263→            builder: (context, state) => const NotificationsPage(),
+   264→          ),
+   265→
+   266→          // ── Question Bank Routes ──────────────────────────────────
+   267→          GoRoute(
+   268→            path: RouteNames.questionBank,
+   269→            name: 'questionBank',
+   270→            builder: (context, state) => const QuestionBankDashboardPage(),
+   271→          ),
+   272→          GoRoute(
+   273→            path: RouteNames.questionBankList,
+   274→            name: 'questionBankList',
+   275→            builder: (context, state) => const QuestionListPage(),
+   276→          ),
+   277→          GoRoute(
+   278→            path: RouteNames.questionBankCreate,
+   279→            name: 'questionBankCreate',
+   280→            builder: (context, state) => const QuestionEditorPage(),
+   281→          ),
+   282→          GoRoute(
+   283→            path: RouteNames.questionBankDetail,
+   284→            name: 'questionBankDetail',
+   285→            builder: (context, state) {
+   286→              final questionId = state.uri.queryParameters['id'] ?? '';
+   287→              return QuestionDetailPage(questionId: questionId);
+   288→            },
+   289→          ),
+   290→          GoRoute(
+   291→            path: RouteNames.questionBankEdit,
+   292→            name: 'questionBankEdit',
+   293→            builder: (context, state) {
+   294→              final questionId = state.uri.queryParameters['id'] ?? '';
+   295→              return QuestionEditorPage(questionId: questionId);
+   296→            },
+   297→          ),
+   298→          GoRoute(
+   299→            path: RouteNames.questionBankImport,
+   300→            name: 'questionBankImport',
+   301→            builder: (context, state) => const QuestionImportPage(),
+   302→          ),
+   303→          GoRoute(
+   304→            path: RouteNames.questionBankExport,
+   305→            name: 'questionBankExport',
+   306→            builder: (context, state) => const QuestionExportPage(),
+   307→          ),
+   308→          GoRoute(
+   309→            path: RouteNames.questionBankCollections,
+   310→            name: 'questionBankCollections',
+   311→            builder: (context, state) => const CollectionsPage(),
+   312→          ),
+   313→
+   314→          // ── AI Generator Routes ──────────────────────────────────
+   315→          GoRoute(
+   316→            path: RouteNames.aiGenerator,
+   317→            name: 'aiGenerator',
+   318→            builder: (context, state) => const AiDashboardPage(),
+   319→          ),
+   320→          GoRoute(
+   321→            path: RouteNames.aiGeneratorGenerate,
+   322→            name: 'aiGeneratorGenerate',
+   323→            builder: (context, state) => const AiGeneratePage(),
+   324→          ),
+   325→          GoRoute(
+   326→            path: RouteNames.aiGeneratorReview,
+   327→            name: 'aiGeneratorReview',
+   328→            builder: (context, state) => const AiReviewPage(),
+   329→          ),
+   330→          GoRoute(
+   331→            path: RouteNames.aiGeneratorImprove,
+   332→            name: 'aiGeneratorImprove',
+   333→            builder: (context, state) => const AiImprovePage(),
+   334→          ),
+   335→          GoRoute(
+   336→            path: RouteNames.aiGeneratorDocument,
+   337→            name: 'aiGeneratorDocument',
+   338→            builder: (context, state) => const AiDocumentPage(),
+   339→          ),
+   340→          GoRoute(
+   341→            path: RouteNames.aiGeneratorHistory,
+   342→            name: 'aiGeneratorHistory',
+   343→            builder: (context, state) => const AiHistoryPage(),
+   344→          ),
+   345→          GoRoute(
+   346→            path: RouteNames.aiGeneratorPrompts,
+   347→            name: 'aiGeneratorPrompts',
+   348→            builder: (context, state) => const AiPromptsPage(),
+   349→          ),
+   350→
+   351→          // ── CBT Engine Routes ─────────────────────────────────────
+   352→          GoRoute(
+   353→            path: RouteNames.exams,
+   354→            name: 'exams',
+   355→            builder: (context, state) => const ExamListPage(),
+   356→          ),
+   357→          GoRoute(
+   358→            path: RouteNames.examCreate,
+   359→            name: 'examCreate',
+   360→            builder: (context, state) => const ExamBuilderPage(),
+   361→          ),
+   362→          GoRoute(
+   363→            path: RouteNames.examEdit,
+   364→            name: 'examEdit',
+   365→            builder: (context, state) {
+   366→              final examId = state.uri.queryParameters['id'] ?? '';
+   367→              return ExamBuilderPage(examId: examId);
+   368→            },
+   369→          ),
+   370→          GoRoute(
+   371→            path: RouteNames.examDetail,
+   372→            name: 'examDetail',
+   373→            builder: (context, state) {
+   374→              final examId = state.uri.queryParameters['id'] ?? '';
+   375→              return ExamDetailPage(examId: examId);
+   376→            },
+   377→          ),
+   378→          GoRoute(
+   379→            path: RouteNames.examMonitor,
+   380→            name: 'examMonitor',
+   381→            builder: (context, state) {
+   382→              final examId = state.uri.queryParameters['id'] ?? '';
+   383→              return ExamMonitorPage(examId: examId);
+   384→            },
+   385→          ),
+   386→          GoRoute(
+   387→            path: RouteNames.examResults,
+   388→            name: 'examResults',
+   389→            builder: (context, state) {
+   390→              final examId = state.uri.queryParameters['id'] ?? '';
+   391→              return ExamResultsPage(examId: examId);
+   392→            },
+   393→          ),
+   394→          GoRoute(
+   395→            path: RouteNames.studentExams,
+   396→            name: 'studentExams',
+   397→            builder: (context, state) => const StudentExamsPage(),
+   398→          ),
+   399→          GoRoute(
+   400→            path: RouteNames.examTake,
+   401→            name: 'examTake',
+   402→            builder: (context, state) {
+   403→              final examId = state.uri.queryParameters['id'] ?? '';
+   404→              return ExamTakePage(examId: examId);
+   405→            },
+   406→          ),
+   407→
+   408→          // ── Results & Analytics Routes ───────────────────────────────
+   409→          GoRoute(
+   410→            path: RouteNames.results,
+   411→            name: 'results',
+   412→            builder: (context, state) => const ClassResultsPage(
+   413→              classId: '',
+   414→              academicSessionId: '',
+   415→            ),
+   416→          ),
+   417→          GoRoute(
+   418→            path: RouteNames.teacherGrading,
+   419→            name: 'teacherGrading',
+   420→            builder: (context, state) {
+   421→              final examId = state.uri.queryParameters['examId'] ?? '';
+   422→              return TeacherGradingPage(examId: examId);
+   423→            },
+   424→          ),
+   425→          GoRoute(
+   426→            path: RouteNames.classResults,
+   427→            name: 'classResults',
+   428→            builder: (context, state) {
+   429→              final classId = state.uri.queryParameters['classId'] ?? '';
+   430→              final sessionId = state.uri.queryParameters['sessionId'] ?? '';
+   431→              return ClassResultsPage(
+   432→                classId: classId,
+   433→                academicSessionId: sessionId,
+   434→              );
+   435→            },
+   436→          ),
+   437→          GoRoute(
+   438→            path: RouteNames.gradeScales,
+   439→            name: 'gradeScales',
+   440→            builder: (context, state) {
+   441→              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+   442→              return GradeScalesPage(schoolId: schoolId);
+   443→            },
+   444→          ),
+   445→          GoRoute(
+   446→            path: RouteNames.resultManagement,
+   447→            name: 'resultManagement',
+   448→            builder: (context, state) {
+   449→              final examId = state.uri.queryParameters['examId'] ?? '';
+   450→              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+   451→              return ResultManagementPage(
+   452→                examId: examId,
+   453→                schoolId: schoolId,
+   454→              );
+   455→            },
+   456→          ),
+   457→          GoRoute(
+   458→            path: RouteNames.studentResults,
+   459→            name: 'studentResults',
+   460→            builder: (context, state) {
+   461→              final studentId = state.uri.queryParameters['studentId'] ?? '';
+   462→              final classId = state.uri.queryParameters['classId'] ?? '';
+   463→              final sessionId = state.uri.queryParameters['sessionId'] ?? '';
+   464→              return StudentResultsPage(
+   465→                studentId: studentId,
+   466→                classId: classId,
+   467→                academicSessionId: sessionId,
+   468→              );
+   469→            },
+   470→          ),
+   471→          GoRoute(
+   472→            path: RouteNames.topicMastery,
+   473→            name: 'topicMastery',
+   474→            builder: (context, state) {
+   475→              final studentId = state.uri.queryParameters['studentId'] ?? '';
+   476→              final subjectId = state.uri.queryParameters['subjectId'] ?? '';
+   477→              return TopicMasteryPage(
+   478→                studentId: studentId,
+   479→                subjectId: subjectId,
+   480→              );
+   481→            },
+   482→          ),
+   483→          GoRoute(
+   484→            path: RouteNames.schoolAnalytics,
+   485→            name: 'schoolAnalytics',
+   486→            builder: (context, state) {
+   487→              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+   488→              final sessionId = state.uri.queryParameters['sessionId'] ?? '';
+   489→              return SchoolAnalyticsPage(
+   490→                schoolId: schoolId,
+   491→                academicSessionId: sessionId,
+   492→              );
+   493→            },
+   494→          ),
+   495→          GoRoute(
+   496→            path: RouteNames.reports,
+   497→            name: 'reports',
+   498→            builder: (context, state) {
+   499→              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+   500→              return ReportsPage(schoolId: schoolId);
+   501→            },
+   502→          ),
+   503→
+   504→          // ── Teacher Workspace Routes ──────────────────────────────────
+   505→          GoRoute(
+   506→            path: RouteNames.workspace,
+   507→            name: 'workspace',
+   508→            builder: (context, state) => const TeacherWorkspaceDashboardPage(),
+   509→          ),
+   510→          GoRoute(
+   511→            path: RouteNames.workspaceDashboard,
+   512→            name: 'workspaceDashboard',
+   513→            builder: (context, state) => const TeacherWorkspaceDashboardPage(),
+   514→          ),
+   515→          GoRoute(
+   516→            path: RouteNames.lessonPlanList,
+   517→            name: 'lessonPlanList',
+   518→            builder: (context, state) => const LessonPlanListPage(),
+   519→          ),
+   520→          GoRoute(
+   521→            path: RouteNames.lessonPlanCreate,
+   522→            name: 'lessonPlanCreate',
+   523→            builder: (context, state) => const LessonPlanGeneratorPage(),
+   524→          ),
+   525→          GoRoute(
+   526→            path: RouteNames.lessonPlanDetail,
+   527→            name: 'lessonPlanDetail',
+   528→            builder: (context, state) {
+   529→              final planId = state.uri.queryParameters['id'] ?? '';
+   530→              return LessonPlanDetailPage(planId: planId);
+   531→            },
+   532→          ),
+   533→          GoRoute(
+   534→            path: RouteNames.schemeOfWorkList,
+   535→            name: 'schemeOfWorkList',
+   536→            builder: (context, state) => const SchemeOfWorkListPage(),
+   537→          ),
+   538→          GoRoute(
+   539→            path: RouteNames.schemeOfWorkCreate,
+   540→            name: 'schemeOfWorkCreate',
+   541→            builder: (context, state) => const SchemeOfWorkGeneratorPage(),
+   542→          ),
+   543→          GoRoute(
+   544→            path: RouteNames.worksheetList,
+   545→            name: 'worksheetList',
+   546→            builder: (context, state) => const WorksheetListPage(),
+   547→          ),
+   548→          GoRoute(
+   549→            path: RouteNames.worksheetCreate,
+   550→            name: 'worksheetCreate',
+   551→            builder: (context, state) => const WorksheetGeneratorPage(),
+   552→          ),
+   553→          GoRoute(
+   554→            path: RouteNames.assignmentList,
+   555→            name: 'assignmentList',
+   556→            builder: (context, state) => const AssignmentListPage(),
+   557→          ),
+   558→          GoRoute(
+   559→            path: RouteNames.assignmentCreate,
+   560→            name: 'assignmentCreate',
+   561→            builder: (context, state) => const AssignmentGeneratorPage(),
+   562→          ),
+   563→          GoRoute(
+   564→            path: RouteNames.assignmentGenerator,
+   565→            name: 'assignmentGenerator',
+   566→            builder: (context, state) => const AssignmentGeneratorPage(),
+   567→          ),
+   568→          GoRoute(
+   569→            path: RouteNames.reportCommentGenerator,
+   570→            name: 'reportCommentGenerator',
+   571→            builder: (context, state) => const ReportCommentGeneratorPage(),
+   572→          ),
+   573→          GoRoute(
+   574→            path: RouteNames.contentAssistant,
+   575→            name: 'contentAssistant',
+   576→            builder: (context, state) => const ContentAssistantPage(),
+   577→          ),
+   578→          GoRoute(
+   579→            path: RouteNames.teachingResources,
+   580→            name: 'teachingResources',
+   581→            builder: (context, state) => const TeachingResourcesPage(),
+   582→          ),
+   583→          GoRoute(
+   584→            path: RouteNames.resourceLibrary,
+   585→            name: 'resourceLibrary',
+   586→            builder: (context, state) => const ResourceLibraryPage(),
+   587→          ),
+   588→          GoRoute(
+   589→            path: RouteNames.calendarPlanner,
+   590→            name: 'calendarPlanner',
+   591→            builder: (context, state) => const CalendarPlannerPage(),
+   592→          ),
+   593→        ],
+   594→      ),
+   595→    ],
+   596→
+   597→    // ─── Error / 404 Handler ──────────────────────────────────────
+   598→    errorBuilder: (context, state) => NotFoundPage(
+   599→      error: state.error,
+   600→      path: state.matchedLocation,
+   601→    ),
+   602→  );
+   603→});
+   604→
+   605→// ═══════════════════════════════════════════════════════════════════════
+   606→// NOT FOUND PAGE (404)
+   607→// ═══════════════════════════════════════════════════════════════════════
+   608→
+   609→/// Shown when the user navigates to a route that does not exist in
+   610→/// the route tree.
+   611→///
+   612→/// Provides a friendly message and a button to navigate back to the
+   613→/// dashboard (or login if unauthenticated).
+   614→class NotFoundPage extends ConsumerWidget {
+   615→  const NotFoundPage({
+   616→    required this.error,
+   617→    this.path,
+   618→    super.key,
+   619→  });
+   620→
+   621→  /// The [GoException] from GoRouter describing the error.
+   622→  final GoException? error;
+   623→
+   624→  /// The unmatched path the user attempted to visit.
+   625→  final String? path;
+   626→
+   627→  @override
+   628→  Widget build(BuildContext context, WidgetRef ref) {
+   629→    final theme = Theme.of(context);
+   630→    final isAuthenticated = ref.watch(isAuthenticatedProvider);
+   631→
+   632→    return Scaffold(
+   633→      body: Center(
+   634→        child: Padding(
+   635→          padding: const EdgeInsets.all(32),
+   636→          child: Column(
+   637→            mainAxisSize: MainAxisSize.min,
+   638→            children: [
+   639→              Icon(
+   640→                Icons.search_off_rounded,
+   641→                size: 80,
+   642→                color: theme.colorScheme.error,
+   643→              ),
+   644→              const SizedBox(height: 24),
+   645→              Text(
+   646→                'Page Not Found',
+   647→                style: theme.textTheme.headlineMedium?.copyWith(
+   648→                  fontWeight: FontWeight.bold,
+   649→                ),
+   650→                textAlign: TextAlign.center,
+   651→              ),
+   652→              const SizedBox(height: 12),
+   653→              if (path != null)
+   654→                Text(
+   655→                  'The page "$path" does not exist.',
+   656→                  style: theme.textTheme.bodyLarge?.copyWith(
+   657→                    color: theme.colorScheme.onSurfaceVariant,
+   658→                  ),
+   659→                  textAlign: TextAlign.center,
+   660→                ),
+   661→              if (error != null) ...[
+   662→                const SizedBox(height: 8),
+   663→                Text(
+   664→                  error!.message,
+   665→                  style: theme.textTheme.bodySmall?.copyWith(
+   666→                    color: theme.colorScheme.outline,
+   667→                  ),
+   668→                  textAlign: TextAlign.center,
+   669→                ),
+   670→              ],
+   671→              const SizedBox(height: 32),
+   672→              FilledButton.icon(
+   673→                onPressed: () => context.go(
+   674→                  isAuthenticated
+   675→                      ? RouteNames.dashboard
+   676→                      : RouteNames.login,
+   677→                ),
+   678→                icon: const Icon(Icons.home),
+   679→                label: Text(
+   680→                  isAuthenticated ? 'Go to Dashboard' : 'Go to Login',
+   681→                ),
+   682→              ),
+   683→            ],
+   684→          ),
+   685→        ),
+   686→      ),
+   687→    );
+   688→  }
+   689→}
+   690→

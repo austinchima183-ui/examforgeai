@@ -242,6 +242,46 @@ class RouteNames {
   static const String calendarPlanner = '/workspace/planner';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // STUDENT PORTAL ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Student Portal module root / dashboard.
+  static const String studentPortal = '/student-portal';
+
+  /// Student Portal dashboard page.
+  static const String studentPortalDashboard = '/student-portal/dashboard';
+
+  /// AI Tutor chat interface.
+  static const String aiTutor = '/student-portal/ai-tutor';
+
+  /// Practice mode (quiz setup, session, results).
+  static const String practiceMode = '/student-portal/practice';
+
+  /// Assignment portal.
+  static const String assignmentPortal = '/student-portal/assignments';
+
+  /// Learning resource library.
+  static const String learningResources = '/student-portal/resources';
+
+  /// Document chat (PDF/DOCX upload and AI chat).
+  static const String documentChat = '/student-portal/document-chat';
+
+  /// Flashcard system (decks and study mode).
+  static const String flashcards = '/student-portal/flashcards';
+
+  /// Study planner.
+  static const String studyPlanner = '/student-portal/study-planner';
+
+  /// Student goals.
+  static const String studentGoals = '/student-portal/goals';
+
+  /// Progress analytics.
+  static const String studentProgress = '/student-portal/progress';
+
+  /// Student notifications.
+  static const String studentNotifications = '/student-portal/notifications';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -338,6 +378,22 @@ class RouteNames {
     calendarPlanner,
   };
 
+  /// All student portal sub-routes (used for feature-level navigation).
+  static const Set<String> studentPortalRoutes = <String>{
+    studentPortal,
+    studentPortalDashboard,
+    aiTutor,
+    practiceMode,
+    assignmentPortal,
+    learningResources,
+    documentChat,
+    flashcards,
+    studyPlanner,
+    studentGoals,
+    studentProgress,
+    studentNotifications,
+  };
+
   /// All routes that live inside the authenticated [ShellRoute].
   static const Set<String> protectedRoutes = <String>{
     dashboard,
@@ -399,5 +455,17 @@ class RouteNames {
     teachingResources,
     resourceLibrary,
     calendarPlanner,
+    studentPortal,
+    studentPortalDashboard,
+    aiTutor,
+    practiceMode,
+    assignmentPortal,
+    learningResources,
+    documentChat,
+    flashcards,
+    studyPlanner,
+    studentGoals,
+    studentProgress,
+    studentNotifications,
   };
 }

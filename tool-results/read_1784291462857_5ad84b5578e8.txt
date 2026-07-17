@@ -1,0 +1,1051 @@
+     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→
+     3→import '../../../../core/errors/exceptions.dart';
+     4→import '../../../../core/errors/failures.dart';
+     5→import '../../../../core/utils/logger.dart';
+     6→import '../../../../core/utils/result.dart';
+     7→import '../../domain/entities/student_portal_entities.dart';
+     8→import '../../domain/repositories/student_portal_repository.dart';
+     9→import '../datasources/student_portal_remote_datasource.dart';
+    10→import '../models/student_portal_models.dart';
+    11→
+    12→/// Concrete implementation of [StudentPortalRepository] that delegates
+    13→/// all operations to [StudentPortalRemoteDatasource].
+    14→///
+    15→/// Responsibilities:
+    16→/// - Converts domain entities to/from data models
+    17→/// - Catches data-layer exceptions and converts them to domain [Failure] types
+    18→/// - Returns [Result] to force callers to handle both success and failure
+    19→class StudentPortalRepositoryImpl implements StudentPortalRepository {
+    20→  StudentPortalRepositoryImpl({
+    21→    required StudentPortalRemoteDatasource remoteDatasource,
+    22→    required sb.SupabaseClient supabaseClient,
+    23→  })  : _datasource = remoteDatasource,
+    24→        _supabaseClient = supabaseClient;
+    25→
+    26→  final StudentPortalRemoteDatasource _datasource;
+    27→  final sb.SupabaseClient _supabaseClient;
+    28→
+    29→  // ═══════════════════════════════════════════════════════════════════════
+    30→  // Helper: Safe call with exception → Failure mapping
+    31→  // ═══════════════════════════════════════════════════════════════════════
+    32→
+    33→  /// Executes [call] and wraps the result in [Result<T>].
+    34→  ///
+    35→  /// Catches all known exception types and maps them to the appropriate
+    36→  /// [Failure] variant. Unknown exceptions become [ServerFailure] with
+    37→  /// status code 500.
+    38→  Future<Result<T>> _safeCall<T>(Future<T> Function() call) async {
+    39→    try {
+    40→      final result = await call();
+    41→      return Success(result);
+    42→    } on ServerException catch (e) {
+    43→      return FailureResult(Failure.server(
+    44→        message: e.message,
+    45→        statusCode: e.statusCode,
+    46→        data: e.data,
+    47→      ));
+    48→    } on AuthException catch (e) {
+    49→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    50→    } on NetworkException catch (e) {
+    51→      return FailureResult(Failure.network(message: e.message));
+    52→    } on NotFoundException catch (e) {
+    53→      return FailureResult(Failure.notFound(message: e.message));
+    54→    } on UnauthorizedException catch (e) {
+    55→      return FailureResult(Failure.unauthorized(message: e.message));
+    56→    } on ForbiddenException catch (e) {
+    57→      return FailureResult(Failure.forbidden(message: e.message));
+    58→    } on ValidationException catch (e) {
+    59→      return FailureResult(Failure.validation(
+    60→        message: e.message,
+    61→        fieldErrors: e.fieldErrors,
+    62→      ));
+    63→    } on CacheException catch (e) {
+    64→      return FailureResult(Failure.cache(message: e.message));
+    65→    } catch (e) {
+    66→      AppLogger.error('Unexpected exception in StudentPortalRepositoryImpl',
+    67→          error: e);
+    68→      return FailureResult(Failure.server(
+    69→        message: e.toString(),
+    70→        statusCode: 500,
+    71→      ));
+    72→    }
+    73→  }
+    74→
+    75→  // ═══════════════════════════════════════════════════════════════════════
+    76→  // AI TUTOR
+    77→  // ═══════════════════════════════════════════════════════════════════════
+    78→
+    79→  @override
+    80→  Future<Result<AiTutorConversationEntity>> createConversation({
+    81→    required String studentId,
+    82→    String? schoolId,
+    83→    String title = 'New Conversation',
+    84→    String? subjectId,
+    85→    String? topic,
+    86→    String curriculumType = 'nigerian',
+    87→  }) =>
+    88→      _safeCall(() async {
+    89→        final model = await _datasource.createConversation(
+    90→          studentId: studentId,
+    91→          schoolId: schoolId,
+    92→          title: title,
+    93→          subjectId: subjectId,
+    94→          topic: topic,
+    95→          curriculumType: curriculumType,
+    96→        );
+    97→        return model.toEntity();
+    98→      });
+    99→
+   100→  @override
+   101→  Future<Result<List<AiTutorConversationEntity>>> getConversations({
+   102→    required String studentId,
+   103→    int page = 1,
+   104→    int pageSize = 20,
+   105→  }) =>
+   106→      _safeCall(() async {
+   107→        final models = await _datasource.getConversations(
+   108→          studentId: studentId,
+   109→          page: page,
+   110→          pageSize: pageSize,
+   111→        );
+   112→        return models.map((m) => m.toEntity()).toList();
+   113→      });
+   114→
+   115→  @override
+   116→  Future<Result<AiTutorConversationEntity>> getConversationDetail({
+   117→    required String conversationId,
+   118→  }) =>
+   119→      _safeCall(() async {
+   120→        final result = await _datasource.getConversationDetail(
+   121→          conversationId: conversationId,
+   122→        );
+   123→        final conversation =
+   124→            result['conversation'] as AiTutorConversationModel;
+   125→        return conversation.toEntity();
+   126→      });
+   127→
+   128→  @override
+   129→  Future<Result<AiTutorMessageEntity>> sendMessage({
+   130→    required String conversationId,
+   131→    required String content,
+   132→    String? subjectId,
+   133→    String? topic,
+   134→    String? curriculumType,
+   135→  }) =>
+   136→      _safeCall(() async {
+   137→        final model = await _datasource.sendMessage(
+   138→          conversationId: conversationId,
+   139→          content: content,
+   140→          subjectId: subjectId,
+   141→          topic: topic,
+   142→          curriculumType: curriculumType,
+   143→        );
+   144→        return model.toEntity();
+   145→      });
+   146→
+   147→  @override
+   148→  Future<Result<void>> archiveConversation({
+   149→    required String conversationId,
+   150→  }) =>
+   151→      _safeCall(() async {
+   152→        await _supabaseClient
+   153→            .from('ai_tutor_conversations')
+   154→            .update({'is_archived': true})
+   155→            .eq('id', conversationId);
+   156→      });
+   157→
+   158→  @override
+   159→  Future<Result<void>> deleteConversation({
+   160→    required String conversationId,
+   161→  }) =>
+   162→      _safeCall(() async {
+   163→        await _datasource.deleteConversation(conversationId: conversationId);
+   164→      });
+   165→
+   166→  // ═══════════════════════════════════════════════════════════════════════
+   167→  // PRACTICE SESSIONS
+   168→  // ═══════════════════════════════════════════════════════════════════════
+   169→
+   170→  @override
+   171→  Future<Result<PracticeSessionEntity>> createPracticeSession({
+   172→    required String studentId,
+   173→    String? schoolId,
+   174→    String? subjectId,
+   175→    String? topicId,
+   176→    String difficulty = 'medium',
+   177→    PracticeMode mode = PracticeMode.untimed,
+   178→    int? timeLimitSec,
+   179→    int questionCount = 10,
+   180→  }) =>
+   181→      _safeCall(() async {
+   182→        final model = await _datasource.createPracticeSession(
+   183→          studentId: studentId,
+   184→          schoolId: schoolId,
+   185→          subjectId: subjectId,
+   186→          topicId: topicId,
+   187→          difficulty: difficulty,
+   188→          mode: mode.value,
+   189→          timeLimitSec: timeLimitSec,
+   190→          questionCount: questionCount,
+   191→        );
+   192→        return model.toEntity();
+   193→      });
+   194→
+   195→  @override
+   196→  Future<Result<List<PracticeSessionEntity>>> getPracticeSessions({
+   197→    required String studentId,
+   198→    int page = 1,
+   199→    int pageSize = 20,
+   200→    PracticeSessionStatus? status,
+   201→    String? subjectId,
+   202→  }) =>
+   203→      _safeCall(() async {
+   204→        final models = await _datasource.getPracticeSessions(
+   205→          studentId: studentId,
+   206→          page: page,
+   207→          pageSize: pageSize,
+   208→          status: status?.value,
+   209→          subjectId: subjectId,
+   210→        );
+   211→        return models.map((m) => m.toEntity()).toList();
+   212→      });
+   213→
+   214→  @override
+   215→  Future<Result<PracticeSessionEntity>> getPracticeSessionDetail({
+   216→    required String sessionId,
+   217→  }) =>
+   218→      _safeCall(() async {
+   219→        final model = await _datasource.getPracticeSessionDetail(
+   220→          sessionId: sessionId,
+   221→        );
+   222→        return model.toEntity();
+   223→      });
+   224→
+   225→  @override
+   226→  Future<Result<PracticeAnswerEntity>> submitPracticeAnswer({
+   227→    required String sessionId,
+   228→    required String questionId,
+   229→    required Map<String, dynamic> studentAnswer,
+   230→    int timeSpentSec = 0,
+   231→  }) =>
+   232→      _safeCall(() async {
+   233→        final model = await _datasource.submitPracticeAnswer(
+   234→          sessionId: sessionId,
+   235→          questionId: questionId,
+   236→          studentAnswer: studentAnswer,
+   237→          timeSpentSec: timeSpentSec,
+   238→        );
+   239→        return model.toEntity();
+   240→      });
+   241→
+   242→  @override
+   243→  Future<Result<PracticeSessionEntity>> completePracticeSession({
+   244→    required String sessionId,
+   245→  }) =>
+   246→      _safeCall(() async {
+   247→        final model = await _datasource.completePracticeSession(
+   248→          sessionId: sessionId,
+   249→        );
+   250→        return model.toEntity();
+   251→      });
+   252→
+   253→  @override
+   254→  Future<Result<void>> abandonPracticeSession({
+   255→    required String sessionId,
+   256→  }) =>
+   257→      _safeCall(() async {
+   258→        await _datasource.abandonPracticeSession(sessionId: sessionId);
+   259→      });
+   260→
+   261→  // ═══════════════════════════════════════════════════════════════════════
+   262→  // ASSIGNMENT SUBMISSIONS
+   263→  // ═══════════════════════════════════════════════════════════════════════
+   264→
+   265→  @override
+   266→  Future<Result<List<AssignmentSubmissionEntity>>> getSubmissions({
+   267→    required String studentId,
+   268→    int page = 1,
+   269→    int pageSize = 20,
+   270→    SubmissionStatus? status,
+   271→  }) =>
+   272→      _safeCall(() async {
+   273→        final models = await _datasource.getSubmissions(
+   274→          studentId: studentId,
+   275→          page: page,
+   276→          pageSize: pageSize,
+   277→          status: status?.value,
+   278→        );
+   279→        return models.map((m) => m.toEntity()).toList();
+   280→      });
+   281→
+   282→  @override
+   283→  Future<Result<AssignmentSubmissionEntity>> getSubmissionDetail({
+   284→    required String submissionId,
+   285→  }) =>
+   286→      _safeCall(() async {
+   287→        final model = await _datasource.getSubmissionDetail(
+   288→          submissionId: submissionId,
+   289→        );
+   290→        return model.toEntity();
+   291→      });
+   292→
+   293→  @override
+   294→  Future<Result<AssignmentSubmissionEntity>> createSubmission({
+   295→    required String assignmentId,
+   296→    required String studentId,
+   297→    String? schoolId,
+   298→    Map<String, dynamic> content = const {},
+   299→    List<AttachmentInfo> attachments = const [],
+   300→  }) =>
+   301→      _safeCall(() async {
+   302→        final model = await _datasource.createSubmission(
+   303→          assignmentId: assignmentId,
+   304→          studentId: studentId,
+   305→          schoolId: schoolId,
+   306→          content: content,
+   307→          attachments: attachments
+   308→              .map((a) => {
+   309→                    'filename': a.filename,
+   310→                    'url': a.url,
+   311→                    'size': a.size,
+   312→                    'type': a.type,
+   313→                  })
+   314→              .toList(),
+   315→        );
+   316→        return model.toEntity();
+   317→      });
+   318→
+   319→  @override
+   320→  Future<Result<AssignmentSubmissionEntity>> updateSubmission({
+   321→    required String submissionId,
+   322→    Map<String, dynamic>? content,
+   323→    List<AttachmentInfo>? attachments,
+   324→  }) =>
+   325→      _safeCall(() async {
+   326→        final model = await _datasource.updateSubmission(
+   327→          submissionId: submissionId,
+   328→          content: content,
+   329→          attachments: attachments
+   330→              ?.map((a) => {
+   331→                    'filename': a.filename,
+   332→                    'url': a.url,
+   333→                    'size': a.size,
+   334→                    'type': a.type,
+   335→                  })
+   336→              .toList(),
+   337→        );
+   338→        return model.toEntity();
+   339→      });
+   340→
+   341→  @override
+   342→  Future<Result<AssignmentSubmissionEntity>> submitAssignment({
+   343→    required String submissionId,
+   344→  }) =>
+   345→      _safeCall(() async {
+   346→        final model = await _datasource.submitAssignment(
+   347→          submissionId: submissionId,
+   348→        );
+   349→        return model.toEntity();
+   350→      });
+   351→
+   352→  @override
+   353→  Future<Result<List<AssignmentSubmissionEntity>>> getAssignedAssignments({
+   354→    required String studentId,
+   355→    int page = 1,
+   356→    int pageSize = 20,
+   357→  }) =>
+   358→      _safeCall(() async {
+   359→        final models = await _datasource.getAssignedAssignments(
+   360→          studentId: studentId,
+   361→          page: page,
+   362→          pageSize: pageSize,
+   363→        );
+   364→        return models.map((m) => m.toEntity()).toList();
+   365→      });
+   366→
+   367→  // ═══════════════════════════════════════════════════════════════════════
+   368→  // LEARNING RESOURCES
+   369→  // ═══════════════════════════════════════════════════════════════════════
+   370→
+   371→  @override
+   372→  Future<Result<List<LearningResourceEntity>>> getResources({
+   373→    required String studentId,
+   374→    String? schoolId,
+   375→    int page = 1,
+   376→    int pageSize = 20,
+   377→    StudentResourceType? resourceType,
+   378→    String? subjectId,
+   379→    String? searchQuery,
+   380→  }) =>
+   381→      _safeCall(() async {
+   382→        final models = await _datasource.getResources(
+   383→          studentId: studentId,
+   384→          schoolId: schoolId,
+   385→          page: page,
+   386→          pageSize: pageSize,
+   387→          resourceType: resourceType?.value,
+   388→          subjectId: subjectId,
+   389→          searchQuery: searchQuery,
+   390→        );
+   391→        return models.map((m) => m.toEntity()).toList();
+   392→      });
+   393→
+   394→  @override
+   395→  Future<Result<LearningResourceEntity>> getResourceDetail({
+   396→    required String resourceId,
+   397→  }) =>
+   398→      _safeCall(() async {
+   399→        final model = await _datasource.getResourceDetail(
+   400→          resourceId: resourceId,
+   401→        );
+   402→        return model.toEntity();
+   403→      });
+   404→
+   405→  @override
+   406→  Future<Result<void>> logResourceAccess({
+   407→    required String resourceId,
+   408→    required String studentId,
+   409→    String accessType = 'view',
+   410→  }) =>
+   411→      _safeCall(() async {
+   412→        await _datasource.logResourceAccess(
+   413→          resourceId: resourceId,
+   414→          studentId: studentId,
+   415→          accessType: accessType,
+   416→        );
+   417→      });
+   418→
+   419→  // ═══════════════════════════════════════════════════════════════════════
+   420→  // DOCUMENT CHAT
+   421→  // ═══════════════════════════════════════════════════════════════════════
+   422→
+   423→  @override
+   424→  Future<Result<DocumentChatEntity>> uploadDocument({
+   425→    required String studentId,
+   426→    String? schoolId,
+   427→    required String fileName,
+   428→    required String fileUrl,
+   429→    required String fileFormat,
+   430→    int? fileSize,
+   431→  }) =>
+   432→      _safeCall(() async {
+   433→        // The repository receives a pre-uploaded file URL, so we create
+   434→        // the document_chats record directly and trigger processing.
+   435→        final response = await _supabaseClient
+   436→            .from('document_chats')
+   437→            .insert({
+   438→              'student_id': studentId,
+   439→              'school_id': schoolId,
+   440→              'file_name': fileName,
+   441→              'file_url': fileUrl,
+   442→              'file_size': fileSize,
+   443→              'file_format': fileFormat,
+   444→              'status': 'processing',
+   445→            })
+   446→            .select()
+   447→            .single();
+   448→
+   449→        final documentId = response['id'] as String;
+   450→
+   451→        // Trigger the process-document edge function asynchronously
+   452→        _supabaseClient.functions
+   453→            .invoke(
+   454→          'process-document',
+   455→          body: {
+   456→            'document_id': documentId,
+   457→            'file_url': fileUrl,
+   458→            'file_format': fileFormat,
+   459→          },
+   460→        )
+   461→            .catchError((error) {
+   462→          AppLogger.error('Process document edge function failed',
+   463→              error: error);
+   464→        });
+   465→
+   466→        return DocumentChatModel.fromJson(response).toEntity();
+   467→      });
+   468→
+   469→  @override
+   470→  Future<Result<List<DocumentChatEntity>>> getDocuments({
+   471→    required String studentId,
+   472→    int page = 1,
+   473→    int pageSize = 20,
+   474→  }) =>
+   475→      _safeCall(() async {
+   476→        final models = await _datasource.getDocuments(
+   477→          studentId: studentId,
+   478→          page: page,
+   479→          pageSize: pageSize,
+   480→        );
+   481→        return models.map((m) => m.toEntity()).toList();
+   482→      });
+   483→
+   484→  @override
+   485→  Future<Result<DocumentChatEntity>> getDocumentDetail({
+   486→    required String documentId,
+   487→  }) =>
+   488→      _safeCall(() async {
+   489→        final model = await _datasource.getDocumentDetail(
+   490→          documentId: documentId,
+   491→        );
+   492→        return model.toEntity();
+   493→      });
+   494→
+   495→  @override
+   496→  Future<Result<DocumentChatMessageEntity>> sendDocumentMessage({
+   497→    required String documentId,
+   498→    required String content,
+   499→  }) =>
+   500→      _safeCall(() async {
+   501→        final model = await _datasource.sendDocumentMessage(
+   502→          documentId: documentId,
+   503→          content: content,
+   504→        );
+   505→        return model.toEntity();
+   506→      });
+   507→
+   508→  @override
+   509→  Future<Result<void>> deleteDocument({required String documentId}) =>
+   510→      _safeCall(() async {
+   511→        await _datasource.deleteDocument(documentId: documentId);
+   512→      });
+   513→
+   514→  // ═══════════════════════════════════════════════════════════════════════
+   515→  // FLASHCARDS
+   516→  // ═══════════════════════════════════════════════════════════════════════
+   517→
+   518→  @override
+   519→  Future<Result<List<FlashcardDeckEntity>>> getFlashcardDecks({
+   520→    required String studentId,
+   521→    int page = 1,
+   522→    int pageSize = 20,
+   523→    bool? isFavorite,
+   524→    String? subjectId,
+   525→  }) =>
+   526→      _safeCall(() async {
+   527→        final models = await _datasource.getFlashcardDecks(
+   528→          studentId: studentId,
+   529→          page: page,
+   530→          pageSize: pageSize,
+   531→          isFavorite: isFavorite,
+   532→          subjectId: subjectId,
+   533→        );
+   534→        return models.map((m) => m.toEntity()).toList();
+   535→      });
+   536→
+   537→  @override
+   538→  Future<Result<FlashcardDeckEntity>> createFlashcardDeck({
+   539→    required String studentId,
+   540→    String? schoolId,
+   541→    String? subjectId,
+   542→    String? topicId,
+   543→    required String title,
+   544→    String? description,
+   545→    String sourceType = 'manual',
+   546→    String? sourceId,
+   547→    List<String> tags = const [],
+   548→  }) =>
+   549→      _safeCall(() async {
+   550→        final model = await _datasource.createFlashcardDeck(
+   551→          studentId: studentId,
+   552→          schoolId: schoolId,
+   553→          subjectId: subjectId,
+   554→          topicId: topicId,
+   555→          title: title,
+   556→          description: description,
+   557→          sourceType: sourceType,
+   558→          sourceId: sourceId,
+   559→          tags: tags,
+   560→        );
+   561→        return model.toEntity();
+   562→      });
+   563→
+   564→  @override
+   565→  Future<Result<FlashcardDeckEntity>> updateFlashcardDeck({
+   566→    required String deckId,
+   567→    String? title,
+   568→    String? description,
+   569→    bool? isFavorite,
+   570→    List<String>? tags,
+   571→  }) =>
+   572→      _safeCall(() async {
+   573→        final model = await _datasource.updateFlashcardDeck(
+   574→          deckId: deckId,
+   575→          title: title,
+   576→          description: description,
+   577→          isFavorite: isFavorite,
+   578→          tags: tags,
+   579→        );
+   580→        return model.toEntity();
+   581→      });
+   582→
+   583→  @override
+   584→  Future<Result<void>> deleteFlashcardDeck({required String deckId}) =>
+   585→      _safeCall(() async {
+   586→        await _datasource.deleteFlashcardDeck(deckId: deckId);
+   587→      });
+   588→
+   589→  @override
+   590→  Future<Result<List<FlashcardEntity>>> getFlashcards({
+   591→    required String deckId,
+   592→    bool dueOnly = false,
+   593→  }) =>
+   594→      _safeCall(() async {
+   595→        final models = await _datasource.getFlashcards(
+   596→          deckId: deckId,
+   597→          dueOnly: dueOnly,
+   598→        );
+   599→        return models.map((m) => m.toEntity()).toList();
+   600→      });
+   601→
+   602→  @override
+   603→  Future<Result<FlashcardEntity>> createFlashcard({
+   604→    required String deckId,
+   605→    required String frontContent,
+   606→    required String backContent,
+   607→    String? hint,
+   608→    String? imageUrl,
+   609→    String difficulty = 'medium',
+   610→  }) =>
+   611→      _safeCall(() async {
+   612→        final model = await _datasource.createFlashcard(
+   613→          deckId: deckId,
+   614→          frontContent: frontContent,
+   615→          backContent: backContent,
+   616→          hint: hint,
+   617→          imageUrl: imageUrl,
+   618→          difficulty: difficulty,
+   619→        );
+   620→        return model.toEntity();
+   621→      });
+   622→
+   623→  @override
+   624→  Future<Result<FlashcardEntity>> updateFlashcard({
+   625→    required String cardId,
+   626→    String? frontContent,
+   627→    String? backContent,
+   628→    String? hint,
+   629→  }) =>
+   630→      _safeCall(() async {
+   631→        final model = await _datasource.updateFlashcard(
+   632→          cardId: cardId,
+   633→          frontContent: frontContent,
+   634→          backContent: backContent,
+   635→          hint: hint,
+   636→        );
+   637→        return model.toEntity();
+   638→      });
+   639→
+   640→  @override
+   641→  Future<Result<FlashcardEntity>> rateFlashcard({
+   642→    required String cardId,
+   643→    required FlashcardRating rating,
+   644→  }) =>
+   645→      _safeCall(() async {
+   646→        final model = await _datasource.rateFlashcard(
+   647→          cardId: cardId,
+   648→          rating: rating.value,
+   649→        );
+   650→        return model.toEntity();
+   651→      });
+   652→
+   653→  @override
+   654→  Future<Result<void>> deleteFlashcard({required String cardId}) =>
+   655→      _safeCall(() async {
+   656→        await _datasource.deleteFlashcard(cardId: cardId);
+   657→      });
+   658→
+   659→  @override
+   660→  Future<Result<FlashcardDeckEntity>> generateFlashcards({
+   661→    required String studentId,
+   662→    String? schoolId,
+   663→    required String title,
+   664→    String? subjectId,
+   665→    String? topicId,
+   666→    required String sourceContent,
+   667→    String sourceType = 'ai_generated',
+   668→    int cardCount = 10,
+   669→  }) =>
+   670→      _safeCall(() async {
+   671→        final model = await _datasource.generateFlashcards(
+   672→          studentId: studentId,
+   673→          schoolId: schoolId,
+   674→          title: title,
+   675→          subjectId: subjectId,
+   676→          topicId: topicId,
+   677→          sourceContent: sourceContent,
+   678→          sourceType: sourceType,
+   679→          cardCount: cardCount,
+   680→        );
+   681→        return model.toEntity();
+   682→      });
+   683→
+   684→  // ═══════════════════════════════════════════════════════════════════════
+   685→  // STUDY PLANNER
+   686→  // ═══════════════════════════════════════════════════════════════════════
+   687→
+   688→  @override
+   689→  Future<Result<List<StudyPlanEntity>>> getStudyPlans({
+   690→    required String studentId,
+   691→    bool? isActive,
+   692→  }) =>
+   693→      _safeCall(() async {
+   694→        final models = await _datasource.getStudyPlans(
+   695→          studentId: studentId,
+   696→          isActive: isActive,
+   697→        );
+   698→        // Each StudyPlanModel includes embedded StudyTaskModel list from the
+   699→        // datasource. Map tasks to entities before converting the plan.
+   700→        return models
+   701→            .map((m) => m.toEntity(
+   702→                  tasks: const [], // Tasks are already embedded via fromJson
+   703→                ))
+   704→            .toList();
+   705→      });
+   706→
+   707→  @override
+   708→  Future<Result<StudyPlanEntity>> createStudyPlan({
+   709→    required String studentId,
+   710→    String? schoolId,
+   711→    required String title,
+   712→    String? description,
+   713→    StudyPlanFrequency frequency = StudyPlanFrequency.daily,
+   714→    required DateTime startDate,
+   715→    DateTime? endDate,
+   716→    List<StudyTaskEntity> tasks = const [],
+   717→  }) =>
+   718→      _safeCall(() async {
+   719→        final model = await _datasource.createStudyPlan(
+   720→          studentId: studentId,
+   721→          schoolId: schoolId,
+   722→          title: title,
+   723→          description: description,
+   724→          frequency: frequency.value,
+   725→          startDate: startDate,
+   726→          endDate: endDate,
+   727→          tasks: tasks
+   728→              .map((t) => {
+   729→                    'subject_id': t.subjectId,
+   730→                    'title': t.title,
+   731→                    'description': t.description,
+   732→                    'scheduled_date': t.scheduledDate,
+   733→                    'start_time': t.startTime,
+   734→                    'end_time': t.endTime,
+   735→                  })
+   736→              .toList(),
+   737→        );
+   738→        return model.toEntity();
+   739→      });
+   740→
+   741→  @override
+   742→  Future<Result<StudyPlanEntity>> updateStudyPlan({
+   743→    required String planId,
+   744→    String? title,
+   745→    String? description,
+   746→    StudyPlanFrequency? frequency,
+   747→    DateTime? endDate,
+   748→    bool? isActive,
+   749→  }) =>
+   750→      _safeCall(() async {
+   751→        final model = await _datasource.updateStudyPlan(
+   752→          planId: planId,
+   753→          title: title,
+   754→          description: description,
+   755→          frequency: frequency?.value,
+   756→          endDate: endDate,
+   757→          isActive: isActive,
+   758→        );
+   759→        return model.toEntity();
+   760→      });
+   761→
+   762→  @override
+   763→  Future<Result<void>> deleteStudyPlan({required String planId}) =>
+   764→      _safeCall(() async {
+   765→        await _datasource.deleteStudyPlan(planId: planId);
+   766→      });
+   767→
+   768→  @override
+   769→  Future<Result<StudyTaskEntity>> createStudyTask({
+   770→    required String planId,
+   771→    String? subjectId,
+   772→    required String title,
+   773→    String? description,
+   774→    required DateTime scheduledDate,
+   775→    DateTime? startTime,
+   776→    DateTime? endTime,
+   777→  }) =>
+   778→      _safeCall(() async {
+   779→        final model = await _datasource.createStudyTask(
+   780→          planId: planId,
+   781→          subjectId: subjectId,
+   782→          title: title,
+   783→          description: description,
+   784→          scheduledDate: scheduledDate,
+   785→          startTime: startTime,
+   786→          endTime: endTime,
+   787→        );
+   788→        return model.toEntity();
+   789→      });
+   790→
+   791→  @override
+   792→  Future<Result<StudyTaskEntity>> updateStudyTask({
+   793→    required String taskId,
+   794→    StudyTaskStatus? status,
+   795→    double? completionPct,
+   796→    String? notes,
+   797→  }) =>
+   798→      _safeCall(() async {
+   799→        final model = await _datasource.updateStudyTask(
+   800→          taskId: taskId,
+   801→          status: status?.value,
+   802→          completionPct: completionPct,
+   803→          notes: notes,
+   804→        );
+   805→        return model.toEntity();
+   806→      });
+   807→
+   808→  @override
+   809→  Future<Result<void>> deleteStudyTask({required String taskId}) =>
+   810→      _safeCall(() async {
+   811→        await _datasource.deleteStudyTask(taskId: taskId);
+   812→      });
+   813→
+   814→  @override
+   815→  Future<Result<StudyPlanEntity>> suggestStudyPlan({
+   816→    required String studentId,
+   817→    String? schoolId,
+   818→    String? focusSubjectId,
+   819→  }) =>
+   820→      _safeCall(() async {
+   821→        final model = await _datasource.suggestStudyPlan(
+   822→          studentId: studentId,
+   823→          schoolId: schoolId,
+   824→          focusSubjectId: focusSubjectId,
+   825→        );
+   826→        return model.toEntity();
+   827→      });
+   828→
+   829→  // ═══════════════════════════════════════════════════════════════════════
+   830→  // STUDENT GOALS
+   831→  // ═══════════════════════════════════════════════════════════════════════
+   832→
+   833→  @override
+   834→  Future<Result<List<StudentGoalEntity>>> getGoals({
+   835→    required String studentId,
+   836→    GoalStatus? status,
+   837→    String? subjectId,
+   838→  }) =>
+   839→      _safeCall(() async {
+   840→        final models = await _datasource.getGoals(
+   841→          studentId: studentId,
+   842→          status: status?.value,
+   843→          subjectId: subjectId,
+   844→        );
+   845→        return models.map((m) => m.toEntity()).toList();
+   846→      });
+   847→
+   848→  @override
+   849→  Future<Result<StudentGoalEntity>> createGoal({
+   850→    required String studentId,
+   851→    String? schoolId,
+   852→    String? subjectId,
+   853→    required String title,
+   854→    String? description,
+   855→    double? targetValue,
+   856→    String unit = '%',
+   857→    GoalPriority priority = GoalPriority.medium,
+   858→    DateTime? deadline,
+   859→  }) =>
+   860→      _safeCall(() async {
+   861→        final model = await _datasource.createGoal(
+   862→          studentId: studentId,
+   863→          schoolId: schoolId,
+   864→          subjectId: subjectId,
+   865→          title: title,
+   866→          description: description,
+   867→          targetValue: targetValue,
+   868→          unit: unit,
+   869→          priority: priority.value,
+   870→          deadline: deadline,
+   871→        );
+   872→        return model.toEntity();
+   873→      });
+   874→
+   875→  @override
+   876→  Future<Result<StudentGoalEntity>> updateGoal({
+   877→    required String goalId,
+   878→    double? currentValue,
+   879→    GoalPriority? priority,
+   880→    GoalStatus? status,
+   881→  }) =>
+   882→      _safeCall(() async {
+   883→        final model = await _datasource.updateGoal(
+   884→          goalId: goalId,
+   885→          currentValue: currentValue,
+   886→          priority: priority?.value,
+   887→          status: status?.value,
+   888→        );
+   889→        return model.toEntity();
+   890→      });
+   891→
+   892→  @override
+   893→  Future<Result<void>> deleteGoal({required String goalId}) =>
+   894→      _safeCall(() async {
+   895→        await _datasource.deleteGoal(goalId: goalId);
+   896→      });
+   897→
+   898→  // ═══════════════════════════════════════════════════════════════════════
+   899→  // PROGRESS & ANALYTICS
+   900→  // ═══════════════════════════════════════════════════════════════════════
+   901→
+   902→  @override
+   903→  Future<Result<List<StudentProgressEntity>>> getProgress({
+   904→    required String studentId,
+   905→    ProgressPeriod? period,
+   906→    String? subjectId,
+   907→    int limit = 12,
+   908→  }) =>
+   909→      _safeCall(() async {
+   910→        final models = await _datasource.getProgress(
+   911→          studentId: studentId,
+   912→          period: period?.value,
+   913→          subjectId: subjectId,
+   914→          limit: limit,
+   915→        );
+   916→        return models.map((m) => m.toEntity()).toList();
+   917→      });
+   918→
+   919→  @override
+   920→  Future<Result<StudentProgressEntity>> getLatestProgress({
+   921→    required String studentId,
+   922→  }) =>
+   923→      _safeCall(() async {
+   924→        final model = await _datasource.getLatestProgress(
+   925→          studentId: studentId,
+   926→        );
+   927→        return model.toEntity();
+   928→      });
+   929→
+   930→  @override
+   931→  Future<Result<List<StudentDailyActivityEntity>>> getDailyActivity({
+   932→    required String studentId,
+   933→    required DateTime startDate,
+   934→    required DateTime endDate,
+   935→  }) =>
+   936→      _safeCall(() async {
+   937→        final models = await _datasource.getDailyActivity(
+   938→          studentId: studentId,
+   939→          startDate: startDate,
+   940→          endDate: endDate,
+   941→        );
+   942→        return models.map((m) => m.toEntity()).toList();
+   943→      });
+   944→
+   945→  @override
+   946→  Future<Result<StudentDailyActivityEntity>> upsertDailyActivity({
+   947→    required String studentId,
+   948→    required DateTime activityDate,
+   949→    int? studyTimeMin,
+   950→    int? questionsAttempted,
+   951→    int? questionsCorrect,
+   952→    int? practiceSessions,
+   953→    int? flashcardsReviewed,
+   954→    int? assignmentsSubmitted,
+   955→    int? resourcesViewed,
+   956→    int? tutorQuestions,
+   957→  }) =>
+   958→      _safeCall(() async {
+   959→        final model = await _datasource.upsertDailyActivity(
+   960→          studentId: studentId,
+   961→          activityDate: activityDate,
+   962→          studyTimeMin: studyTimeMin,
+   963→          questionsAttempted: questionsAttempted,
+   964→          questionsCorrect: questionsCorrect,
+   965→          practiceSessions: practiceSessions,
+   966→          flashcardsReviewed: flashcardsReviewed,
+   967→          assignmentsSubmitted: assignmentsSubmitted,
+   968→          resourcesViewed: resourcesViewed,
+   969→          tutorQuestions: tutorQuestions,
+   970→        );
+   971→        return model.toEntity();
+   972→      });
+   973→
+   974→  @override
+   975→  Future<Result<StudentDashboardStats>> getDashboardStats({
+   976→    required String studentId,
+   977→  }) =>
+   978→      _safeCall(() async {
+   979→        final model = await _datasource.getDashboardStats(
+   980→          studentId: studentId,
+   981→        );
+   982→        return model.toEntity();
+   983→      });
+   984→
+   985→  // ═══════════════════════════════════════════════════════════════════════
+   986→  // NOTIFICATIONS
+   987→  // ═══════════════════════════════════════════════════════════════════════
+   988→
+   989→  @override
+   990→  Future<Result<List<StudentNotificationEntity>>> getNotifications({
+   991→    required String studentId,
+   992→    int page = 1,
+   993→    int pageSize = 20,
+   994→    bool? unreadOnly,
+   995→  }) =>
+   996→      _safeCall(() async {
+   997→        final models = await _datasource.getNotifications(
+   998→          studentId: studentId,
+   999→          page: page,
+  1000→          pageSize: pageSize,
+  1001→          unreadOnly: unreadOnly,
+  1002→        );
+  1003→        return models.map((m) => m.toEntity()).toList();
+  1004→      });
+  1005→
+  1006→  @override
+  1007→  Future<Result<void>> markNotificationRead({
+  1008→    required String notificationId,
+  1009→  }) =>
+  1010→      _safeCall(() async {
+  1011→        await _datasource.markNotificationRead(
+  1012→          notificationId: notificationId,
+  1013→        );
+  1014→      });
+  1015→
+  1016→  @override
+  1017→  Future<Result<void>> markAllNotificationsRead({
+  1018→    required String studentId,
+  1019→  }) =>
+  1020→      _safeCall(() async {
+  1021→        await _datasource.markAllNotificationsRead(studentId: studentId);
+  1022→      });
+  1023→
+  1024→  // ═══════════════════════════════════════════════════════════════════════
+  1025→  // INTEGRATION: AI QUESTION GENERATION
+  1026→  // ═══════════════════════════════════════════════════════════════════════
+  1027→
+  1028→  @override
+  1029→  Future<Result<List<Map<String, dynamic>>>> generateQuestionsFromContent({
+  1030→    required String studentId,
+  1031→    required String content,
+  1032→    String? subjectId,
+  1033→    String? topicId,
+  1034→    String difficulty = 'medium',
+  1035→    int questionCount = 5,
+  1036→    String questionType = 'multiple_choice',
+  1037→  }) =>
+  1038→      _safeCall(() async {
+  1039→        final result = await _datasource.generateQuestionsFromContent(
+  1040→          studentId: studentId,
+  1041→          content: content,
+  1042→          subjectId: subjectId,
+  1043→          topicId: topicId,
+  1044→          difficulty: difficulty,
+  1045→          questionCount: questionCount,
+  1046→          questionType: questionType,
+  1047→        );
+  1048→        return result;
+  1049→      });
+  1050→}
+  1051→
