@@ -49,6 +49,21 @@ import '../features/results/presentation/pages/student/student_results_page.dart
 import '../features/results/presentation/pages/student/topic_mastery_page.dart';
 import '../features/results/presentation/pages/admin/school_analytics_page.dart';
 import '../features/results/presentation/pages/admin/reports_page.dart';
+import '../features/teacher_workspace/presentation/pages/teacher_workspace_dashboard_page.dart';
+import '../features/teacher_workspace/presentation/pages/lesson_plan_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/lesson_plan_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/lesson_plan_detail_page.dart';
+import '../features/teacher_workspace/presentation/pages/scheme_of_work_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/scheme_of_work_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/worksheet_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/worksheet_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/assignment_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/assignment_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/report_comment_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/teaching_resources_page.dart';
+import '../features/teacher_workspace/presentation/pages/content_assistant_page.dart';
+import '../features/teacher_workspace/presentation/pages/resource_library_page.dart';
+import '../features/teacher_workspace/presentation/pages/calendar_planner_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -484,6 +499,96 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               return ReportsPage(schoolId: schoolId);
             },
+          ),
+
+          // ── Teacher Workspace Routes ──────────────────────────────────
+          GoRoute(
+            path: RouteNames.workspace,
+            name: 'workspace',
+            builder: (context, state) => const TeacherWorkspaceDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.workspaceDashboard,
+            name: 'workspaceDashboard',
+            builder: (context, state) => const TeacherWorkspaceDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.lessonPlanList,
+            name: 'lessonPlanList',
+            builder: (context, state) => const LessonPlanListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.lessonPlanCreate,
+            name: 'lessonPlanCreate',
+            builder: (context, state) => const LessonPlanGeneratorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.lessonPlanDetail,
+            name: 'lessonPlanDetail',
+            builder: (context, state) {
+              final planId = state.uri.queryParameters['id'] ?? '';
+              return LessonPlanDetailPage(planId: planId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.schemeOfWorkList,
+            name: 'schemeOfWorkList',
+            builder: (context, state) => const SchemeOfWorkListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.schemeOfWorkCreate,
+            name: 'schemeOfWorkCreate',
+            builder: (context, state) => const SchemeOfWorkGeneratorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.worksheetList,
+            name: 'worksheetList',
+            builder: (context, state) => const WorksheetListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.worksheetCreate,
+            name: 'worksheetCreate',
+            builder: (context, state) => const WorksheetGeneratorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.assignmentList,
+            name: 'assignmentList',
+            builder: (context, state) => const AssignmentListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.assignmentCreate,
+            name: 'assignmentCreate',
+            builder: (context, state) => const AssignmentGeneratorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.assignmentGenerator,
+            name: 'assignmentGenerator',
+            builder: (context, state) => const AssignmentGeneratorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.reportCommentGenerator,
+            name: 'reportCommentGenerator',
+            builder: (context, state) => const ReportCommentGeneratorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.contentAssistant,
+            name: 'contentAssistant',
+            builder: (context, state) => const ContentAssistantPage(),
+          ),
+          GoRoute(
+            path: RouteNames.teachingResources,
+            name: 'teachingResources',
+            builder: (context, state) => const TeachingResourcesPage(),
+          ),
+          GoRoute(
+            path: RouteNames.resourceLibrary,
+            name: 'resourceLibrary',
+            builder: (context, state) => const ResourceLibraryPage(),
+          ),
+          GoRoute(
+            path: RouteNames.calendarPlanner,
+            name: 'calendarPlanner',
+            builder: (context, state) => const CalendarPlannerPage(),
           ),
         ],
       ),

@@ -186,6 +186,62 @@ class RouteNames {
   static const String reports = '/results/reports';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // TEACHER WORKSPACE ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Teacher Workspace module root / dashboard.
+  static const String workspace = '/workspace';
+
+  /// Teacher Workspace dashboard page.
+  static const String workspaceDashboard = '/workspace/dashboard';
+
+  /// Lesson plan list.
+  static const String lessonPlanList = '/workspace/lesson-plans';
+
+  /// Create a new lesson plan.
+  static const String lessonPlanCreate = '/workspace/lesson-plans/create';
+
+  /// View lesson plan details.
+  static const String lessonPlanDetail = '/workspace/lesson-plans/detail';
+
+  /// Scheme of work list.
+  static const String schemeOfWorkList = '/workspace/schemes';
+
+  /// Create a new scheme of work.
+  static const String schemeOfWorkCreate = '/workspace/schemes/create';
+
+  /// Worksheet list.
+  static const String worksheetList = '/workspace/worksheets';
+
+  /// Create a new worksheet.
+  static const String worksheetCreate = '/workspace/worksheets/create';
+
+  /// Resource library.
+  static const String resourceLibrary = '/workspace/library';
+
+  /// Assignment list page.
+  static const String assignmentList = '/workspace/assignments';
+
+  /// Create / generate a new assignment (AI generator).
+  static const String assignmentGenerator = '/workspace/assignments/generator';
+
+  /// Create a new assignment (alias for generator).
+  static const String assignmentCreate = '/workspace/assignments/create';
+
+  /// Report comment generator.
+  static const String reportCommentGenerator =
+      '/workspace/report-comments/generator';
+
+  /// AI content assistant.
+  static const String contentAssistant = '/workspace/ai-assistant';
+
+  /// Teaching resources library.
+  static const String teachingResources = '/workspace/resources';
+
+  /// Calendar / planner view.
+  static const String calendarPlanner = '/workspace/planner';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -261,6 +317,27 @@ class RouteNames {
     reports,
   };
 
+  /// All teacher workspace sub-routes (used for feature-level navigation).
+  static const Set<String> workspaceRoutes = <String>{
+    workspace,
+    workspaceDashboard,
+    lessonPlanList,
+    lessonPlanCreate,
+    lessonPlanDetail,
+    schemeOfWorkList,
+    schemeOfWorkCreate,
+    worksheetList,
+    worksheetCreate,
+    assignmentList,
+    assignmentGenerator,
+    assignmentCreate,
+    reportCommentGenerator,
+    contentAssistant,
+    teachingResources,
+    resourceLibrary,
+    calendarPlanner,
+  };
+
   /// All routes that live inside the authenticated [ShellRoute].
   static const Set<String> protectedRoutes = <String>{
     dashboard,
@@ -305,5 +382,22 @@ class RouteNames {
     topicMastery,
     schoolAnalytics,
     reports,
+    workspace,
+    workspaceDashboard,
+    lessonPlanList,
+    lessonPlanCreate,
+    lessonPlanDetail,
+    schemeOfWorkList,
+    schemeOfWorkCreate,
+    worksheetList,
+    worksheetCreate,
+    assignmentList,
+    assignmentGenerator,
+    assignmentCreate,
+    reportCommentGenerator,
+    contentAssistant,
+    teachingResources,
+    resourceLibrary,
+    calendarPlanner,
   };
 }
