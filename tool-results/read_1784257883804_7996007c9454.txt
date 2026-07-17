@@ -1,0 +1,847 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/app_typography.dart';
+     6→import '../../../../core/themes/spacings.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_card.dart';
+     9→import '../../../../shared/widgets/app_button.dart';
+    10→import '../../../../shared/widgets/app_text_field.dart';
+    11→import '../../../../shared/widgets/app_loading.dart';
+    12→import '../../domain/entities/question_entities.dart';
+    13→import '../providers/import_export_provider.dart';
+    14→
+    15→// ═══════════════════════════════════════════════════════════════════════
+    16→// PROVIDERS (placeholder — override in DI)
+    17→// ═══════════════════════════════════════════════════════════════════════
+    18→
+    19→final _importExportProvider =
+    20→    StateNotifierProvider<ImportExportNotifier, ImportExportState>(
+    21→  (ref) => const ImportExportState(),
+    22→);
+    23→
+    24→// ═══════════════════════════════════════════════════════════════════════
+    25→// QUESTION IMPORT PAGE
+    26→// ═══════════════════════════════════════════════════════════════════════
+    27→
+    28→/// Import page for bulk uploading questions from CSV, Excel, JSON, or
+    29→/// DOCX files with format selection, preview, and import progress.
+    30→///
+    31→/// ```dart
+    32→/// QuestionImportPage()
+    33→/// ```
+    34→class QuestionImportPage extends ConsumerStatefulWidget {
+    35→  const QuestionImportPage({super.key});
+    36→
+    37→  @override
+    38→  ConsumerState<QuestionImportPage> createState() =>
+    39→      _QuestionImportPageState();
+    40→}
+    41→
+    42→class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
+    43→  String _selectedFormat = 'csv';
+    44→  String? _selectedFileName;
+    45→  bool _hasFile = false;
+    46→  final _subjectController = TextEditingController();
+    47→  final _classController = TextEditingController();
+    48→  final _topicController = TextEditingController();
+    49→
+    50→  static const _formats = [
+    51→    _ImportFormat('csv', 'CSV', Icons.table_chart_rounded,
+    52→        'Comma-separated values'),
+    53→    _ImportFormat('excel', 'Excel', Icons.table_view_rounded,
+    54→        'XLSX spreadsheet'),
+    55→    _ImportFormat('json', 'JSON', Icons.data_object_rounded,
+    56→        'JSON array format'),
+    57→    _ImportFormat('docx', 'DOCX', Icons.description_rounded,
+    58→        'Word document'),
+    59→  ];
+    60→
+    61→  @override
+    62→  void dispose() {
+    63→    _subjectController.dispose();
+    64→    _classController.dispose();
+    65→    _topicController.dispose();
+    66→    super.dispose();
+    67→  }
+    68→
+    69→  @override
+    70→  Widget build(BuildContext context) {
+    71→    final state = ref.watch(_importExportProvider);
+    72→
+    73→    return Scaffold(
+    74→      appBar: AppBar(
+    75→        title: const Text('Import Questions'),
+    76→      ),
+    77→      body: SingleChildScrollView(
+    78→        padding: const EdgeInsets.all(Spacings.lg),
+    79→        child: Column(
+    80→          crossAxisAlignment: CrossAxisAlignment.start,
+    81→          children: [
+    82→            // ── Step 1: Format Selection ──────────────────────────────
+    83→            _buildSectionTitle(context, '1. Select Format'),
+    84→            const SizedBox(height: Spacings.md),
+    85→            _buildFormatSelection(),
+    86→            const SizedBox(height: Spacings.xl),
+    87→
+    88→            // ── Step 2: Upload File ──────────────────────────────────
+    89→            _buildSectionTitle(context, '2. Upload File'),
+    90→            const SizedBox(height: Spacings.md),
+    91→            _buildFileUploadArea(context),
+    92→            const SizedBox(height: Spacings.xl),
+    93→
+    94→            // ── Template Downloads ───────────────────────────────────
+    95→            _buildTemplateLinks(context),
+    96→            const SizedBox(height: Spacings.xl),
+    97→
+    98→            // ── Step 3: Mapping ──────────────────────────────────────
+    99→            _buildSectionTitle(context, '3. Default Mapping'),
+   100→            const SizedBox(height: Spacings.md),
+   101→            _buildMappingFields(context),
+   102→            const SizedBox(height: Spacings.xl),
+   103→
+   104→            // ── Preview Table ────────────────────────────────────────
+   105→            if (_hasFile) ...[
+   106→              _buildSectionTitle(context, '4. Preview'),
+   107→              const SizedBox(height: Spacings.md),
+   108→              _buildPreviewTable(context),
+   109→              const SizedBox(height: Spacings.xl),
+   110→            ],
+   111→
+   112→            // ── Import Button & Progress ─────────────────────────────
+   113→            if (state.isImporting)
+   114→              _buildImportProgress(context, state)
+   115→            else
+   116→              _buildImportButton(context, state),
+   117→
+   118→            // ── Import Result ────────────────────────────────────────
+   119→            if (state.isImportComplete || state.isImportFailed)
+   120→              _buildImportResult(context, state),
+   121→
+   122→            const SizedBox(height: Spacings.xxl),
+   123→          ],
+   124→        ),
+   125→      ),
+   126→    );
+   127→  }
+   128→
+   129→  // ─── Section Title ──────────────────────────────────────────────────
+   130→
+   131→  Widget _buildSectionTitle(BuildContext context, String title) {
+   132→    final cs = context.colorScheme;
+   133→    final tt = context.textTheme;
+   134→
+   135→    return Row(
+   136→      children: [
+   137→        Container(
+   138→          padding: const EdgeInsets.symmetric(
+   139→            horizontal: Spacings.sm,
+   140→            vertical: Spacings.xs,
+   141→          ),
+   142→          decoration: BoxDecoration(
+   143→            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+   144→            borderRadius: BorderRadius.circular(Spacings.smRadius),
+   145→          ),
+   146→          child: Text(
+   147→            title,
+   148→            style: tt.titleSmall?.copyWith(
+   149→              fontWeight: AppTypography.wSemiBold,
+   150→              color: cs.primary,
+   151→            ),
+   152→          ),
+   153→        ),
+   154→      ],
+   155→    );
+   156→  }
+   157→
+   158→  // ─── Format Selection ───────────────────────────────────────────────
+   159→
+   160→  Widget _buildFormatSelection() {
+   161→    final cs = context.colorScheme;
+   162→    final tt = context.textTheme;
+   163→    final isDark = context.isDarkMode;
+   164→
+   165→    return GridView.count(
+   166→      shrinkWrap: true,
+   167→      physics: const NeverScrollableScrollPhysics(),
+   168→      crossAxisCount: context.isMobile ? 2 : 4,
+   169→      childAspectRatio: 1.4,
+   170→      crossAxisSpacing: Spacings.md,
+   171→      mainAxisSpacing: Spacings.md,
+   172→      children: _formats.map((fmt) {
+   173→        final isSelected = _selectedFormat == fmt.value;
+   174→        return GestureDetector(
+   175→          onTap: () => setState(() => _selectedFormat = fmt.value),
+   176→          child: Container(
+   177→            padding: const EdgeInsets.all(Spacings.md),
+   178→            decoration: BoxDecoration(
+   179→              color: isSelected
+   180→                  ? cs.primary.withValues(alpha: isDark ? 0.2 : 0.08)
+   181→                  : cs.surfaceContainerLow,
+   182→              borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   183→              border: Border.all(
+   184→                color: isSelected
+   185→                    ? cs.primary
+   186→                    : cs.outlineVariant.withValues(alpha: 0.5),
+   187→                width: isSelected ? 2.0 : 1.0,
+   188→              ),
+   189→            ),
+   190→            child: Column(
+   191→              mainAxisAlignment: MainAxisAlignment.center,
+   192→              children: [
+   193→                Icon(
+   194→                  fmt.icon,
+   195→                  size: Spacings.lgIcon,
+   196→                  color: isSelected ? cs.primary : cs.onSurfaceVariant,
+   197→                ),
+   198→                const SizedBox(height: Spacings.sm),
+   199→                Text(
+   200→                  fmt.label,
+   201→                  style: tt.bodyMedium?.copyWith(
+   202→                    fontWeight:
+   203→                        isSelected ? AppTypography.wSemiBold : AppTypography.wMedium,
+   204→                    color: isSelected ? cs.primary : cs.onSurface,
+   205→                  ),
+   206→                ),
+   207→                Text(
+   208→                  fmt.description,
+   209→                  style: tt.bodySmall?.copyWith(
+   210→                    color: cs.onSurfaceVariant,
+   211→                  ),
+   212→                  textAlign: TextAlign.center,
+   213→                  maxLines: 1,
+   214→                  overflow: TextOverflow.ellipsis,
+   215→                ),
+   216→              ],
+   217→            ),
+   218→          ),
+   219→        );
+   220→      }).toList(),
+   221→    );
+   222→  }
+   223→
+   224→  // ─── File Upload Area ───────────────────────────────────────────────
+   225→
+   226→  Widget _buildFileUploadArea(BuildContext context) {
+   227→    final cs = context.colorScheme;
+   228→    final tt = context.textTheme;
+   229→    final isDark = context.isDarkMode;
+   230→
+   231→    return GestureDetector(
+   232→      onTap: _pickFile,
+   233→      child: Container(
+   234→        width: double.infinity,
+   235→        padding: const EdgeInsets.symmetric(
+   236→          horizontal: Spacings.xxl,
+   237→          vertical: Spacings.xxxl,
+   238→        ),
+   239→        decoration: BoxDecoration(
+   240→          color: cs.primary.withValues(alpha: isDark ? 0.06 : 0.03),
+   241→          borderRadius: BorderRadius.circular(Spacings.lgRadius),
+   242→          border: Border.all(
+   243→            color: cs.outlineVariant.withValues(alpha: 0.5),
+   244→            style: BorderStyle.solid,
+   245→          ),
+   246→        ),
+   247→        child: Column(
+   248→          children: [
+   249→            Icon(
+   250→              Icons.cloud_upload_outlined,
+   251→              size: 48.0,
+   252→              color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+   253→            ),
+   254→            const SizedBox(height: Spacings.lg),
+   255→            Text(
+   256→              _hasFile
+   257→                  ? _selectedFileName ?? 'File selected'
+   258→                  : 'Drag & drop your file here',
+   259→              style: tt.titleMedium?.copyWith(
+   260→                color: cs.onSurface,
+   261→                fontWeight: AppTypography.wSemiBold,
+   262→              ),
+   263→            ),
+   264→            const SizedBox(height: Spacings.sm),
+   265→            Text(
+   266→              _hasFile
+   267→                  ? 'Tap to change file'
+   268→                  : 'or tap to browse files',
+   269→              style: tt.bodyMedium?.copyWith(
+   270→                color: cs.onSurfaceVariant,
+   271→              ),
+   272→            ),
+   273→            const SizedBox(height: Spacings.md),
+   274→            if (!_hasFile)
+   275→              Container(
+   276→                padding: const EdgeInsets.symmetric(
+   277→                  horizontal: Spacings.lg,
+   278→                  vertical: Spacings.sm,
+   279→                ),
+   280→                decoration: BoxDecoration(
+   281→                  color: cs.primaryContainer,
+   282→                  borderRadius:
+   283→                      BorderRadius.circular(Spacings.fullRadius),
+   284→                ),
+   285→                child: Text(
+   286→                  'Supported: .${_selectedFormat}',
+   287→                  style: tt.bodySmall?.copyWith(
+   288→                    color: cs.onPrimaryContainer,
+   289→                    fontWeight: AppTypography.wSemiBold,
+   290→                  ),
+   291→                ),
+   292→              ),
+   293→            if (_hasFile) ...[
+   294→              const SizedBox(height: Spacings.sm),
+   295→              Row(
+   296→                mainAxisAlignment: MainAxisAlignment.center,
+   297→                children: [
+   298→                  Icon(
+   299→                    Icons.check_circle_rounded,
+   300→                    size: Spacings.mdIcon,
+   301→                    color: AppColors.success,
+   302→                  ),
+   303→                  const SizedBox(width: Spacings.xs),
+   304→                  Text(
+   305→                    'File ready for import',
+   306→                    style: tt.bodyMedium?.copyWith(
+   307→                      color: AppColors.success,
+   308→                      fontWeight: AppTypography.wSemiBold,
+   309→                    ),
+   310→                  ),
+   311→                ],
+   312→              ),
+   313→            ],
+   314→          ],
+   315→        ),
+   316→      ),
+   317→    );
+   318→  }
+   319→
+   320→  // ─── Template Links ─────────────────────────────────────────────────
+   321→
+   322→  Widget _buildTemplateLinks(BuildContext context) {
+   323→    final cs = context.colorScheme;
+   324→    final tt = context.textTheme;
+   325→
+   326→    return AppCard(
+   327→      padding: const EdgeInsets.all(Spacings.lg),
+   328→      child: Column(
+   329→        crossAxisAlignment: CrossAxisAlignment.start,
+   330→        children: [
+   331→          Row(
+   332→            children: [
+   333→              Icon(
+   334→                Icons.download_rounded,
+   335→                size: Spacings.mdIcon,
+   336→                color: cs.primary,
+   337→              ),
+   338→              const SizedBox(width: Spacings.sm),
+   339→              Text(
+   340→                'Import Templates',
+   341→                style: tt.titleSmall?.copyWith(
+   342→                  fontWeight: AppTypography.wSemiBold,
+   343→                  color: cs.onSurface,
+   344→                ),
+   345→              ),
+   346→            ],
+   347→          ),
+   348→          const SizedBox(height: Spacings.md),
+   349→          Wrap(
+   350→            spacing: Spacings.md,
+   351→            runSpacing: Spacings.sm,
+   352→            children: _formats.map((fmt) {
+   353→              return ActionChip(
+   354→                avatar: Icon(fmt.icon, size: Spacings.smIcon, color: cs.primary),
+   355→                label: Text(
+   356→                  '${fmt.label} Template',
+   357→                  style: tt.bodySmall?.copyWith(color: cs.primary),
+   358→                ),
+   359→                onPressed: () {
+   360→                  // Download template logic
+   361→                  ScaffoldMessenger.of(context).showSnackBar(
+   362→                    SnackBar(
+   363→                      content: Text('Downloading ${fmt.label} template…'),
+   364→                    ),
+   365→                  );
+   366→                },
+   367→              );
+   368→            }).toList(),
+   369→          ),
+   370→        ],
+   371→      ),
+   372→    );
+   373→  }
+   374→
+   375→  // ─── Mapping Fields ─────────────────────────────────────────────────
+   376→
+   377→  Widget _buildMappingFields(BuildContext context) {
+   378→    return AppCard(
+   379→      padding: const EdgeInsets.all(Spacings.lg),
+   380→      child: Column(
+   381→        children: [
+   382→          if (context.isMobile) ...[
+   383→            AppTextField(
+   384→              controller: _subjectController,
+   385→              label: 'Default Subject',
+   386→              hint: 'Assign all imported questions to this subject',
+   387→              prefixIcon: Icons.book_outlined,
+   388→              onChanged: (_) {},
+   389→            ),
+   390→            const SizedBox(height: Spacings.md),
+   391→            AppTextField(
+   392→              controller: _classController,
+   393→              label: 'Default Class',
+   394→              hint: 'Assign all imported questions to this class',
+   395→              prefixIcon: Icons.class_outlined,
+   396→              onChanged: (_) {},
+   397→            ),
+   398→            const SizedBox(height: Spacings.md),
+   399→            AppTextField(
+   400→              controller: _topicController,
+   401→              label: 'Default Topic',
+   402→              hint: 'Assign all imported questions to this topic',
+   403→              prefixIcon: Icons.topic_outlined,
+   404→              onChanged: (_) {},
+   405→            ),
+   406→          ] else
+   407→            Row(
+   408→              crossAxisAlignment: CrossAxisAlignment.start,
+   409→              children: [
+   410→                Expanded(
+   411→                  child: AppTextField(
+   412→                    controller: _subjectController,
+   413→                    label: 'Default Subject',
+   414→                    hint: 'Optional',
+   415→                    prefixIcon: Icons.book_outlined,
+   416→                    onChanged: (_) {},
+   417→                  ),
+   418→                ),
+   419→                const SizedBox(width: Spacings.md),
+   420→                Expanded(
+   421→                  child: AppTextField(
+   422→                    controller: _classController,
+   423→                    label: 'Default Class',
+   424→                    hint: 'Optional',
+   425→                    prefixIcon: Icons.class_outlined,
+   426→                    onChanged: (_) {},
+   427→                  ),
+   428→                ),
+   429→                const SizedBox(width: Spacings.md),
+   430→                Expanded(
+   431→                  child: AppTextField(
+   432→                    controller: _topicController,
+   433→                    label: 'Default Topic',
+   434→                    hint: 'Optional',
+   435→                    prefixIcon: Icons.topic_outlined,
+   436→                    onChanged: (_) {},
+   437→                  ),
+   438→                ),
+   439→              ],
+   440→            ),
+   441→        ],
+   442→      ),
+   443→    );
+   444→  }
+   445→
+   446→  // ─── Preview Table ──────────────────────────────────────────────────
+   447→
+   448→  Widget _buildPreviewTable(BuildContext context) {
+   449→    final cs = context.colorScheme;
+   450→    final tt = context.textTheme;
+   451→
+   452→    // Mock preview data
+   453→    final columns = ['#', 'Question', 'Type', 'Difficulty', 'Answer'];
+   454→    final rows = [
+   455→      ['1', 'What is 2+2?', 'MC', 'Easy', '4'],
+   456→      ['2', 'Capital of France?', 'MC', 'Easy', 'Paris'],
+   457→      ['3', 'H₂O is water.', 'TF', 'Easy', 'True'],
+   458→      ['4', 'Solve for x: 2x=8', 'SA', 'Medium', '4'],
+   459→      ['5', 'Explain photosynthesis', 'Essay', 'Hard', '—'],
+   460→    ];
+   461→
+   462→    return AppCard(
+   463→      padding: const EdgeInsets.all(Spacings.lg),
+   464→      child: Column(
+   465→        crossAxisAlignment: CrossAxisAlignment.start,
+   466→        children: [
+   467→          Row(
+   468→            children: [
+   469→              Icon(
+   470→                Icons.preview_rounded,
+   471→                size: Spacings.mdIcon,
+   472→                color: cs.primary,
+   473→              ),
+   474→              const SizedBox(width: Spacings.sm),
+   475→              Text(
+   476→                'Data Preview (5 of 25 questions)',
+   477→                style: tt.titleSmall?.copyWith(
+   478→                  fontWeight: AppTypography.wSemiBold,
+   479→                  color: cs.onSurface,
+   480→                ),
+   481→              ),
+   482→            ],
+   483→          ),
+   484→          const SizedBox(height: Spacings.lg),
+   485→          SingleChildScrollView(
+   486→            scrollDirection: Axis.horizontal,
+   487→            child: DataTable(
+   488→              headingRowColor: WidgetStateProperty.all(
+   489→                cs.surfaceContainerHigh,
+   490→              ),
+   491→              columns: columns
+   492→                  .map((col) => DataColumn(
+   493→                        label: Text(
+   494→                          col,
+   495→                          style: tt.labelSmall?.copyWith(
+   496→                            fontWeight: AppTypography.wSemiBold,
+   497→                            color: cs.onSurface,
+   498→                          ),
+   499→                        ),
+   500→                      ))
+   501→                  .toList(),
+   502→              rows: rows
+   503→                  .map((row) => DataRow(
+   504→                        cells: row
+   505→                            .map((cell) => DataCell(
+   506→                                  Text(
+   507→                                    cell,
+   508→                                    style: tt.bodySmall?.copyWith(
+   509→                                      color: cs.onSurface,
+   510→                                    ),
+   511→                                    maxLines: 1,
+   512→                                    overflow: TextOverflow.ellipsis,
+   513→                                  ),
+   514→                                ))
+   515→                            .toList(),
+   516→                      ))
+   517→                  .toList(),
+   518→            ),
+   519→          ),
+   520→        ],
+   521→      ),
+   522→    );
+   523→  }
+   524→
+   525→  // ─── Import Progress ────────────────────────────────────────────────
+   526→
+   527→  Widget _buildImportProgress(BuildContext context, ImportExportState state) {
+   528→    final cs = context.colorScheme;
+   529→    final tt = context.textTheme;
+   530→
+   531→    return AppCard(
+   532→      padding: const EdgeInsets.all(Spacings.xl),
+   533→      child: Column(
+   534→        children: [
+   535→          const AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+   536→          const SizedBox(height: Spacings.lg),
+   537→          Text(
+   538→            'Importing Questions…',
+   539→            style: tt.titleMedium?.copyWith(
+   540→              fontWeight: AppTypography.wSemiBold,
+   541→              color: cs.onSurface,
+   542→            ),
+   543→          ),
+   544→          const SizedBox(height: Spacings.md),
+   545→          ClipRRect(
+   546→            borderRadius: BorderRadius.circular(Spacings.smRadius),
+   547→            child: LinearProgressIndicator(
+   548→              value: state.importProgress,
+   549→              minHeight: 8.0,
+   550→              backgroundColor: cs.surfaceContainerHighest,
+   551→              color: cs.primary,
+   552→            ),
+   553→          ),
+   554→          const SizedBox(height: Spacings.sm),
+   555→          Text(
+   556→            '${(state.importProgress * 100).toInt()}% complete',
+   557→            style: tt.bodySmall?.copyWith(
+   558→              color: cs.onSurfaceVariant,
+   559→            ),
+   560→          ),
+   561→        ],
+   562→      ),
+   563→    );
+   564→  }
+   565→
+   566→  // ─── Import Button ──────────────────────────────────────────────────
+   567→
+   568→  Widget _buildImportButton(BuildContext context, ImportExportState state) {
+   569→    return SizedBox(
+   570→      width: double.infinity,
+   571→      child: AppButton(
+   572→        label: 'Start Import',
+   573→        onPressed: _hasFile ? _startImport : null,
+   574→        variant: AppButtonVariant.elevated,
+   575→        fullWidth: true,
+   576→        icon: Icons.file_upload_rounded,
+   577→        isDisabled: !_hasFile,
+   578→      ),
+   579→    );
+   580→  }
+   581→
+   582→  // ─── Import Result ──────────────────────────────────────────────────
+   583→
+   584→  Widget _buildImportResult(BuildContext context, ImportExportState state) {
+   585→    final cs = context.colorScheme;
+   586→    final tt = context.textTheme;
+   587→    final isDark = context.isDarkMode;
+   588→    final importStatus = state.importStatus;
+   589→
+   590→    final isSuccess = state.isImportComplete;
+   591→    final importedCount = importStatus?.importedCount ?? 0;
+   592→    final failedCount = importStatus?.failedCount ?? 0;
+   593→    final total = importStatus?.totalQuestions ?? 0;
+   594→
+   595→    return AppCard(
+   596→      padding: const EdgeInsets.all(Spacings.lg),
+   597→      child: Column(
+   598→        crossAxisAlignment: CrossAxisAlignment.start,
+   599→        children: [
+   600→          // Header
+   601→          Row(
+   602→            children: [
+   603→              Icon(
+   604→                isSuccess
+   605→                    ? Icons.check_circle_rounded
+   606→                    : Icons.error_outline_rounded,
+   607→                size: Spacings.lgIcon,
+   608→                color: isSuccess
+   609→                    ? AppColors.successOf(cs.brightness)
+   610→                    : AppColors.errorOf(cs.brightness),
+   611→              ),
+   612→              const SizedBox(width: Spacings.md),
+   613→              Text(
+   614→                isSuccess ? 'Import Complete' : 'Import Failed',
+   615→                style: tt.titleMedium?.copyWith(
+   616→                  fontWeight: AppTypography.wSemiBold,
+   617→                  color: cs.onSurface,
+   618→                ),
+   619→              ),
+   620→            ],
+   621→          ),
+   622→          const SizedBox(height: Spacings.lg),
+   623→
+   624→          // Summary
+   625→          Row(
+   626→            children: [
+   627→              Expanded(
+   628→                child: _resultStat(
+   629→                  context,
+   630→                  label: 'Total',
+   631→                  value: '$total',
+   632→                  color: cs.onSurface,
+   633→                ),
+   634→              ),
+   635→              Expanded(
+   636→                child: _resultStat(
+   637→                  context,
+   638→                  label: 'Imported',
+   639→                  value: '$importedCount',
+   640→                  color: AppColors.success,
+   641→                ),
+   642→              ),
+   643→              Expanded(
+   644→                child: _resultStat(
+   645→                  context,
+   646→                  label: 'Failed',
+   647→                  value: '$failedCount',
+   648→                  color: failedCount > 0 ? AppColors.error : cs.onSurfaceVariant,
+   649→                ),
+   650→              ),
+   651→            ],
+   652→          ),
+   653→
+   654→          // Error details
+   655→          if (failedCount > 0 && importStatus?.errors != null) ...[
+   656→            const SizedBox(height: Spacings.lg),
+   657→            Text(
+   658→              'Error Details',
+   659→              style: tt.labelMedium?.copyWith(
+   660→                fontWeight: AppTypography.wSemiBold,
+   661→                color: cs.onSurface,
+   662→              ),
+   663→            ),
+   664→            const SizedBox(height: Spacings.sm),
+   665→            Container(
+   666→              constraints: const BoxConstraints(maxHeight: 200),
+   667→              child: SingleChildScrollView(
+   668→                child: Table(
+   669→                  border: TableBorder.all(
+   670→                    color: cs.outlineVariant.withValues(alpha: 0.3),
+   671→                  ),
+   672→                  columnWidths: const {
+   673→                    0: FixedColumnWidth(60),
+   674→                    1: FlexColumnWidth(),
+   675→                    2: FixedColumnWidth(100),
+   676→                  },
+   677→                  children: [
+   678→                    TableRow(
+   679→                      decoration: BoxDecoration(
+   680→                        color: cs.surfaceContainerHigh,
+   681→                      ),
+   682→                      children: [
+   683→                        _tableCell(context, 'Row', isHeader: true),
+   684→                        _tableCell(context, 'Error', isHeader: true),
+   685→                        _tableCell(context, 'Question', isHeader: true),
+   686→                      ],
+   687→                    ),
+   688→                    ...List.generate(
+   689→                      failedCount.clamp(0, 10),
+   690→                      (index) => TableRow(
+   691→                        children: [
+   692→                          _tableCell(context, '${index + 2}'),
+   693→                          _tableCell(context, 'Missing required field'),
+   694→                          _tableCell(context, 'Row ${index + 2} data'),
+   695→                        ],
+   696→                      ),
+   697→                    ),
+   698→                    if (failedCount > 10)
+   699→                      TableRow(
+   700→                        children: [
+   701→                          _tableCell(context, '…'),
+   702→                          _tableCell(context, '…and ${failedCount - 10} more errors'),
+   703→                          _tableCell(context, ''),
+   704→                        ],
+   705→                      ),
+   706→                  ],
+   707→                ),
+   708→              ),
+   709→            ),
+   710→          ],
+   711→
+   712→          const SizedBox(height: Spacings.lg),
+   713→
+   714→          // Action buttons
+   715→          Row(
+   716→            children: [
+   717→              Expanded(
+   718→                child: AppButton(
+   719→                  label: 'Import More',
+   720→                  onPressed: _resetImport,
+   721→                  variant: AppButtonVariant.outlined,
+   722→                  fullWidth: true,
+   723→                ),
+   724→              ),
+   725→              const SizedBox(width: Spacings.md),
+   726→              Expanded(
+   727→                child: AppButton(
+   728→                  label: 'View Questions',
+   729→                  onPressed: () => Navigator.of(context).pop(),
+   730→                  variant: AppButtonVariant.elevated,
+   731→                  fullWidth: true,
+   732→                ),
+   733→              ),
+   734→            ],
+   735→          ),
+   736→        ],
+   737→      ),
+   738→    );
+   739→  }
+   740→
+   741→  Widget _resultStat(
+   742→    BuildContext context, {
+   743→    required String label,
+   744→    required String value,
+   745→    required Color color,
+   746→  }) {
+   747→    final tt = context.textTheme;
+   748→
+   749→    return Container(
+   750→      padding: const EdgeInsets.all(Spacings.md),
+   751→      decoration: BoxDecoration(
+   752→        color: color.withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+   753→        borderRadius: BorderRadius.circular(Spacings.smRadius),
+   754→      ),
+   755→      child: Column(
+   756→        children: [
+   757→          Text(
+   758→            value,
+   759→            style: tt.headlineSmall?.copyWith(
+   760→              fontWeight: AppTypography.wBold,
+   761→              color: color,
+   762→            ),
+   763→          ),
+   764→          Text(
+   765→            label,
+   766→            style: tt.bodySmall?.copyWith(color: color),
+   767→          ),
+   768→        ],
+   769→      ),
+   770→    );
+   771→  }
+   772→
+   773→  Widget _tableCell(BuildContext context, String text,
+   774→      {bool isHeader = false}) {
+   775→    final tt = context.textTheme;
+   776→    return Padding(
+   777→      padding: const EdgeInsets.all(Spacings.sm),
+   778→      child: Text(
+   779→        text,
+   780→        style: (isHeader ? tt.labelSmall : tt.bodySmall)?.copyWith(
+   781→          fontWeight: isHeader ? AppTypography.wSemiBold : AppTypography.wRegular,
+   782→          color: isHeader
+   783→              ? context.colorScheme.onSurface
+   784→              : context.colorScheme.onSurfaceVariant,
+   785→        ),
+   786→        maxLines: 2,
+   787→        overflow: TextOverflow.ellipsis,
+   788→      ),
+   789→    );
+   790→  }
+   791→
+   792→  // ─── Actions ────────────────────────────────────────────────────────
+   793→
+   794→  void _pickFile() {
+   795→    // In production, use file_picker package
+   796→    setState(() {
+   797→      _hasFile = true;
+   798→      _selectedFileName =
+   799→          'questions_import.${_selectedFormat == 'excel' ? 'xlsx' : _selectedFormat}';
+   800→    });
+   801→  }
+   802→
+   803→  void _startImport() {
+   804→    ref.read(_importExportProvider.notifier).startImport(
+   805→          ImportQuestionsParams(
+   806→            source: _selectedFormat,
+   807→            fileName: _selectedFileName,
+   808→            defaultSubjectId: _subjectController.text.isNotEmpty
+   809→                ? _subjectController.text
+   810→                : null,
+   811→            defaultClassId: _classController.text.isNotEmpty
+   812→                ? _classController.text
+   813→                : null,
+   814→            defaultTopicId: _topicController.text.isNotEmpty
+   815→                ? _topicController.text
+   816→                : null,
+   817→          ),
+   818→        );
+   819→  }
+   820→
+   821→  void _resetImport() {
+   822→    ref.read(_importExportProvider.notifier).resetState();
+   823→    setState(() {
+   824→      _hasFile = false;
+   825→      _selectedFileName = null;
+   826→    });
+   827→  }
+   828→}
+   829→
+   830→// ═══════════════════════════════════════════════════════════════════════
+   831→// HELPER CLASSES
+   832→// ═══════════════════════════════════════════════════════════════════════
+   833→
+   834→class _ImportFormat {
+   835→  const _ImportFormat(
+   836→    this.value,
+   837→    this.label,
+   838→    this.icon,
+   839→    this.description,
+   840→  );
+   841→
+   842→  final String value;
+   843→  final String label;
+   844→  final IconData icon;
+   845→  final String description;
+   846→}
+   847→

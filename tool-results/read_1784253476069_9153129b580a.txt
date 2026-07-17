@@ -1,0 +1,2002 @@
+     1→-- ============================================================================
+     2→-- ExamForge AI - Question Bank Module Schema
+     3→-- ============================================================================
+     4→-- Production-ready schema for the Question Bank module.
+     5→-- Supports millions of questions across thousands of schools.
+     6→--
+     7→-- Prerequisites: Existing tables (schools, users, classes, subjects,
+     8→--                class_subjects, class_students, notifications, audit_log)
+     9→--                and existing enums (user_role, subscription_status,
+    10→--                exam_status, notification_type, question_type)
+    11→--
+    12→-- Performance: Designed for high-throughput with composite indexes,
+    13→--              GIN indexes for JSONB/full-text, and partitioning-ready layout.
+    14→-- ============================================================================
+    15→
+    16→BEGIN;
+    17→
+    18→-- ============================================================================
+    19→-- 1. EXTEND EXISTING ENUMS
+    20→-- ============================================================================
+    21→
+    22→-- ---------------------------------------------------------------------------
+    23→-- Extend question_type with additional types for richer question formats
+    24→-- ---------------------------------------------------------------------------
+    25→DO $$
+    26→BEGIN
+    27→  -- Add new values to the existing question_type enum
+    28→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'multiple_response' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    29→    ALTER TYPE question_type ADD VALUE 'multiple_response';
+    30→  END IF;
+    31→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'matching' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    32→    ALTER TYPE question_type ADD VALUE 'matching';
+    33→  END IF;
+    34→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'ordering' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    35→    ALTER TYPE question_type ADD VALUE 'ordering';
+    36→  END IF;
+    37→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'numerical' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    38→    ALTER TYPE question_type ADD VALUE 'numerical';
+    39→  END IF;
+    40→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'image_based' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    41→    ALTER TYPE question_type ADD VALUE 'image_based';
+    42→  END IF;
+    43→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'audio_based' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    44→    ALTER TYPE question_type ADD VALUE 'audio_based';
+    45→  END IF;
+    46→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'video_based' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    47→    ALTER TYPE question_type ADD VALUE 'video_based';
+    48→  END IF;
+    49→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'practical' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    50→    ALTER TYPE question_type ADD VALUE 'practical';
+    51→  END IF;
+    52→  IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE enumlabel = 'case_study' AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'question_type')) THEN
+    53→    ALTER TYPE question_type ADD VALUE 'case_study';
+    54→  END IF;
+    55→END
+    56→$$;
+    57→
+    58→COMMENT ON TYPE question_type IS
+    59→  'Supported question formats: MC, MR, T/F, short answer, essay, fill-in-blank, matching, ordering, numerical, media-based, practical, case study';
+    60→
+    61→-- ============================================================================
+    62→-- 2. NEW ENUMERATION TYPES
+    63→-- ============================================================================
+    64→
+    65→DO $$
+    66→BEGIN
+    67→  -- difficulty_level: Question difficulty classification
+    68→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'difficulty_level') THEN
+    69→    CREATE TYPE difficulty_level AS ENUM (
+    70→      'easy',
+    71→      'medium',
+    72→      'hard',
+    73→      'expert'
+    74→    );
+    75→  END IF;
+    76→
+    77→  -- exam_type: Nigerian and international examination bodies / contexts
+    78→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'exam_type') THEN
+    79→    CREATE TYPE exam_type AS ENUM (
+    80→      'waecc',
+    81→      'neco',
+    82→      'jamb',
+    83→      'school_exam',
+    84→      'mock',
+    85→      'practice',
+    86→      'custom'
+    87→    );
+    88→  END IF;
+    89→
+    90→  -- share_permission: Granular permissions for shared questions
+    91→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'share_permission') THEN
+    92→    CREATE TYPE share_permission AS ENUM (
+    93→      'read',
+    94→      'comment',
+    95→      'edit'
+    96→    );
+    97→  END IF;
+    98→
+    99→  -- import_status: Lifecycle states for bulk import jobs
+   100→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'import_status') THEN
+   101→    CREATE TYPE import_status AS ENUM (
+   102→      'pending',
+   103→      'processing',
+   104→      'completed',
+   105→      'failed'
+   106→    );
+   107→  END IF;
+   108→
+   109→  -- content_type: Media / attachment content classification
+   110→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'content_type') THEN
+   111→    CREATE TYPE content_type AS ENUM (
+   112→      'text',
+   113→      'image',
+   114→      'audio',
+   115→      'video',
+   116→      'document'
+   117→    );
+   118→  END IF;
+   119→
+   120→  -- curriculum_standard_type: Nigerian curriculum framework types
+   121→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'curriculum_standard_type') THEN
+   122→    CREATE TYPE curriculum_standard_type AS ENUM (
+   123→      'nigeria_erc',
+   124→      'waec',
+   125→      'neco',
+   126→      'jamb',
+   127→      'custom'
+   128→    );
+   129→  END IF;
+   130→END
+   131→$$;
+   132→
+   133→COMMENT ON TYPE difficulty_level IS 'Question difficulty: easy → medium → hard → expert';
+   134→COMMENT ON TYPE exam_type IS 'Examination body or context for which the question is designed';
+   135→COMMENT ON TYPE share_permission IS 'Permission level when sharing a question: read, comment, or edit';
+   136→COMMENT ON TYPE import_status IS 'Status of a bulk question import/export job';
+   137→COMMENT ON TYPE content_type IS 'Type of media content attached to a question';
+   138→COMMENT ON TYPE curriculum_standard_type IS 'Curriculum framework a standard belongs to';
+   139→
+   140→-- ============================================================================
+   141→-- 3. TOPICS TABLE
+   142→-- ============================================================================
+   143→-- Hierarchical grouping of subjects into topics (e.g., Mathematics → Algebra)
+   144→-- ============================================================================
+   145→
+   146→CREATE TABLE IF NOT EXISTS topics (
+   147→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   148→  name          TEXT NOT NULL,
+   149→  subject_id    UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+   150→  description   TEXT,
+   151→  code          TEXT,                       -- e.g. "ALG-01"
+   152→  sort_order    INTEGER DEFAULT 0,
+   153→  is_active     BOOLEAN DEFAULT true,
+   154→  created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+   155→  created_at    TIMESTAMPTZ DEFAULT now(),
+   156→  updated_at    TIMESTAMPTZ DEFAULT now()
+   157→);
+   158→
+   159→COMMENT ON TABLE topics IS 'Topics within a subject (e.g. Algebra under Mathematics)';
+   160→COMMENT ON COLUMN topics.code IS 'Short code identifier for the topic (e.g. ALG-01)';
+   161→
+   162→-- ============================================================================
+   163→-- 4. SUBTOPICS TABLE
+   164→-- ============================================================================
+   165→-- Further subdivision of topics into subtopics
+   166→-- ============================================================================
+   167→
+   168→CREATE TABLE IF NOT EXISTS subtopics (
+   169→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   170→  name          TEXT NOT NULL,
+   171→  topic_id      UUID NOT NULL REFERENCES topics(id) ON DELETE CASCADE,
+   172→  description   TEXT,
+   173→  code          TEXT,                       -- e.g. "ALG-01-01"
+   174→  sort_order    INTEGER DEFAULT 0,
+   175→  is_active     BOOLEAN DEFAULT true,
+   176→  created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+   177→  created_at    TIMESTAMPTZ DEFAULT now(),
+   178→  updated_at    TIMESTAMPTZ DEFAULT now()
+   179→);
+   180→
+   181→COMMENT ON TABLE subtopics IS 'Subtopics under a topic for finer-grained categorization';
+   182→
+   183→-- ============================================================================
+   184→-- 5. QUESTION_CATEGORIES TABLE
+   185→-- ============================================================================
+   186→-- System-wide and school-specific question categories for organization
+   187→-- ============================================================================
+   188→
+   189→CREATE TABLE IF NOT EXISTS question_categories (
+   190→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   191→  name          TEXT NOT NULL,
+   192→  description   TEXT,
+   193→  school_id     UUID REFERENCES schools(id) ON DELETE CASCADE,  -- NULL = system-wide
+   194→  icon          TEXT,                       -- Icon name or class
+   195→  color         TEXT,                       -- Hex color code
+   196→  sort_order    INTEGER DEFAULT 0,
+   197→  is_active     BOOLEAN DEFAULT true,
+   198→  created_by    UUID REFERENCES users(id) ON DELETE SET NULL,
+   199→  created_at    TIMESTAMPTZ DEFAULT now(),
+   200→  updated_at    TIMESTAMPTZ DEFAULT now()
+   201→);
+   202→
+   203→COMMENT ON TABLE question_categories IS
+   204→  'Categorization labels for questions; school_id NULL means platform-wide category';
+   205→
+   206→-- ============================================================================
+   207→-- 6. ACADEMIC_SESSIONS TABLE
+   208→-- ============================================================================
+   209→-- Academic sessions/terms for organizing questions temporally
+   210→-- ============================================================================
+   211→
+   212→CREATE TABLE IF NOT EXISTS academic_sessions (
+   213→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   214→  name          TEXT NOT NULL,              -- e.g. "2024/2025"
+   215→  start_date    DATE NOT NULL,
+   216→  end_date      DATE NOT NULL,
+   217→  term          VARCHAR(20),                -- e.g. "First Term", "Second Term", "Third Term"
+   218→  is_current    BOOLEAN DEFAULT false,
+   219→  school_id     UUID REFERENCES schools(id) ON DELETE CASCADE,
+   220→  is_active     BOOLEAN DEFAULT true,
+   221→  created_at    TIMESTAMPTZ DEFAULT now(),
+   222→  updated_at    TIMESTAMPTZ DEFAULT now(),
+   223→  CONSTRAINT academic_sessions_date_range CHECK (end_date > start_date)
+   224→);
+   225→
+   226→COMMENT ON TABLE academic_sessions IS 'Academic sessions/terms for organizing questions by time period';
+   227→COMMENT ON COLUMN academic_sessions.term IS 'Term within the academic year (e.g. First Term, Second Term)';
+   228→
+   229→-- ============================================================================
+   230→-- 7. CURRICULUM_STANDARDS TABLE
+   231→-- ============================================================================
+   232→-- Curriculum standards that questions can be aligned to
+   233→-- ============================================================================
+   234→
+   235→CREATE TABLE IF NOT EXISTS curriculum_standards (
+   236→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   237→  name          TEXT NOT NULL,
+   238→  type          curriculum_standard_type NOT NULL,
+   239→  description   TEXT,
+   240→  subject_id    UUID REFERENCES subjects(id) ON DELETE CASCADE,
+   241→  class_id      UUID REFERENCES classes(id) ON DELETE CASCADE,
+   242→  code          TEXT,
+   243→  objectives    TEXT[],                     -- Array of learning objectives
+   244→  is_active     BOOLEAN DEFAULT true,
+   245→  created_at    TIMESTAMPTZ DEFAULT now(),
+   246→  updated_at    TIMESTAMPTZ DEFAULT now()
+   247→);
+   248→
+   249→COMMENT ON TABLE curriculum_standards IS
+   250→  'Curriculum standards for aligning questions to educational frameworks';
+   251→
+   252→-- ============================================================================
+   253→-- 8. QUESTION_BANK TABLE (THE MAIN TABLE)
+   254→-- ============================================================================
+   255→-- Central repository for all questions. Designed for millions of rows.
+   256→-- - school_id NULL = platform-wide question (visible to all schools)
+   257→-- - parent_id = previous version (versioning chain)
+   258→-- - content_json = structured data for complex question types
+   259→-- ============================================================================
+   260→
+   261→CREATE TABLE IF NOT EXISTS question_bank (
+   262→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   263→  school_id               UUID REFERENCES schools(id) ON DELETE CASCADE,  -- NULL = platform-wide
+   264→  subject_id              UUID NOT NULL REFERENCES subjects(id),
+   265→  topic_id                UUID REFERENCES topics(id) ON DELETE SET NULL,
+   266→  subtopic_id             UUID REFERENCES subtopics(id) ON DELETE SET NULL,
+   267→  class_id                UUID REFERENCES classes(id) ON DELETE SET NULL,
+   268→  category_id             UUID REFERENCES question_categories(id) ON DELETE SET NULL,
+   269→  curriculum_standard_id  UUID REFERENCES curriculum_standards(id) ON DELETE SET NULL,
+   270→  academic_session_id     UUID REFERENCES academic_sessions(id) ON DELETE SET NULL,
+   271→  question_type           question_type NOT NULL DEFAULT 'multiple_choice',
+   272→  difficulty              difficulty_level NOT NULL DEFAULT 'medium',
+   273→  exam_type               exam_type DEFAULT 'school_exam',
+   274→  content                 TEXT NOT NULL,                  -- Question text (HTML/LaTeX supported)
+   275→  content_json            JSONB DEFAULT '{}',             -- Structured content for complex types
+   276→  explanation             TEXT,                           -- Detailed answer explanation
+   277→  teacher_notes           TEXT,                           -- Private notes for teachers
+   278→  reference_materials     TEXT,                           -- Reference sources
+   279→  marks                   NUMERIC(5,2) NOT NULL DEFAULT 1.00,
+   280→  negative_marks          NUMERIC(5,2) DEFAULT 0.00,
+   281→  time_allowed_seconds    INTEGER,                        -- Suggested time to answer
+   282→  is_published            BOOLEAN DEFAULT false,
+   283→  is_archived             BOOLEAN DEFAULT false,
+   284→  is_featured             BOOLEAN DEFAULT false,
+   285→  version                 INTEGER DEFAULT 1,
+   286→  parent_id               UUID REFERENCES question_bank(id) ON DELETE SET NULL,  -- Version chain
+   287→  created_by              UUID NOT NULL REFERENCES users(id),
+   288→  updated_by              UUID REFERENCES users(id),
+   289→  usage_count             INTEGER DEFAULT 0,
+   290→  avg_score               NUMERIC(5,2) DEFAULT 0.00,
+   291→  metadata                JSONB DEFAULT '{}',             -- Extensible metadata
+   292→  created_at              TIMESTAMPTZ DEFAULT now(),
+   293→  updated_at              TIMESTAMPTZ DEFAULT now(),
+   294→
+   295→  -- Ensure non-negative marks
+   296→  CONSTRAINT question_bank_marks_positive CHECK (marks >= 0),
+   297→  CONSTRAINT question_bank_negative_marks_non_negative CHECK (negative_marks >= 0),
+   298→  CONSTRAINT question_bank_avg_score_range CHECK (avg_score >= 0 AND avg_score <= marks),
+   299→  -- A question cannot be both published and archived
+   300→  CONSTRAINT question_bank_not_published_and_archived CHECK (NOT (is_published = true AND is_archived = true))
+   301→);
+   302→
+   303→COMMENT ON TABLE question_bank IS 'Central question repository supporting millions of questions';
+   304→COMMENT ON COLUMN question_bank.school_id IS 'Owning school; NULL means platform-wide question visible to all';
+   305→COMMENT ON COLUMN question_bank.content IS 'The question text — supports HTML and LaTeX formatting';
+   306→COMMENT ON COLUMN question_bank.content_json IS 'Structured content payload for complex question types (matching, ordering, etc.)';
+   307→COMMENT ON COLUMN question_bank.parent_id IS 'Previous version of this question for versioning chain';
+   308→COMMENT ON COLUMN question_bank.metadata IS 'Extensible JSONB metadata for custom attributes and integrations';
+   309→COMMENT ON COLUMN question_bank.usage_count IS 'Number of times this question has been used in exams';
+   310→
+   311→-- ============================================================================
+   312→-- 9. ANSWER_OPTIONS TABLE
+   313→-- ============================================================================
+   314→-- Options for multiple-choice, multiple-response, and true/false questions
+   315→-- ============================================================================
+   316→
+   317→CREATE TABLE IF NOT EXISTS answer_options (
+   318→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   319→  question_id   UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   320→  content       TEXT NOT NULL,
+   321→  content_json  JSONB DEFAULT '{}',         -- For complex answer content (images, math, etc.)
+   322→  is_correct    BOOLEAN NOT NULL DEFAULT false,
+   323→  marks         NUMERIC(5,2) DEFAULT 0.00,  -- Partial marks for this option
+   324→  sort_order    INTEGER DEFAULT 0,
+   325→  explanation   TEXT,                        -- Why this option is correct/incorrect
+   326→  metadata      JSONB DEFAULT '{}',
+   327→  created_at    TIMESTAMPTZ DEFAULT now(),
+   328→  updated_at    TIMESTAMPTZ DEFAULT now()
+   329→);
+   330→
+   331→COMMENT ON TABLE answer_options IS 'Answer options for MC, MR, and T/F question types';
+   332→COMMENT ON COLUMN answer_options.marks IS 'Partial marks awarded for selecting this option';
+   333→
+   334→-- ============================================================================
+   335→-- 10. MATCHING_PAIRS TABLE
+   336→-- ============================================================================
+   337→-- Pairs for matching question type (left ↔ right mapping)
+   338→-- ============================================================================
+   339→
+   340→CREATE TABLE IF NOT EXISTS matching_pairs (
+   341→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   342→  question_id     UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   343→  left_content    TEXT NOT NULL,
+   344→  right_content   TEXT NOT NULL,
+   345→  left_media_url  TEXT,
+   346→  right_media_url TEXT,
+   347→  sort_order      INTEGER DEFAULT 0,
+   348→  created_at      TIMESTAMPTZ DEFAULT now()
+   349→);
+   350→
+   351→COMMENT ON TABLE matching_pairs IS 'Left-right matching pairs for matching question type';
+   352→
+   353→-- ============================================================================
+   354→-- 11. ORDERING_ITEMS TABLE
+   355→-- ============================================================================
+   356→-- Items for ordering/sequencing question type
+   357→-- ============================================================================
+   358→
+   359→CREATE TABLE IF NOT EXISTS ordering_items (
+   360→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   361→  question_id       UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   362→  content           TEXT NOT NULL,
+   363→  correct_position  INTEGER NOT NULL,
+   364→  media_url         TEXT,
+   365→  created_at        TIMESTAMPTZ DEFAULT now()
+   366→);
+   367→
+   368→COMMENT ON TABLE ordering_items IS 'Items to be ordered/sequenced for ordering question type';
+   369→COMMENT ON COLUMN ordering_items.correct_position IS 'The correct position of this item (1-based)';
+   370→
+   371→-- ============================================================================
+   372→-- 12. FILL_IN_BLANK_ANSWERS TABLE
+   373→-- ============================================================================
+   374→-- Acceptable answers for fill-in-the-blank questions
+   375→-- ============================================================================
+   376→
+   377→CREATE TABLE IF NOT EXISTS fill_in_blank_answers (
+   378→  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   379→  question_id         UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   380→  blank_index         INTEGER NOT NULL,              -- Which blank (0-based)
+   381→  acceptable_answers  TEXT[] NOT NULL,               -- Array of acceptable answer strings
+   382→  is_case_sensitive   BOOLEAN DEFAULT false,
+   383→  marks               NUMERIC(5,2) DEFAULT 1.00,
+   384→  created_at          TIMESTAMPTZ DEFAULT now()
+   385→);
+   386→
+   387→COMMENT ON TABLE fill_in_blank_answers IS 'Acceptable answers for each blank in fill-in-the-blank questions';
+   388→COMMENT ON COLUMN fill_in_blank_answers.blank_index IS 'Zero-based index of the blank in the question text';
+   389→COMMENT ON COLUMN fill_in_blank_answers.acceptable_answers IS 'Array of valid answer strings for this blank';
+   390→
+   391→-- ============================================================================
+   392→-- 13. QUESTION_ATTACHMENTS TABLE
+   393→-- ============================================================================
+   394→-- Media attachments (images, audio, video, documents) for questions
+   395→-- ============================================================================
+   396→
+   397→CREATE TABLE IF NOT EXISTS question_attachments (
+   398→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   399→  question_id   UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   400→  content_type  content_type NOT NULL,
+   401→  url           TEXT NOT NULL,
+   402→  thumbnail_url TEXT,
+   403→  file_name     TEXT,
+   404→  file_size     BIGINT,                     -- Size in bytes
+   405→  mime_type     TEXT,
+   406→  alt_text      TEXT,                        -- Accessibility alt text
+   407→  caption       TEXT,
+   408→  sort_order    INTEGER DEFAULT 0,
+   409→  created_at    TIMESTAMPTZ DEFAULT now()
+   410→);
+   411→
+   412→COMMENT ON TABLE question_attachments IS 'Media attachments for questions (images, audio, video, documents)';
+   413→
+   414→-- ============================================================================
+   415→-- 14. QUESTION_TAGS TABLE
+   416→-- ============================================================================
+   417→-- Tags for flexible categorization and search. School-scoped or platform-wide.
+   418→-- ============================================================================
+   419→
+   420→CREATE TABLE IF NOT EXISTS question_tags (
+   421→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   422→  name          TEXT NOT NULL,
+   423→  school_id     UUID REFERENCES schools(id) ON DELETE CASCADE,  -- NULL = system-wide
+   424→  usage_count   INTEGER DEFAULT 0,
+   425→  created_at    TIMESTAMPTZ DEFAULT now(),
+   426→  UNIQUE(name, school_id)
+   427→);
+   428→
+   429→COMMENT ON TABLE question_tags IS 'Tags for flexible question categorization; school_id NULL = platform-wide';
+   430→
+   431→-- ============================================================================
+   432→-- 15. QUESTION_TAG_RELATIONS TABLE
+   433→-- ============================================================================
+   434→-- Many-to-many relation between questions and tags
+   435→-- ============================================================================
+   436→
+   437→CREATE TABLE IF NOT EXISTS question_tag_relations (
+   438→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   439→  question_id   UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   440→  tag_id        UUID NOT NULL REFERENCES question_tags(id) ON DELETE CASCADE,
+   441→  created_at    TIMESTAMPTZ DEFAULT now(),
+   442→  UNIQUE(question_id, tag_id)
+   443→);
+   444→
+   445→COMMENT ON TABLE question_tag_relations IS 'Many-to-many relationship between questions and tags';
+   446→
+   447→-- ============================================================================
+   448→-- 16. QUESTION_COLLECTIONS TABLE
+   449→-- ============================================================================
+   450→-- Named collections / playlists of questions for organization and sharing
+   451→-- ============================================================================
+   452→
+   453→CREATE TABLE IF NOT EXISTS question_collections (
+   454→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   455→  name            TEXT NOT NULL,
+   456→  description     TEXT,
+   457→  school_id       UUID REFERENCES schools(id) ON DELETE CASCADE,
+   458→  created_by      UUID NOT NULL REFERENCES users(id),
+   459→  is_shared       BOOLEAN DEFAULT false,     -- School-wide visibility
+   460→  is_official     BOOLEAN DEFAULT false,     -- Curated by school admin
+   461→  question_count  INTEGER DEFAULT 0,
+   462→  cover_image_url TEXT,
+   463→  sort_order      INTEGER DEFAULT 0,
+   464→  is_active       BOOLEAN DEFAULT true,
+   465→  created_at      TIMESTAMPTZ DEFAULT now(),
+   466→  updated_at      TIMESTAMPTZ DEFAULT now()
+   467→);
+   468→
+   469→COMMENT ON TABLE question_collections IS
+   470→  'Named collections of questions; is_shared = visible school-wide, is_official = admin-curated';
+   471→
+   472→-- ============================================================================
+   473→-- 17. COLLECTION_QUESTIONS TABLE
+   474→-- ============================================================================
+   475→-- Many-to-many between collections and questions with ordering
+   476→-- ============================================================================
+   477→
+   478→CREATE TABLE IF NOT EXISTS collection_questions (
+   479→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   480→  collection_id   UUID NOT NULL REFERENCES question_collections(id) ON DELETE CASCADE,
+   481→  question_id     UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   482→  sort_order      INTEGER DEFAULT 0,
+   483→  added_by        UUID REFERENCES users(id) ON DELETE SET NULL,
+   484→  notes           TEXT,
+   485→  created_at      TIMESTAMPTZ DEFAULT now(),
+   486→  UNIQUE(collection_id, question_id)
+   487→);
+   488→
+   489→COMMENT ON TABLE collection_questions IS 'Questions within a collection, with ordering and notes';
+   490→
+   491→-- ============================================================================
+   492→-- 18. QUESTION_FAVORITES TABLE
+   493→-- ============================================================================
+   494→-- User bookmarks / favorites for quick access to questions
+   495→-- ============================================================================
+   496→
+   497→CREATE TABLE IF NOT EXISTS question_favorites (
+   498→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   499→  user_id       UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   500→  question_id   UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   501→  created_at    TIMESTAMPTZ DEFAULT now(),
+   502→  UNIQUE(user_id, question_id)
+   503→);
+   504→
+   505→COMMENT ON TABLE question_favorites IS 'User bookmarks for quick access to frequently used questions';
+   506→
+   507→-- ============================================================================
+   508→-- 19. QUESTION_SHARES TABLE
+   509→-- ============================================================================
+   510→-- Sharing questions between users and across schools with permission levels
+   511→-- ============================================================================
+   512→
+   513→CREATE TABLE IF NOT EXISTS question_shares (
+   514→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   515→  question_id   UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   516→  shared_by     UUID NOT NULL REFERENCES users(id),
+   517→  shared_with   UUID REFERENCES users(id),              -- NULL = school-wide share
+   518→  permission    share_permission NOT NULL DEFAULT 'read',
+   519→  message       TEXT,
+   520→  expires_at    TIMESTAMPTZ,
+   521→  is_accepted   BOOLEAN DEFAULT false,
+   522→  created_at    TIMESTAMPTZ DEFAULT now()
+   523→);
+   524→
+   525→COMMENT ON TABLE question_shares IS
+   526→  'Question sharing records; shared_with NULL = school-wide; permission controls access level';
+   527→
+   528→-- ============================================================================
+   529→-- 20. QUESTION_VERSION_HISTORY TABLE
+   530→-- ============================================================================
+   531→-- Immutable version snapshots for audit trail and rollback capability
+   532→-- ============================================================================
+   533→
+   534→CREATE TABLE IF NOT EXISTS question_version_history (
+   535→  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   536→  question_id         UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   537→  version             INTEGER NOT NULL,
+   538→  snapshot            JSONB NOT NULL,           -- Complete question snapshot
+   539→  change_description  TEXT,
+   540→  changed_by          UUID NOT NULL REFERENCES users(id),
+   541→  change_type         VARCHAR(20) NOT NULL,     -- 'create', 'update', 'restore', 'archive', 'publish'
+   542→  created_at          TIMESTAMPTZ DEFAULT now(),
+   543→  CONSTRAINT qvh_valid_change_type CHECK (
+   544→    change_type IN ('create', 'update', 'restore', 'archive', 'publish')
+   545→  )
+   546→);
+   547→
+   548→COMMENT ON TABLE question_version_history IS 'Immutable version snapshots for question change tracking and rollback';
+   549→COMMENT ON COLUMN question_version_history.snapshot IS 'Complete JSONB snapshot of the question at this version';
+   550→
+   551→-- ============================================================================
+   552→-- 21. QUESTION_IMPORTS TABLE
+   553→-- ============================================================================
+   554→-- Bulk import job tracking for CSV, Excel, DOCX, PDF, JSON uploads
+   555→-- ============================================================================
+   556→
+   557→CREATE TABLE IF NOT EXISTS question_imports (
+   558→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   559→  school_id       UUID REFERENCES schools(id) ON DELETE CASCADE,
+   560→  uploaded_by     UUID NOT NULL REFERENCES users(id),
+   561→  file_name       TEXT NOT NULL,
+   562→  file_url        TEXT NOT NULL,
+   563→  file_size       BIGINT,
+   564→  import_format   VARCHAR(20) NOT NULL,       -- 'csv', 'excel', 'docx', 'pdf', 'json'
+   565→  status          import_status NOT NULL DEFAULT 'pending',
+   566→  total_questions INTEGER DEFAULT 0,
+   567→  imported_count  INTEGER DEFAULT 0,
+   568→  failed_count    INTEGER DEFAULT 0,
+   569→  error_log       JSONB DEFAULT '[]',         -- Array of error details
+   570→  started_at      TIMESTAMPTZ,
+   571→  completed_at    TIMESTAMPTZ,
+   572→  created_at      TIMESTAMPTZ DEFAULT now(),
+   573→  CONSTRAINT qi_valid_format CHECK (
+   574→    import_format IN ('csv', 'excel', 'docx', 'pdf', 'json')
+   575→  )
+   576→);
+   577→
+   578→COMMENT ON TABLE question_imports IS 'Bulk question import job tracking';
+   579→COMMENT ON COLUMN question_imports.error_log IS 'JSONB array of per-row error details during import';
+   580→
+   581→-- ============================================================================
+   582→-- 22. QUESTION_EXPORTS TABLE
+   583→-- ============================================================================
+   584→-- Export job tracking with filter details
+   585→-- ============================================================================
+   586→
+   587→CREATE TABLE IF NOT EXISTS question_exports (
+   588→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   589→  school_id       UUID REFERENCES schools(id) ON DELETE CASCADE,
+   590→  exported_by     UUID NOT NULL REFERENCES users(id),
+   591→  file_name       TEXT NOT NULL,
+   592→  file_url        TEXT,
+   593→  export_format   VARCHAR(20) NOT NULL,
+   594→  total_questions INTEGER DEFAULT 0,
+   595→  filters         JSONB DEFAULT '{}',         -- What filters were applied
+   596→  status          import_status NOT NULL DEFAULT 'pending',
+   597→  created_at      TIMESTAMPTZ DEFAULT now(),
+   598→  started_at      TIMESTAMPTZ,
+   599→  completed_at    TIMESTAMPTZ
+   600→);
+   601→
+   602→COMMENT ON TABLE question_exports IS 'Question export job tracking with filter metadata';
+   603→
+   604→-- ============================================================================
+   605→-- 23. INDEXES — PERFORMANCE CRITICAL
+   606→-- ============================================================================
+   607→-- Designed for millions of rows. Composite indexes target the most common
+   608→-- query patterns. GIN indexes support full-text search and JSONB queries.
+   609→-- ============================================================================
+   610→
+   611→-- ---------------------------------------------------------------------------
+   612→-- question_bank: Single-column indexes
+   613→-- ---------------------------------------------------------------------------
+   614→CREATE INDEX IF NOT EXISTS idx_qb_school_id          ON question_bank(school_id);
+   615→CREATE INDEX IF NOT EXISTS idx_qb_subject_id         ON question_bank(subject_id);
+   616→CREATE INDEX IF NOT EXISTS idx_qb_topic_id           ON question_bank(topic_id);
+   617→CREATE INDEX IF NOT EXISTS idx_qb_difficulty         ON question_bank(difficulty);
+   618→CREATE INDEX IF NOT EXISTS idx_qb_question_type      ON question_bank(question_type);
+   619→CREATE INDEX IF NOT EXISTS idx_qb_exam_type          ON question_bank(exam_type);
+   620→CREATE INDEX IF NOT EXISTS idx_qb_is_published       ON question_bank(is_published);
+   621→CREATE INDEX IF NOT EXISTS idx_qb_is_archived        ON question_bank(is_archived);
+   622→CREATE INDEX IF NOT EXISTS idx_qb_created_by         ON question_bank(created_by);
+   623→CREATE INDEX IF NOT EXISTS idx_qb_created_at         ON question_bank(created_at);
+   624→CREATE INDEX IF NOT EXISTS idx_qb_usage_count        ON question_bank(usage_count);
+   625→CREATE INDEX IF NOT EXISTS idx_qb_subtopic_id        ON question_bank(subtopic_id);
+   626→CREATE INDEX IF NOT EXISTS idx_qb_category_id        ON question_bank(category_id);
+   627→CREATE INDEX IF NOT EXISTS idx_qb_curriculum_std_id  ON question_bank(curriculum_standard_id);
+   628→CREATE INDEX IF NOT EXISTS idx_qb_academic_session_id ON question_bank(academic_session_id);
+   629→CREATE INDEX IF NOT EXISTS idx_qb_parent_id          ON question_bank(parent_id);
+   630→CREATE INDEX IF NOT EXISTS idx_qb_class_id           ON question_bank(class_id);
+   631→CREATE INDEX IF NOT EXISTS idx_qb_is_featured        ON question_bank(is_featured) WHERE is_featured = true;
+   632→CREATE INDEX IF NOT EXISTS idx_qb_version            ON question_bank(version);
+   633→
+   634→-- ---------------------------------------------------------------------------
+   635→-- question_bank: GIN indexes for full-text search and JSONB
+   636→-- ---------------------------------------------------------------------------
+   637→-- Full-text search on content column (supports to_tsvector queries)
+   638→CREATE INDEX IF NOT EXISTS idx_qb_content_fts    ON question_bank USING GIN (to_tsvector('english', content));
+   639→
+   640→-- GIN index on metadata JSONB for key/value lookups
+   641→CREATE INDEX IF NOT EXISTS idx_qb_metadata_gin   ON question_bank USING GIN (metadata);
+   642→
+   643→-- GIN index on content_json JSONB for complex question type queries
+   644→CREATE INDEX IF NOT EXISTS idx_qb_content_json_gin ON question_bank USING GIN (content_json);
+   645→
+   646→-- ---------------------------------------------------------------------------
+   647→-- question_bank: Composite indexes for common filter combinations
+   648→-- ---------------------------------------------------------------------------
+   649→-- Most common query: questions for a subject in a school at a difficulty
+   650→CREATE INDEX IF NOT EXISTS idx_qb_school_subject_difficulty
+   651→  ON question_bank(school_id, subject_id, difficulty);
+   652→
+   653→-- Published/non-archived questions in a school
+   654→CREATE INDEX IF NOT EXISTS idx_qb_school_published_archived
+   655→  ON question_bank(school_id, is_published, is_archived);
+   656→
+   657→-- Questions by subject and type (for filtering by question type)
+   658→CREATE INDEX IF NOT EXISTS idx_qb_subject_type
+   659→  ON question_bank(subject_id, question_type);
+   660→
+   661→-- Questions by school and exam type
+   662→CREATE INDEX IF NOT EXISTS idx_qb_school_exam_type
+   663→  ON question_bank(school_id, exam_type);
+   664→
+   665→-- Topic + subtopic for hierarchical browsing
+   666→CREATE INDEX IF NOT EXISTS idx_qb_topic_subtopic
+   667→  ON question_bank(topic_id, subtopic_id);
+   668→
+   669→-- Created by + published for teacher dashboard
+   670→CREATE INDEX IF NOT EXISTS idx_qb_created_by_published
+   671→  ON question_bank(created_by, is_published);
+   672→
+   673→-- ---------------------------------------------------------------------------
+   674→-- answer_options
+   675→-- ---------------------------------------------------------------------------
+   676→CREATE INDEX IF NOT EXISTS idx_ao_question_id    ON answer_options(question_id);
+   677→CREATE INDEX IF NOT EXISTS idx_ao_is_correct     ON answer_options(question_id, is_correct) WHERE is_correct = true;
+   678→
+   679→-- ---------------------------------------------------------------------------
+   680→-- matching_pairs
+   681→-- ---------------------------------------------------------------------------
+   682→CREATE INDEX IF NOT EXISTS idx_mp_question_id    ON matching_pairs(question_id);
+   683→
+   684→-- ---------------------------------------------------------------------------
+   685→-- ordering_items
+   686→-- ---------------------------------------------------------------------------
+   687→CREATE INDEX IF NOT EXISTS idx_oi_question_id    ON ordering_items(question_id);
+   688→
+   689→-- ---------------------------------------------------------------------------
+   690→-- fill_in_blank_answers
+   691→-- ---------------------------------------------------------------------------
+   692→CREATE INDEX IF NOT EXISTS idx_fiba_question_id  ON fill_in_blank_answers(question_id);
+   693→CREATE INDEX IF NOT EXISTS idx_fiba_blank_index  ON fill_in_blank_answers(question_id, blank_index);
+   694→
+   695→-- ---------------------------------------------------------------------------
+   696→-- question_attachments
+   697→-- ---------------------------------------------------------------------------
+   698→CREATE INDEX IF NOT EXISTS idx_qatt_question_id  ON question_attachments(question_id);
+   699→
+   700→-- ---------------------------------------------------------------------------
+   701→-- question_tags
+   702→-- ---------------------------------------------------------------------------
+   703→CREATE INDEX IF NOT EXISTS idx_qt_name           ON question_tags(name);
+   704→CREATE INDEX IF NOT EXISTS idx_qt_school_id      ON question_tags(school_id);
+   705→CREATE INDEX IF NOT EXISTS idx_qt_usage_count    ON question_tags(usage_count DESC);
+   706→
+   707→-- ---------------------------------------------------------------------------
+   708→-- question_tag_relations
+   709→-- ---------------------------------------------------------------------------
+   710→CREATE INDEX IF NOT EXISTS idx_qtr_question_id   ON question_tag_relations(question_id);
+   711→CREATE INDEX IF NOT EXISTS idx_qtr_tag_id        ON question_tag_relations(tag_id);
+   712→
+   713→-- ---------------------------------------------------------------------------
+   714→-- question_collections
+   715→-- ---------------------------------------------------------------------------
+   716→CREATE INDEX IF NOT EXISTS idx_qcol_school_id    ON question_collections(school_id);
+   717→CREATE INDEX IF NOT EXISTS idx_qcol_created_by   ON question_collections(created_by);
+   718→CREATE INDEX IF NOT EXISTS idx_qcol_is_shared    ON question_collections(is_shared) WHERE is_shared = true;
+   719→CREATE INDEX IF NOT EXISTS idx_qcol_is_official  ON question_collections(is_official) WHERE is_official = true;
+   720→
+   721→-- ---------------------------------------------------------------------------
+   722→-- collection_questions
+   723→-- ---------------------------------------------------------------------------
+   724→CREATE INDEX IF NOT EXISTS idx_cq_collection_id  ON collection_questions(collection_id);
+   725→CREATE INDEX IF NOT EXISTS idx_cq_question_id    ON collection_questions(question_id);
+   726→
+   727→-- ---------------------------------------------------------------------------
+   728→-- question_favorites
+   729→-- ---------------------------------------------------------------------------
+   730→CREATE INDEX IF NOT EXISTS idx_qf_user_id        ON question_favorites(user_id);
+   731→CREATE INDEX IF NOT EXISTS idx_qf_question_id    ON question_favorites(question_id);
+   732→
+   733→-- ---------------------------------------------------------------------------
+   734→-- question_shares
+   735→-- ---------------------------------------------------------------------------
+   736→CREATE INDEX IF NOT EXISTS idx_qs_question_id    ON question_shares(question_id);
+   737→CREATE INDEX IF NOT EXISTS idx_qs_shared_with    ON question_shares(shared_with);
+   738→CREATE INDEX IF NOT EXISTS idx_qs_shared_by      ON question_shares(shared_by);
+   739→CREATE INDEX IF NOT EXISTS idx_qs_expires        ON question_shares(expires_at) WHERE expires_at IS NOT NULL;
+   740→
+   741→-- ---------------------------------------------------------------------------
+   742→-- question_version_history
+   743→-- ---------------------------------------------------------------------------
+   744→CREATE INDEX IF NOT EXISTS idx_qvh_question_id   ON question_version_history(question_id);
+   745→CREATE INDEX IF NOT EXISTS idx_qvh_question_version ON question_version_history(question_id, version);
+   746→CREATE INDEX IF NOT EXISTS idx_qvh_changed_by    ON question_version_history(changed_by);
+   747→CREATE INDEX IF NOT EXISTS idx_qvh_change_type   ON question_version_history(change_type);
+   748→CREATE INDEX IF NOT EXISTS idx_qvh_created_at    ON question_version_history(created_at);
+   749→
+   750→-- ---------------------------------------------------------------------------
+   751→-- question_imports
+   752→-- ---------------------------------------------------------------------------
+   753→CREATE INDEX IF NOT EXISTS idx_qi_school_id      ON question_imports(school_id);
+   754→CREATE INDEX IF NOT EXISTS idx_qi_uploaded_by    ON question_imports(uploaded_by);
+   755→CREATE INDEX IF NOT EXISTS idx_qi_status         ON question_imports(status);
+   756→
+   757→-- ---------------------------------------------------------------------------
+   758→-- question_exports
+   759→-- ---------------------------------------------------------------------------
+   760→CREATE INDEX IF NOT EXISTS idx_qe_school_id      ON question_exports(school_id);
+   761→CREATE INDEX IF NOT EXISTS idx_qe_exported_by    ON question_exports(exported_by);
+   762→CREATE INDEX IF NOT EXISTS idx_qe_status         ON question_exports(status);
+   763→
+   764→-- ---------------------------------------------------------------------------
+   765→-- topics & subtopics
+   766→-- ---------------------------------------------------------------------------
+   767→CREATE INDEX IF NOT EXISTS idx_topics_subject_id ON topics(subject_id);
+   768→CREATE INDEX IF NOT EXISTS idx_topics_code       ON topics(code);
+   769→CREATE INDEX IF NOT EXISTS idx_topics_sort_order ON topics(subject_id, sort_order);
+   770→CREATE INDEX IF NOT EXISTS idx_subtopics_topic_id ON subtopics(topic_id);
+   771→CREATE INDEX IF NOT EXISTS idx_subtopics_code    ON subtopics(code);
+   772→CREATE INDEX IF NOT EXISTS idx_subtopics_sort    ON subtopics(topic_id, sort_order);
+   773→
+   774→-- ---------------------------------------------------------------------------
+   775→-- question_categories
+   776→-- ---------------------------------------------------------------------------
+   777→CREATE INDEX IF NOT EXISTS idx_qcat_school_id    ON question_categories(school_id);
+   778→CREATE INDEX IF NOT EXISTS idx_qcat_sort         ON question_categories(school_id, sort_order);
+   779→
+   780→-- ---------------------------------------------------------------------------
+   781→-- academic_sessions
+   782→-- ---------------------------------------------------------------------------
+   783→CREATE INDEX IF NOT EXISTS idx_as_school_id      ON academic_sessions(school_id);
+   784→CREATE INDEX IF NOT EXISTS idx_as_is_current     ON academic_sessions(is_current) WHERE is_current = true;
+   785→
+   786→-- ---------------------------------------------------------------------------
+   787→-- curriculum_standards
+   788→-- ---------------------------------------------------------------------------
+   789→CREATE INDEX IF NOT EXISTS idx_cs_subject_id     ON curriculum_standards(subject_id);
+   790→CREATE INDEX IF NOT EXISTS idx_cs_class_id       ON curriculum_standards(class_id);
+   791→CREATE INDEX IF NOT EXISTS idx_cs_type           ON curriculum_standards(type);
+   792→CREATE INDEX IF NOT EXISTS idx_cs_code           ON curriculum_standards(code);
+   793→
+   794→-- ============================================================================
+   795→-- 24. HELPER FUNCTIONS
+   796→-- ============================================================================
+   797→
+   798→-- ---------------------------------------------------------------------------
+   799→-- update_question_usage_count(question_id UUID)
+   800→-- Increments the usage_count of a question (called when used in an exam).
+   801→-- ---------------------------------------------------------------------------
+   802→CREATE OR REPLACE FUNCTION update_question_usage_count(target_question_id UUID)
+   803→RETURNS VOID AS $$
+   804→BEGIN
+   805→  UPDATE question_bank
+   806→  SET usage_count = usage_count + 1,
+   807→      updated_at  = now()
+   808→  WHERE id = target_question_id;
+   809→END;
+   810→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   811→
+   812→COMMENT ON FUNCTION update_question_usage_count(UUID) IS
+   813→  'Increment the usage_count of a question by 1';
+   814→
+   815→-- ---------------------------------------------------------------------------
+   816→-- create_question_version(question_id UUID, change_type VARCHAR, change_desc TEXT)
+   817→-- Creates a version snapshot of a question before it is modified.
+   818→-- Returns the new version number.
+   819→-- ---------------------------------------------------------------------------
+   820→CREATE OR REPLACE FUNCTION create_question_version(
+   821→  target_question_id UUID,
+   822→  p_change_type     VARCHAR,
+   823→  p_change_desc     TEXT DEFAULT NULL
+   824→)
+   825→RETURNS INTEGER AS $$
+   826→DECLARE
+   827→  v_question   RECORD;
+   828→  v_version    INTEGER;
+   829→  v_snapshot   JSONB;
+   830→  v_changed_by UUID;
+   831→BEGIN
+   832→  -- Get current auth user as the changer
+   833→  SELECT id INTO v_changed_by FROM users WHERE id = auth.uid();
+   834→
+   835→  -- Fetch the current question row
+   836→  SELECT * INTO v_question FROM question_bank WHERE id = target_question_id;
+   837→  IF NOT FOUND THEN
+   838→    RAISE EXCEPTION 'Question % not found', target_question_id;
+   839→  END IF;
+   840→
+   841→  -- Build the snapshot JSONB
+   842→  v_snapshot := jsonb_build_object(
+   843→    'id',                 v_question.id,
+   844→    'school_id',          v_question.school_id,
+   845→    'subject_id',         v_question.subject_id,
+   846→    'topic_id',           v_question.topic_id,
+   847→    'subtopic_id',        v_question.subtopic_id,
+   848→    'class_id',           v_question.class_id,
+   849→    'category_id',        v_question.category_id,
+   850→    'curriculum_standard_id', v_question.curriculum_standard_id,
+   851→    'academic_session_id',v_question.academic_session_id,
+   852→    'question_type',      v_question.question_type,
+   853→    'difficulty',         v_question.difficulty,
+   854→    'exam_type',          v_question.exam_type,
+   855→    'content',            v_question.content,
+   856→    'content_json',       v_question.content_json,
+   857→    'explanation',        v_question.explanation,
+   858→    'teacher_notes',      v_question.teacher_notes,
+   859→    'reference_materials',v_question.reference_materials,
+   860→    'marks',              v_question.marks,
+   861→    'negative_marks',     v_question.negative_marks,
+   862→    'time_allowed_seconds', v_question.time_allowed_seconds,
+   863→    'is_published',       v_question.is_published,
+   864→    'is_archived',        v_question.is_archived,
+   865→    'is_featured',        v_question.is_featured,
+   866→    'version',            v_question.version,
+   867→    'parent_id',          v_question.parent_id,
+   868→    'created_by',         v_question.created_by,
+   869→    'updated_by',         v_question.updated_by,
+   870→    'usage_count',        v_question.usage_count,
+   871→    'avg_score',          v_question.avg_score,
+   872→    'metadata',           v_question.metadata,
+   873→    'created_at',         v_question.created_at,
+   874→    'updated_at',         v_question.updated_at
+   875→  );
+   876→
+   877→  -- Compute the next version number
+   878→  v_version := v_question.version + 1;
+   879→
+   880→  -- Insert the version history record
+   881→  INSERT INTO question_version_history (
+   882→    question_id, version, snapshot, change_description, changed_by, change_type
+   883→  ) VALUES (
+   884→    target_question_id, v_version, v_snapshot,
+   885→    COALESCE(p_change_desc, 'Version ' || v_version),
+   886→    v_changed_by, p_change_type
+   887→  );
+   888→
+   889→  -- Update the question's version counter
+   890→  UPDATE question_bank
+   891→  SET version    = v_version,
+   892→      updated_at = now()
+   893→  WHERE id = target_question_id;
+   894→
+   895→  RETURN v_version;
+   896→END;
+   897→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   898→
+   899→COMMENT ON FUNCTION create_question_version(UUID, VARCHAR, TEXT) IS
+   900→  'Create a version snapshot of a question and increment its version number';
+   901→
+   902→-- ---------------------------------------------------------------------------
+   903→-- get_question_with_details(target_question_id UUID)
+   904→-- Returns a JSONB object containing the question + all related data
+   905→-- (answer_options, matching_pairs, ordering_items, fill_in_blank_answers,
+   906→--  question_attachments, tags) in a single call.
+   907→-- ---------------------------------------------------------------------------
+   908→CREATE OR REPLACE FUNCTION get_question_with_details(target_question_id UUID)
+   909→RETURNS JSONB AS $$
+   910→DECLARE
+   911→  v_result JSONB;
+   912→BEGIN
+   913→  SELECT jsonb_build_object(
+   914→    'question',    to_jsonb(q.*),
+   915→    'options',     COALESCE(
+   916→      (SELECT jsonb_agg(to_jsonb(o.*) ORDER BY o.sort_order)
+   917→       FROM answer_options o WHERE o.question_id = target_question_id),
+   918→      '[]'::jsonb
+   919→    ),
+   920→    'matching_pairs', COALESCE(
+   921→      (SELECT jsonb_agg(to_jsonb(mp.*) ORDER BY mp.sort_order)
+   922→       FROM matching_pairs mp WHERE mp.question_id = target_question_id),
+   923→      '[]'::jsonb
+   924→    ),
+   925→    'ordering_items', COALESCE(
+   926→      (SELECT jsonb_agg(to_jsonb(oi.*) ORDER BY oi.correct_position)
+   927→       FROM ordering_items oi WHERE oi.question_id = target_question_id),
+   928→      '[]'::jsonb
+   929→    ),
+   930→    'fill_in_blank_answers', COALESCE(
+   931→      (SELECT jsonb_agg(to_jsonb(fib.*) ORDER BY fib.blank_index)
+   932→       FROM fill_in_blank_answers fib WHERE fib.question_id = target_question_id),
+   933→      '[]'::jsonb
+   934→    ),
+   935→    'attachments', COALESCE(
+   936→      (SELECT jsonb_agg(to_jsonb(a.*) ORDER BY a.sort_order)
+   937→       FROM question_attachments a WHERE a.question_id = target_question_id),
+   938→      '[]'::jsonb
+   939→    ),
+   940→    'tags', COALESCE(
+   941→      (SELECT jsonb_agg(jsonb_build_object('id', t.id, 'name', t.name))
+   942→       FROM question_tag_relations qtr
+   943→       JOIN question_tags t ON t.id = qtr.tag_id
+   944→       WHERE qtr.question_id = target_question_id),
+   945→      '[]'::jsonb
+   946→    )
+   947→  ) INTO v_result
+   948→  FROM question_bank q
+   949→  WHERE q.id = target_question_id;
+   950→
+   951→  RETURN v_result;
+   952→END;
+   953→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+   954→
+   955→COMMENT ON FUNCTION get_question_with_details(UUID) IS
+   956→  'Fetch a question with all its related data (options, pairs, items, blanks, attachments, tags) as a single JSONB';
+   957→
+   958→-- ---------------------------------------------------------------------------
+   959→-- search_questions(search_query TEXT, filters JSONB)
+   960→-- Full-text search function with optional filters.
+   961→-- Filters JSONB can include:
+   962→--   school_id, subject_id, topic_id, difficulty, question_type, exam_type,
+   963→--   is_published, is_archived, class_id, category_id, created_by, limit, offset
+   964→-- ---------------------------------------------------------------------------
+   965→CREATE OR REPLACE FUNCTION search_questions(
+   966→  p_search_query TEXT,
+   967→  p_filters      JSONB DEFAULT '{}'
+   968→)
+   969→RETURNS TABLE (
+   970→  id                UUID,
+   971→  school_id         UUID,
+   972→  subject_id        UUID,
+   973→  topic_id          UUID,
+   974→  question_type     question_type,
+   975→  difficulty        difficulty_level,
+   976→  exam_type         exam_type,
+   977→  content           TEXT,
+   978→  marks             NUMERIC,
+   979→  is_published      BOOLEAN,
+   980→  is_archived       BOOLEAN,
+   981→  usage_count       INTEGER,
+   982→  avg_score         NUMERIC,
+   983→  created_by        UUID,
+   984→  created_at        TIMESTAMPTZ,
+   985→  rank              REAL
+   986→) AS $$
+   987→DECLARE
+   988→  v_limit  INTEGER := COALESCE((p_filters->>'limit')::INTEGER, 50);
+   989→  v_offset INTEGER := COALESCE((p_filters->>'offset')::INTEGER, 0);
+   990→BEGIN
+   991→  RETURN QUERY
+   992→  SELECT
+   993→    qb.id,
+   994→    qb.school_id,
+   995→    qb.subject_id,
+   996→    qb.topic_id,
+   997→    qb.question_type,
+   998→    qb.difficulty,
+   999→    qb.exam_type,
+  1000→    qb.content,
+  1001→    qb.marks,
+  1002→    qb.is_published,
+  1003→    qb.is_archived,
+  1004→    qb.usage_count,
+  1005→    qb.avg_score,
+  1006→    qb.created_by,
+  1007→    qb.created_at,
+  1008→    ts_rank(to_tsvector('english', qb.content), plainto_tsquery('english', p_search_query)) AS rank
+  1009→  FROM question_bank qb
+  1010→  WHERE
+  1011→    -- Full-text search filter
+  1012→    (p_search_query IS NULL OR p_search_query = '' OR
+  1013→     to_tsvector('english', qb.content) @@ plainto_tsquery('english', p_search_query))
+  1014→    -- School filter (includes platform-wide NULL school_id)
+  1015→    AND (p_filters->>'school_id' IS NULL OR qb.school_id::TEXT = p_filters->>'school_id' OR qb.school_id IS NULL)
+  1016→    -- Subject filter
+  1017→    AND (p_filters->>'subject_id' IS NULL OR qb.subject_id::TEXT = p_filters->>'subject_id')
+  1018→    -- Topic filter
+  1019→    AND (p_filters->>'topic_id' IS NULL OR qb.topic_id::TEXT = p_filters->>'topic_id')
+  1020→    -- Difficulty filter
+  1021→    AND (p_filters->>'difficulty' IS NULL OR qb.difficulty::TEXT = p_filters->>'difficulty')
+  1022→    -- Question type filter
+  1023→    AND (p_filters->>'question_type' IS NULL OR qb.question_type::TEXT = p_filters->>'question_type')
+  1024→    -- Exam type filter
+  1025→    AND (p_filters->>'exam_type' IS NULL OR qb.exam_type::TEXT = p_filters->>'exam_type')
+  1026→    -- Published filter
+  1027→    AND (p_filters->>'is_published' IS NULL OR qb.is_published = (p_filters->>'is_published')::BOOLEAN)
+  1028→    -- Not archived (default: exclude archived)
+  1029→    AND (p_filters->>'is_archived' IS NULL OR qb.is_archived = (p_filters->>'is_archived')::BOOLEAN)
+  1030→    -- Class filter
+  1031→    AND (p_filters->>'class_id' IS NULL OR qb.class_id::TEXT = p_filters->>'class_id')
+  1032→    -- Category filter
+  1033→    AND (p_filters->>'category_id' IS NULL OR qb.category_id::TEXT = p_filters->>'category_id')
+  1034→    -- Created by filter
+  1035→    AND (p_filters->>'created_by' IS NULL OR qb.created_by::TEXT = p_filters->>'created_by')
+  1036→  ORDER BY
+  1037→    rank DESC NULLS LAST,
+  1038→    qb.created_at DESC
+  1039→  LIMIT v_limit
+  1040→  OFFSET v_offset;
+  1041→END;
+  1042→$$ LANGUAGE plpgsql SECURITY DEFINER STABLE;
+  1043→
+  1044→COMMENT ON FUNCTION search_questions(TEXT, JSONB) IS
+  1045→  'Full-text search with JSONB filters for the question bank';
+  1046→
+  1047→-- ---------------------------------------------------------------------------
+  1048→-- update_collection_question_count(target_collection_id UUID)
+  1049→-- Recalculates the question_count on a collection from collection_questions.
+  1050→-- ---------------------------------------------------------------------------
+  1051→CREATE OR REPLACE FUNCTION update_collection_question_count(target_collection_id UUID)
+  1052→RETURNS VOID AS $$
+  1053→DECLARE
+  1054→  v_count INTEGER;
+  1055→BEGIN
+  1056→  SELECT COUNT(*) INTO v_count
+  1057→  FROM collection_questions
+  1058→  WHERE collection_id = target_collection_id;
+  1059→
+  1060→  UPDATE question_collections
+  1061→  SET question_count = v_count,
+  1062→      updated_at     = now()
+  1063→  WHERE id = target_collection_id;
+  1064→END;
+  1065→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1066→
+  1067→COMMENT ON FUNCTION update_collection_question_count(UUID) IS
+  1068→  'Recalculate the denormalized question_count on a collection';
+  1069→
+  1070→-- ---------------------------------------------------------------------------
+  1071→-- update_tag_usage_count(target_tag_id UUID)
+  1072→-- Recalculates the usage_count on a tag from question_tag_relations.
+  1073→-- ---------------------------------------------------------------------------
+  1074→CREATE OR REPLACE FUNCTION update_tag_usage_count(target_tag_id UUID)
+  1075→RETURNS VOID AS $$
+  1076→DECLARE
+  1077→  v_count INTEGER;
+  1078→BEGIN
+  1079→  SELECT COUNT(*) INTO v_count
+  1080→  FROM question_tag_relations
+  1081→  WHERE tag_id = target_tag_id;
+  1082→
+  1083→  UPDATE question_tags
+  1084→  SET usage_count = v_count
+  1085→  WHERE id = target_tag_id;
+  1086→END;
+  1087→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1088→
+  1089→COMMENT ON FUNCTION update_tag_usage_count(UUID) IS
+  1090→  'Recalculate the denormalized usage_count on a tag';
+  1091→
+  1092→-- ============================================================================
+  1093→-- 25. TRIGGERS
+  1094→-- ============================================================================
+  1095→
+  1096→-- ---------------------------------------------------------------------------
+  1097→-- Auto-update updated_at on all new tables
+  1098→-- ---------------------------------------------------------------------------
+  1099→
+  1100→-- topics
+  1101→DROP TRIGGER IF EXISTS set_topics_updated_at ON topics;
+  1102→CREATE TRIGGER set_topics_updated_at
+  1103→  BEFORE UPDATE ON topics
+  1104→  FOR EACH ROW
+  1105→  EXECUTE FUNCTION update_updated_at_column();
+  1106→
+  1107→-- subtopics
+  1108→DROP TRIGGER IF EXISTS set_subtopics_updated_at ON subtopics;
+  1109→CREATE TRIGGER set_subtopics_updated_at
+  1110→  BEFORE UPDATE ON subtopics
+  1111→  FOR EACH ROW
+  1112→  EXECUTE FUNCTION update_updated_at_column();
+  1113→
+  1114→-- question_categories
+  1115→DROP TRIGGER IF EXISTS set_question_categories_updated_at ON question_categories;
+  1116→CREATE TRIGGER set_question_categories_updated_at
+  1117→  BEFORE UPDATE ON question_categories
+  1118→  FOR EACH ROW
+  1119→  EXECUTE FUNCTION update_updated_at_column();
+  1120→
+  1121→-- academic_sessions
+  1122→DROP TRIGGER IF EXISTS set_academic_sessions_updated_at ON academic_sessions;
+  1123→CREATE TRIGGER set_academic_sessions_updated_at
+  1124→  BEFORE UPDATE ON academic_sessions
+  1125→  FOR EACH ROW
+  1126→  EXECUTE FUNCTION update_updated_at_column();
+  1127→
+  1128→-- curriculum_standards
+  1129→DROP TRIGGER IF EXISTS set_curriculum_standards_updated_at ON curriculum_standards;
+  1130→CREATE TRIGGER set_curriculum_standards_updated_at
+  1131→  BEFORE UPDATE ON curriculum_standards
+  1132→  FOR EACH ROW
+  1133→  EXECUTE FUNCTION update_updated_at_column();
+  1134→
+  1135→-- question_bank
+  1136→DROP TRIGGER IF EXISTS set_question_bank_updated_at ON question_bank;
+  1137→CREATE TRIGGER set_question_bank_updated_at
+  1138→  BEFORE UPDATE ON question_bank
+  1139→  FOR EACH ROW
+  1140→  EXECUTE FUNCTION update_updated_at_column();
+  1141→
+  1142→-- answer_options
+  1143→DROP TRIGGER IF EXISTS set_answer_options_updated_at ON answer_options;
+  1144→CREATE TRIGGER set_answer_options_updated_at
+  1145→  BEFORE UPDATE ON answer_options
+  1146→  FOR EACH ROW
+  1147→  EXECUTE FUNCTION update_updated_at_column();
+  1148→
+  1149→-- question_collections
+  1150→DROP TRIGGER IF EXISTS set_question_collections_updated_at ON question_collections;
+  1151→CREATE TRIGGER set_question_collections_updated_at
+  1152→  BEFORE UPDATE ON question_collections
+  1153→  FOR EACH ROW
+  1154→  EXECUTE FUNCTION update_updated_at_column();
+  1155→
+  1156→-- ---------------------------------------------------------------------------
+  1157→-- Auto-create version history on question_bank update
+  1158→-- ---------------------------------------------------------------------------
+  1159→CREATE OR REPLACE FUNCTION trigger_create_question_version()
+  1160→RETURNS TRIGGER AS $$
+  1161→DECLARE
+  1162→  v_change_type VARCHAR(20);
+  1163→BEGIN
+  1164→  -- Determine the change type from the transition
+  1165→  IF TG_OP = 'INSERT' THEN
+  1166→    v_change_type := 'create';
+  1167→    -- Insert initial version history on creation
+  1168→    INSERT INTO question_version_history (
+  1169→      question_id, version, snapshot, change_description, changed_by, change_type
+  1170→    ) VALUES (
+  1171→      NEW.id,
+  1172→      1,
+  1173→      to_jsonb(NEW),
+  1174→      'Initial creation',
+  1175→      NEW.created_by,
+  1176→      v_change_type
+  1177→    );
+  1178→    RETURN NEW;
+  1179→  END IF;
+  1180→
+  1181→  -- For updates, determine the change type
+  1182→  IF TG_OP = 'UPDATE' THEN
+  1183→    -- Detect specific state transitions
+  1184→    IF OLD.is_archived = false AND NEW.is_archived = true THEN
+  1185→      v_change_type := 'archive';
+  1186→    ELSIF OLD.is_published = false AND NEW.is_published = true THEN
+  1187→      v_change_type := 'publish';
+  1188→    ELSIF OLD.is_archived = true AND NEW.is_archived = false AND NEW.is_published = true THEN
+  1189→      v_change_type := 'restore';
+  1190→    ELSE
+  1191→      v_change_type := 'update';
+  1192→    END IF;
+  1193→
+  1194→    -- Only create a version snapshot if substantive fields changed
+  1195→    -- (skip updated_at-only changes to avoid noise)
+  1196→    IF OLD.content            IS DISTINCT FROM NEW.content OR
+  1197→       OLD.content_json       IS DISTINCT FROM NEW.content_json OR
+  1198→       OLD.explanation        IS DISTINCT FROM NEW.explanation OR
+  1199→       OLD.marks              IS DISTINCT FROM NEW.marks OR
+  1200→       OLD.negative_marks     IS DISTINCT FROM NEW.negative_marks OR
+  1201→       OLD.difficulty         IS DISTINCT FROM NEW.difficulty OR
+  1202→       OLD.question_type      IS DISTINCT FROM NEW.question_type OR
+  1203→       OLD.exam_type          IS DISTINCT FROM NEW.exam_type OR
+  1204→       OLD.is_published       IS DISTINCT FROM NEW.is_published OR
+  1205→       OLD.is_archived        IS DISTINCT FROM NEW.is_archived OR
+  1206→       OLD.is_featured        IS DISTINCT FROM NEW.is_featured OR
+  1207→       OLD.topic_id           IS DISTINCT FROM NEW.topic_id OR
+  1208→       OLD.subtopic_id        IS DISTINCT FROM NEW.subtopic_id OR
+  1209→       OLD.category_id        IS DISTINCT FROM NEW.category_id OR
+  1210→       OLD.metadata           IS DISTINCT FROM NEW.metadata OR
+  1211→       OLD.teacher_notes      IS DISTINCT FROM NEW.teacher_notes OR
+  1212→       OLD.reference_materials IS DISTINCT FROM NEW.reference_materials OR
+  1213→       OLD.time_allowed_seconds IS DISTINCT FROM NEW.time_allowed_seconds
+  1214→    THEN
+  1215→      PERFORM create_question_version(NEW.id, v_change_type);
+  1216→    END IF;
+  1217→
+  1218→    RETURN NEW;
+  1219→  END IF;
+  1220→
+  1221→  RETURN COALESCE(NEW, OLD);
+  1222→END;
+  1223→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1224→
+  1225→DROP TRIGGER IF EXISTS on_question_bank_version ON question_bank;
+  1226→CREATE TRIGGER on_question_bank_version
+  1227→  AFTER INSERT OR UPDATE ON question_bank
+  1228→  FOR EACH ROW
+  1229→  EXECUTE FUNCTION trigger_create_question_version();
+  1230→
+  1231→COMMENT ON FUNCTION trigger_create_question_version() IS
+  1232→  'Trigger: auto-create version history snapshots on question creation and substantive updates';
+  1233→
+  1234→-- ---------------------------------------------------------------------------
+  1235→-- Auto-update question_count on collection_questions insert/delete
+  1236→-- ---------------------------------------------------------------------------
+  1237→
+  1238→-- After INSERT on collection_questions
+  1239→CREATE OR REPLACE FUNCTION trigger_update_collection_count_on_add()
+  1240→RETURNS TRIGGER AS $$
+  1241→BEGIN
+  1242→  PERFORM update_collection_question_count(NEW.collection_id);
+  1243→  RETURN NEW;
+  1244→END;
+  1245→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1246→
+  1247→DROP TRIGGER IF EXISTS on_collection_question_add ON collection_questions;
+  1248→CREATE TRIGGER on_collection_question_add
+  1249→  AFTER INSERT ON collection_questions
+  1250→  FOR EACH ROW
+  1251→  EXECUTE FUNCTION trigger_update_collection_count_on_add();
+  1252→
+  1253→-- After DELETE on collection_questions
+  1254→CREATE OR REPLACE FUNCTION trigger_update_collection_count_on_remove()
+  1255→RETURNS TRIGGER AS $$
+  1256→BEGIN
+  1257→  PERFORM update_collection_question_count(OLD.collection_id);
+  1258→  RETURN OLD;
+  1259→END;
+  1260→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1261→
+  1262→DROP TRIGGER IF EXISTS on_collection_question_remove ON collection_questions;
+  1263→CREATE TRIGGER on_collection_question_remove
+  1264→  AFTER DELETE ON collection_questions
+  1265→  FOR EACH ROW
+  1266→  EXECUTE FUNCTION trigger_update_collection_count_on_remove();
+  1267→
+  1268→-- ---------------------------------------------------------------------------
+  1269→-- Auto-update usage_count on question_tags when tag relations change
+  1270→-- ---------------------------------------------------------------------------
+  1271→
+  1272→-- After INSERT on question_tag_relations
+  1273→CREATE OR REPLACE FUNCTION trigger_update_tag_count_on_add()
+  1274→RETURNS TRIGGER AS $$
+  1275→BEGIN
+  1276→  PERFORM update_tag_usage_count(NEW.tag_id);
+  1277→  RETURN NEW;
+  1278→END;
+  1279→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1280→
+  1281→DROP TRIGGER IF EXISTS on_tag_relation_add ON question_tag_relations;
+  1282→CREATE TRIGGER on_tag_relation_add
+  1283→  AFTER INSERT ON question_tag_relations
+  1284→  FOR EACH ROW
+  1285→  EXECUTE FUNCTION trigger_update_tag_count_on_add();
+  1286→
+  1287→-- After DELETE on question_tag_relations
+  1288→CREATE OR REPLACE FUNCTION trigger_update_tag_count_on_remove()
+  1289→RETURNS TRIGGER AS $$
+  1290→BEGIN
+  1291→  PERFORM update_tag_usage_count(OLD.tag_id);
+  1292→  RETURN OLD;
+  1293→END;
+  1294→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1295→
+  1296→DROP TRIGGER IF EXISTS on_tag_relation_remove ON question_tag_relations;
+  1297→CREATE TRIGGER on_tag_relation_remove
+  1298→  AFTER DELETE ON question_tag_relations
+  1299→  FOR EACH ROW
+  1300→  EXECUTE FUNCTION trigger_update_tag_count_on_remove();
+  1301→
+  1302→-- ---------------------------------------------------------------------------
+  1303→-- Ensure only one current academic session per school
+  1304→-- ---------------------------------------------------------------------------
+  1305→CREATE OR REPLACE FUNCTION enforce_single_current_session()
+  1306→RETURNS TRIGGER AS $$
+  1307→BEGIN
+  1308→  IF NEW.is_current = true AND NEW.school_id IS NOT NULL THEN
+  1309→    UPDATE academic_sessions
+  1310→    SET is_current = false,
+  1311→        updated_at = now()
+  1312→    WHERE school_id = NEW.school_id
+  1313→      AND is_current = true
+  1314→      AND id IS DISTINCT FROM NEW.id;
+  1315→  END IF;
+  1316→  RETURN NEW;
+  1317→END;
+  1318→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1319→
+  1320→DROP TRIGGER IF EXISTS on_academic_session_current ON academic_sessions;
+  1321→CREATE TRIGGER on_academic_session_current
+  1322→  BEFORE INSERT OR UPDATE OF is_current ON academic_sessions
+  1323→  FOR EACH ROW
+  1324→  WHEN (NEW.is_current = true)
+  1325→  EXECUTE FUNCTION enforce_single_current_session();
+  1326→
+  1327→COMMENT ON FUNCTION enforce_single_current_session() IS
+  1328→  'Ensures only one academic session can be current per school at a time';
+  1329→
+  1330→-- ============================================================================
+  1331→-- 26. ROW LEVEL SECURITY (RLS)
+  1332→-- ============================================================================
+  1333→-- Enable RLS on ALL new tables. Policies enforce multi-tenant isolation
+  1334→-- and role-based access control.
+  1335→-- ============================================================================
+  1336→
+  1337→-- Enable RLS
+  1338→ALTER TABLE topics ENABLE ROW LEVEL SECURITY;
+  1339→ALTER TABLE subtopics ENABLE ROW LEVEL SECURITY;
+  1340→ALTER TABLE question_categories ENABLE ROW LEVEL SECURITY;
+  1341→ALTER TABLE academic_sessions ENABLE ROW LEVEL SECURITY;
+  1342→ALTER TABLE curriculum_standards ENABLE ROW LEVEL SECURITY;
+  1343→ALTER TABLE question_bank ENABLE ROW LEVEL SECURITY;
+  1344→ALTER TABLE answer_options ENABLE ROW LEVEL SECURITY;
+  1345→ALTER TABLE matching_pairs ENABLE ROW LEVEL SECURITY;
+  1346→ALTER TABLE ordering_items ENABLE ROW LEVEL SECURITY;
+  1347→ALTER TABLE fill_in_blank_answers ENABLE ROW LEVEL SECURITY;
+  1348→ALTER TABLE question_attachments ENABLE ROW LEVEL SECURITY;
+  1349→ALTER TABLE question_tags ENABLE ROW LEVEL SECURITY;
+  1350→ALTER TABLE question_tag_relations ENABLE ROW LEVEL SECURITY;
+  1351→ALTER TABLE question_collections ENABLE ROW LEVEL SECURITY;
+  1352→ALTER TABLE collection_questions ENABLE ROW LEVEL SECURITY;
+  1353→ALTER TABLE question_favorites ENABLE ROW LEVEL SECURITY;
+  1354→ALTER TABLE question_shares ENABLE ROW LEVEL SECURITY;
+  1355→ALTER TABLE question_version_history ENABLE ROW LEVEL SECURITY;
+  1356→ALTER TABLE question_imports ENABLE ROW LEVEL SECURITY;
+  1357→ALTER TABLE question_exports ENABLE ROW LEVEL SECURITY;
+  1358→
+  1359→-- ===========================================================================
+  1360→-- TOPICS RLS POLICIES
+  1361→-- ===========================================================================
+  1362→
+  1363→-- All authenticated users can read topics for subjects they can access
+  1364→CREATE POLICY "Authenticated users can read topics"
+  1365→  ON topics FOR SELECT
+  1366→  TO authenticated
+  1367→  USING (
+  1368→    EXISTS (
+  1369→      SELECT 1 FROM subjects s
+  1370→      WHERE s.id = subject_id
+  1371→        AND (s.school_id IS NULL OR s.school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1372→    )
+  1373→  );
+  1374→
+  1375→-- Teachers can create topics for subjects in their school
+  1376→CREATE POLICY "Teachers can create topics"
+  1377→  ON topics FOR INSERT
+  1378→  TO authenticated
+  1379→  WITH CHECK (
+  1380→    get_user_role() IN ('teacher', 'school_admin', 'super_admin')
+  1381→    AND EXISTS (
+  1382→      SELECT 1 FROM subjects s
+  1383→      WHERE s.id = subject_id
+  1384→        AND (s.school_id = (SELECT school_id FROM users WHERE id = auth.uid()) OR get_user_role() = 'super_admin')
+  1385→    )
+  1386→  );
+  1387→
+  1388→-- Teachers can update topics they created; school admins can update any in their school
+  1389→CREATE POLICY "Teachers can update own topics"
+  1390→  ON topics FOR UPDATE
+  1391→  TO authenticated
+  1392→  USING (
+  1393→    created_by = auth.uid()
+  1394→    OR (get_user_role() = 'school_admin' AND EXISTS (
+  1395→      SELECT 1 FROM subjects s WHERE s.id = subject_id
+  1396→        AND s.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1397→    ))
+  1398→    OR get_user_role() = 'super_admin'
+  1399→  )
+  1400→  WITH CHECK (
+  1401→    created_by = auth.uid()
+  1402→    OR (get_user_role() = 'school_admin' AND EXISTS (
+  1403→      SELECT 1 FROM subjects s WHERE s.id = subject_id
+  1404→        AND s.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1405→    ))
+  1406→    OR get_user_role() = 'super_admin'
+  1407→  );
+  1408→
+  1409→-- School admins and super admins can delete topics
+  1410→CREATE POLICY "Admins can delete topics"
+  1411→  ON topics FOR DELETE
+  1412→  TO authenticated
+  1413→  USING (
+  1414→    (get_user_role() = 'school_admin' AND EXISTS (
+  1415→      SELECT 1 FROM subjects s WHERE s.id = subject_id
+  1416→        AND s.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1417→    ))
+  1418→    OR get_user_role() = 'super_admin'
+  1419→  );
+  1420→
+  1421→-- ===========================================================================
+  1422→-- SUBTOPICS RLS POLICIES
+  1423→-- ===========================================================================
+  1424→
+  1425→-- All authenticated users can read subtopics for topics they can access
+  1426→CREATE POLICY "Authenticated users can read subtopics"
+  1427→  ON subtopics FOR SELECT
+  1428→  TO authenticated
+  1429→  USING (
+  1430→    EXISTS (
+  1431→      SELECT 1 FROM topics t
+  1432→      JOIN subjects s ON s.id = t.subject_id
+  1433→      WHERE t.id = topic_id
+  1434→        AND (s.school_id IS NULL OR s.school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1435→    )
+  1436→  );
+  1437→
+  1438→-- Teachers can create subtopics
+  1439→CREATE POLICY "Teachers can create subtopics"
+  1440→  ON subtopics FOR INSERT
+  1441→  TO authenticated
+  1442→  WITH CHECK (
+  1443→    get_user_role() IN ('teacher', 'school_admin', 'super_admin')
+  1444→    AND EXISTS (
+  1445→      SELECT 1 FROM topics t
+  1446→      JOIN subjects s ON s.id = t.subject_id
+  1447→      WHERE t.id = topic_id
+  1448→        AND (s.school_id = (SELECT school_id FROM users WHERE id = auth.uid()) OR get_user_role() = 'super_admin')
+  1449→    )
+  1450→  );
+  1451→
+  1452→-- Teachers can update own subtopics; admins can update any in their school
+  1453→CREATE POLICY "Teachers can update own subtopics"
+  1454→  ON subtopics FOR UPDATE
+  1455→  TO authenticated
+  1456→  USING (
+  1457→    created_by = auth.uid()
+  1458→    OR (get_user_role() = 'school_admin' AND EXISTS (
+  1459→      SELECT 1 FROM topics t
+  1460→      JOIN subjects s ON s.id = t.subject_id
+  1461→      WHERE t.id = topic_id
+  1462→        AND s.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1463→    ))
+  1464→    OR get_user_role() = 'super_admin'
+  1465→  )
+  1466→  WITH CHECK (
+  1467→    created_by = auth.uid()
+  1468→    OR (get_user_role() = 'school_admin' AND EXISTS (
+  1469→      SELECT 1 FROM topics t
+  1470→      JOIN subjects s ON s.id = t.subject_id
+  1471→      WHERE t.id = topic_id
+  1472→        AND s.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1473→    ))
+  1474→    OR get_user_role() = 'super_admin'
+  1475→  );
+  1476→
+  1477→-- Admins can delete subtopics
+  1478→CREATE POLICY "Admins can delete subtopics"
+  1479→  ON subtopics FOR DELETE
+  1480→  TO authenticated
+  1481→  USING (
+  1482→    (get_user_role() = 'school_admin' AND EXISTS (
+  1483→      SELECT 1 FROM topics t
+  1484→      JOIN subjects s ON s.id = t.subject_id
+  1485→      WHERE t.id = topic_id
+  1486→        AND s.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1487→    ))
+  1488→    OR get_user_role() = 'super_admin'
+  1489→  );
+  1490→
+  1491→-- ===========================================================================
+  1492→-- QUESTION_CATEGORIES RLS POLICIES
+  1493→-- ===========================================================================
+  1494→
+  1495→-- All authenticated users can read categories for their school + system-wide
+  1496→CREATE POLICY "Authenticated users can read question categories"
+  1497→  ON question_categories FOR SELECT
+  1498→  TO authenticated
+  1499→  USING (
+  1500→    school_id IS NULL
+  1501→    OR school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1502→  );
+  1503→
+  1504→-- Teachers can create categories
+  1505→CREATE POLICY "Teachers can create question categories"
+  1506→  ON question_categories FOR INSERT
+  1507→  TO authenticated
+  1508→  WITH CHECK (
+  1509→    get_user_role() IN ('teacher', 'school_admin', 'super_admin')
+  1510→    AND (school_id = (SELECT school_id FROM users WHERE id = auth.uid()) OR get_user_role() = 'super_admin')
+  1511→  );
+  1512→
+  1513→-- Teachers can update own categories; admins can update any in their school
+  1514→CREATE POLICY "Users can update question categories"
+  1515→  ON question_categories FOR UPDATE
+  1516→  TO authenticated
+  1517→  USING (
+  1518→    created_by = auth.uid()
+  1519→    OR (get_user_role() = 'school_admin' AND school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1520→    OR get_user_role() = 'super_admin'
+  1521→  )
+  1522→  WITH CHECK (
+  1523→    created_by = auth.uid()
+  1524→    OR (get_user_role() = 'school_admin' AND school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1525→    OR get_user_role() = 'super_admin'
+  1526→  );
+  1527→
+  1528→-- Admins can delete categories in their school
+  1529→CREATE POLICY "Admins can delete question categories"
+  1530→  ON question_categories FOR DELETE
+  1531→  TO authenticated
+  1532→  USING (
+  1533→    (get_user_role() = 'school_admin' AND school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1534→    OR get_user_role() = 'super_admin'
+  1535→  );
+  1536→
+  1537→-- ===========================================================================
+  1538→-- ACADEMIC_SESSIONS RLS POLICIES
+  1539→-- ===========================================================================
+  1540→
+  1541→-- All authenticated users in a school can read their school's sessions
+  1542→CREATE POLICY "Authenticated users can read academic sessions"
+  1543→  ON academic_sessions FOR SELECT
+  1544→  TO authenticated
+  1545→  USING (
+  1546→    school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1547→    OR get_user_role() = 'super_admin'
+  1548→  );
+  1549→
+  1550→-- School admins can CRUD sessions in their school
+  1551→CREATE POLICY "School admins can manage academic sessions"
+  1552→  ON academic_sessions FOR ALL
+  1553→  TO authenticated
+  1554→  USING (
+  1555→    get_user_role() = 'school_admin'
+  1556→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1557→  )
+  1558→  WITH CHECK (
+  1559→    get_user_role() = 'school_admin'
+  1560→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1561→  );
+  1562→
+  1563→-- Super admins have full access
+  1564→CREATE POLICY "Super admins have full access to academic sessions"
+  1565→  ON academic_sessions FOR ALL
+  1566→  TO authenticated
+  1567→  USING (get_user_role() = 'super_admin')
+  1568→  WITH CHECK (get_user_role() = 'super_admin');
+  1569→
+  1570→-- ===========================================================================
+  1571→-- CURRICULUM_STANDARDS RLS POLICIES
+  1572→-- ===========================================================================
+  1573→
+  1574→-- All authenticated users can read standards for their school / system-wide
+  1575→CREATE POLICY "Authenticated users can read curriculum standards"
+  1576→  ON curriculum_standards FOR SELECT
+  1577→  TO authenticated
+  1578→  USING (
+  1579→    EXISTS (
+  1580→      SELECT 1 FROM subjects s
+  1581→      WHERE s.id = subject_id
+  1582→        AND (s.school_id IS NULL OR s.school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1583→    )
+  1584→    OR get_user_role() = 'super_admin'
+  1585→  );
+  1586→
+  1587→-- Teachers and admins can create standards
+  1588→CREATE POLICY "Teachers can create curriculum standards"
+  1589→  ON curriculum_standards FOR INSERT
+  1590→  TO authenticated
+  1591→  WITH CHECK (
+  1592→    get_user_role() IN ('teacher', 'school_admin', 'super_admin')
+  1593→  );
+  1594→
+  1595→-- Admins and creators can update standards
+  1596→CREATE POLICY "Users can update curriculum standards"
+  1597→  ON curriculum_standards FOR UPDATE
+  1598→  TO authenticated
+  1599→  USING (
+  1600→    get_user_role() IN ('school_admin', 'super_admin')
+  1601→  )
+  1602→  WITH CHECK (
+  1603→    get_user_role() IN ('school_admin', 'super_admin')
+  1604→  );
+  1605→
+  1606→-- Admins can delete standards
+  1607→CREATE POLICY "Admins can delete curriculum standards"
+  1608→  ON curriculum_standards FOR DELETE
+  1609→  TO authenticated
+  1610→  USING (
+  1611→    get_user_role() IN ('school_admin', 'super_admin')
+  1612→  );
+  1613→
+  1614→-- ===========================================================================
+  1615→-- QUESTION_BANK RLS POLICIES
+  1616→-- ===========================================================================
+  1617→
+  1618→-- Teachers can read published questions in their school + platform-wide
+  1619→CREATE POLICY "Teachers can read published questions in school"
+  1620→  ON question_bank FOR SELECT
+  1621→  TO authenticated
+  1622→  USING (
+  1623→    -- Platform-wide questions (school_id IS NULL) are readable by all authenticated users
+  1624→    school_id IS NULL
+  1625→    -- Published questions in the user's school
+  1626→    OR (school_id = (SELECT school_id FROM users WHERE id = auth.uid()) AND is_published = true)
+  1627→    -- User's own questions (draft or published)
+  1628→    OR created_by = auth.uid()
+  1629→  );
+  1630→
+  1631→-- School admins can read all questions in their school
+  1632→CREATE POLICY "School admins can read all school questions"
+  1633→  ON question_bank FOR SELECT
+  1634→  TO authenticated
+  1635→  USING (
+  1636→    get_user_role() = 'school_admin'
+  1637→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1638→  );
+  1639→
+  1640→-- Super admins have full read access
+  1641→CREATE POLICY "Super admins can read all questions"
+  1642→  ON question_bank FOR SELECT
+  1643→  TO authenticated
+  1644→  USING (get_user_role() = 'super_admin');
+  1645→
+  1646→-- Teachers can create questions in their school or as platform-wide (super_admin only)
+  1647→CREATE POLICY "Teachers can create questions"
+  1648→  ON question_bank FOR INSERT
+  1649→  TO authenticated
+  1650→  WITH CHECK (
+  1651→    -- Teachers create questions in their school
+  1652→    (get_user_role() = 'teacher' AND school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1653→    -- School admins create questions in their school
+  1654→    OR (get_user_role() = 'school_admin' AND school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+  1655→    -- Super admins can create any
+  1656→    OR get_user_role() = 'super_admin'
+  1657→  );
+  1658→
+  1659→-- Teachers can update their own questions
+  1660→CREATE POLICY "Teachers can update own questions"
+  1661→  ON question_bank FOR UPDATE
+  1662→  TO authenticated
+  1663→  USING (
+  1664→    created_by = auth.uid()
+  1665→  )
+  1666→  WITH CHECK (
+  1667→    created_by = auth.uid()
+  1668→  );
+  1669→
+  1670→-- School admins can update all questions in their school
+  1671→CREATE POLICY "School admins can update school questions"
+  1672→  ON question_bank FOR UPDATE
+  1673→  TO authenticated
+  1674→  USING (
+  1675→    get_user_role() = 'school_admin'
+  1676→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1677→  )
+  1678→  WITH CHECK (
+  1679→    get_user_role() = 'school_admin'
+  1680→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1681→  );
+  1682→
+  1683→-- Super admins can update any question
+  1684→CREATE POLICY "Super admins can update any question"
+  1685→  ON question_bank FOR UPDATE
+  1686→  TO authenticated
+  1687→  USING (get_user_role() = 'super_admin')
+  1688→  WITH CHECK (get_user_role() = 'super_admin');
+  1689→
+  1690→-- Teachers can delete their own questions
+  1691→CREATE POLICY "Teachers can delete own questions"
+  1692→  ON question_bank FOR DELETE
+  1693→  TO authenticated
+  1694→  USING (created_by = auth.uid());
+  1695→
+  1696→-- School admins can delete questions in their school
+  1697→CREATE POLICY "School admins can delete school questions"
+  1698→  ON question_bank FOR DELETE
+  1699→  TO authenticated
+  1700→  USING (
+  1701→    get_user_role() = 'school_admin'
+  1702→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1703→  );
+  1704→
+  1705→-- Super admins can delete any question
+  1706→CREATE POLICY "Super admins can delete any question"
+  1707→  ON question_bank FOR DELETE
+  1708→  TO authenticated
+  1709→  USING (get_user_role() = 'super_admin');
+  1710→
+  1711→-- ===========================================================================
+  1712→-- ANSWER_OPTIONS RLS POLICIES (same access as parent question)
+  1713→-- ===========================================================================
+  1714→
+  1715→-- Users can read options for questions they can access
+  1716→CREATE POLICY "Users can read answer options for accessible questions"
+  1717→  ON answer_options FOR SELECT
+  1718→  TO authenticated
+  1719→  USING (
+  1720→    EXISTS (
+  1721→      SELECT 1 FROM question_bank qb
+  1722→      WHERE qb.id = question_id
+  1723→        AND (
+  1724→          qb.school_id IS NULL
+  1725→          OR (qb.school_id = (SELECT school_id FROM users WHERE id = auth.uid()) AND qb.is_published = true)
+  1726→          OR qb.created_by = auth.uid()
+  1727→          OR get_user_role() IN ('school_admin', 'super_admin')
+  1728→        )
+  1729→    )
+  1730→  );
+  1731→
+  1732→-- Users can insert/update/delete options for questions they own or can manage
+  1733→CREATE POLICY "Users can insert answer options for own questions"
+  1734→  ON answer_options FOR INSERT
+  1735→  TO authenticated
+  1736→  WITH CHECK (
+  1737→    EXISTS (
+  1738→      SELECT 1 FROM question_bank qb
+  1739→      WHERE qb.id = question_id
+  1740→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1741→    )
+  1742→  );
+  1743→
+  1744→CREATE POLICY "Users can update answer options for own questions"
+  1745→  ON answer_options FOR UPDATE
+  1746→  TO authenticated
+  1747→  USING (
+  1748→    EXISTS (
+  1749→      SELECT 1 FROM question_bank qb
+  1750→      WHERE qb.id = question_id
+  1751→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1752→    )
+  1753→  )
+  1754→  WITH CHECK (
+  1755→    EXISTS (
+  1756→      SELECT 1 FROM question_bank qb
+  1757→      WHERE qb.id = question_id
+  1758→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1759→    )
+  1760→  );
+  1761→
+  1762→CREATE POLICY "Users can delete answer options for own questions"
+  1763→  ON answer_options FOR DELETE
+  1764→  TO authenticated
+  1765→  USING (
+  1766→    EXISTS (
+  1767→      SELECT 1 FROM question_bank qb
+  1768→      WHERE qb.id = question_id
+  1769→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1770→    )
+  1771→  );
+  1772→
+  1773→-- ===========================================================================
+  1774→-- MATCHING_PAIRS RLS POLICIES (same access as parent question)
+  1775→-- ===========================================================================
+  1776→
+  1777→CREATE POLICY "Users can read matching pairs for accessible questions"
+  1778→  ON matching_pairs FOR SELECT
+  1779→  TO authenticated
+  1780→  USING (
+  1781→    EXISTS (
+  1782→      SELECT 1 FROM question_bank qb
+  1783→      WHERE qb.id = question_id
+  1784→        AND (
+  1785→          qb.school_id IS NULL
+  1786→          OR (qb.school_id = (SELECT school_id FROM users WHERE id = auth.uid()) AND qb.is_published = true)
+  1787→          OR qb.created_by = auth.uid()
+  1788→          OR get_user_role() IN ('school_admin', 'super_admin')
+  1789→        )
+  1790→    )
+  1791→  );
+  1792→
+  1793→CREATE POLICY "Users can insert matching pairs for own questions"
+  1794→  ON matching_pairs FOR INSERT
+  1795→  TO authenticated
+  1796→  WITH CHECK (
+  1797→    EXISTS (
+  1798→      SELECT 1 FROM question_bank qb
+  1799→      WHERE qb.id = question_id
+  1800→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1801→    )
+  1802→  );
+  1803→
+  1804→CREATE POLICY "Users can update matching pairs for own questions"
+  1805→  ON matching_pairs FOR UPDATE
+  1806→  TO authenticated
+  1807→  USING (
+  1808→    EXISTS (
+  1809→      SELECT 1 FROM question_bank qb
+  1810→      WHERE qb.id = question_id
+  1811→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1812→    )
+  1813→  );
+  1814→
+  1815→CREATE POLICY "Users can delete matching pairs for own questions"
+  1816→  ON matching_pairs FOR DELETE
+  1817→  TO authenticated
+  1818→  USING (
+  1819→    EXISTS (
+  1820→      SELECT 1 FROM question_bank qb
+  1821→      WHERE qb.id = question_id
+  1822→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1823→    )
+  1824→  );
+  1825→
+  1826→-- ===========================================================================
+  1827→-- ORDERING_ITEMS RLS POLICIES (same access as parent question)
+  1828→-- ===========================================================================
+  1829→
+  1830→CREATE POLICY "Users can read ordering items for accessible questions"
+  1831→  ON ordering_items FOR SELECT
+  1832→  TO authenticated
+  1833→  USING (
+  1834→    EXISTS (
+  1835→      SELECT 1 FROM question_bank qb
+  1836→      WHERE qb.id = question_id
+  1837→        AND (
+  1838→          qb.school_id IS NULL
+  1839→          OR (qb.school_id = (SELECT school_id FROM users WHERE id = auth.uid()) AND qb.is_published = true)
+  1840→          OR qb.created_by = auth.uid()
+  1841→          OR get_user_role() IN ('school_admin', 'super_admin')
+  1842→        )
+  1843→    )
+  1844→  );
+  1845→
+  1846→CREATE POLICY "Users can insert ordering items for own questions"
+  1847→  ON ordering_items FOR INSERT
+  1848→  TO authenticated
+  1849→  WITH CHECK (
+  1850→    EXISTS (
+  1851→      SELECT 1 FROM question_bank qb
+  1852→      WHERE qb.id = question_id
+  1853→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1854→    )
+  1855→  );
+  1856→
+  1857→CREATE POLICY "Users can update ordering items for own questions"
+  1858→  ON ordering_items FOR UPDATE
+  1859→  TO authenticated
+  1860→  USING (
+  1861→    EXISTS (
+  1862→      SELECT 1 FROM question_bank qb
+  1863→      WHERE qb.id = question_id
+  1864→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1865→    )
+  1866→  );
+  1867→
+  1868→CREATE POLICY "Users can delete ordering items for own questions"
+  1869→  ON ordering_items FOR DELETE
+  1870→  TO authenticated
+  1871→  USING (
+  1872→    EXISTS (
+  1873→      SELECT 1 FROM question_bank qb
+  1874→      WHERE qb.id = question_id
+  1875→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1876→    )
+  1877→  );
+  1878→
+  1879→-- ===========================================================================
+  1880→-- FILL_IN_BLANK_ANSWERS RLS POLICIES (same access as parent question)
+  1881→-- ===========================================================================
+  1882→
+  1883→CREATE POLICY "Users can read fill blank answers for accessible questions"
+  1884→  ON fill_in_blank_answers FOR SELECT
+  1885→  TO authenticated
+  1886→  USING (
+  1887→    EXISTS (
+  1888→      SELECT 1 FROM question_bank qb
+  1889→      WHERE qb.id = question_id
+  1890→        AND (
+  1891→          qb.school_id IS NULL
+  1892→          OR (qb.school_id = (SELECT school_id FROM users WHERE id = auth.uid()) AND qb.is_published = true)
+  1893→          OR qb.created_by = auth.uid()
+  1894→          OR get_user_role() IN ('school_admin', 'super_admin')
+  1895→        )
+  1896→    )
+  1897→  );
+  1898→
+  1899→CREATE POLICY "Users can insert fill blank answers for own questions"
+  1900→  ON fill_in_blank_answers FOR INSERT
+  1901→  TO authenticated
+  1902→  WITH CHECK (
+  1903→    EXISTS (
+  1904→      SELECT 1 FROM question_bank qb
+  1905→      WHERE qb.id = question_id
+  1906→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1907→    )
+  1908→  );
+  1909→
+  1910→CREATE POLICY "Users can update fill blank answers for own questions"
+  1911→  ON fill_in_blank_answers FOR UPDATE
+  1912→  TO authenticated
+  1913→  USING (
+  1914→    EXISTS (
+  1915→      SELECT 1 FROM question_bank qb
+  1916→      WHERE qb.id = question_id
+  1917→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1918→    )
+  1919→  );
+  1920→
+  1921→CREATE POLICY "Users can delete fill blank answers for own questions"
+  1922→  ON fill_in_blank_answers FOR DELETE
+  1923→  TO authenticated
+  1924→  USING (
+  1925→    EXISTS (
+  1926→      SELECT 1 FROM question_bank qb
+  1927→      WHERE qb.id = question_id
+  1928→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1929→    )
+  1930→  );
+  1931→
+  1932→-- ===========================================================================
+  1933→-- QUESTION_ATTACHMENTS RLS POLICIES (same access as parent question)
+  1934→-- ===========================================================================
+  1935→
+  1936→CREATE POLICY "Users can read attachments for accessible questions"
+  1937→  ON question_attachments FOR SELECT
+  1938→  TO authenticated
+  1939→  USING (
+  1940→    EXISTS (
+  1941→      SELECT 1 FROM question_bank qb
+  1942→      WHERE qb.id = question_id
+  1943→        AND (
+  1944→          qb.school_id IS NULL
+  1945→          OR (qb.school_id = (SELECT school_id FROM users WHERE id = auth.uid()) AND qb.is_published = true)
+  1946→          OR qb.created_by = auth.uid()
+  1947→          OR get_user_role() IN ('school_admin', 'super_admin')
+  1948→        )
+  1949→    )
+  1950→  );
+  1951→
+  1952→CREATE POLICY "Users can insert attachments for own questions"
+  1953→  ON question_attachments FOR INSERT
+  1954→  TO authenticated
+  1955→  WITH CHECK (
+  1956→    EXISTS (
+  1957→      SELECT 1 FROM question_bank qb
+  1958→      WHERE qb.id = question_id
+  1959→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1960→    )
+  1961→  );
+  1962→
+  1963→CREATE POLICY "Users can update attachments for own questions"
+  1964→  ON question_attachments FOR UPDATE
+  1965→  TO authenticated
+  1966→  USING (
+  1967→    EXISTS (
+  1968→      SELECT 1 FROM question_bank qb
+  1969→      WHERE qb.id = question_id
+  1970→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1971→    )
+  1972→  );
+  1973→
+  1974→CREATE POLICY "Users can delete attachments for own questions"
+  1975→  ON question_attachments FOR DELETE
+  1976→  TO authenticated
+  1977→  USING (
+  1978→    EXISTS (
+  1979→      SELECT 1 FROM question_bank qb
+  1980→      WHERE qb.id = question_id
+  1981→        AND (qb.created_by = auth.uid() OR get_user_role() IN ('school_admin', 'super_admin'))
+  1982→    )
+  1983→  );
+  1984→
+  1985→-- ===========================================================================
+  1986→-- QUESTION_TAGS RLS POLICIES
+  1987→-- ===========================================================================
+  1988→
+  1989→-- All authenticated users can read tags in their school + system-wide tags
+  1990→CREATE POLICY "Authenticated users can read question tags"
+  1991→  ON question_tags FOR SELECT
+  1992→  TO authenticated
+  1993→  USING (
+  1994→    school_id IS NULL
+  1995→    OR school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1996→    OR get_user_role() = 'super_admin'
+  1997→  );
+  1998→
+  1999→-- Teachers can create tags in their school
+  2000→CREATE POLICY "Teachers can create question tags"
+
+[showing lines 1-2000 of 2360; use offset=2001 with limit to continue reading]

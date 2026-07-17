@@ -19,6 +19,26 @@ import '../features/auth/domain/usecases/logout_usecase.dart';
 import '../features/auth/domain/usecases/signup_usecase.dart';
 import '../features/auth/presentation/providers/auth_form_provider.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/question_bank/data/datasources/question_bank_remote_datasource.dart';
+import '../features/question_bank/data/repositories/question_bank_repository_impl.dart';
+import '../features/question_bank/domain/repositories/question_bank_repository.dart';
+import '../features/question_bank/domain/usecases/create_question_usecase.dart';
+import '../features/question_bank/domain/usecases/delete_question_usecase.dart';
+import '../features/question_bank/domain/usecases/export_questions_usecase.dart';
+import '../features/question_bank/domain/usecases/get_question_detail_usecase.dart';
+import '../features/question_bank/domain/usecases/get_question_stats_usecase.dart';
+import '../features/question_bank/domain/usecases/get_questions_usecase.dart';
+import '../features/question_bank/domain/usecases/import_questions_usecase.dart';
+import '../features/question_bank/domain/usecases/manage_collections_usecase.dart';
+import '../features/question_bank/domain/usecases/manage_question_status_usecase.dart';
+import '../features/question_bank/domain/usecases/search_questions_usecase.dart';
+import '../features/question_bank/domain/usecases/update_question_usecase.dart';
+import '../features/question_bank/presentation/providers/collection_provider.dart';
+import '../features/question_bank/presentation/providers/import_export_provider.dart';
+import '../features/question_bank/presentation/providers/question_bank_stats_provider.dart';
+import '../features/question_bank/presentation/providers/question_editor_provider.dart';
+import '../features/question_bank/presentation/providers/question_filter_provider.dart';
+import '../features/question_bank/presentation/providers/question_provider.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
@@ -233,4 +253,154 @@ final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
 final authFormProvider =
     StateNotifierProvider<AuthFormNotifier, AuthFormState>((ref) {
   return AuthFormNotifier();
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// QUESTION BANK FEATURE — CLEAN ARCHITECTURE PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Provides the [QuestionBankRemoteDataSource] implementation.
+final questionBankRemoteDataSourceProvider =
+    Provider<QuestionBankRemoteDataSource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return QuestionBankRemoteDataSourceImpl(supabaseClient: supabaseClient);
+});
+
+/// Provides the [QuestionBankRepository] implementation.
+final questionBankRepositoryProvider = Provider<QuestionBankRepository>((ref) {
+  final remoteDataSource = ref.watch(questionBankRemoteDataSourceProvider);
+  return QuestionBankRepositoryImpl(remoteDataSource: remoteDataSource);
+});
+
+/// Provides the [GetQuestionsUseCase].
+final getQuestionsUseCaseProvider = Provider<GetQuestionsUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return GetQuestionsUseCase(repository);
+});
+
+/// Provides the [CreateQuestionUseCase].
+final createQuestionUseCaseProvider = Provider<CreateQuestionUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return CreateQuestionUseCase(repository);
+});
+
+/// Provides the [UpdateQuestionUseCase].
+final updateQuestionUseCaseProvider = Provider<UpdateQuestionUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return UpdateQuestionUseCase(repository);
+});
+
+/// Provides the [DeleteQuestionUseCase].
+final deleteQuestionUseCaseProvider = Provider<DeleteQuestionUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return DeleteQuestionUseCase(repository);
+});
+
+/// Provides the [GetQuestionDetailUseCase].
+final getQuestionDetailUseCaseProvider =
+    Provider<GetQuestionDetailUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return GetQuestionDetailUseCase(repository);
+});
+
+/// Provides the [SearchQuestionsUseCase].
+final searchQuestionsUseCaseProvider =
+    Provider<SearchQuestionsUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return SearchQuestionsUseCase(repository);
+});
+
+/// Provides the [ManageQuestionStatusUseCase].
+final manageQuestionStatusUseCaseProvider =
+    Provider<ManageQuestionStatusUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return ManageQuestionStatusUseCase(repository);
+});
+
+/// Provides the [GetQuestionStatsUseCase].
+final getQuestionStatsUseCaseProvider =
+    Provider<GetQuestionStatsUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return GetQuestionStatsUseCase(repository);
+});
+
+/// Provides the [ImportQuestionsUseCase].
+final importQuestionsUseCaseProvider =
+    Provider<ImportQuestionsUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return ImportQuestionsUseCase(repository);
+});
+
+/// Provides the [ExportQuestionsUseCase].
+final exportQuestionsUseCaseProvider =
+    Provider<ExportQuestionsUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return ExportQuestionsUseCase(repository);
+});
+
+/// Provides the [ManageCollectionsUseCase].
+final manageCollectionsUseCaseProvider =
+    Provider<ManageCollectionsUseCase>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return ManageCollectionsUseCase(repository);
+});
+
+/// Provides the [QuestionBankNotifier] with all required use cases.
+final questionBankProvider =
+    StateNotifierProvider<QuestionBankNotifier, QuestionBankState>((ref) {
+  return QuestionBankNotifier(
+    getQuestionsUseCase: ref.watch(getQuestionsUseCaseProvider),
+    createQuestionUseCase: ref.watch(createQuestionUseCaseProvider),
+    updateQuestionUseCase: ref.watch(updateQuestionUseCaseProvider),
+    deleteQuestionUseCase: ref.watch(deleteQuestionUseCaseProvider),
+    getQuestionDetailUseCase: ref.watch(getQuestionDetailUseCaseProvider),
+    searchQuestionsUseCase: ref.watch(searchQuestionsUseCaseProvider),
+    manageQuestionStatusUseCase: ref.watch(manageQuestionStatusUseCaseProvider),
+    getQuestionStatsUseCase: ref.watch(getQuestionStatsUseCaseProvider),
+  );
+});
+
+/// Provides the [QuestionFilterNotifier] for filter state management.
+final questionFilterProvider =
+    StateNotifierProvider<QuestionFilterNotifier, QuestionFilterState>((ref) {
+  final repository = ref.watch(questionBankRepositoryProvider);
+  return QuestionFilterNotifier(repository: repository);
+});
+
+/// Provides the [CollectionNotifier] for collection management.
+final collectionProvider =
+    StateNotifierProvider<CollectionNotifier, CollectionState>((ref) {
+  return CollectionNotifier(
+    manageCollectionsUseCase: ref.watch(manageCollectionsUseCaseProvider),
+  );
+});
+
+/// Provides the [ImportExportNotifier] for import/export state management.
+final importExportProvider =
+    StateNotifierProvider<ImportExportNotifier, ImportExportState>((ref) {
+  return ImportExportNotifier(
+    importQuestionsUseCase: ref.watch(importQuestionsUseCaseProvider),
+    exportQuestionsUseCase: ref.watch(exportQuestionsUseCaseProvider),
+    repository: ref.watch(questionBankRepositoryProvider),
+  );
+});
+
+/// Provides the [QuestionBankStatsNotifier] for stats dashboard.
+final questionBankStatsProvider =
+    StateNotifierProvider<QuestionBankStatsNotifier, QuestionBankStatsState>(
+        (ref) {
+  return QuestionBankStatsNotifier(
+    getQuestionStatsUseCase: ref.watch(getQuestionStatsUseCaseProvider),
+  );
+});
+
+/// Provides the [QuestionEditorNotifier] for the question editor form.
+final questionEditorProvider =
+    StateNotifierProvider<QuestionEditorNotifier, QuestionEditorState>((ref) {
+  return QuestionEditorNotifier(
+    createQuestionUseCase: ref.watch(createQuestionUseCaseProvider),
+    updateQuestionUseCase: ref.watch(updateQuestionUseCaseProvider),
+    manageQuestionStatusUseCase: ref.watch(manageQuestionStatusUseCaseProvider),
+    repository: ref.watch(questionBankRepositoryProvider),
+  );
 });

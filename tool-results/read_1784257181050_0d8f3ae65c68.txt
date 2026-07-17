@@ -1,0 +1,1066 @@
+     1→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     2→
+     3→import '../../../../core/errors/failures.dart';
+     4→import '../../../../core/utils/logger.dart';
+     5→import '../../domain/entities/question_entities.dart';
+     6→import '../../domain/repositories/question_bank_repository.dart';
+     7→import '../../domain/usecases/create_question_usecase.dart';
+     8→import '../../domain/usecases/update_question_usecase.dart';
+     9→import '../../domain/usecases/manage_question_status_usecase.dart';
+    10→
+    11→// ═══════════════════════════════════════════════════════════════════════
+    12→// QUESTION EDITOR STATE
+    13→// ═══════════════════════════════════════════════════════════════════════
+    14→
+    15→/// Immutable state snapshot for the question editor form.
+    16→///
+    17→/// Holds all form fields, type-specific answer data (answer options,
+    18→/// matching pairs, ordering items, fill-in-blank answers), attachments,
+    19→/// tags, and loading/error state for the editor.
+    20→class QuestionEditorState {
+    21→  const QuestionEditorState({
+    22→    this.question,
+    23→    this.answerOptions = const [],
+    24→    this.matchingPairs = const [],
+    25→    this.orderingItems = const [],
+    26→    this.fillInBlankAnswers = const [],
+    27→    this.attachments = const [],
+    28→    this.selectedTags = const [],
+    29→    this.isSaving = false,
+    30→    this.isLoading = false,
+    31→    this.error,
+    32→    this.isPreviewMode = false,
+    33→    // Form fields
+    34→    this.content = '',
+    35→    this.explanation = '',
+    36→    this.teacherNotes = '',
+    37→    this.referenceMaterials = '',
+    38→    this.selectedQuestionType = QuestionType.multipleChoice,
+    39→    this.selectedDifficulty = DifficultyLevel.medium,
+    40→    this.selectedExamType = ExamType.schoolExam,
+    41→    this.selectedSubjectId,
+    42→    this.selectedTopicId,
+    43→    this.selectedSubtopicId,
+    44→    this.selectedClassId,
+    45→    this.selectedCategoryId,
+    46→    this.marks = 1.0,
+    47→    this.negativeMarks = 0.0,
+    48→    this.timeAllowedSeconds,
+    49→    // Loaded metadata for dropdowns
+    50→    this.availableTopics = const [],
+    51→    this.availableSubtopics = const [],
+    52→    this.isLoadingTopics = false,
+    53→    this.isLoadingSubtopics = false,
+    54→  });
+    55→
+    56→  /// The original question being edited, or `null` for create mode.
+    57→  final QuestionEntity? question;
+    58→
+    59→  /// Answer options for choice-based questions.
+    60→  final List<AnswerOptionEntity> answerOptions;
+    61→
+    62→  /// Matching pairs for matching-type questions.
+    63→  final List<MatchingPairEntity> matchingPairs;
+    64→
+    65→  /// Ordering items for ordering-type questions.
+    66→  final List<OrderingItemEntity> orderingItems;
+    67→
+    68→  /// Fill-in-the-blank answers for fill-in-blank questions.
+    69→  final List<FillInBlankAnswerEntity> fillInBlankAnswers;
+    70→
+    71→  /// Attachments (images, audio, video, documents).
+    72→  final List<QuestionAttachmentEntity> attachments;
+    73→
+    74→  /// Tags selected for this question.
+    75→  final List<QuestionTagEntity> selectedTags;
+    76→
+    77→  /// Whether a save operation is in progress.
+    78→  final bool isSaving;
+    79→
+    80→  /// Whether the question is being loaded for edit mode.
+    81→  final bool isLoading;
+    82→
+    83→  /// The most recent error message, or `null`.
+    84→  final String? error;
+    85→
+    86→  /// Whether the editor is in preview mode.
+    87→  final bool isPreviewMode;
+    88→
+    89→  // ── Form Fields ──────────────────────────────────────────────────────
+    90→
+    91→  /// The question content / stem text.
+    92→  final String content;
+    93→
+    94→  /// The explanation for the correct answer.
+    95→  final String explanation;
+    96→
+    97→  /// Teacher-only notes (not visible to students).
+    98→  final String teacherNotes;
+    99→
+   100→  /// Reference materials or source attribution.
+   101→  final String referenceMaterials;
+   102→
+   103→  /// The selected question type.
+   104→  final QuestionType selectedQuestionType;
+   105→
+   106→  /// The selected difficulty level.
+   107→  final DifficultyLevel selectedDifficulty;
+   108→
+   109→  /// The selected exam type.
+   110→  final ExamType selectedExamType;
+   111→
+   112→  /// The selected subject ID.
+   113→  final String? selectedSubjectId;
+   114→
+   115→  /// The selected topic ID.
+   116→  final String? selectedTopicId;
+   117→
+   118→  /// The selected subtopic ID.
+   119→  final String? selectedSubtopicId;
+   120→
+   121→  /// The selected class ID.
+   122→  final String? selectedClassId;
+   123→
+   124→  /// The selected category ID.
+   125→  final String? selectedCategoryId;
+   126→
+   127→  /// The marks allocated to this question.
+   128→  final double marks;
+   129→
+   130→  /// The negative marks for incorrect answers.
+   131→  final double negativeMarks;
+   132→
+   133→  /// The time allowed for this question in seconds.
+   134→  final int? timeAllowedSeconds;
+   135→
+   136→  // ── Loaded Metadata ──────────────────────────────────────────────────
+   137→
+   138→  /// Topics available for the selected subject.
+   139→  final List<TopicEntity> availableTopics;
+   140→
+   141→  /// Subtopics available for the selected topic.
+   142→  final List<SubtopicEntity> availableSubtopics;
+   143→
+   144→  /// Whether topics are being loaded.
+   145→  final bool isLoadingTopics;
+   146→
+   147→  /// Whether subtopics are being loaded.
+   148→  final bool isLoadingSubtopics;
+   149→
+   150→  // ── Computed Properties ──────────────────────────────────────────────
+   151→
+   152→  /// Whether the editor is in edit mode (editing an existing question).
+   153→  bool get isEditMode => question != null;
+   154→
+   155→  /// Whether any async operation is in progress.
+   156→  bool get isBusy => isSaving || isLoading;
+   157→
+   158→  /// Whether the current question type requires answer options.
+   159→  bool get requiresAnswerOptions => selectedQuestionType.hasOptions;
+   160→
+   161→  /// Whether the current question type requires matching pairs.
+   162→  bool get requiresMatchingPairs => selectedQuestionType == QuestionType.matching;
+   163→
+   164→  /// Whether the current question type requires ordering items.
+   165→  bool get requiresOrderingItems => selectedQuestionType == QuestionType.ordering;
+   166→
+   167→  /// Whether the current question type requires fill-in-blank answers.
+   168→  bool get requiresFillInBlank => selectedQuestionType == QuestionType.fillInBlank;
+   169→
+   170→  /// Creates a copy of this state with the given fields replaced.
+   171→  QuestionEditorState copyWith({
+   172→    QuestionEntity? question,
+   173→    List<AnswerOptionEntity>? answerOptions,
+   174→    List<MatchingPairEntity>? matchingPairs,
+   175→    List<OrderingItemEntity>? orderingItems,
+   176→    List<FillInBlankAnswerEntity>? fillInBlankAnswers,
+   177→    List<QuestionAttachmentEntity>? attachments,
+   178→    List<QuestionTagEntity>? selectedTags,
+   179→    bool? isSaving,
+   180→    bool? isLoading,
+   181→    String? error,
+   182→    bool? isPreviewMode,
+   183→    String? content,
+   184→    String? explanation,
+   185→    String? teacherNotes,
+   186→    String? referenceMaterials,
+   187→    QuestionType? selectedQuestionType,
+   188→    DifficultyLevel? selectedDifficulty,
+   189→    ExamType? selectedExamType,
+   190→    String? selectedSubjectId,
+   191→    String? selectedTopicId,
+   192→    String? selectedSubtopicId,
+   193→    String? selectedClassId,
+   194→    String? selectedCategoryId,
+   195→    double? marks,
+   196→    double? negativeMarks,
+   197→    int? timeAllowedSeconds,
+   198→    List<TopicEntity>? availableTopics,
+   199→    List<SubtopicEntity>? availableSubtopics,
+   200→    bool? isLoadingTopics,
+   201→    bool? isLoadingSubtopics,
+   202→  }) {
+   203→    return QuestionEditorState(
+   204→      question: question ?? this.question,
+   205→      answerOptions: answerOptions ?? this.answerOptions,
+   206→      matchingPairs: matchingPairs ?? this.matchingPairs,
+   207→      orderingItems: orderingItems ?? this.orderingItems,
+   208→      fillInBlankAnswers: fillInBlankAnswers ?? this.fillInBlankAnswers,
+   209→      attachments: attachments ?? this.attachments,
+   210→      selectedTags: selectedTags ?? this.selectedTags,
+   211→      isSaving: isSaving ?? this.isSaving,
+   212→      isLoading: isLoading ?? this.isLoading,
+   213→      error: error,
+   214→      isPreviewMode: isPreviewMode ?? this.isPreviewMode,
+   215→      content: content ?? this.content,
+   216→      explanation: explanation ?? this.explanation,
+   217→      teacherNotes: teacherNotes ?? this.teacherNotes,
+   218→      referenceMaterials: referenceMaterials ?? this.referenceMaterials,
+   219→      selectedQuestionType: selectedQuestionType ?? this.selectedQuestionType,
+   220→      selectedDifficulty: selectedDifficulty ?? this.selectedDifficulty,
+   221→      selectedExamType: selectedExamType ?? this.selectedExamType,
+   222→      selectedSubjectId: selectedSubjectId ?? this.selectedSubjectId,
+   223→      selectedTopicId: selectedTopicId ?? this.selectedTopicId,
+   224→      selectedSubtopicId: selectedSubtopicId ?? this.selectedSubtopicId,
+   225→      selectedClassId: selectedClassId ?? this.selectedClassId,
+   226→      selectedCategoryId: selectedCategoryId ?? this.selectedCategoryId,
+   227→      marks: marks ?? this.marks,
+   228→      negativeMarks: negativeMarks ?? this.negativeMarks,
+   229→      timeAllowedSeconds: timeAllowedSeconds ?? this.timeAllowedSeconds,
+   230→      availableTopics: availableTopics ?? this.availableTopics,
+   231→      availableSubtopics: availableSubtopics ?? this.availableSubtopics,
+   232→      isLoadingTopics: isLoadingTopics ?? this.isLoadingTopics,
+   233→      isLoadingSubtopics: isLoadingSubtopics ?? this.isLoadingSubtopics,
+   234→    );
+   235→  }
+   236→}
+   237→
+   238→// ═══════════════════════════════════════════════════════════════════════
+   239→// QUESTION EDITOR NOTIFIER
+   240→// ═══════════════════════════════════════════════════════════════════════
+   241→
+   242→/// Riverpod [StateNotifier] that manages the question editor form state.
+   243→///
+   244→/// Handles loading an existing question for editing, managing all form
+   245→/// fields and type-specific answer data, and creating/updating questions
+   246→/// through the use cases.
+   247→class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
+   248→  QuestionEditorNotifier({
+   249→    required CreateQuestionUseCase createQuestionUseCase,
+   250→    required UpdateQuestionUseCase updateQuestionUseCase,
+   251→    required ManageQuestionStatusUseCase manageQuestionStatusUseCase,
+   252→    required QuestionBankRepository repository,
+   253→  })  : _createQuestionUseCase = createQuestionUseCase,
+   254→        _updateQuestionUseCase = updateQuestionUseCase,
+   255→        _manageQuestionStatusUseCase = manageQuestionStatusUseCase,
+   256→        _repository = repository,
+   257→        super(const QuestionEditorState());
+   258→
+   259→  final CreateQuestionUseCase _createQuestionUseCase;
+   260→  final UpdateQuestionUseCase _updateQuestionUseCase;
+   261→  final ManageQuestionStatusUseCase _manageQuestionStatusUseCase;
+   262→  final QuestionBankRepository _repository;
+   263→
+   264→  // ─── Load Question for Edit ─────────────────────────────────────────
+   265→
+   266→  /// Loads a question by [questionId] and populates all form fields.
+   267→  ///
+   268→  /// Used when editing an existing question. The form fields are
+   269→  /// populated from the loaded entity.
+   270→  Future<void> loadQuestionForEdit(String questionId) async {
+   271→    state = state.copyWith(isLoading: true, error: null);
+   272→
+   273→    final result = await _repository.getQuestionWithDetails(questionId);
+   274→
+   275→    result.fold(
+   276→      onSuccess: (question) {
+   277→        state = state.copyWith(
+   278→          isLoading: false,
+   279→          question: question,
+   280→          content: question.content,
+   281→          explanation: question.explanation ?? '',
+   282→          teacherNotes: question.teacherNotes ?? '',
+   283→          referenceMaterials: question.referenceMaterials ?? '',
+   284→          selectedQuestionType: question.questionType,
+   285→          selectedDifficulty: question.difficulty,
+   286→          selectedExamType: question.examType ?? ExamType.schoolExam,
+   287→          selectedSubjectId: question.subjectId,
+   288→          selectedTopicId: question.topicId,
+   289→          selectedSubtopicId: question.subtopicId,
+   290→          selectedClassId: question.classId,
+   291→          selectedCategoryId: question.categoryId,
+   292→          marks: question.marks,
+   293→          negativeMarks: question.negativeMarks,
+   294→          timeAllowedSeconds: question.timeAllowedSeconds,
+   295→          answerOptions: question.answerOptions,
+   296→          matchingPairs: question.matchingPairs,
+   297→          orderingItems: question.orderingItems,
+   298→          fillInBlankAnswers: question.fillInBlankAnswers,
+   299→          attachments: question.attachments,
+   300→          selectedTags: question.tags,
+   301→          error: null,
+   302→        );
+   303→
+   304→        // Load topics for the selected subject.
+   305→        if (question.subjectId.isNotEmpty) {
+   306→          _loadTopicsForSubject(question.subjectId);
+   307→        }
+   308→        // Load subtopics for the selected topic.
+   309→        if (question.topicId != null && question.topicId!.isNotEmpty) {
+   310→          _loadSubtopicsForTopic(question.topicId!);
+   311→        }
+   312→
+   313→        AppLogger.info('Loaded question for edit: ${question.id}');
+   314→      },
+   315→      onFailure: (failure) {
+   316→        state = state.copyWith(
+   317→          isLoading: false,
+   318→          error: _mapFailureToMessage(failure),
+   319→        );
+   320→        AppLogger.warning('Failed to load question for edit: $failure');
+   321→      },
+   322→    );
+   323→  }
+   324→
+   325→  // ─── Form Field Setters ─────────────────────────────────────────────
+   326→
+   327→  /// Sets the question content / stem text.
+   328→  void setContent(String content) {
+   329→    state = state.copyWith(content: content);
+   330→  }
+   331→
+   332→  /// Sets the explanation for the correct answer.
+   333→  void setExplanation(String explanation) {
+   334→    state = state.copyWith(explanation: explanation);
+   335→  }
+   336→
+   337→  /// Sets the teacher-only notes.
+   338→  void setTeacherNotes(String notes) {
+   339→    state = state.copyWith(teacherNotes: notes);
+   340→  }
+   341→
+   342→  /// Sets the question type and resets type-specific fields.
+   343→  ///
+   344→  /// When the question type changes, answer options, matching pairs,
+   345→  /// ordering items, and fill-in-blank answers are reset to empty lists
+   346→  /// to prevent stale data from being submitted.
+   347→  void setQuestionType(QuestionType type) {
+   348→    state = state.copyWith(
+   349→      selectedQuestionType: type,
+   350→      // Reset type-specific fields to avoid stale data.
+   351→      answerOptions: [],
+   352→      matchingPairs: [],
+   353→      orderingItems: [],
+   354→      fillInBlankAnswers: [],
+   355→    );
+   356→
+   357→    // Add default answer options for choice-based types.
+   358→    if (type.hasOptions) {
+   359→      _addDefaultAnswerOptions(type);
+   360→    }
+   361→  }
+   362→
+   363→  /// Sets the difficulty level.
+   364→  void setDifficulty(DifficultyLevel difficulty) {
+   365→    state = state.copyWith(selectedDifficulty: difficulty);
+   366→  }
+   367→
+   368→  /// Sets the exam type.
+   369→  void setExamType(ExamType examType) {
+   370→    state = state.copyWith(selectedExamType: examType);
+   371→  }
+   372→
+   373→  /// Sets the subject and loads the available topics.
+   374→  void setSubject(String? subjectId) async {
+   375→    state = state.copyWith(
+   376→      selectedSubjectId: subjectId,
+   377→      selectedTopicId: null,
+   378→      selectedSubtopicId: null,
+   379→      availableTopics: [],
+   380→      availableSubtopics: [],
+   381→    );
+   382→
+   383→    if (subjectId != null && subjectId.isNotEmpty) {
+   384→      await _loadTopicsForSubject(subjectId);
+   385→    }
+   386→  }
+   387→
+   388→  /// Sets the topic and loads the available subtopics.
+   389→  void setTopic(String? topicId) async {
+   390→    state = state.copyWith(
+   391→      selectedTopicId: topicId,
+   392→      selectedSubtopicId: null,
+   393→      availableSubtopics: [],
+   394→    );
+   395→
+   396→    if (topicId != null && topicId.isNotEmpty) {
+   397→      await _loadSubtopicsForTopic(topicId);
+   398→    }
+   399→  }
+   400→
+   401→  /// Sets the subtopic.
+   402→  void setSubtopic(String? subtopicId) {
+   403→    state = state.copyWith(selectedSubtopicId: subtopicId);
+   404→  }
+   405→
+   406→  /// Sets the class.
+   407→  void setClass(String? classId) {
+   408→    state = state.copyWith(selectedClassId: classId);
+   409→  }
+   410→
+   411→  /// Sets the category.
+   412→  void setCategory(String? categoryId) {
+   413→    state = state.copyWith(selectedCategoryId: categoryId);
+   414→  }
+   415→
+   416→  /// Sets the marks allocated to the question.
+   417→  void setMarks(double marks) {
+   418→    state = state.copyWith(marks: marks);
+   419→  }
+   420→
+   421→  /// Sets the negative marks for incorrect answers.
+   422→  void setNegativeMarks(double negativeMarks) {
+   423→    state = state.copyWith(negativeMarks: negativeMarks);
+   424→  }
+   425→
+   426→  /// Sets the time allowed for the question in seconds.
+   427→  void setTimeAllowed(int? seconds) {
+   428→    state = state.copyWith(timeAllowedSeconds: seconds);
+   429→  }
+   430→
+   431→  // ─── Answer Options Management ──────────────────────────────────────
+   432→
+   433→  /// Adds a new blank answer option.
+   434→  void addAnswerOption() {
+   435→    final now = DateTime.now();
+   436→    final index = state.answerOptions.length;
+   437→    final option = AnswerOptionEntity(
+   438→      id: 'new-${index + 1}',
+   439→      questionId: state.question?.id ?? '',
+   440→      content: '',
+   441→      isCorrect: false,
+   442→      marks: 0.0,
+   443→      sortOrder: index,
+   444→      createdAt: now,
+   445→      updatedAt: now,
+   446→    );
+   447→    state = state.copyWith(
+   448→      answerOptions: [...state.answerOptions, option],
+   449→    );
+   450→  }
+   451→
+   452→  /// Removes the answer option at [index].
+   453→  void removeAnswerOption(int index) {
+   454→    if (index < 0 || index >= state.answerOptions.length) return;
+   455→    final updated = [...state.answerOptions];
+   456→    updated.removeAt(index);
+   457→    // Re-sort remaining options.
+   458→    final reindexed = updated
+   459→        .asMap()
+   460→        .entries
+   461→        .map((e) => e.value.copyWith(sortOrder: e.key))
+   462→        .toList();
+   463→    state = state.copyWith(answerOptions: reindexed);
+   464→  }
+   465→
+   466→  /// Updates the answer option at [index] with the provided [option].
+   467→  void updateAnswerOption(int index, AnswerOptionEntity option) {
+   468→    if (index < 0 || index >= state.answerOptions.length) return;
+   469→    final updated = [...state.answerOptions];
+   470→    updated[index] = option;
+   471→    state = state.copyWith(answerOptions: updated);
+   472→  }
+   473→
+   474→  /// Marks the answer option at [index] as the single correct answer.
+   475→  ///
+   476→  /// All other options are set to `isCorrect: false`.
+   477→  void setCorrectAnswer(int index) {
+   478→    final updated = state.answerOptions.asMap().entries.map((e) {
+   479→      return e.value.copyWith(isCorrect: e.key == index);
+   480→    }).toList();
+   481→    state = state.copyWith(answerOptions: updated);
+   482→  }
+   483→
+   484→  /// Marks multiple answer options as correct (for multiple response).
+   485→  ///
+   486→  /// The options at the given [indices] are set to `isCorrect: true`,
+   487→  /// and all others are set to `isCorrect: false`.
+   488→  void setCorrectAnswers(List<int> indices) {
+   489→    final updated = state.answerOptions.asMap().entries.map((e) {
+   490→      return e.value.copyWith(isCorrect: indices.contains(e.key));
+   491→    }).toList();
+   492→    state = state.copyWith(answerOptions: updated);
+   493→  }
+   494→
+   495→  // ─── Matching Pairs Management ──────────────────────────────────────
+   496→
+   497→  /// Adds a new blank matching pair.
+   498→  void addMatchingPair() {
+   499→    final now = DateTime.now();
+   500→    final index = state.matchingPairs.length;
+   501→    final pair = MatchingPairEntity(
+   502→      id: 'new-mp-${index + 1}',
+   503→      questionId: state.question?.id ?? '',
+   504→      leftContent: '',
+   505→      rightContent: '',
+   506→      sortOrder: index,
+   507→      createdAt: now,
+   508→    );
+   509→    state = state.copyWith(
+   510→      matchingPairs: [...state.matchingPairs, pair],
+   511→    );
+   512→  }
+   513→
+   514→  /// Removes the matching pair at [index].
+   515→  void removeMatchingPair(int index) {
+   516→    if (index < 0 || index >= state.matchingPairs.length) return;
+   517→    final updated = [...state.matchingPairs];
+   518→    updated.removeAt(index);
+   519→    final reindexed = updated
+   520→        .asMap()
+   521→        .entries
+   522→        .map((e) => e.value.copyWith(sortOrder: e.key))
+   523→        .toList();
+   524→    state = state.copyWith(matchingPairs: reindexed);
+   525→  }
+   526→
+   527→  /// Updates the matching pair at [index] with the provided [pair].
+   528→  void updateMatchingPair(int index, MatchingPairEntity pair) {
+   529→    if (index < 0 || index >= state.matchingPairs.length) return;
+   530→    final updated = [...state.matchingPairs];
+   531→    updated[index] = pair;
+   532→    state = state.copyWith(matchingPairs: updated);
+   533→  }
+   534→
+   535→  // ─── Ordering Items Management ──────────────────────────────────────
+   536→
+   537→  /// Adds a new blank ordering item.
+   538→  void addOrderingItem() {
+   539→    final now = DateTime.now();
+   540→    final index = state.orderingItems.length;
+   541→    final item = OrderingItemEntity(
+   542→      id: 'new-oi-${index + 1}',
+   543→      questionId: state.question?.id ?? '',
+   544→      content: '',
+   545→      correctPosition: index,
+   546→      createdAt: now,
+   547→    );
+   548→    state = state.copyWith(
+   549→      orderingItems: [...state.orderingItems, item],
+   550→    );
+   551→  }
+   552→
+   553→  /// Removes the ordering item at [index].
+   554→  void removeOrderingItem(int index) {
+   555→    if (index < 0 || index >= state.orderingItems.length) return;
+   556→    final updated = [...state.orderingItems];
+   557→    updated.removeAt(index);
+   558→    // Re-index correct positions.
+   559→    final reindexed = updated.asMap().entries.map((e) {
+   560→      return e.value.copyWith(correctPosition: e.key);
+   561→    }).toList();
+   562→    state = state.copyWith(orderingItems: reindexed);
+   563→  }
+   564→
+   565→  /// Updates the ordering item at [index] with the provided [item].
+   566→  void updateOrderingItem(int index, OrderingItemEntity item) {
+   567→    if (index < 0 || index >= state.orderingItems.length) return;
+   568→    final updated = [...state.orderingItems];
+   569→    updated[index] = item;
+   570→    state = state.copyWith(orderingItems: updated);
+   571→  }
+   572→
+   573→  /// Reorders ordering items by moving an item from [oldIndex] to
+   574→  /// [newIndex].
+   575→  void reorderOrderingItems(int oldIndex, int newIndex) {
+   576→    final items = [...state.orderingItems];
+   577→    if (oldIndex < 0 ||
+   578→        oldIndex >= items.length ||
+   579→        newIndex < 0 ||
+   580→        newIndex >= items.length) {
+   581→      return;
+   582→    }
+   583→    final item = items.removeAt(oldIndex);
+   584→    items.insert(newIndex, item);
+   585→    // Re-index correct positions.
+   586→    final reindexed = items.asMap().entries.map((e) {
+   587→      return e.value.copyWith(correctPosition: e.key);
+   588→    }).toList();
+   589→    state = state.copyWith(orderingItems: reindexed);
+   590→  }
+   591→
+   592→  // ─── Fill in Blank Management ───────────────────────────────────────
+   593→
+   594→  /// Adds a new fill-in-the-blank answer entry.
+   595→  void addFillInBlank() {
+   596→    final now = DateTime.now();
+   597→    final index = state.fillInBlankAnswers.length;
+   598→    final answer = FillInBlankAnswerEntity(
+   599→      id: 'new-fib-${index + 1}',
+   600→      questionId: state.question?.id ?? '',
+   601→      blankIndex: index,
+   602→      acceptableAnswers: const [''],
+   603→      isCaseSensitive: false,
+   604→      marks: 0.0,
+   605→      createdAt: now,
+   606→    );
+   607→    state = state.copyWith(
+   608→      fillInBlankAnswers: [...state.fillInBlankAnswers, answer],
+   609→    );
+   610→  }
+   611→
+   612→  /// Removes the fill-in-the-blank answer at [index].
+   613→  void removeFillInBlank(int index) {
+   614→    if (index < 0 || index >= state.fillInBlankAnswers.length) return;
+   615→    final updated = [...state.fillInBlankAnswers];
+   616→    updated.removeAt(index);
+   617→    // Re-index blanks.
+   618→    final reindexed = updated.asMap().entries.map((e) {
+   619→      return e.value.copyWith(blankIndex: e.key);
+   620→    }).toList();
+   621→    state = state.copyWith(fillInBlankAnswers: reindexed);
+   622→  }
+   623→
+   624→  /// Updates the fill-in-the-blank answer at [index] with the provided
+   625→  /// [answer].
+   626→  void updateFillInBlank(int index, FillInBlankAnswerEntity answer) {
+   627→    if (index < 0 || index >= state.fillInBlankAnswers.length) return;
+   628→    final updated = [...state.fillInBlankAnswers];
+   629→    updated[index] = answer;
+   630→    state = state.copyWith(fillInBlankAnswers: updated);
+   631→  }
+   632→
+   633→  // ─── Attachments Management ─────────────────────────────────────────
+   634→
+   635→  /// Adds an attachment to the question.
+   636→  void addAttachment(QuestionAttachmentEntity attachment) {
+   637→    state = state.copyWith(
+   638→      attachments: [...state.attachments, attachment],
+   639→    );
+   640→  }
+   641→
+   642→  /// Removes the attachment at [index].
+   643→  void removeAttachment(int index) {
+   644→    if (index < 0 || index >= state.attachments.length) return;
+   645→    final updated = [...state.attachments];
+   646→    updated.removeAt(index);
+   647→    state = state.copyWith(attachments: updated);
+   648→  }
+   649→
+   650→  // ─── Tags Management ────────────────────────────────────────────────
+   651→
+   652→  /// Adds a tag to the question.
+   653→  void addTag(QuestionTagEntity tag) {
+   654→    if (state.selectedTags.any((t) => t.id == tag.id)) return;
+   655→    state = state.copyWith(
+   656→      selectedTags: [...state.selectedTags, tag],
+   657→    );
+   658→  }
+   659→
+   660→  /// Removes a tag by [tagId].
+   661→  void removeTag(String tagId) {
+   662→    final updated = state.selectedTags.where((t) => t.id != tagId).toList();
+   663→    state = state.copyWith(selectedTags: updated);
+   664→  }
+   665→
+   666→  // ─── Save Question ──────────────────────────────────────────────────
+   667→
+   668→  /// Saves the question by creating a new one or updating an existing one,
+   669→  /// depending on whether a question ID exists.
+   670→  ///
+   671→  /// Validates all required fields before saving.
+   672→  Future<void> saveQuestion() async {
+   673→    if (!validateForm()) return;
+   674→
+   675→    state = state.copyWith(isSaving: true, error: null);
+   676→
+   677→    final now = DateTime.now();
+   678→    final questionEntity = QuestionEntity(
+   679→      id: state.question?.id ?? '',
+   680→      schoolId: state.question?.schoolId,
+   681→      subjectId: state.selectedSubjectId ?? '',
+   682→      topicId: state.selectedTopicId,
+   683→      subtopicId: state.selectedSubtopicId,
+   684→      classId: state.selectedClassId,
+   685→      categoryId: state.selectedCategoryId,
+   686→      questionType: state.selectedQuestionType,
+   687→      difficulty: state.selectedDifficulty,
+   688→      examType: state.selectedExamType,
+   689→      content: state.content,
+   690→      explanation: state.explanation.isNotEmpty ? state.explanation : null,
+   691→      teacherNotes:
+   692→          state.teacherNotes.isNotEmpty ? state.teacherNotes : null,
+   693→      referenceMaterials: state.referenceMaterials.isNotEmpty
+   694→          ? state.referenceMaterials
+   695→          : null,
+   696→      marks: state.marks,
+   697→      negativeMarks: state.negativeMarks,
+   698→      timeAllowedSeconds: state.timeAllowedSeconds,
+   699→      isPublished: state.question?.isPublished ?? false,
+   700→      isArchived: state.question?.isArchived ?? false,
+   701→      isFeatured: state.question?.isFeatured ?? false,
+   702→      version: state.question?.version ?? 1,
+   703→      createdBy: state.question?.createdBy,
+   704→      updatedBy: state.question?.updatedBy,
+   705→      createdAt: state.question?.createdAt ?? now,
+   706→      updatedAt: now,
+   707→      answerOptions: state.answerOptions,
+   708→      matchingPairs: state.matchingPairs,
+   709→      orderingItems: state.orderingItems,
+   710→      fillInBlankAnswers: state.fillInBlankAnswers,
+   711→      attachments: state.attachments,
+   712→      tags: state.selectedTags,
+   713→    );
+   714→
+   715→    if (state.isEditMode) {
+   716→      final result = await _updateQuestionUseCase(
+   717→        UpdateQuestionParams(
+   718→          question: questionEntity,
+   719→          answerOptions: state.answerOptions,
+   720→          matchingPairs: state.matchingPairs,
+   721→          orderingItems: state.orderingItems,
+   722→          fillInBlankAnswers: state.fillInBlankAnswers,
+   723→          attachments: state.attachments,
+   724→          tagIds: state.selectedTags.map((t) => t.id).toList(),
+   725→        ),
+   726→      );
+   727→
+   728→      result.fold(
+   729→        onSuccess: (updatedQuestion) {
+   730→          state = state.copyWith(
+   731→            isSaving: false,
+   732→            question: updatedQuestion,
+   733→            error: null,
+   734→          );
+   735→          AppLogger.info('Question updated: ${updatedQuestion.id}');
+   736→        },
+   737→        onFailure: (failure) {
+   738→          state = state.copyWith(
+   739→            isSaving: false,
+   740→            error: _mapFailureToMessage(failure),
+   741→          );
+   742→          AppLogger.warning('Failed to update question: $failure');
+   743→        },
+   744→      );
+   745→    } else {
+   746→      final result = await _createQuestionUseCase(
+   747→        CreateQuestionParams(
+   748→          question: questionEntity,
+   749→          answerOptions: state.answerOptions,
+   750→          matchingPairs: state.matchingPairs,
+   751→          orderingItems: state.orderingItems,
+   752→          fillInBlankAnswers: state.fillInBlankAnswers,
+   753→          attachments: state.attachments,
+   754→          tagIds: state.selectedTags.map((t) => t.id).toList(),
+   755→        ),
+   756→      );
+   757→
+   758→      result.fold(
+   759→        onSuccess: (createdQuestion) {
+   760→          state = state.copyWith(
+   761→            isSaving: false,
+   762→            question: createdQuestion,
+   763→            error: null,
+   764→          );
+   765→          AppLogger.info('Question created: ${createdQuestion.id}');
+   766→        },
+   767→        onFailure: (failure) {
+   768→          state = state.copyWith(
+   769→            isSaving: false,
+   770→            error: _mapFailureToMessage(failure),
+   771→          );
+   772→          AppLogger.warning('Failed to create question: $failure');
+   773→        },
+   774→      );
+   775→    }
+   776→  }
+   777→
+   778→  // ─── Save and Publish ───────────────────────────────────────────────
+   779→
+   780→  /// Saves the question and then publishes it.
+   781→  Future<void> saveAndPublish() async {
+   782→    await saveQuestion();
+   783→
+   784→    // Only publish if the save succeeded (no error and question has an ID).
+   785→    if (state.error == null && state.question != null) {
+   786→      final questionId = state.question!.id;
+   787→      if (questionId.isNotEmpty) {
+   788→        final result = await _manageQuestionStatusUseCase(
+   789→          ManageQuestionStatusParams(
+   790→            questionId: questionId,
+   791→            action: QuestionStatusAction.publish,
+   792→          ),
+   793→        );
+   794→
+   795→        result.fold(
+   796→          onSuccess: (_) {
+   797→            state = state.copyWith(
+   798→              question: state.question?.copyWith(isPublished: true),
+   799→            );
+   800→            AppLogger.info('Question published: $questionId');
+   801→          },
+   802→          onFailure: (failure) {
+   803→            state = state.copyWith(
+   804→              error: _mapFailureToMessage(failure),
+   805→            );
+   806→            AppLogger.warning('Failed to publish question: $failure');
+   807→          },
+   808→        );
+   809→      }
+   810→    }
+   811→  }
+   812→
+   813→  // ─── Toggle Preview Mode ────────────────────────────────────────────
+   814→
+   815→  /// Toggles the preview mode state.
+   816→  void togglePreviewMode() {
+   817→    state = state.copyWith(isPreviewMode: !state.isPreviewMode);
+   818→  }
+   819→
+   820→  // ─── Reset Form ─────────────────────────────────────────────────────
+   821→
+   822→  /// Resets all form fields and state to their default values.
+   823→  void resetForm() {
+   824→    state = const QuestionEditorState();
+   825→  }
+   826→
+   827→  // ─── Validate Form ──────────────────────────────────────────────────
+   828→
+   829→  /// Validates all required form fields and type-specific data.
+   830→  ///
+   831→  /// Returns `true` if the form is valid, `false` otherwise.
+   832→  /// Sets the [error] field with a validation message when invalid.
+   833→  bool validateForm() {
+   834→    // ── Content ────────────────────────────────────────────────────────
+   835→    if (state.content.trim().isEmpty) {
+   836→      state = state.copyWith(error: 'Question content is required');
+   837→      return false;
+   838→    }
+   839→
+   840→    // ── Subject ────────────────────────────────────────────────────────
+   841→    if (state.selectedSubjectId == null ||
+   842→        state.selectedSubjectId!.isEmpty) {
+   843→      state = state.copyWith(error: 'Please select a subject');
+   844→      return false;
+   845→    }
+   846→
+   847→    // ── Marks ──────────────────────────────────────────────────────────
+   848→    if (state.marks <= 0) {
+   849→      state = state.copyWith(error: 'Marks must be greater than zero');
+   850→      return false;
+   851→    }
+   852→
+   853→    // ── Type-specific validation ───────────────────────────────────────
+   854→    final type = state.selectedQuestionType;
+   855→
+   856→    // Answer options for choice-based types.
+   857→    if (type.hasOptions && state.answerOptions.isEmpty) {
+   858→      state = state.copyWith(
+   859→        error: '${type.label} questions require at least one answer option',
+   860→      );
+   861→      return false;
+   862→    }
+   863→
+   864→    if (type.hasOptions && type.hasCorrectAnswer) {
+   865→      final hasCorrect = state.answerOptions.any((o) => o.isCorrect);
+   866→      if (!hasCorrect) {
+   867→        state = state.copyWith(
+   868→          error: 'At least one answer option must be marked as correct',
+   869→        );
+   870→        return false;
+   871→      }
+   872→    }
+   873→
+   874→    // Non-empty content for answer options.
+   875→    if (type.hasOptions) {
+   876→      final emptyOption = state.answerOptions.any(
+   877→        (o) => o.content.trim().isEmpty,
+   878→      );
+   879→      if (emptyOption) {
+   880→        state = state.copyWith(
+   881→          error: 'All answer options must have content',
+   882→        );
+   883→        return false;
+   884→      }
+   885→    }
+   886→
+   887→    // Matching pairs.
+   888→    if (type == QuestionType.matching && state.matchingPairs.isEmpty) {
+   889→      state = state.copyWith(
+   890→        error: 'Matching questions require at least one matching pair',
+   891→      );
+   892→      return false;
+   893→    }
+   894→
+   895→    if (type == QuestionType.matching) {
+   896→      final incompletePair = state.matchingPairs.any(
+   897→        (p) => p.leftContent.trim().isEmpty || p.rightContent.trim().isEmpty,
+   898→      );
+   899→      if (incompletePair) {
+   900→        state = state.copyWith(
+   901→          error: 'All matching pairs must have both left and right content',
+   902→        );
+   903→        return false;
+   904→      }
+   905→    }
+   906→
+   907→    // Ordering items.
+   908→    if (type == QuestionType.ordering && state.orderingItems.isEmpty) {
+   909→      state = state.copyWith(
+   910→        error: 'Ordering questions require at least one ordering item',
+   911→      );
+   912→      return false;
+   913→    }
+   914→
+   915→    if (type == QuestionType.ordering) {
+   916→      final emptyItem = state.orderingItems.any(
+   917→        (i) => i.content.trim().isEmpty,
+   918→      );
+   919→      if (emptyItem) {
+   920→        state = state.copyWith(
+   921→          error: 'All ordering items must have content',
+   922→        );
+   923→        return false;
+   924→      }
+   925→    }
+   926→
+   927→    // Fill-in-blank answers.
+   928→    if (type == QuestionType.fillInBlank &&
+   929→        state.fillInBlankAnswers.isEmpty) {
+   930→      state = state.copyWith(
+   931→        error: 'Fill-in-the-blank questions require at least one blank',
+   932→      );
+   933→      return false;
+   934→    }
+   935→
+   936→    if (type == QuestionType.fillInBlank) {
+   937→      final emptyBlank = state.fillInBlankAnswers.any(
+   938→        (a) => a.acceptableAnswers.isEmpty ||
+   939→            a.acceptableAnswers.every((s) => s.trim().isEmpty),
+   940→      );
+   941→      if (emptyBlank) {
+   942→        state = state.copyWith(
+   943→          error: 'Each blank must have at least one acceptable answer',
+   944→        );
+   945→        return false;
+   946→      }
+   947→    }
+   948→
+   949→    // Clear any previous error since form is valid.
+   950→    state = state.copyWith(error: null);
+   951→    return true;
+   952→  }
+   953→
+   954→  // ═══════════════════════════════════════════════════════════════════════
+   955→  // PRIVATE HELPERS
+   956→  // ═══════════════════════════════════════════════════════════════════════
+   957→
+   958→  /// Adds default answer options for a given question type.
+   959→  void _addDefaultAnswerOptions(QuestionType type) {
+   960→    final now = DateTime.now();
+   961→    if (type == QuestionType.trueFalse) {
+   962→      state = state.copyWith(
+   963→        answerOptions: [
+   964→          AnswerOptionEntity(
+   965→            id: 'new-tf-1',
+   966→            questionId: state.question?.id ?? '',
+   967→            content: 'True',
+   968→            isCorrect: true,
+   969→            marks: state.marks,
+   970→            sortOrder: 0,
+   971→            createdAt: now,
+   972→            updatedAt: now,
+   973→          ),
+   974→          AnswerOptionEntity(
+   975→            id: 'new-tf-2',
+   976→            questionId: state.question?.id ?? '',
+   977→            content: 'False',
+   978→            isCorrect: false,
+   979→            marks: 0.0,
+   980→            sortOrder: 1,
+   981→            createdAt: now,
+   982→            updatedAt: now,
+   983→          ),
+   984→        ],
+   985→      );
+   986→    } else {
+   987→      // Default: 4 blank options for MCQ / MRQ / image / audio / video.
+   988→      state = state.copyWith(
+   989→        answerOptions: List.generate(
+   990→          4,
+   991→          (index) => AnswerOptionEntity(
+   992→            id: 'new-opt-${index + 1}',
+   993→            questionId: state.question?.id ?? '',
+   994→            content: '',
+   995→            isCorrect: false,
+   996→            marks: 0.0,
+   997→            sortOrder: index,
+   998→            createdAt: now,
+   999→            updatedAt: now,
+  1000→          ),
+  1001→        ),
+  1002→      );
+  1003→    }
+  1004→  }
+  1005→
+  1006→  /// Loads topics for the given [subjectId].
+  1007→  Future<void> _loadTopicsForSubject(String subjectId) async {
+  1008→    state = state.copyWith(isLoadingTopics: true);
+  1009→
+  1010→    final result = await _repository.getTopics(subjectId);
+  1011→
+  1012→    result.fold(
+  1013→      onSuccess: (topics) {
+  1014→        state = state.copyWith(
+  1015→          availableTopics: topics,
+  1016→          isLoadingTopics: false,
+  1017→        );
+  1018→        AppLogger.info(
+  1019→          'Loaded ${topics.length} topics for subject $subjectId',
+  1020→        );
+  1021→      },
+  1022→      onFailure: (failure) {
+  1023→        state = state.copyWith(isLoadingTopics: false);
+  1024→        AppLogger.warning('Failed to load topics: $failure');
+  1025→      },
+  1026→    );
+  1027→  }
+  1028→
+  1029→  /// Loads subtopics for the given [topicId].
+  1030→  Future<void> _loadSubtopicsForTopic(String topicId) async {
+  1031→    state = state.copyWith(isLoadingSubtopics: true);
+  1032→
+  1033→    final result = await _repository.getSubtopics(topicId);
+  1034→
+  1035→    result.fold(
+  1036→      onSuccess: (subtopics) {
+  1037→        state = state.copyWith(
+  1038→          availableSubtopics: subtopics,
+  1039→          isLoadingSubtopics: false,
+  1040→        );
+  1041→        AppLogger.info(
+  1042→          'Loaded ${subtopics.length} subtopics for topic $topicId',
+  1043→        );
+  1044→      },
+  1045→      onFailure: (failure) {
+  1046→        state = state.copyWith(isLoadingSubtopics: false);
+  1047→        AppLogger.warning('Failed to load subtopics: $failure');
+  1048→      },
+  1049→    );
+  1050→  }
+  1051→
+  1052→  /// Maps a [Failure] to a user-friendly error message.
+  1053→  String _mapFailureToMessage(Failure failure) {
+  1054→    return failure.when(
+  1055→      server: (message, _, __) => message,
+  1056→      cache: (message) => message,
+  1057→      auth: (message, _) => message,
+  1058→      network: (message) => message,
+  1059→      validation: (message, _) => message,
+  1060→      notFound: (message) => message,
+  1061→      unauthorized: (message) => message,
+  1062→      forbidden: (message) => message,
+  1063→    );
+  1064→  }
+  1065→}
+  1066→

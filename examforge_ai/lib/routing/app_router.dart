@@ -14,11 +14,18 @@ import '../features/dashboard/presentation/pages/school_admin_dashboard_page.dar
 import '../features/dashboard/presentation/pages/student_dashboard_page.dart';
 import '../features/dashboard/presentation/pages/super_admin_dashboard_page.dart';
 import '../features/dashboard/presentation/pages/teacher_dashboard_page.dart';
-import '../features/notifications/presentation/notifications_page.dart';
+import '../features/notifications/presentation/pages/notifications_page.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
-import '../features/profile/presentation/profile_page.dart';
-import '../features/settings/presentation/settings_page.dart';
+import '../features/profile/presentation/pages/profile_page.dart';
+import '../features/settings/presentation/pages/settings_page.dart';
 import '../features/splash/presentation/splash_page.dart';
+import '../features/question_bank/presentation/pages/question_bank_dashboard_page.dart';
+import '../features/question_bank/presentation/pages/question_list_page.dart';
+import '../features/question_bank/presentation/pages/question_editor_page.dart';
+import '../features/question_bank/presentation/pages/question_detail_page.dart';
+import '../features/question_bank/presentation/pages/question_import_page.dart';
+import '../features/question_bank/presentation/pages/question_export_page.dart';
+import '../features/question_bank/presentation/pages/collections_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -216,6 +223,54 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.notifications,
             name: 'notifications',
             builder: (context, state) => const NotificationsPage(),
+          ),
+
+          // ── Question Bank Routes ──────────────────────────────────
+          GoRoute(
+            path: RouteNames.questionBank,
+            name: 'questionBank',
+            builder: (context, state) => const QuestionBankDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.questionBankList,
+            name: 'questionBankList',
+            builder: (context, state) => const QuestionListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.questionBankCreate,
+            name: 'questionBankCreate',
+            builder: (context, state) => const QuestionEditorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.questionBankDetail,
+            name: 'questionBankDetail',
+            builder: (context, state) {
+              final questionId = state.uri.queryParameters['id'] ?? '';
+              return QuestionDetailPage(questionId: questionId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.questionBankEdit,
+            name: 'questionBankEdit',
+            builder: (context, state) {
+              final questionId = state.uri.queryParameters['id'] ?? '';
+              return QuestionEditorPage(questionId: questionId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.questionBankImport,
+            name: 'questionBankImport',
+            builder: (context, state) => const QuestionImportPage(),
+          ),
+          GoRoute(
+            path: RouteNames.questionBankExport,
+            name: 'questionBankExport',
+            builder: (context, state) => const QuestionExportPage(),
+          ),
+          GoRoute(
+            path: RouteNames.questionBankCollections,
+            name: 'questionBankCollections',
+            builder: (context, state) => const CollectionsPage(),
           ),
         ],
       ),
