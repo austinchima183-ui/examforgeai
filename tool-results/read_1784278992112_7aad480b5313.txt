@@ -1,0 +1,1458 @@
+     1→import '../../../../core/errors/exceptions.dart';
+     2→import '../../../../core/errors/failures.dart';
+     3→import '../../../../core/utils/logger.dart';
+     4→import '../../../../core/utils/result.dart';
+     5→import '../../domain/entities/question_entities.dart';
+     6→import '../../domain/repositories/question_bank_repository.dart';
+     7→import '../datasources/question_bank_remote_datasource.dart';
+     8→import '../models/question_models.dart';
+     9→
+    10→/// Concrete implementation of [QuestionBankRepository] that delegates
+    11→/// all operations to [QuestionBankRemoteDataSource].
+    12→///
+    13→/// Responsibilities:
+    14→/// - Converts domain entities to/from data models
+    15→/// - Catches data-layer exceptions and converts them to domain [Failure] types
+    16→/// - Returns [Result] to force callers to handle both success and failure
+    17→class QuestionBankRepositoryImpl implements QuestionBankRepository {
+    18→  QuestionBankRepositoryImpl({
+    19→    required QuestionBankRemoteDataSource remoteDataSource,
+    20→  }) : _remoteDataSource = remoteDataSource;
+    21→
+    22→  final QuestionBankRemoteDataSource _remoteDataSource;
+    23→
+    24→  // ═══════════════════════════════════════════════════════════════════════
+    25→  // CRUD
+    26→  // ═══════════════════════════════════════════════════════════════════════
+    27→
+    28→  @override
+    29→  Future<Result<QuestionEntity>> createQuestion(
+    30→    QuestionEntity question,
+    31→  ) async {
+    32→    try {
+    33→      final model = QuestionModel.fromEntity(question);
+    34→      final created = await _remoteDataSource.createQuestion(model.toJson());
+    35→      return Success(created.toEntity());
+    36→    } on AuthException catch (e) {
+    37→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    38→    } on ServerException catch (e) {
+    39→      return FailureResult(Failure.server(
+    40→        message: e.message,
+    41→        statusCode: e.statusCode,
+    42→        data: e.data,
+    43→      ));
+    44→    } on NetworkException catch (e) {
+    45→      return FailureResult(Failure.network(message: e.message));
+    46→    } on ValidationException catch (e) {
+    47→      return FailureResult(Failure.validation(
+    48→        message: e.message,
+    49→        fieldErrors: e.fieldErrors,
+    50→      ));
+    51→    } on NotFoundException catch (e) {
+    52→      return FailureResult(Failure.notFound(message: e.message));
+    53→    } on UnauthorizedException catch (e) {
+    54→      return FailureResult(Failure.unauthorized(message: e.message));
+    55→    } on ForbiddenException catch (e) {
+    56→      return FailureResult(Failure.forbidden(message: e.message));
+    57→    } catch (e) {
+    58→      AppLogger.error('Unexpected createQuestion error in repository',
+    59→          error: e);
+    60→      return const FailureResult(Failure.server(
+    61→        message: 'An unexpected error occurred.',
+    62→        statusCode: 500,
+    63→      ));
+    64→    }
+    65→  }
+    66→
+    67→  @override
+    68→  Future<Result<QuestionEntity>> updateQuestion(
+    69→    QuestionEntity question,
+    70→  ) async {
+    71→    try {
+    72→      final model = QuestionModel.fromEntity(question);
+    73→      final updated = await _remoteDataSource.updateQuestion(
+    74→        question.id,
+    75→        model.toJson(),
+    76→      );
+    77→      return Success(updated.toEntity());
+    78→    } on AuthException catch (e) {
+    79→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    80→    } on ServerException catch (e) {
+    81→      return FailureResult(Failure.server(
+    82→        message: e.message,
+    83→        statusCode: e.statusCode,
+    84→        data: e.data,
+    85→      ));
+    86→    } on NetworkException catch (e) {
+    87→      return FailureResult(Failure.network(message: e.message));
+    88→    } on ValidationException catch (e) {
+    89→      return FailureResult(Failure.validation(
+    90→        message: e.message,
+    91→        fieldErrors: e.fieldErrors,
+    92→      ));
+    93→    } on NotFoundException catch (e) {
+    94→      return FailureResult(Failure.notFound(message: e.message));
+    95→    } on UnauthorizedException catch (e) {
+    96→      return FailureResult(Failure.unauthorized(message: e.message));
+    97→    } on ForbiddenException catch (e) {
+    98→      return FailureResult(Failure.forbidden(message: e.message));
+    99→    } catch (e) {
+   100→      AppLogger.error('Unexpected updateQuestion error in repository',
+   101→          error: e);
+   102→      return const FailureResult(Failure.server(
+   103→        message: 'An unexpected error occurred.',
+   104→        statusCode: 500,
+   105→      ));
+   106→    }
+   107→  }
+   108→
+   109→  @override
+   110→  Future<Result<void>> deleteQuestion(String questionId) async {
+   111→    try {
+   112→      await _remoteDataSource.deleteQuestion(questionId);
+   113→      return const Success(null);
+   114→    } on AuthException catch (e) {
+   115→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   116→    } on ServerException catch (e) {
+   117→      return FailureResult(Failure.server(
+   118→        message: e.message,
+   119→        statusCode: e.statusCode,
+   120→        data: e.data,
+   121→      ));
+   122→    } on NetworkException catch (e) {
+   123→      return FailureResult(Failure.network(message: e.message));
+   124→    } on NotFoundException catch (e) {
+   125→      return FailureResult(Failure.notFound(message: e.message));
+   126→    } on UnauthorizedException catch (e) {
+   127→      return FailureResult(Failure.unauthorized(message: e.message));
+   128→    } on ForbiddenException catch (e) {
+   129→      return FailureResult(Failure.forbidden(message: e.message));
+   130→    } catch (e) {
+   131→      AppLogger.error('Unexpected deleteQuestion error in repository',
+   132→          error: e);
+   133→      return const FailureResult(Failure.server(
+   134→        message: 'An unexpected error occurred.',
+   135→        statusCode: 500,
+   136→      ));
+   137→    }
+   138→  }
+   139→
+   140→  @override
+   141→  Future<Result<QuestionEntity>> getQuestion(String questionId) async {
+   142→    try {
+   143→      final model = await _remoteDataSource.getQuestion(questionId);
+   144→      return Success(model.toEntity());
+   145→    } on AuthException catch (e) {
+   146→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   147→    } on ServerException catch (e) {
+   148→      return FailureResult(Failure.server(
+   149→        message: e.message,
+   150→        statusCode: e.statusCode,
+   151→        data: e.data,
+   152→      ));
+   153→    } on NetworkException catch (e) {
+   154→      return FailureResult(Failure.network(message: e.message));
+   155→    } on NotFoundException catch (e) {
+   156→      return FailureResult(Failure.notFound(message: e.message));
+   157→    } on UnauthorizedException catch (e) {
+   158→      return FailureResult(Failure.unauthorized(message: e.message));
+   159→    } on ForbiddenException catch (e) {
+   160→      return FailureResult(Failure.forbidden(message: e.message));
+   161→    } catch (e) {
+   162→      AppLogger.error('Unexpected getQuestion error in repository', error: e);
+   163→      return const FailureResult(Failure.server(
+   164→        message: 'An unexpected error occurred.',
+   165→        statusCode: 500,
+   166→      ));
+   167→    }
+   168→  }
+   169→
+   170→  @override
+   171→  Future<Result<QuestionEntity>> getQuestionWithDetails(
+   172→    String questionId,
+   173→  ) async {
+   174→    try {
+   175→      final json = await _remoteDataSource.getQuestionWithDetails(questionId);
+   176→      final model = QuestionModel.fromJson(json);
+   177→      return Success(model.toEntity());
+   178→    } on AuthException catch (e) {
+   179→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   180→    } on ServerException catch (e) {
+   181→      return FailureResult(Failure.server(
+   182→        message: e.message,
+   183→        statusCode: e.statusCode,
+   184→        data: e.data,
+   185→      ));
+   186→    } on NetworkException catch (e) {
+   187→      return FailureResult(Failure.network(message: e.message));
+   188→    } on NotFoundException catch (e) {
+   189→      return FailureResult(Failure.notFound(message: e.message));
+   190→    } on UnauthorizedException catch (e) {
+   191→      return FailureResult(Failure.unauthorized(message: e.message));
+   192→    } on ForbiddenException catch (e) {
+   193→      return FailureResult(Failure.forbidden(message: e.message));
+   194→    } catch (e) {
+   195→      AppLogger.error(
+   196→        'Unexpected getQuestionWithDetails error in repository',
+   197→        error: e,
+   198→      );
+   199→      return const FailureResult(Failure.server(
+   200→        message: 'An unexpected error occurred.',
+   201→        statusCode: 500,
+   202→      ));
+   203→    }
+   204→  }
+   205→
+   206→  @override
+   207→  Future<Result<List<QuestionEntity>>> getQuestions(
+   208→    QuestionFilterEntity filter,
+   209→  ) async {
+   210→    try {
+   211→      final filterModel = QuestionFilterModel.fromEntity(filter);
+   212→      final models =
+   213→          await _remoteDataSource.getQuestions(filterModel.toJson());
+   214→      return Success(models.map((m) => m.toEntity()).toList());
+   215→    } on AuthException catch (e) {
+   216→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   217→    } on ServerException catch (e) {
+   218→      return FailureResult(Failure.server(
+   219→        message: e.message,
+   220→        statusCode: e.statusCode,
+   221→        data: e.data,
+   222→      ));
+   223→    } on NetworkException catch (e) {
+   224→      return FailureResult(Failure.network(message: e.message));
+   225→    } on UnauthorizedException catch (e) {
+   226→      return FailureResult(Failure.unauthorized(message: e.message));
+   227→    } on ForbiddenException catch (e) {
+   228→      return FailureResult(Failure.forbidden(message: e.message));
+   229→    } catch (e) {
+   230→      AppLogger.error('Unexpected getQuestions error in repository', error: e);
+   231→      return const FailureResult(Failure.server(
+   232→        message: 'An unexpected error occurred.',
+   233→        statusCode: 500,
+   234→      ));
+   235→    }
+   236→  }
+   237→
+   238→  @override
+   239→  Future<Result<int>> getQuestionCount(QuestionFilterEntity filter) async {
+   240→    try {
+   241→      final filterModel = QuestionFilterModel.fromEntity(filter);
+   242→      final count =
+   243→          await _remoteDataSource.getQuestionCount(filterModel.toJson());
+   244→      return Success(count);
+   245→    } on AuthException catch (e) {
+   246→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   247→    } on ServerException catch (e) {
+   248→      return FailureResult(Failure.server(
+   249→        message: e.message,
+   250→        statusCode: e.statusCode,
+   251→        data: e.data,
+   252→      ));
+   253→    } on NetworkException catch (e) {
+   254→      return FailureResult(Failure.network(message: e.message));
+   255→    } on UnauthorizedException catch (e) {
+   256→      return FailureResult(Failure.unauthorized(message: e.message));
+   257→    } catch (e) {
+   258→      AppLogger.error('Unexpected getQuestionCount error in repository',
+   259→          error: e);
+   260→      return const FailureResult(Failure.server(
+   261→        message: 'An unexpected error occurred.',
+   262→        statusCode: 500,
+   263→      ));
+   264→    }
+   265→  }
+   266→
+   267→  // ═══════════════════════════════════════════════════════════════════════
+   268→  // STATUS MANAGEMENT
+   269→  // ═══════════════════════════════════════════════════════════════════════
+   270→
+   271→  @override
+   272→  Future<Result<void>> publishQuestion(String questionId) async {
+   273→    try {
+   274→      await _remoteDataSource.publishQuestion(questionId);
+   275→      return const Success(null);
+   276→    } on AuthException catch (e) {
+   277→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   278→    } on ServerException catch (e) {
+   279→      return FailureResult(Failure.server(
+   280→        message: e.message,
+   281→        statusCode: e.statusCode,
+   282→        data: e.data,
+   283→      ));
+   284→    } on NetworkException catch (e) {
+   285→      return FailureResult(Failure.network(message: e.message));
+   286→    } on NotFoundException catch (e) {
+   287→      return FailureResult(Failure.notFound(message: e.message));
+   288→    } on UnauthorizedException catch (e) {
+   289→      return FailureResult(Failure.unauthorized(message: e.message));
+   290→    } on ForbiddenException catch (e) {
+   291→      return FailureResult(Failure.forbidden(message: e.message));
+   292→    } catch (e) {
+   293→      AppLogger.error('Unexpected publishQuestion error in repository',
+   294→          error: e);
+   295→      return const FailureResult(Failure.server(
+   296→        message: 'An unexpected error occurred.',
+   297→        statusCode: 500,
+   298→      ));
+   299→    }
+   300→  }
+   301→
+   302→  @override
+   303→  Future<Result<void>> archiveQuestion(String questionId) async {
+   304→    try {
+   305→      await _remoteDataSource.archiveQuestion(questionId);
+   306→      return const Success(null);
+   307→    } on AuthException catch (e) {
+   308→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   309→    } on ServerException catch (e) {
+   310→      return FailureResult(Failure.server(
+   311→        message: e.message,
+   312→        statusCode: e.statusCode,
+   313→        data: e.data,
+   314→      ));
+   315→    } on NetworkException catch (e) {
+   316→      return FailureResult(Failure.network(message: e.message));
+   317→    } on NotFoundException catch (e) {
+   318→      return FailureResult(Failure.notFound(message: e.message));
+   319→    } on UnauthorizedException catch (e) {
+   320→      return FailureResult(Failure.unauthorized(message: e.message));
+   321→    } on ForbiddenException catch (e) {
+   322→      return FailureResult(Failure.forbidden(message: e.message));
+   323→    } catch (e) {
+   324→      AppLogger.error('Unexpected archiveQuestion error in repository',
+   325→          error: e);
+   326→      return const FailureResult(Failure.server(
+   327→        message: 'An unexpected error occurred.',
+   328→        statusCode: 500,
+   329→      ));
+   330→    }
+   331→  }
+   332→
+   333→  @override
+   334→  Future<Result<void>> restoreQuestion(String questionId) async {
+   335→    try {
+   336→      await _remoteDataSource.restoreQuestion(questionId);
+   337→      return const Success(null);
+   338→    } on AuthException catch (e) {
+   339→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   340→    } on ServerException catch (e) {
+   341→      return FailureResult(Failure.server(
+   342→        message: e.message,
+   343→        statusCode: e.statusCode,
+   344→        data: e.data,
+   345→      ));
+   346→    } on NetworkException catch (e) {
+   347→      return FailureResult(Failure.network(message: e.message));
+   348→    } on NotFoundException catch (e) {
+   349→      return FailureResult(Failure.notFound(message: e.message));
+   350→    } on UnauthorizedException catch (e) {
+   351→      return FailureResult(Failure.unauthorized(message: e.message));
+   352→    } on ForbiddenException catch (e) {
+   353→      return FailureResult(Failure.forbidden(message: e.message));
+   354→    } catch (e) {
+   355→      AppLogger.error('Unexpected restoreQuestion error in repository',
+   356→          error: e);
+   357→      return const FailureResult(Failure.server(
+   358→        message: 'An unexpected error occurred.',
+   359→        statusCode: 500,
+   360→      ));
+   361→    }
+   362→  }
+   363→
+   364→  @override
+   365→  Future<Result<QuestionEntity>> duplicateQuestion(String questionId) async {
+   366→    try {
+   367→      final model =
+   368→          await _remoteDataSource.duplicateQuestion(questionId);
+   369→      return Success(model.toEntity());
+   370→    } on AuthException catch (e) {
+   371→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   372→    } on ServerException catch (e) {
+   373→      return FailureResult(Failure.server(
+   374→        message: e.message,
+   375→        statusCode: e.statusCode,
+   376→        data: e.data,
+   377→      ));
+   378→    } on NetworkException catch (e) {
+   379→      return FailureResult(Failure.network(message: e.message));
+   380→    } on NotFoundException catch (e) {
+   381→      return FailureResult(Failure.notFound(message: e.message));
+   382→    } on UnauthorizedException catch (e) {
+   383→      return FailureResult(Failure.unauthorized(message: e.message));
+   384→    } on ForbiddenException catch (e) {
+   385→      return FailureResult(Failure.forbidden(message: e.message));
+   386→    } catch (e) {
+   387→      AppLogger.error('Unexpected duplicateQuestion error in repository',
+   388→          error: e);
+   389→      return const FailureResult(Failure.server(
+   390→        message: 'An unexpected error occurred.',
+   391→        statusCode: 500,
+   392→      ));
+   393→    }
+   394→  }
+   395→
+   396→  @override
+   397→  Future<Result<void>> moveQuestions(
+   398→    List<String> questionIds, {
+   399→    String? topicId,
+   400→    String? categoryId,
+   401→  }) async {
+   402→    try {
+   403→      final target = <String, dynamic>{};
+   404→      if (topicId != null) target['topic_id'] = topicId;
+   405→      if (categoryId != null) target['category_id'] = categoryId;
+   406→
+   407→      await _remoteDataSource.moveQuestions(questionIds, target);
+   408→      return const Success(null);
+   409→    } on AuthException catch (e) {
+   410→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   411→    } on ServerException catch (e) {
+   412→      return FailureResult(Failure.server(
+   413→        message: e.message,
+   414→        statusCode: e.statusCode,
+   415→        data: e.data,
+   416→      ));
+   417→    } on NetworkException catch (e) {
+   418→      return FailureResult(Failure.network(message: e.message));
+   419→    } on UnauthorizedException catch (e) {
+   420→      return FailureResult(Failure.unauthorized(message: e.message));
+   421→    } on ForbiddenException catch (e) {
+   422→      return FailureResult(Failure.forbidden(message: e.message));
+   423→    } catch (e) {
+   424→      AppLogger.error('Unexpected moveQuestions error in repository',
+   425→          error: e);
+   426→      return const FailureResult(Failure.server(
+   427→        message: 'An unexpected error occurred.',
+   428→        statusCode: 500,
+   429→      ));
+   430→    }
+   431→  }
+   432→
+   433→  // ═══════════════════════════════════════════════════════════════════════
+   434→  // ANSWER OPTIONS
+   435→  // ═══════════════════════════════════════════════════════════════════════
+   436→
+   437→  @override
+   438→  Future<Result<List<AnswerOptionEntity>>> getAnswerOptions(
+   439→    String questionId,
+   440→  ) async {
+   441→    try {
+   442→      final models =
+   443→          await _remoteDataSource.getAnswerOptions(questionId);
+   444→      return Success(models.map((m) => m.toEntity()).toList());
+   445→    } on AuthException catch (e) {
+   446→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   447→    } on ServerException catch (e) {
+   448→      return FailureResult(Failure.server(
+   449→        message: e.message,
+   450→        statusCode: e.statusCode,
+   451→        data: e.data,
+   452→      ));
+   453→    } on NetworkException catch (e) {
+   454→      return FailureResult(Failure.network(message: e.message));
+   455→    } on NotFoundException catch (e) {
+   456→      return FailureResult(Failure.notFound(message: e.message));
+   457→    } on UnauthorizedException catch (e) {
+   458→      return FailureResult(Failure.unauthorized(message: e.message));
+   459→    } catch (e) {
+   460→      AppLogger.error('Unexpected getAnswerOptions error in repository',
+   461→          error: e);
+   462→      return const FailureResult(Failure.server(
+   463→        message: 'An unexpected error occurred.',
+   464→        statusCode: 500,
+   465→      ));
+   466→    }
+   467→  }
+   468→
+   469→  @override
+   470→  Future<Result<List<AnswerOptionEntity>>> updateAnswerOptions(
+   471→    String questionId,
+   472→    List<AnswerOptionEntity> options,
+   473→  ) async {
+   474→    try {
+   475→      final optionsData = options
+   476→          .map((o) => AnswerOptionModel.fromEntity(o).toJson())
+   477→          .toList();
+   478→      final models = await _remoteDataSource.updateAnswerOptions(
+   479→        questionId,
+   480→        optionsData,
+   481→      );
+   482→      return Success(models.map((m) => m.toEntity()).toList());
+   483→    } on AuthException catch (e) {
+   484→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   485→    } on ServerException catch (e) {
+   486→      return FailureResult(Failure.server(
+   487→        message: e.message,
+   488→        statusCode: e.statusCode,
+   489→        data: e.data,
+   490→      ));
+   491→    } on NetworkException catch (e) {
+   492→      return FailureResult(Failure.network(message: e.message));
+   493→    } on ValidationException catch (e) {
+   494→      return FailureResult(Failure.validation(
+   495→        message: e.message,
+   496→        fieldErrors: e.fieldErrors,
+   497→      ));
+   498→    } on NotFoundException catch (e) {
+   499→      return FailureResult(Failure.notFound(message: e.message));
+   500→    } on UnauthorizedException catch (e) {
+   501→      return FailureResult(Failure.unauthorized(message: e.message));
+   502→    } on ForbiddenException catch (e) {
+   503→      return FailureResult(Failure.forbidden(message: e.message));
+   504→    } catch (e) {
+   505→      AppLogger.error('Unexpected updateAnswerOptions error in repository',
+   506→          error: e);
+   507→      return const FailureResult(Failure.server(
+   508→        message: 'An unexpected error occurred.',
+   509→        statusCode: 500,
+   510→      ));
+   511→    }
+   512→  }
+   513→
+   514→  // ═══════════════════════════════════════════════════════════════════════
+   515→  // TAGS
+   516→  // ═══════════════════════════════════════════════════════════════════════
+   517→
+   518→  @override
+   519→  Future<Result<List<QuestionTagEntity>>> getTags({
+   520→    String? schoolId,
+   521→    String? searchQuery,
+   522→  }) async {
+   523→    try {
+   524→      final models = await _remoteDataSource.getTags(
+   525→        schoolId: schoolId,
+   526→        searchQuery: searchQuery,
+   527→      );
+   528→      return Success(models.map((m) => m.toEntity()).toList());
+   529→    } on AuthException catch (e) {
+   530→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   531→    } on ServerException catch (e) {
+   532→      return FailureResult(Failure.server(
+   533→        message: e.message,
+   534→        statusCode: e.statusCode,
+   535→        data: e.data,
+   536→      ));
+   537→    } on NetworkException catch (e) {
+   538→      return FailureResult(Failure.network(message: e.message));
+   539→    } catch (e) {
+   540→      AppLogger.error('Unexpected getTags error in repository', error: e);
+   541→      return const FailureResult(Failure.server(
+   542→        message: 'An unexpected error occurred.',
+   543→        statusCode: 500,
+   544→      ));
+   545→    }
+   546→  }
+   547→
+   548→  @override
+   549→  Future<Result<QuestionTagEntity>> createTag(QuestionTagEntity tag) async {
+   550→    try {
+   551→      final model = QuestionTagModel.fromEntity(tag);
+   552→      final created = await _remoteDataSource.createTag(model.toJson());
+   553→      return Success(created.toEntity());
+   554→    } on AuthException catch (e) {
+   555→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   556→    } on ServerException catch (e) {
+   557→      return FailureResult(Failure.server(
+   558→        message: e.message,
+   559→        statusCode: e.statusCode,
+   560→        data: e.data,
+   561→      ));
+   562→    } on NetworkException catch (e) {
+   563→      return FailureResult(Failure.network(message: e.message));
+   564→    } on ValidationException catch (e) {
+   565→      return FailureResult(Failure.validation(
+   566→        message: e.message,
+   567→        fieldErrors: e.fieldErrors,
+   568→      ));
+   569→    } catch (e) {
+   570→      AppLogger.error('Unexpected createTag error in repository', error: e);
+   571→      return const FailureResult(Failure.server(
+   572→        message: 'An unexpected error occurred.',
+   573→        statusCode: 500,
+   574→      ));
+   575→    }
+   576→  }
+   577→
+   578→  @override
+   579→  Future<Result<void>> addTagsToQuestion(
+   580→    String questionId,
+   581→    List<String> tagIds,
+   582→  ) async {
+   583→    try {
+   584→      await _remoteDataSource.addTagsToQuestion(questionId, tagIds);
+   585→      return const Success(null);
+   586→    } on AuthException catch (e) {
+   587→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   588→    } on ServerException catch (e) {
+   589→      return FailureResult(Failure.server(
+   590→        message: e.message,
+   591→        statusCode: e.statusCode,
+   592→        data: e.data,
+   593→      ));
+   594→    } on NetworkException catch (e) {
+   595→      return FailureResult(Failure.network(message: e.message));
+   596→    } on NotFoundException catch (e) {
+   597→      return FailureResult(Failure.notFound(message: e.message));
+   598→    } on UnauthorizedException catch (e) {
+   599→      return FailureResult(Failure.unauthorized(message: e.message));
+   600→    } catch (e) {
+   601→      AppLogger.error('Unexpected addTagsToQuestion error in repository',
+   602→          error: e);
+   603→      return const FailureResult(Failure.server(
+   604→        message: 'An unexpected error occurred.',
+   605→        statusCode: 500,
+   606→      ));
+   607→    }
+   608→  }
+   609→
+   610→  @override
+   611→  Future<Result<void>> removeTagFromQuestion(
+   612→    String questionId,
+   613→    String tagId,
+   614→  ) async {
+   615→    try {
+   616→      await _remoteDataSource.removeTagFromQuestion(questionId, tagId);
+   617→      return const Success(null);
+   618→    } on AuthException catch (e) {
+   619→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   620→    } on ServerException catch (e) {
+   621→      return FailureResult(Failure.server(
+   622→        message: e.message,
+   623→        statusCode: e.statusCode,
+   624→        data: e.data,
+   625→      ));
+   626→    } on NetworkException catch (e) {
+   627→      return FailureResult(Failure.network(message: e.message));
+   628→    } on NotFoundException catch (e) {
+   629→      return FailureResult(Failure.notFound(message: e.message));
+   630→    } on UnauthorizedException catch (e) {
+   631→      return FailureResult(Failure.unauthorized(message: e.message));
+   632→    } catch (e) {
+   633→      AppLogger.error('Unexpected removeTagFromQuestion error in repository',
+   634→          error: e);
+   635→      return const FailureResult(Failure.server(
+   636→        message: 'An unexpected error occurred.',
+   637→        statusCode: 500,
+   638→      ));
+   639→    }
+   640→  }
+   641→
+   642→  // ═══════════════════════════════════════════════════════════════════════
+   643→  // FAVORITES
+   644→  // ═══════════════════════════════════════════════════════════════════════
+   645→
+   646→  @override
+   647→  Future<Result<void>> toggleFavorite(String questionId) async {
+   648→    try {
+   649→      await _remoteDataSource.toggleFavorite(questionId);
+   650→      return const Success(null);
+   651→    } on AuthException catch (e) {
+   652→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   653→    } on ServerException catch (e) {
+   654→      return FailureResult(Failure.server(
+   655→        message: e.message,
+   656→        statusCode: e.statusCode,
+   657→        data: e.data,
+   658→      ));
+   659→    } on NetworkException catch (e) {
+   660→      return FailureResult(Failure.network(message: e.message));
+   661→    } on UnauthorizedException catch (e) {
+   662→      return FailureResult(Failure.unauthorized(message: e.message));
+   663→    } catch (e) {
+   664→      AppLogger.error('Unexpected toggleFavorite error in repository',
+   665→          error: e);
+   666→      return const FailureResult(Failure.server(
+   667→        message: 'An unexpected error occurred.',
+   668→        statusCode: 500,
+   669→      ));
+   670→    }
+   671→  }
+   672→
+   673→  @override
+   674→  Future<Result<List<QuestionEntity>>> getFavorites({
+   675→    int page = 1,
+   676→    int perPage = 20,
+   677→  }) async {
+   678→    try {
+   679→      final models = await _remoteDataSource.getFavorites(
+   680→        page: page,
+   681→        perPage: perPage,
+   682→      );
+   683→      return Success(models.map((m) => m.toEntity()).toList());
+   684→    } on AuthException catch (e) {
+   685→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   686→    } on ServerException catch (e) {
+   687→      return FailureResult(Failure.server(
+   688→        message: e.message,
+   689→        statusCode: e.statusCode,
+   690→        data: e.data,
+   691→      ));
+   692→    } on NetworkException catch (e) {
+   693→      return FailureResult(Failure.network(message: e.message));
+   694→    } on UnauthorizedException catch (e) {
+   695→      return FailureResult(Failure.unauthorized(message: e.message));
+   696→    } catch (e) {
+   697→      AppLogger.error('Unexpected getFavorites error in repository',
+   698→          error: e);
+   699→      return const FailureResult(Failure.server(
+   700→        message: 'An unexpected error occurred.',
+   701→        statusCode: 500,
+   702→      ));
+   703→    }
+   704→  }
+   705→
+   706→  @override
+   707→  Future<Result<bool>> isFavorite(String questionId) async {
+   708→    try {
+   709→      final result = await _remoteDataSource.isFavorite(questionId);
+   710→      return Success(result);
+   711→    } on AuthException catch (e) {
+   712→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   713→    } on ServerException catch (e) {
+   714→      return FailureResult(Failure.server(
+   715→        message: e.message,
+   716→        statusCode: e.statusCode,
+   717→        data: e.data,
+   718→      ));
+   719→    } on NetworkException catch (e) {
+   720→      return FailureResult(Failure.network(message: e.message));
+   721→    } catch (e) {
+   722→      AppLogger.error('Unexpected isFavorite error in repository', error: e);
+   723→      return const FailureResult(Failure.server(
+   724→        message: 'An unexpected error occurred.',
+   725→        statusCode: 500,
+   726→      ));
+   727→    }
+   728→  }
+   729→
+   730→  // ═══════════════════════════════════════════════════════════════════════
+   731→  // COLLECTIONS
+   732→  // ═══════════════════════════════════════════════════════════════════════
+   733→
+   734→  @override
+   735→  Future<Result<QuestionCollectionEntity>> createCollection(
+   736→    QuestionCollectionEntity collection,
+   737→  ) async {
+   738→    try {
+   739→      final model = QuestionCollectionModel.fromEntity(collection);
+   740→      final created =
+   741→          await _remoteDataSource.createCollection(model.toJson());
+   742→      return Success(created.toEntity());
+   743→    } on AuthException catch (e) {
+   744→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   745→    } on ServerException catch (e) {
+   746→      return FailureResult(Failure.server(
+   747→        message: e.message,
+   748→        statusCode: e.statusCode,
+   749→        data: e.data,
+   750→      ));
+   751→    } on NetworkException catch (e) {
+   752→      return FailureResult(Failure.network(message: e.message));
+   753→    } on ValidationException catch (e) {
+   754→      return FailureResult(Failure.validation(
+   755→        message: e.message,
+   756→        fieldErrors: e.fieldErrors,
+   757→      ));
+   758→    } catch (e) {
+   759→      AppLogger.error('Unexpected createCollection error in repository',
+   760→          error: e);
+   761→      return const FailureResult(Failure.server(
+   762→        message: 'An unexpected error occurred.',
+   763→        statusCode: 500,
+   764→      ));
+   765→    }
+   766→  }
+   767→
+   768→  @override
+   769→  Future<Result<QuestionCollectionEntity>> updateCollection(
+   770→    QuestionCollectionEntity collection,
+   771→  ) async {
+   772→    try {
+   773→      final model = QuestionCollectionModel.fromEntity(collection);
+   774→      final updated = await _remoteDataSource.updateCollection(
+   775→        collection.id,
+   776→        model.toJson(),
+   777→      );
+   778→      return Success(updated.toEntity());
+   779→    } on AuthException catch (e) {
+   780→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   781→    } on ServerException catch (e) {
+   782→      return FailureResult(Failure.server(
+   783→        message: e.message,
+   784→        statusCode: e.statusCode,
+   785→        data: e.data,
+   786→      ));
+   787→    } on NetworkException catch (e) {
+   788→      return FailureResult(Failure.network(message: e.message));
+   789→    } on NotFoundException catch (e) {
+   790→      return FailureResult(Failure.notFound(message: e.message));
+   791→    } on UnauthorizedException catch (e) {
+   792→      return FailureResult(Failure.unauthorized(message: e.message));
+   793→    } on ForbiddenException catch (e) {
+   794→      return FailureResult(Failure.forbidden(message: e.message));
+   795→    } catch (e) {
+   796→      AppLogger.error('Unexpected updateCollection error in repository',
+   797→          error: e);
+   798→      return const FailureResult(Failure.server(
+   799→        message: 'An unexpected error occurred.',
+   800→        statusCode: 500,
+   801→      ));
+   802→    }
+   803→  }
+   804→
+   805→  @override
+   806→  Future<Result<void>> deleteCollection(String collectionId) async {
+   807→    try {
+   808→      await _remoteDataSource.deleteCollection(collectionId);
+   809→      return const Success(null);
+   810→    } on AuthException catch (e) {
+   811→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   812→    } on ServerException catch (e) {
+   813→      return FailureResult(Failure.server(
+   814→        message: e.message,
+   815→        statusCode: e.statusCode,
+   816→        data: e.data,
+   817→      ));
+   818→    } on NetworkException catch (e) {
+   819→      return FailureResult(Failure.network(message: e.message));
+   820→    } on NotFoundException catch (e) {
+   821→      return FailureResult(Failure.notFound(message: e.message));
+   822→    } on UnauthorizedException catch (e) {
+   823→      return FailureResult(Failure.unauthorized(message: e.message));
+   824→    } on ForbiddenException catch (e) {
+   825→      return FailureResult(Failure.forbidden(message: e.message));
+   826→    } catch (e) {
+   827→      AppLogger.error('Unexpected deleteCollection error in repository',
+   828→          error: e);
+   829→      return const FailureResult(Failure.server(
+   830→        message: 'An unexpected error occurred.',
+   831→        statusCode: 500,
+   832→      ));
+   833→    }
+   834→  }
+   835→
+   836→  @override
+   837→  Future<Result<List<QuestionCollectionEntity>>> getCollections({
+   838→    String? schoolId,
+   839→    String? createdBy,
+   840→    bool? isShared,
+   841→  }) async {
+   842→    try {
+   843→      final models = await _remoteDataSource.getCollections(
+   844→        schoolId: schoolId,
+   845→        createdBy: createdBy,
+   846→        isShared: isShared,
+   847→      );
+   848→      return Success(models.map((m) => m.toEntity()).toList());
+   849→    } on AuthException catch (e) {
+   850→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   851→    } on ServerException catch (e) {
+   852→      return FailureResult(Failure.server(
+   853→        message: e.message,
+   854→        statusCode: e.statusCode,
+   855→        data: e.data,
+   856→      ));
+   857→    } on NetworkException catch (e) {
+   858→      return FailureResult(Failure.network(message: e.message));
+   859→    } catch (e) {
+   860→      AppLogger.error('Unexpected getCollections error in repository',
+   861→          error: e);
+   862→      return const FailureResult(Failure.server(
+   863→        message: 'An unexpected error occurred.',
+   864→        statusCode: 500,
+   865→      ));
+   866→    }
+   867→  }
+   868→
+   869→  @override
+   870→  Future<Result<void>> addQuestionToCollection(
+   871→    String collectionId,
+   872→    String questionId,
+   873→  ) async {
+   874→    try {
+   875→      await _remoteDataSource.addQuestionToCollection(
+   876→        collectionId,
+   877→        questionId,
+   878→      );
+   879→      return const Success(null);
+   880→    } on AuthException catch (e) {
+   881→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   882→    } on ServerException catch (e) {
+   883→      return FailureResult(Failure.server(
+   884→        message: e.message,
+   885→        statusCode: e.statusCode,
+   886→        data: e.data,
+   887→      ));
+   888→    } on NetworkException catch (e) {
+   889→      return FailureResult(Failure.network(message: e.message));
+   890→    } on NotFoundException catch (e) {
+   891→      return FailureResult(Failure.notFound(message: e.message));
+   892→    } on UnauthorizedException catch (e) {
+   893→      return FailureResult(Failure.unauthorized(message: e.message));
+   894→    } catch (e) {
+   895→      AppLogger.error(
+   896→        'Unexpected addQuestionToCollection error in repository',
+   897→        error: e,
+   898→      );
+   899→      return const FailureResult(Failure.server(
+   900→        message: 'An unexpected error occurred.',
+   901→        statusCode: 500,
+   902→      ));
+   903→    }
+   904→  }
+   905→
+   906→  @override
+   907→  Future<Result<void>> removeQuestionFromCollection(
+   908→    String collectionId,
+   909→    String questionId,
+   910→  ) async {
+   911→    try {
+   912→      await _remoteDataSource.removeQuestionFromCollection(
+   913→        collectionId,
+   914→        questionId,
+   915→      );
+   916→      return const Success(null);
+   917→    } on AuthException catch (e) {
+   918→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   919→    } on ServerException catch (e) {
+   920→      return FailureResult(Failure.server(
+   921→        message: e.message,
+   922→        statusCode: e.statusCode,
+   923→        data: e.data,
+   924→      ));
+   925→    } on NetworkException catch (e) {
+   926→      return FailureResult(Failure.network(message: e.message));
+   927→    } on NotFoundException catch (e) {
+   928→      return FailureResult(Failure.notFound(message: e.message));
+   929→    } on UnauthorizedException catch (e) {
+   930→      return FailureResult(Failure.unauthorized(message: e.message));
+   931→    } catch (e) {
+   932→      AppLogger.error(
+   933→        'Unexpected removeQuestionFromCollection error in repository',
+   934→        error: e,
+   935→      );
+   936→      return const FailureResult(Failure.server(
+   937→        message: 'An unexpected error occurred.',
+   938→        statusCode: 500,
+   939→      ));
+   940→    }
+   941→  }
+   942→
+   943→  @override
+   944→  Future<Result<List<QuestionEntity>>> getCollectionQuestions(
+   945→    String collectionId, {
+   946→    int page = 1,
+   947→    int perPage = 20,
+   948→  }) async {
+   949→    try {
+   950→      final models = await _remoteDataSource.getCollectionQuestions(
+   951→        collectionId,
+   952→        page: page,
+   953→        perPage: perPage,
+   954→      );
+   955→      return Success(models.map((m) => m.toEntity()).toList());
+   956→    } on AuthException catch (e) {
+   957→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   958→    } on ServerException catch (e) {
+   959→      return FailureResult(Failure.server(
+   960→        message: e.message,
+   961→        statusCode: e.statusCode,
+   962→        data: e.data,
+   963→      ));
+   964→    } on NetworkException catch (e) {
+   965→      return FailureResult(Failure.network(message: e.message));
+   966→    } on NotFoundException catch (e) {
+   967→      return FailureResult(Failure.notFound(message: e.message));
+   968→    } catch (e) {
+   969→      AppLogger.error(
+   970→        'Unexpected getCollectionQuestions error in repository',
+   971→        error: e,
+   972→      );
+   973→      return const FailureResult(Failure.server(
+   974→        message: 'An unexpected error occurred.',
+   975→        statusCode: 500,
+   976→      ));
+   977→    }
+   978→  }
+   979→
+   980→  // ═══════════════════════════════════════════════════════════════════════
+   981→  // SHARING
+   982→  // ═══════════════════════════════════════════════════════════════════════
+   983→
+   984→  @override
+   985→  Future<Result<void>> shareQuestion(
+   986→    String questionId,
+   987→    String sharedWith, {
+   988→    String permission = 'read',
+   989→    String? message,
+   990→  }) async {
+   991→    try {
+   992→      await _remoteDataSource.shareQuestion(questionId, {
+   993→        'shared_with': sharedWith,
+   994→        'permission': permission,
+   995→        if (message != null) 'message': message,
+   996→      });
+   997→      return const Success(null);
+   998→    } on AuthException catch (e) {
+   999→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1000→    } on ServerException catch (e) {
+  1001→      return FailureResult(Failure.server(
+  1002→        message: e.message,
+  1003→        statusCode: e.statusCode,
+  1004→        data: e.data,
+  1005→      ));
+  1006→    } on NetworkException catch (e) {
+  1007→      return FailureResult(Failure.network(message: e.message));
+  1008→    } on NotFoundException catch (e) {
+  1009→      return FailureResult(Failure.notFound(message: e.message));
+  1010→    } on UnauthorizedException catch (e) {
+  1011→      return FailureResult(Failure.unauthorized(message: e.message));
+  1012→    } on ForbiddenException catch (e) {
+  1013→      return FailureResult(Failure.forbidden(message: e.message));
+  1014→    } catch (e) {
+  1015→      AppLogger.error('Unexpected shareQuestion error in repository',
+  1016→          error: e);
+  1017→      return const FailureResult(Failure.server(
+  1018→        message: 'An unexpected error occurred.',
+  1019→        statusCode: 500,
+  1020→      ));
+  1021→    }
+  1022→  }
+  1023→
+  1024→  @override
+  1025→  Future<Result<void>> removeShare(String shareId) async {
+  1026→    try {
+  1027→      await _remoteDataSource.removeShare(shareId);
+  1028→      return const Success(null);
+  1029→    } on AuthException catch (e) {
+  1030→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1031→    } on ServerException catch (e) {
+  1032→      return FailureResult(Failure.server(
+  1033→        message: e.message,
+  1034→        statusCode: e.statusCode,
+  1035→        data: e.data,
+  1036→      ));
+  1037→    } on NetworkException catch (e) {
+  1038→      return FailureResult(Failure.network(message: e.message));
+  1039→    } on NotFoundException catch (e) {
+  1040→      return FailureResult(Failure.notFound(message: e.message));
+  1041→    } on UnauthorizedException catch (e) {
+  1042→      return FailureResult(Failure.unauthorized(message: e.message));
+  1043→    } catch (e) {
+  1044→      AppLogger.error('Unexpected removeShare error in repository', error: e);
+  1045→      return const FailureResult(Failure.server(
+  1046→        message: 'An unexpected error occurred.',
+  1047→        statusCode: 500,
+  1048→      ));
+  1049→    }
+  1050→  }
+  1051→
+  1052→  @override
+  1053→  Future<Result<List<QuestionShareEntity>>> getSharedQuestions({
+  1054→    String? sharedWith,
+  1055→  }) async {
+  1056→    try {
+  1057→      final models = await _remoteDataSource.getSharedQuestions(
+  1058→        sharedWith: sharedWith,
+  1059→      );
+  1060→      return Success(models.map((m) => m.toEntity()).toList());
+  1061→    } on AuthException catch (e) {
+  1062→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1063→    } on ServerException catch (e) {
+  1064→      return FailureResult(Failure.server(
+  1065→        message: e.message,
+  1066→        statusCode: e.statusCode,
+  1067→        data: e.data,
+  1068→      ));
+  1069→    } on NetworkException catch (e) {
+  1070→      return FailureResult(Failure.network(message: e.message));
+  1071→    } catch (e) {
+  1072→      AppLogger.error('Unexpected getSharedQuestions error in repository',
+  1073→          error: e);
+  1074→      return const FailureResult(Failure.server(
+  1075→        message: 'An unexpected error occurred.',
+  1076→        statusCode: 500,
+  1077→      ));
+  1078→    }
+  1079→  }
+  1080→
+  1081→  // ═══════════════════════════════════════════════════════════════════════
+  1082→  // IMPORT / EXPORT
+  1083→  // ═══════════════════════════════════════════════════════════════════════
+  1084→
+  1085→  @override
+  1086→  Future<Result<QuestionImportEntity>> startImport(
+  1087→    QuestionImportEntity importJob,
+  1088→  ) async {
+  1089→    try {
+  1090→      final model = QuestionImportModel.fromEntity(importJob);
+  1091→      final created =
+  1092→          await _remoteDataSource.startImport(model.toJson());
+  1093→      return Success(created.toEntity());
+  1094→    } on AuthException catch (e) {
+  1095→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1096→    } on ServerException catch (e) {
+  1097→      return FailureResult(Failure.server(
+  1098→        message: e.message,
+  1099→        statusCode: e.statusCode,
+  1100→        data: e.data,
+  1101→      ));
+  1102→    } on NetworkException catch (e) {
+  1103→      return FailureResult(Failure.network(message: e.message));
+  1104→    } on ValidationException catch (e) {
+  1105→      return FailureResult(Failure.validation(
+  1106→        message: e.message,
+  1107→        fieldErrors: e.fieldErrors,
+  1108→      ));
+  1109→    } on UnauthorizedException catch (e) {
+  1110→      return FailureResult(Failure.unauthorized(message: e.message));
+  1111→    } catch (e) {
+  1112→      AppLogger.error('Unexpected startImport error in repository', error: e);
+  1113→      return const FailureResult(Failure.server(
+  1114→        message: 'An unexpected error occurred.',
+  1115→        statusCode: 500,
+  1116→      ));
+  1117→    }
+  1118→  }
+  1119→
+  1120→  @override
+  1121→  Future<Result<QuestionImportEntity>> getImportStatus(
+  1122→    String importId,
+  1123→  ) async {
+  1124→    try {
+  1125→      final model = await _remoteDataSource.getImportStatus(importId);
+  1126→      return Success(model.toEntity());
+  1127→    } on AuthException catch (e) {
+  1128→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1129→    } on ServerException catch (e) {
+  1130→      return FailureResult(Failure.server(
+  1131→        message: e.message,
+  1132→        statusCode: e.statusCode,
+  1133→        data: e.data,
+  1134→      ));
+  1135→    } on NetworkException catch (e) {
+  1136→      return FailureResult(Failure.network(message: e.message));
+  1137→    } on NotFoundException catch (e) {
+  1138→      return FailureResult(Failure.notFound(message: e.message));
+  1139→    } catch (e) {
+  1140→      AppLogger.error('Unexpected getImportStatus error in repository',
+  1141→          error: e);
+  1142→      return const FailureResult(Failure.server(
+  1143→        message: 'An unexpected error occurred.',
+  1144→        statusCode: 500,
+  1145→      ));
+  1146→    }
+  1147→  }
+  1148→
+  1149→  @override
+  1150→  Future<Result<QuestionExportEntity>> startExport(
+  1151→    QuestionExportEntity exportJob,
+  1152→  ) async {
+  1153→    try {
+  1154→      final model = QuestionExportModel.fromEntity(exportJob);
+  1155→      final created =
+  1156→          await _remoteDataSource.startExport(model.toJson());
+  1157→      return Success(created.toEntity());
+  1158→    } on AuthException catch (e) {
+  1159→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1160→    } on ServerException catch (e) {
+  1161→      return FailureResult(Failure.server(
+  1162→        message: e.message,
+  1163→        statusCode: e.statusCode,
+  1164→        data: e.data,
+  1165→      ));
+  1166→    } on NetworkException catch (e) {
+  1167→      return FailureResult(Failure.network(message: e.message));
+  1168→    } on ValidationException catch (e) {
+  1169→      return FailureResult(Failure.validation(
+  1170→        message: e.message,
+  1171→        fieldErrors: e.fieldErrors,
+  1172→      ));
+  1173→    } on UnauthorizedException catch (e) {
+  1174→      return FailureResult(Failure.unauthorized(message: e.message));
+  1175→    } catch (e) {
+  1176→      AppLogger.error('Unexpected startExport error in repository', error: e);
+  1177→      return const FailureResult(Failure.server(
+  1178→        message: 'An unexpected error occurred.',
+  1179→        statusCode: 500,
+  1180→      ));
+  1181→    }
+  1182→  }
+  1183→
+  1184→  @override
+  1185→  Future<Result<QuestionExportEntity>> getExportStatus(
+  1186→    String exportId,
+  1187→  ) async {
+  1188→    try {
+  1189→      final model = await _remoteDataSource.getExportStatus(exportId);
+  1190→      return Success(model.toEntity());
+  1191→    } on AuthException catch (e) {
+  1192→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1193→    } on ServerException catch (e) {
+  1194→      return FailureResult(Failure.server(
+  1195→        message: e.message,
+  1196→        statusCode: e.statusCode,
+  1197→        data: e.data,
+  1198→      ));
+  1199→    } on NetworkException catch (e) {
+  1200→      return FailureResult(Failure.network(message: e.message));
+  1201→    } on NotFoundException catch (e) {
+  1202→      return FailureResult(Failure.notFound(message: e.message));
+  1203→    } catch (e) {
+  1204→      AppLogger.error('Unexpected getExportStatus error in repository',
+  1205→          error: e);
+  1206→      return const FailureResult(Failure.server(
+  1207→        message: 'An unexpected error occurred.',
+  1208→        statusCode: 500,
+  1209→      ));
+  1210→    }
+  1211→  }
+  1212→
+  1213→  // ═══════════════════════════════════════════════════════════════════════
+  1214→  // SEARCH
+  1215→  // ═══════════════════════════════════════════════════════════════════════
+  1216→
+  1217→  @override
+  1218→  Future<Result<List<QuestionEntity>>> searchQuestions(
+  1219→    String query,
+  1220→    QuestionFilterEntity filter,
+  1221→  ) async {
+  1222→    try {
+  1223→      final filterModel = QuestionFilterModel.fromEntity(filter);
+  1224→      final models = await _remoteDataSource.searchQuestions(
+  1225→        query,
+  1226→        filterModel.toJson(),
+  1227→      );
+  1228→      return Success(models.map((m) => m.toEntity()).toList());
+  1229→    } on AuthException catch (e) {
+  1230→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1231→    } on ServerException catch (e) {
+  1232→      return FailureResult(Failure.server(
+  1233→        message: e.message,
+  1234→        statusCode: e.statusCode,
+  1235→        data: e.data,
+  1236→      ));
+  1237→    } on NetworkException catch (e) {
+  1238→      return FailureResult(Failure.network(message: e.message));
+  1239→    } on UnauthorizedException catch (e) {
+  1240→      return FailureResult(Failure.unauthorized(message: e.message));
+  1241→    } catch (e) {
+  1242→      AppLogger.error('Unexpected searchQuestions error in repository',
+  1243→          error: e);
+  1244→      return const FailureResult(Failure.server(
+  1245→        message: 'An unexpected error occurred.',
+  1246→        statusCode: 500,
+  1247→      ));
+  1248→    }
+  1249→  }
+  1250→
+  1251→  // ═══════════════════════════════════════════════════════════════════════
+  1252→  // STATS
+  1253→  // ═══════════════════════════════════════════════════════════════════════
+  1254→
+  1255→  @override
+  1256→  Future<Result<QuestionBankStatsEntity>> getStats({
+  1257→    String? schoolId,
+  1258→  }) async {
+  1259→    try {
+  1260→      final model =
+  1261→          await _remoteDataSource.getStats(schoolId: schoolId);
+  1262→      return Success(model.toEntity());
+  1263→    } on AuthException catch (e) {
+  1264→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1265→    } on ServerException catch (e) {
+  1266→      return FailureResult(Failure.server(
+  1267→        message: e.message,
+  1268→        statusCode: e.statusCode,
+  1269→        data: e.data,
+  1270→      ));
+  1271→    } on NetworkException catch (e) {
+  1272→      return FailureResult(Failure.network(message: e.message));
+  1273→    } catch (e) {
+  1274→      AppLogger.error('Unexpected getStats error in repository', error: e);
+  1275→      return const FailureResult(Failure.server(
+  1276→        message: 'An unexpected error occurred.',
+  1277→        statusCode: 500,
+  1278→      ));
+  1279→    }
+  1280→  }
+  1281→
+  1282→  @override
+  1283→  Future<Result<List<TopicEntity>>> getTopics(String subjectId) async {
+  1284→    try {
+  1285→      final models = await _remoteDataSource.getTopics(subjectId);
+  1286→      return Success(models.map((m) => m.toEntity()).toList());
+  1287→    } on AuthException catch (e) {
+  1288→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1289→    } on ServerException catch (e) {
+  1290→      return FailureResult(Failure.server(
+  1291→        message: e.message,
+  1292→        statusCode: e.statusCode,
+  1293→        data: e.data,
+  1294→      ));
+  1295→    } on NetworkException catch (e) {
+  1296→      return FailureResult(Failure.network(message: e.message));
+  1297→    } catch (e) {
+  1298→      AppLogger.error('Unexpected getTopics error in repository', error: e);
+  1299→      return const FailureResult(Failure.server(
+  1300→        message: 'An unexpected error occurred.',
+  1301→        statusCode: 500,
+  1302→      ));
+  1303→    }
+  1304→  }
+  1305→
+  1306→  @override
+  1307→  Future<Result<List<SubtopicEntity>>> getSubtopics(String topicId) async {
+  1308→    try {
+  1309→      final models = await _remoteDataSource.getSubtopics(topicId);
+  1310→      return Success(models.map((m) => m.toEntity()).toList());
+  1311→    } on AuthException catch (e) {
+  1312→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1313→    } on ServerException catch (e) {
+  1314→      return FailureResult(Failure.server(
+  1315→        message: e.message,
+  1316→        statusCode: e.statusCode,
+  1317→        data: e.data,
+  1318→      ));
+  1319→    } on NetworkException catch (e) {
+  1320→      return FailureResult(Failure.network(message: e.message));
+  1321→    } catch (e) {
+  1322→      AppLogger.error('Unexpected getSubtopics error in repository', error: e);
+  1323→      return const FailureResult(Failure.server(
+  1324→        message: 'An unexpected error occurred.',
+  1325→        statusCode: 500,
+  1326→      ));
+  1327→    }
+  1328→  }
+  1329→
+  1330→  @override
+  1331→  Future<Result<List<QuestionCategoryEntity>>> getCategories({
+  1332→    String? schoolId,
+  1333→  }) async {
+  1334→    try {
+  1335→      final models =
+  1336→          await _remoteDataSource.getCategories(schoolId: schoolId);
+  1337→      return Success(models.map((m) => m.toEntity()).toList());
+  1338→    } on AuthException catch (e) {
+  1339→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1340→    } on ServerException catch (e) {
+  1341→      return FailureResult(Failure.server(
+  1342→        message: e.message,
+  1343→        statusCode: e.statusCode,
+  1344→        data: e.data,
+  1345→      ));
+  1346→    } on NetworkException catch (e) {
+  1347→      return FailureResult(Failure.network(message: e.message));
+  1348→    } catch (e) {
+  1349→      AppLogger.error('Unexpected getCategories error in repository',
+  1350→          error: e);
+  1351→      return const FailureResult(Failure.server(
+  1352→        message: 'An unexpected error occurred.',
+  1353→        statusCode: 500,
+  1354→      ));
+  1355→    }
+  1356→  }
+  1357→
+  1358→  @override
+  1359→  Future<Result<List<AcademicSessionEntity>>> getAcademicSessions({
+  1360→    String? schoolId,
+  1361→  }) async {
+  1362→    try {
+  1363→      final models = await _remoteDataSource.getAcademicSessions(
+  1364→        schoolId: schoolId,
+  1365→      );
+  1366→      return Success(models.map((m) => m.toEntity()).toList());
+  1367→    } on AuthException catch (e) {
+  1368→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1369→    } on ServerException catch (e) {
+  1370→      return FailureResult(Failure.server(
+  1371→        message: e.message,
+  1372→        statusCode: e.statusCode,
+  1373→        data: e.data,
+  1374→      ));
+  1375→    } on NetworkException catch (e) {
+  1376→      return FailureResult(Failure.network(message: e.message));
+  1377→    } catch (e) {
+  1378→      AppLogger.error(
+  1379→        'Unexpected getAcademicSessions error in repository',
+  1380→        error: e,
+  1381→      );
+  1382→      return const FailureResult(Failure.server(
+  1383→        message: 'An unexpected error occurred.',
+  1384→        statusCode: 500,
+  1385→      ));
+  1386→    }
+  1387→  }
+  1388→
+  1389→  // ═══════════════════════════════════════════════════════════════════════
+  1390→  // VERSION HISTORY
+  1391→  // ═══════════════════════════════════════════════════════════════════════
+  1392→
+  1393→  @override
+  1394→  Future<Result<List<QuestionVersionEntity>>> getVersionHistory(
+  1395→    String questionId,
+  1396→  ) async {
+  1397→    try {
+  1398→      final models =
+  1399→          await _remoteDataSource.getVersionHistory(questionId);
+  1400→      return Success(models.map((m) => m.toEntity()).toList());
+  1401→    } on AuthException catch (e) {
+  1402→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1403→    } on ServerException catch (e) {
+  1404→      return FailureResult(Failure.server(
+  1405→        message: e.message,
+  1406→        statusCode: e.statusCode,
+  1407→        data: e.data,
+  1408→      ));
+  1409→    } on NetworkException catch (e) {
+  1410→      return FailureResult(Failure.network(message: e.message));
+  1411→    } on NotFoundException catch (e) {
+  1412→      return FailureResult(Failure.notFound(message: e.message));
+  1413→    } catch (e) {
+  1414→      AppLogger.error('Unexpected getVersionHistory error in repository',
+  1415→          error: e);
+  1416→      return const FailureResult(Failure.server(
+  1417→        message: 'An unexpected error occurred.',
+  1418→        statusCode: 500,
+  1419→      ));
+  1420→    }
+  1421→  }
+  1422→
+  1423→  @override
+  1424→  Future<Result<QuestionEntity>> restoreVersion(
+  1425→    String questionId,
+  1426→    int version,
+  1427→  ) async {
+  1428→    try {
+  1429→      final model =
+  1430→          await _remoteDataSource.restoreVersion(questionId, version);
+  1431→      return Success(model.toEntity());
+  1432→    } on AuthException catch (e) {
+  1433→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1434→    } on ServerException catch (e) {
+  1435→      return FailureResult(Failure.server(
+  1436→        message: e.message,
+  1437→        statusCode: e.statusCode,
+  1438→        data: e.data,
+  1439→      ));
+  1440→    } on NetworkException catch (e) {
+  1441→      return FailureResult(Failure.network(message: e.message));
+  1442→    } on NotFoundException catch (e) {
+  1443→      return FailureResult(Failure.notFound(message: e.message));
+  1444→    } on UnauthorizedException catch (e) {
+  1445→      return FailureResult(Failure.unauthorized(message: e.message));
+  1446→    } on ForbiddenException catch (e) {
+  1447→      return FailureResult(Failure.forbidden(message: e.message));
+  1448→    } catch (e) {
+  1449→      AppLogger.error('Unexpected restoreVersion error in repository',
+  1450→          error: e);
+  1451→      return const FailureResult(Failure.server(
+  1452→        message: 'An unexpected error occurred.',
+  1453→        statusCode: 500,
+  1454→      ));
+  1455→    }
+  1456→  }
+  1457→}
+  1458→

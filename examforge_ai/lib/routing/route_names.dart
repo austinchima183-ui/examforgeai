@@ -127,6 +127,34 @@ class RouteNames {
   static const String aiGeneratorStats = '/ai-generator/stats';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // CBT ENGINE ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// CBT Engine module root / exam listing.
+  static const String exams = '/exams';
+
+  /// Create a new exam.
+  static const String examCreate = '/exams/create';
+
+  /// Edit an existing exam.
+  static const String examEdit = '/exams/edit';
+
+  /// View exam details.
+  static const String examDetail = '/exams/detail';
+
+  /// Live exam monitoring dashboard.
+  static const String examMonitor = '/exams/monitor';
+
+  /// Exam results and grading.
+  static const String examResults = '/exams/results';
+
+  /// Student exam-taking interface.
+  static const String examTake = '/exams/take';
+
+  /// Student's exam list (assigned exams).
+  static const String studentExams = '/exams/my-exams';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -177,6 +205,18 @@ class RouteNames {
     aiGeneratorStats,
   };
 
+  /// All CBT engine sub-routes (used for feature-level navigation).
+  static const Set<String> cbtEngineRoutes = <String>{
+    exams,
+    examCreate,
+    examEdit,
+    examDetail,
+    examMonitor,
+    examResults,
+    examTake,
+    studentExams,
+  };
+
   /// All routes that live inside the authenticated [ShellRoute].
   static const Set<String> protectedRoutes = <String>{
     dashboard,
@@ -204,5 +244,13 @@ class RouteNames {
     aiGeneratorHistory,
     aiGeneratorPrompts,
     aiGeneratorStats,
+    exams,
+    examCreate,
+    examEdit,
+    examDetail,
+    examMonitor,
+    examResults,
+    examTake,
+    studentExams,
   };
 }

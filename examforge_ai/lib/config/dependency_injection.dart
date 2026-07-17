@@ -37,6 +37,25 @@ import '../features/auth/domain/usecases/logout_usecase.dart';
 import '../features/auth/domain/usecases/signup_usecase.dart';
 import '../features/auth/presentation/providers/auth_form_provider.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/cbt_engine/data/datasources/cbt_remote_datasource.dart';
+import '../features/cbt_engine/data/repositories/cbt_repository_impl.dart';
+import '../features/cbt_engine/domain/repositories/cbt_repository.dart';
+import '../features/cbt_engine/domain/usecases/create_exam_usecase.dart';
+import '../features/cbt_engine/domain/usecases/get_exam_results_usecase.dart';
+import '../features/cbt_engine/domain/usecases/get_exam_statistics_usecase.dart';
+import '../features/cbt_engine/domain/usecases/get_live_exam_stats_usecase.dart';
+import '../features/cbt_engine/domain/usecases/grade_exam_usecase.dart';
+import '../features/cbt_engine/domain/usecases/manage_exam_status_usecase.dart';
+import '../features/cbt_engine/domain/usecases/save_answer_usecase.dart';
+import '../features/cbt_engine/domain/usecases/start_exam_attempt_usecase.dart';
+import '../features/cbt_engine/domain/usecases/submit_exam_attempt_usecase.dart';
+import '../features/cbt_engine/domain/usecases/update_exam_usecase.dart';
+import '../features/cbt_engine/presentation/providers/exam_builder_provider.dart';
+import '../features/cbt_engine/presentation/providers/exam_list_provider.dart';
+import '../features/cbt_engine/presentation/providers/exam_monitor_provider.dart';
+import '../features/cbt_engine/presentation/providers/exam_results_provider.dart';
+import '../features/cbt_engine/presentation/providers/exam_taker_provider.dart';
+import '../features/cbt_engine/presentation/providers/student_exams_provider.dart';
 import '../features/question_bank/data/datasources/question_bank_remote_datasource.dart';
 import '../features/question_bank/data/repositories/question_bank_repository_impl.dart';
 import '../features/question_bank/domain/repositories/question_bank_repository.dart';
@@ -64,6 +83,12 @@ import '../services/ai/providers/gemini_provider.dart';
 import '../services/ai/providers/openai_provider.dart';
 import '../services/ai/validation_engine.dart';
 import '../services/auth_service.dart';
+import '../services/cbt/anti_cheat_service.dart';
+import '../services/cbt/auto_save_service.dart';
+import '../services/cbt/exam_timer_service.dart';
+import '../services/cbt/realtime_service.dart';
+import '../services/cbt/result_processor.dart';
+import '../services/cbt/session_recovery_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
 
@@ -630,5 +655,205 @@ final aiStatsProvider =
   return AiStatsNotifier(
     getAiDashboardStatsUseCase: ref.watch(getAiDashboardStatsUseCaseProvider),
     repository: ref.watch(aiGeneratorRepositoryProvider),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// CBT ENGINE FEATURE — CLEAN ARCHITECTURE PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── CBT Data Layer ──────────────────────────────────────────────────
+
+/// Provides the [CbtRemoteDataSource] implementation.
+final cbtRemoteDataSourceProvider = Provider<CbtRemoteDataSource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return CbtRemoteDataSourceImpl(supabaseClient: supabaseClient);
+});
+
+/// Provides the [CbtRepository] implementation.
+final cbtRepositoryProvider = Provider<CbtRepository>((ref) {
+  final remoteDataSource = ref.watch(cbtRemoteDataSourceProvider);
+  return CbtRepositoryImpl(remoteDataSource: remoteDataSource);
+});
+
+// ─── CBT Use Cases ───────────────────────────────────────────────────
+
+/// Provides the [CreateExamUseCase].
+final createExamUseCaseProvider = Provider<CreateExamUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return CreateExamUseCase(repository);
+});
+
+/// Provides the [UpdateExamUseCase].
+final updateExamUseCaseProvider = Provider<UpdateExamUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return UpdateExamUseCase(repository);
+});
+
+/// Provides the [ManageExamStatusUseCase].
+final manageExamStatusUseCaseProvider =
+    Provider<ManageExamStatusUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return ManageExamStatusUseCase(repository);
+});
+
+/// Provides the [StartExamAttemptUseCase].
+final startExamAttemptUseCaseProvider =
+    Provider<StartExamAttemptUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return StartExamAttemptUseCase(repository);
+});
+
+/// Provides the [SubmitExamAttemptUseCase].
+final submitExamAttemptUseCaseProvider =
+    Provider<SubmitExamAttemptUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return SubmitExamAttemptUseCase(repository);
+});
+
+/// Provides the [SaveAnswerUseCase].
+final saveAnswerUseCaseProvider = Provider<SaveAnswerUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return SaveAnswerUseCase(repository);
+});
+
+/// Provides the [GetExamResultsUseCase].
+final getExamResultsUseCaseProvider = Provider<GetExamResultsUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return GetExamResultsUseCase(repository);
+});
+
+/// Provides the [GetExamStatisticsUseCase].
+final getExamStatisticsUseCaseProvider =
+    Provider<GetExamStatisticsUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return GetExamStatisticsUseCase(repository);
+});
+
+/// Provides the [GetLiveExamStatsUseCase].
+final getLiveExamStatsUseCaseProvider =
+    Provider<GetLiveExamStatsUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return GetLiveExamStatsUseCase(repository);
+});
+
+/// Provides the [GradeExamUseCase].
+final gradeExamUseCaseProvider = Provider<GradeExamUseCase>((ref) {
+  final repository = ref.watch(cbtRepositoryProvider);
+  return GradeExamUseCase(repository);
+});
+
+// ─── CBT Service Providers ───────────────────────────────────────────
+
+/// Provides the [AutoSaveService] singleton.
+final autoSaveServiceProvider = Provider<AutoSaveService>((ref) {
+  final service = AutoSaveService();
+  ref.onDispose(() {
+    service.dispose();
+  });
+  return service;
+});
+
+/// Provides the [ExamTimerService] singleton.
+final examTimerServiceProvider = Provider<ExamTimerService>((ref) {
+  final service = ExamTimerService();
+  ref.onDispose(() {
+    service.dispose();
+  });
+  return service;
+});
+
+/// Provides the [SessionRecoveryService] singleton.
+final sessionRecoveryServiceProvider = Provider<SessionRecoveryService>((ref) {
+  final service = SessionRecoveryService();
+  ref.onDispose(() {
+    service.dispose();
+  });
+  return service;
+});
+
+/// Provides the [AntiCheatService] singleton.
+final antiCheatServiceProvider = Provider<AntiCheatService>((ref) {
+  return AntiCheatService();
+});
+
+/// Provides the [ResultProcessor] singleton.
+final resultProcessorProvider = Provider<ResultProcessor>((ref) {
+  return ResultProcessor();
+});
+
+/// Provides the [CbtRealtimeService] singleton.
+final cbtRealtimeServiceProvider = Provider<CbtRealtimeService>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  final service = CbtRealtimeService(supabaseClient: supabaseClient);
+  ref.onDispose(() {
+    service.dispose();
+  });
+  return service;
+});
+
+// ─── CBT State Notifiers ─────────────────────────────────────────────
+
+/// Provides the [ExamBuilderNotifier] for exam creation/editing state.
+final examBuilderProvider =
+    StateNotifierProvider<ExamBuilderNotifier, ExamBuilderState>((ref) {
+  return ExamBuilderNotifier(
+    createExamUseCase: ref.watch(createExamUseCaseProvider),
+    updateExamUseCase: ref.watch(updateExamUseCaseProvider),
+    manageExamStatusUseCase: ref.watch(manageExamStatusUseCaseProvider),
+    cbtRepository: ref.watch(cbtRepositoryProvider),
+  );
+});
+
+/// Provides the [ExamListNotifier] for exam listing and filtering state.
+final examListProvider =
+    StateNotifierProvider<ExamListNotifier, ExamListState>((ref) {
+  return ExamListNotifier(
+    cbtRepository: ref.watch(cbtRepositoryProvider),
+    manageExamStatusUseCase: ref.watch(manageExamStatusUseCaseProvider),
+  );
+});
+
+/// Provides the [ExamTakerNotifier] for student exam-taking state.
+final examTakerProvider =
+    StateNotifierProvider<ExamTakerNotifier, ExamTakerState>((ref) {
+  return ExamTakerNotifier(
+    startExamAttemptUseCase: ref.watch(startExamAttemptUseCaseProvider),
+    saveAnswerUseCase: ref.watch(saveAnswerUseCaseProvider),
+    submitExamAttemptUseCase: ref.watch(submitExamAttemptUseCaseProvider),
+    cbtRepository: ref.watch(cbtRepositoryProvider),
+    autoSaveService: ref.watch(autoSaveServiceProvider),
+    examTimerService: ref.watch(examTimerServiceProvider),
+    sessionRecoveryService: ref.watch(sessionRecoveryServiceProvider),
+    antiCheatService: ref.watch(antiCheatServiceProvider),
+  );
+});
+
+/// Provides the [ExamMonitorNotifier] for live monitoring state.
+final examMonitorProvider =
+    StateNotifierProvider<ExamMonitorNotifier, ExamMonitorState>((ref) {
+  return ExamMonitorNotifier(
+    cbtRepository: ref.watch(cbtRepositoryProvider),
+    getLiveExamStatsUseCase: ref.watch(getLiveExamStatsUseCaseProvider),
+    cbtRealtimeService: ref.watch(cbtRealtimeServiceProvider),
+  );
+});
+
+/// Provides the [ExamResultsNotifier] for results and grading state.
+final examResultsProvider =
+    StateNotifierProvider<ExamResultsNotifier, ExamResultsState>((ref) {
+  return ExamResultsNotifier(
+    cbtRepository: ref.watch(cbtRepositoryProvider),
+    getExamResultsUseCase: ref.watch(getExamResultsUseCaseProvider),
+    getExamStatisticsUseCase: ref.watch(getExamStatisticsUseCaseProvider),
+    gradeExamUseCase: ref.watch(gradeExamUseCaseProvider),
+  );
+});
+
+/// Provides the [StudentExamsNotifier] for student's exam list state.
+final studentExamsProvider =
+    StateNotifierProvider<StudentExamsNotifier, StudentExamsState>((ref) {
+  return StudentExamsNotifier(
+    cbtRepository: ref.watch(cbtRepositoryProvider),
   );
 });

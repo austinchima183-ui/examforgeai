@@ -33,6 +33,14 @@ import '../features/ai_generator/presentation/pages/ai_improve_page.dart';
 import '../features/ai_generator/presentation/pages/ai_document_page.dart';
 import '../features/ai_generator/presentation/pages/ai_history_page.dart';
 import '../features/ai_generator/presentation/pages/ai_prompts_page.dart';
+import '../features/cbt_engine/presentation/pages/teacher/exam_list_page.dart';
+import '../features/cbt_engine/presentation/pages/teacher/exam_builder_page.dart';
+import '../features/cbt_engine/presentation/pages/teacher/exam_detail_page.dart';
+import '../features/cbt_engine/presentation/pages/teacher/exam_monitor_page.dart';
+import '../features/cbt_engine/presentation/pages/teacher/exam_results_page.dart';
+import '../features/cbt_engine/presentation/pages/student/exam_take_page.dart';
+import '../features/cbt_engine/presentation/pages/student/student_exams_page.dart';
+import '../features/cbt_engine/presentation/pages/student/exam_result_view_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -315,6 +323,63 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.aiGeneratorPrompts,
             name: 'aiGeneratorPrompts',
             builder: (context, state) => const AiPromptsPage(),
+          ),
+
+          // ── CBT Engine Routes ─────────────────────────────────────
+          GoRoute(
+            path: RouteNames.exams,
+            name: 'exams',
+            builder: (context, state) => const ExamListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.examCreate,
+            name: 'examCreate',
+            builder: (context, state) => const ExamBuilderPage(),
+          ),
+          GoRoute(
+            path: RouteNames.examEdit,
+            name: 'examEdit',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['id'] ?? '';
+              return ExamBuilderPage(examId: examId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.examDetail,
+            name: 'examDetail',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['id'] ?? '';
+              return ExamDetailPage(examId: examId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.examMonitor,
+            name: 'examMonitor',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['id'] ?? '';
+              return ExamMonitorPage(examId: examId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.examResults,
+            name: 'examResults',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['id'] ?? '';
+              return ExamResultsPage(examId: examId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.studentExams,
+            name: 'studentExams',
+            builder: (context, state) => const StudentExamsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.examTake,
+            name: 'examTake',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['id'] ?? '';
+              return ExamTakePage(examId: examId);
+            },
           ),
         ],
       ),
