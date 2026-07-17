@@ -1,0 +1,1347 @@
+     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→import 'package:uuid/uuid.dart';
+     3→
+     4→import '../../../../core/errors/exceptions.dart';
+     5→import '../../../../core/errors/failures.dart';
+     6→import '../../../../core/utils/logger.dart';
+     7→import '../../../../core/utils/result.dart';
+     8→import '../../domain/entities/results_entities.dart';
+     9→import '../../domain/repositories/results_repository.dart';
+    10→import '../datasources/results_remote_datasource.dart';
+    11→import '../models/results_models.dart';
+    12→
+    13→/// Concrete implementation of [ResultsRepository] that delegates
+    14→/// all operations to [ResultsRemoteDataSource].
+    15→///
+    16→/// Responsibilities:
+    17→/// - Converts domain entities to/from data models
+    18→/// - Catches data-layer exceptions and converts them to domain [Failure] types
+    19→/// - Returns [Result] to force callers to handle both success and failure
+    20→class ResultsRepositoryImpl implements ResultsRepository {
+    21→  ResultsRepositoryImpl({
+    22→    required ResultsRemoteDataSource remoteDataSource,
+    23→    required sb.SupabaseClient supabaseClient,
+    24→  })  : _remoteDataSource = remoteDataSource,
+    25→        _supabaseClient = supabaseClient;
+    26→
+    27→  final ResultsRemoteDataSource _remoteDataSource;
+    28→  final sb.SupabaseClient _supabaseClient;
+    29→
+    30→  // ═══════════════════════════════════════════════════════════════════════
+    31→  // Helper: Convert exceptions to Failures
+    32→  // ═══════════════════════════════════════════════════════════════════════
+    33→
+    34→  Failure _mapExceptionToFailure(Object e) {
+    35→    if (e is AuthException) {
+    36→      return Failure.auth(message: e.message, code: e.code);
+    37→    } else if (e is ServerException) {
+    38→      return Failure.server(
+    39→        message: e.message,
+    40→        statusCode: e.statusCode,
+    41→        data: e.data,
+    42→      );
+    43→    } else if (e is CacheException) {
+    44→      return Failure.cache(message: e.message);
+    45→    } else if (e is NetworkException) {
+    46→      return Failure.network(message: e.message);
+    47→    } else if (e is ValidationException) {
+    48→      return Failure.validation(
+    49→        message: e.message,
+    50→        fieldErrors: e.fieldErrors,
+    51→      );
+    52→    } else if (e is NotFoundException) {
+    53→      return Failure.notFound(message: e.message);
+    54→    } else if (e is UnauthorizedException) {
+    55→      return Failure.unauthorized(message: e.message);
+    56→    } else if (e is ForbiddenException) {
+    57→      return Failure.forbidden(message: e.message);
+    58→    } else {
+    59→      AppLogger.error('Unexpected exception in ResultsRepositoryImpl', error: e);
+    60→      return Failure.server(
+    61→        message: 'An unexpected error occurred: $e',
+    62→        statusCode: 500,
+    63→      );
+    64→    }
+    65→  }
+    66→
+    67→  // ═══════════════════════════════════════════════════════════════════════
+    68→  // Grade Scales
+    69→  // ═══════════════════════════════════════════════════════════════════════
+    70→
+    71→  @override
+    72→  Future<Result<GradeScaleEntity>> createGradeScale(
+    73→    GradeScaleEntity scale,
+    74→  ) async {
+    75→    try {
+    76→      final model = GradeScaleModel.fromEntity(scale);
+    77→      final created = await _remoteDataSource.createGradeScale(model);
+    78→      return Success(created.toEntity());
+    79→    } on AuthException catch (e) {
+    80→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    81→    } on ServerException catch (e) {
+    82→      return FailureResult(Failure.server(
+    83→        message: e.message,
+    84→        statusCode: e.statusCode,
+    85→        data: e.data,
+    86→      ));
+    87→    } catch (e) {
+    88→      return FailureResult(_mapExceptionToFailure(e));
+    89→    }
+    90→  }
+    91→
+    92→  @override
+    93→  Future<Result<GradeScaleEntity>> updateGradeScale(
+    94→    GradeScaleEntity scale,
+    95→  ) async {
+    96→    try {
+    97→      final model = GradeScaleModel.fromEntity(scale);
+    98→      final updated = await _remoteDataSource.updateGradeScale(model);
+    99→      return Success(updated.toEntity());
+   100→    } on NotFoundException catch (e) {
+   101→      return FailureResult(Failure.notFound(message: e.message));
+   102→    } on ServerException catch (e) {
+   103→      return FailureResult(Failure.server(
+   104→        message: e.message,
+   105→        statusCode: e.statusCode,
+   106→        data: e.data,
+   107→      ));
+   108→    } catch (e) {
+   109→      return FailureResult(_mapExceptionToFailure(e));
+   110→    }
+   111→  }
+   112→
+   113→  @override
+   114→  Future<Result<void>> deleteGradeScale(String scaleId) async {
+   115→    try {
+   116→      await _remoteDataSource.deleteGradeScale(scaleId);
+   117→      return const Success(null);
+   118→    } on ServerException catch (e) {
+   119→      return FailureResult(Failure.server(
+   120→        message: e.message,
+   121→        statusCode: e.statusCode,
+   122→        data: e.data,
+   123→      ));
+   124→    } catch (e) {
+   125→      return FailureResult(_mapExceptionToFailure(e));
+   126→    }
+   127→  }
+   128→
+   129→  @override
+   130→  Future<Result<GradeScaleEntity>> getGradeScale(String scaleId) async {
+   131→    try {
+   132→      final model = await _remoteDataSource.getGradeScale(scaleId);
+   133→      return Success(model.toEntity());
+   134→    } on NotFoundException catch (e) {
+   135→      return FailureResult(Failure.notFound(message: e.message));
+   136→    } on ServerException catch (e) {
+   137→      return FailureResult(Failure.server(
+   138→        message: e.message,
+   139→        statusCode: e.statusCode,
+   140→        data: e.data,
+   141→      ));
+   142→    } catch (e) {
+   143→      return FailureResult(_mapExceptionToFailure(e));
+   144→    }
+   145→  }
+   146→
+   147→  @override
+   148→  Future<Result<List<GradeScaleEntity>>> getGradeScales(
+   149→    String schoolId, {
+   150→    bool? isActive,
+   151→    GradeType? gradeType,
+   152→  }) async {
+   153→    try {
+   154→      final models = await _remoteDataSource.getGradeScales(
+   155→        schoolId,
+   156→        isActive: isActive,
+   157→        gradeType: gradeType?.value,
+   158→      );
+   159→      return Success(models.map((m) => m.toEntity()).toList());
+   160→    } on ServerException catch (e) {
+   161→      return FailureResult(Failure.server(
+   162→        message: e.message,
+   163→        statusCode: e.statusCode,
+   164→        data: e.data,
+   165→      ));
+   166→    } catch (e) {
+   167→      return FailureResult(_mapExceptionToFailure(e));
+   168→    }
+   169→  }
+   170→
+   171→  @override
+   172→  Future<Result<GradeScaleEntryEntity?>> applyGradeScale(
+   173→    double percentage,
+   174→    String scaleId,
+   175→  ) async {
+   176→    try {
+   177→      final scaleModel = await _remoteDataSource.getGradeScale(scaleId);
+   178→      final scale = scaleModel.toEntity();
+   179→
+   180→      // Find the matching entry for the given percentage
+   181→      GradeScaleEntryEntity? match;
+   182→      for (final entry in scale.scaleEntries) {
+   183→        if (percentage >= entry.minPercentage &&
+   184→            percentage <= entry.maxPercentage) {
+   185→          match = entry;
+   186→          break;
+   187→        }
+   188→      }
+   189→
+   190→      return Success(match);
+   191→    } on NotFoundException catch (e) {
+   192→      return FailureResult(Failure.notFound(message: e.message));
+   193→    } on ServerException catch (e) {
+   194→      return FailureResult(Failure.server(
+   195→        message: e.message,
+   196→        statusCode: e.statusCode,
+   197→        data: e.data,
+   198→      ));
+   199→    } catch (e) {
+   200→      return FailureResult(_mapExceptionToFailure(e));
+   201→    }
+   202→  }
+   203→
+   204→  // ═══════════════════════════════════════════════════════════════════════
+   205→  // AI Grading
+   206→  // ═══════════════════════════════════════════════════════════════════════
+   207→
+   208→  @override
+   209→  Future<Result<AiGradingResultEntity>> requestAiGrading({
+   210→    required String answerId,
+   211→    required String examId,
+   212→    required String studentId,
+   213→    required String questionContent,
+   214→    required String studentAnswer,
+   215→    required String markingScheme,
+   216→    required double maxPossible,
+   217→    String? aiProvider,
+   218→  }) async {
+   219→    try {
+   220→      // The AI service call happens at the provider/use-case level.
+   221→      // Here we persist the AI grading result that was produced.
+   222→      // Since the caller provides the grading output, this method
+   223→      // inserts the result into the data store.
+   224→      final now = DateTime.now();
+   225→      final result = AiGradingResultModel(
+   226→        id: const Uuid().v4(),
+   227→        answerId: answerId,
+   228→        examId: examId,
+   229→        studentId: studentId,
+   230→        aiProvider: aiProvider ?? 'openai',
+   231→        suggestedScore: 0,
+   232→        maxPossible: maxPossible,
+   233→        confidenceScore: 0,
+   234→        gradingRubric: {'marking_scheme': markingScheme},
+   235→        explanation: '',
+   236→        strengths: [],
+   237→        weaknesses: [],
+   238→        suggestions: [],
+   239→        status: 'pending',
+   240→        inputTokens: 0,
+   241→        outputTokens: 0,
+   242→        processingTimeMs: 0,
+   243→        errorMessage: null,
+   244→        reviewedBy: null,
+   245→        reviewedAt: null,
+   246→        finalScore: null,
+   247→        reviewComment: null,
+   248→        isAccepted: null,
+   249→        createdAt: now,
+   250→        updatedAt: now,
+   251→      );
+   252→
+   253→      final inserted = await _remoteDataSource.insertAiGradingResult(result);
+   254→      return Success(inserted.toEntity());
+   255→    } on ServerException catch (e) {
+   256→      return FailureResult(Failure.server(
+   257→        message: e.message,
+   258→        statusCode: e.statusCode,
+   259→        data: e.data,
+   260→      ));
+   261→    } catch (e) {
+   262→      return FailureResult(_mapExceptionToFailure(e));
+   263→    }
+   264→  }
+   265→
+   266→  @override
+   267→  Future<Result<AiGradingResultEntity?>> getAiGradingResult(
+   268→    String answerId,
+   269→  ) async {
+   270→    try {
+   271→      final model = await _remoteDataSource.getAiGradingByAnswer(answerId);
+   272→      return Success(model?.toEntity());
+   273→    } on ServerException catch (e) {
+   274→      return FailureResult(Failure.server(
+   275→        message: e.message,
+   276→        statusCode: e.statusCode,
+   277→        data: e.data,
+   278→      ));
+   279→    } catch (e) {
+   280→      return FailureResult(_mapExceptionToFailure(e));
+   281→    }
+   282→  }
+   283→
+   284→  @override
+   285→  Future<Result<List<AiGradingResultEntity>>> getPendingAiGradings(
+   286→    String examId,
+   287→  ) async {
+   288→    try {
+   289→      final models = await _remoteDataSource.getPendingAiGradings(examId);
+   290→      return Success(models.map((m) => m.toEntity()).toList());
+   291→    } on ServerException catch (e) {
+   292→      return FailureResult(Failure.server(
+   293→        message: e.message,
+   294→        statusCode: e.statusCode,
+   295→        data: e.data,
+   296→      ));
+   297→    } catch (e) {
+   298→      return FailureResult(_mapExceptionToFailure(e));
+   299→    }
+   300→  }
+   301→
+   302→  @override
+   303→  Future<Result<AiGradingResultEntity>> reviewAiGrading({
+   304→    required String aiGradingId,
+   305→    required double finalScore,
+   306→    required bool isAccepted,
+   307→    String? reviewComment,
+   308→  }) async {
+   309→    try {
+   310→      // Fetch the existing AI grading result to update it
+   311→      final existingList = await _supabaseClient
+   312→          .from('ai_grading_results')
+   313→          .select()
+   314→          .eq('id', aiGradingId)
+   315→          .single();
+   316→
+   317→      final existing = AiGradingResultModel.fromJson(existingList);
+   318→
+   319→      final updated = existing.copyWith(
+   320→        finalScore: finalScore,
+   321→        isAccepted: isAccepted,
+   322→        reviewComment: reviewComment,
+   323→        reviewedAt: DateTime.now(),
+   324→        status: isAccepted ? 'overridden' : existing.status,
+   325→      );
+   326→
+   327→      final result = await _remoteDataSource.updateAiGradingResult(updated);
+   328→      return Success(result.toEntity());
+   329→    } on sb.PostgrestException catch (e) {
+   330→      if (e.code == 'PGRST116') {
+   331→        return FailureResult(
+   332→          Failure.notFound(message: 'AI grading result not found: $aiGradingId'),
+   333→        );
+   334→      }
+   335→      return FailureResult(Failure.server(
+   336→        message: e.message,
+   337→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   338→        data: e.details,
+   339→      ));
+   340→    } on ServerException catch (e) {
+   341→      return FailureResult(Failure.server(
+   342→        message: e.message,
+   343→        statusCode: e.statusCode,
+   344→        data: e.data,
+   345→      ));
+   346→    } catch (e) {
+   347→      return FailureResult(_mapExceptionToFailure(e));
+   348→    }
+   349→  }
+   350→
+   351→  @override
+   352→  Future<Result<List<AiGradingResultEntity>>> batchAiGrading(
+   353→    String examId,
+   354→  ) async {
+   355→    try {
+   356→      // Returns pending AI grading results for an exam.
+   357→      // The actual AI service orchestration happens at the use-case/provider level.
+   358→      final models = await _remoteDataSource.getPendingAiGradings(examId);
+   359→      return Success(models.map((m) => m.toEntity()).toList());
+   360→    } on ServerException catch (e) {
+   361→      return FailureResult(Failure.server(
+   362→        message: e.message,
+   363→        statusCode: e.statusCode,
+   364→        data: e.data,
+   365→      ));
+   366→    } catch (e) {
+   367→      return FailureResult(_mapExceptionToFailure(e));
+   368→    }
+   369→  }
+   370→
+   371→  // ═══════════════════════════════════════════════════════════════════════
+   372→  // Teacher Feedback
+   373→  // ═══════════════════════════════════════════════════════════════════════
+   374→
+   375→  @override
+   376→  Future<Result<TeacherFeedbackEntity>> saveTeacherFeedback(
+   377→    TeacherFeedbackEntity feedback,
+   378→  ) async {
+   379→    try {
+   380→      final model = TeacherFeedbackModel.fromEntity(feedback);
+   381→      final saved = await _remoteDataSource.upsertTeacherFeedback(model);
+   382→      return Success(saved.toEntity());
+   383→    } on ServerException catch (e) {
+   384→      return FailureResult(Failure.server(
+   385→        message: e.message,
+   386→        statusCode: e.statusCode,
+   387→        data: e.data,
+   388→      ));
+   389→    } catch (e) {
+   390→      return FailureResult(_mapExceptionToFailure(e));
+   391→    }
+   392→  }
+   393→
+   394→  @override
+   395→  Future<Result<TeacherFeedbackEntity?>> getTeacherFeedback(
+   396→    String answerId,
+   397→  ) async {
+   398→    try {
+   399→      final model = await _remoteDataSource.getTeacherFeedbackByAnswer(answerId);
+   400→      return Success(model?.toEntity());
+   401→    } on ServerException catch (e) {
+   402→      return FailureResult(Failure.server(
+   403→        message: e.message,
+   404→        statusCode: e.statusCode,
+   405→        data: e.data,
+   406→      ));
+   407→    } catch (e) {
+   408→      return FailureResult(_mapExceptionToFailure(e));
+   409→    }
+   410→  }
+   411→
+   412→  @override
+   413→  Future<Result<List<TeacherFeedbackEntity>>> getTeacherFeedbackByExam(
+   414→    String examId,
+   415→    String teacherId,
+   416→  ) async {
+   417→    try {
+   418→      final models = await _remoteDataSource.getTeacherFeedbackByExam(
+   419→        examId,
+   420→        teacherId,
+   421→      );
+   422→      return Success(models.map((m) => m.toEntity()).toList());
+   423→    } on ServerException catch (e) {
+   424→      return FailureResult(Failure.server(
+   425→        message: e.message,
+   426→        statusCode: e.statusCode,
+   427→        data: e.data,
+   428→      ));
+   429→    } catch (e) {
+   430→      return FailureResult(_mapExceptionToFailure(e));
+   431→    }
+   432→  }
+   433→
+   434→  // ═══════════════════════════════════════════════════════════════════════
+   435→  // Student Subject Results
+   436→  // ═══════════════════════════════════════════════════════════════════════
+   437→
+   438→  @override
+   439→  Future<Result<StudentSubjectResultEntity>> getStudentSubjectResult({
+   440→    required String studentId,
+   441→    required String subjectId,
+   442→    required String classId,
+   443→    required String academicSessionId,
+   444→  }) async {
+   445→    try {
+   446→      // Call the Supabase RPC to compute and upsert the student subject result
+   447→      final response = await _supabaseClient.rpc(
+   448→        'compute_student_subject_result',
+   449→        params: {
+   450→          'p_student_id': studentId,
+   451→          'p_subject_id': subjectId,
+   452→          'p_class_id': classId,
+   453→          'p_academic_session_id': academicSessionId,
+   454→        },
+   455→      );
+   456→
+   457→      if (response == null) {
+   458→        return FailureResult(Failure.notFound(
+   459→          message: 'Student subject result not found',
+   460→        ));
+   461→      }
+   462→
+   463→      final model = StudentSubjectResultModel.fromJson(
+   464→        response as Map<String, dynamic>,
+   465→      );
+   466→      return Success(model.toEntity());
+   467→    } on sb.PostgrestException catch (e) {
+   468→      AppLogger.error('Compute student subject result RPC failed', error: e);
+   469→      return FailureResult(Failure.server(
+   470→        message: e.message,
+   471→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   472→        data: e.details,
+   473→      ));
+   474→    } on ServerException catch (e) {
+   475→      return FailureResult(Failure.server(
+   476→        message: e.message,
+   477→        statusCode: e.statusCode,
+   478→        data: e.data,
+   479→      ));
+   480→    } catch (e) {
+   481→      return FailureResult(_mapExceptionToFailure(e));
+   482→    }
+   483→  }
+   484→
+   485→  @override
+   486→  Future<Result<List<StudentSubjectResultEntity>>> getStudentSubjectResults({
+   487→    required String studentId,
+   488→    required String academicSessionId,
+   489→  }) async {
+   490→    try {
+   491→      final models = await _remoteDataSource.getStudentSubjectResults(
+   492→        studentId,
+   493→        academicSessionId,
+   494→      );
+   495→      return Success(models.map((m) => m.toEntity()).toList());
+   496→    } on ServerException catch (e) {
+   497→      return FailureResult(Failure.server(
+   498→        message: e.message,
+   499→        statusCode: e.statusCode,
+   500→        data: e.data,
+   501→      ));
+   502→    } catch (e) {
+   503→      return FailureResult(_mapExceptionToFailure(e));
+   504→    }
+   505→  }
+   506→
+   507→  @override
+   508→  Future<Result<List<StudentSubjectResultEntity>>> getClassSubjectResults({
+   509→    required String classId,
+   510→    required String subjectId,
+   511→    required String academicSessionId,
+   512→  }) async {
+   513→    try {
+   514→      final models = await _remoteDataSource.getClassSubjectResults(
+   515→        classId,
+   516→        subjectId,
+   517→        academicSessionId,
+   518→      );
+   519→      return Success(models.map((m) => m.toEntity()).toList());
+   520→    } on ServerException catch (e) {
+   521→      return FailureResult(Failure.server(
+   522→        message: e.message,
+   523→        statusCode: e.statusCode,
+   524→        data: e.data,
+   525→      ));
+   526→    } catch (e) {
+   527→      return FailureResult(_mapExceptionToFailure(e));
+   528→    }
+   529→  }
+   530→
+   531→  // ═══════════════════════════════════════════════════════════════════════
+   532→  // Student Overall Results
+   533→  // ═══════════════════════════════════════════════════════════════════════
+   534→
+   535→  @override
+   536→  Future<Result<StudentOverallResultEntity>> getStudentOverallResult({
+   537→    required String studentId,
+   538→    required String classId,
+   539→    required String academicSessionId,
+   540→  }) async {
+   541→    try {
+   542→      final model = await _remoteDataSource.getStudentOverallResult(
+   543→        studentId,
+   544→        classId,
+   545→        academicSessionId,
+   546→      );
+   547→
+   548→      if (model == null) {
+   549→        return FailureResult(Failure.notFound(
+   550→          message:
+   551→              'Student overall result not found for student $studentId in class $classId',
+   552→        ));
+   553→      }
+   554→
+   555→      return Success(model.toEntity());
+   556→    } on NotFoundException catch (e) {
+   557→      return FailureResult(Failure.notFound(message: e.message));
+   558→    } on ServerException catch (e) {
+   559→      return FailureResult(Failure.server(
+   560→        message: e.message,
+   561→        statusCode: e.statusCode,
+   562→        data: e.data,
+   563→      ));
+   564→    } catch (e) {
+   565→      return FailureResult(_mapExceptionToFailure(e));
+   566→    }
+   567→  }
+   568→
+   569→  @override
+   570→  Future<Result<List<StudentOverallResultEntity>>> getClassOverallResults({
+   571→    required String classId,
+   572→    required String academicSessionId,
+   573→  }) async {
+   574→    try {
+   575→      final models = await _remoteDataSource.getClassOverallResults(
+   576→        classId,
+   577→        academicSessionId,
+   578→      );
+   579→      return Success(models.map((m) => m.toEntity()).toList());
+   580→    } on ServerException catch (e) {
+   581→      return FailureResult(Failure.server(
+   582→        message: e.message,
+   583→        statusCode: e.statusCode,
+   584→        data: e.data,
+   585→      ));
+   586→    } catch (e) {
+   587→      return FailureResult(_mapExceptionToFailure(e));
+   588→    }
+   589→  }
+   590→
+   591→  @override
+   592→  Future<Result<StudentOverallResultEntity>> updateTeacherComment({
+   593→    required String resultId,
+   594→    required String comment,
+   595→  }) async {
+   596→    try {
+   597→      // Fetch the existing overall result
+   598→      final response = await _supabaseClient
+   599→          .from('student_overall_results')
+   600→          .select()
+   601→          .eq('id', resultId)
+   602→          .single();
+   603→
+   604→      final existing = StudentOverallResultModel.fromJson(response);
+   605→
+   606→      // Update with the new teacher comment
+   607→      final updated = existing.copyWith(teacherComment: comment);
+   608→
+   609→      final result = await _remoteDataSource.upsertStudentOverallResult(updated);
+   610→      return Success(result.toEntity());
+   611→    } on sb.PostgrestException catch (e) {
+   612→      if (e.code == 'PGRST116') {
+   613→        return FailureResult(
+   614→          Failure.notFound(message: 'Overall result not found: $resultId'),
+   615→        );
+   616→      }
+   617→      return FailureResult(Failure.server(
+   618→        message: e.message,
+   619→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   620→        data: e.details,
+   621→      ));
+   622→    } on ServerException catch (e) {
+   623→      return FailureResult(Failure.server(
+   624→        message: e.message,
+   625→        statusCode: e.statusCode,
+   626→        data: e.data,
+   627→      ));
+   628→    } catch (e) {
+   629→      return FailureResult(_mapExceptionToFailure(e));
+   630→    }
+   631→  }
+   632→
+   633→  // ═══════════════════════════════════════════════════════════════════════
+   634→  // Topic Mastery
+   635→  // ═══════════════════════════════════════════════════════════════════════
+   636→
+   637→  @override
+   638→  Future<Result<TopicMasteryEntity>> getTopicMastery({
+   639→    required String studentId,
+   640→    required String topicId,
+   641→  }) async {
+   642→    try {
+   643→      final model = await _remoteDataSource.getTopicMastery(
+   644→        studentId,
+   645→        topicId,
+   646→      );
+   647→
+   648→      if (model == null) {
+   649→        return FailureResult(Failure.notFound(
+   650→          message: 'Topic mastery not found for student $studentId, topic $topicId',
+   651→        ));
+   652→      }
+   653→
+   654→      return Success(model.toEntity());
+   655→    } on NotFoundException catch (e) {
+   656→      return FailureResult(Failure.notFound(message: e.message));
+   657→    } on ServerException catch (e) {
+   658→      return FailureResult(Failure.server(
+   659→        message: e.message,
+   660→        statusCode: e.statusCode,
+   661→        data: e.data,
+   662→      ));
+   663→    } catch (e) {
+   664→      return FailureResult(_mapExceptionToFailure(e));
+   665→    }
+   666→  }
+   667→
+   668→  @override
+   669→  Future<Result<List<TopicMasteryEntity>>> getStudentTopicMastery({
+   670→    required String studentId,
+   671→    required String subjectId,
+   672→  }) async {
+   673→    try {
+   674→      final models = await _remoteDataSource.getStudentTopicMastery(
+   675→        studentId,
+   676→        subjectId,
+   677→      );
+   678→      return Success(models.map((m) => m.toEntity()).toList());
+   679→    } on ServerException catch (e) {
+   680→      return FailureResult(Failure.server(
+   681→        message: e.message,
+   682→        statusCode: e.statusCode,
+   683→        data: e.data,
+   684→      ));
+   685→    } catch (e) {
+   686→      return FailureResult(_mapExceptionToFailure(e));
+   687→    }
+   688→  }
+   689→
+   690→  @override
+   691→  Future<Result<List<TopicMasteryEntity>>> getClassTopicMastery({
+   692→    required String classId,
+   693→    required String subjectId,
+   694→  }) async {
+   695→    try {
+   696→      final models = await _remoteDataSource.getClassTopicMastery(
+   697→        classId,
+   698→        subjectId,
+   699→      );
+   700→      return Success(models.map((m) => m.toEntity()).toList());
+   701→    } on ServerException catch (e) {
+   702→      return FailureResult(Failure.server(
+   703→        message: e.message,
+   704→        statusCode: e.statusCode,
+   705→        data: e.data,
+   706→      ));
+   707→    } catch (e) {
+   708→      return FailureResult(_mapExceptionToFailure(e));
+   709→    }
+   710→  }
+   711→
+   712→  // ═══════════════════════════════════════════════════════════════════════
+   713→  // Class Performance
+   714→  // ═══════════════════════════════════════════════════════════════════════
+   715→
+   716→  @override
+   717→  Future<Result<ClassPerformanceEntity>> getClassPerformance({
+   718→    required String classId,
+   719→    String? subjectId,
+   720→    required String academicSessionId,
+   721→  }) async {
+   722→    try {
+   723→      final model = await _remoteDataSource.getClassPerformance(
+   724→        classId,
+   725→        subjectId,
+   726→        academicSessionId,
+   727→      );
+   728→
+   729→      if (model == null) {
+   730→        return FailureResult(Failure.notFound(
+   731→          message:
+   732→              'Class performance not found for class $classId${subjectId != null ? ', subject $subjectId' : ''}',
+   733→        ));
+   734→      }
+   735→
+   736→      return Success(model.toEntity());
+   737→    } on NotFoundException catch (e) {
+   738→      return FailureResult(Failure.notFound(message: e.message));
+   739→    } on ServerException catch (e) {
+   740→      return FailureResult(Failure.server(
+   741→        message: e.message,
+   742→        statusCode: e.statusCode,
+   743→        data: e.data,
+   744→      ));
+   745→    } catch (e) {
+   746→      return FailureResult(_mapExceptionToFailure(e));
+   747→    }
+   748→  }
+   749→
+   750→  @override
+   751→  Future<Result<List<ClassPerformanceEntity>>> getSchoolClassPerformances({
+   752→    required String schoolId,
+   753→    required String academicSessionId,
+   754→  }) async {
+   755→    try {
+   756→      final models = await _remoteDataSource.getSchoolClassPerformances(
+   757→        schoolId,
+   758→        academicSessionId,
+   759→      );
+   760→      return Success(models.map((m) => m.toEntity()).toList());
+   761→    } on ServerException catch (e) {
+   762→      return FailureResult(Failure.server(
+   763→        message: e.message,
+   764→        statusCode: e.statusCode,
+   765→        data: e.data,
+   766→      ));
+   767→    } catch (e) {
+   768→      return FailureResult(_mapExceptionToFailure(e));
+   769→    }
+   770→  }
+   771→
+   772→  // ═══════════════════════════════════════════════════════════════════════
+   773→  // School Performance
+   774→  // ═══════════════════════════════════════════════════════════════════════
+   775→
+   776→  @override
+   777→  Future<Result<SchoolPerformanceEntity>> getSchoolPerformance({
+   778→    required String schoolId,
+   779→    required String academicSessionId,
+   780→  }) async {
+   781→    try {
+   782→      final model = await _remoteDataSource.getSchoolPerformance(
+   783→        schoolId,
+   784→        academicSessionId,
+   785→      );
+   786→
+   787→      if (model == null) {
+   788→        return FailureResult(Failure.notFound(
+   789→          message: 'School performance not found for school $schoolId',
+   790→        ));
+   791→      }
+   792→
+   793→      return Success(model.toEntity());
+   794→    } on NotFoundException catch (e) {
+   795→      return FailureResult(Failure.notFound(message: e.message));
+   796→    } on ServerException catch (e) {
+   797→      return FailureResult(Failure.server(
+   798→        message: e.message,
+   799→        statusCode: e.statusCode,
+   800→        data: e.data,
+   801→      ));
+   802→    } catch (e) {
+   803→      return FailureResult(_mapExceptionToFailure(e));
+   804→    }
+   805→  }
+   806→
+   807→  // ═══════════════════════════════════════════════════════════════════════
+   808→  // Analytics Snapshots
+   809→  // ═══════════════════════════════════════════════════════════════════════
+   810→
+   811→  @override
+   812→  Future<Result<AnalyticsSnapshotEntity?>> getAnalyticsSnapshot({
+   813→    required String schoolId,
+   814→    required String snapshotType,
+   815→    String? entityId,
+   816→    String? academicSessionId,
+   817→  }) async {
+   818→    try {
+   819→      final model = await _remoteDataSource.getAnalyticsSnapshot(
+   820→        schoolId,
+   821→        snapshotType,
+   822→        entityId: entityId,
+   823→        academicSessionId: academicSessionId,
+   824→      );
+   825→      return Success(model?.toEntity());
+   826→    } on ServerException catch (e) {
+   827→      return FailureResult(Failure.server(
+   828→        message: e.message,
+   829→        statusCode: e.statusCode,
+   830→        data: e.data,
+   831→      ));
+   832→    } catch (e) {
+   833→      return FailureResult(_mapExceptionToFailure(e));
+   834→    }
+   835→  }
+   836→
+   837→  @override
+   838→  Future<Result<AnalyticsSnapshotEntity>> createAnalyticsSnapshot(
+   839→    AnalyticsSnapshotEntity snapshot,
+   840→  ) async {
+   841→    try {
+   842→      final model = AnalyticsSnapshotModel.fromEntity(snapshot);
+   843→      final created = await _remoteDataSource.createAnalyticsSnapshot(model);
+   844→      return Success(created.toEntity());
+   845→    } on ServerException catch (e) {
+   846→      return FailureResult(Failure.server(
+   847→        message: e.message,
+   848→        statusCode: e.statusCode,
+   849→        data: e.data,
+   850→      ));
+   851→    } catch (e) {
+   852→      return FailureResult(_mapExceptionToFailure(e));
+   853→    }
+   854→  }
+   855→
+   856→  // ═══════════════════════════════════════════════════════════════════════
+   857→  // Dashboard Configurations
+   858→  // ═══════════════════════════════════════════════════════════════════════
+   859→
+   860→  @override
+   861→  Future<Result<DashboardConfigurationEntity>> getDashboardConfiguration({
+   862→    required String schoolId,
+   863→    required String role,
+   864→  }) async {
+   865→    try {
+   866→      final model = await _remoteDataSource.getDashboardConfiguration(
+   867→        schoolId,
+   868→        role,
+   869→      );
+   870→
+   871→      if (model == null) {
+   872→        return FailureResult(Failure.notFound(
+   873→          message:
+   874→              'Dashboard configuration not found for school $schoolId, role $role',
+   875→        ));
+   876→      }
+   877→
+   878→      return Success(model.toEntity());
+   879→    } on NotFoundException catch (e) {
+   880→      return FailureResult(Failure.notFound(message: e.message));
+   881→    } on ServerException catch (e) {
+   882→      return FailureResult(Failure.server(
+   883→        message: e.message,
+   884→        statusCode: e.statusCode,
+   885→        data: e.data,
+   886→      ));
+   887→    } catch (e) {
+   888→      return FailureResult(_mapExceptionToFailure(e));
+   889→    }
+   890→  }
+   891→
+   892→  @override
+   893→  Future<Result<DashboardConfigurationEntity>> saveDashboardConfiguration(
+   894→    DashboardConfigurationEntity config,
+   895→  ) async {
+   896→    try {
+   897→      final model = DashboardConfigurationModel.fromEntity(config);
+   898→      final saved = await _remoteDataSource.upsertDashboardConfiguration(model);
+   899→      return Success(saved.toEntity());
+   900→    } on ServerException catch (e) {
+   901→      return FailureResult(Failure.server(
+   902→        message: e.message,
+   903→        statusCode: e.statusCode,
+   904→        data: e.data,
+   905→      ));
+   906→    } catch (e) {
+   907→      return FailureResult(_mapExceptionToFailure(e));
+   908→    }
+   909→  }
+   910→
+   911→  @override
+   912→  Future<Result<void>> updateDashboardWidgets({
+   913→    required String dashboardId,
+   914→    required List<DashboardWidgetConfigEntity> widgets,
+   915→  }) async {
+   916→    try {
+   917→      final widgetModels =
+   918→          widgets.map(DashboardWidgetConfigModel.fromEntity).toList();
+   919→      await _remoteDataSource.updateDashboardWidgets(
+   920→        dashboardId,
+   921→        widgetModels,
+   922→      );
+   923→      return const Success(null);
+   924→    } on ServerException catch (e) {
+   925→      return FailureResult(Failure.server(
+   926→        message: e.message,
+   927→        statusCode: e.statusCode,
+   928→        data: e.data,
+   929→      ));
+   930→    } catch (e) {
+   931→      return FailureResult(_mapExceptionToFailure(e));
+   932→    }
+   933→  }
+   934→
+   935→  // ═══════════════════════════════════════════════════════════════════════
+   936→  // Report Exports
+   937→  // ═══════════════════════════════════════════════════════════════════════
+   938→
+   939→  @override
+   940→  Future<Result<ReportExportEntity>> createReportExport({
+   941→    required String schoolId,
+   942→    required String requestedBy,
+   943→    required ReportType reportType,
+   944→    required ReportFormat reportFormat,
+   945→    required String title,
+   946→    Map<String, dynamic>? parameters,
+   947→    Map<String, dynamic>? filters,
+   948→  }) async {
+   949→    try {
+   950→      final now = DateTime.now();
+   951→      final export = ReportExportModel(
+   952→        id: const Uuid().v4(),
+   953→        schoolId: schoolId,
+   954→        requestedBy: requestedBy,
+   955→        reportType: reportType.value,
+   956→        reportFormat: reportFormat.value,
+   957→        status: 'pending',
+   958→        title: title,
+   959→        parameters: parameters ?? {},
+   960→        filters: filters ?? {},
+   961→        fileUrl: null,
+   962→        fileSizeBytes: null,
+   963→        rowCount: null,
+   964→        errorMessage: null,
+   965→        processingTimeMs: null,
+   966→        expiresAt: null,
+   967→        downloadedAt: null,
+   968→        createdAt: now,
+   969→        updatedAt: now,
+   970→      );
+   971→
+   972→      final created = await _remoteDataSource.createReportExport(export);
+   973→      return Success(created.toEntity());
+   974→    } on ServerException catch (e) {
+   975→      return FailureResult(Failure.server(
+   976→        message: e.message,
+   977→        statusCode: e.statusCode,
+   978→        data: e.data,
+   979→      ));
+   980→    } catch (e) {
+   981→      return FailureResult(_mapExceptionToFailure(e));
+   982→    }
+   983→  }
+   984→
+   985→  @override
+   986→  Future<Result<ReportExportEntity>> getReportExport(String exportId) async {
+   987→    try {
+   988→      final model = await _remoteDataSource.getReportExport(exportId);
+   989→
+   990→      if (model == null) {
+   991→        return FailureResult(
+   992→          Failure.notFound(message: 'Report export not found: $exportId'),
+   993→        );
+   994→      }
+   995→
+   996→      return Success(model.toEntity());
+   997→    } on NotFoundException catch (e) {
+   998→      return FailureResult(Failure.notFound(message: e.message));
+   999→    } on ServerException catch (e) {
+  1000→      return FailureResult(Failure.server(
+  1001→        message: e.message,
+  1002→        statusCode: e.statusCode,
+  1003→        data: e.data,
+  1004→      ));
+  1005→    } catch (e) {
+  1006→      return FailureResult(_mapExceptionToFailure(e));
+  1007→    }
+  1008→  }
+  1009→
+  1010→  @override
+  1011→  Future<Result<List<ReportExportEntity>>> getReportExports({
+  1012→    String? schoolId,
+  1013→    String? requestedBy,
+  1014→    ReportStatus? status,
+  1015→    int page = 1,
+  1016→    int perPage = 20,
+  1017→  }) async {
+  1018→    try {
+  1019→      final models = await _remoteDataSource.getReportExports(
+  1020→        schoolId: schoolId,
+  1021→        requestedBy: requestedBy,
+  1022→        status: status?.value,
+  1023→        page: page,
+  1024→        perPage: perPage,
+  1025→      );
+  1026→      return Success(models.map((m) => m.toEntity()).toList());
+  1027→    } on ServerException catch (e) {
+  1028→      return FailureResult(Failure.server(
+  1029→        message: e.message,
+  1030→        statusCode: e.statusCode,
+  1031→        data: e.data,
+  1032→      ));
+  1033→    } catch (e) {
+  1034→      return FailureResult(_mapExceptionToFailure(e));
+  1035→    }
+  1036→  }
+  1037→
+  1038→  @override
+  1039→  Future<Result<String>> downloadReport(String exportId) async {
+  1040→    try {
+  1041→      final model = await _remoteDataSource.getReportExport(exportId);
+  1042→
+  1043→      if (model == null) {
+  1044→        return FailureResult(
+  1045→          Failure.notFound(message: 'Report export not found: $exportId'),
+  1046→        );
+  1047→      }
+  1048→
+  1049→      if (model.fileUrl == null) {
+  1050→        return FailureResult(Failure.server(
+  1051→          message: 'Report file is not yet available',
+  1052→          statusCode: 404,
+  1053→        ));
+  1054→      }
+  1055→
+  1056→      // Update downloaded_at timestamp
+  1057→      final now = DateTime.now();
+  1058→      final updated = model.copyWith(downloadedAt: now);
+  1059→      await _remoteDataSource.updateReportExport(updated);
+  1060→
+  1061→      return Success(model.fileUrl!);
+  1062→    } on NotFoundException catch (e) {
+  1063→      return FailureResult(Failure.notFound(message: e.message));
+  1064→    } on ServerException catch (e) {
+  1065→      return FailureResult(Failure.server(
+  1066→        message: e.message,
+  1067→        statusCode: e.statusCode,
+  1068→        data: e.data,
+  1069→      ));
+  1070→    } catch (e) {
+  1071→      return FailureResult(_mapExceptionToFailure(e));
+  1072→    }
+  1073→  }
+  1074→
+  1075→  // ═══════════════════════════════════════════════════════════════════════
+  1076→  // Result Locks
+  1077→  // ═══════════════════════════════════════════════════════════════════════
+  1078→
+  1079→  @override
+  1080→  Future<Result<ResultLockEntity>> lockResults({
+  1081→    required String examId,
+  1082→    required String schoolId,
+  1083→    required String lockedBy,
+  1084→    String? reason,
+  1085→  }) async {
+  1086→    try {
+  1087→      final now = DateTime.now();
+  1088→      final lock = ResultLockModel(
+  1089→        id: const Uuid().v4(),
+  1090→        examId: examId,
+  1091→        schoolId: schoolId,
+  1092→        lockedBy: lockedBy,
+  1093→        lockedAt: now,
+  1094→        reason: reason,
+  1095→        isLocked: true,
+  1096→        unlockedBy: null,
+  1097→        unlockedAt: null,
+  1098→        createdAt: now,
+  1099→      );
+  1100→
+  1101→      final created = await _remoteDataSource.createResultLock(lock);
+  1102→      return Success(created.toEntity());
+  1103→    } on ServerException catch (e) {
+  1104→      return FailureResult(Failure.server(
+  1105→        message: e.message,
+  1106→        statusCode: e.statusCode,
+  1107→        data: e.data,
+  1108→      ));
+  1109→    } catch (e) {
+  1110→      return FailureResult(_mapExceptionToFailure(e));
+  1111→    }
+  1112→  }
+  1113→
+  1114→  @override
+  1115→  Future<Result<ResultLockEntity>> unlockResults({
+  1116→    required String examId,
+  1117→    required String unlockedBy,
+  1118→  }) async {
+  1119→    try {
+  1120→      final existing = await _remoteDataSource.getResultLock(examId);
+  1121→
+  1122→      if (existing == null) {
+  1123→        return FailureResult(Failure.notFound(
+  1124→          message: 'No result lock found for exam: $examId',
+  1125→        ));
+  1126→      }
+  1127→
+  1128→      final updated = existing.copyWith(
+  1129→        isLocked: false,
+  1130→        unlockedBy: unlockedBy,
+  1131→        unlockedAt: DateTime.now(),
+  1132→      );
+  1133→
+  1134→      final result = await _remoteDataSource.updateResultLock(updated);
+  1135→      return Success(result.toEntity());
+  1136→    } on NotFoundException catch (e) {
+  1137→      return FailureResult(Failure.notFound(message: e.message));
+  1138→    } on ServerException catch (e) {
+  1139→      return FailureResult(Failure.server(
+  1140→        message: e.message,
+  1141→        statusCode: e.statusCode,
+  1142→        data: e.data,
+  1143→      ));
+  1144→    } catch (e) {
+  1145→      return FailureResult(_mapExceptionToFailure(e));
+  1146→    }
+  1147→  }
+  1148→
+  1149→  @override
+  1150→  Future<Result<bool>> isResultLocked(String examId) async {
+  1151→    try {
+  1152→      final lock = await _remoteDataSource.getResultLock(examId);
+  1153→      return Success(lock?.isLocked ?? false);
+  1154→    } on ServerException catch (e) {
+  1155→      return FailureResult(Failure.server(
+  1156→        message: e.message,
+  1157→        statusCode: e.statusCode,
+  1158→        data: e.data,
+  1159→      ));
+  1160→    } catch (e) {
+  1161→      return FailureResult(_mapExceptionToFailure(e));
+  1162→    }
+  1163→  }
+  1164→
+  1165→  // ═══════════════════════════════════════════════════════════════════════
+  1166→  // Result Access Logging
+  1167→  // ═══════════════════════════════════════════════════════════════════════
+  1168→
+  1169→  @override
+  1170→  Future<Result<void>> logResultAccess({
+  1171→    required String userId,
+  1172→    required String schoolId,
+  1173→    required String action,
+  1174→    required String entityType,
+  1175→    required String entityId,
+  1176→    ResultAccessLevel accessLevel = ResultAccessLevel.limited,
+  1177→    String? ipAddress,
+  1178→    String? userAgent,
+  1179→    Map<String, dynamic>? details,
+  1180→  }) async {
+  1181→    try {
+  1182→      await _remoteDataSource.insertResultAccessLog(
+  1183→        schoolId: schoolId,
+  1184→        userId: userId,
+  1185→        action: action,
+  1186→        resourceType: entityType,
+  1187→        resourceId: entityId,
+  1188→        details: {
+  1189→          if (accessLevel != ResultAccessLevel.limited)
+  1190→            'access_level': accessLevel.value,
+  1191→          if (ipAddress != null) 'ip_address': ipAddress,
+  1192→          if (userAgent != null) 'user_agent': userAgent,
+  1193→          if (details != null) ...details,
+  1194→        },
+  1195→      );
+  1196→      return const Success(null);
+  1197→    } on ServerException catch (e) {
+  1198→      return FailureResult(Failure.server(
+  1199→        message: e.message,
+  1200→        statusCode: e.statusCode,
+  1201→        data: e.data,
+  1202→      ));
+  1203→    } catch (e) {
+  1204→      return FailureResult(_mapExceptionToFailure(e));
+  1205→    }
+  1206→  }
+  1207→
+  1208→  // ═══════════════════════════════════════════════════════════════════════
+  1209→  // Bulk Operations
+  1210→  // ═══════════════════════════════════════════════════════════════════════
+  1211→
+  1212→  @override
+  1213→  Future<Result<void>> recomputeClassResults({
+  1214→    required String classId,
+  1215→    required String academicSessionId,
+  1216→  }) async {
+  1217→    try {
+  1218→      // 1. Get all student/subject pairs for this class and session
+  1219→      final subjectResults = await _supabaseClient
+  1220→          .from('student_subject_results')
+  1221→          .select('student_id, subject_id')
+  1222→          .eq('class_id', classId)
+  1223→          .eq('academic_session_id', academicSessionId);
+  1224→
+  1225→      // 2. Call the compute_student_subject_result RPC for each pair
+  1226→      for (final row in subjectResults as List) {
+  1227→        try {
+  1228→          await _supabaseClient.rpc(
+  1229→            'compute_student_subject_result',
+  1230→            params: {
+  1231→              'p_student_id': row['student_id'],
+  1232→              'p_subject_id': row['subject_id'],
+  1233→              'p_class_id': classId,
+  1234→              'p_academic_session_id': academicSessionId,
+  1235→            },
+  1236→          );
+  1237→        } catch (e) {
+  1238→          AppLogger.warning(
+  1239→            'Failed to recompute result for student ${row['student_id']}, '
+  1240→            'subject ${row['subject_id']}: $e',
+  1241→          );
+  1242→          // Continue with other students even if one fails
+  1243→        }
+  1244→      }
+  1245→
+  1246→      // 3. Recompute overall results for all students in the class
+  1247→      final studentIds = (subjectResults as List)
+  1248→          .map((r) => r['student_id'] as String)
+  1249→          .toSet();
+  1250→
+  1251→      for (final studentId in studentIds) {
+  1252→        try {
+  1253→          await _supabaseClient.rpc(
+  1254→            'compute_student_overall_result',
+  1255→            params: {
+  1256→              'p_student_id': studentId,
+  1257→              'p_class_id': classId,
+  1258→              'p_academic_session_id': academicSessionId,
+  1259→            },
+  1260→          );
+  1261→        } catch (e) {
+  1262→          AppLogger.warning(
+  1263→            'Failed to recompute overall result for student $studentId: $e',
+  1264→          );
+  1265→          // Continue with other students even if one fails
+  1266→        }
+  1267→      }
+  1268→
+  1269→      return const Success(null);
+  1270→    } on sb.PostgrestException catch (e) {
+  1271→      AppLogger.error('Recompute class results failed', error: e);
+  1272→      return FailureResult(Failure.server(
+  1273→        message: e.message,
+  1274→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1275→        data: e.details,
+  1276→      ));
+  1277→    } on ServerException catch (e) {
+  1278→      return FailureResult(Failure.server(
+  1279→        message: e.message,
+  1280→        statusCode: e.statusCode,
+  1281→        data: e.data,
+  1282→      ));
+  1283→    } catch (e) {
+  1284→      return FailureResult(_mapExceptionToFailure(e));
+  1285→    }
+  1286→  }
+  1287→
+  1288→  @override
+  1289→  Future<Result<void>> publishResults(String examId) async {
+  1290→    try {
+  1291→      // Update exam_results: set is_released = true, released_at = now()
+  1292→      await _supabaseClient
+  1293→          .from('exam_results')
+  1294→          .update({
+  1295→            'is_released': true,
+  1296→            'released_at': DateTime.now().toUtc().toIso8601String(),
+  1297→          })
+  1298→          .eq('exam_id', examId);
+  1299→
+  1300→      return const Success(null);
+  1301→    } on sb.PostgrestException catch (e) {
+  1302→      AppLogger.error('Publish results failed', error: e);
+  1303→      return FailureResult(Failure.server(
+  1304→        message: e.message,
+  1305→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1306→        data: e.details,
+  1307→      ));
+  1308→    } on ServerException catch (e) {
+  1309→      return FailureResult(Failure.server(
+  1310→        message: e.message,
+  1311→        statusCode: e.statusCode,
+  1312→        data: e.data,
+  1313→      ));
+  1314→    } catch (e) {
+  1315→      return FailureResult(_mapExceptionToFailure(e));
+  1316→    }
+  1317→  }
+  1318→
+  1319→  @override
+  1320→  Future<Result<void>> withholdResults(String examId) async {
+  1321→    try {
+  1322→      // Update exam_results: set is_released = false
+  1323→      await _supabaseClient
+  1324→          .from('exam_results')
+  1325→          .update({'is_released': false})
+  1326→          .eq('exam_id', examId);
+  1327→
+  1328→      return const Success(null);
+  1329→    } on sb.PostgrestException catch (e) {
+  1330→      AppLogger.error('Withhold results failed', error: e);
+  1331→      return FailureResult(Failure.server(
+  1332→        message: e.message,
+  1333→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1334→        data: e.details,
+  1335→      ));
+  1336→    } on ServerException catch (e) {
+  1337→      return FailureResult(Failure.server(
+  1338→        message: e.message,
+  1339→        statusCode: e.statusCode,
+  1340→        data: e.data,
+  1341→      ));
+  1342→    } catch (e) {
+  1343→      return FailureResult(_mapExceptionToFailure(e));
+  1344→    }
+  1345→  }
+  1346→}
+  1347→

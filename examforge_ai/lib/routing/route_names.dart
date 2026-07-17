@@ -155,6 +155,37 @@ class RouteNames {
   static const String studentExams = '/exams/my-exams';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // RESULTS & ANALYTICS ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Results module root / dashboard.
+  static const String results = '/results';
+
+  /// Teacher grading interface (review AI grading, manual grading).
+  static const String teacherGrading = '/results/grading';
+
+  /// Class results and rankings.
+  static const String classResults = '/results/class-results';
+
+  /// Grade scale management.
+  static const String gradeScales = '/results/grade-scales';
+
+  /// Result management (lock, publish, withhold).
+  static const String resultManagement = '/results/management';
+
+  /// Student results portal (personal results).
+  static const String studentResults = '/results/my-results';
+
+  /// Student topic mastery view.
+  static const String topicMastery = '/results/topic-mastery';
+
+  /// School analytics dashboard.
+  static const String schoolAnalytics = '/results/analytics';
+
+  /// Report generation and exports.
+  static const String reports = '/results/reports';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -217,6 +248,19 @@ class RouteNames {
     studentExams,
   };
 
+  /// All results & analytics sub-routes (used for feature-level navigation).
+  static const Set<String> resultsRoutes = <String>{
+    results,
+    teacherGrading,
+    classResults,
+    gradeScales,
+    resultManagement,
+    studentResults,
+    topicMastery,
+    schoolAnalytics,
+    reports,
+  };
+
   /// All routes that live inside the authenticated [ShellRoute].
   static const Set<String> protectedRoutes = <String>{
     dashboard,
@@ -252,5 +296,14 @@ class RouteNames {
     examResults,
     examTake,
     studentExams,
+    results,
+    teacherGrading,
+    classResults,
+    gradeScales,
+    resultManagement,
+    studentResults,
+    topicMastery,
+    schoolAnalytics,
+    reports,
   };
 }

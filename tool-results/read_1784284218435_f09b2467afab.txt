@@ -1,0 +1,2002 @@
+     1→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     2→
+     3→import '../../../../core/errors/failures.dart';
+     4→import '../../../../core/utils/logger.dart';
+     5→import '../../domain/entities/results_entities.dart';
+     6→import '../../domain/usecases/results_usecases.dart';
+     7→
+     8→// ═══════════════════════════════════════════════════════════════════════
+     9→// RESULTS ENGINE — PRESENTATION PROVIDERS
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→// All StateNotifiers and their corresponding state classes for the
+    12→// Results Engine feature. Each notifier encapsulates a single area of
+    13→// the results domain (grading, analytics, export, management, etc.).
+    14→// ═══════════════════════════════════════════════════════════════════════
+    15→
+    16→// ═══════════════════════════════════════════════════════════════════════
+    17→// 1. RESULTS DASHBOARD STATE & NOTIFIER
+    18→// ═══════════════════════════════════════════════════════════════════════
+    19→
+    20→/// Immutable state snapshot for the results dashboard.
+    21→///
+    22→/// Tracks grade scales, class performance, and school performance
+    23→/// for the main dashboard view.
+    24→class ResultsDashboardState {
+    25→  const ResultsDashboardState({
+    26→    this.gradeScales = const [],
+    27→    this.classPerformance,
+    28→    this.schoolPerformance,
+    29→    this.isLoading = false,
+    30→    this.error,
+    31→    this.successMessage,
+    32→  });
+    33→
+    34→  /// Grade scales available for the school.
+    35→  final List<GradeScaleEntity> gradeScales;
+    36→
+    37→  /// Class-level performance summary.
+    38→  final ClassPerformanceEntity? classPerformance;
+    39→
+    40→  /// School-level performance summary.
+    41→  final SchoolPerformanceEntity? schoolPerformance;
+    42→
+    43→  /// Whether data is being loaded.
+    44→  final bool isLoading;
+    45→
+    46→  /// The most recent error message, or `null`.
+    47→  final String? error;
+    48→
+    49→  /// A transient success message, or `null`.
+    50→  final String? successMessage;
+    51→
+    52→  /// Whether any async operation is in progress.
+    53→  bool get isBusy => isLoading;
+    54→
+    55→  /// Whether dashboard data has been loaded at least once.
+    56→  bool get hasData =>
+    57→      gradeScales.isNotEmpty ||
+    58→      classPerformance != null ||
+    59→      schoolPerformance != null;
+    60→
+    61→  ResultsDashboardState copyWith({
+    62→    List<GradeScaleEntity>? gradeScales,
+    63→    ClassPerformanceEntity? classPerformance,
+    64→    SchoolPerformanceEntity? schoolPerformance,
+    65→    bool? isLoading,
+    66→    String? error,
+    67→    String? successMessage,
+    68→  }) {
+    69→    return ResultsDashboardState(
+    70→      gradeScales: gradeScales ?? this.gradeScales,
+    71→      classPerformance: classPerformance ?? this.classPerformance,
+    72→      schoolPerformance: schoolPerformance ?? this.schoolPerformance,
+    73→      isLoading: isLoading ?? this.isLoading,
+    74→      error: error,
+    75→      successMessage: successMessage,
+    76→    );
+    77→  }
+    78→
+    79→  /// Creates the initial empty state.
+    80→  static ResultsDashboardState initial() => const ResultsDashboardState();
+    81→
+    82→  /// Clears the current error message.
+    83→  ResultsDashboardState clearError() => copyWith(error: null);
+    84→
+    85→  /// Clears the current success message.
+    86→  ResultsDashboardState clearSuccessMessage() => copyWith(successMessage: null);
+    87→}
+    88→
+    89→/// Riverpod [StateNotifier] that manages the results dashboard state.
+    90→///
+    91→/// Loads grade scales, class performance, and school performance
+    92→/// for the main dashboard landing page.
+    93→class ResultsDashboardNotifier extends StateNotifier<ResultsDashboardState> {
+    94→  ResultsDashboardNotifier({
+    95→    required GetGradeScalesUseCase getGradeScalesUseCase,
+    96→    required GetClassPerformanceUseCase getClassPerformanceUseCase,
+    97→    required GetSchoolPerformanceUseCase getSchoolPerformanceUseCase,
+    98→  })  : _getGradeScalesUseCase = getGradeScalesUseCase,
+    99→        _getClassPerformanceUseCase = getClassPerformanceUseCase,
+   100→        _getSchoolPerformanceUseCase = getSchoolPerformanceUseCase,
+   101→        super(ResultsDashboardState.initial());
+   102→
+   103→  final GetGradeScalesUseCase _getGradeScalesUseCase;
+   104→  final GetClassPerformanceUseCase _getClassPerformanceUseCase;
+   105→  final GetSchoolPerformanceUseCase _getSchoolPerformanceUseCase;
+   106→
+   107→  // ─── Load Dashboard ────────────────────────────────────────────────
+   108→
+   109→  /// Loads all dashboard data for the given school and session.
+   110→  Future<void> loadDashboard({
+   111→    required String schoolId,
+   112→    required String classId,
+   113→    required String academicSessionId,
+   114→  }) async {
+   115→    state = state.copyWith(isLoading: true, error: null);
+   116→
+   117→    // Load grade scales
+   118→    final scalesResult = await _getGradeScalesUseCase(schoolId, isActive: true);
+   119→
+   120→    scalesResult.fold(
+   121→      onSuccess: (scales) {
+   122→        state = state.copyWith(gradeScales: scales);
+   123→      },
+   124→      onFailure: (failure) {
+   125→        AppLogger.warning('Failed to load grade scales: $failure');
+   126→      },
+   127→    );
+   128→
+   129→    // Load class performance
+   130→    final classResult = await _getClassPerformanceUseCase(
+   131→      classId: classId,
+   132→      academicSessionId: academicSessionId,
+   133→    );
+   134→
+   135→    classResult.fold(
+   136→      onSuccess: (performance) {
+   137→        state = state.copyWith(classPerformance: performance);
+   138→      },
+   139→      onFailure: (failure) {
+   140→        AppLogger.warning('Failed to load class performance: $failure');
+   141→      },
+   142→    );
+   143→
+   144→    // Load school performance
+   145→    final schoolResult = await _getSchoolPerformanceUseCase(
+   146→      schoolId: schoolId,
+   147→      academicSessionId: academicSessionId,
+   148→    );
+   149→
+   150→    schoolResult.fold(
+   151→      onSuccess: (performance) {
+   152→        state = state.copyWith(
+   153→          schoolPerformance: performance,
+   154→          isLoading: false,
+   155→          error: null,
+   156→        );
+   157→        AppLogger.info('Dashboard data loaded successfully');
+   158→      },
+   159→      onFailure: (failure) {
+   160→        state = state.copyWith(
+   161→          isLoading: false,
+   162→          error: _mapFailureToMessage(failure),
+   163→        );
+   164→        AppLogger.warning('Failed to load school performance: $failure');
+   165→      },
+   166→    );
+   167→  }
+   168→
+   169→  // ─── Load Grade Scales ─────────────────────────────────────────────
+   170→
+   171→  /// Loads grade scales for the school.
+   172→  Future<void> loadGradeScales(
+   173→    String schoolId, {
+   174→    bool? isActive,
+   175→    GradeType? gradeType,
+   176→  }) async {
+   177→    state = state.copyWith(isLoading: true, error: null);
+   178→
+   179→    final result = await _getGradeScalesUseCase(
+   180→      schoolId,
+   181→      isActive: isActive,
+   182→      gradeType: gradeType,
+   183→    );
+   184→
+   185→    result.fold(
+   186→      onSuccess: (scales) {
+   187→        state = state.copyWith(
+   188→          isLoading: false,
+   189→          gradeScales: scales,
+   190→          error: null,
+   191→        );
+   192→        AppLogger.info('Loaded ${scales.length} grade scales');
+   193→      },
+   194→      onFailure: (failure) {
+   195→        state = state.copyWith(
+   196→          isLoading: false,
+   197→          error: _mapFailureToMessage(failure),
+   198→        );
+   199→        AppLogger.warning('Failed to load grade scales: $failure');
+   200→      },
+   201→    );
+   202→  }
+   203→
+   204→  // ─── Load Class Performance ────────────────────────────────────────
+   205→
+   206→  /// Loads class performance for the dashboard.
+   207→  Future<void> loadClassPerformance({
+   208→    required String classId,
+   209→    required String academicSessionId,
+   210→    String? subjectId,
+   211→  }) async {
+   212→    final result = await _getClassPerformanceUseCase(
+   213→      classId: classId,
+   214→      subjectId: subjectId,
+   215→      academicSessionId: academicSessionId,
+   216→    );
+   217→
+   218→    result.fold(
+   219→      onSuccess: (performance) {
+   220→        state = state.copyWith(classPerformance: performance);
+   221→        AppLogger.info('Class performance loaded for class: $classId');
+   222→      },
+   223→      onFailure: (failure) {
+   224→        state = state.copyWith(error: _mapFailureToMessage(failure));
+   225→        AppLogger.warning('Failed to load class performance: $failure');
+   226→      },
+   227→    );
+   228→  }
+   229→
+   230→  // ─── Load School Performance ───────────────────────────────────────
+   231→
+   232→  /// Loads school performance for the dashboard.
+   233→  Future<void> loadSchoolPerformance({
+   234→    required String schoolId,
+   235→    required String academicSessionId,
+   236→  }) async {
+   237→    final result = await _getSchoolPerformanceUseCase(
+   238→      schoolId: schoolId,
+   239→      academicSessionId: academicSessionId,
+   240→    );
+   241→
+   242→    result.fold(
+   243→      onSuccess: (performance) {
+   244→        state = state.copyWith(schoolPerformance: performance);
+   245→        AppLogger.info('School performance loaded for school: $schoolId');
+   246→      },
+   247→      onFailure: (failure) {
+   248→        state = state.copyWith(error: _mapFailureToMessage(failure));
+   249→        AppLogger.warning('Failed to load school performance: $failure');
+   250→      },
+   251→    );
+   252→  }
+   253→
+   254→  // ─── Clear Messages ────────────────────────────────────────────────
+   255→
+   256→  /// Clears the current error message.
+   257→  void clearError() {
+   258→    state = state.clearError();
+   259→  }
+   260→
+   261→  /// Clears the current success message.
+   262→  void clearSuccessMessage() {
+   263→    state = state.clearSuccessMessage();
+   264→  }
+   265→
+   266→  // ═══════════════════════════════════════════════════════════════════════
+   267→  // PRIVATE HELPERS
+   268→  // ═══════════════════════════════════════════════════════════════════════
+   269→
+   270→  String _mapFailureToMessage(Failure failure) {
+   271→    return failure.when(
+   272→      server: (message, _, __) => message,
+   273→      cache: (message) => message,
+   274→      auth: (message, _) => message,
+   275→      network: (message) => message,
+   276→      validation: (message, _) => message,
+   277→      notFound: (message) => message,
+   278→      unauthorized: (message) => message,
+   279→      forbidden: (message) => message,
+   280→    );
+   281→  }
+   282→}
+   283→
+   284→// ═══════════════════════════════════════════════════════════════════════
+   285→// 2. GRADE SCALE STATE & NOTIFIER
+   286→// ═══════════════════════════════════════════════════════════════════════
+   287→
+   288→/// Immutable state snapshot for grade scale management.
+   289→///
+   290→/// Tracks the list of grade scales, the currently applied scale entry,
+   291→/// and CRUD operation status.
+   292→class GradeScaleState {
+   293→  const GradeScaleState({
+   294→    this.gradeScales = const [],
+   295→    this.appliedEntry,
+   296→    this.isLoading = false,
+   297→    this.error,
+   298→    this.successMessage,
+   299→  });
+   300→
+   301→  /// The list of grade scales for the school.
+   302→  final List<GradeScaleEntity> gradeScales;
+   303→
+   304→  /// The result of applying a grade scale to a percentage.
+   305→  final GradeScaleEntryEntity? appliedEntry;
+   306→
+   307→  /// Whether an operation is in progress.
+   308→  final bool isLoading;
+   309→
+   310→  /// The most recent error message, or `null`.
+   311→  final String? error;
+   312→
+   313→  /// A transient success message, or `null`.
+   314→  final String? successMessage;
+   315→
+   316→  /// Number of grade scales loaded.
+   317→  int get scaleCount => gradeScales.length;
+   318→
+   319→  /// The default (active) grade scale, if any.
+   320→  GradeScaleEntity? get defaultScale =>
+   321→      gradeScales.where((s) => s.isDefault).firstOrNull ??
+   322→      gradeScales.where((s) => s.isActive).firstOrNull;
+   323→
+   324→  GradeScaleState copyWith({
+   325→    List<GradeScaleEntity>? gradeScales,
+   326→    GradeScaleEntryEntity? appliedEntry,
+   327→    bool? isLoading,
+   328→    String? error,
+   329→    String? successMessage,
+   330→  }) {
+   331→    return GradeScaleState(
+   332→      gradeScales: gradeScales ?? this.gradeScales,
+   333→      appliedEntry: appliedEntry ?? this.appliedEntry,
+   334→      isLoading: isLoading ?? this.isLoading,
+   335→      error: error,
+   336→      successMessage: successMessage,
+   337→    );
+   338→  }
+   339→
+   340→  /// Creates the initial empty state.
+   341→  static GradeScaleState initial() => const GradeScaleState();
+   342→
+   343→  /// Clears the current error message.
+   344→  GradeScaleState clearError() => copyWith(error: null);
+   345→
+   346→  /// Clears the current success message.
+   347→  GradeScaleState clearSuccessMessage() => copyWith(successMessage: null);
+   348→}
+   349→
+   350→/// Riverpod [StateNotifier] that manages grade scale CRUD operations.
+   351→///
+   352→/// Provides methods for loading, creating, updating, deleting, and
+   353→/// applying grade scales.
+   354→class GradeScaleNotifier extends StateNotifier<GradeScaleState> {
+   355→  GradeScaleNotifier({
+   356→    required GetGradeScalesUseCase getGradeScalesUseCase,
+   357→    required CreateGradeScaleUseCase createGradeScaleUseCase,
+   358→    required UpdateGradeScaleUseCase updateGradeScaleUseCase,
+   359→    required ApplyGradeScaleUseCase applyGradeScaleUseCase,
+   360→  })  : _getGradeScalesUseCase = getGradeScalesUseCase,
+   361→        _createGradeScaleUseCase = createGradeScaleUseCase,
+   362→        _updateGradeScaleUseCase = updateGradeScaleUseCase,
+   363→        _applyGradeScaleUseCase = applyGradeScaleUseCase,
+   364→        super(GradeScaleState.initial());
+   365→
+   366→  final GetGradeScalesUseCase _getGradeScalesUseCase;
+   367→  final CreateGradeScaleUseCase _createGradeScaleUseCase;
+   368→  final UpdateGradeScaleUseCase _updateGradeScaleUseCase;
+   369→  final ApplyGradeScaleUseCase _applyGradeScaleUseCase;
+   370→
+   371→  // ─── Load Grade Scales ─────────────────────────────────────────────
+   372→
+   373→  /// Loads grade scales for the given school.
+   374→  Future<void> loadGradeScales(
+   375→    String schoolId, {
+   376→    bool? isActive,
+   377→    GradeType? gradeType,
+   378→  }) async {
+   379→    state = state.copyWith(isLoading: true, error: null);
+   380→
+   381→    final result = await _getGradeScalesUseCase(
+   382→      schoolId,
+   383→      isActive: isActive,
+   384→      gradeType: gradeType,
+   385→    );
+   386→
+   387→    result.fold(
+   388→      onSuccess: (scales) {
+   389→        state = state.copyWith(
+   390→          isLoading: false,
+   391→          gradeScales: scales,
+   392→          error: null,
+   393→        );
+   394→        AppLogger.info('Loaded ${scales.length} grade scales');
+   395→      },
+   396→      onFailure: (failure) {
+   397→        state = state.copyWith(
+   398→          isLoading: false,
+   399→          error: _mapFailureToMessage(failure),
+   400→        );
+   401→        AppLogger.warning('Failed to load grade scales: $failure');
+   402→      },
+   403→    );
+   404→  }
+   405→
+   406→  // ─── Create Grade Scale ────────────────────────────────────────────
+   407→
+   408→  /// Creates a new grade scale.
+   409→  Future<void> createGradeScale(GradeScaleEntity scale) async {
+   410→    state = state.copyWith(isLoading: true, error: null);
+   411→
+   412→    final result = await _createGradeScaleUseCase(scale);
+   413→
+   414→    result.fold(
+   415→      onSuccess: (createdScale) {
+   416→        state = state.copyWith(
+   417→          isLoading: false,
+   418→          gradeScales: [...state.gradeScales, createdScale],
+   419→          successMessage: 'Grade scale "${createdScale.name}" created successfully',
+   420→          error: null,
+   421→        );
+   422→        AppLogger.info('Grade scale created: ${createdScale.id}');
+   423→      },
+   424→      onFailure: (failure) {
+   425→        state = state.copyWith(
+   426→          isLoading: false,
+   427→          error: _mapFailureToMessage(failure),
+   428→        );
+   429→        AppLogger.warning('Failed to create grade scale: $failure');
+   430→      },
+   431→    );
+   432→  }
+   433→
+   434→  // ─── Update Grade Scale ────────────────────────────────────────────
+   435→
+   436→  /// Updates an existing grade scale.
+   437→  Future<void> updateGradeScale(GradeScaleEntity scale) async {
+   438→    state = state.copyWith(isLoading: true, error: null);
+   439→
+   440→    final result = await _updateGradeScaleUseCase(scale);
+   441→
+   442→    result.fold(
+   443→      onSuccess: (updatedScale) {
+   444→        final updatedList = state.gradeScales
+   445→            .map((s) => s.id == updatedScale.id ? updatedScale : s)
+   446→            .toList();
+   447→        state = state.copyWith(
+   448→          isLoading: false,
+   449→          gradeScales: updatedList,
+   450→          successMessage: 'Grade scale "${updatedScale.name}" updated successfully',
+   451→          error: null,
+   452→        );
+   453→        AppLogger.info('Grade scale updated: ${updatedScale.id}');
+   454→      },
+   455→      onFailure: (failure) {
+   456→        state = state.copyWith(
+   457→          isLoading: false,
+   458→          error: _mapFailureToMessage(failure),
+   459→        );
+   460→        AppLogger.warning('Failed to update grade scale: $failure');
+   461→      },
+   462→    );
+   463→  }
+   464→
+   465→  // ─── Delete Grade Scale ────────────────────────────────────────────
+   466→
+   467→  /// Deletes a grade scale by its ID.
+   468→  ///
+   469→  /// Removes the scale from the local state after a successful delete
+   470→  /// on the repository.
+   471→  Future<void> deleteGradeScale(
+   472→    String scaleId, {
+   473→    required Future<Result<void>> Function(String) deleteRemote,
+   474→  }) async {
+   475→    state = state.copyWith(isLoading: true, error: null);
+   476→
+   477→    final result = await deleteRemote(scaleId);
+   478→
+   479→    result.fold(
+   480→      onSuccess: (_) {
+   481→        final updatedList =
+   482→            state.gradeScales.where((s) => s.id != scaleId).toList();
+   483→        state = state.copyWith(
+   484→          isLoading: false,
+   485→          gradeScales: updatedList,
+   486→          successMessage: 'Grade scale deleted successfully',
+   487→          error: null,
+   488→        );
+   489→        AppLogger.info('Grade scale deleted: $scaleId');
+   490→      },
+   491→      onFailure: (failure) {
+   492→        state = state.copyWith(
+   493→          isLoading: false,
+   494→          error: _mapFailureToMessage(failure),
+   495→        );
+   496→        AppLogger.warning('Failed to delete grade scale: $failure');
+   497→      },
+   498→    );
+   499→  }
+   500→
+   501→  // ─── Apply Grade Scale ─────────────────────────────────────────────
+   502→
+   503→  /// Applies a grade scale to a percentage score and returns the
+   504→  /// matching grade entry.
+   505→  Future<void> applyGradeScale(double percentage, String scaleId) async {
+   506→    state = state.copyWith(isLoading: true, error: null);
+   507→
+   508→    final result = await _applyGradeScaleUseCase(percentage, scaleId);
+   509→
+   510→    result.fold(
+   511→      onSuccess: (entry) {
+   512→        state = state.copyWith(
+   513→          isLoading: false,
+   514→          appliedEntry: entry,
+   515→          successMessage: entry != null
+   516→              ? 'Grade: ${entry.grade} (${entry.minPercentage}%–${entry.maxPercentage}%)'
+   517→              : 'No matching grade found for $percentage%',
+   518→          error: null,
+   519→        );
+   520→        AppLogger.info(
+   521→          'Grade scale applied: $percentage% → ${entry?.grade ?? "no match"}',
+   522→        );
+   523→      },
+   524→      onFailure: (failure) {
+   525→        state = state.copyWith(
+   526→          isLoading: false,
+   527→          error: _mapFailureToMessage(failure),
+   528→        );
+   529→        AppLogger.warning('Failed to apply grade scale: $failure');
+   530→      },
+   531→    );
+   532→  }
+   533→
+   534→  // ─── Clear Messages ────────────────────────────────────────────────
+   535→
+   536→  /// Clears the current error message.
+   537→  void clearError() {
+   538→    state = state.clearError();
+   539→  }
+   540→
+   541→  /// Clears the current success message.
+   542→  void clearSuccessMessage() {
+   543→    state = state.clearSuccessMessage();
+   544→  }
+   545→
+   546→  // ═══════════════════════════════════════════════════════════════════════
+   547→  // PRIVATE HELPERS
+   548→  // ═══════════════════════════════════════════════════════════════════════
+   549→
+   550→  String _mapFailureToMessage(Failure failure) {
+   551→    return failure.when(
+   552→      server: (message, _, __) => message,
+   553→      cache: (message) => message,
+   554→      auth: (message, _) => message,
+   555→      network: (message) => message,
+   556→      validation: (message, _) => message,
+   557→      notFound: (message) => message,
+   558→      unauthorized: (message) => message,
+   559→      forbidden: (message) => message,
+   560→    );
+   561→  }
+   562→}
+   563→
+   564→// ═══════════════════════════════════════════════════════════════════════
+   565→// 3. AI GRADING STATE & NOTIFIER
+   566→// ═══════════════════════════════════════════════════════════════════════
+   567→
+   568→/// Immutable state snapshot for the AI grading workflow.
+   569→///
+   570→/// Tracks AI grading results, pending gradings, and the current
+   571→/// grading operation status.
+   572→class AiGradingState {
+   573→  const AiGradingState({
+   574→    this.gradingResults = const [],
+   575→    this.pendingGradings = const [],
+   576→    this.isLoading = false,
+   577→    this.isGrading = false,
+   578→    this.error,
+   579→    this.successMessage,
+   580→  });
+   581→
+   582→  /// List of AI grading results.
+   583→  final List<AiGradingResultEntity> gradingResults;
+   584→
+   585→  /// List of pending AI grading results awaiting teacher review.
+   586→  final List<AiGradingResultEntity> pendingGradings;
+   587→
+   588→  /// Whether grading data is being loaded.
+   589→  final bool isLoading;
+   590→
+   591→  /// Whether an AI grading operation is currently in progress.
+   592→  final bool isGrading;
+   593→
+   594→  /// The most recent error message, or `null`.
+   595→  final String? error;
+   596→
+   597→  /// A transient success message, or `null`.
+   598→  final String? successMessage;
+   599→
+   600→  /// Number of pending gradings awaiting review.
+   601→  int get pendingCount => pendingGradings.length;
+   602→
+   603→  /// Whether any async operation is in progress.
+   604→  bool get isBusy => isLoading || isGrading;
+   605→
+   606→  /// Number of completed grading results.
+   607→  int get completedCount =>
+   608→      gradingResults.where((r) => r.status.isTerminal).length;
+   609→
+   610→  AiGradingState copyWith({
+   611→    List<AiGradingResultEntity>? gradingResults,
+   612→    List<AiGradingResultEntity>? pendingGradings,
+   613→    bool? isLoading,
+   614→    bool? isGrading,
+   615→    String? error,
+   616→    String? successMessage,
+   617→  }) {
+   618→    return AiGradingState(
+   619→      gradingResults: gradingResults ?? this.gradingResults,
+   620→      pendingGradings: pendingGradings ?? this.pendingGradings,
+   621→      isLoading: isLoading ?? this.isLoading,
+   622→      isGrading: isGrading ?? this.isGrading,
+   623→      error: error,
+   624→      successMessage: successMessage,
+   625→    );
+   626→  }
+   627→
+   628→  /// Creates the initial empty state.
+   629→  static AiGradingState initial() => const AiGradingState();
+   630→
+   631→  /// Clears the current error message.
+   632→  AiGradingState clearError() => copyWith(error: null);
+   633→
+   634→  /// Clears the current success message.
+   635→  AiGradingState clearSuccessMessage() => copyWith(successMessage: null);
+   636→}
+   637→
+   638→/// Riverpod [StateNotifier] that manages the AI grading workflow.
+   639→///
+   640→/// Provides methods for requesting AI grading, reviewing results,
+   641→/// batch-grading exams, and loading pending gradings.
+   642→class AiGradingNotifier extends StateNotifier<AiGradingState> {
+   643→  AiGradingNotifier({
+   644→    required RequestAiGradingUseCase requestAiGradingUseCase,
+   645→    required ReviewAiGradingUseCase reviewAiGradingUseCase,
+   646→    required BatchAiGradingUseCase batchAiGradingUseCase,
+   647→    required GetPendingAiGradingsUseCase getPendingAiGradingsUseCase,
+   648→  })  : _requestAiGradingUseCase = requestAiGradingUseCase,
+   649→        _reviewAiGradingUseCase = reviewAiGradingUseCase,
+   650→        _batchAiGradingUseCase = batchAiGradingUseCase,
+   651→        _getPendingAiGradingsUseCase = getPendingAiGradingsUseCase,
+   652→        super(AiGradingState.initial());
+   653→
+   654→  final RequestAiGradingUseCase _requestAiGradingUseCase;
+   655→  final ReviewAiGradingUseCase _reviewAiGradingUseCase;
+   656→  final BatchAiGradingUseCase _batchAiGradingUseCase;
+   657→  final GetPendingAiGradingsUseCase _getPendingAiGradingsUseCase;
+   658→
+   659→  // ─── Request AI Grading ────────────────────────────────────────────
+   660→
+   661→  /// Requests AI grading for a single subjective answer.
+   662→  Future<void> requestGrading({
+   663→    required String answerId,
+   664→    required String examId,
+   665→    required String studentId,
+   666→    required String questionContent,
+   667→    required String studentAnswer,
+   668→    required String markingScheme,
+   669→    required double maxPossible,
+   670→    String? aiProvider,
+   671→  }) async {
+   672→    state = state.copyWith(isGrading: true, error: null);
+   673→
+   674→    final result = await _requestAiGradingUseCase(
+   675→      answerId: answerId,
+   676→      examId: examId,
+   677→      studentId: studentId,
+   678→      questionContent: questionContent,
+   679→      studentAnswer: studentAnswer,
+   680→      markingScheme: markingScheme,
+   681→      maxPossible: maxPossible,
+   682→      aiProvider: aiProvider,
+   683→    );
+   684→
+   685→    result.fold(
+   686→      onSuccess: (gradingResult) {
+   687→        state = state.copyWith(
+   688→          isGrading: false,
+   689→          gradingResults: [...state.gradingResults, gradingResult],
+   690→          successMessage: 'AI grading completed: ${gradingResult.suggestedScore}/${gradingResult.maxPossible}',
+   691→          error: null,
+   692→        );
+   693→        AppLogger.info('AI grading completed for answer: $answerId');
+   694→      },
+   695→      onFailure: (failure) {
+   696→        state = state.copyWith(
+   697→          isGrading: false,
+   698→          error: _mapFailureToMessage(failure),
+   699→        );
+   700→        AppLogger.warning('Failed to request AI grading: $failure');
+   701→      },
+   702→    );
+   703→  }
+   704→
+   705→  // ─── Review AI Grading ─────────────────────────────────────────────
+   706→
+   707→  /// Reviews an AI grading result (teacher accepts, overrides, or rejects).
+   708→  Future<void> reviewGrading({
+   709→    required String aiGradingId,
+   710→    required double finalScore,
+   711→    required bool isAccepted,
+   712→    String? reviewComment,
+   713→  }) async {
+   714→    state = state.copyWith(isLoading: true, error: null);
+   715→
+   716→    final result = await _reviewAiGradingUseCase(
+   717→      aiGradingId: aiGradingId,
+   718→      finalScore: finalScore,
+   719→      isAccepted: isAccepted,
+   720→      reviewComment: reviewComment,
+   721→    );
+   722→
+   723→    result.fold(
+   724→      onSuccess: (reviewedResult) {
+   725→        // Update the result in both lists
+   726→        final updatedResults = state.gradingResults
+   727→            .map((r) => r.id == aiGradingId ? reviewedResult : r)
+   728→            .toList();
+   729→        final updatedPending = state.pendingGradings
+   730→            .where((r) => r.id != aiGradingId)
+   731→            .toList();
+   732→
+   733→        state = state.copyWith(
+   734→          isLoading: false,
+   735→          gradingResults: updatedResults,
+   736→          pendingGradings: updatedPending,
+   737→          successMessage: isAccepted
+   738→              ? 'AI grading accepted'
+   739→              : 'AI grading overridden with score: $finalScore',
+   740→          error: null,
+   741→        );
+   742→        AppLogger.info(
+   743→          'AI grading reviewed: $aiGradingId (accepted: $isAccepted)',
+   744→        );
+   745→      },
+   746→      onFailure: (failure) {
+   747→        state = state.copyWith(
+   748→          isLoading: false,
+   749→          error: _mapFailureToMessage(failure),
+   750→        );
+   751→        AppLogger.warning('Failed to review AI grading: $failure');
+   752→      },
+   753→    );
+   754→  }
+   755→
+   756→  // ─── Batch Grade Exam ──────────────────────────────────────────────
+   757→
+   758→  /// Batch-requests AI grading for all subjective answers in an exam.
+   759→  Future<void> batchGradeExam(String examId) async {
+   760→    state = state.copyWith(isGrading: true, error: null);
+   761→
+   762→    final result = await _batchAiGradingUseCase(examId);
+   763→
+   764→    result.fold(
+   765→      onSuccess: (results) {
+   766→        state = state.copyWith(
+   767→          isGrading: false,
+   768→          gradingResults: [...state.gradingResults, ...results],
+   769→          successMessage: 'Batch AI grading completed: ${results.length} answers graded',
+   770→          error: null,
+   771→        );
+   772→        AppLogger.info(
+   773→          'Batch AI grading completed for exam $examId: ${results.length} results',
+   774→        );
+   775→      },
+   776→      onFailure: (failure) {
+   777→        state = state.copyWith(
+   778→          isGrading: false,
+   779→          error: _mapFailureToMessage(failure),
+   780→        );
+   781→        AppLogger.warning('Failed to batch grade exam: $failure');
+   782→      },
+   783→    );
+   784→  }
+   785→
+   786→  // ─── Load Pending Gradings ─────────────────────────────────────────
+   787→
+   788→  /// Loads pending AI grading results for an exam.
+   789→  Future<void> loadPendingGradings(String examId) async {
+   790→    state = state.copyWith(isLoading: true, error: null);
+   791→
+   792→    final result = await _getPendingAiGradingsUseCase(examId);
+   793→
+   794→    result.fold(
+   795→      onSuccess: (pending) {
+   796→        state = state.copyWith(
+   797→          isLoading: false,
+   798→          pendingGradings: pending,
+   799→          error: null,
+   800→        );
+   801→        AppLogger.info(
+   802→          'Loaded ${pending.length} pending AI gradings for exam: $examId',
+   803→        );
+   804→      },
+   805→      onFailure: (failure) {
+   806→        state = state.copyWith(
+   807→          isLoading: false,
+   808→          error: _mapFailureToMessage(failure),
+   809→        );
+   810→        AppLogger.warning('Failed to load pending gradings: $failure');
+   811→      },
+   812→    );
+   813→  }
+   814→
+   815→  // ─── Clear Messages ────────────────────────────────────────────────
+   816→
+   817→  /// Clears the current error message.
+   818→  void clearError() {
+   819→    state = state.clearError();
+   820→  }
+   821→
+   822→  /// Clears the current success message.
+   823→  void clearSuccessMessage() {
+   824→    state = state.clearSuccessMessage();
+   825→  }
+   826→
+   827→  // ═══════════════════════════════════════════════════════════════════════
+   828→  // PRIVATE HELPERS
+   829→  // ═══════════════════════════════════════════════════════════════════════
+   830→
+   831→  String _mapFailureToMessage(Failure failure) {
+   832→    return failure.when(
+   833→      server: (message, _, __) => message,
+   834→      cache: (message) => message,
+   835→      auth: (message, _) => message,
+   836→      network: (message) => message,
+   837→      validation: (message, _) => message,
+   838→      notFound: (message) => message,
+   839→      unauthorized: (message) => message,
+   840→      forbidden: (message) => message,
+   841→    );
+   842→  }
+   843→}
+   844→
+   845→// ═══════════════════════════════════════════════════════════════════════
+   846→// 4. TEACHER GRADING STATE & NOTIFIER
+   847→// ═══════════════════════════════════════════════════════════════════════
+   848→
+   849→/// Immutable state snapshot for teacher manual grading.
+   850→///
+   851→/// Tracks feedback list, the current answer being graded, and
+   852→/// saving status.
+   853→class TeacherGradingState {
+   854→  const TeacherGradingState({
+   855→    this.feedbackList = const [],
+   856→    this.currentFeedback,
+   857→    this.isLoading = false,
+   858→    this.isSaving = false,
+   859→    this.error,
+   860→    this.successMessage,
+   861→  });
+   862→
+   863→  /// List of teacher feedback entries for the current exam.
+   864→  final List<TeacherFeedbackEntity> feedbackList;
+   865→
+   866→  /// The feedback currently being composed or edited.
+   867→  final TeacherFeedbackEntity? currentFeedback;
+   868→
+   869→  /// Whether feedback data is being loaded.
+   870→  final bool isLoading;
+   871→
+   872→  /// Whether a feedback save operation is in progress.
+   873→  final bool isSaving;
+   874→
+   875→  /// The most recent error message, or `null`.
+   876→  final String? error;
+   877→
+   878→  /// A transient success message, or `null`.
+   879→  final String? successMessage;
+   880→
+   881→  /// Whether any async operation is in progress.
+   882→  bool get isBusy => isLoading || isSaving;
+   883→
+   884→  /// Number of feedback entries graded.
+   885→  int get gradedCount => feedbackList.length;
+   886→
+   887→  TeacherGradingState copyWith({
+   888→    List<TeacherFeedbackEntity>? feedbackList,
+   889→    TeacherFeedbackEntity? currentFeedback,
+   890→    bool? isLoading,
+   891→    bool? isSaving,
+   892→    String? error,
+   893→    String? successMessage,
+   894→  }) {
+   895→    return TeacherGradingState(
+   896→      feedbackList: feedbackList ?? this.feedbackList,
+   897→      currentFeedback: currentFeedback ?? this.currentFeedback,
+   898→      isLoading: isLoading ?? this.isLoading,
+   899→      isSaving: isSaving ?? this.isSaving,
+   900→      error: error,
+   901→      successMessage: successMessage,
+   902→    );
+   903→  }
+   904→
+   905→  /// Creates the initial empty state.
+   906→  static TeacherGradingState initial() => const TeacherGradingState();
+   907→
+   908→  /// Clears the current error message.
+   909→  TeacherGradingState clearError() => copyWith(error: null);
+   910→
+   911→  /// Clears the current success message.
+   912→  TeacherGradingState clearSuccessMessage() => copyWith(successMessage: null);
+   913→}
+   914→
+   915→/// Riverpod [StateNotifier] that manages teacher manual grading.
+   916→///
+   917→/// Provides methods for saving feedback, loading exam feedback,
+   918→/// and reviewing AI grading results from the teacher's perspective.
+   919→class TeacherGradingNotifier extends StateNotifier<TeacherGradingState> {
+   920→  TeacherGradingNotifier({
+   921→    required SaveTeacherFeedbackUseCase saveTeacherFeedbackUseCase,
+   922→    required GetTeacherFeedbackUseCase getTeacherFeedbackUseCase,
+   923→    required ReviewAiGradingUseCase reviewAiGradingUseCase,
+   924→  })  : _saveTeacherFeedbackUseCase = saveTeacherFeedbackUseCase,
+   925→        _getTeacherFeedbackUseCase = getTeacherFeedbackUseCase,
+   926→        _reviewAiGradingUseCase = reviewAiGradingUseCase,
+   927→        super(TeacherGradingState.initial());
+   928→
+   929→  final SaveTeacherFeedbackUseCase _saveTeacherFeedbackUseCase;
+   930→  final GetTeacherFeedbackUseCase _getTeacherFeedbackUseCase;
+   931→  final ReviewAiGradingUseCase _reviewAiGradingUseCase;
+   932→
+   933→  // ─── Save Feedback ─────────────────────────────────────────────────
+   934→
+   935→  /// Saves teacher feedback (grading + comments) for a student answer.
+   936→  Future<void> saveFeedback(TeacherFeedbackEntity feedback) async {
+   937→    state = state.copyWith(isSaving: true, error: null);
+   938→
+   939→    final result = await _saveTeacherFeedbackUseCase(feedback);
+   940→
+   941→    result.fold(
+   942→      onSuccess: (savedFeedback) {
+   943→        // Update or append the feedback in the list
+   944→        final existingIndex =
+   945→            state.feedbackList.indexWhere((f) => f.id == savedFeedback.id);
+   946→        final updatedList = existingIndex >= 0
+   947→            ? state.feedbackList
+   948→                .map((f) => f.id == savedFeedback.id ? savedFeedback : f)
+   949→                .toList()
+   950→            : [...state.feedbackList, savedFeedback];
+   951→
+   952→        state = state.copyWith(
+   953→          isSaving: false,
+   954→          feedbackList: updatedList,
+   955→          currentFeedback: savedFeedback,
+   956→          successMessage: 'Feedback saved successfully',
+   957→          error: null,
+   958→        );
+   959→        AppLogger.info('Teacher feedback saved: ${savedFeedback.id}');
+   960→      },
+   961→      onFailure: (failure) {
+   962→        state = state.copyWith(
+   963→          isSaving: false,
+   964→          error: _mapFailureToMessage(failure),
+   965→        );
+   966→        AppLogger.warning('Failed to save feedback: $failure');
+   967→      },
+   968→    );
+   969→  }
+   970→
+   971→  // ─── Load Exam Feedback ────────────────────────────────────────────
+   972→
+   973→  /// Loads all teacher feedback for a specific exam.
+   974→  Future<void> loadExamFeedback({
+   975→    required String examId,
+   976→    required String teacherId,
+   977→  }) async {
+   978→    state = state.copyWith(isLoading: true, error: null);
+   979→
+   980→    final result = await _getTeacherFeedbackUseCase(
+   981→      examId: examId,
+   982→      teacherId: teacherId,
+   983→    );
+   984→
+   985→    result.fold(
+   986→      onSuccess: (feedbackList) {
+   987→        state = state.copyWith(
+   988→          isLoading: false,
+   989→          feedbackList: feedbackList,
+   990→          error: null,
+   991→        );
+   992→        AppLogger.info(
+   993→          'Loaded ${feedbackList.length} feedback entries for exam: $examId',
+   994→        );
+   995→      },
+   996→      onFailure: (failure) {
+   997→        state = state.copyWith(
+   998→          isLoading: false,
+   999→          error: _mapFailureToMessage(failure),
+  1000→        );
+  1001→        AppLogger.warning('Failed to load exam feedback: $failure');
+  1002→      },
+  1003→    );
+  1004→  }
+  1005→
+  1006→  // ─── Review AI Grading ─────────────────────────────────────────────
+  1007→
+  1008→  /// Reviews an AI grading result from the teacher's perspective,
+  1009→  /// optionally accepting or overriding the AI's suggested score.
+  1010→  Future<void> reviewAiGrading({
+  1011→    required String aiGradingId,
+  1012→    required double finalScore,
+  1013→    required bool isAccepted,
+  1014→    String? reviewComment,
+  1015→  }) async {
+  1016→    state = state.copyWith(isSaving: true, error: null);
+  1017→
+  1018→    final result = await _reviewAiGradingUseCase(
+  1019→      aiGradingId: aiGradingId,
+  1020→      finalScore: finalScore,
+  1021→      isAccepted: isAccepted,
+  1022→      reviewComment: reviewComment,
+  1023→    );
+  1024→
+  1025→    result.fold(
+  1026→      onSuccess: (reviewedResult) {
+  1027→        state = state.copyWith(
+  1028→          isSaving: false,
+  1029→          successMessage: isAccepted
+  1030→              ? 'AI grading accepted'
+  1031→              : 'AI grading overridden with score: $finalScore',
+  1032→          error: null,
+  1033→        );
+  1034→        AppLogger.info(
+  1035→          'AI grading reviewed by teacher: $aiGradingId (accepted: $isAccepted)',
+  1036→        );
+  1037→      },
+  1038→      onFailure: (failure) {
+  1039→        state = state.copyWith(
+  1040→          isSaving: false,
+  1041→          error: _mapFailureToMessage(failure),
+  1042→        );
+  1043→        AppLogger.warning('Failed to review AI grading: $failure');
+  1044→      },
+  1045→    );
+  1046→  }
+  1047→
+  1048→  // ─── Set Current Feedback ──────────────────────────────────────────
+  1049→
+  1050→  /// Sets the current feedback being edited/graded.
+  1051→  void setCurrentFeedback(TeacherFeedbackEntity? feedback) {
+  1052→    state = state.copyWith(currentFeedback: feedback);
+  1053→  }
+  1054→
+  1055→  // ─── Clear Messages ────────────────────────────────────────────────
+  1056→
+  1057→  /// Clears the current error message.
+  1058→  void clearError() {
+  1059→    state = state.clearError();
+  1060→  }
+  1061→
+  1062→  /// Clears the current success message.
+  1063→  void clearSuccessMessage() {
+  1064→    state = state.clearSuccessMessage();
+  1065→  }
+  1066→
+  1067→  // ═══════════════════════════════════════════════════════════════════════
+  1068→  // PRIVATE HELPERS
+  1069→  // ═══════════════════════════════════════════════════════════════════════
+  1070→
+  1071→  String _mapFailureToMessage(Failure failure) {
+  1072→    return failure.when(
+  1073→      server: (message, _, __) => message,
+  1074→      cache: (message) => message,
+  1075→      auth: (message, _) => message,
+  1076→      network: (message) => message,
+  1077→      validation: (message, _) => message,
+  1078→      notFound: (message) => message,
+  1079→      unauthorized: (message) => message,
+  1080→      forbidden: (message) => message,
+  1081→    );
+  1082→  }
+  1083→}
+  1084→
+  1085→// ═══════════════════════════════════════════════════════════════════════
+  1086→// 5. STUDENT RESULTS STATE & NOTIFIER
+  1087→// ═══════════════════════════════════════════════════════════════════════
+  1088→
+  1089→/// Immutable state snapshot for student result viewing.
+  1090→///
+  1091→/// Tracks subject results, overall result, and topic mastery for
+  1092→/// the student's perspective.
+  1093→class StudentResultsState {
+  1094→  const StudentResultsState({
+  1095→    this.subjectResults = const [],
+  1096→    this.overallResult,
+  1097→    this.topicMastery = const [],
+  1098→    this.isLoading = false,
+  1099→    this.error,
+  1100→    this.successMessage,
+  1101→  });
+  1102→
+  1103→  /// Student's results broken down by subject.
+  1104→  final List<StudentSubjectResultEntity> subjectResults;
+  1105→
+  1106→  /// Student's overall aggregated result.
+  1107→  final StudentOverallResultEntity? overallResult;
+  1108→
+  1109→  /// Student's topic mastery data.
+  1110→  final List<TopicMasteryEntity> topicMastery;
+  1111→
+  1112→  /// Whether data is being loaded.
+  1113→  final bool isLoading;
+  1114→
+  1115→  /// The most recent error message, or `null`.
+  1116→  final String? error;
+  1117→
+  1118→  /// A transient success message, or `null`.
+  1119→  final String? successMessage;
+  1120→
+  1121→  /// Number of subjects with results.
+  1122→  int get subjectCount => subjectResults.length;
+  1123→
+  1124→  /// Number of subjects passed.
+  1125→  int get passedSubjectCount =>
+  1126→      subjectResults.where((s) => s.isPassed).length;
+  1127→
+  1128→  /// Number of topics tracked.
+  1129→  int get topicCount => topicMastery.length;
+  1130→
+  1131→  /// Whether any async operation is in progress.
+  1132→  bool get isBusy => isLoading;
+  1133→
+  1134→  StudentResultsState copyWith({
+  1135→    List<StudentSubjectResultEntity>? subjectResults,
+  1136→    StudentOverallResultEntity? overallResult,
+  1137→    List<TopicMasteryEntity>? topicMastery,
+  1138→    bool? isLoading,
+  1139→    String? error,
+  1140→    String? successMessage,
+  1141→  }) {
+  1142→    return StudentResultsState(
+  1143→      subjectResults: subjectResults ?? this.subjectResults,
+  1144→      overallResult: overallResult ?? this.overallResult,
+  1145→      topicMastery: topicMastery ?? this.topicMastery,
+  1146→      isLoading: isLoading ?? this.isLoading,
+  1147→      error: error,
+  1148→      successMessage: successMessage,
+  1149→    );
+  1150→  }
+  1151→
+  1152→  /// Creates the initial empty state.
+  1153→  static StudentResultsState initial() => const StudentResultsState();
+  1154→
+  1155→  /// Clears the current error message.
+  1156→  StudentResultsState clearError() => copyWith(error: null);
+  1157→
+  1158→  /// Clears the current success message.
+  1159→  StudentResultsState clearSuccessMessage() => copyWith(successMessage: null);
+  1160→}
+  1161→
+  1162→/// Riverpod [StateNotifier] that manages student result viewing.
+  1163→///
+  1164→/// Provides methods for loading subject results, overall result,
+  1165→/// and topic mastery data for a student.
+  1166→class StudentResultsNotifier extends StateNotifier<StudentResultsState> {
+  1167→  StudentResultsNotifier({
+  1168→    required GetStudentSubjectResultsUseCase getStudentSubjectResultsUseCase,
+  1169→    required GetStudentOverallResultUseCase getStudentOverallResultUseCase,
+  1170→    required GetStudentTopicMasteryUseCase getStudentTopicMasteryUseCase,
+  1171→  })  : _getStudentSubjectResultsUseCase = getStudentSubjectResultsUseCase,
+  1172→        _getStudentOverallResultUseCase = getStudentOverallResultUseCase,
+  1173→        _getStudentTopicMasteryUseCase = getStudentTopicMasteryUseCase,
+  1174→        super(StudentResultsState.initial());
+  1175→
+  1176→  final GetStudentSubjectResultsUseCase _getStudentSubjectResultsUseCase;
+  1177→  final GetStudentOverallResultUseCase _getStudentOverallResultUseCase;
+  1178→  final GetStudentTopicMasteryUseCase _getStudentTopicMasteryUseCase;
+  1179→
+  1180→  // ─── Load Subject Results ──────────────────────────────────────────
+  1181→
+  1182→  /// Loads a student's subject-by-subject results for a session.
+  1183→  Future<void> loadSubjectResults({
+  1184→    required String studentId,
+  1185→    required String academicSessionId,
+  1186→  }) async {
+  1187→    state = state.copyWith(isLoading: true, error: null);
+  1188→
+  1189→    final result = await _getStudentSubjectResultsUseCase(
+  1190→      studentId: studentId,
+  1191→      academicSessionId: academicSessionId,
+  1192→    );
+  1193→
+  1194→    result.fold(
+  1195→      onSuccess: (results) {
+  1196→        state = state.copyWith(
+  1197→          isLoading: false,
+  1198→          subjectResults: results,
+  1199→          error: null,
+  1200→        );
+  1201→        AppLogger.info(
+  1202→          'Loaded ${results.length} subject results for student: $studentId',
+  1203→        );
+  1204→      },
+  1205→      onFailure: (failure) {
+  1206→        state = state.copyWith(
+  1207→          isLoading: false,
+  1208→          error: _mapFailureToMessage(failure),
+  1209→        );
+  1210→        AppLogger.warning('Failed to load subject results: $failure');
+  1211→      },
+  1212→    );
+  1213→  }
+  1214→
+  1215→  // ─── Load Overall Result ───────────────────────────────────────────
+  1216→
+  1217→  /// Loads a student's overall aggregated result for a session.
+  1218→  Future<void> loadOverallResult({
+  1219→    required String studentId,
+  1220→    required String classId,
+  1221→    required String academicSessionId,
+  1222→  }) async {
+  1223→    state = state.copyWith(isLoading: true, error: null);
+  1224→
+  1225→    final result = await _getStudentOverallResultUseCase(
+  1226→      studentId: studentId,
+  1227→      classId: classId,
+  1228→      academicSessionId: academicSessionId,
+  1229→    );
+  1230→
+  1231→    result.fold(
+  1232→      onSuccess: (overallResult) {
+  1233→        state = state.copyWith(
+  1234→          isLoading: false,
+  1235→          overallResult: overallResult,
+  1236→          error: null,
+  1237→        );
+  1238→        AppLogger.info(
+  1239→          'Overall result loaded for student: $studentId',
+  1240→        );
+  1241→      },
+  1242→      onFailure: (failure) {
+  1243→        state = state.copyWith(
+  1244→          isLoading: false,
+  1245→          error: _mapFailureToMessage(failure),
+  1246→        );
+  1247→        AppLogger.warning('Failed to load overall result: $failure');
+  1248→      },
+  1249→    );
+  1250→  }
+  1251→
+  1252→  // ─── Load Topic Mastery ────────────────────────────────────────────
+  1253→
+  1254→  /// Loads a student's topic mastery data for a subject.
+  1255→  Future<void> loadTopicMastery({
+  1256→    required String studentId,
+  1257→    required String subjectId,
+  1258→  }) async {
+  1259→    state = state.copyWith(isLoading: true, error: null);
+  1260→
+  1261→    final result = await _getStudentTopicMasteryUseCase(
+  1262→      studentId: studentId,
+  1263→      subjectId: subjectId,
+  1264→    );
+  1265→
+  1266→    result.fold(
+  1267→      onSuccess: (mastery) {
+  1268→        state = state.copyWith(
+  1269→          isLoading: false,
+  1270→          topicMastery: mastery,
+  1271→          error: null,
+  1272→        );
+  1273→        AppLogger.info(
+  1274→          'Loaded ${mastery.length} topic mastery entries for student: $studentId',
+  1275→        );
+  1276→      },
+  1277→      onFailure: (failure) {
+  1278→        state = state.copyWith(
+  1279→          isLoading: false,
+  1280→          error: _mapFailureToMessage(failure),
+  1281→        );
+  1282→        AppLogger.warning('Failed to load topic mastery: $failure');
+  1283→      },
+  1284→    );
+  1285→  }
+  1286→
+  1287→  // ─── Clear Messages ────────────────────────────────────────────────
+  1288→
+  1289→  /// Clears the current error message.
+  1290→  void clearError() {
+  1291→    state = state.clearError();
+  1292→  }
+  1293→
+  1294→  /// Clears the current success message.
+  1295→  void clearSuccessMessage() {
+  1296→    state = state.clearSuccessMessage();
+  1297→  }
+  1298→
+  1299→  // ═══════════════════════════════════════════════════════════════════════
+  1300→  // PRIVATE HELPERS
+  1301→  // ═══════════════════════════════════════════════════════════════════════
+  1302→
+  1303→  String _mapFailureToMessage(Failure failure) {
+  1304→    return failure.when(
+  1305→      server: (message, _, __) => message,
+  1306→      cache: (message) => message,
+  1307→      auth: (message, _) => message,
+  1308→      network: (message) => message,
+  1309→      validation: (message, _) => message,
+  1310→      notFound: (message) => message,
+  1311→      unauthorized: (message) => message,
+  1312→      forbidden: (message) => message,
+  1313→    );
+  1314→  }
+  1315→}
+  1316→
+  1317→// ═══════════════════════════════════════════════════════════════════════
+  1318→// 6. ANALYTICS STATE & NOTIFIER
+  1319→// ═══════════════════════════════════════════════════════════════════════
+  1320→
+  1321→/// Immutable state snapshot for the analytics dashboard.
+  1322→///
+  1323→/// Tracks class/school performance, analytics snapshots, and
+  1324→/// dashboard configuration.
+  1325→class AnalyticsState {
+  1326→  const AnalyticsState({
+  1327→    this.classPerformance,
+  1328→    this.schoolPerformance,
+  1329→    this.snapshot,
+  1330→    this.dashboardConfig,
+  1331→    this.isLoading = false,
+  1332→    this.error,
+  1333→    this.successMessage,
+  1334→  });
+  1335→
+  1336→  /// Class-level performance summary.
+  1337→  final ClassPerformanceEntity? classPerformance;
+  1338→
+  1339→  /// School-level performance summary.
+  1340→  final SchoolPerformanceEntity? schoolPerformance;
+  1341→
+  1342→  /// Pre-computed analytics snapshot.
+  1343→  final AnalyticsSnapshotEntity? snapshot;
+  1344→
+  1345→  /// Dashboard configuration for the current role.
+  1346→  final DashboardConfigurationEntity? dashboardConfig;
+  1347→
+  1348→  /// Whether data is being loaded.
+  1349→  final bool isLoading;
+  1350→
+  1351→  /// The most recent error message, or `null`.
+  1352→  final String? error;
+  1353→
+  1354→  /// A transient success message, or `null`.
+  1355→  final String? successMessage;
+  1356→
+  1357→  /// Whether any async operation is in progress.
+  1358→  bool get isBusy => isLoading;
+  1359→
+  1360→  /// Whether analytics data has been loaded at least once.
+  1361→  bool get hasData =>
+  1362→      classPerformance != null ||
+  1363→      schoolPerformance != null ||
+  1364→      snapshot != null ||
+  1365→      dashboardConfig != null;
+  1366→
+  1367→  AnalyticsState copyWith({
+  1368→    ClassPerformanceEntity? classPerformance,
+  1369→    SchoolPerformanceEntity? schoolPerformance,
+  1370→    AnalyticsSnapshotEntity? snapshot,
+  1371→    DashboardConfigurationEntity? dashboardConfig,
+  1372→    bool? isLoading,
+  1373→    String? error,
+  1374→    String? successMessage,
+  1375→  }) {
+  1376→    return AnalyticsState(
+  1377→      classPerformance: classPerformance ?? this.classPerformance,
+  1378→      schoolPerformance: schoolPerformance ?? this.schoolPerformance,
+  1379→      snapshot: snapshot ?? this.snapshot,
+  1380→      dashboardConfig: dashboardConfig ?? this.dashboardConfig,
+  1381→      isLoading: isLoading ?? this.isLoading,
+  1382→      error: error,
+  1383→      successMessage: successMessage,
+  1384→    );
+  1385→  }
+  1386→
+  1387→  /// Creates the initial empty state.
+  1388→  static AnalyticsState initial() => const AnalyticsState();
+  1389→
+  1390→  /// Clears the current error message.
+  1391→  AnalyticsState clearError() => copyWith(error: null);
+  1392→
+  1393→  /// Clears the current success message.
+  1394→  AnalyticsState clearSuccessMessage() => copyWith(successMessage: null);
+  1395→}
+  1396→
+  1397→/// Riverpod [StateNotifier] that manages analytics data loading
+  1398→/// and dashboard configuration.
+  1399→///
+  1400→/// Provides methods for loading class/school performance,
+  1401→/// analytics snapshots, and managing dashboard widget configurations.
+  1402→class AnalyticsNotifier extends StateNotifier<AnalyticsState> {
+  1403→  AnalyticsNotifier({
+  1404→    required GetClassPerformanceUseCase getClassPerformanceUseCase,
+  1405→    required GetSchoolPerformanceUseCase getSchoolPerformanceUseCase,
+  1406→    required GetAnalyticsSnapshotUseCase getAnalyticsSnapshotUseCase,
+  1407→    required GetDashboardConfigurationUseCase getDashboardConfigurationUseCase,
+  1408→    required SaveDashboardConfigurationUseCase saveDashboardConfigurationUseCase,
+  1409→  })  : _getClassPerformanceUseCase = getClassPerformanceUseCase,
+  1410→        _getSchoolPerformanceUseCase = getSchoolPerformanceUseCase,
+  1411→        _getAnalyticsSnapshotUseCase = getAnalyticsSnapshotUseCase,
+  1412→        _getDashboardConfigurationUseCase = getDashboardConfigurationUseCase,
+  1413→        _saveDashboardConfigurationUseCase = saveDashboardConfigurationUseCase,
+  1414→        super(AnalyticsState.initial());
+  1415→
+  1416→  final GetClassPerformanceUseCase _getClassPerformanceUseCase;
+  1417→  final GetSchoolPerformanceUseCase _getSchoolPerformanceUseCase;
+  1418→  final GetAnalyticsSnapshotUseCase _getAnalyticsSnapshotUseCase;
+  1419→  final GetDashboardConfigurationUseCase _getDashboardConfigurationUseCase;
+  1420→  final SaveDashboardConfigurationUseCase _saveDashboardConfigurationUseCase;
+  1421→
+  1422→  // ─── Load Class Performance ────────────────────────────────────────
+  1423→
+  1424→  /// Loads class-level performance analytics.
+  1425→  Future<void> loadClassPerformance({
+  1426→    required String classId,
+  1427→    required String academicSessionId,
+  1428→    String? subjectId,
+  1429→  }) async {
+  1430→    state = state.copyWith(isLoading: true, error: null);
+  1431→
+  1432→    final result = await _getClassPerformanceUseCase(
+  1433→      classId: classId,
+  1434→      subjectId: subjectId,
+  1435→      academicSessionId: academicSessionId,
+  1436→    );
+  1437→
+  1438→    result.fold(
+  1439→      onSuccess: (performance) {
+  1440→        state = state.copyWith(
+  1441→          isLoading: false,
+  1442→          classPerformance: performance,
+  1443→          error: null,
+  1444→        );
+  1445→        AppLogger.info('Class performance loaded for class: $classId');
+  1446→      },
+  1447→      onFailure: (failure) {
+  1448→        state = state.copyWith(
+  1449→          isLoading: false,
+  1450→          error: _mapFailureToMessage(failure),
+  1451→        );
+  1452→        AppLogger.warning('Failed to load class performance: $failure');
+  1453→      },
+  1454→    );
+  1455→  }
+  1456→
+  1457→  // ─── Load School Performance ───────────────────────────────────────
+  1458→
+  1459→  /// Loads school-level performance analytics.
+  1460→  Future<void> loadSchoolPerformance({
+  1461→    required String schoolId,
+  1462→    required String academicSessionId,
+  1463→  }) async {
+  1464→    state = state.copyWith(isLoading: true, error: null);
+  1465→
+  1466→    final result = await _getSchoolPerformanceUseCase(
+  1467→      schoolId: schoolId,
+  1468→      academicSessionId: academicSessionId,
+  1469→    );
+  1470→
+  1471→    result.fold(
+  1472→      onSuccess: (performance) {
+  1473→        state = state.copyWith(
+  1474→          isLoading: false,
+  1475→          schoolPerformance: performance,
+  1476→          error: null,
+  1477→        );
+  1478→        AppLogger.info('School performance loaded for school: $schoolId');
+  1479→      },
+  1480→      onFailure: (failure) {
+  1481→        state = state.copyWith(
+  1482→          isLoading: false,
+  1483→          error: _mapFailureToMessage(failure),
+  1484→        );
+  1485→        AppLogger.warning('Failed to load school performance: $failure');
+  1486→      },
+  1487→    );
+  1488→  }
+  1489→
+  1490→  // ─── Load Dashboard ────────────────────────────────────────────────
+  1491→
+  1492→  /// Loads the dashboard configuration and analytics snapshot
+  1493→  /// for a given school and role.
+  1494→  Future<void> loadDashboard({
+  1495→    required String schoolId,
+  1496→    required String role,
+  1497→    required String academicSessionId,
+  1498→    String? entityId,
+  1499→    String? snapshotType,
+  1500→  }) async {
+  1501→    state = state.copyWith(isLoading: true, error: null);
+  1502→
+  1503→    // Load dashboard configuration
+  1504→    final configResult = await _getDashboardConfigurationUseCase(
+  1505→      schoolId: schoolId,
+  1506→      role: role,
+  1507→    );
+  1508→
+  1509→    configResult.fold(
+  1510→      onSuccess: (config) {
+  1511→        state = state.copyWith(dashboardConfig: config);
+  1512→      },
+  1513→      onFailure: (failure) {
+  1514→        AppLogger.warning('Failed to load dashboard config: $failure');
+  1515→      },
+  1516→    );
+  1517→
+  1518→    // Load analytics snapshot
+  1519→    if (snapshotType != null) {
+  1520→      final snapshotResult = await _getAnalyticsSnapshotUseCase(
+  1521→        schoolId: schoolId,
+  1522→        snapshotType: snapshotType,
+  1523→        entityId: entityId,
+  1524→        academicSessionId: academicSessionId,
+  1525→      );
+  1526→
+  1527→      snapshotResult.fold(
+  1528→        onSuccess: (snapshot) {
+  1529→          state = state.copyWith(snapshot: snapshot);
+  1530→        },
+  1531→        onFailure: (failure) {
+  1532→          AppLogger.warning('Failed to load analytics snapshot: $failure');
+  1533→        },
+  1534→      );
+  1535→    }
+  1536→
+  1537→    state = state.copyWith(isLoading: false, error: null);
+  1538→    AppLogger.info('Dashboard loaded for school: $schoolId, role: $role');
+  1539→  }
+  1540→
+  1541→  // ─── Update Dashboard Widgets ──────────────────────────────────────
+  1542→
+  1543→  /// Saves an updated dashboard configuration (e.g., after widget
+  1544→  /// rearrangement or visibility toggle).
+  1545→  Future<void> updateDashboardWidgets(
+  1546→    DashboardConfigurationEntity config,
+  1547→  ) async {
+  1548→    state = state.copyWith(isLoading: true, error: null);
+  1549→
+  1550→    final result = await _saveDashboardConfigurationUseCase(config);
+  1551→
+  1552→    result.fold(
+  1553→      onSuccess: (savedConfig) {
+  1554→        state = state.copyWith(
+  1555→          isLoading: false,
+  1556→          dashboardConfig: savedConfig,
+  1557→          successMessage: 'Dashboard layout saved',
+  1558→          error: null,
+  1559→        );
+  1560→        AppLogger.info('Dashboard configuration updated: ${savedConfig.id}');
+  1561→      },
+  1562→      onFailure: (failure) {
+  1563→        state = state.copyWith(
+  1564→          isLoading: false,
+  1565→          error: _mapFailureToMessage(failure),
+  1566→        );
+  1567→        AppLogger.warning('Failed to update dashboard widgets: $failure');
+  1568→      },
+  1569→    );
+  1570→  }
+  1571→
+  1572→  // ─── Load Analytics Snapshot ───────────────────────────────────────
+  1573→
+  1574→  /// Loads a specific analytics snapshot.
+  1575→  Future<void> loadSnapshot({
+  1576→    required String schoolId,
+  1577→    required String snapshotType,
+  1578→    String? entityId,
+  1579→    String? academicSessionId,
+  1580→  }) async {
+  1581→    state = state.copyWith(isLoading: true, error: null);
+  1582→
+  1583→    final result = await _getAnalyticsSnapshotUseCase(
+  1584→      schoolId: schoolId,
+  1585→      snapshotType: snapshotType,
+  1586→      entityId: entityId,
+  1587→      academicSessionId: academicSessionId,
+  1588→    );
+  1589→
+  1590→    result.fold(
+  1591→      onSuccess: (snapshot) {
+  1592→        state = state.copyWith(
+  1593→          isLoading: false,
+  1594→          snapshot: snapshot,
+  1595→          error: null,
+  1596→        );
+  1597→        AppLogger.info('Analytics snapshot loaded: $snapshotType');
+  1598→      },
+  1599→      onFailure: (failure) {
+  1600→        state = state.copyWith(
+  1601→          isLoading: false,
+  1602→          error: _mapFailureToMessage(failure),
+  1603→        );
+  1604→        AppLogger.warning('Failed to load analytics snapshot: $failure');
+  1605→      },
+  1606→    );
+  1607→  }
+  1608→
+  1609→  // ─── Clear Messages ────────────────────────────────────────────────
+  1610→
+  1611→  /// Clears the current error message.
+  1612→  void clearError() {
+  1613→    state = state.clearError();
+  1614→  }
+  1615→
+  1616→  /// Clears the current success message.
+  1617→  void clearSuccessMessage() {
+  1618→    state = state.clearSuccessMessage();
+  1619→  }
+  1620→
+  1621→  // ═══════════════════════════════════════════════════════════════════════
+  1622→  // PRIVATE HELPERS
+  1623→  // ═══════════════════════════════════════════════════════════════════════
+  1624→
+  1625→  String _mapFailureToMessage(Failure failure) {
+  1626→    return failure.when(
+  1627→      server: (message, _, __) => message,
+  1628→      cache: (message) => message,
+  1629→      auth: (message, _) => message,
+  1630→      network: (message) => message,
+  1631→      validation: (message, _) => message,
+  1632→      notFound: (message) => message,
+  1633→      unauthorized: (message) => message,
+  1634→      forbidden: (message) => message,
+  1635→    );
+  1636→  }
+  1637→}
+  1638→
+  1639→// ═══════════════════════════════════════════════════════════════════════
+  1640→// 7. REPORT EXPORT STATE & NOTIFIER
+  1641→// ═══════════════════════════════════════════════════════════════════════
+  1642→
+  1643→/// Immutable state snapshot for report creation and export.
+  1644→///
+  1645→/// Tracks the list of report exports, the current export being
+  1646→/// generated, and generation status.
+  1647→class ReportExportState {
+  1648→  const ReportExportState({
+  1649→    this.reports = const [],
+  1650→    this.currentExport,
+  1651→    this.downloadUrl,
+  1652→    this.isLoading = false,
+  1653→    this.isGenerating = false,
+  1654→    this.error,
+  1655→    this.successMessage,
+  1656→  });
+  1657→
+  1658→  /// List of report export records.
+  1659→  final List<ReportExportEntity> reports;
+  1660→
+  1661→  /// The report export currently being generated or viewed.
+  1662→  final ReportExportEntity? currentExport;
+  1663→
+  1664→  /// The download URL for the most recently completed export.
+  1665→  final String? downloadUrl;
+  1666→
+  1667→  /// Whether report data is being loaded.
+  1668→  final bool isLoading;
+  1669→
+  1670→  /// Whether a report is currently being generated.
+  1671→  final bool isGenerating;
+  1672→
+  1673→  /// The most recent error message, or `null`.
+  1674→  final String? error;
+  1675→
+  1676→  /// A transient success message, or `null`.
+  1677→  final String? successMessage;
+  1678→
+  1679→  /// Whether any async operation is in progress.
+  1680→  bool get isBusy => isLoading || isGenerating;
+  1681→
+  1682→  /// Number of report exports loaded.
+  1683→  int get reportCount => reports.length;
+  1684→
+  1685→  ReportExportState copyWith({
+  1686→    List<ReportExportEntity>? reports,
+  1687→    ReportExportEntity? currentExport,
+  1688→    String? downloadUrl,
+  1689→    bool? isLoading,
+  1690→    bool? isGenerating,
+  1691→    String? error,
+  1692→    String? successMessage,
+  1693→  }) {
+  1694→    return ReportExportState(
+  1695→      reports: reports ?? this.reports,
+  1696→      currentExport: currentExport ?? this.currentExport,
+  1697→      downloadUrl: downloadUrl ?? this.downloadUrl,
+  1698→      isLoading: isLoading ?? this.isLoading,
+  1699→      isGenerating: isGenerating ?? this.isGenerating,
+  1700→      error: error,
+  1701→      successMessage: successMessage,
+  1702→    );
+  1703→  }
+  1704→
+  1705→  /// Creates the initial empty state.
+  1706→  static ReportExportState initial() => const ReportExportState();
+  1707→
+  1708→  /// Clears the current error message.
+  1709→  ReportExportState clearError() => copyWith(error: null);
+  1710→
+  1711→  /// Clears the current success message.
+  1712→  ReportExportState clearSuccessMessage() => copyWith(successMessage: null);
+  1713→}
+  1714→
+  1715→/// Riverpod [StateNotifier] that manages report creation and export.
+  1716→///
+  1717→/// Provides methods for creating reports, loading report history,
+  1718→/// and downloading exported reports.
+  1719→class ReportExportNotifier extends StateNotifier<ReportExportState> {
+  1720→  ReportExportNotifier({
+  1721→    required CreateReportExportUseCase createReportExportUseCase,
+  1722→    required GetReportExportsUseCase getReportExportsUseCase,
+  1723→    required DownloadReportUseCase downloadReportUseCase,
+  1724→  })  : _createReportExportUseCase = createReportExportUseCase,
+  1725→        _getReportExportsUseCase = getReportExportsUseCase,
+  1726→        _downloadReportUseCase = downloadReportUseCase,
+  1727→        super(ReportExportState.initial());
+  1728→
+  1729→  final CreateReportExportUseCase _createReportExportUseCase;
+  1730→  final GetReportExportsUseCase _getReportExportsUseCase;
+  1731→  final DownloadReportUseCase _downloadReportUseCase;
+  1732→
+  1733→  // ─── Create Report ─────────────────────────────────────────────────
+  1734→
+  1735→  /// Creates a new report export request.
+  1736→  Future<void> createReport({
+  1737→    required String schoolId,
+  1738→    required String requestedBy,
+  1739→    required ReportType reportType,
+  1740→    required ReportFormat reportFormat,
+  1741→    required String title,
+  1742→    Map<String, dynamic>? parameters,
+  1743→    Map<String, dynamic>? filters,
+  1744→  }) async {
+  1745→    state = state.copyWith(isGenerating: true, error: null);
+  1746→
+  1747→    final result = await _createReportExportUseCase(
+  1748→      schoolId: schoolId,
+  1749→      requestedBy: requestedBy,
+  1750→      reportType: reportType,
+  1751→      reportFormat: reportFormat,
+  1752→      title: title,
+  1753→      parameters: parameters,
+  1754→      filters: filters,
+  1755→    );
+  1756→
+  1757→    result.fold(
+  1758→      onSuccess: (reportExport) {
+  1759→        state = state.copyWith(
+  1760→          isGenerating: false,
+  1761→          currentExport: reportExport,
+  1762→          reports: [reportExport, ...state.reports],
+  1763→          successMessage: 'Report "${reportExport.title}" created successfully',
+  1764→          error: null,
+  1765→        );
+  1766→        AppLogger.info('Report export created: ${reportExport.id}');
+  1767→      },
+  1768→      onFailure: (failure) {
+  1769→        state = state.copyWith(
+  1770→          isGenerating: false,
+  1771→          error: _mapFailureToMessage(failure),
+  1772→        );
+  1773→        AppLogger.warning('Failed to create report: $failure');
+  1774→      },
+  1775→    );
+  1776→  }
+  1777→
+  1778→  // ─── Load Reports ──────────────────────────────────────────────────
+  1779→
+  1780→  /// Loads report export history for a school/user.
+  1781→  Future<void> loadReports({
+  1782→    String? schoolId,
+  1783→    String? requestedBy,
+  1784→    ReportStatus? status,
+  1785→    int page = 1,
+  1786→    int perPage = 20,
+  1787→  }) async {
+  1788→    state = state.copyWith(isLoading: true, error: null);
+  1789→
+  1790→    final result = await _getReportExportsUseCase(
+  1791→      schoolId: schoolId,
+  1792→      requestedBy: requestedBy,
+  1793→      status: status,
+  1794→      page: page,
+  1795→      perPage: perPage,
+  1796→    );
+  1797→
+  1798→    result.fold(
+  1799→      onSuccess: (reports) {
+  1800→        state = state.copyWith(
+  1801→          isLoading: false,
+  1802→          reports: reports,
+  1803→          error: null,
+  1804→        );
+  1805→        AppLogger.info('Loaded ${reports.length} report exports');
+  1806→      },
+  1807→      onFailure: (failure) {
+  1808→        state = state.copyWith(
+  1809→          isLoading: false,
+  1810→          error: _mapFailureToMessage(failure),
+  1811→        );
+  1812→        AppLogger.warning('Failed to load reports: $failure');
+  1813→      },
+  1814→    );
+  1815→  }
+  1816→
+  1817→  // ─── Download Report ───────────────────────────────────────────────
+  1818→
+  1819→  /// Downloads a report export by its ID, returning the download URL.
+  1820→  Future<void> downloadReport(String exportId) async {
+  1821→    state = state.copyWith(isLoading: true, error: null);
+  1822→
+  1823→    final result = await _downloadReportUseCase(exportId);
+  1824→
+  1825→    result.fold(
+  1826→      onSuccess: (downloadUrl) {
+  1827→        // Update the report in the list to mark it as downloaded
+  1828→        final updatedReports = state.reports.map((r) {
+  1829→          if (r.id == exportId) {
+  1830→            return r.copyWith(downloadedAt: DateTime.now());
+  1831→          }
+  1832→          return r;
+  1833→        }).toList();
+  1834→
+  1835→        state = state.copyWith(
+  1836→          isLoading: false,
+  1837→          downloadUrl: downloadUrl,
+  1838→          reports: updatedReports,
+  1839→          successMessage: 'Report download ready',
+  1840→          error: null,
+  1841→        );
+  1842→        AppLogger.info('Report download ready: $exportId');
+  1843→      },
+  1844→      onFailure: (failure) {
+  1845→        state = state.copyWith(
+  1846→          isLoading: false,
+  1847→          error: _mapFailureToMessage(failure),
+  1848→        );
+  1849→        AppLogger.warning('Failed to download report: $failure');
+  1850→      },
+  1851→    );
+  1852→  }
+  1853→
+  1854→  // ─── Set Current Export ────────────────────────────────────────────
+  1855→
+  1856→  /// Sets the current export being viewed in detail.
+  1857→  void setCurrentExport(ReportExportEntity? export) {
+  1858→    state = state.copyWith(currentExport: export);
+  1859→  }
+  1860→
+  1861→  // ─── Clear Messages ────────────────────────────────────────────────
+  1862→
+  1863→  /// Clears the current error message.
+  1864→  void clearError() {
+  1865→    state = state.clearError();
+  1866→  }
+  1867→
+  1868→  /// Clears the current success message.
+  1869→  void clearSuccessMessage() {
+  1870→    state = state.clearSuccessMessage();
+  1871→  }
+  1872→
+  1873→  // ═══════════════════════════════════════════════════════════════════════
+  1874→  // PRIVATE HELPERS
+  1875→  // ═══════════════════════════════════════════════════════════════════════
+  1876→
+  1877→  String _mapFailureToMessage(Failure failure) {
+  1878→    return failure.when(
+  1879→      server: (message, _, __) => message,
+  1880→      cache: (message) => message,
+  1881→      auth: (message, _) => message,
+  1882→      network: (message) => message,
+  1883→      validation: (message, _) => message,
+  1884→      notFound: (message) => message,
+  1885→      unauthorized: (message) => message,
+  1886→      forbidden: (message) => message,
+  1887→    );
+  1888→  }
+  1889→}
+  1890→
+  1891→// ═══════════════════════════════════════════════════════════════════════
+  1892→// 8. RESULT MANAGEMENT STATE & NOTIFIER
+  1893→// ═══════════════════════════════════════════════════════════════════════
+  1894→
+  1895→/// Immutable state snapshot for result management operations.
+  1896→///
+  1897→/// Tracks lock status, publishing state, and recomputation status
+  1898→/// for exam results.
+  1899→class ResultManagementState {
+  1900→  const ResultManagementState({
+  1901→    this.lockStatus,
+  1902→    this.isResultLocked = false,
+  1903→    this.isLoading = false,
+  1904→    this.isPublishing = false,
+  1905→    this.error,
+  1906→    this.successMessage,
+  1907→  });
+  1908→
+  1909→  /// The current lock status for the exam results.
+  1910→  final ResultLockEntity? lockStatus;
+  1911→
+  1912→  /// Whether the results are currently locked.
+  1913→  final bool isResultLocked;
+  1914→
+  1915→  /// whether data is being loaded.
+  1916→  final bool isLoading;
+  1917→
+  1918→  /// Whether a publish/unpublish operation is in progress.
+  1919→  final bool isPublishing;
+  1920→
+  1921→  /// The most recent error message, or `null`.
+  1922→  final String? error;
+  1923→
+  1924→  /// A transient success message, or `null`.
+  1925→  final String? successMessage;
+  1926→
+  1927→  /// Whether any async operation is in progress.
+  1928→  bool get isBusy => isLoading || isPublishing;
+  1929→
+  1930→  ResultManagementState copyWith({
+  1931→    ResultLockEntity? lockStatus,
+  1932→    bool? isResultLocked,
+  1933→    bool? isLoading,
+  1934→    bool? isPublishing,
+  1935→    String? error,
+  1936→    String? successMessage,
+  1937→  }) {
+  1938→    return ResultManagementState(
+  1939→      lockStatus: lockStatus ?? this.lockStatus,
+  1940→      isResultLocked: isResultLocked ?? this.isResultLocked,
+  1941→      isLoading: isLoading ?? this.isLoading,
+  1942→      isPublishing: isPublishing ?? this.isPublishing,
+  1943→      error: error,
+  1944→      successMessage: successMessage,
+  1945→    );
+  1946→  }
+  1947→
+  1948→  /// Creates the initial empty state.
+  1949→  static ResultManagementState initial() => const ResultManagementState();
+  1950→
+  1951→  /// Clears the current error message.
+  1952→  ResultManagementState clearError() => copyWith(error: null);
+  1953→
+  1954→  /// Clears the current success message.
+  1955→  ResultManagementState clearSuccessMessage() => copyWith(successMessage: null);
+  1956→}
+  1957→
+  1958→/// Riverpod [StateNotifier] that manages result locking, publishing,
+  1959→/// withholding, and recomputation.
+  1960→///
+  1961→/// Provides methods for locking/unlocking results, publishing or
+  1962→/// withholding results from students, and recomputing class results.
+  1963→class ResultManagementNotifier extends StateNotifier<ResultManagementState> {
+  1964→  ResultManagementNotifier({
+  1965→    required LockResultsUseCase lockResultsUseCase,
+  1966→    required PublishResultsUseCase publishResultsUseCase,
+  1967→    required RecomputeResultsUseCase recomputeResultsUseCase,
+  1968→  })  : _lockResultsUseCase = lockResultsUseCase,
+  1969→        _publishResultsUseCase = publishResultsUseCase,
+  1970→        _recomputeResultsUseCase = recomputeResultsUseCase,
+  1971→        super(ResultManagementState.initial());
+  1972→
+  1973→  final LockResultsUseCase _lockResultsUseCase;
+  1974→  final PublishResultsUseCase _publishResultsUseCase;
+  1975→  final RecomputeResultsUseCase _recomputeResultsUseCase;
+  1976→
+  1977→  // ─── Lock Results ──────────────────────────────────────────────────
+  1978→
+  1979→  /// Locks results for an exam, preventing modifications.
+  1980→  Future<void> lockResults({
+  1981→    required String examId,
+  1982→    required String schoolId,
+  1983→    required String lockedBy,
+  1984→    String? reason,
+  1985→  }) async {
+  1986→    state = state.copyWith(isLoading: true, error: null);
+  1987→
+  1988→    final result = await _lockResultsUseCase(
+  1989→      examId: examId,
+  1990→      schoolId: schoolId,
+  1991→      lockedBy: lockedBy,
+  1992→      reason: reason,
+  1993→    );
+  1994→
+  1995→    result.fold(
+  1996→      onSuccess: (lock) {
+  1997→        state = state.copyWith(
+  1998→          isLoading: false,
+  1999→          lockStatus: lock,
+  2000→          isResultLocked: true,
+
+[showing lines 1-2000 of 2176; use offset=2001 with limit to continue reading]

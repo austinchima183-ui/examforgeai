@@ -91,6 +91,14 @@ import '../services/cbt/result_processor.dart';
 import '../services/cbt/session_recovery_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
+import '../services/results/ai_grading_service.dart';
+import '../services/results/analytics_engine.dart';
+import '../services/results/report_generator.dart';
+import '../features/results/data/datasources/results_remote_datasource.dart';
+import '../features/results/data/repositories/results_repository_impl.dart';
+import '../features/results/domain/repositories/results_repository.dart';
+import '../features/results/domain/usecases/results_usecases.dart';
+import '../features/results/presentation/providers/results_providers.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // INFRASTRUCTURE PROVIDERS
@@ -855,5 +863,338 @@ final studentExamsProvider =
     StateNotifierProvider<StudentExamsNotifier, StudentExamsState>((ref) {
   return StudentExamsNotifier(
     cbtRepository: ref.watch(cbtRepositoryProvider),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// RESULTS, GRADING & ANALYTICS ENGINE — CLEAN ARCHITECTURE PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Results Service Providers ────────────────────────────────────────
+
+/// Provides the [AiGradingService] singleton for AI-assisted essay grading.
+final aiGradingServiceProvider = Provider<AiGradingService>((ref) {
+  final aiService = ref.watch(aiServiceProvider);
+  final promptEngine = ref.watch(promptEngineProvider);
+  return AiGradingService(
+    aiService: aiService,
+    promptEngine: promptEngine,
+  );
+});
+
+/// Provides the [AnalyticsEngine] singleton for analytics computations.
+final analyticsEngineProvider = Provider<AnalyticsEngine>((ref) {
+  return AnalyticsEngine();
+});
+
+/// Provides the [ReportGenerator] singleton for report data generation.
+final reportGeneratorProvider = Provider<ReportGenerator>((ref) {
+  return ReportGenerator();
+});
+
+// ─── Results Data Layer ──────────────────────────────────────────────
+
+/// Provides the [ResultsRemoteDataSource] implementation.
+final resultsRemoteDataSourceProvider =
+    Provider<ResultsRemoteDataSource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return ResultsRemoteDataSourceImpl(supabaseClient: supabaseClient);
+});
+
+/// Provides the [ResultsRepository] implementation.
+final resultsRepositoryProvider = Provider<ResultsRepository>((ref) {
+  final remoteDataSource = ref.watch(resultsRemoteDataSourceProvider);
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return ResultsRepositoryImpl(
+    remoteDataSource: remoteDataSource,
+    supabaseClient: supabaseClient,
+  );
+});
+
+// ─── Results Use Cases ───────────────────────────────────────────────
+
+/// Provides the [CreateGradeScaleUseCase].
+final createGradeScaleUseCaseProvider =
+    Provider<CreateGradeScaleUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return CreateGradeScaleUseCase(repository);
+});
+
+/// Provides the [UpdateGradeScaleUseCase].
+final updateGradeScaleUseCaseProvider =
+    Provider<UpdateGradeScaleUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return UpdateGradeScaleUseCase(repository);
+});
+
+/// Provides the [GetGradeScalesUseCase].
+final getGradeScalesUseCaseProvider =
+    Provider<GetGradeScalesUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetGradeScalesUseCase(repository);
+});
+
+/// Provides the [ApplyGradeScaleUseCase].
+final applyGradeScaleUseCaseProvider =
+    Provider<ApplyGradeScaleUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return ApplyGradeScaleUseCase(repository);
+});
+
+/// Provides the [RequestAiGradingUseCase].
+final requestAiGradingUseCaseProvider =
+    Provider<RequestAiGradingUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return RequestAiGradingUseCase(repository);
+});
+
+/// Provides the [ReviewAiGradingUseCase].
+final reviewAiGradingUseCaseProvider =
+    Provider<ReviewAiGradingUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return ReviewAiGradingUseCase(repository);
+});
+
+/// Provides the [BatchAiGradingUseCase].
+final batchAiGradingUseCaseProvider =
+    Provider<BatchAiGradingUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return BatchAiGradingUseCase(repository);
+});
+
+/// Provides the [GetPendingAiGradingsUseCase].
+final getPendingAiGradingsUseCaseProvider =
+    Provider<GetPendingAiGradingsUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetPendingAiGradingsUseCase(repository);
+});
+
+/// Provides the [SaveTeacherFeedbackUseCase].
+final saveTeacherFeedbackUseCaseProvider =
+    Provider<SaveTeacherFeedbackUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return SaveTeacherFeedbackUseCase(repository);
+});
+
+/// Provides the [GetTeacherFeedbackUseCase].
+final getTeacherFeedbackUseCaseProvider =
+    Provider<GetTeacherFeedbackUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetTeacherFeedbackUseCase(repository);
+});
+
+/// Provides the [GetStudentSubjectResultsUseCase].
+final getStudentSubjectResultsUseCaseProvider =
+    Provider<GetStudentSubjectResultsUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetStudentSubjectResultsUseCase(repository);
+});
+
+/// Provides the [GetStudentOverallResultUseCase].
+final getStudentOverallResultUseCaseProvider =
+    Provider<GetStudentOverallResultUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetStudentOverallResultUseCase(repository);
+});
+
+/// Provides the [GetClassOverallResultsUseCase].
+final getClassOverallResultsUseCaseProvider =
+    Provider<GetClassOverallResultsUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetClassOverallResultsUseCase(repository);
+});
+
+/// Provides the [UpdateTeacherCommentUseCase].
+final updateTeacherCommentUseCaseProvider =
+    Provider<UpdateTeacherCommentUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return UpdateTeacherCommentUseCase(repository);
+});
+
+/// Provides the [GetStudentTopicMasteryUseCase].
+final getStudentTopicMasteryUseCaseProvider =
+    Provider<GetStudentTopicMasteryUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetStudentTopicMasteryUseCase(repository);
+});
+
+/// Provides the [GetClassTopicMasteryUseCase].
+final getClassTopicMasteryUseCaseProvider =
+    Provider<GetClassTopicMasteryUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetClassTopicMasteryUseCase(repository);
+});
+
+/// Provides the [GetClassPerformanceUseCase].
+final getClassPerformanceUseCaseProvider =
+    Provider<GetClassPerformanceUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetClassPerformanceUseCase(repository);
+});
+
+/// Provides the [GetSchoolPerformanceUseCase].
+final getSchoolPerformanceUseCaseProvider =
+    Provider<GetSchoolPerformanceUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetSchoolPerformanceUseCase(repository);
+});
+
+/// Provides the [GetAnalyticsSnapshotUseCase].
+final getAnalyticsSnapshotUseCaseProvider =
+    Provider<GetAnalyticsSnapshotUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetAnalyticsSnapshotUseCase(repository);
+});
+
+/// Provides the [GetDashboardConfigurationUseCase].
+final getDashboardConfigurationUseCaseProvider =
+    Provider<GetDashboardConfigurationUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetDashboardConfigurationUseCase(repository);
+});
+
+/// Provides the [SaveDashboardConfigurationUseCase].
+final saveDashboardConfigurationUseCaseProvider =
+    Provider<SaveDashboardConfigurationUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return SaveDashboardConfigurationUseCase(repository);
+});
+
+/// Provides the [CreateReportExportUseCase].
+final createReportExportUseCaseProvider =
+    Provider<CreateReportExportUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return CreateReportExportUseCase(repository);
+});
+
+/// Provides the [GetReportExportsUseCase].
+final getReportExportsUseCaseProvider =
+    Provider<GetReportExportsUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return GetReportExportsUseCase(repository);
+});
+
+/// Provides the [DownloadReportUseCase].
+final downloadReportUseCaseProvider =
+    Provider<DownloadReportUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return DownloadReportUseCase(repository);
+});
+
+/// Provides the [LockResultsUseCase].
+final lockResultsUseCaseProvider = Provider<LockResultsUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return LockResultsUseCase(repository);
+});
+
+/// Provides the [PublishResultsUseCase].
+final publishResultsUseCaseProvider = Provider<PublishResultsUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return PublishResultsUseCase(repository);
+});
+
+/// Provides the [RecomputeResultsUseCase].
+final recomputeResultsUseCaseProvider =
+    Provider<RecomputeResultsUseCase>((ref) {
+  final repository = ref.watch(resultsRepositoryProvider);
+  return RecomputeResultsUseCase(repository);
+});
+
+// ─── Results State Notifiers ─────────────────────────────────────────
+
+/// Provides the [ResultsDashboardNotifier] for the results dashboard.
+final resultsDashboardProvider =
+    StateNotifierProvider<ResultsDashboardNotifier, ResultsDashboardState>(
+        (ref) {
+  return ResultsDashboardNotifier(
+    getGradeScalesUseCase: ref.watch(getGradeScalesUseCaseProvider),
+    getClassPerformanceUseCase: ref.watch(getClassPerformanceUseCaseProvider),
+    getSchoolPerformanceUseCase: ref.watch(getSchoolPerformanceUseCaseProvider),
+  );
+});
+
+/// Provides the [GradeScaleNotifier] for grade scale management.
+final gradeScaleProvider =
+    StateNotifierProvider<GradeScaleNotifier, GradeScaleState>((ref) {
+  return GradeScaleNotifier(
+    getGradeScalesUseCase: ref.watch(getGradeScalesUseCaseProvider),
+    createGradeScaleUseCase: ref.watch(createGradeScaleUseCaseProvider),
+    updateGradeScaleUseCase: ref.watch(updateGradeScaleUseCaseProvider),
+    applyGradeScaleUseCase: ref.watch(applyGradeScaleUseCaseProvider),
+  );
+});
+
+/// Provides the [AiGradingNotifier] for AI grading workflow.
+final aiGradingProvider =
+    StateNotifierProvider<AiGradingNotifier, AiGradingState>((ref) {
+  return AiGradingNotifier(
+    requestAiGradingUseCase: ref.watch(requestAiGradingUseCaseProvider),
+    reviewAiGradingUseCase: ref.watch(reviewAiGradingUseCaseProvider),
+    batchAiGradingUseCase: ref.watch(batchAiGradingUseCaseProvider),
+    getPendingAiGradingsUseCase: ref.watch(getPendingAiGradingsUseCaseProvider),
+    aiGradingService: ref.watch(aiGradingServiceProvider),
+  );
+});
+
+/// Provides the [TeacherGradingNotifier] for teacher manual grading.
+final teacherGradingProvider =
+    StateNotifierProvider<TeacherGradingNotifier, TeacherGradingState>(
+        (ref) {
+  return TeacherGradingNotifier(
+    saveTeacherFeedbackUseCase: ref.watch(saveTeacherFeedbackUseCaseProvider),
+    getTeacherFeedbackUseCase: ref.watch(getTeacherFeedbackUseCaseProvider),
+    reviewAiGradingUseCase: ref.watch(reviewAiGradingUseCaseProvider),
+  );
+});
+
+/// Provides the [StudentResultsNotifier] for student result viewing.
+final studentResultsProvider =
+    StateNotifierProvider<StudentResultsNotifier, StudentResultsState>(
+        (ref) {
+  return StudentResultsNotifier(
+    getStudentSubjectResultsUseCase:
+        ref.watch(getStudentSubjectResultsUseCaseProvider),
+    getStudentOverallResultUseCase:
+        ref.watch(getStudentOverallResultUseCaseProvider),
+    getStudentTopicMasteryUseCase:
+        ref.watch(getStudentTopicMasteryUseCaseProvider),
+  );
+});
+
+/// Provides the [AnalyticsNotifier] for analytics and dashboards.
+final analyticsProvider =
+    StateNotifierProvider<AnalyticsNotifier, AnalyticsState>((ref) {
+  return AnalyticsNotifier(
+    getClassPerformanceUseCase: ref.watch(getClassPerformanceUseCaseProvider),
+    getSchoolPerformanceUseCase: ref.watch(getSchoolPerformanceUseCaseProvider),
+    getAnalyticsSnapshotUseCase: ref.watch(getAnalyticsSnapshotUseCaseProvider),
+    getDashboardConfigurationUseCase:
+        ref.watch(getDashboardConfigurationUseCaseProvider),
+    saveDashboardConfigurationUseCase:
+        ref.watch(saveDashboardConfigurationUseCaseProvider),
+    analyticsEngine: ref.watch(analyticsEngineProvider),
+  );
+});
+
+/// Provides the [ReportExportNotifier] for report generation and export.
+final reportExportProvider =
+    StateNotifierProvider<ReportExportNotifier, ReportExportState>((ref) {
+  return ReportExportNotifier(
+    createReportExportUseCase: ref.watch(createReportExportUseCaseProvider),
+    getReportExportsUseCase: ref.watch(getReportExportsUseCaseProvider),
+    downloadReportUseCase: ref.watch(downloadReportUseCaseProvider),
+    reportGenerator: ref.watch(reportGeneratorProvider),
+  );
+});
+
+/// Provides the [ResultManagementNotifier] for result locking and publishing.
+final resultManagementProvider =
+    StateNotifierProvider<ResultManagementNotifier, ResultManagementState>(
+        (ref) {
+  return ResultManagementNotifier(
+    lockResultsUseCase: ref.watch(lockResultsUseCaseProvider),
+    publishResultsUseCase: ref.watch(publishResultsUseCaseProvider),
+    recomputeResultsUseCase: ref.watch(recomputeResultsUseCaseProvider),
+    resultsRepository: ref.watch(resultsRepositoryProvider),
   );
 });

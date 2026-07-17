@@ -1,0 +1,1134 @@
+     1→import 'dart:async';
+     2→import 'dart:convert';
+     3→
+     4→import '../../../core/utils/logger.dart';
+     5→import '../../features/ai_generator/domain/entities/ai_entities.dart';
+     6→import '../ai/ai_provider_interface.dart';
+     7→import '../ai/ai_service.dart';
+     8→import '../ai/prompt_engine.dart';
+     9→
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→// ENUMS
+    12→// ═══════════════════════════════════════════════════════════════════════
+    13→
+    14→/// Controls how strictly the AI should grade subjective answers.
+    15→///
+    16→/// - [lenient]: Favors the student; partial credit is given generously,
+    17→///   minor omissions are overlooked.
+    18→/// - [standard]: Balanced grading; follows the marking scheme closely
+    19→///   while allowing reasonable interpretation.
+    20→/// - [strict]: Rigorous grading; demands precise, complete answers that
+    21→///   closely match the marking scheme with no leniency for omissions.
+    22→enum GradingStrictness {
+    23→  lenient(
+    24→    value: 'lenient',
+    25→    label: 'Lenient',
+    26→    description: 'Favors the student; partial credit is given generously.',
+    27→  ),
+    28→  standard(
+    29→    value: 'standard',
+    30→    label: 'Standard',
+    31→    description: 'Balanced grading following the marking scheme closely.',
+    32→  ),
+    33→  strict(
+    34→    value: 'strict',
+    35→    label: 'Strict',
+    36→    description: 'Rigorous grading demanding precise, complete answers.',
+    37→  );
+    38→
+    39→  const GradingStrictness({
+    40→    required this.value,
+    41→    required this.label,
+    42→    required this.description,
+    43→  });
+    44→
+    45→  /// Serialized value stored in the database / API payloads.
+    46→  final String value;
+    47→
+    48→  /// Human-readable display name.
+    49→  final String label;
+    50→
+    51→  /// Short description for UI tooltips.
+    52→  final String description;
+    53→}
+    54→
+    55→// ═══════════════════════════════════════════════════════════════════════
+    56→// DATA MODELS
+    57→// ═══════════════════════════════════════════════════════════════════════
+    58→
+    59→/// The structured result returned by the AI grading service for a single
+    60→/// essay / subjective answer.
+    61→class EssayGradingResult {
+    62→  const EssayGradingResult({
+    63→    required this.suggestedScore,
+    64→    required this.maxPossible,
+    65→    required this.confidenceScore,
+    66→    required this.explanation,
+    67→    required this.strengths,
+    68→    required this.weaknesses,
+    69→    required this.suggestions,
+    70→    required this.gradingRubric,
+    71→    required this.inputTokens,
+    72→    required this.outputTokens,
+    73→    required this.processingTimeMs,
+    74→    this.error,
+    75→  });
+    76→
+    77→  /// The score suggested by the AI (0 to [maxPossible]).
+    78→  final double suggestedScore;
+    79→
+    80→  /// The maximum possible score for this question.
+    81→  final double maxPossible;
+    82→
+    83→  /// How confident the AI is in its grading, from 0.0 (uncertain) to
+    84→  /// 1.0 (highly confident).
+    85→  final double confidenceScore;
+    86→
+    87→  /// Detailed explanation of why this score was assigned.
+    88→  final String explanation;
+    89→
+    90→  /// Aspects of the answer that were well done.
+    91→  final List<String> strengths;
+    92→
+    93→  /// Aspects of the answer that were lacking or incorrect.
+    94→  final List<String> weaknesses;
+    95→
+    96→  /// Actionable suggestions for how the student can improve.
+    97→  final List<String> suggestions;
+    98→
+    99→  /// Per-criterion rubric breakdown, e.g.
+   100→  /// ```json
+   101→  /// {
+   102→  ///   "content_accuracy": {"score": 3, "max": 5, "notes": "..."},
+   103→  ///   "organization": {"score": 4, "max": 5, "notes": "..."},
+   104→  /// }
+   105→  /// ```
+   106→  final Map<String, dynamic> gradingRubric;
+   107→
+   108→  /// Number of input tokens consumed by this grading call.
+   109→  final int inputTokens;
+   110→
+   111→  /// Number of output tokens consumed by this grading call.
+   112→  final int outputTokens;
+   113→
+   114→  /// Wall-clock time spent on the AI call, in milliseconds.
+   115→  final int processingTimeMs;
+   116→
+   117→  /// Non-null when grading failed or produced an unrecoverable error.
+   118→  /// When set, callers should treat the other fields as unreliable.
+   119→  final String? error;
+   120→
+   121→  /// Whether the grading completed without error.
+   122→  bool get isSuccess => error == null;
+   123→
+   124→  /// Percentage score (0–100). Returns 0 if [maxPossible] is 0.
+   125→  double get percentage =>
+   126→      maxPossible > 0 ? (suggestedScore / maxPossible) * 100 : 0;
+   127→
+   128→  /// Total tokens consumed (input + output).
+   129→  int get totalTokens => inputTokens + outputTokens;
+   130→
+   131→  EssayGradingResult copyWith({
+   132→    double? suggestedScore,
+   133→    double? maxPossible,
+   134→    double? confidenceScore,
+   135→    String? explanation,
+   136→    List<String>? strengths,
+   137→    List<String>? weaknesses,
+   138→    List<String>? suggestions,
+   139→    Map<String, dynamic>? gradingRubric,
+   140→    int? inputTokens,
+   141→    int? outputTokens,
+   142→    int? processingTimeMs,
+   143→    String? error,
+   144→  }) {
+   145→    return EssayGradingResult(
+   146→      suggestedScore: suggestedScore ?? this.suggestedScore,
+   147→      maxPossible: maxPossible ?? this.maxPossible,
+   148→      confidenceScore: confidenceScore ?? this.confidenceScore,
+   149→      explanation: explanation ?? this.explanation,
+   150→      strengths: strengths ?? this.strengths,
+   151→      weaknesses: weaknesses ?? this.weaknesses,
+   152→      suggestions: suggestions ?? this.suggestions,
+   153→      gradingRubric: gradingRubric ?? this.gradingRubric,
+   154→      inputTokens: inputTokens ?? this.inputTokens,
+   155→      outputTokens: outputTokens ?? this.outputTokens,
+   156→      processingTimeMs: processingTimeMs ?? this.processingTimeMs,
+   157→      error: error ?? this.error,
+   158→    );
+   159→  }
+   160→
+   161→  @override
+   162→  String toString() => 'EssayGradingResult(score: $suggestedScore/$maxPossible, '
+   163→      'confidence: ${confidenceScore.toStringAsFixed(2)}, '
+   164→      'time: ${processingTimeMs}ms)';
+   165→}
+   166→
+   167→/// Tracks the progress of a batch grading operation.
+   168→class BatchGradingProgress {
+   169→  const BatchGradingProgress({
+   170→    required this.batchId,
+   171→    required this.totalAnswers,
+   172→    this.completedAnswers = 0,
+   173→    this.failedAnswers = 0,
+   174→    this.results = const [],
+   175→    this.currentQuestionIndex,
+   176→    this.status = BatchGradingStatus.pending,
+   177→    this.error,
+   178→  });
+   179→
+   180→  /// Unique identifier for this batch operation.
+   181→  final String batchId;
+   182→
+   183→  /// Total number of answers in the batch.
+   184→  final int totalAnswers;
+   185→
+   186→  /// Number of answers that have been graded successfully.
+   187→  final int completedAnswers;
+   188→
+   189→  /// Number of answers that failed to grade.
+   190→  final int failedAnswers;
+   191→
+   192→  /// Results collected so far (populated as each answer is graded).
+   193→  final List<EssayGradingResult> results;
+   194→
+   195→  /// Index of the answer currently being graded (0-based).
+   196→  final int? currentQuestionIndex;
+   197→
+   198→  /// Current status of the batch operation.
+   199→  final BatchGradingStatus status;
+   200→
+   201→  /// Error message if the entire batch failed.
+   202→  final String? error;
+   203→
+   204→  /// Progress as a fraction (0.0–1.0).
+   205→  double get progress {
+   206→    if (totalAnswers == 0) return 0.0;
+   207→    return ((completedAnswers + failedAnswers) / totalAnswers)
+   208→        .clamp(0.0, 1.0);
+   209→  }
+   210→
+   211→  /// Whether the batch has finished (completed or failed).
+   212→  bool get isDone =>
+   213→      status == BatchGradingStatus.completed ||
+   214→      status == BatchGradingStatus.failed;
+   215→
+   216→  /// Total tokens consumed across all graded answers so far.
+   217→  int get totalInputTokens =>
+   218→      results.fold(0, (sum, r) => sum + r.inputTokens);
+   219→
+   220→  /// Total output tokens consumed across all graded answers so far.
+   221→  int get totalOutputTokens =>
+   222→      results.fold(0, (sum, r) => sum + r.outputTokens);
+   223→
+   224→  BatchGradingProgress copyWith({
+   225→    String? batchId,
+   226→    int? totalAnswers,
+   227→    int? completedAnswers,
+   228→    int? failedAnswers,
+   229→    List<EssayGradingResult>? results,
+   230→    int? currentQuestionIndex,
+   231→    BatchGradingStatus? status,
+   232→    String? error,
+   233→  }) {
+   234→    return BatchGradingProgress(
+   235→      batchId: batchId ?? this.batchId,
+   236→      totalAnswers: totalAnswers ?? this.totalAnswers,
+   237→      completedAnswers: completedAnswers ?? this.completedAnswers,
+   238→      failedAnswers: failedAnswers ?? this.failedAnswers,
+   239→      results: results ?? this.results,
+   240→      currentQuestionIndex:
+   241→          currentQuestionIndex ?? this.currentQuestionIndex,
+   242→      status: status ?? this.status,
+   243→      error: error ?? this.error,
+   244→    );
+   245→  }
+   246→
+   247→  @override
+   248→  String toString() => 'BatchGradingProgress(batch: $batchId, '
+   249→      '${completedAnswers + failedAnswers}/$totalAnswers, '
+   250→      'progress: ${(progress * 100).toStringAsFixed(1)}%, '
+   251→      'status: $status)';
+   252→}
+   253→
+   254→/// Status of a batch grading operation.
+   255→enum BatchGradingStatus {
+   256→  /// The batch has been created but grading has not started.
+   257→  pending,
+   258→
+   259→  /// Grading is in progress.
+   260→  inProgress,
+   261→
+   262→  /// All answers have been graded (some may have failed individually).
+   263→  completed,
+   264→
+   265→  /// The batch operation itself failed before completing all answers.
+   266→  failed,
+   267→
+   268→  /// The batch was cancelled by the caller.
+   269→  cancelled,
+   270→}
+   271→
+   272→/// A single answer to be graded, bundled with its context.
+   273→class EssayAnswerInput {
+   274→  const EssayAnswerInput({
+   275→    required this.questionText,
+   276→    required this.studentAnswer,
+   277→    required this.markingScheme,
+   278→    required this.maxMarks,
+   279→    this.questionType = 'essay',
+   280→    this.subject,
+   281→    this.gradeLevel,
+   282→    this.bloomLevel,
+   283→    this.strictness = GradingStrictness.standard,
+   284→  });
+   285→
+   286→  /// The full text of the question being answered.
+   287→  final String questionText;
+   288→
+   289→  /// The student's answer text.
+   290→  final String studentAnswer;
+   291→
+   292→  /// The marking scheme / rubric describing expected answer content
+   293→  /// and point allocation.
+   294→  final String markingScheme;
+   295→
+   296→  /// Maximum marks attainable for this question.
+   297→  final double maxMarks;
+   298→
+   299→  /// Type of question (e.g. "essay", "short_answer", "case_study",
+   300→  /// "practical").
+   301→  final String questionType;
+   302→
+   303→  /// Optional subject context (e.g. "Biology", "History").
+   304→  final String? subject;
+   305→
+   306→  /// Optional grade / class level (e.g. "SS2", "Grade 10").
+   307→  final String? gradeLevel;
+   308→
+   309→  /// Optional Bloom's taxonomy level (e.g. "remember", "analyze").
+   310→  final String? bloomLevel;
+   311→
+   312→  /// Grading strictness for this answer.
+   313→  final GradingStrictness strictness;
+   314→}
+   315→
+   316→// ═══════════════════════════════════════════════════════════════════════
+   317→// AI GRADING SERVICE
+   318→// ═══════════════════════════════════════════════════════════════════════
+   319→
+   320→/// Orchestrates AI-assisted grading of subjective questions (essays,
+   321→/// short answers, case studies, practical responses).
+   322→///
+   323→/// This service leverages the existing AI infrastructure ([AiService] for
+   324→/// provider access and [PromptEngine] for prompt construction) to evaluate
+   325→/// student answers against a marking scheme and produce structured grading
+   326→/// results with scores, feedback, and rubric breakdowns.
+   327→///
+   328→/// Usage:
+   329→/// ```dart
+   330→/// final gradingService = AiGradingService(
+   331→///   aiService: aiService,
+   332→///   promptEngine: promptEngine,
+   333→/// );
+   334→///
+   335→/// final result = await gradingService.gradeEssayAnswer(
+   336→///   questionText: 'Explain the causes of World War I...',
+   337→///   studentAnswer: 'The main causes include...',
+   338→///   markingScheme: 'Look for: alliance systems (3 marks), ...',
+   339→///   maxMarks: 20,
+   340→/// );
+   341→///
+   342→/// if (result.isSuccess) {
+   343→///   print('Score: ${result.suggestedScore}/${result.maxPossible}');
+   344→///   print('Strengths: ${result.strengths}');
+   345→/// }
+   346→/// ```
+   347→class AiGradingService {
+   348→  AiGradingService({
+   349→    required AiService aiService,
+   350→    required PromptEngine promptEngine,
+   351→    this.defaultStrictness = GradingStrictness.standard,
+   352→    this.defaultTemperature = 0.3,
+   353→    this.defaultMaxTokens = 2048,
+   354→    this.rateLimitDelay = const Duration(milliseconds: 500),
+   355→  })  : _aiService = aiService,
+   356→        _promptEngine = promptEngine;
+   357→
+   358→  final AiService _aiService;
+   359→  final PromptEngine _promptEngine;
+   360→
+   361→  /// Default grading strictness when not specified per-answer.
+   362→  final GradingStrictness defaultStrictness;
+   363→
+   364→  /// Temperature for grading completions. Lower values produce more
+   365→  /// consistent grading. Defaults to 0.3.
+   366→  final double defaultTemperature;
+   367→
+   368→  /// Maximum tokens for the AI response.
+   369→  final int defaultMaxTokens;
+   370→
+   371→  /// Delay between batch grading calls to respect rate limits.
+   372→  final Duration rateLimitDelay;
+   373→
+   374→  // ─── Monotonic ID counter ─────────────────────────────────────────
+   375→  static int _counter = 0;
+   376→
+   377→  // ═══════════════════════════════════════════════════════════════════
+   378→  // GradeEssayAnswer
+   379→  // ═══════════════════════════════════════════════════════════════════
+   380→
+   381→  /// Grade a single essay / subjective answer using AI.
+   382→  ///
+   383→  /// [questionText] – The full question prompt.
+   384→  /// [studentAnswer] – The student's written response.
+   385→  /// [markingScheme] – The official marking scheme or rubric.
+   386→  /// [maxMarks] – Maximum marks for this question.
+   387→  /// [strictness] – Grading strictness (defaults to service default).
+   388→  /// [providerOverride] – Optional AI provider override.
+   389→  /// [questionType] – Type of question (defaults to "essay").
+   390→  /// [subject] – Optional subject context.
+   391→  /// [gradeLevel] – Optional grade / class level.
+   392→  /// [bloomLevel] – Optional Bloom's taxonomy level.
+   393→  ///
+   394→  /// Returns an [EssayGradingResult] with the suggested score, feedback,
+   395→  /// and token usage. On failure the result's [EssayGradingResult.error]
+   396→  /// field will be set.
+   397→  Future<EssayGradingResult> gradeEssayAnswer({
+   398→    required String questionText,
+   399→    required String studentAnswer,
+   400→    required String markingScheme,
+   401→    required double maxMarks,
+   402→    GradingStrictness strictness = GradingStrictness.standard,
+   403→    AiProvider? providerOverride,
+   404→    String questionType = 'essay',
+   405→    String? subject,
+   406→    String? gradeLevel,
+   407→    String? bloomLevel,
+   408→  }) async {
+   409→    final stopwatch = Stopwatch()..start();
+   410→
+   411→    try {
+   412→      // Validate inputs
+   413→      if (questionText.trim().isEmpty) {
+   414→        stopwatch.stop();
+   415→        return EssayGradingResult(
+   416→          suggestedScore: 0,
+   417→          maxPossible: maxMarks,
+   418→          confidenceScore: 0,
+   419→          explanation: 'Grading skipped: question text is empty.',
+   420→          strengths: [],
+   421→          weaknesses: [],
+   422→          suggestions: [],
+   423→          gradingRubric: {},
+   424→          inputTokens: 0,
+   425→          outputTokens: 0,
+   426→          processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   427→          error: 'Question text is empty',
+   428→        );
+   429→      }
+   430→
+   431→      if (studentAnswer.trim().isEmpty) {
+   432→        stopwatch.stop();
+   433→        return EssayGradingResult(
+   434→          suggestedScore: 0,
+   435→          maxPossible: maxMarks,
+   436→          confidenceScore: 1.0,
+   437→          explanation: 'Student submitted an empty answer; score is zero.',
+   438→          strengths: [],
+   439→          weaknesses: ['No answer was provided.'],
+   440→          suggestions: ['Attempt all questions even with partial knowledge.'],
+   441→          gradingRubric: {},
+   442→          inputTokens: 0,
+   443→          outputTokens: 0,
+   444→          processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   445→        );
+   446→      }
+   447→
+   448→      // 1. Build the grading prompt
+   449→      final promptData = buildGradingPrompt(
+   450→        questionText: questionText,
+   451→        studentAnswer: studentAnswer,
+   452→        markingScheme: markingScheme,
+   453→        maxMarks: maxMarks,
+   454→        strictness: strictness,
+   455→        questionType: questionType,
+   456→        subject: subject,
+   457→        gradeLevel: gradeLevel,
+   458→        bloomLevel: bloomLevel,
+   459→      );
+   460→
+   461→      // 2. Build completion request
+   462→      final completionRequest = AiCompletionRequest(
+   463→        systemPrompt: promptData.systemPrompt,
+   464→        userPrompt: promptData.userPrompt,
+   465→        temperature: defaultTemperature,
+   466→        maxTokens: defaultMaxTokens,
+   467→        jsonMode: true,
+   468→      );
+   469→
+   470→      // 3. Obtain a provider and call the AI
+   471→      final providerType = providerOverride ?? _aiService.defaultProvider;
+   472→      final provider = _getProvider(providerType);
+   473→
+   474→      if (provider == null) {
+   475→        stopwatch.stop();
+   476→        return EssayGradingResult(
+   477→          suggestedScore: 0,
+   478→          maxPossible: maxMarks,
+   479→          confidenceScore: 0,
+   480→          explanation: 'AI provider $providerType is not available.',
+   481→          strengths: [],
+   482→          weaknesses: [],
+   483→          suggestions: [],
+   484→          gradingRubric: {},
+   485→          inputTokens: 0,
+   486→          outputTokens: 0,
+   487→          processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   488→          error: 'Provider $providerType is not available',
+   489→        );
+   490→      }
+   491→
+   492→      AppLogger.info('Starting AI grading for question '
+   493→          '(${strictness.label}, max=$maxMarks)');
+   494→
+   495→      final result = await provider.complete(completionRequest);
+   496→
+   497→      // 4. Parse the AI response
+   498→      final parsed = _parseJsonFromResponse(result.content);
+   499→
+   500→      if (parsed == null) {
+   501→        stopwatch.stop();
+   502→        AppLogger.warning('Failed to parse AI grading response as JSON');
+   503→        return EssayGradingResult(
+   504→          suggestedScore: 0,
+   505→          maxPossible: maxMarks,
+   506→          confidenceScore: 0,
+   507→          explanation: 'Failed to parse the AI grading response.',
+   508→          strengths: [],
+   509→          weaknesses: [],
+   510→          suggestions: [],
+   511→          gradingRubric: {},
+   512→          inputTokens: result.inputTokens,
+   513→          outputTokens: result.outputTokens,
+   514→          processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   515→          error: 'Failed to parse AI response as JSON',
+   516→        );
+   517→      }
+   518→
+   519→      // 5. Convert parsed JSON into structured result
+   520→      final gradingResult = parseGradingResponse(
+   521→        parsedJson: parsed,
+   522→        maxPossible: maxMarks,
+   523→        inputTokens: result.inputTokens,
+   524→        outputTokens: result.outputTokens,
+   525→        processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   526→      );
+   527→
+   528→      stopwatch.stop();
+   529→
+   530→      AppLogger.info('AI grading complete: '
+   531→          '${gradingResult.suggestedScore}/${gradingResult.maxPossible} '
+   532→          '(confidence: ${gradingResult.confidenceScore.toStringAsFixed(2)}, '
+   533→          'time: ${stopwatch.elapsed.inMilliseconds}ms)');
+   534→
+   535→      return gradingResult;
+   536→    } on TimeoutException {
+   537→      stopwatch.stop();
+   538→      AppLogger.error('AI grading timed out');
+   539→      return EssayGradingResult(
+   540→        suggestedScore: 0,
+   541→        maxPossible: maxMarks,
+   542→        confidenceScore: 0,
+   543→        explanation: 'AI grading request timed out.',
+   544→        strengths: [],
+   545→        weaknesses: [],
+   546→        suggestions: [],
+   547→        gradingRubric: {},
+   548→        inputTokens: 0,
+   549→        outputTokens: 0,
+   550→        processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   551→        error: 'AI grading request timed out',
+   552→      );
+   553→    } on FormatException catch (e) {
+   554→      stopwatch.stop();
+   555→      AppLogger.error('Invalid AI grading response format', error: e);
+   556→      return EssayGradingResult(
+   557→        suggestedScore: 0,
+   558→        maxPossible: maxMarks,
+   559→        confidenceScore: 0,
+   560→        explanation: 'The AI returned an invalid response format.',
+   561→        strengths: [],
+   562→        weaknesses: [],
+   563→        suggestions: [],
+   564→        gradingRubric: {},
+   565→        inputTokens: 0,
+   566→        outputTokens: 0,
+   567→        processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   568→        error: 'Invalid response format: ${e.message}',
+   569→      );
+   570→    } catch (e) {
+   571→      stopwatch.stop();
+   572→      AppLogger.error('AI grading failed unexpectedly', error: e);
+   573→      return EssayGradingResult(
+   574→        suggestedScore: 0,
+   575→        maxPossible: maxMarks,
+   576→        confidenceScore: 0,
+   577→        explanation: 'An unexpected error occurred during AI grading.',
+   578→        strengths: [],
+   579→        weaknesses: [],
+   580→        suggestions: [],
+   581→        gradingRubric: {},
+   582→        inputTokens: 0,
+   583→        outputTokens: 0,
+   584→        processingTimeMs: stopwatch.elapsed.inMilliseconds,
+   585→        error: e.toString(),
+   586→      );
+   587→    }
+   588→  }
+   589→
+   590→  // ═══════════════════════════════════════════════════════════════════
+   591→  // BatchGradeEssayAnswers
+   592→  // ═══════════════════════════════════════════════════════════════════
+   593→
+   594→  /// Grade multiple essay answers in sequence, respecting rate limits.
+   595→  ///
+   596→  /// Emits [BatchGradingProgress] updates after each answer is graded,
+   597→  /// allowing callers to track progress in real time.
+   598→  ///
+   599→  /// [answers] – The list of answers to grade.
+   600→  /// [providerOverride] – Optional AI provider override for all answers.
+   601→  /// [cancelToken] – An optional [Completer] that, when completed, will
+   602→  ///   cancel the batch operation after the current answer finishes.
+   603→  ///
+   604→  /// Returns a [Stream] of progress updates. The final update will have
+   605→  /// [BatchGradingProgress.status] set to [BatchGradingStatus.completed]
+   606→  /// or [BatchGradingStatus.failed].
+   607→  Stream<BatchGradingProgress> batchGradeEssayAnswers({
+   608→    required List<EssayAnswerInput> answers,
+   609→    AiProvider? providerOverride,
+   610→    Completer<void>? cancelToken,
+   611→  }) async* {
+   612→    final batchId = _generateBatchId();
+   613→    var progress = BatchGradingProgress(
+   614→      batchId: batchId,
+   615→      totalAnswers: answers.length,
+   616→      status: BatchGradingStatus.inProgress,
+   617→    );
+   618→
+   619→    yield progress;
+   620→
+   621→    final results = <EssayGradingResult>[];
+   622→
+   623→    for (int i = 0; i < answers.length; i++) {
+   624→      // Check for cancellation
+   625→      if (cancelToken != null && cancelToken.isCompleted) {
+   626→        AppLogger.info('Batch grading cancelled at answer $i/$${answers.length}');
+   627→        yield progress = progress.copyWith(
+   628→          currentQuestionIndex: i,
+   629→          status: BatchGradingStatus.cancelled,
+   630→          results: List.unmodifiable(results),
+   631→        );
+   632→        return;
+   633→      }
+   634→
+   635→      final answer = answers[i];
+   636→
+   637→      yield progress = progress.copyWith(
+   638→        currentQuestionIndex: i,
+   639→      );
+   640→
+   641→      AppLogger.info('Batch grading: answer ${i + 1}/${answers.length} '
+   642→          '(batch $batchId)');
+   643→
+   644→      // Grade the individual answer
+   645→      final result = await gradeEssayAnswer(
+   646→        questionText: answer.questionText,
+   647→        studentAnswer: answer.studentAnswer,
+   648→        markingScheme: answer.markingScheme,
+   649→        maxMarks: answer.maxMarks,
+   650→        strictness: answer.strictness,
+   651→        providerOverride: providerOverride,
+   652→        questionType: answer.questionType,
+   653→        subject: answer.subject,
+   654→        gradeLevel: answer.gradeLevel,
+   655→        bloomLevel: answer.bloomLevel,
+   656→      );
+   657→
+   658→      results.add(result);
+   659→
+   660→      if (result.isSuccess) {
+   661→        yield progress = progress.copyWith(
+   662→          completedAnswers: progress.completedAnswers + 1,
+   663→          results: List.unmodifiable(results),
+   664→          currentQuestionIndex: i,
+   665→        );
+   666→      } else {
+   667→        yield progress = progress.copyWith(
+   668→          failedAnswers: progress.failedAnswers + 1,
+   669→          results: List.unmodifiable(results),
+   670→          currentQuestionIndex: i,
+   671→        );
+   672→      }
+   673→
+   674→      // Respect rate limits – wait before the next call (but not after
+   675→      // the last one).
+   676→      if (i < answers.length - 1) {
+   677→        await Future<void>.delayed(rateLimitDelay);
+   678→      }
+   679→    }
+   680→
+   681→    // Final progress update
+   682→    yield progress = progress.copyWith(
+   683→      status: BatchGradingStatus.completed,
+   684→      currentQuestionIndex: null,
+   685→    );
+   686→
+   687→    AppLogger.info('Batch grading complete: batch $batchId, '
+   688→        '${progress.completedAnswers} succeeded, '
+   689→        '${progress.failedAnswers} failed');
+   690→  }
+   691→
+   692→  // ═══════════════════════════════════════════════════════════════════
+   693→  // BuildGradingPrompt
+   694→  // ═══════════════════════════════════════════════════════════════════
+   695→
+   696→  /// Constructs the system and user prompts for AI grading.
+   697→  ///
+   698→  /// The prompt instructs the AI to:
+   699→  /// - Evaluate the student's answer against the marking scheme
+   700→  /// - Assign a score proportional to the maximum marks
+   701→  /// - Provide specific, actionable feedback
+   702→  /// - Return results in a structured JSON format
+   703→  ///
+   704→  /// Returns a [PromptResolution] with the constructed prompts.
+   705→  PromptResolution buildGradingPrompt({
+   706→    required String questionText,
+   707→    required String studentAnswer,
+   708→    required String markingScheme,
+   709→    required double maxMarks,
+   710→    GradingStrictness strictness = GradingStrictness.standard,
+   711→    String questionType = 'essay',
+   712→    String? subject,
+   713→    String? gradeLevel,
+   714→    String? bloomLevel,
+   715→  }) {
+   716→    // ── System Prompt ────────────────────────────────────────────────
+   717→    final systemBuffer = StringBuffer();
+   718→
+   719→    systemBuffer.writeln(
+   720→        'You are an expert exam grader specializing in evaluating '
+   721→        'subjective student answers. Your role is to provide fair, '
+   722→        'consistent, and constructive grading that helps students '
+   723→        'understand their performance.');
+   724→
+   725→    systemBuffer.writeln();
+   726→    systemBuffer.writeln('Grading Guidelines:');
+   727→    systemBuffer.writeln(
+   728→        '- Evaluate the answer strictly against the provided marking '
+   729→        'scheme / rubric.');
+   730→    systemBuffer.writeln(
+   731→        '- Assign a score between 0 and the maximum marks ($maxMarks).');
+   732→    systemBuffer.writeln(
+   733→        '- Provide a confidence score (0.0–1.0) indicating how certain '
+   734→        'you are about the assigned score.');
+   735→    systemBuffer.writeln(
+   736→        '- Give specific, actionable feedback: identify what was done '
+   737→        'well, what was missing or incorrect, and how to improve.');
+   738→    systemBuffer.writeln(
+   739→        '- Break down the score by grading criteria when a rubric is '
+   740→        'provided.');
+   741→
+   742→    // Strictness-specific instructions
+   743→    systemBuffer.writeln();
+   744→    systemBuffer.writeln('Grading Strictness: ${strictness.label}');
+   745→    switch (strictness) {
+   746→      case GradingStrictness.lenient:
+   747→        systemBuffer.writeln(
+   748→            'Apply lenient grading: give the student the benefit of the '
+   749→            'doubt. Award partial credit generously when the student shows '
+   750→            'understanding even if the expression is imperfect. Overlook '
+   751→            'minor omissions if the core idea is present.');
+   752→      case GradingStrictness.standard:
+   753→        systemBuffer.writeln(
+   754→            'Apply standard grading: follow the marking scheme closely. '
+   755→            'Award partial credit where deserved based on the rubric. '
+   756→            'Expect reasonable completeness and accuracy.');
+   757→      case GradingStrictness.strict:
+   758→        systemBuffer.writeln(
+   759→            'Apply strict grading: demand precise and complete answers. '
+   760→            'Only award marks for responses that closely match the marking '
+   761→            'scheme. Require exact terminology and thorough coverage. '
+   762→            'Omissions or imprecise language should result in mark '
+   763→            'deductions.');
+   764→    }
+   765→
+   766→    systemBuffer.writeln();
+   767→    systemBuffer.writeln(
+   768→        'IMPORTANT: You MUST return your response as a valid JSON object '
+   769→        'with the exact structure specified below. Do not include any '
+   770→        'text outside the JSON object.');
+   771→
+   772→    // ── User Prompt ──────────────────────────────────────────────────
+   773→    final userBuffer = StringBuffer();
+   774→
+   775→    userBuffer.writeln('=== GRADING TASK ===');
+   776→    userBuffer.writeln();
+   777→
+   778→    // Context
+   779→    if (subject != null) {
+   780→      userBuffer.writeln('Subject: $subject');
+   781→    }
+   782→    if (gradeLevel != null) {
+   783→      userBuffer.writeln('Grade Level: $gradeLevel');
+   784→    }
+   785→    userBuffer.writeln('Question Type: $questionType');
+   786→    if (bloomLevel != null) {
+   787→      userBuffer.writeln("Bloom's Taxonomy Level: $bloomLevel");
+   788→    }
+   789→    userBuffer.writeln('Maximum Marks: $maxMarks');
+   790→    userBuffer.writeln();
+   791→
+   792→    // Question
+   793→    userBuffer.writeln('=== QUESTION ===');
+   794→    userBuffer.writeln(questionText);
+   795→    userBuffer.writeln();
+   796→
+   797→    // Marking scheme
+   798→    userBuffer.writeln('=== MARKING SCHEME ===');
+   799→    userBuffer.writeln(markingScheme);
+   800→    userBuffer.writeln();
+   801→
+   802→    // Student answer
+   803→    userBuffer.writeln('=== STUDENT ANSWER ===');
+   804→    userBuffer.writeln(studentAnswer);
+   805→    userBuffer.writeln();
+   806→
+   807→    // Response format
+   808→    userBuffer.writeln('=== REQUIRED RESPONSE FORMAT ===');
+   809→    userBuffer.writeln('Return a JSON object with this exact structure:');
+   810→    userBuffer.writeln('{');
+   811→    userBuffer.writeln('  "suggested_score": <number between 0 and $maxMarks>,');
+   812→    userBuffer.writeln('  "confidence_score": <number between 0.0 and 1.0>,');
+   813→    userBuffer.writeln('  "explanation": "<detailed explanation of the grading rationale>",');
+   814→    userBuffer.writeln('  "strengths": [');
+   815→    userBuffer.writeln('    "<what the student did well>",');
+   816→    userBuffer.writeln('    "<another strength>"');
+   817→    userBuffer.writeln('  ],');
+   818→    userBuffer.writeln('  "weaknesses": [');
+   819→    userBuffer.writeln('    "<area needing improvement>",');
+   820→    userBuffer.writeln('    "<another weakness>"');
+   821→    userBuffer.writeln('  ],');
+   822→    userBuffer.writeln('  "suggestions": [');
+   823→    userBuffer.writeln('    "<how to improve>",');
+   824→    userBuffer.writeln('    "<another suggestion>"');
+   825→    userBuffer.writeln('  ],');
+   826→    userBuffer.writeln('  "grading_rubric": {');
+   827→    userBuffer.writeln('    "<criterion_name>": {');
+   828→    userBuffer.writeln('      "score": <points earned>,');
+   829→    userBuffer.writeln('      "max_score": <maximum points for this criterion>,');
+   830→    userBuffer.writeln('      "notes": "<brief explanation>"');
+   831→    userBuffer.writeln('    }');
+   832→    userBuffer.writeln('  }');
+   833→    userBuffer.writeln('}');
+   834→
+   835→    return PromptResolution(
+   836→      systemPrompt: systemBuffer.toString(),
+   837→      userPrompt: userBuffer.toString(),
+   838→    );
+   839→  }
+   840→
+   841→  // ═══════════════════════════════════════════════════════════════════
+   842→  // ParseGradingResponse
+   843→  // ═══════════════════════════════════════════════════════════════════
+   844→
+   845→  /// Parses the AI response JSON into a structured [EssayGradingResult].
+   846→  ///
+   847→  /// [parsedJson] – The already-decoded JSON map from the AI response.
+   848→  /// [maxPossible] – The maximum marks for the question.
+   849→  /// [inputTokens] – Tokens consumed by the prompt.
+   850→  /// [outputTokens] – Tokens consumed by the completion.
+   851→  /// [processingTimeMs] – Wall-clock time for the AI call.
+   852→  ///
+   853→  /// Returns an [EssayGradingResult]. On parse failure, the result's
+   854→  /// [EssayGradingResult.error] field is set and default values are
+   855→  /// used for fields that could not be extracted.
+   856→  EssayGradingResult parseGradingResponse({
+   857→    required Map<String, dynamic> parsedJson,
+   858→    required double maxPossible,
+   859→    required int inputTokens,
+   860→    required int outputTokens,
+   861→    required int processingTimeMs,
+   862→  }) {
+   863→    try {
+   864→      // ── Suggested Score ───────────────────────────────────────────
+   865→      final rawScore = parsedJson['suggested_score'];
+   866→      double suggestedScore;
+   867→      if (rawScore is num) {
+   868→        suggestedScore = rawScore.toDouble();
+   869→      } else if (rawScore is String) {
+   870→        suggestedScore = double.tryParse(rawScore) ?? 0.0;
+   871→      } else {
+   872→        suggestedScore = 0.0;
+   873→      }
+   874→      // Clamp to valid range
+   875→      suggestedScore = suggestedScore.clamp(0.0, maxPossible);
+   876→
+   877→      // ── Confidence Score ──────────────────────────────────────────
+   878→      final rawConfidence = parsedJson['confidence_score'];
+   879→      double confidenceScore;
+   880→      if (rawConfidence is num) {
+   881→        confidenceScore = rawConfidence.toDouble();
+   882→      } else if (rawConfidence is String) {
+   883→        confidenceScore = double.tryParse(rawConfidence) ?? 0.5;
+   884→      } else {
+   885→        confidenceScore = 0.5;
+   886→      }
+   887→      confidenceScore = confidenceScore.clamp(0.0, 1.0);
+   888→
+   889→      // ── Explanation ───────────────────────────────────────────────
+   890→      final explanation = parsedJson['explanation'] as String? ??
+   891→          'No explanation was provided by the AI.';
+   892→
+   893→      // ── Strengths ─────────────────────────────────────────────────
+   894→      final strengths = _parseStringList(parsedJson['strengths']);
+   895→
+   896→      // ── Weaknesses ────────────────────────────────────────────────
+   897→      final weaknesses = _parseStringList(parsedJson['weaknesses']);
+   898→
+   899→      // ── Suggestions ───────────────────────────────────────────────
+   900→      final suggestions = _parseStringList(parsedJson['suggestions']);
+   901→
+   902→      // ── Grading Rubric ────────────────────────────────────────────
+   903→      final rawRubric = parsedJson['grading_rubric'];
+   904→      Map<String, dynamic> gradingRubric;
+   905→      if (rawRubric is Map<String, dynamic>) {
+   906→        gradingRubric = rawRubric;
+   907→      } else if (rawRubric is Map) {
+   908→        gradingRubric = Map<String, dynamic>.from(rawRubric);
+   909→      } else {
+   910→        gradingRubric = {};
+   911→      }
+   912→
+   913→      return EssayGradingResult(
+   914→        suggestedScore: suggestedScore,
+   915→        maxPossible: maxPossible,
+   916→        confidenceScore: confidenceScore,
+   917→        explanation: explanation,
+   918→        strengths: strengths,
+   919→        weaknesses: weaknesses,
+   920→        suggestions: suggestions,
+   921→        gradingRubric: gradingRubric,
+   922→        inputTokens: inputTokens,
+   923→        outputTokens: outputTokens,
+   924→        processingTimeMs: processingTimeMs,
+   925→      );
+   926→    } catch (e) {
+   927→      AppLogger.error('Failed to parse grading response', error: e);
+   928→      return EssayGradingResult(
+   929→        suggestedScore: 0,
+   930→        maxPossible: maxPossible,
+   931→        confidenceScore: 0,
+   932→        explanation: 'Failed to parse the grading response: ${e.toString()}',
+   933→        strengths: [],
+   934→        weaknesses: [],
+   935→        suggestions: [],
+   936→        gradingRubric: {},
+   937→        inputTokens: inputTokens,
+   938→        outputTokens: outputTokens,
+   939→        processingTimeMs: processingTimeMs,
+   940→        error: 'Parse error: ${e.toString()}',
+   941→      );
+   942→    }
+   943→  }
+   944→
+   945→  // ═══════════════════════════════════════════════════════════════════
+   946→  // EstimateTokens
+   947→  // ═══════════════════════════════════════════════════════════════════
+   948→
+   949→  /// Estimates the number of tokens that a grading request will consume.
+   950→  ///
+   951→  /// Uses a heuristic of ~4 characters per token (a common approximation
+   952→  /// for English text with GPT-style tokenizers). This is useful for
+   953→  /// cost tracking and for deciding whether to split large batch
+   954→  /// operations.
+   955→  ///
+   956→  /// [questionText] – The question text.
+   957→  /// [studentAnswer] – The student's answer text.
+   958→  /// [markingScheme] – The marking scheme text.
+   959→  /// [strictness] – Affects the system prompt length.
+   960→  ///
+   961→  /// Returns an [TokenEstimate] with input, expected output, and total
+   962→  /// token estimates.
+   963→  TokenEstimate estimateTokens({
+   964→    required String questionText,
+   965→    required String studentAnswer,
+   966→    required String markingScheme,
+   967→    GradingStrictness strictness = GradingStrictness.standard,
+   968→  }) {
+   969→    // Build the prompt to get accurate length
+   970→    final promptData = buildGradingPrompt(
+   971→      questionText: questionText,
+   972→      studentAnswer: studentAnswer,
+   973→      markingScheme: markingScheme,
+   974→      maxMarks: 0, // placeholder – doesn't affect token count
+   975→      strictness: strictness,
+   976→    );
+   977→
+   978→    final inputText =
+   979→        '${promptData.systemPrompt}${promptData.userPrompt}';
+   980→    final estimatedInputTokens = (inputText.length / 4).ceil();
+   981→
+   982→    // Expected output: the JSON grading result is typically 300–800
+   983→    // tokens depending on answer complexity and feedback detail.
+   984→    const estimatedOutputTokens = 600;
+   985→
+   986→    return TokenEstimate(
+   987→      estimatedInputTokens: estimatedInputTokens,
+   988→      estimatedOutputTokens: estimatedOutputTokens,
+   989→      estimatedTotalTokens: estimatedInputTokens + estimatedOutputTokens,
+   990→    );
+   991→  }
+   992→
+   993→  /// Estimate total tokens for a batch of answers.
+   994→  ///
+   995→  /// Sums the estimates for each answer individually. In practice,
+   996→  /// the system prompt is reused across calls, so the actual token
+   997→  /// usage may be slightly lower if the provider caches the system
+   998→  /// prompt.
+   999→  TokenEstimate estimateBatchTokens({
+  1000→    required List<EssayAnswerInput> answers,
+  1001→  }) {
+  1002→    int totalInput = 0;
+  1003→    int totalOutput = 0;
+  1004→
+  1005→    for (final answer in answers) {
+  1006→      final estimate = estimateTokens(
+  1007→        questionText: answer.questionText,
+  1008→        studentAnswer: answer.studentAnswer,
+  1009→        markingScheme: answer.markingScheme,
+  1010→        strictness: answer.strictness,
+  1011→      );
+  1012→      totalInput += estimate.estimatedInputTokens;
+  1013→      totalOutput += estimate.estimatedOutputTokens;
+  1014→    }
+  1015→
+  1016→    return TokenEstimate(
+  1017→      estimatedInputTokens: totalInput,
+  1018→      estimatedOutputTokens: totalOutput,
+  1019→      estimatedTotalTokens: totalInput + totalOutput,
+  1020→    );
+  1021→  }
+  1022→
+  1023→  // ═══════════════════════════════════════════════════════════════════
+  1024→  // Private Helpers
+  1025→  // ═══════════════════════════════════════════════════════════════════
+  1026→
+  1027→  /// Extract JSON from AI responses.
+  1028→  ///
+  1029→  /// AI models sometimes wrap JSON in markdown code blocks (e.g.
+  1030→  /// ```json ... ```) or prepend conversational text. This helper
+  1031→  /// attempts multiple strategies to extract valid JSON:
+  1032→  ///
+  1033→  /// 1. Direct `jsonDecode` of the entire content
+  1034→  /// 2. Extraction from markdown code blocks
+  1035→  /// 3. Finding the outermost `{ ... }` braces
+  1036→  Map<String, dynamic>? _parseJsonFromResponse(String content) {
+  1037→    // Strategy 1: Direct parse
+  1038→    try {
+  1039→      final decoded = jsonDecode(content);
+  1040→      if (decoded is Map<String, dynamic>) return decoded;
+  1041→      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+  1042→    } on FormatException {
+  1043→      // Fall through to next strategy
+  1044→    }
+  1045→
+  1046→    // Strategy 2: Extract from markdown code blocks
+  1047→    final jsonBlockRegex = RegExp(r'```(?:json)?\s*([\s\S]*?)```');
+  1048→    final blockMatch = jsonBlockRegex.firstMatch(content);
+  1049→    if (blockMatch != null) {
+  1050→      try {
+  1051→        final decoded = jsonDecode(blockMatch.group(1)!.trim());
+  1052→        if (decoded is Map<String, dynamic>) return decoded;
+  1053→        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+  1054→      } on FormatException {
+  1055→        // Fall through to next strategy
+  1056→      }
+  1057→    }
+  1058→
+  1059→    // Strategy 3: Find outermost { ... } braces
+  1060→    final braceStart = content.indexOf('{');
+  1061→    final braceEnd = content.lastIndexOf('}');
+  1062→    if (braceStart != -1 && braceEnd > braceStart) {
+  1063→      try {
+  1064→        final decoded =
+  1065→            jsonDecode(content.substring(braceStart, braceEnd + 1));
+  1066→        if (decoded is Map<String, dynamic>) return decoded;
+  1067→        if (decoded is Map) return Map<String, dynamic>.from(decoded);
+  1068→      } on FormatException {
+  1069→        // All strategies failed
+  1070→      }
+  1071→    }
+  1072→
+  1073→    return null;
+  1074→  }
+  1075→
+  1076→  /// Parse a dynamic value into a `List<String>`.
+  1077→  ///
+  1078→  /// Handles both `List<String>` and `List<dynamic>` from JSON.
+  1079→  List<String> _parseStringList(dynamic value) {
+  1080→    if (value is List) {
+  1081→      return value.map((e) => e?.toString() ?? '').toList();
+  1082→    }
+  1083→    return [];
+  1084→  }
+  1085→
+  1086→  /// Generate a unique batch ID.
+  1087→  String _generateBatchId() {
+  1088→    return 'batch_${DateTime.now().millisecondsSinceEpoch}_${_counter++}';
+  1089→  }
+  1090→
+  1091→  /// Get a provider instance by type via the AI service's registry.
+  1092→  AiProviderInterface? _getProvider(AiProvider providerType) {
+  1093→    // Access the providers list from the AI service and find the
+  1094→    // matching one. The AiService exposes its providers registry
+  1095→    // through the [providers] getter.
+  1096→    try {
+  1097→      for (final provider in _aiService.providers) {
+  1098→        if (provider.providerType == providerType) {
+  1099→          return provider;
+  1100→        }
+  1101→      }
+  1102→    } catch (e) {
+  1103→      AppLogger.warning('Failed to access AI providers registry', error: e);
+  1104→    }
+  1105→    return null;
+  1106→  }
+  1107→}
+  1108→
+  1109→// ═══════════════════════════════════════════════════════════════════════
+  1110→// TOKEN ESTIMATE
+  1111→// ═══════════════════════════════════════════════════════════════════════
+  1112→
+  1113→/// Token usage estimate for a grading operation.
+  1114→class TokenEstimate {
+  1115→  const TokenEstimate({
+  1116→    required this.estimatedInputTokens,
+  1117→    required this.estimatedOutputTokens,
+  1118→    required this.estimatedTotalTokens,
+  1119→  });
+  1120→
+  1121→  /// Estimated number of input (prompt) tokens.
+  1122→  final int estimatedInputTokens;
+  1123→
+  1124→  /// Estimated number of output (completion) tokens.
+  1125→  final int estimatedOutputTokens;
+  1126→
+  1127→  /// Estimated total tokens (input + output).
+  1128→  final int estimatedTotalTokens;
+  1129→
+  1130→  @override
+  1131→  String toString() => 'TokenEstimate(input: $estimatedInputTokens, '
+  1132→      'output: $estimatedOutputTokens, total: $estimatedTotalTokens)';
+  1133→}
+  1134→

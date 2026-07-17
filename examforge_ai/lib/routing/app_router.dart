@@ -41,6 +41,14 @@ import '../features/cbt_engine/presentation/pages/teacher/exam_results_page.dart
 import '../features/cbt_engine/presentation/pages/student/exam_take_page.dart';
 import '../features/cbt_engine/presentation/pages/student/student_exams_page.dart';
 import '../features/cbt_engine/presentation/pages/student/exam_result_view_page.dart';
+import '../features/results/presentation/pages/teacher/teacher_grading_page.dart';
+import '../features/results/presentation/pages/teacher/class_results_page.dart';
+import '../features/results/presentation/pages/teacher/grade_scales_page.dart';
+import '../features/results/presentation/pages/teacher/result_management_page.dart';
+import '../features/results/presentation/pages/student/student_results_page.dart';
+import '../features/results/presentation/pages/student/topic_mastery_page.dart';
+import '../features/results/presentation/pages/admin/school_analytics_page.dart';
+import '../features/results/presentation/pages/admin/reports_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -379,6 +387,102 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final examId = state.uri.queryParameters['id'] ?? '';
               return ExamTakePage(examId: examId);
+            },
+          ),
+
+          // ── Results & Analytics Routes ───────────────────────────────
+          GoRoute(
+            path: RouteNames.results,
+            name: 'results',
+            builder: (context, state) => const ClassResultsPage(
+              classId: '',
+              academicSessionId: '',
+            ),
+          ),
+          GoRoute(
+            path: RouteNames.teacherGrading,
+            name: 'teacherGrading',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? '';
+              return TeacherGradingPage(examId: examId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.classResults,
+            name: 'classResults',
+            builder: (context, state) {
+              final classId = state.uri.queryParameters['classId'] ?? '';
+              final sessionId = state.uri.queryParameters['sessionId'] ?? '';
+              return ClassResultsPage(
+                classId: classId,
+                academicSessionId: sessionId,
+              );
+            },
+          ),
+          GoRoute(
+            path: RouteNames.gradeScales,
+            name: 'gradeScales',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return GradeScalesPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.resultManagement,
+            name: 'resultManagement',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? '';
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return ResultManagementPage(
+                examId: examId,
+                schoolId: schoolId,
+              );
+            },
+          ),
+          GoRoute(
+            path: RouteNames.studentResults,
+            name: 'studentResults',
+            builder: (context, state) {
+              final studentId = state.uri.queryParameters['studentId'] ?? '';
+              final classId = state.uri.queryParameters['classId'] ?? '';
+              final sessionId = state.uri.queryParameters['sessionId'] ?? '';
+              return StudentResultsPage(
+                studentId: studentId,
+                classId: classId,
+                academicSessionId: sessionId,
+              );
+            },
+          ),
+          GoRoute(
+            path: RouteNames.topicMastery,
+            name: 'topicMastery',
+            builder: (context, state) {
+              final studentId = state.uri.queryParameters['studentId'] ?? '';
+              final subjectId = state.uri.queryParameters['subjectId'] ?? '';
+              return TopicMasteryPage(
+                studentId: studentId,
+                subjectId: subjectId,
+              );
+            },
+          ),
+          GoRoute(
+            path: RouteNames.schoolAnalytics,
+            name: 'schoolAnalytics',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              final sessionId = state.uri.queryParameters['sessionId'] ?? '';
+              return SchoolAnalyticsPage(
+                schoolId: schoolId,
+                academicSessionId: sessionId,
+              );
+            },
+          ),
+          GoRoute(
+            path: RouteNames.reports,
+            name: 'reports',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return ReportsPage(schoolId: schoolId);
             },
           ),
         ],
