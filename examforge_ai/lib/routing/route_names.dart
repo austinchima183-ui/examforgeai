@@ -99,6 +99,34 @@ class RouteNames {
   static const String questionBankStats = '/question-bank/stats';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // AI GENERATOR ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// AI Generator module root / landing page.
+  static const String aiGenerator = '/ai-generator';
+
+  /// AI question generation form and execution.
+  static const String aiGeneratorGenerate = '/ai-generator/generate';
+
+  /// Review generated questions (approve, reject, request revision).
+  static const String aiGeneratorReview = '/ai-generator/review';
+
+  /// Improve generated questions with AI assistance.
+  static const String aiGeneratorImprove = '/ai-generator/improve';
+
+  /// Upload and process documents for question extraction.
+  static const String aiGeneratorDocument = '/ai-generator/document';
+
+  /// View generation request history.
+  static const String aiGeneratorHistory = '/ai-generator/history';
+
+  /// Manage prompt templates for AI generation.
+  static const String aiGeneratorPrompts = '/ai-generator/prompts';
+
+  /// AI Generator dashboard statistics.
+  static const String aiGeneratorStats = '/ai-generator/stats';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -137,6 +165,18 @@ class RouteNames {
     questionBankStats,
   };
 
+  /// All AI generator sub-routes (used for feature-level navigation).
+  static const Set<String> aiGeneratorRoutes = <String>{
+    aiGenerator,
+    aiGeneratorGenerate,
+    aiGeneratorReview,
+    aiGeneratorImprove,
+    aiGeneratorDocument,
+    aiGeneratorHistory,
+    aiGeneratorPrompts,
+    aiGeneratorStats,
+  };
+
   /// All routes that live inside the authenticated [ShellRoute].
   static const Set<String> protectedRoutes = <String>{
     dashboard,
@@ -156,5 +196,13 @@ class RouteNames {
     questionBankExport,
     questionBankCollections,
     questionBankStats,
+    aiGenerator,
+    aiGeneratorGenerate,
+    aiGeneratorReview,
+    aiGeneratorImprove,
+    aiGeneratorDocument,
+    aiGeneratorHistory,
+    aiGeneratorPrompts,
+    aiGeneratorStats,
   };
 }

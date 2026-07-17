@@ -4,11 +4,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../config/app_config.dart';
+import '../config/env_config.dart';
 import '../config/supabase_config.dart';
 import '../core/constants/api_constants.dart';
 import '../core/network/api_client.dart';
 import '../core/network/network_info.dart';
 import '../core/utils/logger.dart';
+import '../features/ai_generator/data/datasources/ai_generator_remote_datasource.dart';
+import '../features/ai_generator/data/repositories/ai_generator_repository_impl.dart';
+import '../features/ai_generator/domain/repositories/ai_generator_repository.dart';
+import '../features/ai_generator/domain/usecases/generate_questions_usecase.dart';
+import '../features/ai_generator/domain/usecases/get_ai_dashboard_stats_usecase.dart';
+import '../features/ai_generator/domain/usecases/get_generation_history_usecase.dart';
+import '../features/ai_generator/domain/usecases/improve_question_usecase.dart';
+import '../features/ai_generator/domain/usecases/manage_prompt_templates_usecase.dart';
+import '../features/ai_generator/domain/usecases/review_generated_question_usecase.dart';
+import '../features/ai_generator/domain/usecases/save_to_question_bank_usecase.dart';
+import '../features/ai_generator/domain/usecases/upload_document_usecase.dart';
+import '../features/ai_generator/domain/usecases/validate_question_usecase.dart';
+import '../features/ai_generator/presentation/providers/ai_document_provider.dart';
+import '../features/ai_generator/presentation/providers/ai_generator_provider.dart';
+import '../features/ai_generator/presentation/providers/ai_review_provider.dart';
+import '../features/ai_generator/presentation/providers/ai_stats_provider.dart';
+import '../features/ai_generator/presentation/providers/prompt_template_provider.dart';
 import '../features/auth/data/datasources/auth_remote_datasource.dart';
 import '../features/auth/data/repositories/auth_repository_impl.dart';
 import '../features/auth/domain/repositories/auth_repository.dart';
@@ -39,6 +57,12 @@ import '../features/question_bank/presentation/providers/question_bank_stats_pro
 import '../features/question_bank/presentation/providers/question_editor_provider.dart';
 import '../features/question_bank/presentation/providers/question_filter_provider.dart';
 import '../features/question_bank/presentation/providers/question_provider.dart';
+import '../services/ai/ai_providers_registry.dart';
+import '../services/ai/ai_service.dart';
+import '../services/ai/prompt_engine.dart';
+import '../services/ai/providers/gemini_provider.dart';
+import '../services/ai/providers/openai_provider.dart';
+import '../services/ai/validation_engine.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
 import '../services/storage_service.dart';
@@ -402,5 +426,209 @@ final questionEditorProvider =
     updateQuestionUseCase: ref.watch(updateQuestionUseCaseProvider),
     manageQuestionStatusUseCase: ref.watch(manageQuestionStatusUseCaseProvider),
     repository: ref.watch(questionBankRepositoryProvider),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// AI GENERATOR FEATURE — CLEAN ARCHITECTURE PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── AI Service Infrastructure ────────────────────────────────────────
+
+/// Provides the [AiProvidersRegistry] singleton.
+///
+/// Registers OpenAI and Gemini providers conditionally based on
+/// whether their API keys are available in the environment config.
+final aiProviderRegistryProvider = Provider<AiProvidersRegistry>((ref) {
+  final openaiApiKey = EnvConfig.maybeGet('OPENAI_API_KEY') ?? '';
+  final geminiApiKey = EnvConfig.maybeGet('GEMINI_API_KEY') ?? '';
+
+  if (openaiApiKey.isEmpty && geminiApiKey.isEmpty) {
+    AppLogger.warning(
+      'No AI API keys configured — AI features will be unavailable',
+    );
+    return AiProvidersRegistry.createEmpty();
+  }
+
+  return AiProvidersRegistry.createDefault(
+    openaiApiKey: openaiApiKey,
+    geminiApiKey: geminiApiKey,
+  );
+});
+
+/// Provides the [PromptEngine] singleton.
+final promptEngineProvider = Provider<PromptEngine>((ref) {
+  return PromptEngine();
+});
+
+/// Provides the [ValidationEngine] singleton.
+final validationEngineProvider = Provider<ValidationEngine>((ref) {
+  return ValidationEngine();
+});
+
+/// Provides the [AiService] singleton, injecting the provider registry,
+/// prompt engine, and validation engine.
+final aiServiceProvider = Provider<AiService>((ref) {
+  final registry = ref.watch(aiProviderRegistryProvider);
+  final promptEngine = ref.watch(promptEngineProvider);
+  final validationEngine = ref.watch(validationEngineProvider);
+
+  return AiService(
+    providersRegistry: registry,
+    promptEngine: promptEngine,
+    validationEngine: validationEngine,
+  );
+});
+
+/// Provides the [OpenAiProvider] conditionally if an API key is set.
+final openaiProvider = Provider<OpenAiProvider?>((ref) {
+  final apiKey = EnvConfig.maybeGet('OPENAI_API_KEY') ?? '';
+  if (apiKey.isEmpty) return null;
+  return OpenAiProvider(apiKey: apiKey);
+});
+
+/// Provides the [GeminiProvider] conditionally if an API key is set.
+final geminiProvider = Provider<GeminiProvider?>((ref) {
+  final apiKey = EnvConfig.maybeGet('GEMINI_API_KEY') ?? '';
+  if (apiKey.isEmpty) return null;
+  return GeminiProvider(apiKey: apiKey);
+});
+
+// ─── AI Generator Data Layer ──────────────────────────────────────────
+
+/// Provides the [AiGeneratorRemoteDataSource] implementation.
+final aiGeneratorRemoteDataSourceProvider =
+    Provider<AiGeneratorRemoteDataSource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return AiGeneratorRemoteDataSourceImpl(supabaseClient: supabaseClient);
+});
+
+/// Provides the [AiGeneratorRepository] implementation.
+final aiGeneratorRepositoryProvider = Provider<AiGeneratorRepository>((ref) {
+  final remoteDataSource = ref.watch(aiGeneratorRemoteDataSourceProvider);
+  return AiGeneratorRepositoryImpl(remoteDataSource: remoteDataSource);
+});
+
+// ─── AI Generator Use Cases ───────────────────────────────────────────
+
+/// Provides the [GenerateQuestionsUseCase].
+final generateQuestionsUseCaseProvider =
+    Provider<GenerateQuestionsUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return GenerateQuestionsUseCase(repository);
+});
+
+/// Provides the [ReviewGeneratedQuestionUseCase].
+final reviewGeneratedQuestionUseCaseProvider =
+    Provider<ReviewGeneratedQuestionUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return ReviewGeneratedQuestionUseCase(repository);
+});
+
+/// Provides the [ImproveQuestionUseCase].
+final improveQuestionUseCaseProvider = Provider<ImproveQuestionUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return ImproveQuestionUseCase(repository);
+});
+
+/// Provides the [ValidateQuestionUseCase].
+final validateQuestionUseCaseProvider =
+    Provider<ValidateQuestionUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return ValidateQuestionUseCase(repository);
+});
+
+/// Provides the [SaveToQuestionBankUseCase].
+final saveToQuestionBankUseCaseProvider =
+    Provider<SaveToQuestionBankUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return SaveToQuestionBankUseCase(repository);
+});
+
+/// Provides the [UploadDocumentUseCase].
+final uploadDocumentUseCaseProvider = Provider<UploadDocumentUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return UploadDocumentUseCase(repository);
+});
+
+/// Provides the [GetGenerationHistoryUseCase].
+final getGenerationHistoryUseCaseProvider =
+    Provider<GetGenerationHistoryUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return GetGenerationHistoryUseCase(repository);
+});
+
+/// Provides the [ManagePromptTemplatesUseCase].
+final managePromptTemplatesUseCaseProvider =
+    Provider<ManagePromptTemplatesUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return ManagePromptTemplatesUseCase(repository);
+});
+
+/// Provides the [GetAiDashboardStatsUseCase].
+final getAiDashboardStatsUseCaseProvider =
+    Provider<GetAiDashboardStatsUseCase>((ref) {
+  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  return GetAiDashboardStatsUseCase(repository);
+});
+
+// ─── AI Generator State Notifiers ─────────────────────────────────────
+
+/// Provides the [AiGeneratorNotifier] for main generation state.
+final aiGeneratorProvider =
+    StateNotifierProvider<AiGeneratorNotifier, AiGeneratorState>((ref) {
+  return AiGeneratorNotifier(
+    generateQuestionsUseCase: ref.watch(generateQuestionsUseCaseProvider),
+    reviewGeneratedQuestionUseCase:
+        ref.watch(reviewGeneratedQuestionUseCaseProvider),
+    improveQuestionUseCase: ref.watch(improveQuestionUseCaseProvider),
+    validateQuestionUseCase: ref.watch(validateQuestionUseCaseProvider),
+    saveToQuestionBankUseCase: ref.watch(saveToQuestionBankUseCaseProvider),
+    getGenerationHistoryUseCase:
+        ref.watch(getGenerationHistoryUseCaseProvider),
+    aiService: ref.watch(aiServiceProvider),
+    managePromptTemplatesUseCase:
+        ref.watch(managePromptTemplatesUseCaseProvider),
+  );
+});
+
+/// Provides the [AiReviewNotifier] for review workflow state.
+final aiReviewProvider =
+    StateNotifierProvider<AiReviewNotifier, AiReviewState>((ref) {
+  return AiReviewNotifier(
+    repository: ref.watch(aiGeneratorRepositoryProvider),
+    reviewGeneratedQuestionUseCase:
+        ref.watch(reviewGeneratedQuestionUseCaseProvider),
+    improveQuestionUseCase: ref.watch(improveQuestionUseCaseProvider),
+    validateQuestionUseCase: ref.watch(validateQuestionUseCaseProvider),
+    saveToQuestionBankUseCase: ref.watch(saveToQuestionBankUseCaseProvider),
+  );
+});
+
+/// Provides the [AiDocumentNotifier] for document upload/processing state.
+final aiDocumentProvider =
+    StateNotifierProvider<AiDocumentNotifier, AiDocumentState>((ref) {
+  return AiDocumentNotifier(
+    uploadDocumentUseCase: ref.watch(uploadDocumentUseCaseProvider),
+    repository: ref.watch(aiGeneratorRepositoryProvider),
+  );
+});
+
+/// Provides the [PromptTemplateNotifier] for prompt management state.
+final promptTemplateProvider =
+    StateNotifierProvider<PromptTemplateNotifier, PromptTemplateState>(
+        (ref) {
+  return PromptTemplateNotifier(
+    managePromptTemplatesUseCase:
+        ref.watch(managePromptTemplatesUseCaseProvider),
+  );
+});
+
+/// Provides the [AiStatsNotifier] for dashboard stats state.
+final aiStatsProvider =
+    StateNotifierProvider<AiStatsNotifier, AiStatsState>((ref) {
+  return AiStatsNotifier(
+    getAiDashboardStatsUseCase: ref.watch(getAiDashboardStatsUseCaseProvider),
+    repository: ref.watch(aiGeneratorRepositoryProvider),
   );
 });

@@ -26,6 +26,13 @@ import '../features/question_bank/presentation/pages/question_detail_page.dart';
 import '../features/question_bank/presentation/pages/question_import_page.dart';
 import '../features/question_bank/presentation/pages/question_export_page.dart';
 import '../features/question_bank/presentation/pages/collections_page.dart';
+import '../features/ai_generator/presentation/pages/ai_dashboard_page.dart';
+import '../features/ai_generator/presentation/pages/ai_generate_page.dart';
+import '../features/ai_generator/presentation/pages/ai_review_page.dart';
+import '../features/ai_generator/presentation/pages/ai_improve_page.dart';
+import '../features/ai_generator/presentation/pages/ai_document_page.dart';
+import '../features/ai_generator/presentation/pages/ai_history_page.dart';
+import '../features/ai_generator/presentation/pages/ai_prompts_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -271,6 +278,43 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.questionBankCollections,
             name: 'questionBankCollections',
             builder: (context, state) => const CollectionsPage(),
+          ),
+
+          // ── AI Generator Routes ──────────────────────────────────
+          GoRoute(
+            path: RouteNames.aiGenerator,
+            name: 'aiGenerator',
+            builder: (context, state) => const AiDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiGeneratorGenerate,
+            name: 'aiGeneratorGenerate',
+            builder: (context, state) => const AiGeneratePage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiGeneratorReview,
+            name: 'aiGeneratorReview',
+            builder: (context, state) => const AiReviewPage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiGeneratorImprove,
+            name: 'aiGeneratorImprove',
+            builder: (context, state) => const AiImprovePage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiGeneratorDocument,
+            name: 'aiGeneratorDocument',
+            builder: (context, state) => const AiDocumentPage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiGeneratorHistory,
+            name: 'aiGeneratorHistory',
+            builder: (context, state) => const AiHistoryPage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiGeneratorPrompts,
+            name: 'aiGeneratorPrompts',
+            builder: (context, state) => const AiPromptsPage(),
           ),
         ],
       ),
