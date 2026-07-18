@@ -288,6 +288,149 @@ class RouteNames {
   static const String studentNotifications = '/student-portal/notifications';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // SCHOOL MANAGEMENT ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// School management module root.
+  static const String schoolManagement = '/school-management';
+
+  /// School admin list page.
+  static const String schoolList = '/school-management/schools';
+
+  /// School admin detail page.
+  static const String schoolDetail = '/school-management/schools/detail';
+
+  /// School admin form page (create/edit).
+  static const String schoolForm = '/school-management/schools/form';
+
+  /// Student list page.
+  static const String studentList = '/school-management/students';
+
+  /// Student detail page.
+  static const String studentDetail = '/school-management/students/detail';
+
+  /// Student form page (create/edit).
+  static const String studentForm = '/school-management/students/form';
+
+  /// Student promotion page.
+  static const String studentPromotion = '/school-management/students/promotion';
+
+  /// Teacher list page.
+  static const String teacherList = '/school-management/teachers';
+
+  /// Teacher detail page.
+  static const String teacherDetail = '/school-management/teachers/detail';
+
+  /// Teacher form page (create/edit).
+  static const String teacherForm = '/school-management/teachers/form';
+
+  /// Parent list page.
+  static const String parentList = '/school-management/parents';
+
+  /// Parent detail page.
+  static const String parentDetail = '/school-management/parents/detail';
+
+  /// Parent portal page.
+  static const String parentPortal = '/school-management/parents/portal';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ACADEMIC ADMINISTRATION ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Class list page.
+  static const String classList = '/school-management/classes';
+
+  /// Class detail page.
+  static const String classDetail = '/school-management/classes/detail';
+
+  /// Class form page (create/edit).
+  static const String classForm = '/school-management/classes/form';
+
+  /// Subject list page.
+  static const String subjectList = '/school-management/subjects';
+
+  /// Subject form page (create/edit).
+  static const String subjectForm = '/school-management/subjects/form';
+
+  /// Academic sessions page.
+  static const String academicSessions = '/school-management/sessions';
+
+  /// School calendar page.
+  static const String schoolCalendar = '/school-management/calendar';
+
+  /// School settings page.
+  static const String schoolSettings = '/school-management/settings';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TIMETABLE ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Timetable list page.
+  static const String timetableList = '/school-management/timetables';
+
+  /// Timetable builder page (interactive).
+  static const String timetableBuilder = '/school-management/timetables/builder';
+
+  /// Timetable view page (read-only published).
+  static const String timetableView = '/school-management/timetables/view';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ATTENDANCE ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Attendance marking page.
+  static const String attendance = '/school-management/attendance';
+
+  /// Attendance report page.
+  static const String attendanceReport = '/school-management/attendance/report';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // HOMEWORK ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Homework list page.
+  static const String homeworkList = '/school-management/homework';
+
+  /// Homework form page (create/edit).
+  static const String homeworkForm = '/school-management/homework/form';
+
+  /// Homework submissions page.
+  static const String homeworkSubmissions = '/school-management/homework/submissions';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ANNOUNCEMENT ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Announcement list page.
+  static const String announcementList = '/school-management/announcements';
+
+  /// Announcement form page (create/edit).
+  static const String announcementForm = '/school-management/announcements/form';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // DOCUMENT CENTER ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Document center page.
+  static const String documentCenter = '/school-management/documents';
+
+  /// Document upload page.
+  static const String documentUpload = '/school-management/documents/upload';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // REPORTS ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Report dashboard page.
+  static const String reportDashboard = '/school-management/reports';
+
+  /// Student report page.
+  static const String studentReport = '/school-management/reports/students';
+
+  /// Attendance report page (dedicated).
+  static const String reportAttendance = '/school-management/reports/attendance';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -402,6 +545,47 @@ class RouteNames {
     studentNotifications,
   };
 
+  /// All school management sub-routes (used for feature-level navigation).
+  static const Set<String> schoolManagementRoutes = <String>{
+    schoolManagement,
+    schoolList,
+    schoolDetail,
+    schoolForm,
+    studentList,
+    studentDetail,
+    studentForm,
+    studentPromotion,
+    teacherList,
+    teacherDetail,
+    teacherForm,
+    parentList,
+    parentDetail,
+    parentPortal,
+    classList,
+    classDetail,
+    classForm,
+    subjectList,
+    subjectForm,
+    academicSessions,
+    schoolCalendar,
+    schoolSettings,
+    timetableList,
+    timetableBuilder,
+    timetableView,
+    attendance,
+    attendanceReport,
+    homeworkList,
+    homeworkForm,
+    homeworkSubmissions,
+    announcementList,
+    announcementForm,
+    documentCenter,
+    documentUpload,
+    reportDashboard,
+    studentReport,
+    reportAttendance,
+  };
+
   /// All routes that live inside the authenticated [ShellRoute].
   static const Set<String> protectedRoutes = <String>{
     dashboard,
@@ -477,5 +661,42 @@ class RouteNames {
     studentGoals,
     studentProgress,
     studentNotifications,
+    schoolManagement,
+    schoolList,
+    schoolDetail,
+    schoolForm,
+    studentList,
+    studentDetail,
+    studentForm,
+    studentPromotion,
+    teacherList,
+    teacherDetail,
+    teacherForm,
+    parentList,
+    parentDetail,
+    parentPortal,
+    classList,
+    classDetail,
+    classForm,
+    subjectList,
+    subjectForm,
+    academicSessions,
+    schoolCalendar,
+    schoolSettings,
+    timetableList,
+    timetableBuilder,
+    timetableView,
+    attendance,
+    attendanceReport,
+    homeworkList,
+    homeworkForm,
+    homeworkSubmissions,
+    announcementList,
+    announcementForm,
+    documentCenter,
+    documentUpload,
+    reportDashboard,
+    studentReport,
+    reportAttendance,
   };
 }

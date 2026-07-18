@@ -1933,3 +1933,401 @@ final markAllNotificationsReadUseCaseProvider =
   return MarkAllNotificationsReadUseCase(
       ref.watch(studentPortalRepositoryProvider));
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// SCHOOL MANAGEMENT MODULE
+// ═══════════════════════════════════════════════════════════════════════
+
+import '../features/school_management/data/datasources/school_management_remote_datasource.dart';
+import '../features/school_management/data/repositories/school_management_repository_impl.dart';
+import '../features/school_management/domain/repositories/school_management_repository.dart';
+import '../features/school_management/domain/usecases/school_usecases.dart';
+import '../features/school_management/domain/usecases/student_usecases.dart';
+import '../features/school_management/domain/usecases/teacher_usecases.dart';
+import '../features/school_management/domain/usecases/parent_usecases.dart';
+import '../features/school_management/domain/usecases/academic_session_usecases.dart';
+import '../features/school_management/domain/usecases/timetable_usecases.dart';
+import '../features/school_management/domain/usecases/attendance_usecases.dart';
+import '../features/school_management/domain/usecases/homework_usecases.dart';
+import '../features/school_management/domain/usecases/announcement_usecases.dart';
+import '../features/school_management/domain/usecases/report_usecases.dart';
+
+// ─── Data Source ──────────────────────────────────────────────────────
+
+final schoolManagementRemoteDataSourceProvider =
+    Provider<SchoolManagementRemoteDataSource>((ref) {
+  return SchoolManagementRemoteDataSourceImpl(
+    supabaseClient: ref.watch(supabaseClientProvider),
+  );
+});
+
+// ─── Repository ──────────────────────────────────────────────────────
+
+final schoolManagementRepositoryProvider =
+    Provider<SchoolManagementRepository>((ref) {
+  return SchoolManagementRepositoryImpl(
+    remoteDataSource: ref.watch(schoolManagementRemoteDataSourceProvider),
+  );
+});
+
+// ─── Use Cases ───────────────────────────────────────────────────────
+
+// School
+final createSchoolUseCaseProvider = Provider<CreateSchoolUseCase>((ref) {
+  return CreateSchoolUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateSchoolUseCaseProvider = Provider<UpdateSchoolUseCase>((ref) {
+  return UpdateSchoolUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getSchoolUseCaseProvider = Provider<GetSchoolUseCase>((ref) {
+  return GetSchoolUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getSchoolsUseCaseProvider = Provider<GetSchoolsUseCase>((ref) {
+  return GetSchoolsUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final createBranchUseCaseProvider = Provider<CreateBranchUseCase>((ref) {
+  return CreateBranchUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateBranchUseCaseProvider = Provider<UpdateBranchUseCase>((ref) {
+  return UpdateBranchUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final createDepartmentUseCaseProvider =
+    Provider<CreateDepartmentUseCase>((ref) {
+  return CreateDepartmentUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateDepartmentUseCaseProvider =
+    Provider<UpdateDepartmentUseCase>((ref) {
+  return UpdateDepartmentUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Student
+final createStudentProfileUseCaseProvider =
+    Provider<CreateStudentProfileUseCase>((ref) {
+  return CreateStudentProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateStudentProfileUseCaseProvider =
+    Provider<UpdateStudentProfileUseCase>((ref) {
+  return UpdateStudentProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getStudentProfileUseCaseProvider =
+    Provider<GetStudentProfileUseCase>((ref) {
+  return GetStudentProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getStudentProfilesUseCaseProvider =
+    Provider<GetStudentProfilesUseCase>((ref) {
+  return GetStudentProfilesUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final promoteStudentUseCaseProvider = Provider<PromoteStudentUseCase>((ref) {
+  return PromoteStudentUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final graduateStudentUseCaseProvider =
+    Provider<GraduateStudentUseCase>((ref) {
+  return GraduateStudentUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Teacher
+final createTeacherProfileUseCaseProvider =
+    Provider<CreateTeacherProfileUseCase>((ref) {
+  return CreateTeacherProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateTeacherProfileUseCaseProvider =
+    Provider<UpdateTeacherProfileUseCase>((ref) {
+  return UpdateTeacherProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getTeacherProfileUseCaseProvider =
+    Provider<GetTeacherProfileUseCase>((ref) {
+  return GetTeacherProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getTeacherProfilesUseCaseProvider =
+    Provider<GetTeacherProfilesUseCase>((ref) {
+  return GetTeacherProfilesUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Parent
+final createParentProfileUseCaseProvider =
+    Provider<CreateParentProfileUseCase>((ref) {
+  return CreateParentProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateParentProfileUseCaseProvider =
+    Provider<UpdateParentProfileUseCase>((ref) {
+  return UpdateParentProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getParentProfileUseCaseProvider =
+    Provider<GetParentProfileUseCase>((ref) {
+  return GetParentProfileUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getParentProfilesUseCaseProvider =
+    Provider<GetParentProfilesUseCase>((ref) {
+  return GetParentProfilesUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final linkParentToStudentUseCaseProvider =
+    Provider<LinkParentToStudentUseCase>((ref) {
+  return LinkParentToStudentUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final unlinkParentFromStudentUseCaseProvider =
+    Provider<UnlinkParentFromStudentUseCase>((ref) {
+  return UnlinkParentFromStudentUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Academic Sessions
+final createSessionUseCaseProvider = Provider<CreateSessionUseCase>((ref) {
+  return CreateSessionUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateSessionUseCaseProvider = Provider<UpdateSessionUseCase>((ref) {
+  return UpdateSessionUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getCurrentSessionUseCaseProvider =
+    Provider<GetCurrentSessionUseCase>((ref) {
+  return GetCurrentSessionUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final setCurrentSessionUseCaseProvider =
+    Provider<SetCurrentSessionUseCase>((ref) {
+  return SetCurrentSessionUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final createTermUseCaseProvider = Provider<CreateTermUseCase>((ref) {
+  return CreateTermUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateTermUseCaseProvider = Provider<UpdateTermUseCase>((ref) {
+  return UpdateTermUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getCurrentTermUseCaseProvider = Provider<GetCurrentTermUseCase>((ref) {
+  return GetCurrentTermUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final setCurrentTermUseCaseProvider = Provider<SetCurrentTermUseCase>((ref) {
+  return SetCurrentTermUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final createCalendarEventUseCaseProvider =
+    Provider<CreateCalendarEventUseCase>((ref) {
+  return CreateCalendarEventUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateCalendarEventUseCaseProvider =
+    Provider<UpdateCalendarEventUseCase>((ref) {
+  return UpdateCalendarEventUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getCalendarEventsUseCaseProvider =
+    Provider<GetCalendarEventsUseCase>((ref) {
+  return GetCalendarEventsUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Timetable
+final createTimetableUseCaseProvider =
+    Provider<CreateTimetableUseCase>((ref) {
+  return CreateTimetableUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateTimetableUseCaseProvider =
+    Provider<UpdateTimetableUseCase>((ref) {
+  return UpdateTimetableUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getTimetableUseCaseProvider = Provider<GetTimetableUseCase>((ref) {
+  return GetTimetableUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getTimetablesUseCaseProvider = Provider<GetTimetablesUseCase>((ref) {
+  return GetTimetablesUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final addTimetableSlotUseCaseProvider =
+    Provider<AddTimetableSlotUseCase>((ref) {
+  return AddTimetableSlotUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateTimetableSlotUseCaseProvider =
+    Provider<UpdateTimetableSlotUseCase>((ref) {
+  return UpdateTimetableSlotUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final deleteTimetableSlotUseCaseProvider =
+    Provider<DeleteTimetableSlotUseCase>((ref) {
+  return DeleteTimetableSlotUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final publishTimetableUseCaseProvider =
+    Provider<PublishTimetableUseCase>((ref) {
+  return PublishTimetableUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final checkSlotConflictsUseCaseProvider =
+    Provider<CheckSlotConflictsUseCase>((ref) {
+  return CheckSlotConflictsUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Attendance
+final createAttendanceRecordUseCaseProvider =
+    Provider<CreateAttendanceRecordUseCase>((ref) {
+  return CreateAttendanceRecordUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateAttendanceRecordUseCaseProvider =
+    Provider<UpdateAttendanceRecordUseCase>((ref) {
+  return UpdateAttendanceRecordUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getAttendanceRecordUseCaseProvider =
+    Provider<GetAttendanceRecordUseCase>((ref) {
+  return GetAttendanceRecordUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getAttendanceRecordsUseCaseProvider =
+    Provider<GetAttendanceRecordsUseCase>((ref) {
+  return GetAttendanceRecordsUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final markAttendanceUseCaseProvider = Provider<MarkAttendanceUseCase>((ref) {
+  return MarkAttendanceUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getAttendanceSummaryUseCaseProvider =
+    Provider<GetAttendanceSummaryUseCase>((ref) {
+  return GetAttendanceSummaryUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Homework
+final createHomeworkUseCaseProvider = Provider<CreateHomeworkUseCase>((ref) {
+  return CreateHomeworkUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateHomeworkUseCaseProvider = Provider<UpdateHomeworkUseCase>((ref) {
+  return UpdateHomeworkUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final publishHomeworkUseCaseProvider =
+    Provider<PublishHomeworkUseCase>((ref) {
+  return PublishHomeworkUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final submitHomeworkUseCaseProvider = Provider<SubmitHomeworkUseCase>((ref) {
+  return SubmitHomeworkUseCase(ref.watch(schoolManagementRepositoryProvider));
+});
+
+final gradeSubmissionUseCaseProvider =
+    Provider<GradeSubmissionUseCase>((ref) {
+  return GradeSubmissionUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getHomeworkSubmissionsUseCaseProvider =
+    Provider<GetHomeworkSubmissionsUseCase>((ref) {
+  return GetHomeworkSubmissionsUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Announcements
+final createAnnouncementUseCaseProvider =
+    Provider<CreateAnnouncementUseCase>((ref) {
+  return CreateAnnouncementUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final updateAnnouncementUseCaseProvider =
+    Provider<UpdateAnnouncementUseCase>((ref) {
+  return UpdateAnnouncementUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final deleteAnnouncementUseCaseProvider =
+    Provider<DeleteAnnouncementUseCase>((ref) {
+  return DeleteAnnouncementUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final publishAnnouncementUseCaseProvider =
+    Provider<PublishAnnouncementUseCase>((ref) {
+  return PublishAnnouncementUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getAnnouncementsUseCaseProvider =
+    Provider<GetAnnouncementsUseCase>((ref) {
+  return GetAnnouncementsUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+// Reports
+final getSchoolOverviewUseCaseProvider =
+    Provider<GetSchoolOverviewUseCase>((ref) {
+  return GetSchoolOverviewUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getStudentListReportUseCaseProvider =
+    Provider<GetStudentListReportUseCase>((ref) {
+  return GetStudentListReportUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getTeacherListReportUseCaseProvider =
+    Provider<GetTeacherListReportUseCase>((ref) {
+  return GetTeacherListReportUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});
+
+final getAttendanceReportUseCaseProvider =
+    Provider<GetAttendanceReportUseCase>((ref) {
+  return GetAttendanceReportUseCase(
+      ref.watch(schoolManagementRepositoryProvider));
+});

@@ -77,6 +77,42 @@ import '../features/student_portal/presentation/pages/study_planner_page.dart';
 import '../features/student_portal/presentation/pages/goals_page.dart';
 import '../features/student_portal/presentation/pages/progress_page.dart';
 import '../features/student_portal/presentation/pages/student_notifications_page.dart';
+import '../features/school_management/presentation/pages/admin/school_list_page.dart';
+import '../features/school_management/presentation/pages/admin/school_detail_page.dart';
+import '../features/school_management/presentation/pages/admin/school_form_page.dart';
+import '../features/school_management/presentation/pages/admin/academic_session_page.dart';
+import '../features/school_management/presentation/pages/admin/school_calendar_page.dart';
+import '../features/school_management/presentation/pages/admin/school_settings_page.dart';
+import '../features/school_management/presentation/pages/student/student_list_page.dart';
+import '../features/school_management/presentation/pages/student/student_detail_page.dart';
+import '../features/school_management/presentation/pages/student/student_form_page.dart';
+import '../features/school_management/presentation/pages/student/promotion_page.dart';
+import '../features/school_management/presentation/pages/teacher/teacher_list_page.dart';
+import '../features/school_management/presentation/pages/teacher/teacher_detail_page.dart';
+import '../features/school_management/presentation/pages/teacher/teacher_form_page.dart';
+import '../features/school_management/presentation/pages/parent/parent_list_page.dart';
+import '../features/school_management/presentation/pages/parent/parent_detail_page.dart';
+import '../features/school_management/presentation/pages/parent/parent_portal_page.dart';
+import '../features/school_management/presentation/pages/class_group/class_list_page.dart';
+import '../features/school_management/presentation/pages/class_group/class_detail_page.dart';
+import '../features/school_management/presentation/pages/class_group/class_form_page.dart';
+import '../features/school_management/presentation/pages/subject/subject_list_page.dart';
+import '../features/school_management/presentation/pages/subject/subject_form_page.dart';
+import '../features/school_management/presentation/pages/timetable/timetable_list_page.dart';
+import '../features/school_management/presentation/pages/timetable/timetable_builder_page.dart';
+import '../features/school_management/presentation/pages/timetable/timetable_view_page.dart';
+import '../features/school_management/presentation/pages/attendance/attendance_page.dart';
+import '../features/school_management/presentation/pages/attendance/attendance_report_page.dart';
+import '../features/school_management/presentation/pages/homework/homework_list_page.dart';
+import '../features/school_management/presentation/pages/homework/homework_form_page.dart';
+import '../features/school_management/presentation/pages/homework/homework_submissions_page.dart';
+import '../features/school_management/presentation/pages/announcement/announcement_list_page.dart';
+import '../features/school_management/presentation/pages/announcement/announcement_form_page.dart';
+import '../features/school_management/presentation/pages/document/document_center_page.dart';
+import '../features/school_management/presentation/pages/document/document_upload_page.dart';
+import '../features/school_management/presentation/pages/report/report_dashboard_page.dart';
+import '../features/school_management/presentation/pages/report/student_report_page.dart';
+import '../features/school_management/presentation/pages/report/attendance_report_page.dart' as sm;
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -677,6 +713,322 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.studentNotifications,
             name: 'studentNotifications',
             builder: (context, state) => const StudentNotificationsPage(),
+          ),
+
+          // ═══════════════════════════════════════════════════════════
+          // SCHOOL MANAGEMENT ROUTES
+          // ═══════════════════════════════════════════════════════════
+
+          // Schools (admin)
+          GoRoute(
+            path: RouteNames.schoolList,
+            name: 'schoolList',
+            builder: (context, state) => const SchoolListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.schoolDetail,
+            name: 'schoolDetail',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['id'] ?? '';
+              return SchoolDetailPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.schoolForm,
+            name: 'schoolForm',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['id'];
+              return SchoolFormPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.academicSessions,
+            name: 'academicSessions',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return AcademicSessionPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.schoolCalendar,
+            name: 'schoolCalendar',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return SchoolCalendarPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.schoolSettings,
+            name: 'schoolSettings',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return SchoolSettingsPage(schoolId: schoolId);
+            },
+          ),
+
+          // Students
+          GoRoute(
+            path: RouteNames.studentList,
+            name: 'smStudentList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return StudentListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.studentDetail,
+            name: 'smStudentDetail',
+            builder: (context, state) {
+              final userId = state.uri.queryParameters['userId'] ?? '';
+              return StudentDetailPage(userId: userId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.studentForm,
+            name: 'smStudentForm',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              final userId = state.uri.queryParameters['userId'];
+              return StudentFormPage(schoolId: schoolId, userId: userId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.studentPromotion,
+            name: 'studentPromotion',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return PromotionPage(schoolId: schoolId);
+            },
+          ),
+
+          // Teachers
+          GoRoute(
+            path: RouteNames.teacherList,
+            name: 'smTeacherList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return TeacherListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.teacherDetail,
+            name: 'smTeacherDetail',
+            builder: (context, state) {
+              final userId = state.uri.queryParameters['userId'] ?? '';
+              return TeacherDetailPage(userId: userId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.teacherForm,
+            name: 'smTeacherForm',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              final userId = state.uri.queryParameters['userId'];
+              return TeacherFormPage(schoolId: schoolId, userId: userId);
+            },
+          ),
+
+          // Parents
+          GoRoute(
+            path: RouteNames.parentList,
+            name: 'smParentList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return ParentListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.parentDetail,
+            name: 'smParentDetail',
+            builder: (context, state) {
+              final userId = state.uri.queryParameters['userId'] ?? '';
+              return ParentDetailPage(userId: userId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.parentPortal,
+            name: 'parentPortal',
+            builder: (context, state) => const ParentPortalPage(),
+          ),
+
+          // Classes
+          GoRoute(
+            path: RouteNames.classList,
+            name: 'smClassList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return ClassListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.classDetail,
+            name: 'smClassDetail',
+            builder: (context, state) {
+              final classId = state.uri.queryParameters['id'] ?? '';
+              return ClassDetailPage(classId: classId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.classForm,
+            name: 'smClassForm',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              final classId = state.uri.queryParameters['id'];
+              return ClassFormPage(schoolId: schoolId, classId: classId);
+            },
+          ),
+
+          // Subjects
+          GoRoute(
+            path: RouteNames.subjectList,
+            name: 'smSubjectList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return SubjectListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.subjectForm,
+            name: 'smSubjectForm',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              final subjectId = state.uri.queryParameters['id'];
+              return SubjectFormPage(schoolId: schoolId, subjectId: subjectId);
+            },
+          ),
+
+          // Timetables
+          GoRoute(
+            path: RouteNames.timetableList,
+            name: 'timetableList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return TimetableListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.timetableBuilder,
+            name: 'timetableBuilder',
+            builder: (context, state) {
+              final timetableId = state.uri.queryParameters['id'] ?? '';
+              return TimetableBuilderPage(timetableId: timetableId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.timetableView,
+            name: 'timetableView',
+            builder: (context, state) {
+              final timetableId = state.uri.queryParameters['id'] ?? '';
+              return TimetableViewPage(timetableId: timetableId);
+            },
+          ),
+
+          // Attendance
+          GoRoute(
+            path: RouteNames.attendance,
+            name: 'smAttendance',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return AttendancePage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.attendanceReport,
+            name: 'smAttendanceReport',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return AttendanceReportPage(schoolId: schoolId);
+            },
+          ),
+
+          // Homework
+          GoRoute(
+            path: RouteNames.homeworkList,
+            name: 'smHomeworkList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return HomeworkListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.homeworkForm,
+            name: 'smHomeworkForm',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              final homeworkId = state.uri.queryParameters['id'];
+              return HomeworkFormPage(schoolId: schoolId, homeworkId: homeworkId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.homeworkSubmissions,
+            name: 'homeworkSubmissions',
+            builder: (context, state) {
+              final homeworkId = state.uri.queryParameters['id'] ?? '';
+              return HomeworkSubmissionsPage(homeworkId: homeworkId);
+            },
+          ),
+
+          // Announcements
+          GoRoute(
+            path: RouteNames.announcementList,
+            name: 'smAnnouncementList',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return AnnouncementListPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.announcementForm,
+            name: 'smAnnouncementForm',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              final announcementId = state.uri.queryParameters['id'];
+              return AnnouncementFormPage(schoolId: schoolId, announcementId: announcementId);
+            },
+          ),
+
+          // Documents
+          GoRoute(
+            path: RouteNames.documentCenter,
+            name: 'documentCenter',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return DocumentCenterPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.documentUpload,
+            name: 'documentUpload',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return DocumentUploadPage(schoolId: schoolId);
+            },
+          ),
+
+          // Reports
+          GoRoute(
+            path: RouteNames.reportDashboard,
+            name: 'smReportDashboard',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return ReportDashboardPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.studentReport,
+            name: 'smStudentReport',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return StudentReportPage(schoolId: schoolId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.reportAttendance,
+            name: 'smReportAttendance',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return sm.AttendanceReportPage(schoolId: schoolId);
+            },
           ),
         ],
       ),
