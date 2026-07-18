@@ -1,0 +1,2002 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/extensions/context_extensions.dart';
+     6→import '../../../../core/themes/app_colors.dart';
+     7→import '../../../../core/themes/app_typography.dart';
+     8→import '../../../../core/themes/spacings.dart';
+     9→import '../../../../routing/route_names.dart';
+    10→import '../../../../shared/providers/auth_state_provider.dart';
+    11→import '../../../../shared/widgets/app_app_bar.dart';
+    12→import '../../../../shared/widgets/app_empty_state.dart';
+    13→import '../../../../shared/widgets/app_error_state.dart';
+    14→import '../../../../shared/widgets/app_loading.dart';
+    15→import '../../domain/entities/workspace_expansion_entities.dart';
+    16→import '../providers/enhanced_dashboard_provider.dart';
+    17→
+    18→// ═══════════════════════════════════════════════════════════════════════
+    19→// ENHANCED WORKSPACE DASHBOARD PAGE
+    20→// ═══════════════════════════════════════════════════════════════════════
+    21→
+    22→/// The enhanced Teacher Workspace Dashboard page.
+    23→///
+    24→/// This is a significantly upgraded version of the standard dashboard,
+    25→/// presenting a modern SaaS-style layout with:
+    26→/// - Welcome section with time-of-day greeting and quick stats
+    27→/// - AI Quick Actions grid (12 action buttons)
+    28→/// - Today's Timetable
+    29→/// - Pending Tasks & Assignments
+    30→/// - Teaching Statistics
+    31→/// - Recent Documents
+    32→/// - Saved Templates
+    33→/// - Upcoming Events
+    34→/// - Notifications
+    35→/// - Recently Generated AI Content
+    36→///
+    37→/// Uses [ConsumerStatefulWidget] with a private [_State] class pattern,
+    38→/// loads data in [initState] via [WidgetsBinding.instance.addPostFrameCallback],
+    39→/// and renders a responsive layout using [CustomScrollView] with slivers.
+    40→class EnhancedWorkspaceDashboardPage extends ConsumerStatefulWidget {
+    41→  const EnhancedWorkspaceDashboardPage({super.key});
+    42→
+    43→  @override
+    44→  ConsumerState<EnhancedWorkspaceDashboardPage> createState() => _State();
+    45→}
+    46→
+    47→class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
+    48→  // ─── Lifecycle ──────────────────────────────────────────────────────
+    49→
+    50→  @override
+    51→  void initState() {
+    52→    super.initState();
+    53→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    54→      ref.read(enhancedDashboardProvider.notifier).loadDashboard();
+    55→    });
+    56→  }
+    57→
+    58→  // ─── Build ──────────────────────────────────────────────────────────
+    59→
+    60→  @override
+    61→  Widget build(BuildContext context) {
+    62→    final dashboardState = ref.watch(enhancedDashboardProvider);
+    63→
+    64→    return Scaffold(
+    65→      appBar: const AppAppBar(title: 'Workspace'),
+    66→      body: _buildBody(context, dashboardState),
+    67→    );
+    68→  }
+    69→
+    70→  // ─── Body Router ────────────────────────────────────────────────────
+    71→
+    72→  Widget _buildBody(BuildContext context, EnhancedDashboardState state) {
+    73→    // Loading state
+    74→    if (state.isLoading && state.dashboard == null) {
+    75→      return _buildShimmerLoading(context);
+    76→    }
+    77→
+    78→    // Error state
+    79→    if (state.error != null && state.dashboard == null) {
+    80→      return AppErrorState.genericError(
+    81→        message: state.error,
+    82→        onRetry: () =>
+    83→            ref.read(enhancedDashboardProvider.notifier).loadDashboard(),
+    84→      );
+    85→    }
+    86→
+    87→    // Empty state
+    88→    final dashboard = state.dashboard;
+    89→    if (dashboard == null) {
+    90→      return AppEmptyState.noData(
+    91→        title: 'No Workspace Data',
+    92→        subtitle: 'Your workspace dashboard will appear here once loaded.',
+    93→        actionLabel: 'Refresh',
+    94→        onAction: () =>
+    95→            ref.read(enhancedDashboardProvider.notifier).loadDashboard(),
+    96→      );
+    97→    }
+    98→
+    99→    // Success — render dashboard
+   100→    return RefreshIndicator(
+   101→      onRefresh: () =>
+   102→          ref.read(enhancedDashboardProvider.notifier).refreshDashboard(),
+   103→      child: CustomScrollView(
+   104→        physics: const AlwaysScrollableScrollPhysics(),
+   105→        slivers: [
+   106→          // ─── Welcome Section ──────────────────────────────────────
+   107→          SliverToBoxAdapter(child: _buildWelcomeSection(context, dashboard)),
+   108→
+   109→          // ─── AI Quick Actions ─────────────────────────────────────
+   110→          SliverToBoxAdapter(child: _buildQuickActionsSection(context)),
+   111→
+   112→          // ─── Today's Timetable ────────────────────────────────────
+   113→          SliverToBoxAdapter(
+   114→            child: _buildTodayTimetable(context, dashboard),
+   115→          ),
+   116→
+   117→          // ─── Pending Tasks & Assignments ──────────────────────────
+   118→          SliverToBoxAdapter(
+   119→            child: _buildPendingTasks(context, dashboard),
+   120→          ),
+   121→
+   122→          // ─── Teaching Statistics ──────────────────────────────────
+   123→          SliverToBoxAdapter(
+   124→            child: _buildTeachingStatistics(context, dashboard),
+   125→          ),
+   126→
+   127→          // ─── Recent Documents ─────────────────────────────────────
+   128→          SliverToBoxAdapter(
+   129→            child: _buildRecentDocuments(context, dashboard),
+   130→          ),
+   131→
+   132→          // ─── Saved Templates ─────────────────────────────────────
+   133→          SliverToBoxAdapter(
+   134→            child: _buildSavedTemplates(context, dashboard),
+   135→          ),
+   136→
+   137→          // ─── Upcoming Events ─────────────────────────────────────
+   138→          SliverToBoxAdapter(
+   139→            child: _buildUpcomingEvents(context, dashboard),
+   140→          ),
+   141→
+   142→          // ─── Notifications ────────────────────────────────────────
+   143→          SliverToBoxAdapter(
+   144→            child: _buildNotifications(context, dashboard),
+   145→          ),
+   146→
+   147→          // ─── Recently Generated AI Content ────────────────────────
+   148→          SliverToBoxAdapter(
+   149→            child: _buildRecentAiContent(context, dashboard),
+   150→          ),
+   151→
+   152→          // Bottom padding
+   153→          const SliverPadding(padding: EdgeInsets.only(bottom: Spacings.xxl)),
+   154→        ],
+   155→      ),
+   156→    );
+   157→  }
+   158→
+   159→  // ═══════════════════════════════════════════════════════════════════════
+   160→  // SHIMMER LOADING
+   161→  // ═══════════════════════════════════════════════════════════════════════
+   162→
+   163→  Widget _buildShimmerLoading(BuildContext context) {
+   164→    return SingleChildScrollView(
+   165→      physics: const NeverScrollableScrollPhysics(),
+   166→      child: AppLoadingShimmer(
+   167→        child: Column(
+   168→          crossAxisAlignment: CrossAxisAlignment.start,
+   169→          children: [
+   170→            // Welcome shimmer
+   171→            Padding(
+   172→              padding: const EdgeInsets.all(Spacings.lg),
+   173→              child: Column(
+   174→                crossAxisAlignment: CrossAxisAlignment.start,
+   175→                children: [
+   176→                  AppLoadingShimmer.box(
+   177→                    width: 220,
+   178→                    height: 24,
+   179→                    borderRadius: Spacings.borderRadiusSm,
+   180→                  ),
+   181→                  const SizedBox(height: Spacings.sm),
+   182→                  AppLoadingShimmer.box(
+   183→                    width: 180,
+   184→                    height: 16,
+   185→                    borderRadius: Spacings.borderRadiusSm,
+   186→                  ),
+   187→                  const SizedBox(height: Spacings.lg),
+   188→                  // Stats row shimmer
+   189→                  Row(
+   190→                    children: List.generate(
+   191→                      4,
+   192→                      (_) => Expanded(
+   193→                        child: Padding(
+   194→                          padding: const EdgeInsets.symmetric(
+   195→                            horizontal: Spacings.xs,
+   196→                          ),
+   197→                          child: AppLoadingShimmer.box(
+   198→                            height: 88,
+   199→                            borderRadius: Spacings.borderRadiusLg,
+   200→                          ),
+   201→                        ),
+   202→                      ),
+   203→                    ),
+   204→                  ),
+   205→                ],
+   206→              ),
+   207→            ),
+   208→            // Quick actions shimmer
+   209→            Padding(
+   210→              padding: const EdgeInsets.symmetric(
+   211→                horizontal: Spacings.lg,
+   212→                vertical: Spacings.md,
+   213→              ),
+   214→              child: Column(
+   215→                crossAxisAlignment: CrossAxisAlignment.start,
+   216→                children: [
+   217→                  AppLoadingShimmer.box(
+   218→                    width: 160,
+   219→                    height: 18,
+   220→                    borderRadius: Spacings.borderRadiusSm,
+   221→                  ),
+   222→                  const SizedBox(height: Spacings.md),
+   223→                  GridView.count(
+   224→                    crossAxisCount: 4,
+   225→                    shrinkWrap: true,
+   226→                    physics: const NeverScrollableScrollPhysics(),
+   227→                    mainAxisSpacing: Spacings.md,
+   228→                    crossAxisSpacing: Spacings.md,
+   229→                    childAspectRatio: 1.2,
+   230→                    children: List.generate(
+   231→                      12,
+   232→                      (_) => AppLoadingShimmer.box(
+   233→                        borderRadius: Spacings.borderRadiusMd,
+   234→                      ),
+   235→                    ),
+   236→                  ),
+   237→                ],
+   238→              ),
+   239→            ),
+   240→            // Timeline shimmer
+   241→            Padding(
+   242→              padding: const EdgeInsets.symmetric(
+   243→                horizontal: Spacings.lg,
+   244→                vertical: Spacings.md,
+   245→              ),
+   246→              child: Column(
+   247→                crossAxisAlignment: CrossAxisAlignment.start,
+   248→                children: [
+   249→                  AppLoadingShimmer.box(
+   250→                    width: 140,
+   251→                    height: 18,
+   252→                    borderRadius: Spacings.borderRadiusSm,
+   253→                  ),
+   254→                  const SizedBox(height: Spacings.md),
+   255→                  SizedBox(
+   256→                    height: 90,
+   257→                    child: ListView.separated(
+   258→                      scrollDirection: Axis.horizontal,
+   259→                      itemCount: 4,
+   260→                      separatorBuilder: (_, __) =>
+   261→                          const SizedBox(width: Spacings.md),
+   262→                      itemBuilder: (_, __) => AppLoadingShimmer.box(
+   263→                        width: 160,
+   264→                        borderRadius: Spacings.borderRadiusLg,
+   265→                      ),
+   266→                    ),
+   267→                  ),
+   268→                ],
+   269→              ),
+   270→            ),
+   271→          ],
+   272→        ),
+   273→      ),
+   274→    );
+   275→  }
+   276→
+   277→  // ═══════════════════════════════════════════════════════════════════════
+   278→  // WELCOME SECTION
+   279→  // ═══════════════════════════════════════════════════════════════════════
+   280→
+   281→  Widget _buildWelcomeSection(
+   282→    BuildContext context,
+   283→    EnhancedWorkspaceDashboardEntity dashboard,
+   284→  ) {
+   285→    final cs = context.colorScheme;
+   286→    final tt = context.textTheme;
+   287→    final userName = ref.watch(userFullNameProvider) ?? 'Teacher';
+   288→    final now = DateTime.now();
+   289→    final greeting = _timeOfDayGreeting(now.hour);
+   290→    final dateStr =
+   291→        '${_weekdayName(now.weekday)}, ${_monthName(now.month)} ${now.day}, ${now.year}';
+   292→
+   293→    final stats = dashboard.stats;
+   294→
+   295→    final quickStats = [
+   296→      _QuickStatEntry(
+   297→        title: 'Lesson Plans',
+   298→        value: stats.lessonPlans,
+   299→        icon: Icons.auto_stories_outlined,
+   300→        color: cs.primary,
+   301→        route: RouteNames.lessonPlanList,
+   302→      ),
+   303→      _QuickStatEntry(
+   304→        title: 'Presentations',
+   305→        value: stats.presentations,
+   306→        icon: Icons.slideshow_outlined,
+   307→        color: AppColors.success,
+   308→        route: RouteNames.workspace,
+   309→      ),
+   310→      _QuickStatEntry(
+   311→        title: 'Pending Tasks',
+   312→        value: stats.pendingTasks,
+   313→        icon: Icons.pending_actions_outlined,
+   314→        color: AppColors.warning,
+   315→        route: RouteNames.workspace,
+   316→      ),
+   317→      _QuickStatEntry(
+   318→        title: 'AI Generations',
+   319→        value: stats.aiGenerations,
+   320→        icon: Icons.auto_awesome_outlined,
+   321→        color: AppColors.info,
+   322→        route: RouteNames.aiGenerator,
+   323→      ),
+   324→    ];
+   325→
+   326→    return Padding(
+   327→      padding: const EdgeInsets.fromLTRB(
+   328→        Spacings.lg,
+   329→        Spacings.lg,
+   330→        Spacings.lg,
+   331→        Spacings.sm,
+   332→      ),
+   333→      child: Column(
+   334→        crossAxisAlignment: CrossAxisAlignment.start,
+   335→        children: [
+   336→          Text(
+   337→            '$greeting, $userName!',
+   338→            style: tt.headlineSmall?.copyWith(
+   339→              fontWeight: AppTypography.wBold,
+   340→              color: cs.onSurface,
+   341→            ),
+   342→          ),
+   343→          const SizedBox(height: Spacings.xs),
+   344→          Text(
+   345→            dateStr,
+   346→            style: tt.bodyMedium?.copyWith(
+   347→              color: cs.onSurfaceVariant,
+   348→            ),
+   349→          ),
+   350→          const SizedBox(height: Spacings.lg),
+   351→          // Quick stats row
+   352→          Row(
+   353→            children: quickStats
+   354→                .map(
+   355→                  (stat) => Expanded(
+   356→                    child: Padding(
+   357→                      padding: const EdgeInsets.symmetric(horizontal: Spacings.xs),
+   358→                      child: _QuickStatCard(stat: stat),
+   359→                    ),
+   360→                  ),
+   361→                )
+   362→                .toList(),
+   363→          ),
+   364→        ],
+   365→      ),
+   366→    );
+   367→  }
+   368→
+   369→  // ═══════════════════════════════════════════════════════════════════════
+   370→  // AI QUICK ACTIONS
+   371→  // ═══════════════════════════════════════════════════════════════════════
+   372→
+   373→  Widget _buildQuickActionsSection(BuildContext context) {
+   374→    final theme = Theme.of(context);
+   375→
+   376→    final actions = [
+   377→      QuickActionData(
+   378→        icon: Icons.auto_stories_rounded,
+   379→        label: 'Lesson Plan',
+   380→        route: RouteNames.lessonPlanCreate,
+   381→        color: theme.colorScheme.primary,
+   382→      ),
+   383→      QuickActionData(
+   384→        icon: Icons.calendar_month_rounded,
+   385→        label: 'Scheme of Work',
+   386→        route: RouteNames.schemeOfWorkCreate,
+   387→        color: theme.colorScheme.tertiary,
+   388→      ),
+   389→      QuickActionData(
+   390→        icon: Icons.assignment_rounded,
+   391→        label: 'Worksheet',
+   392→        route: RouteNames.worksheetCreate,
+   393→        color: theme.colorScheme.secondary,
+   394→      ),
+   395→      QuickActionData(
+   396→        icon: Icons.task_rounded,
+   397→        label: 'Assignment',
+   398→        route: RouteNames.assignmentCreate,
+   399→        color: Colors.orange,
+   400→      ),
+   401→      QuickActionData(
+   402→        icon: Icons.rate_review_rounded,
+   403→        label: 'Comments',
+   404→        route: RouteNames.reportCommentGenerator,
+   405→        color: Colors.teal,
+   406→      ),
+   407→      QuickActionData(
+   408→        icon: Icons.psychology_rounded,
+   409→        label: 'AI Assistant',
+   410→        route: RouteNames.contentAssistant,
+   411→        color: Colors.purple,
+   412→      ),
+   413→      QuickActionData(
+   414→        icon: Icons.folder_rounded,
+   415→        label: 'Resources',
+   416→        route: RouteNames.teachingResources,
+   417→        color: Colors.blueGrey,
+   418→      ),
+   419→      QuickActionData(
+   420→        icon: Icons.calendar_today_rounded,
+   421→        label: 'Planner',
+   422→        route: RouteNames.calendarPlanner,
+   423→        color: Colors.indigo,
+   424→      ),
+   425→      // NEW: Expansion quick actions
+   426→      QuickActionData(
+   427→        icon: Icons.slideshow_rounded,
+   428→        label: 'Presentation',
+   429→        route: '/workspace/presentations/create',
+   430→        color: Colors.deepPurple,
+   431→      ),
+   432→      QuickActionData(
+   433→        icon: Icons.mail_rounded,
+   434→        label: 'Communication',
+   435→        route: '/workspace/communications/create',
+   436→        color: Colors.pink,
+   437→      ),
+   438→      QuickActionData(
+   439→        icon: Icons.grading_rounded,
+   440→        label: 'Rubric',
+   441→        route: '/workspace/rubrics/create',
+   442→        color: Colors.amber,
+   443→      ),
+   444→      QuickActionData(
+   445→        icon: Icons.checklist_rounded,
+   446→        label: 'Task',
+   447→        route: '/workspace/tasks',
+   448→        color: Colors.cyan,
+   449→      ),
+   450→    ];
+   451→
+   452→    return Padding(
+   453→      padding: const EdgeInsets.symmetric(
+   454→        horizontal: Spacings.lg,
+   455→        vertical: Spacings.sm,
+   456→      ),
+   457→      child: Column(
+   458→        crossAxisAlignment: CrossAxisAlignment.start,
+   459→        children: [
+   460→          _sectionTitle(context, 'Quick AI Actions'),
+   461→          const SizedBox(height: Spacings.md),
+   462→          GridView.builder(
+   463→            shrinkWrap: true,
+   464→            physics: const NeverScrollableScrollPhysics(),
+   465→            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+   466→              crossAxisCount: 4,
+   467→              childAspectRatio: 1.2,
+   468→              mainAxisSpacing: Spacings.md,
+   469→              crossAxisSpacing: Spacings.md,
+   470→            ),
+   471→            itemCount: actions.length,
+   472→            itemBuilder: (context, index) {
+   473→              final action = actions[index];
+   474→              return _QuickActionCard(action: action);
+   475→            },
+   476→          ),
+   477→        ],
+   478→      ),
+   479→    );
+   480→  }
+   481→
+   482→  // ═══════════════════════════════════════════════════════════════════════
+   483→  // TODAY'S TIMETABLE
+   484→  // ═══════════════════════════════════════════════════════════════════════
+   485→
+   486→  Widget _buildTodayTimetable(
+   487→    BuildContext context,
+   488→    EnhancedWorkspaceDashboardEntity dashboard,
+   489→  ) {
+   490→    final cs = context.colorScheme;
+   491→    final tt = context.textTheme;
+   492→    final classes = dashboard.todayClasses;
+   493→
+   494→    return Padding(
+   495→      padding: const EdgeInsets.symmetric(
+   496→        horizontal: Spacings.lg,
+   497→        vertical: Spacings.md,
+   498→      ),
+   499→      child: Column(
+   500→        crossAxisAlignment: CrossAxisAlignment.start,
+   501→        children: [
+   502→          _sectionHeaderWithLink(
+   503→            context,
+   504→            title: "Today's Classes",
+   505→            linkLabel: 'View Full',
+   506→            onTap: () => context.go(RouteNames.calendarPlanner),
+   507→          ),
+   508→          const SizedBox(height: Spacings.md),
+   509→          if (classes.isEmpty)
+   510→            Card(
+   511→              clipBehavior: Clip.antiAlias,
+   512→              elevation: Spacings.elevationNone,
+   513→              shape: RoundedRectangleBorder(
+   514→                borderRadius: Spacings.borderRadiusLg,
+   515→                side: BorderSide(
+   516→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   517→                ),
+   518→              ),
+   519→              child: Padding(
+   520→                padding: const EdgeInsets.all(Spacings.xl),
+   521→                child: Center(
+   522→                  child: Text(
+   523→                    'No classes today',
+   524→                    style: tt.bodyMedium?.copyWith(
+   525→                      color: cs.onSurfaceVariant,
+   526→                    ),
+   527→                    textAlign: TextAlign.center,
+   528→                  ),
+   529→                ),
+   530→              ),
+   531→            )
+   532→          else
+   533→            SizedBox(
+   534→              height: 100,
+   535→              child: ListView.separated(
+   536→                scrollDirection: Axis.horizontal,
+   537→                itemCount: classes.length,
+   538→                separatorBuilder: (_, __) =>
+   539→                    const SizedBox(width: Spacings.md),
+   540→                itemBuilder: (context, index) {
+   541→                  final event = classes[index];
+   542→                  return _TodayClassCard(event: event);
+   543→                },
+   544→              ),
+   545→            ),
+   546→        ],
+   547→      ),
+   548→    );
+   549→  }
+   550→
+   551→  // ═══════════════════════════════════════════════════════════════════════
+   552→  // PENDING TASKS & ASSIGNMENTS
+   553→  // ═══════════════════════════════════════════════════════════════════════
+   554→
+   555→  Widget _buildPendingTasks(
+   556→    BuildContext context,
+   557→    EnhancedWorkspaceDashboardEntity dashboard,
+   558→  ) {
+   559→    final cs = context.colorScheme;
+   560→    final tt = context.textTheme;
+   561→    final stats = dashboard.stats;
+   562→    final assignments = dashboard.pendingAssignments;
+   563→
+   564→    // Show at most 3 upcoming assignments
+   565→    final upcomingAssignments = assignments.take(3).toList();
+   566→
+   567→    return Padding(
+   568→      padding: const EdgeInsets.symmetric(
+   569→        horizontal: Spacings.lg,
+   570→        vertical: Spacings.md,
+   571→      ),
+   572→      child: Column(
+   573→        crossAxisAlignment: CrossAxisAlignment.start,
+   574→        children: [
+   575→          _sectionHeaderWithLink(
+   576→            context,
+   577→            title: 'Pending Tasks & Assignments',
+   578→            linkLabel: 'View All',
+   579→            onTap: () => context.go(RouteNames.workspace),
+   580→          ),
+   581→          const SizedBox(height: Spacings.md),
+   582→          // Row 1: Overdue + Pending badges
+   583→          Row(
+   584→            children: [
+   585→              if (stats.overdueTasks > 0) ...[
+   586→                Container(
+   587→                  padding: const EdgeInsets.symmetric(
+   588→                    horizontal: Spacings.md,
+   589→                    vertical: Spacings.sm,
+   590→                  ),
+   591→                  decoration: BoxDecoration(
+   592→                    color: AppColors.errorLight,
+   593→                    borderRadius: Spacings.borderRadiusFull,
+   594→                  ),
+   595→                  child: Row(
+   596→                    mainAxisSize: MainAxisSize.min,
+   597→                    children: [
+   598→                      Icon(
+   599→                        Icons.warning_amber_rounded,
+   600→                        size: 16,
+   601→                        color: AppColors.error,
+   602→                      ),
+   603→                      const SizedBox(width: Spacings.xs),
+   604→                      Text(
+   605→                        '${stats.overdueTasks} Overdue',
+   606→                        style: tt.labelSmall?.copyWith(
+   607→                          color: AppColors.errorDark,
+   608→                          fontWeight: AppTypography.wSemiBold,
+   609→                        ),
+   610→                      ),
+   611→                    ],
+   612→                  ),
+   613→                ),
+   614→                const SizedBox(width: Spacings.sm),
+   615→              ],
+   616→              Container(
+   617→                padding: const EdgeInsets.symmetric(
+   618→                  horizontal: Spacings.md,
+   619→                  vertical: Spacings.sm,
+   620→                ),
+   621→                decoration: BoxDecoration(
+   622→                  color: AppColors.warningLight,
+   623→                  borderRadius: Spacings.borderRadiusFull,
+   624→                ),
+   625→                child: Row(
+   626→                  mainAxisSize: MainAxisSize.min,
+   627→                  children: [
+   628→                    Icon(
+   629→                      Icons.pending_outlined,
+   630→                      size: 16,
+   631→                      color: AppColors.warning,
+   632→                    ),
+   633→                    const SizedBox(width: Spacings.xs),
+   634→                    Text(
+   635→                      '${stats.pendingTasks} Pending',
+   636→                      style: tt.labelSmall?.copyWith(
+   637→                        color: AppColors.warningDark,
+   638→                        fontWeight: AppTypography.wSemiBold,
+   639→                      ),
+   640→                    ),
+   641→                  ],
+   642→                ),
+   643→              ),
+   644→            ],
+   645→          ),
+   646→          // Row 2: Next 3 upcoming assignments
+   647→          if (upcomingAssignments.isNotEmpty) ...[
+   648→            const SizedBox(height: Spacings.md),
+   649→            ...upcomingAssignments.map(
+   650→              (assignment) => _AssignmentCard(assignment: assignment),
+   651→            ),
+   652→          ] else ...[
+   653→            const SizedBox(height: Spacings.md),
+   654→            Card(
+   655→              clipBehavior: Clip.antiAlias,
+   656→              elevation: Spacings.elevationNone,
+   657→              shape: RoundedRectangleBorder(
+   658→                borderRadius: Spacings.borderRadiusLg,
+   659→                side: BorderSide(
+   660→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   661→                ),
+   662→              ),
+   663→              child: Padding(
+   664→                padding: const EdgeInsets.all(Spacings.lg),
+   665→                child: Center(
+   666→                  child: Text(
+   667→                    'No pending assignments',
+   668→                    style: tt.bodyMedium?.copyWith(
+   669→                      color: cs.onSurfaceVariant,
+   670→                    ),
+   671→                  ),
+   672→                ),
+   673→              ),
+   674→            ),
+   675→          ],
+   676→        ],
+   677→      ),
+   678→    );
+   679→  }
+   680→
+   681→  // ═══════════════════════════════════════════════════════════════════════
+   682→  // TEACHING STATISTICS
+   683→  // ═══════════════════════════════════════════════════════════════════════
+   684→
+   685→  Widget _buildTeachingStatistics(
+   686→    BuildContext context,
+   687→    EnhancedWorkspaceDashboardEntity dashboard,
+   688→  ) {
+   689→    final teachingStats = dashboard.teachingStatistics;
+   690→
+   691→    final statCards = [
+   692→      _TeachingStatEntry(
+   693→        label: 'Total Students',
+   694→        value: teachingStats.totalStudents,
+   695→        icon: Icons.groups_rounded,
+   696→        color: AppColors.info,
+   697→      ),
+   698→      _TeachingStatEntry(
+   699→        label: 'Classes Taught',
+   700→        value: teachingStats.classesTaught,
+   701→        icon: Icons.school_rounded,
+   702→        color: AppColors.success,
+   703→      ),
+   704→      _TeachingStatEntry(
+   705→        label: 'Questions Generated',
+   706→        value: teachingStats.questionsGenerated,
+   707→        icon: Icons.quiz_rounded,
+   708→        color: AppColors.warning,
+   709→      ),
+   710→      _TeachingStatEntry(
+   711→        label: 'Resources Shared',
+   712→        value: teachingStats.resourcesShared,
+   713→        icon: Icons.share_rounded,
+   714→        color: Colors.purple,
+   715→      ),
+   716→    ];
+   717→
+   718→    return Padding(
+   719→      padding: const EdgeInsets.symmetric(
+   720→        horizontal: Spacings.lg,
+   721→        vertical: Spacings.md,
+   722→      ),
+   723→      child: Column(
+   724→        crossAxisAlignment: CrossAxisAlignment.start,
+   725→        children: [
+   726→          _sectionTitle(context, 'Your Teaching Stats'),
+   727→          const SizedBox(height: Spacings.md),
+   728→          SizedBox(
+   729→            height: 100,
+   730→            child: ListView.separated(
+   731→              scrollDirection: Axis.horizontal,
+   732→              itemCount: statCards.length,
+   733→              separatorBuilder: (_, __) =>
+   734→                  const SizedBox(width: Spacings.md),
+   735→              itemBuilder: (context, index) {
+   736→                return _TeachingStatCard(stat: statCards[index]);
+   737→              },
+   738→            ),
+   739→          ),
+   740→        ],
+   741→      ),
+   742→    );
+   743→  }
+   744→
+   745→  // ═══════════════════════════════════════════════════════════════════════
+   746→  // RECENT DOCUMENTS
+   747→  // ═══════════════════════════════════════════════════════════════════════
+   748→
+   749→  Widget _buildRecentDocuments(
+   750→    BuildContext context,
+   751→    EnhancedWorkspaceDashboardEntity dashboard,
+   752→  ) {
+   753→    final cs = context.colorScheme;
+   754→    final tt = context.textTheme;
+   755→    final documents = dashboard.recentDocuments;
+   756→
+   757→    return Padding(
+   758→      padding: const EdgeInsets.symmetric(
+   759→        horizontal: Spacings.lg,
+   760→        vertical: Spacings.md,
+   761→      ),
+   762→      child: Column(
+   763→        crossAxisAlignment: CrossAxisAlignment.start,
+   764→        children: [
+   765→          _sectionHeaderWithLink(
+   766→            context,
+   767→            title: 'Recent Documents',
+   768→            linkLabel: 'View All',
+   769→            onTap: () => context.go(RouteNames.resourceLibrary),
+   770→          ),
+   771→          const SizedBox(height: Spacings.md),
+   772→          if (documents.isEmpty)
+   773→            Card(
+   774→              clipBehavior: Clip.antiAlias,
+   775→              elevation: Spacings.elevationNone,
+   776→              shape: RoundedRectangleBorder(
+   777→                borderRadius: Spacings.borderRadiusLg,
+   778→                side: BorderSide(
+   779→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   780→                ),
+   781→              ),
+   782→              child: Padding(
+   783→                padding: const EdgeInsets.all(Spacings.xl),
+   784→                child: Center(
+   785→                  child: Text(
+   786→                    'No recent documents',
+   787→                    style: tt.bodyMedium?.copyWith(
+   788→                      color: cs.onSurfaceVariant,
+   789→                    ),
+   790→                    textAlign: TextAlign.center,
+   791→                  ),
+   792→                ),
+   793→              ),
+   794→            )
+   795→          else
+   796→            SizedBox(
+   797→              height: 130,
+   798→              child: ListView.separated(
+   799→                scrollDirection: Axis.horizontal,
+   800→                itemCount: documents.length,
+   801→                separatorBuilder: (_, __) =>
+   802→                    const SizedBox(width: Spacings.md),
+   803→                itemBuilder: (context, index) {
+   804→                  return _RecentDocumentCard(document: documents[index]);
+   805→                },
+   806→              ),
+   807→            ),
+   808→        ],
+   809→      ),
+   810→    );
+   811→  }
+   812→
+   813→  // ═══════════════════════════════════════════════════════════════════════
+   814→  // SAVED TEMPLATES
+   815→  // ═══════════════════════════════════════════════════════════════════════
+   816→
+   817→  Widget _buildSavedTemplates(
+   818→    BuildContext context,
+   819→    EnhancedWorkspaceDashboardEntity dashboard,
+   820→  ) {
+   821→    final cs = context.colorScheme;
+   822→    final tt = context.textTheme;
+   823→    final templates = dashboard.savedTemplates;
+   824→
+   825→    return Padding(
+   826→      padding: const EdgeInsets.symmetric(
+   827→        horizontal: Spacings.lg,
+   828→        vertical: Spacings.md,
+   829→      ),
+   830→      child: Column(
+   831→        crossAxisAlignment: CrossAxisAlignment.start,
+   832→        children: [
+   833→          _sectionHeaderWithLink(
+   834→            context,
+   835→            title: 'Saved Templates',
+   836→            linkLabel: 'Browse All',
+   837→            onTap: () => context.go(RouteNames.resourceLibrary),
+   838→          ),
+   839→          const SizedBox(height: Spacings.md),
+   840→          if (templates.isEmpty)
+   841→            Card(
+   842→              clipBehavior: Clip.antiAlias,
+   843→              elevation: Spacings.elevationNone,
+   844→              shape: RoundedRectangleBorder(
+   845→                borderRadius: Spacings.borderRadiusLg,
+   846→                side: BorderSide(
+   847→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   848→                ),
+   849→              ),
+   850→              child: Padding(
+   851→                padding: const EdgeInsets.all(Spacings.xl),
+   852→                child: Center(
+   853→                  child: Text(
+   854→                    'No saved templates yet',
+   855→                    style: tt.bodyMedium?.copyWith(
+   856→                      color: cs.onSurfaceVariant,
+   857→                    ),
+   858→                    textAlign: TextAlign.center,
+   859→                  ),
+   860→                ),
+   861→              ),
+   862→            )
+   863→          else
+   864→            SizedBox(
+   865→              height: 120,
+   866→              child: ListView.separated(
+   867→                scrollDirection: Axis.horizontal,
+   868→                itemCount: templates.length,
+   869→                separatorBuilder: (_, __) =>
+   870→                    const SizedBox(width: Spacings.md),
+   871→                itemBuilder: (context, index) {
+   872→                  return _TemplateCard(template: templates[index]);
+   873→                },
+   874→              ),
+   875→            ),
+   876→        ],
+   877→      ),
+   878→    );
+   879→  }
+   880→
+   881→  // ═══════════════════════════════════════════════════════════════════════
+   882→  // UPCOMING EVENTS
+   883→  // ═══════════════════════════════════════════════════════════════════════
+   884→
+   885→  Widget _buildUpcomingEvents(
+   886→    BuildContext context,
+   887→    EnhancedWorkspaceDashboardEntity dashboard,
+   888→  ) {
+   889→    final cs = context.colorScheme;
+   890→    final tt = context.textTheme;
+   891→    final events = dashboard.upcomingEvents.take(3).toList();
+   892→
+   893→    return Padding(
+   894→      padding: const EdgeInsets.symmetric(
+   895→        horizontal: Spacings.lg,
+   896→        vertical: Spacings.md,
+   897→      ),
+   898→      child: Column(
+   899→        crossAxisAlignment: CrossAxisAlignment.start,
+   900→        children: [
+   901→          _sectionHeaderWithLink(
+   902→            context,
+   903→            title: 'Upcoming Events',
+   904→            linkLabel: 'View Calendar',
+   905→            onTap: () => context.go(RouteNames.calendarPlanner),
+   906→          ),
+   907→          const SizedBox(height: Spacings.md),
+   908→          if (events.isEmpty)
+   909→            Card(
+   910→              clipBehavior: Clip.antiAlias,
+   911→              elevation: Spacings.elevationNone,
+   912→              shape: RoundedRectangleBorder(
+   913→                borderRadius: Spacings.borderRadiusLg,
+   914→                side: BorderSide(
+   915→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   916→                ),
+   917→              ),
+   918→              child: Padding(
+   919→                padding: const EdgeInsets.all(Spacings.xl),
+   920→                child: Center(
+   921→                  child: Text(
+   922→                    'No upcoming events',
+   923→                    style: tt.bodyMedium?.copyWith(
+   924→                      color: cs.onSurfaceVariant,
+   925→                    ),
+   926→                    textAlign: TextAlign.center,
+   927→                  ),
+   928→                ),
+   929→              ),
+   930→            )
+   931→          else
+   932→            ...events.map((event) => _UpcomingEventCard(event: event)),
+   933→        ],
+   934→      ),
+   935→    );
+   936→  }
+   937→
+   938→  // ═══════════════════════════════════════════════════════════════════════
+   939→  // NOTIFICATIONS
+   940→  // ═══════════════════════════════════════════════════════════════════════
+   941→
+   942→  Widget _buildNotifications(
+   943→    BuildContext context,
+   944→    EnhancedWorkspaceDashboardEntity dashboard,
+   945→  ) {
+   946→    final cs = context.colorScheme;
+   947→    final tt = context.textTheme;
+   948→    final count = dashboard.notificationsCount;
+   949→
+   950→    if (count == 0) return const SizedBox.shrink();
+   951→
+   952→    return Padding(
+   953→      padding: const EdgeInsets.symmetric(
+   954→        horizontal: Spacings.lg,
+   955→        vertical: Spacings.md,
+   956→      ),
+   957→      child: Column(
+   958→        crossAxisAlignment: CrossAxisAlignment.start,
+   959→        children: [
+   960→          _sectionTitle(context, 'Pending Notifications'),
+   961→          const SizedBox(height: Spacings.md),
+   962→          Card(
+   963→            clipBehavior: Clip.antiAlias,
+   964→            elevation: Spacings.elevationNone,
+   965→            shape: RoundedRectangleBorder(
+   966→              borderRadius: Spacings.borderRadiusLg,
+   967→              side: BorderSide(
+   968→                color: cs.outlineVariant.withValues(alpha: 0.5),
+   969→              ),
+   970→            ),
+   971→            child: InkWell(
+   972→              onTap: () => context.go(RouteNames.teachingResources),
+   973→              borderRadius: Spacings.borderRadiusLg,
+   974→              child: Padding(
+   975→                padding: const EdgeInsets.all(Spacings.lg),
+   976→                child: Row(
+   977→                  children: [
+   978→                    Container(
+   979→                      padding: const EdgeInsets.all(Spacings.sm),
+   980→                      decoration: BoxDecoration(
+   981→                        color: AppColors.infoLight,
+   982→                        borderRadius: Spacings.borderRadiusSm,
+   983→                      ),
+   984→                      child: const Icon(
+   985→                        Icons.notifications_active_outlined,
+   986→                        color: AppColors.info,
+   987→                        size: 20,
+   988→                      ),
+   989→                    ),
+   990→                    const SizedBox(width: Spacings.md),
+   991→                    Expanded(
+   992→                      child: Column(
+   993→                        crossAxisAlignment: CrossAxisAlignment.start,
+   994→                        children: [
+   995→                          Text(
+   996→                            '$count resources shared with you are waiting for review',
+   997→                            style: tt.bodyMedium?.copyWith(
+   998→                              fontWeight: AppTypography.wMedium,
+   999→                            ),
+  1000→                          ),
+  1001→                          const SizedBox(height: Spacings.xs),
+  1002→                          Text(
+  1003→                            'Tap to review shared resources',
+  1004→                            style: tt.bodySmall?.copyWith(
+  1005→                              color: cs.onSurfaceVariant,
+  1006→                            ),
+  1007→                          ),
+  1008→                        ],
+  1009→                      ),
+  1010→                    ),
+  1011→                    Icon(
+  1012→                      Icons.chevron_right_rounded,
+  1013→                      color: cs.onSurfaceVariant,
+  1014→                    ),
+  1015→                  ],
+  1016→                ),
+  1017→              ),
+  1018→            ),
+  1019→          ),
+  1020→        ],
+  1021→      ),
+  1022→    );
+  1023→  }
+  1024→
+  1025→  // ═══════════════════════════════════════════════════════════════════════
+  1026→  // RECENTLY GENERATED AI CONTENT
+  1027→  // ═══════════════════════════════════════════════════════════════════════
+  1028→
+  1029→  Widget _buildRecentAiContent(
+  1030→    BuildContext context,
+  1031→    EnhancedWorkspaceDashboardEntity dashboard,
+  1032→  ) {
+  1033→    final cs = context.colorScheme;
+  1034→    final tt = context.textTheme;
+  1035→    // Use recentDocuments as AI content source
+  1036→    final aiContent = dashboard.recentDocuments.take(3).toList();
+  1037→
+  1038→    return Padding(
+  1039→      padding: const EdgeInsets.symmetric(
+  1040→        horizontal: Spacings.lg,
+  1041→        vertical: Spacings.md,
+  1042→      ),
+  1043→      child: Column(
+  1044→        crossAxisAlignment: CrossAxisAlignment.start,
+  1045→        children: [
+  1046→          _sectionTitle(context, 'Recent AI Creations'),
+  1047→          const SizedBox(height: Spacings.md),
+  1048→          if (aiContent.isEmpty)
+  1049→            Card(
+  1050→              clipBehavior: Clip.antiAlias,
+  1051→              elevation: Spacings.elevationNone,
+  1052→              shape: RoundedRectangleBorder(
+  1053→                borderRadius: Spacings.borderRadiusLg,
+  1054→                side: BorderSide(
+  1055→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+  1056→                ),
+  1057→              ),
+  1058→              child: Padding(
+  1059→                padding: const EdgeInsets.all(Spacings.xl),
+  1060→                child: Center(
+  1061→                  child: Text(
+  1062→                    'No AI-generated content yet. Start by creating a lesson plan!',
+  1063→                    style: tt.bodyMedium?.copyWith(
+  1064→                      color: cs.onSurfaceVariant,
+  1065→                    ),
+  1066→                    textAlign: TextAlign.center,
+  1067→                  ),
+  1068→                ),
+  1069→              ),
+  1070→            )
+  1071→          else
+  1072→            ...aiContent.map((doc) => _AiContentCard(document: doc)),
+  1073→        ],
+  1074→      ),
+  1075→    );
+  1076→  }
+  1077→
+  1078→  // ═══════════════════════════════════════════════════════════════════════
+  1079→  // HELPERS
+  1080→  // ═══════════════════════════════════════════════════════════════════════
+  1081→
+  1082→  /// Renders a section title with consistent styling.
+  1083→  Widget _sectionTitle(BuildContext context, String title) {
+  1084→    final tt = context.textTheme;
+  1085→    final cs = context.colorScheme;
+  1086→
+  1087→    return Text(
+  1088→      title,
+  1089→      style: tt.titleMedium?.copyWith(
+  1090→        fontWeight: AppTypography.wSemiBold,
+  1091→        color: cs.onSurface,
+  1092→      ),
+  1093→    );
+  1094→  }
+  1095→
+  1096→  /// Renders a section title with a trailing link action.
+  1097→  Widget _sectionHeaderWithLink(
+  1098→    BuildContext context, {
+  1099→    required String title,
+  1100→    required String linkLabel,
+  1101→    required VoidCallback onTap,
+  1102→  }) {
+  1103→    final tt = context.textTheme;
+  1104→    final cs = context.colorScheme;
+  1105→
+  1106→    return Row(
+  1107→      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  1108→      children: [
+  1109→        Text(
+  1110→          title,
+  1111→          style: tt.titleMedium?.copyWith(
+  1112→            fontWeight: AppTypography.wSemiBold,
+  1113→            color: cs.onSurface,
+  1114→          ),
+  1115→        ),
+  1116→        InkWell(
+  1117→          onTap: onTap,
+  1118→          borderRadius: Spacings.borderRadiusSm,
+  1119→          child: Padding(
+  1120→            padding: const EdgeInsets.symmetric(
+  1121→              horizontal: Spacings.sm,
+  1122→              vertical: Spacings.xs,
+  1123→            ),
+  1124→            child: Text(
+  1125→              linkLabel,
+  1126→              style: tt.labelMedium?.copyWith(
+  1127→                color: cs.primary,
+  1128→                fontWeight: AppTypography.wSemiBold,
+  1129→              ),
+  1130→            ),
+  1131→          ),
+  1132→        ),
+  1133→      ],
+  1134→    );
+  1135→  }
+  1136→
+  1137→  /// Returns a time-of-day greeting based on the [hour].
+  1138→  String _timeOfDayGreeting(int hour) {
+  1139→    if (hour < 12) return 'Good morning';
+  1140→    if (hour < 17) return 'Good afternoon';
+  1141→    return 'Good evening';
+  1142→  }
+  1143→
+  1144→  /// Returns the short weekday name for [weekday] (1 = Monday).
+  1145→  String _weekdayName(int weekday) {
+  1146→    const names = [
+  1147→      'Monday',
+  1148→      'Tuesday',
+  1149→      'Wednesday',
+  1150→      'Thursday',
+  1151→      'Friday',
+  1152→      'Saturday',
+  1153→      'Sunday',
+  1154→    ];
+  1155→    return names[weekday - 1];
+  1156→  }
+  1157→
+  1158→  /// Returns the month name for [month] (1 = January).
+  1159→  String _monthName(int month) {
+  1160→    const names = [
+  1161→      'January',
+  1162→      'February',
+  1163→      'March',
+  1164→      'April',
+  1165→      'May',
+  1166→      'June',
+  1167→      'July',
+  1168→      'August',
+  1169→      'September',
+  1170→      'October',
+  1171→      'November',
+  1172→      'December',
+  1173→    ];
+  1174→    return names[month - 1];
+  1175→  }
+  1176→
+  1177→  /// Returns the icon for a given document/event type string.
+  1178→  IconData _typeIcon(String type) {
+  1179→    switch (type) {
+  1180→      case 'lesson_plan':
+  1181→        return Icons.auto_stories_rounded;
+  1182→      case 'worksheet':
+  1183→        return Icons.assignment_rounded;
+  1184→      case 'scheme_of_work':
+  1185→        return Icons.calendar_month_rounded;
+  1186→      case 'assignment':
+  1187→        return Icons.task_rounded;
+  1188→      case 'presentation':
+  1189→        return Icons.slideshow_rounded;
+  1190→      case 'communication':
+  1191→        return Icons.mail_rounded;
+  1192→      case 'rubric':
+  1193→        return Icons.grading_rounded;
+  1194→      case 'task':
+  1195→        return Icons.checklist_rounded;
+  1196→      case 'class':
+  1197→        return Icons.school_rounded;
+  1198→      case 'meeting':
+  1199→        return Icons.groups_rounded;
+  1200→      case 'deadline':
+  1201→        return Icons.alarm_rounded;
+  1202→      case 'event':
+  1203→        return Icons.event_rounded;
+  1204→      default:
+  1205→        return Icons.smart_toy_rounded;
+  1206→    }
+  1207→  }
+  1208→
+  1209→  /// Returns a color for a given document/event type string.
+  1210→  Color _typeColor(String type) {
+  1211→    switch (type) {
+  1212→      case 'lesson_plan':
+  1213→        return AppColors.info;
+  1214→      case 'worksheet':
+  1215→        return AppColors.success;
+  1216→      case 'scheme_of_work':
+  1217→        return Colors.teal;
+  1218→      case 'assignment':
+  1219→        return AppColors.warning;
+  1220→      case 'presentation':
+  1221→        return Colors.deepPurple;
+  1222→      case 'communication':
+  1223→        return Colors.pink;
+  1224→      case 'rubric':
+  1225→        return Colors.amber;
+  1226→      case 'task':
+  1227→        return Colors.cyan;
+  1228→      default:
+  1229→        return AppColors.info;
+  1230→    }
+  1231→  }
+  1232→
+  1233→  /// Formats a [DateTime] as a short time string (e.g. "2:30 PM").
+  1234→  String _formatTime(DateTime dt) {
+  1235→    final hour = dt.hour > 12 ? dt.hour - 12 : dt.hour;
+  1236→    final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+  1237→    final minute = dt.minute.toString().padLeft(2, '0');
+  1238→    return '$hour:$minute $amPm';
+  1239→  }
+  1240→
+  1241→  /// Formats a [DateTime] relative to now (e.g. "2h ago", "3d ago").
+  1242→  String _formatRelativeTime(DateTime dt) {
+  1243→    final diff = DateTime.now().difference(dt);
+  1244→    if (diff.inMinutes < 1) return 'Just now';
+  1245→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  1246→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+  1247→    return '${diff.inDays}d ago';
+  1248→  }
+  1249→
+  1250→  /// Returns a human-readable label for a document type string.
+  1251→  String _typeLabel(String type) {
+  1252→    switch (type) {
+  1253→      case 'lesson_plan':
+  1254→        return 'Lesson Plan';
+  1255→      case 'worksheet':
+  1256→        return 'Worksheet';
+  1257→      case 'scheme_of_work':
+  1258→        return 'Scheme of Work';
+  1259→      case 'assignment':
+  1260→        return 'Assignment';
+  1261→      case 'presentation':
+  1262→        return 'Presentation';
+  1263→      case 'communication':
+  1264→        return 'Communication';
+  1265→      case 'rubric':
+  1266→        return 'Rubric';
+  1267→      case 'task':
+  1268→        return 'Task';
+  1269→      default:
+  1270→        return type.replaceAll('_', ' ').split(' ').map(
+  1271→          (w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}',
+  1272→        ).join(' ');
+  1273→    }
+  1274→  }
+  1275→}
+  1276→
+  1277→// ═══════════════════════════════════════════════════════════════════════
+  1278→// QUICK STAT CARD (Welcome Section)
+  1279→// ═══════════════════════════════════════════════════════════════════════
+  1280→
+  1281→/// Data model for a single quick stat entry in the welcome section.
+  1282→class _QuickStatEntry {
+  1283→  final String title;
+  1284→  final int value;
+  1285→  final IconData icon;
+  1286→  final Color color;
+  1287→  final String route;
+  1288→
+  1289→  const _QuickStatEntry({
+  1290→    required this.title,
+  1291→    required this.value,
+  1292→    required this.icon,
+  1293→    required this.color,
+  1294→    required this.route,
+  1295→  });
+  1296→}
+  1297→
+  1298→/// A compact stat card displaying an icon, value, and title; tappable.
+  1299→class _QuickStatCard extends StatelessWidget {
+  1300→  final _QuickStatEntry stat;
+  1301→
+  1302→  const _QuickStatCard({required this.stat});
+  1303→
+  1304→  @override
+  1305→  Widget build(BuildContext context) {
+  1306→    final cs = context.colorScheme;
+  1307→    final tt = context.textTheme;
+  1308→
+  1309→    return Card(
+  1310→      clipBehavior: Clip.antiAlias,
+  1311→      elevation: Spacings.elevationNone,
+  1312→      shape: RoundedRectangleBorder(
+  1313→        borderRadius: Spacings.borderRadiusLg,
+  1314→        side: BorderSide(
+  1315→          color: cs.outlineVariant.withValues(alpha: 0.5),
+  1316→        ),
+  1317→      ),
+  1318→      child: InkWell(
+  1319→        onTap: () => context.go(stat.route),
+  1320→        borderRadius: Spacings.borderRadiusLg,
+  1321→        child: Padding(
+  1322→          padding: const EdgeInsets.all(Spacings.md),
+  1323→          child: Column(
+  1324→            crossAxisAlignment: CrossAxisAlignment.start,
+  1325→            mainAxisAlignment: MainAxisAlignment.center,
+  1326→            children: [
+  1327→              Container(
+  1328→                padding: const EdgeInsets.all(Spacings.sm),
+  1329→                decoration: BoxDecoration(
+  1330→                  color: stat.color.withValues(alpha: 0.12),
+  1331→                  borderRadius: Spacings.borderRadiusSm,
+  1332→                ),
+  1333→                child: Icon(stat.icon, color: stat.color, size: 18),
+  1334→              ),
+  1335→              const SizedBox(height: Spacings.sm),
+  1336→              Text(
+  1337→                '${stat.value}',
+  1338→                style: tt.titleLarge?.copyWith(
+  1339→                  fontWeight: AppTypography.wBold,
+  1340→                  color: cs.onSurface,
+  1341→                ),
+  1342→              ),
+  1343→              const SizedBox(height: Spacings.xxs),
+  1344→              Text(
+  1345→                stat.title,
+  1346→                style: tt.labelSmall?.copyWith(
+  1347→                  color: cs.onSurfaceVariant,
+  1348→                ),
+  1349→                maxLines: 1,
+  1350→                overflow: TextOverflow.ellipsis,
+  1351→              ),
+  1352→            ],
+  1353→          ),
+  1354→        ),
+  1355→      ),
+  1356→    );
+  1357→  }
+  1358→}
+  1359→
+  1360→// ═══════════════════════════════════════════════════════════════════════
+  1361→// QUICK ACTION CARD
+  1362→// ═══════════════════════════════════════════════════════════════════════
+  1363→
+  1364→/// Data model for a single quick action entry.
+  1365→class QuickActionData {
+  1366→  final IconData icon;
+  1367→  final String label;
+  1368→  final String route;
+  1369→  final Color color;
+  1370→
+  1371→  const QuickActionData({
+  1372→    required this.icon,
+  1373→    required this.label,
+  1374→    required this.route,
+  1375→    required this.color,
+  1376→  });
+  1377→}
+  1378→
+  1379→/// A single quick-action card with an icon and label.
+  1380→class _QuickActionCard extends StatelessWidget {
+  1381→  final QuickActionData action;
+  1382→
+  1383→  const _QuickActionCard({required this.action});
+  1384→
+  1385→  @override
+  1386→  Widget build(BuildContext context) {
+  1387→    final theme = Theme.of(context);
+  1388→
+  1389→    return Card(
+  1390→      clipBehavior: Clip.antiAlias,
+  1391→      elevation: Spacings.elevationNone,
+  1392→      shape: RoundedRectangleBorder(
+  1393→        borderRadius: Spacings.borderRadiusMd,
+  1394→        side: BorderSide(
+  1395→          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+  1396→        ),
+  1397→      ),
+  1398→      child: InkWell(
+  1399→        onTap: () => context.go(action.route),
+  1400→        borderRadius: Spacings.borderRadiusMd,
+  1401→        child: Padding(
+  1402→          padding: const EdgeInsets.all(Spacings.md),
+  1403→          child: Column(
+  1404→            mainAxisAlignment: MainAxisAlignment.center,
+  1405→            children: [
+  1406→              Container(
+  1407→                padding: const EdgeInsets.all(10),
+  1408→                decoration: BoxDecoration(
+  1409→                  color: action.color.withValues(alpha: 0.12),
+  1410→                  borderRadius: Spacings.borderRadiusMd,
+  1411→                ),
+  1412→                child: Icon(action.icon, color: action.color, size: 24),
+  1413→              ),
+  1414→              const SizedBox(height: Spacings.sm),
+  1415→              Text(
+  1416→                action.label,
+  1417→                style: theme.textTheme.labelSmall,
+  1418→                textAlign: TextAlign.center,
+  1419→                maxLines: 2,
+  1420→                overflow: TextOverflow.ellipsis,
+  1421→              ),
+  1422→            ],
+  1423→          ),
+  1424→        ),
+  1425→      ),
+  1426→    );
+  1427→  }
+  1428→}
+  1429→
+  1430→// ═══════════════════════════════════════════════════════════════════════
+  1431→// TODAY'S CLASS CARD
+  1432→// ═══════════════════════════════════════════════════════════════════════
+  1433→
+  1434→/// Card showing a single today's class in the horizontal timetable.
+  1435→class _TodayClassCard extends StatelessWidget {
+  1436→  final DashboardEventEntity event;
+  1437→
+  1438→  const _TodayClassCard({required this.event});
+  1439→
+  1440→  @override
+  1441→  Widget build(BuildContext context) {
+  1442→    final cs = context.colorScheme;
+  1443→    final tt = context.textTheme;
+  1444→    // Access private helpers from parent via a closure-style approach
+  1445→    // by extracting time formatting here.
+  1446→    final startTime = _formatTime(event.startTime);
+  1447→    final endTime = _formatTime(event.endTime);
+  1448→    final typeColor = _typeColor(event.eventType);
+  1449→    final typeIcon = _typeIcon(event.eventType);
+  1450→
+  1451→    return Card(
+  1452→      clipBehavior: Clip.antiAlias,
+  1453→      elevation: Spacings.elevationNone,
+  1454→      shape: RoundedRectangleBorder(
+  1455→        borderRadius: Spacings.borderRadiusLg,
+  1456→        side: BorderSide(
+  1457→          color: cs.outlineVariant.withValues(alpha: 0.5),
+  1458→        ),
+  1459→      ),
+  1460→      child: Container(
+  1461→        width: 160,
+  1462→        padding: const EdgeInsets.all(Spacings.md),
+  1463→        child: Column(
+  1464→          crossAxisAlignment: CrossAxisAlignment.start,
+  1465→          mainAxisAlignment: MainAxisAlignment.center,
+  1466→          children: [
+  1467→            Row(
+  1468→              children: [
+  1469→                Container(
+  1470→                  padding: const EdgeInsets.all(Spacings.xs),
+  1471→                  decoration: BoxDecoration(
+  1472→                    color: typeColor.withValues(alpha: 0.12),
+  1473→                    borderRadius: Spacings.borderRadiusSm,
+  1474→                  ),
+  1475→                  child: Icon(typeIcon, color: typeColor, size: 16),
+  1476→                ),
+  1477→                const SizedBox(width: Spacings.sm),
+  1478→                Expanded(
+  1479→                  child: Text(
+  1480→                    event.title,
+  1481→                    style: tt.bodyMedium?.copyWith(
+  1482→                      fontWeight: AppTypography.wSemiBold,
+  1483→                    ),
+  1484→                    maxLines: 1,
+  1485→                    overflow: TextOverflow.ellipsis,
+  1486→                  ),
+  1487→                ),
+  1488→              ],
+  1489→            ),
+  1490→            const SizedBox(height: Spacings.sm),
+  1491→            Text(
+  1492→              '$startTime – $endTime',
+  1493→              style: tt.bodySmall?.copyWith(
+  1494→                color: cs.onSurfaceVariant,
+  1495→              ),
+  1496→            ),
+  1497→          ],
+  1498→        ),
+  1499→      ),
+  1500→    );
+  1501→  }
+  1502→
+  1503→  String _formatTime(DateTime dt) {
+  1504→    final hour = dt.hour > 12 ? dt.hour - 12 : dt.hour;
+  1505→    final amPm = dt.hour >= 12 ? 'PM' : 'AM';
+  1506→    final minute = dt.minute.toString().padLeft(2, '0');
+  1507→    return '$hour:$minute $amPm';
+  1508→  }
+  1509→
+  1510→  Color _typeColor(String type) {
+  1511→    switch (type) {
+  1512→      case 'lesson_plan':
+  1513→        return AppColors.info;
+  1514→      case 'class':
+  1515→        return AppColors.success;
+  1516→      case 'meeting':
+  1517→        return Colors.purple;
+  1518→      case 'deadline':
+  1519→        return AppColors.warning;
+  1520→      default:
+  1521→        return AppColors.info;
+  1522→    }
+  1523→  }
+  1524→
+  1525→  IconData _typeIcon(String type) {
+  1526→    switch (type) {
+  1527→      case 'lesson_plan':
+  1528→        return Icons.auto_stories_rounded;
+  1529→      case 'class':
+  1530→        return Icons.school_rounded;
+  1531→      case 'meeting':
+  1532→        return Icons.groups_rounded;
+  1533→      case 'deadline':
+  1534→        return Icons.alarm_rounded;
+  1535→      default:
+  1536→        return Icons.event_rounded;
+  1537→    }
+  1538→  }
+  1539→}
+  1540→
+  1541→// ═══════════════════════════════════════════════════════════════════════
+  1542→// ASSIGNMENT CARD (Pending Tasks)
+  1543→// ═══════════════════════════════════════════════════════════════════════
+  1544→
+  1545→/// Card showing a pending assignment with deadline and priority.
+  1546→class _AssignmentCard extends StatelessWidget {
+  1547→  final DashboardAssignmentEntity assignment;
+  1548→
+  1549→  const _AssignmentCard({required this.assignment});
+  1550→
+  1551→  @override
+  1552→  Widget build(BuildContext context) {
+  1553→    final cs = context.colorScheme;
+  1554→    final tt = context.textTheme;
+  1555→
+  1556→    final isOverdue = assignment.deadline != null &&
+  1557→        assignment.deadline!.isBefore(DateTime.now());
+  1558→    final priorityColor = isOverdue ? AppColors.error : AppColors.warning;
+  1559→
+  1560→    return Card(
+  1561→      clipBehavior: Clip.antiAlias,
+  1562→      margin: const EdgeInsets.only(bottom: Spacings.sm),
+  1563→      elevation: Spacings.elevationNone,
+  1564→      shape: RoundedRectangleBorder(
+  1565→        borderRadius: Spacings.borderRadiusLg,
+  1566→        side: BorderSide(
+  1567→          color: cs.outlineVariant.withValues(alpha: 0.5),
+  1568→        ),
+  1569→      ),
+  1570→      child: Padding(
+  1571→        padding: const EdgeInsets.all(Spacings.lg),
+  1572→        child: Row(
+  1573→          children: [
+  1574→            Container(
+  1575→              width: 4,
+  1576→              height: 36,
+  1577→              decoration: BoxDecoration(
+  1578→                color: priorityColor,
+  1579→                borderRadius: Spacings.borderRadiusFull,
+  1580→              ),
+  1581→            ),
+  1582→            const SizedBox(width: Spacings.md),
+  1583→            Expanded(
+  1584→              child: Column(
+  1585→                crossAxisAlignment: CrossAxisAlignment.start,
+  1586→                children: [
+  1587→                  Text(
+  1588→                    assignment.title,
+  1589→                    style: tt.bodyMedium?.copyWith(
+  1590→                      fontWeight: AppTypography.wMedium,
+  1591→                    ),
+  1592→                    maxLines: 1,
+  1593→                    overflow: TextOverflow.ellipsis,
+  1594→                  ),
+  1595→                  if (assignment.deadline != null) ...[
+  1596→                    const SizedBox(height: Spacings.xs),
+  1597→                    Text(
+  1598→                      'Due ${_formatDate(assignment.deadline!)}',
+  1599→                      style: tt.bodySmall?.copyWith(
+  1600→                        color: isOverdue ? AppColors.error : cs.onSurfaceVariant,
+  1601→                      ),
+  1602→                    ),
+  1603→                  ],
+  1604→                ],
+  1605→              ),
+  1606→            ),
+  1607→            Container(
+  1608→              padding: const EdgeInsets.symmetric(
+  1609→                horizontal: Spacings.sm,
+  1610→                vertical: Spacings.xs,
+  1611→              ),
+  1612→              decoration: BoxDecoration(
+  1613→                color: priorityColor.withValues(alpha: 0.12),
+  1614→                borderRadius: Spacings.borderRadiusFull,
+  1615→              ),
+  1616→              child: Text(
+  1617→                isOverdue ? 'OVERDUE' : assignment.status.toUpperCase(),
+  1618→                style: tt.labelSmall?.copyWith(
+  1619→                  color: priorityColor,
+  1620→                  fontWeight: AppTypography.wSemiBold,
+  1621→                ),
+  1622→              ),
+  1623→            ),
+  1624→          ],
+  1625→        ),
+  1626→      ),
+  1627→    );
+  1628→  }
+  1629→
+  1630→  String _formatDate(DateTime dt) {
+  1631→    const months = [
+  1632→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  1633→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  1634→    ];
+  1635→    return '${months[dt.month]} ${dt.day}, ${dt.year}';
+  1636→  }
+  1637→}
+  1638→
+  1639→// ═══════════════════════════════════════════════════════════════════════
+  1640→// TEACHING STAT CARD
+  1641→// ═══════════════════════════════════════════════════════════════════════
+  1642→
+  1643→/// Data model for a single teaching stat entry.
+  1644→class _TeachingStatEntry {
+  1645→  final String label;
+  1646→  final int value;
+  1647→  final IconData icon;
+  1648→  final Color color;
+  1649→
+  1650→  const _TeachingStatEntry({
+  1651→    required this.label,
+  1652→    required this.value,
+  1653→    required this.icon,
+  1654→    required this.color,
+  1655→  });
+  1656→}
+  1657→
+  1658→/// A compact horizontal scrollable stat card for teaching statistics.
+  1659→class _TeachingStatCard extends StatelessWidget {
+  1660→  final _TeachingStatEntry stat;
+  1661→
+  1662→  const _TeachingStatCard({required this.stat});
+  1663→
+  1664→  @override
+  1665→  Widget build(BuildContext context) {
+  1666→    final cs = context.colorScheme;
+  1667→    final tt = context.textTheme;
+  1668→
+  1669→    return Card(
+  1670→      clipBehavior: Clip.antiAlias,
+  1671→      elevation: Spacings.elevationNone,
+  1672→      shape: RoundedRectangleBorder(
+  1673→        borderRadius: Spacings.borderRadiusLg,
+  1674→        side: BorderSide(
+  1675→          color: cs.outlineVariant.withValues(alpha: 0.5),
+  1676→        ),
+  1677→      ),
+  1678→      child: Container(
+  1679→        width: 140,
+  1680→        padding: const EdgeInsets.all(Spacings.lg),
+  1681→        child: Column(
+  1682→          crossAxisAlignment: CrossAxisAlignment.start,
+  1683→          mainAxisAlignment: MainAxisAlignment.center,
+  1684→          children: [
+  1685→            Container(
+  1686→              padding: const EdgeInsets.all(Spacings.sm),
+  1687→              decoration: BoxDecoration(
+  1688→                color: stat.color.withValues(alpha: 0.12),
+  1689→                borderRadius: Spacings.borderRadiusSm,
+  1690→              ),
+  1691→              child: Icon(stat.icon, color: stat.color, size: 20),
+  1692→            ),
+  1693→            const SizedBox(height: Spacings.sm),
+  1694→            Text(
+  1695→              '${stat.value}',
+  1696→              style: tt.headlineSmall?.copyWith(
+  1697→                fontWeight: AppTypography.wBold,
+  1698→                color: cs.onSurface,
+  1699→              ),
+  1700→            ),
+  1701→            const SizedBox(height: Spacings.xs),
+  1702→            Text(
+  1703→              stat.label,
+  1704→              style: tt.bodySmall?.copyWith(
+  1705→                color: cs.onSurfaceVariant,
+  1706→              ),
+  1707→              maxLines: 2,
+  1708→              overflow: TextOverflow.ellipsis,
+  1709→            ),
+  1710→          ],
+  1711→        ),
+  1712→      ),
+  1713→    );
+  1714→  }
+  1715→}
+  1716→
+  1717→// ═══════════════════════════════════════════════════════════════════════
+  1718→// RECENT DOCUMENT CARD
+  1719→// ═══════════════════════════════════════════════════════════════════════
+  1720→
+  1721→/// Card showing a recently accessed document in horizontal scroll.
+  1722→class _RecentDocumentCard extends StatelessWidget {
+  1723→  final RecentDocumentEntity document;
+  1724→
+  1725→  const _RecentDocumentCard({required this.document});
+  1726→
+  1727→  @override
+  1728→  Widget build(BuildContext context) {
+  1729→    final cs = context.colorScheme;
+  1730→    final tt = context.textTheme;
+  1731→    final typeColor = _typeColor(document.type);
+  1732→    final typeIcon = _typeIcon(document.type);
+  1733→
+  1734→    return Card(
+  1735→      clipBehavior: Clip.antiAlias,
+  1736→      elevation: Spacings.elevationNone,
+  1737→      shape: RoundedRectangleBorder(
+  1738→        borderRadius: Spacings.borderRadiusLg,
+  1739→        side: BorderSide(
+  1740→          color: cs.outlineVariant.withValues(alpha: 0.5),
+  1741→        ),
+  1742→      ),
+  1743→      child: Container(
+  1744→        width: 170,
+  1745→        padding: const EdgeInsets.all(Spacings.lg),
+  1746→        child: Column(
+  1747→          crossAxisAlignment: CrossAxisAlignment.start,
+  1748→          mainAxisAlignment: MainAxisAlignment.center,
+  1749→          children: [
+  1750→            Row(
+  1751→              children: [
+  1752→                Container(
+  1753→                  padding: const EdgeInsets.all(Spacings.sm),
+  1754→                  decoration: BoxDecoration(
+  1755→                    color: typeColor.withValues(alpha: 0.12),
+  1756→                    borderRadius: Spacings.borderRadiusSm,
+  1757→                  ),
+  1758→                  child: Icon(typeIcon, color: typeColor, size: 18),
+  1759→                ),
+  1760→                const SizedBox(width: Spacings.sm),
+  1761→                Expanded(
+  1762→                  child: Container(
+  1763→                    padding: const EdgeInsets.symmetric(
+  1764→                      horizontal: Spacings.sm,
+  1765→                      vertical: Spacings.xs,
+  1766→                    ),
+  1767→                    decoration: BoxDecoration(
+  1768→                      color: typeColor.withValues(alpha: 0.08),
+  1769→                      borderRadius: Spacings.borderRadiusFull,
+  1770→                    ),
+  1771→                    child: Text(
+  1772→                      _typeLabel(document.type),
+  1773→                      style: tt.labelSmall?.copyWith(
+  1774→                        color: typeColor,
+  1775→                        fontWeight: AppTypography.wSemiBold,
+  1776→                      ),
+  1777→                      textAlign: TextAlign.center,
+  1778→                      maxLines: 1,
+  1779→                      overflow: TextOverflow.ellipsis,
+  1780→                    ),
+  1781→                  ),
+  1782→                ),
+  1783→              ],
+  1784→            ),
+  1785→            const SizedBox(height: Spacings.sm),
+  1786→            Text(
+  1787→              document.title,
+  1788→              style: tt.bodyMedium?.copyWith(
+  1789→                fontWeight: AppTypography.wMedium,
+  1790→              ),
+  1791→              maxLines: 2,
+  1792→              overflow: TextOverflow.ellipsis,
+  1793→            ),
+  1794→            const SizedBox(height: Spacings.xs),
+  1795→            Text(
+  1796→              _formatRelativeTime(document.updatedAt),
+  1797→              style: tt.bodySmall?.copyWith(
+  1798→                color: cs.onSurfaceVariant,
+  1799→              ),
+  1800→            ),
+  1801→          ],
+  1802→        ),
+  1803→      ),
+  1804→    );
+  1805→  }
+  1806→
+  1807→  IconData _typeIcon(String type) {
+  1808→    switch (type) {
+  1809→      case 'lesson_plan':
+  1810→        return Icons.auto_stories_rounded;
+  1811→      case 'worksheet':
+  1812→        return Icons.assignment_rounded;
+  1813→      case 'scheme_of_work':
+  1814→        return Icons.calendar_month_rounded;
+  1815→      case 'assignment':
+  1816→        return Icons.task_rounded;
+  1817→      case 'presentation':
+  1818→        return Icons.slideshow_rounded;
+  1819→      case 'communication':
+  1820→        return Icons.mail_rounded;
+  1821→      case 'rubric':
+  1822→        return Icons.grading_rounded;
+  1823→      default:
+  1824→        return Icons.description_rounded;
+  1825→    }
+  1826→  }
+  1827→
+  1828→  Color _typeColor(String type) {
+  1829→    switch (type) {
+  1830→      case 'lesson_plan':
+  1831→        return AppColors.info;
+  1832→      case 'worksheet':
+  1833→        return AppColors.success;
+  1834→      case 'scheme_of_work':
+  1835→        return Colors.teal;
+  1836→      case 'assignment':
+  1837→        return AppColors.warning;
+  1838→      case 'presentation':
+  1839→        return Colors.deepPurple;
+  1840→      case 'communication':
+  1841→        return Colors.pink;
+  1842→      case 'rubric':
+  1843→        return Colors.amber;
+  1844→      default:
+  1845→        return AppColors.info;
+  1846→    }
+  1847→  }
+  1848→
+  1849→  String _typeLabel(String type) {
+  1850→    switch (type) {
+  1851→      case 'lesson_plan':
+  1852→        return 'Lesson Plan';
+  1853→      case 'worksheet':
+  1854→        return 'Worksheet';
+  1855→      case 'scheme_of_work':
+  1856→        return 'Scheme of Work';
+  1857→      case 'assignment':
+  1858→        return 'Assignment';
+  1859→      case 'presentation':
+  1860→        return 'Presentation';
+  1861→      case 'communication':
+  1862→        return 'Communication';
+  1863→      case 'rubric':
+  1864→        return 'Rubric';
+  1865→      default:
+  1866→        return type.replaceAll('_', ' ').split(' ').map(
+  1867→          (w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}',
+  1868→        ).join(' ');
+  1869→    }
+  1870→  }
+  1871→
+  1872→  String _formatRelativeTime(DateTime dt) {
+  1873→    final diff = DateTime.now().difference(dt);
+  1874→    if (diff.inMinutes < 1) return 'Just now';
+  1875→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+  1876→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+  1877→    return '${diff.inDays}d ago';
+  1878→  }
+  1879→}
+  1880→
+  1881→// ═══════════════════════════════════════════════════════════════════════
+  1882→// TEMPLATE CARD
+  1883→// ═══════════════════════════════════════════════════════════════════════
+  1884→
+  1885→/// Card showing a saved template in horizontal scroll.
+  1886→class _TemplateCard extends StatelessWidget {
+  1887→  final DashboardTemplateEntity template;
+  1888→
+  1889→  const _TemplateCard({required this.template});
+  1890→
+  1891→  @override
+  1892→  Widget build(BuildContext context) {
+  1893→    final cs = context.colorScheme;
+  1894→    final tt = context.textTheme;
+  1895→    final typeColor = _typeColor(template.templateType);
+  1896→
+  1897→    return Card(
+  1898→      clipBehavior: Clip.antiAlias,
+  1899→      elevation: Spacings.elevationNone,
+  1900→      shape: RoundedRectangleBorder(
+  1901→        borderRadius: Spacings.borderRadiusLg,
+  1902→        side: BorderSide(
+  1903→          color: cs.outlineVariant.withValues(alpha: 0.5),
+  1904→        ),
+  1905→      ),
+  1906→      child: Container(
+  1907→        width: 160,
+  1908→        padding: const EdgeInsets.all(Spacings.lg),
+  1909→        child: Column(
+  1910→          crossAxisAlignment: CrossAxisAlignment.start,
+  1911→          mainAxisAlignment: MainAxisAlignment.center,
+  1912→          children: [
+  1913→            Row(
+  1914→              children: [
+  1915→                Expanded(
+  1916→                  child: Container(
+  1917→                    padding: const EdgeInsets.symmetric(
+  1918→                      horizontal: Spacings.sm,
+  1919→                      vertical: Spacings.xs,
+  1920→                    ),
+  1921→                    decoration: BoxDecoration(
+  1922→                      color: typeColor.withValues(alpha: 0.08),
+  1923→                      borderRadius: Spacings.borderRadiusFull,
+  1924→                    ),
+  1925→                    child: Text(
+  1926→                      _typeLabel(template.templateType),
+  1927→                      style: tt.labelSmall?.copyWith(
+  1928→                        color: typeColor,
+  1929→                        fontWeight: AppTypography.wSemiBold,
+  1930→                      ),
+  1931→                      textAlign: TextAlign.center,
+  1932→                      maxLines: 1,
+  1933→                      overflow: TextOverflow.ellipsis,
+  1934→                    ),
+  1935→                  ),
+  1936→                ),
+  1937→              ],
+  1938→            ),
+  1939→            const SizedBox(height: Spacings.sm),
+  1940→            Text(
+  1941→              template.name,
+  1942→              style: tt.bodyMedium?.copyWith(
+  1943→                fontWeight: AppTypography.wMedium,
+  1944→              ),
+  1945→              maxLines: 2,
+  1946→              overflow: TextOverflow.ellipsis,
+  1947→            ),
+  1948→            const SizedBox(height: Spacings.xs),
+  1949→            Row(
+  1950→              children: [
+  1951→                Icon(
+  1952→                  Icons.copy_rounded,
+  1953→                  size: 14,
+  1954→                  color: cs.onSurfaceVariant,
+  1955→                ),
+  1956→                const SizedBox(width: Spacings.xs),
+  1957→                Text(
+  1958→                  'Used ${template.usageCount} ${template.usageCount == 1 ? 'time' : 'times'}',
+  1959→                  style: tt.bodySmall?.copyWith(
+  1960→                    color: cs.onSurfaceVariant,
+  1961→                  ),
+  1962→                ),
+  1963→              ],
+  1964→            ),
+  1965→          ],
+  1966→        ),
+  1967→      ),
+  1968→    );
+  1969→  }
+  1970→
+  1971→  Color _typeColor(String type) {
+  1972→    switch (type) {
+  1973→      case 'lesson_plan':
+  1974→        return AppColors.info;
+  1975→      case 'worksheet':
+  1976→        return AppColors.success;
+  1977→      case 'scheme_of_work':
+  1978→        return Colors.teal;
+  1979→      case 'assignment':
+  1980→        return AppColors.warning;
+  1981→      case 'presentation':
+  1982→        return Colors.deepPurple;
+  1983→      case 'communication':
+  1984→        return Colors.pink;
+  1985→      case 'rubric':
+  1986→        return Colors.amber;
+  1987→      default:
+  1988→        return AppColors.info;
+  1989→    }
+  1990→  }
+  1991→
+  1992→  String _typeLabel(String type) {
+  1993→    switch (type) {
+  1994→      case 'lesson_plan':
+  1995→        return 'Lesson Plan';
+  1996→      case 'worksheet':
+  1997→        return 'Worksheet';
+  1998→      case 'scheme_of_work':
+  1999→        return 'Scheme of Work';
+  2000→      case 'assignment':
+
+[showing lines 1-2000 of 2290; use offset=2001 with limit to continue reading]

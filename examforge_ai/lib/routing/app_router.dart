@@ -126,6 +126,18 @@ import '../features/school_management/presentation/pages/document/document_uploa
 import '../features/school_management/presentation/pages/report/report_dashboard_page.dart';
 import '../features/school_management/presentation/pages/report/student_report_page.dart';
 import '../features/school_management/presentation/pages/report/attendance_report_page.dart' as sm;
+import '../features/parent_portal/presentation/pages/parent_dashboard_page.dart';
+import '../features/parent_portal/presentation/pages/child_profile_page.dart';
+import '../features/parent_portal/presentation/pages/child_performance_page.dart';
+import '../features/parent_portal/presentation/pages/child_attendance_page.dart';
+import '../features/parent_portal/presentation/pages/child_assignments_page.dart';
+import '../features/parent_portal/presentation/pages/parent_messaging_page.dart';
+import '../features/parent_portal/presentation/pages/parent_calendar_page.dart';
+import '../features/parent_portal/presentation/pages/parent_assistant_page.dart';
+import '../features/parent_portal/presentation/pages/parent_notifications_page.dart';
+import '../features/parent_portal/presentation/pages/parent_insights_page.dart';
+import '../features/parent_portal/presentation/pages/parent_reports_page.dart';
+import '../features/parent_portal/presentation/pages/parent_engagement_dashboard_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -1107,6 +1119,72 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               return sm.AttendanceReportPage(schoolId: schoolId);
             },
+          ),
+
+          // ── Parent Portal Routes ────────────────────────────────────
+          GoRoute(
+            path: '/parent-portal',
+            redirect: (_, __) => RouteNames.parentDashboard,
+          ),
+          GoRoute(
+            path: 'parent-portal/dashboard',
+            name: 'parentDashboard',
+            builder: (context, state) => const ParentDashboardPage(),
+          ),
+          GoRoute(
+            path: 'parent-portal/child-profile',
+            name: 'childProfile',
+            builder: (context, state) => ChildProfilePage(studentId: state.uri.queryParameters['studentId'] ?? ''),
+          ),
+          GoRoute(
+            path: 'parent-portal/performance',
+            name: 'childPerformance',
+            builder: (context, state) => ChildPerformancePage(studentId: state.uri.queryParameters['studentId'] ?? ''),
+          ),
+          GoRoute(
+            path: 'parent-portal/attendance',
+            name: 'childAttendance',
+            builder: (context, state) => ChildAttendancePage(studentId: state.uri.queryParameters['studentId'] ?? ''),
+          ),
+          GoRoute(
+            path: 'parent-portal/assignments',
+            name: 'childAssignments',
+            builder: (context, state) => ChildAssignmentsPage(studentId: state.uri.queryParameters['studentId'] ?? ''),
+          ),
+          GoRoute(
+            path: 'parent-portal/messages',
+            name: 'parentMessaging',
+            builder: (context, state) => const ParentMessagingPage(),
+          ),
+          GoRoute(
+            path: 'parent-portal/calendar',
+            name: 'parentCalendar',
+            builder: (context, state) => const ParentCalendarPage(),
+          ),
+          GoRoute(
+            path: 'parent-portal/assistant',
+            name: 'parentAssistant',
+            builder: (context, state) => const ParentAssistantPage(),
+          ),
+          GoRoute(
+            path: 'parent-portal/notifications',
+            name: 'parentNotifications',
+            builder: (context, state) => const ParentNotificationsPage(),
+          ),
+          GoRoute(
+            path: 'parent-portal/insights',
+            name: 'parentInsights',
+            builder: (context, state) => const ParentInsightsPage(),
+          ),
+          GoRoute(
+            path: 'parent-portal/reports',
+            name: 'parentReports',
+            builder: (context, state) => const ParentReportsPage(),
+          ),
+          GoRoute(
+            path: 'parent-portal/engagement',
+            name: 'parentEngagement',
+            builder: (context, state) => const ParentEngagementDashboardPage(),
           ),
         ],
       ),

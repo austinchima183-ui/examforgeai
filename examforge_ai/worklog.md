@@ -65,3 +65,38 @@ Stage Summary:
 - Enhanced Dashboard with: daily overview, today's timetable, pending tasks/assignments, teaching statistics, recent documents, saved templates, upcoming events, notifications, AI quick actions (12 total)
 - Full routing and DI wiring integrated with existing modules
 - Cross-module integration: Generate Questions from any resource → AI Generator, Share resources with colleagues, Comments/versioning on resources
+
+---
+Task ID: 3
+Agent: Main Agent
+Task: Build Parent Portal module for ExamForge AI
+
+Work Log:
+- Explored existing codebase to identify parent-related infrastructure (ParentProfileEntity, ParentStudentLinkEntity already exist in school_management)
+- Created database schema: supabase/migrations/parent_portal_schema.sql with 7 tables (parent_messages, parent_notifications, parent_activity_logs, parent_ai_insights, parent_report_downloads, parent_calendar_events, parent_engagement_metrics), 5 enum types, RLS policies, materialized view for engagement summary, and 5 stored procedures (get_parent_dashboard, get_child_performance, get_parent_engagement_analytics, generate_parent_insight, record_parent_engagement)
+- Created domain entities: parent_portal_entities.dart with 8 enums, 19 entity classes (ParentMessageEntity, ParentNotificationEntity, ParentActivityLogEntity, ParentAiInsightEntity, ParentReportDownloadEntity, ParentCalendarEventEntity, EngagementMetricEntity, ParentDashboardEntity, ChildPerformanceEntity, EngagementAnalyticsEntity, ParentMessageThreadEntity, ChildSummaryEntity, ChildProfileEntity, ChildAttendanceEntity, ChildAssignmentEntity, ParentAssistantResponseEntity, plus helpers)
+- Created 18 use case files for all parent portal operations
+- Created repository contract: ParentPortalRepository with 17 abstract methods
+- Created data models: parent_portal_models.dart with 9 model classes
+- Created remote datasource with 18 methods using Supabase RPC + CRUD
+- Created repository implementation with full exception-to-failure mapping
+- Created 12 state management providers for all features
+- Created 12 UI pages: Parent Dashboard, Child Profile, Child Performance, Child Attendance, Child Assignments, Parent Messaging, Parent Calendar, AI Parent Assistant, Parent Notifications, Parent Insights, Parent Reports, Parent Engagement Dashboard (Admin)
+- Created 8 shared widgets: ChildSelectorDropdown, ChildSummaryCard, AttendanceCalendar, InsightCard, MessageBubble, NotificationListTile, PerformanceIndicator, EngagementMetricCard
+- Updated route_names.dart with 13 new route constants + parentPortalRoutes set (renamed existing schoolParentPortal to avoid conflict)
+- Updated app_router.dart with 13 GoRoute entries for all parent portal pages
+- Updated dependency_injection.dart with 18 use case providers + 12 state notifier providers
+
+Stage Summary:
+- Complete Parent Portal module built with full Clean Architecture
+- 7 database tables with RLS, stored procedures, engagement tracking, and AI insight generation
+- 19 domain entities with 8 enums, 18 use cases, 17 repository methods
+- 9 data models, 18 datasource methods, full repository implementation
+- 12 state management providers with proper error handling
+- 12 production-ready UI pages following Material 3 design
+- 8 reusable widgets including attendance calendar, performance indicator, message bubbles
+- Multi-child support throughout (child selector dropdown, per-child data)
+- AI Parent Assistant with disclaimer, suggested questions, and child context
+- Parent Engagement Dashboard for school admins with analytics, students needing support, and trends
+- Full routing and DI wiring integrated with existing modules
+- Security: parents only access linked children, RLS policies, secure messaging, audit logging

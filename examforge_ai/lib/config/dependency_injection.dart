@@ -124,6 +124,18 @@ import '../features/student_portal/presentation/providers/resource_provider.dart
 import '../features/student_portal/presentation/providers/student_dashboard_provider.dart';
 import '../features/student_portal/presentation/providers/student_notification_provider.dart';
 import '../features/student_portal/presentation/providers/study_planner_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_dashboard_provider.dart';
+import '../features/parent_portal/presentation/providers/child_profile_provider.dart';
+import '../features/parent_portal/presentation/providers/child_performance_provider.dart';
+import '../features/parent_portal/presentation/providers/child_attendance_provider.dart';
+import '../features/parent_portal/presentation/providers/child_assignments_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_messaging_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_notification_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_calendar_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_assistant_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_insights_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_reports_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_engagement_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // INFRASTRUCTURE PROVIDERS
@@ -2534,4 +2546,262 @@ final getAttendanceReportUseCaseProvider =
     Provider<GetAttendanceReportUseCase>((ref) {
   return GetAttendanceReportUseCase(
       ref.watch(schoolManagementRepositoryProvider));
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// PARENT PORTAL
+// ═══════════════════════════════════════════════════════════════════════
+
+import '../features/parent_portal/data/datasources/parent_portal_remote_datasource.dart';
+import '../features/parent_portal/data/repositories/parent_portal_repository_impl.dart';
+import '../features/parent_portal/domain/repositories/parent_portal_repository.dart';
+import '../features/parent_portal/domain/usecases/get_parent_dashboard_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_insights_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_child_profile_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_child_performance_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_child_attendance_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_child_assignments_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_notifications_usecase.dart';
+import '../features/parent_portal/domain/usecases/mark_notification_read_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_messages_usecase.dart';
+import '../features/parent_portal/domain/usecases/mark_message_read_usecase.dart';
+import '../features/parent_portal/domain/usecases/send_parent_message_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_message_threads_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_calendar_usecase.dart';
+import '../features/parent_portal/domain/usecases/dismiss_insight_usecase.dart';
+import '../features/parent_portal/domain/usecases/ask_parent_assistant_usecase.dart';
+import '../features/parent_portal/domain/usecases/download_report_usecase.dart';
+import '../features/parent_portal/domain/usecases/record_engagement_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_engagement_analytics_usecase.dart';
+
+// ─── Data Source ──────────────────────────────────────────────────────
+
+final parentPortalRemoteDataSourceProvider =
+    Provider<ParentPortalRemoteDataSource>((ref) {
+  return ParentPortalRemoteDataSourceImpl(
+    supabaseClient: ref.watch(supabaseClientProvider),
+  );
+});
+
+// ─── Repository ──────────────────────────────────────────────────────
+
+final parentPortalRepositoryProvider =
+    Provider<ParentPortalRepository>((ref) {
+  return ParentPortalRepositoryImpl(
+    remoteDataSource: ref.watch(parentPortalRemoteDataSourceProvider),
+  );
+});
+
+// ─── Use Cases ───────────────────────────────────────────────────────
+
+final getParentDashboardUseCaseProvider =
+    Provider<GetParentDashboardUseCase>((ref) {
+  return GetParentDashboardUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getParentInsightsUseCaseProvider =
+    Provider<GetParentInsightsUseCase>((ref) {
+  return GetParentInsightsUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getChildProfileUseCaseProvider =
+    Provider<GetChildProfileUseCase>((ref) {
+  return GetChildProfileUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getChildPerformanceUseCaseProvider =
+    Provider<GetChildPerformanceUseCase>((ref) {
+  return GetChildPerformanceUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getChildAttendanceUseCaseProvider =
+    Provider<GetChildAttendanceUseCase>((ref) {
+  return GetChildAttendanceUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getChildAssignmentsUseCaseProvider =
+    Provider<GetChildAssignmentsUseCase>((ref) {
+  return GetChildAssignmentsUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getParentNotificationsUseCaseProvider =
+    Provider<GetParentNotificationsUseCase>((ref) {
+  return GetParentNotificationsUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final markNotificationReadUseCaseProvider =
+    Provider<MarkNotificationReadUseCase>((ref) {
+  return MarkNotificationReadUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getParentMessagesUseCaseProvider =
+    Provider<GetParentMessagesUseCase>((ref) {
+  return GetParentMessagesUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final markMessageReadUseCaseProvider =
+    Provider<MarkMessageReadUseCase>((ref) {
+  return MarkMessageReadUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final sendParentMessageUseCaseProvider =
+    Provider<SendParentMessageUseCase>((ref) {
+  return SendParentMessageUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getMessageThreadsUseCaseProvider =
+    Provider<GetMessageThreadsUseCase>((ref) {
+  return GetMessageThreadsUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getParentCalendarUseCaseProvider =
+    Provider<GetParentCalendarUseCase>((ref) {
+  return GetParentCalendarUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final dismissInsightUseCaseProvider =
+    Provider<DismissInsightUseCase>((ref) {
+  return DismissInsightUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final askParentAssistantUseCaseProvider =
+    Provider<AskParentAssistantUseCase>((ref) {
+  return AskParentAssistantUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final downloadReportUseCaseProvider =
+    Provider<DownloadReportUseCase>((ref) {
+  return DownloadReportUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final recordEngagementUseCaseProvider =
+    Provider<RecordEngagementUseCase>((ref) {
+  return RecordEngagementUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+final getEngagementAnalyticsUseCaseProvider =
+    Provider<GetEngagementAnalyticsUseCase>((ref) {
+  return GetEngagementAnalyticsUseCase(
+      ref.watch(parentPortalRepositoryProvider));
+});
+
+// ─── State Notifiers ──────────────────────────────────────────────────
+
+final parentDashboardProvider =
+    StateNotifierProvider<ParentDashboardNotifier, ParentDashboardState>(
+        (ref) {
+  return ParentDashboardNotifier(
+    getParentDashboardUseCase: ref.watch(getParentDashboardUseCaseProvider),
+  );
+});
+
+final childProfileProvider =
+    StateNotifierProvider<ChildProfileNotifier, ChildProfileState>((ref) {
+  return ChildProfileNotifier(
+    getChildProfileUseCase: ref.watch(getChildProfileUseCaseProvider),
+  );
+});
+
+final childPerformanceProvider =
+    StateNotifierProvider<ChildPerformanceNotifier, ChildPerformanceState>(
+        (ref) {
+  return ChildPerformanceNotifier(
+    getChildPerformanceUseCase: ref.watch(getChildPerformanceUseCaseProvider),
+  );
+});
+
+final childAttendanceProvider =
+    StateNotifierProvider<ChildAttendanceNotifier, ChildAttendanceState>(
+        (ref) {
+  return ChildAttendanceNotifier(
+    getChildAttendanceUseCase: ref.watch(getChildAttendanceUseCaseProvider),
+  );
+});
+
+final childAssignmentsProvider =
+    StateNotifierProvider<ChildAssignmentsNotifier, ChildAssignmentsState>(
+        (ref) {
+  return ChildAssignmentsNotifier(
+    getChildAssignmentsUseCase: ref.watch(getChildAssignmentsUseCaseProvider),
+  );
+});
+
+final parentMessagingProvider =
+    StateNotifierProvider<ParentMessagingNotifier, ParentMessagingState>(
+        (ref) {
+  return ParentMessagingNotifier(
+    sendParentMessageUseCase: ref.watch(sendParentMessageUseCaseProvider),
+    getParentMessagesUseCase: ref.watch(getParentMessagesUseCaseProvider),
+    getMessageThreadsUseCase: ref.watch(getMessageThreadsUseCaseProvider),
+    markMessageReadUseCase: ref.watch(markMessageReadUseCaseProvider),
+  );
+});
+
+final parentNotificationProvider =
+    StateNotifierProvider<ParentNotificationNotifier, ParentNotificationState>(
+        (ref) {
+  return ParentNotificationNotifier(
+    getParentNotificationsUseCase:
+        ref.watch(getParentNotificationsUseCaseProvider),
+    markNotificationReadUseCase:
+        ref.watch(markNotificationReadUseCaseProvider),
+  );
+});
+
+final parentCalendarProvider =
+    StateNotifierProvider<ParentCalendarNotifier, ParentCalendarState>(
+        (ref) {
+  return ParentCalendarNotifier(
+    getParentCalendarUseCase: ref.watch(getParentCalendarUseCaseProvider),
+  );
+});
+
+final parentAssistantProvider =
+    StateNotifierProvider<ParentAssistantNotifier, ParentAssistantState>(
+        (ref) {
+  return ParentAssistantNotifier(
+    askParentAssistantUseCase: ref.watch(askParentAssistantUseCaseProvider),
+  );
+});
+
+final parentInsightsProvider =
+    StateNotifierProvider<ParentInsightsNotifier, ParentInsightsState>(
+        (ref) {
+  return ParentInsightsNotifier(
+    getParentInsightsUseCase: ref.watch(getParentInsightsUseCaseProvider),
+    dismissInsightUseCase: ref.watch(dismissInsightUseCaseProvider),
+  );
+});
+
+final parentReportsProvider =
+    StateNotifierProvider<ParentReportsNotifier, ParentReportsState>((ref) {
+  return ParentReportsNotifier(
+    downloadReportUseCase: ref.watch(downloadReportUseCaseProvider),
+  );
+});
+
+final parentEngagementProvider =
+    StateNotifierProvider<ParentEngagementNotifier, ParentEngagementState>(
+        (ref) {
+  return ParentEngagementNotifier(
+    getEngagementAnalyticsUseCase:
+        ref.watch(getEngagementAnalyticsUseCaseProvider),
+  );
 });

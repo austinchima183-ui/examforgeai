@@ -1,0 +1,850 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/extensions/context_extensions.dart';
+     6→import '../../../../core/themes/app_colors.dart';
+     7→import '../../../../core/themes/app_typography.dart';
+     8→import '../../../../core/themes/spacings.dart';
+     9→import '../../../../routing/route_names.dart';
+    10→import '../../../../shared/widgets/app_app_bar.dart';
+    11→import '../../../../shared/widgets/app_empty_state.dart';
+    12→import '../../../../shared/widgets/app_error_state.dart';
+    13→import '../../../../shared/widgets/app_loading.dart';
+    14→import '../../domain/entities/parent_portal_entities.dart';
+    15→import '../providers/child_performance_provider.dart';
+    16→
+    17→// ═══════════════════════════════════════════════════════════════════════
+    18→// CHILD PERFORMANCE PAGE
+    19→// ═══════════════════════════════════════════════════════════════════════
+    20→
+    21→/// Academic performance page for a specific child in the Parent Portal.
+    22→///
+    23→/// Displays comprehensive academic information including:
+    24→/// - Overall performance card with average score and attendance rate
+    25→/// - Subject performance list with colour-coded scores
+    26→/// - Performance chart placeholder
+    27→/// - Teacher remarks section
+    28→/// - Download report card button with format options
+    29→///
+    30→/// Receives [studentId] as a route parameter and loads performance
+    31→/// data using [childPerformanceProvider].
+    32→class ChildPerformancePage extends ConsumerStatefulWidget {
+    33→  const ChildPerformancePage({
+    34→    super.key,
+    35→    required this.studentId,
+    36→  });
+    37→
+    38→  /// Unique identifier of the student whose performance is displayed.
+    39→  final String studentId;
+    40→
+    41→  @override
+    42→  ConsumerState<ChildPerformancePage> createState() => _State();
+    43→}
+    44→
+    45→class _State extends ConsumerState<ChildPerformancePage> {
+    46→  // ─── Lifecycle ──────────────────────────────────────────────────────
+    47→
+    48→  @override
+    49→  void initState() {
+    50→    super.initState();
+    51→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    52→      ref
+    53→          .read(childPerformanceProvider.notifier)
+    54→          .loadPerformance(widget.studentId);
+    55→    });
+    56→  }
+    57→
+    58→  // ─── Build ──────────────────────────────────────────────────────────
+    59→
+    60→  @override
+    61→  Widget build(BuildContext context) {
+    62→    final performanceState = ref.watch(childPerformanceProvider);
+    63→
+    64→    return Scaffold(
+    65→      appBar: const AppAppBar(title: 'Academic Performance'),
+    66→      body: _buildBody(context, performanceState),
+    67→    );
+    68→  }
+    69→
+    70→  // ─── Body Router ────────────────────────────────────────────────────
+    71→
+    72→  Widget _buildBody(BuildContext context, ChildPerformanceState state) {
+    73→    // Loading state
+    74→    if (state.isLoading && state.performance == null) {
+    75→      return _buildShimmerLoading(context);
+    76→    }
+    77→
+    78→    // Error state
+    79→    if (state.error != null && state.performance == null) {
+    80→      return AppErrorState.genericError(
+    81→        message: state.error,
+    82→        onRetry: () => ref
+    83→            .read(childPerformanceProvider.notifier)
+    84→            .loadPerformance(widget.studentId),
+    85→      );
+    86→    }
+    87→
+    88→    // Empty state
+    89→    final performance = state.performance;
+    90→    if (performance == null) {
+    91→      return AppEmptyState.noData(
+    92→        title: 'No Performance Data',
+    93→        subtitle:
+    94→            'Academic performance data will appear here once available.',
+    95→        actionLabel: 'Retry',
+    96→        onAction: () => ref
+    97→            .read(childPerformanceProvider.notifier)
+    98→            .loadPerformance(widget.studentId),
+    99→      );
+   100→    }
+   101→
+   102→    // Success — render performance
+   103→    return RefreshIndicator(
+   104→      onRefresh: () => ref
+   105→          .read(childPerformanceProvider.notifier)
+   106→          .refreshPerformance(widget.studentId),
+   107→      child: SingleChildScrollView(
+   108→        physics: const AlwaysScrollableScrollPhysics(),
+   109→        padding: const EdgeInsets.only(bottom: Spacings.xxl),
+   110→        child: Column(
+   111→          crossAxisAlignment: CrossAxisAlignment.start,
+   112→          children: [
+   113→            // ─── Overall Performance Card ───────────────────────────
+   114→            _buildOverallPerformanceCard(context, performance),
+   115→
+   116→            const SizedBox(height: Spacings.xl),
+   117→
+   118→            // ─── Subject Performance List ───────────────────────────
+   119→            _buildSubjectPerformanceList(context, performance),
+   120→
+   121→            const SizedBox(height: Spacings.xl),
+   122→
+   123→            // ─── Performance Chart Placeholder ──────────────────────
+   124→            _buildChartPlaceholder(context),
+   125→
+   126→            const SizedBox(height: Spacings.xl),
+   127→
+   128→            // ─── Teacher Remarks Section ────────────────────────────
+   129→            _buildTeacherRemarksSection(context, performance),
+   130→
+   131→            const SizedBox(height: Spacings.xl),
+   132→
+   133→            // ─── Download Report Card Button ────────────────────────
+   134→            _buildDownloadReportButton(context),
+   135→
+   136→            const SizedBox(height: Spacings.lg),
+   137→          ],
+   138→        ),
+   139→      ),
+   140→    );
+   141→  }
+   142→
+   143→  // ═══════════════════════════════════════════════════════════════════════
+   144→  // SHIMMER LOADING
+   145→  // ═══════════════════════════════════════════════════════════════════════
+   146→
+   147→  Widget _buildShimmerLoading(BuildContext context) {
+   148→    return SingleChildScrollView(
+   149→      physics: const NeverScrollableScrollPhysics(),
+   150→      child: AppLoadingShimmer(
+   151→        child: Column(
+   152→          children: [
+   153→            Padding(
+   154→              padding: const EdgeInsets.all(Spacings.lg),
+   155→              child: Column(
+   156→                children: [
+   157→                  // Overall card shimmer
+   158→                  AppLoadingShimmer.box(
+   159→                    height: 180,
+   160→                    borderRadius: Spacings.borderRadiusLg,
+   161→                  ),
+   162→                  const SizedBox(height: Spacings.xl),
+   163→                  // Subject items shimmer
+   164→                  ...List.generate(
+   165→                    4,
+   166→                    (_) => Padding(
+   167→                      padding: const EdgeInsets.only(bottom: Spacings.md),
+   168→                      child: AppLoadingShimmer.box(
+   169→                        height: 72,
+   170→                        borderRadius: Spacings.borderRadiusMd,
+   171→                      ),
+   172→                    ),
+   173→                  ),
+   174→                ],
+   175→              ),
+   176→            ),
+   177→          ],
+   178→        ),
+   179→      ),
+   180→    );
+   181→  }
+   182→
+   183→  // ═══════════════════════════════════════════════════════════════════════
+   184→  // OVERALL PERFORMANCE CARD
+   185→  // ═══════════════════════════════════════════════════════════════════════
+   186→
+   187→  Widget _buildOverallPerformanceCard(
+   188→    BuildContext context,
+   189→    ChildPerformanceEntity performance,
+   190→  ) {
+   191→    final cs = context.colorScheme;
+   192→    final tt = context.textTheme;
+   193→    final overallAvg = performance.overallAverage ?? 0.0;
+   194→    final classAvg = performance.classAverage ?? 0.0;
+   195→    final attendanceRate = performance.attendanceRate ?? 0.0;
+   196→
+   197→    return Padding(
+   198→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   199→      child: Card(
+   200→        elevation: Spacings.elevationSm,
+   201→        shape: RoundedRectangleBorder(
+   202→          borderRadius: Spacings.borderRadiusLg,
+   203→        ),
+   204→        child: Padding(
+   205→          padding: const EdgeInsets.all(Spacings.xl),
+   206→          child: Column(
+   207→            children: [
+   208→              Text(
+   209→                'Overall Performance',
+   210→                style: tt.titleMedium?.copyWith(
+   211→                  fontWeight: AppTypography.wSemiBold,
+   212→                  color: cs.onSurface,
+   213→                ),
+   214→              ),
+   215→              const SizedBox(height: Spacings.lg),
+   216→              // Circular progress + average score
+   217→              Row(
+   218→                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+   219→                children: [
+   220→                  // Average score
+   221→                  Column(
+   222→                    children: [
+   223→                      SizedBox(
+   224→                        width: 100,
+   225→                        height: 100,
+   226→                        child: Stack(
+   227→                          alignment: Alignment.center,
+   228→                          children: [
+   229→                            CircularProgressIndicator(
+   230→                              value: overallAvg / 100,
+   231→                              strokeWidth: 8,
+   232→                              backgroundColor:
+   233→                                  cs.surfaceContainerHighest,
+   234→                              color: _scoreColor(overallAvg, cs.brightness),
+   235→                            ),
+   236→                            Column(
+   237→                              mainAxisSize: MainAxisSize.min,
+   238→                              children: [
+   239→                                Text(
+   240→                                  overallAvg.toStringAsFixed(1),
+   241→                                  style: tt.headlineSmall?.copyWith(
+   242→                                    fontWeight: AppTypography.wBold,
+   243→                                    color: cs.onSurface,
+   244→                                  ),
+   245→                                ),
+   246→                                Text(
+   247→                                  'Average',
+   248→                                  style: tt.labelSmall?.copyWith(
+   249→                                    color: cs.onSurfaceVariant,
+   250→                                  ),
+   251→                                ),
+   252→                              ],
+   253→                            ),
+   254→                          ],
+   255→                        ),
+   256→                      ),
+   257→                    ],
+   258→                  ),
+   259→                  // Class average & attendance
+   260→                  Column(
+   261→                    crossAxisAlignment: CrossAxisAlignment.start,
+   262→                    children: [
+   263→                      _buildStatItem(
+   264→                        context,
+   265→                        label: 'Class Average',
+   266→                        value: classAvg.toStringAsFixed(1),
+   267→                        icon: Icons.groups_outlined,
+   268→                        color: AppColors.infoOf(cs.brightness),
+   269→                      ),
+   270→                      const SizedBox(height: Spacings.md),
+   271→                      _buildStatItem(
+   272→                        context,
+   273→                        label: 'Attendance',
+   274→                        value:
+   275→                            '${(attendanceRate * 100).toStringAsFixed(1)}%',
+   276→                        icon: Icons.check_circle_outline,
+   277→                        color: AppColors.successOf(cs.brightness),
+   278→                      ),
+   279→                    ],
+   280→                  ),
+   281→                ],
+   282→              ),
+   283→            ],
+   284→          ),
+   285→        ),
+   286→      ),
+   287→    );
+   288→  }
+   289→
+   290→  Widget _buildStatItem(
+   291→    BuildContext context, {
+   292→    required String label,
+   293→    required String value,
+   294→    required IconData icon,
+   295→    required Color color,
+   296→  }) {
+   297→    final tt = context.textTheme;
+   298→    return Row(
+   299→      children: [
+   300→        Icon(icon, size: Spacings.mdIcon, color: color),
+   301→        const SizedBox(width: Spacings.sm),
+   302→        Column(
+   303→          crossAxisAlignment: CrossAxisAlignment.start,
+   304→          children: [
+   305→            Text(
+   306→              label,
+   307→              style: tt.labelSmall?.copyWith(
+   308→                color: context.colorScheme.onSurfaceVariant,
+   309→              ),
+   310→            ),
+   311→            Text(
+   312→              value,
+   313→              style: tt.titleSmall?.copyWith(
+   314→                fontWeight: AppTypography.wSemiBold,
+   315→                color: context.colorScheme.onSurface,
+   316→              ),
+   317→            ),
+   318→          ],
+   319→        ),
+   320→      ],
+   321→    );
+   322→  }
+   323→
+   324→  // ═══════════════════════════════════════════════════════════════════════
+   325→  // SUBJECT PERFORMANCE LIST
+   326→  // ═══════════════════════════════════════════════════════════════════════
+   327→
+   328→  Widget _buildSubjectPerformanceList(
+   329→    BuildContext context,
+   330→    ChildPerformanceEntity performance,
+   331→  ) {
+   332→    final cs = context.colorScheme;
+   333→    final tt = context.textTheme;
+   334→    final subjects = performance.subjects;
+   335→
+   336→    return Padding(
+   337→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   338→      child: Column(
+   339→        crossAxisAlignment: CrossAxisAlignment.start,
+   340→        children: [
+   341→          Text(
+   342→            'Subject Performance',
+   343→            style: tt.titleMedium?.copyWith(
+   344→              fontWeight: AppTypography.wSemiBold,
+   345→              color: cs.onSurface,
+   346→            ),
+   347→          ),
+   348→          const SizedBox(height: Spacings.sm),
+   349→          if (subjects.isEmpty)
+   350→            Card(
+   351→              elevation: Spacings.elevationNone,
+   352→              color: cs.surfaceContainerLow,
+   353→              shape: RoundedRectangleBorder(
+   354→                borderRadius: Spacings.borderRadiusMd,
+   355→              ),
+   356→              child: Padding(
+   357→                padding: const EdgeInsets.all(Spacings.xl),
+   358→                child: Center(
+   359→                  child: Text(
+   360→                    'No subject data available',
+   361→                    style: tt.bodyMedium?.copyWith(
+   362→                      color: cs.onSurfaceVariant,
+   363→                    ),
+   364→                  ),
+   365→                ),
+   366→              ),
+   367→            )
+   368→          else
+   369→            ...subjects.map((subject) => Padding(
+   370→                  padding: const EdgeInsets.only(bottom: Spacings.sm),
+   371→                  child: _buildSubjectCard(context, subject),
+   372→                )),
+   373→        ],
+   374→      ),
+   375→    );
+   376→  }
+   377→
+   378→  Widget _buildSubjectCard(
+   379→    BuildContext context,
+   380→    SubjectPerformanceEntity subject,
+   381→  ) {
+   382→    final cs = context.colorScheme;
+   383→    final tt = context.textTheme;
+   384→    final avgScore = subject.averageScore ?? 0.0;
+   385→    final latestScore = subject.latestScore;
+   386→    final scoreColor = _scoreColor(avgScore, cs.brightness);
+   387→    final scoreBg = _scoreBackgroundColor(avgScore, cs.brightness);
+   388→
+   389→    return Card(
+   390→      elevation: Spacings.elevationNone,
+   391→      color: cs.surfaceContainerLow,
+   392→      shape: RoundedRectangleBorder(
+   393→        borderRadius: Spacings.borderRadiusMd,
+   394→      ),
+   395→      child: Padding(
+   396→        padding: Spacings.paddingCard,
+   397→        child: Row(
+   398→          children: [
+   399→            // Score badge
+   400→            Container(
+   401→              width: 52,
+   402→              height: 52,
+   403→              decoration: BoxDecoration(
+   404→                color: scoreBg,
+   405→                borderRadius: Spacings.borderRadiusMd,
+   406→              ),
+   407→              child: Center(
+   408→                child: Column(
+   409→                  mainAxisSize: MainAxisSize.min,
+   410→                  children: [
+   411→                    Text(
+   412→                      avgScore.toStringAsFixed(0),
+   413→                      style: tt.titleMedium?.copyWith(
+   414→                        fontWeight: AppTypography.wBold,
+   415→                        color: scoreColor,
+   416→                      ),
+   417→                    ),
+   418→                    if (subject.grade != null)
+   419→                      Text(
+   420→                        subject.grade!,
+   421→                        style: tt.labelSmall?.copyWith(
+   422→                          color: scoreColor,
+   423→                          fontWeight: AppTypography.wSemiBold,
+   424→                        ),
+   425→                      ),
+   426→                  ],
+   427→                ),
+   428→              ),
+   429→            ),
+   430→            const SizedBox(width: Spacings.md),
+   431→            // Subject details
+   432→            Expanded(
+   433→              child: Column(
+   434→                crossAxisAlignment: CrossAxisAlignment.start,
+   435→                children: [
+   436→                  Text(
+   437→                    subject.subjectName,
+   438→                    style: tt.titleSmall?.copyWith(
+   439→                      fontWeight: AppTypography.wSemiBold,
+   440→                      color: cs.onSurface,
+   441→                    ),
+   442→                    maxLines: 1,
+   443→                    overflow: TextOverflow.ellipsis,
+   444→                  ),
+   445→                  if (subject.teacherName != null) ...[
+   446→                    const SizedBox(height: Spacings.xs),
+   447→                    Text(
+   448→                      subject.teacherName!,
+   449→                      style: tt.bodySmall?.copyWith(
+   450→                        color: cs.onSurfaceVariant,
+   451→                      ),
+   452→                      maxLines: 1,
+   453→                      overflow: TextOverflow.ellipsis,
+   454→                    ),
+   455→                  ],
+   456→                  if (latestScore != null) ...[
+   457→                    const SizedBox(height: Spacings.xs),
+   458→                    Text(
+   459→                      'Latest: ${latestScore.toStringAsFixed(1)}',
+   460→                      style: tt.labelSmall?.copyWith(
+   461→                        color: cs.onSurfaceVariant,
+   462→                      ),
+   463→                    ),
+   464→                  ],
+   465→                ],
+   466→              ),
+   467→            ),
+   468→            // Average label
+   469→            Column(
+   470→              crossAxisAlignment: CrossAxisAlignment.end,
+   471→              children: [
+   472→                Text(
+   473→                  'Avg',
+   474→                  style: tt.labelSmall?.copyWith(
+   475→                    color: cs.onSurfaceVariant,
+   476→                  ),
+   477→                ),
+   478→                Text(
+   479→                  avgScore.toStringAsFixed(1),
+   480→                  style: tt.titleSmall?.copyWith(
+   481→                    fontWeight: AppTypography.wBold,
+   482→                    color: scoreColor,
+   483→                  ),
+   484→                ),
+   485→              ],
+   486→            ),
+   487→          ],
+   488→        ),
+   489→      ),
+   490→    );
+   491→  }
+   492→
+   493→  // ═══════════════════════════════════════════════════════════════════════
+   494→  // PERFORMANCE CHART PLACEHOLDER
+   495→  // ═══════════════════════════════════════════════════════════════════════
+   496→
+   497→  Widget _buildChartPlaceholder(BuildContext context) {
+   498→    final cs = context.colorScheme;
+   499→    final tt = context.textTheme;
+   500→
+   501→    return Padding(
+   502→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   503→      child: Card(
+   504→        elevation: Spacings.elevationNone,
+   505→        color: cs.surfaceContainerLow,
+   506→        shape: RoundedRectangleBorder(
+   507→          borderRadius: Spacings.borderRadiusMd,
+   508→        ),
+   509→        child: Padding(
+   510→          padding: const EdgeInsets.all(Spacings.xl),
+   511→          child: Column(
+   512→            children: [
+   513→              Icon(
+   514→                Icons.show_chart_outlined,
+   515→                size: Spacings.xlIcon,
+   516→                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+   517→              ),
+   518→              const SizedBox(height: Spacings.md),
+   519→              Text(
+   520→                'Performance trend chart will be available after more assessments',
+   521→                style: tt.bodyMedium?.copyWith(
+   522→                  color: cs.onSurfaceVariant,
+   523→                ),
+   524→                textAlign: TextAlign.center,
+   525→              ),
+   526→            ],
+   527→          ),
+   528→        ),
+   529→      ),
+   530→    );
+   531→  }
+   532→
+   533→  // ═══════════════════════════════════════════════════════════════════════
+   534→  // TEACHER REMARKS SECTION
+   535→  // ═══════════════════════════════════════════════════════════════════════
+   536→
+   537→  Widget _buildTeacherRemarksSection(
+   538→    BuildContext context,
+   539→    ChildPerformanceEntity performance,
+   540→  ) {
+   541→    final cs = context.colorScheme;
+   542→    final tt = context.textTheme;
+   543→    final remarks = performance.teacherRemarks;
+   544→
+   545→    return Padding(
+   546→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   547→      child: Column(
+   548→        crossAxisAlignment: CrossAxisAlignment.start,
+   549→        children: [
+   550→          Text(
+   551→            'Teacher Remarks',
+   552→            style: tt.titleMedium?.copyWith(
+   553→              fontWeight: AppTypography.wSemiBold,
+   554→              color: cs.onSurface,
+   555→            ),
+   556→          ),
+   557→          const SizedBox(height: Spacings.sm),
+   558→          if (remarks.isEmpty)
+   559→            Card(
+   560→              elevation: Spacings.elevationNone,
+   561→              color: cs.surfaceContainerLow,
+   562→              shape: RoundedRectangleBorder(
+   563→                borderRadius: Spacings.borderRadiusMd,
+   564→              ),
+   565→              child: Padding(
+   566→                padding: const EdgeInsets.all(Spacings.xl),
+   567→                child: Center(
+   568→                  child: Text(
+   569→                    'No remarks yet',
+   570→                    style: tt.bodyMedium?.copyWith(
+   571→                      color: cs.onSurfaceVariant,
+   572→                    ),
+   573→                  ),
+   574→                ),
+   575→              ),
+   576→            )
+   577→          else
+   578→            ...remarks.map((remark) => Padding(
+   579→                  padding: const EdgeInsets.only(bottom: Spacings.sm),
+   580→                  child: _buildRemarkCard(context, remark),
+   581→                )),
+   582→        ],
+   583→      ),
+   584→    );
+   585→  }
+   586→
+   587→  Widget _buildRemarkCard(
+   588→    BuildContext context,
+   589→    TeacherRemarkEntity remark,
+   590→  ) {
+   591→    final cs = context.colorScheme;
+   592→    final tt = context.textTheme;
+   593→
+   594→    return Card(
+   595→      elevation: Spacings.elevationNone,
+   596→      color: cs.surfaceContainerLow,
+   597→      shape: RoundedRectangleBorder(
+   598→        borderRadius: Spacings.borderRadiusMd,
+   599→      ),
+   600→      child: Padding(
+   601→        padding: Spacings.paddingCard,
+   602→        child: Column(
+   603→          crossAxisAlignment: CrossAxisAlignment.start,
+   604→          children: [
+   605→            Row(
+   606→              children: [
+   607→                Icon(
+   608→                  Icons.person_outline,
+   609→                  size: Spacings.smIcon,
+   610→                  color: cs.primary,
+   611→                ),
+   612→                const SizedBox(width: Spacings.xs),
+   613→                Expanded(
+   614→                  child: Text(
+   615→                    remark.teacherName,
+   616→                    style: tt.titleSmall?.copyWith(
+   617→                      fontWeight: AppTypography.wSemiBold,
+   618→                      color: cs.onSurface,
+   619→                    ),
+   620→                    maxLines: 1,
+   621→                    overflow: TextOverflow.ellipsis,
+   622→                  ),
+   623→                ),
+   624→                // Subject badge
+   625→                Container(
+   626→                  padding: const EdgeInsets.symmetric(
+   627→                    horizontal: Spacings.sm,
+   628→                    vertical: Spacings.xs,
+   629→                  ),
+   630→                  decoration: BoxDecoration(
+   631→                    color: cs.secondaryContainer,
+   632→                    borderRadius: Spacings.borderRadiusSm,
+   633→                  ),
+   634→                  child: Text(
+   635→                    remark.subject,
+   636→                    style: tt.labelSmall?.copyWith(
+   637→                      color: cs.onSecondaryContainer,
+   638→                    ),
+   639→                  ),
+   640→                ),
+   641→              ],
+   642→            ),
+   643→            const SizedBox(height: Spacings.sm),
+   644→            Text(
+   645→              remark.remark,
+   646→              style: tt.bodyMedium?.copyWith(
+   647→                color: cs.onSurface,
+   648→              ),
+   649→              maxLines: 3,
+   650→              overflow: TextOverflow.ellipsis,
+   651→            ),
+   652→            const SizedBox(height: Spacings.sm),
+   653→            Text(
+   654→              _formatDate(remark.date),
+   655→              style: tt.labelSmall?.copyWith(
+   656→                color: cs.onSurfaceVariant,
+   657→              ),
+   658→            ),
+   659→          ],
+   660→        ),
+   661→      ),
+   662→    );
+   663→  }
+   664→
+   665→  // ═══════════════════════════════════════════════════════════════════════
+   666→  // DOWNLOAD REPORT CARD BUTTON
+   667→  // ═══════════════════════════════════════════════════════════════════════
+   668→
+   669→  Widget _buildDownloadReportButton(BuildContext context) {
+   670→    final cs = context.colorScheme;
+   671→
+   672→    return Padding(
+   673→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   674→      child: Column(
+   675→        crossAxisAlignment: CrossAxisAlignment.stretch,
+   676→        children: [
+   677→          FilledButton.icon(
+   678→            onPressed: () => _showDownloadFormatDialog(context),
+   679→            icon: const Icon(Icons.download_outlined),
+   680→            label: const Text('Download Report Card'),
+   681→            style: FilledButton.styleFrom(
+   682→              padding: const EdgeInsets.symmetric(
+   683→                vertical: Spacings.md,
+   684→              ),
+   685→              shape: RoundedRectangleBorder(
+   686→                borderRadius: Spacings.borderRadiusMd,
+   687→              ),
+   688→            ),
+   689→          ),
+   690→          const SizedBox(height: Spacings.sm),
+   691→          Row(
+   692→            mainAxisAlignment: MainAxisAlignment.center,
+   693→            children: [
+   694→              _buildFormatChip(context, 'PDF', Icons.picture_as_pdf_outlined),
+   695→              const SizedBox(width: Spacings.sm),
+   696→              _buildFormatChip(context, 'Excel', Icons.table_chart_outlined),
+   697→              const SizedBox(width: Spacings.sm),
+   698→              _buildFormatChip(
+   699→                  context, 'Printable', Icons.print_outlined),
+   700→            ],
+   701→          ),
+   702→        ],
+   703→      ),
+   704→    );
+   705→  }
+   706→
+   707→  Widget _buildFormatChip(
+   708→    BuildContext context,
+   709→    String label,
+   710→    IconData icon,
+   711→  ) {
+   712→    final cs = context.colorScheme;
+   713→    final tt = context.textTheme;
+   714→
+   715→    return Container(
+   716→      padding: const EdgeInsets.symmetric(
+   717→        horizontal: Spacings.sm,
+   718→        vertical: Spacings.xs,
+   719→      ),
+   720→      decoration: BoxDecoration(
+   721→        color: cs.surfaceContainerLow,
+   722→        borderRadius: Spacings.borderRadiusSm,
+   723→        border: Border.all(
+   724→          color: cs.outline.withValues(alpha: 0.3),
+   725→        ),
+   726→      ),
+   727→      child: Row(
+   728→        mainAxisSize: MainAxisSize.min,
+   729→        children: [
+   730→          Icon(icon, size: 14, color: cs.onSurfaceVariant),
+   731→          const SizedBox(width: Spacings.xs),
+   732→          Text(
+   733→            label,
+   734→            style: tt.labelSmall?.copyWith(
+   735→              color: cs.onSurfaceVariant,
+   736→            ),
+   737→          ),
+   738→        ],
+   739→      ),
+   740→    );
+   741→  }
+   742→
+   743→  // ═══════════════════════════════════════════════════════════════════════
+   744→  // DIALOGS
+   745→  // ═══════════════════════════════════════════════════════════════════════
+   746→
+   747→  /// Shows a dialog for selecting the report download format.
+   748→  void _showDownloadFormatDialog(BuildContext context) {
+   749→    final cs = context.colorScheme;
+   750→    final tt = context.textTheme;
+   751→
+   752→    showModalBottomSheet(
+   753→      context: context,
+   754→      shape: const RoundedRectangleBorder(
+   755→        borderRadius: BorderRadius.vertical(
+   756→          top: Radius.circular(Spacings.lgRadius),
+   757→        ),
+   758→      ),
+   759→      builder: (context) {
+   760→        return SafeArea(
+   761→          child: Padding(
+   762→            padding: const EdgeInsets.all(Spacings.xl),
+   763→            child: Column(
+   764→              mainAxisSize: MainAxisSize.min,
+   765→              crossAxisAlignment: CrossAxisAlignment.start,
+   766→              children: [
+   767→                Text(
+   768→                  'Download Report Card',
+   769→                  style: tt.titleMedium?.copyWith(
+   770→                    fontWeight: AppTypography.wSemiBold,
+   771→                    color: cs.onSurface,
+   772→                  ),
+   773→                ),
+   774→                const SizedBox(height: Spacings.md),
+   775→                ListTile(
+   776→                  leading: const Icon(Icons.picture_as_pdf_outlined),
+   777→                  title: const Text('PDF Format'),
+   778→                  subtitle: const Text('Best for printing and sharing'),
+   779→                  onTap: () {
+   780→                    Navigator.pop(context);
+   781→                    // TODO: Trigger PDF download
+   782→                  },
+   783→                ),
+   784→                ListTile(
+   785→                  leading: const Icon(Icons.table_chart_outlined),
+   786→                  title: const Text('Excel Format'),
+   787→                  subtitle: const Text('Best for data analysis'),
+   788→                  onTap: () {
+   789→                    Navigator.pop(context);
+   790→                    // TODO: Trigger Excel download
+   791→                  },
+   792→                ),
+   793→                ListTile(
+   794→                  leading: const Icon(Icons.print_outlined),
+   795→                  title: const Text('Printable View'),
+   796→                  subtitle: const Text('Optimised for direct printing'),
+   797→                  onTap: () {
+   798→                    Navigator.pop(context);
+   799→                    // TODO: Trigger printable view
+   800→                  },
+   801→                ),
+   802→              ],
+   803→            ),
+   804→          ),
+   805→        );
+   806→      },
+   807→    );
+   808→  }
+   809→
+   810→  // ═══════════════════════════════════════════════════════════════════════
+   811→  // HELPER METHODS
+   812→  // ═══════════════════════════════════════════════════════════════════════
+   813→
+   814→  /// Returns a colour based on the score percentage.
+   815→  ///
+   816→  /// Green for >70%, amber for 50–70%, red for <50%.
+   817→  Color _scoreColor(double score, Brightness brightness) {
+   818→    if (score > 70) return AppColors.successOf(brightness);
+   819→    if (score >= 50) return AppColors.warningOf(brightness);
+   820→    return AppColors.errorOf(brightness);
+   821→  }
+   822→
+   823→  /// Returns a background colour based on the score percentage.
+   824→  Color _scoreBackgroundColor(double score, Brightness brightness) {
+   825→    if (score > 70) return AppColors.successLight;
+   826→    if (score >= 50) return AppColors.warningLight;
+   827→    return AppColors.errorLight;
+   828→  }
+   829→
+   830→  /// Formats a [DateTime] as a short date string.
+   831→  String _formatDate(DateTime dt) {
+   832→    const months = [
+   833→      '',
+   834→      'Jan',
+   835→      'Feb',
+   836→      'Mar',
+   837→      'Apr',
+   838→      'May',
+   839→      'Jun',
+   840→      'Jul',
+   841→      'Aug',
+   842→      'Sep',
+   843→      'Oct',
+   844→      'Nov',
+   845→      'Dec',
+   846→    ];
+   847→    return '${months[dt.month]} ${dt.day}, ${dt.year}';
+   848→  }
+   849→}
+   850→

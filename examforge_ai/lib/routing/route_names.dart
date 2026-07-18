@@ -373,8 +373,8 @@ class RouteNames {
   /// Parent detail page.
   static const String parentDetail = '/school-management/parents/detail';
 
-  /// Parent portal page.
-  static const String parentPortal = '/school-management/parents/portal';
+  /// School management parent portal page (admin view).
+  static const String schoolParentPortal = '/school-management/parents/portal';
 
   // ═══════════════════════════════════════════════════════════════════════
   // ACADEMIC ADMINISTRATION ROUTES
@@ -472,6 +472,49 @@ class RouteNames {
 
   /// Attendance report page (dedicated).
   static const String reportAttendance = '/school-management/reports/attendance';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PARENT PORTAL ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Parent Portal dashboard.
+  static const String parentPortal = '/parent-portal';
+
+  /// Parent Portal dashboard page.
+  static const String parentDashboard = '/parent-portal/dashboard';
+
+  /// Child profile page.
+  static const String childProfile = '/parent-portal/child-profile';
+
+  /// Child academic performance page.
+  static const String childPerformance = '/parent-portal/performance';
+
+  /// Child attendance page.
+  static const String childAttendance = '/parent-portal/attendance';
+
+  /// Child assignments page.
+  static const String childAssignments = '/parent-portal/assignments';
+
+  /// Parent messaging page.
+  static const String parentMessaging = '/parent-portal/messages';
+
+  /// Parent calendar page.
+  static const String parentCalendar = '/parent-portal/calendar';
+
+  /// AI Parent Assistant page.
+  static const String parentAssistant = '/parent-portal/assistant';
+
+  /// Parent notifications page.
+  static const String parentNotifications = '/parent-portal/notifications';
+
+  /// Parent AI insights page.
+  static const String parentInsights = '/parent-portal/insights';
+
+  /// Parent reports & downloads page.
+  static const String parentReports = '/parent-portal/reports';
+
+  /// Parent engagement dashboard (admin).
+  static const String parentEngagement = '/parent-portal/engagement';
 
   // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
@@ -616,7 +659,7 @@ class RouteNames {
     teacherForm,
     parentList,
     parentDetail,
-    parentPortal,
+    schoolParentPortal,
     classList,
     classDetail,
     classForm,
@@ -640,6 +683,23 @@ class RouteNames {
     reportDashboard,
     studentReport,
     reportAttendance,
+  };
+
+  /// All parent portal sub-routes (used for feature-level navigation).
+  static const Set<String> parentPortalRoutes = <String>{
+    parentPortal,
+    parentDashboard,
+    childProfile,
+    childPerformance,
+    childAttendance,
+    childAssignments,
+    parentMessaging,
+    parentCalendar,
+    parentAssistant,
+    parentNotifications,
+    parentInsights,
+    parentReports,
+    parentEngagement,
   };
 
   /// All routes that live inside the authenticated [ShellRoute].
@@ -743,7 +803,7 @@ class RouteNames {
     teacherForm,
     parentList,
     parentDetail,
-    parentPortal,
+    schoolParentPortal,
     classList,
     classDetail,
     classForm,
@@ -767,5 +827,18 @@ class RouteNames {
     reportDashboard,
     studentReport,
     reportAttendance,
+    parentPortal,
+    parentDashboard,
+    childProfile,
+    childPerformance,
+    childAttendance,
+    childAssignments,
+    parentMessaging,
+    parentCalendar,
+    parentAssistant,
+    parentNotifications,
+    parentInsights,
+    parentReports,
+    parentEngagement,
   };
 }
