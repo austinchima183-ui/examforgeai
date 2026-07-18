@@ -154,6 +154,20 @@ import '../features/communication/presentation/pages/create_event_page.dart';
 import '../features/communication/presentation/pages/ai_assistant_page.dart';
 import '../features/communication/presentation/pages/knowledge_assistant_page.dart';
 import '../features/communication/presentation/pages/moderation_audit_page.dart';
+
+// ── Billing & Subscription ──
+import '../features/billing/presentation/pages/billing_dashboard_page.dart';
+import '../features/billing/presentation/pages/subscription_plans_page.dart';
+import '../features/billing/presentation/pages/checkout_page.dart';
+import '../features/billing/presentation/pages/payment_callback_page.dart';
+import '../features/billing/presentation/pages/billing_history_page.dart';
+import '../features/billing/presentation/pages/invoice_detail_page.dart';
+import '../features/billing/presentation/pages/ai_credits_page.dart';
+import '../features/billing/presentation/pages/coupon_management_page.dart';
+import '../features/billing/presentation/pages/referral_program_page.dart';
+import '../features/billing/presentation/pages/license_management_page.dart';
+import '../features/billing/presentation/pages/revenue_dashboard_page.dart';
+import '../features/billing/presentation/pages/school_billing_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -1288,6 +1302,83 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.communicationAuditLogs,
             name: 'communication-audit-logs',
             builder: (context, state) => const ModerationAuditPage(),
+          ),
+
+          // ── Billing & Subscription Routes ──────────────────────────
+          GoRoute(
+            path: RouteNames.billingDashboard,
+            name: 'billing-dashboard',
+            builder: (context, state) => const BillingDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingSubscriptionPlans,
+            name: 'billing-subscription-plans',
+            builder: (context, state) => const SubscriptionPlansPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingCheckout,
+            name: 'billing-checkout',
+            builder: (context, state) {
+              final planId = state.uri.queryParameters['planId'];
+              final billingCycle = state.uri.queryParameters['billingCycle'] ?? 'monthly';
+              return CheckoutPage(planId: planId, billingCycle: billingCycle);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.billingPaymentCallback,
+            name: 'billing-payment-callback',
+            builder: (context, state) {
+              final txRef = state.uri.queryParameters['tx_ref'] ??
+                  state.uri.queryParameters['txRef'] ?? '';
+              final status = state.uri.queryParameters['status'] ?? '';
+              return PaymentCallbackPage(txRef: txRef, status: status);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.billingHistory,
+            name: 'billing-history',
+            builder: (context, state) => const BillingHistoryPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingInvoiceDetail,
+            name: 'billing-invoice-detail',
+            builder: (context, state) {
+              final invoiceId = state.uri.queryParameters['id'] ?? '';
+              return InvoiceDetailPage(invoiceId: invoiceId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.billingAiCredits,
+            name: 'billing-ai-credits',
+            builder: (context, state) => const AiCreditsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingCoupons,
+            name: 'billing-coupons',
+            builder: (context, state) => const CouponManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingReferrals,
+            name: 'billing-referrals',
+            builder: (context, state) => const ReferralProgramPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingLicenses,
+            name: 'billing-licenses',
+            builder: (context, state) => const LicenseManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingRevenue,
+            name: 'billing-revenue',
+            builder: (context, state) => const RevenueDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.billingSchoolBilling,
+            name: 'billing-school-billing',
+            builder: (context, state) {
+              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+              return SchoolBillingPage(schoolId: schoolId);
+            },
           ),
         ],
       ),

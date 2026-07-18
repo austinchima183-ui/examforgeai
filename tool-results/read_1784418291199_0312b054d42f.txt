@@ -1,0 +1,2000 @@
+     1→     1→import 'package:flutter/material.dart';
+     2→     2→import 'package:flutter/services.dart';
+     3→     3→
+     4→     4→import '../../../../../core/themes/app_colors.dart';
+     5→     5→import '../../../../../core/themes/spacings.dart';
+     6→     6→import '../../../../../core/themes/app_typography.dart';
+     7→     7→import '../../../../../core/extensions/context_extensions.dart';
+     8→     8→import '../../domain/entities/billing_entities.dart';
+     9→     9→
+    10→    10→// ============================================================================
+    11→    11→// 1. PLAN CARD
+    12→    12→// ============================================================================
+    13→    13→
+    14→    14→/// Displays a subscription plan with pricing, features, and selection state.
+    15→    15→///
+    16→    16→/// Shows the plan name, a tier badge, price for the chosen billing cycle,
+    17→    17→/// a list of features, a "Most Popular" badge when [SubscriptionPlanEntity.isPopular]
+    18→    18→/// is true, and either a select or current-plan button at the bottom.
+    19→    19→///
+    20→    20→/// The card gets a coloured border when [isSelected] is true.
+    21→    21→class PlanCard extends StatelessWidget {
+    22→    22→  const PlanCard({
+    23→    23→    super.key,
+    24→    24→    required this.plan,
+    25→    25→    this.isSelected = false,
+    26→    26→    this.isCurrentPlan = false,
+    27→    27→    this.billingCycle = 'monthly',
+    28→    28→    this.onSelect,
+    29→    29→  });
+    30→    30→
+    31→    31→  final SubscriptionPlanEntity plan;
+    32→    32→  final bool isSelected;
+    33→    33→  final bool isCurrentPlan;
+    34→    34→  final String billingCycle;
+    35→    35→  final VoidCallback? onSelect;
+    36→    36→
+    37→    37→  @override
+    38→    38→  Widget build(BuildContext context) {
+    39→    39→    final cs = context.colorScheme;
+    40→    40→    final tt = context.textTheme;
+    41→    41→    final isDark = context.isDarkMode;
+    42→    42→    final price = plan.priceForCycle(billingCycle);
+    43→    43→
+    44→    44→    return Card(
+    45→    45→      elevation: isSelected ? Spacings.elevationMd : Spacings.elevationSm,
+    46→    46→      shadowColor: cs.shadow.withValues(alpha: 0.08),
+    47→    47→      shape: RoundedRectangleBorder(
+    48→    48→        borderRadius: Spacings.borderRadiusLg,
+    49→    49→        side: isSelected
+    50→    50→            ? BorderSide(color: cs.primary, width: 2)
+    51→    51→            : BorderSide(
+    52→    52→                color: cs.outlineVariant.withValues(alpha: 0.5),
+    53→    53→              ),
+    54→    54→      ),
+    55→    55→      clipBehavior: Clip.antiAlias,
+    56→    56→      child: Stack(
+    57→    57→        children: [
+    58→    58→          // ── Content ──────────────────────────────────────────────────
+    59→    59→          Padding(
+    60→    60→            padding: const EdgeInsets.all(Spacings.lg),
+    61→    61→            child: Column(
+    62→    62→              crossAxisAlignment: CrossAxisAlignment.start,
+    63→    63→              children: [
+    64→    64→                // ── Header Row: Name + Tier Badge ────────────────────
+    65→    65→                Row(
+    66→    66→                  children: [
+    67→    67→                    Expanded(
+    68→    68→                      child: Text(
+    69→    69→                        plan.name,
+    70→    70→                        style: tt.titleLarge?.copyWith(
+    71→    71→                          fontWeight: AppTypography.wSemiBold,
+    72→    72→                          color: cs.onSurface,
+    73→    73→                        ),
+    74→    74→                        maxLines: 1,
+    75→    75→                        overflow: TextOverflow.ellipsis,
+    76→    76→                      ),
+    77→    77→                    ),
+    78→    78→                    const SizedBox(width: Spacings.sm),
+    79→    79→                    PlanTierBadge(tier: plan.tier),
+    80→    80→                  ],
+    81→    81→                ),
+    82→    82→                const SizedBox(height: Spacings.sm),
+    83→    83→
+    84→    84→                // ── Description ───────────────────────────────────────
+    85→    85→                if (plan.description != null) ...[
+    86→    86→                  Text(
+    87→    87→                    plan.description!,
+    88→    88→                    style: tt.bodySmall?.copyWith(
+    89→    89→                      color: cs.onSurfaceVariant,
+    90→    90→                    ),
+    91→    91→                    maxLines: 2,
+    92→    92→                    overflow: TextOverflow.ellipsis,
+    93→    93→                  ),
+    94→    94→                  const SizedBox(height: Spacings.md),
+    95→    95→                ],
+    96→    96→
+    97→    97→                // ── Price ─────────────────────────────────────────────
+    98→    98→                Row(
+    99→    99→                  crossAxisAlignment: CrossAxisAlignment.baseline,
+   100→   100→                  textBaseline: TextBaseline.alphabetic,
+   101→   101→                  children: [
+   102→   102→                    Text(
+   103→   103→                      plan.isFree
+   104→   104→                          ? 'Free'
+   105→   105→                          : _formatCurrency(price, plan.currency),
+   106→   106→                      style: tt.headlineMedium?.copyWith(
+   107→   107→                        fontWeight: AppTypography.wBold,
+   108→   108→                        color: cs.onSurface,
+   109→   109→                        height: 1.0,
+   110→   110→                      ),
+   111→   111→                    ),
+   112→   112→                    if (!plan.isFree) ...[
+   113→   113→                      const SizedBox(width: Spacings.xs),
+   114→   114→                      Text(
+   115→   115→                        '/${billingCycle == 'annual' ? 'yr' : 'mo'}',
+   116→   116→                        style: tt.bodyMedium?.copyWith(
+   117→   117→                          color: cs.onSurfaceVariant,
+   118→   118→                        ),
+   119→   119→                      ),
+   120→   120→                    ],
+   121→   121→                  ],
+   122→   122→                ),
+   123→   123→
+   124→   124→                // ── Annual savings ─────────────────────────────────────
+   125→   125→                if (billingCycle == 'annual' &&
+   126→   126→                    plan.annualSavingsPercent > 0) ...[
+   127→   127→                  const SizedBox(height: Spacings.xs),
+   128→   128→                  Container(
+   129→   129→                    padding: const EdgeInsets.symmetric(
+   130→   130→                      horizontal: Spacings.sm,
+   131→   131→                      vertical: Spacings.xs,
+   132→   132→                    ),
+   133→   133→                    decoration: BoxDecoration(
+   134→   134→                      color: AppColors.success
+   135→   135→                          .withValues(alpha: isDark ? 0.20 : 0.10),
+   136→   136→                      borderRadius: Spacings.borderRadiusSm,
+   137→   137→                    ),
+   138→   138→                    child: Text(
+   139→   139→                      'Save ${plan.annualSavingsPercent.toStringAsFixed(0)}%',
+   140→   140→                      style: tt.labelSmall?.copyWith(
+   141→   141→                        color: isDark ? AppColors.successDark : AppColors.success,
+   142→   142→                        fontWeight: AppTypography.wSemiBold,
+   143→   143→                      ),
+   144→   144→                    ),
+   145→   145→                  ),
+   146→   146→                ],
+   147→   147→
+   148→   148→                const SizedBox(height: Spacings.lg),
+   149→   149→
+   150→   150→                // ── Features List ─────────────────────────────────────
+   151→   151→                ...plan.featuresList.map(
+   152→   152→                  (feature) => Padding(
+   153→   153→                    padding: const EdgeInsets.only(bottom: Spacings.sm),
+   154→   154→                    child: Row(
+   155→   155→                      children: [
+   156→   156→                        Icon(
+   157→   157→                          Icons.check_circle_rounded,
+   158→   158→                          size: Spacings.mdIcon - 4,
+   159→   159→                          color: AppColors.success,
+   160→   160→                        ),
+   161→   161→                        const SizedBox(width: Spacings.sm),
+   162→   162→                        Expanded(
+   163→   163→                          child: Text(
+   164→   164→                            feature,
+   165→   165→                            style: tt.bodySmall?.copyWith(
+   166→   166→                              color: cs.onSurfaceVariant,
+   167→   167→                            ),
+   168→   168→                            maxLines: 2,
+   169→   169→                            overflow: TextOverflow.ellipsis,
+   170→   170→                          ),
+   171→   171→                        ),
+   172→   172→                      ],
+   173→   173→                    ),
+   174→   174→                  ),
+   175→   175→                ),
+   176→   176→
+   177→   177→                const SizedBox(height: Spacings.lg),
+   178→   178→
+   179→   179→                // ── CTA Button ────────────────────────────────────────
+   180→   180→                SizedBox(
+   181→   181→                  width: double.infinity,
+   182→   182→                  child: isCurrentPlan
+   183→   183→                      ? OutlinedButton(
+   184→   184→                          onPressed: null,
+   185→   185→                          style: OutlinedButton.styleFrom(
+   186→   186→                            padding: Spacings.paddingButton,
+   187→   187→                            shape: RoundedRectangleBorder(
+   188→   188→                              borderRadius: Spacings.borderRadiusMd,
+   189→   189→                            ),
+   190→   190→                          ),
+   191→   191→                          child: const Text('Current Plan'),
+   192→   192→                        )
+   193→   193→                      : FilledButton(
+   194→   194→                          onPressed: onSelect,
+   195→   195→                          style: FilledButton.styleFrom(
+   196→   196→                            padding: Spacings.paddingButton,
+   197→   197→                            shape: RoundedRectangleBorder(
+   198→   198→                              borderRadius: Spacings.borderRadiusMd,
+   199→   199→                            ),
+   200→   200→                            backgroundColor:
+   201→   201→                                isSelected ? cs.primary : cs.surface,
+   202→   202→                            foregroundColor:
+   203→   203→                                isSelected ? cs.onPrimary : cs.primary,
+   204→   204→                          ),
+   205→   205→                          child: Text(isSelected ? 'Selected' : 'Select Plan'),
+   206→   206→                        ),
+   207→   207→                ),
+   208→   208→              ],
+   209→   209→            ),
+   210→   210→          ),
+   211→   211→
+   212→   212→          // ── "Most Popular" Badge ────────────────────────────────────
+   213→   213→          if (plan.isPopular)
+   214→   214→            Positioned(
+   215→   215→              top: 0,
+   216→   216→              right: 0,
+   217→   217→              child: Container(
+   218→   218→                padding: const EdgeInsets.symmetric(
+   219→   219→                  horizontal: Spacings.md,
+   220→   220→                  vertical: Spacings.xs,
+   221→   221→                ),
+   222→   222→                decoration: BoxDecoration(
+   223→   223→                  gradient: AppColors.brandGradient,
+   224→   224→                  borderRadius: BorderRadius.only(
+   225→   225→                    bottomLeft: Radius.circular(Spacings.mdRadius),
+   226→   226→                  ),
+   227→   227→                ),
+   228→   228→                child: Text(
+   229→   229→                  'Most Popular',
+   230→   230→                  style: tt.labelSmall?.copyWith(
+   231→   231→                    color: Colors.white,
+   232→   232→                    fontWeight: AppTypography.wSemiBold,
+   233→   233→                  ),
+   234→   234→                ),
+   235→   235→              ),
+   236→   236→            ),
+   237→   237→        ],
+   238→   238→      ),
+   239→   239→    );
+   240→   240→  }
+   241→   241→
+   242→   242→  String _formatCurrency(double amount, String currency) {
+   243→   243→    final symbol = currency == 'NGN' ? '\u20A6' : '\$';
+   244→   244→    return '$symbol${amount.toStringAsFixed(0)}';
+   245→   245→  }
+   246→   246→}
+   247→   247→
+   248→   248→// ============================================================================
+   249→   249→// 2. CREDIT BALANCE CARD
+   250→   250→// ============================================================================
+   251→   251→
+   252→   252→/// Shows AI credit balance with a circular progress ring.
+   253→   253→///
+   254→   254→/// Displays remaining / total credits, a circular progress indicator
+   255→   255→/// representing usage percentage, and a "Purchase More" button when credits
+   256→   256→/// are running low.
+   257→   257→class CreditBalanceCard extends StatelessWidget {
+   258→   258→  const CreditBalanceCard({
+   259→   259→    super.key,
+   260→   260→    required this.balance,
+   261→   261→    this.onPurchaseMore,
+   262→   262→  });
+   263→   263→
+   264→   264→  final AiCreditBalanceEntity balance;
+   265→   265→  final VoidCallback? onPurchaseMore;
+   266→   266→
+   267→   267→  @override
+   268→   268→  Widget build(BuildContext context) {
+   269→   269→    final cs = context.colorScheme;
+   270→   270→    final tt = context.textTheme;
+   271→   271→    final isDark = context.isDarkMode;
+   272→   272→    final usagePercent = balance.usagePercent;
+   273→   273→    final remainingPercent = 100 - usagePercent;
+   274→   274→
+   275→   275→    // Choose colour based on credit health
+   276→   276→    final Color progressColor;
+   277→   277→    if (balance.isExhausted) {
+   278→   278→      progressColor = AppColors.error;
+   279→   279→    } else if (balance.isLow) {
+   280→   280→      progressColor = AppColors.warning;
+   281→   281→    } else {
+   282→   282→      progressColor = AppColors.success;
+   283→   283→    }
+   284→   284→
+   285→   285→    return Card(
+   286→   286→      elevation: Spacings.elevationSm,
+   287→   287→      shadowColor: cs.shadow.withValues(alpha: 0.06),
+   288→   288→      shape: RoundedRectangleBorder(
+   289→   289→        borderRadius: Spacings.borderRadiusLg,
+   290→   290→      ),
+   291→   291→      child: Padding(
+   292→   292→        padding: const EdgeInsets.all(Spacings.lg),
+   293→   293→        child: Column(
+   294→   294→          children: [
+   295→   295→            // ── Top Row: Progress Ring + Info ────────────────────────
+   296→   296→            Row(
+   297→   297→              children: [
+   298→   298→                // Circular progress ring
+   299→   299→                SizedBox(
+   300→   300→                  width: 88,
+   301→   301→                  height: 88,
+   302→   302→                  child: Stack(
+   303→   303→                    alignment: Alignment.center,
+   304→   304→                    children: [
+   305→   305→                      CircularProgressIndicator(
+   306→   306→                        value: balance.totalCredits > 0
+   307→   307→                            ? remainingPercent / 100
+   308→   308→                            : 0,
+   309→   309→                        strokeWidth: 6,
+   310→   310→                        backgroundColor:
+   311→   311→                            progressColor.withValues(alpha: isDark ? 0.20 : 0.12),
+   312→   312→                        valueColor: AlwaysStoppedAnimation(progressColor),
+   313→   313→                        strokeCap: StrokeCap.round,
+   314→   314→                      ),
+   315→   315→                      Column(
+   316→   316→                        mainAxisSize: MainAxisSize.min,
+   317→   317→                        children: [
+   318→   318→                          Text(
+   319→   319→                            '${remainingPercent.toStringAsFixed(0)}%',
+   320→   320→                            style: tt.titleSmall?.copyWith(
+   321→   321→                              fontWeight: AppTypography.wBold,
+   322→   322→                              color: cs.onSurface,
+   323→   323→                              height: 1.0,
+   324→   324→                            ),
+   325→   325→                          ),
+   326→   326→                          Text(
+   327→   327→                            'remaining',
+   328→   328→                            style: tt.labelSmall?.copyWith(
+   329→   329→                              color: cs.onSurfaceVariant,
+   330→   330→                              fontSize: 9,
+   331→   331→                            ),
+   332→   332→                          ),
+   333→   333→                        ],
+   334→   334→                      ),
+   335→   335→                    ],
+   336→   336→                  ),
+   337→   337→                ),
+   338→   338→                const SizedBox(width: Spacings.lg),
+   339→   339→
+   340→   340→                // Credit numbers
+   341→   341→                Expanded(
+   342→   342→                  child: Column(
+   343→   343→                    crossAxisAlignment: CrossAxisAlignment.start,
+   344→   344→                    children: [
+   345→   345→                      Text(
+   346→   346→                        'AI Credits',
+   347→   347→                        style: tt.titleMedium?.copyWith(
+   348→   348→                          fontWeight: AppTypography.wSemiBold,
+   349→   349→                          color: cs.onSurface,
+   350→   350→                        ),
+   351→   351→                      ),
+   352→   352→                      const SizedBox(height: Spacings.sm),
+   353→   353→                      Text(
+   354→   354→                        '${balance.remainingCredits} / ${balance.totalCredits}',
+   355→   355→                        style: tt.headlineSmall?.copyWith(
+   356→   356→                          fontWeight: AppTypography.wBold,
+   357→   357→                          color: cs.onSurface,
+   358→   358→                        ),
+   359→   359→                      ),
+   360→   360→                      const SizedBox(height: Spacings.xs),
+   361→   361→                      Text(
+   362→   362→                        '${balance.usedCredits} used this cycle',
+   363→   363→                        style: tt.bodySmall?.copyWith(
+   364→   364→                          color: cs.onSurfaceVariant,
+   365→   365→                        ),
+   366→   366→                      ),
+   367→   367→                    ],
+   368→   368→                  ),
+   369→   369→                ),
+   370→   370→              ],
+   371→   371→            ),
+   372→   372→
+   373→   373→            // ── Warning / Exhausted indicator ─────────────────────────
+   374→   374→            if (balance.isExhausted || balance.isLow) ...[
+   375→   375→              const SizedBox(height: Spacings.md),
+   376→   376→              Container(
+   377→   377→                width: double.infinity,
+   378→   378→                padding: const EdgeInsets.all(Spacings.md),
+   379→   379→                decoration: BoxDecoration(
+   380→   380→                  color: (balance.isExhausted ? AppColors.error : AppColors.warning)
+   381→   381→                      .withValues(alpha: isDark ? 0.20 : 0.10),
+   382→   382→                  borderRadius: Spacings.borderRadiusMd,
+   383→   383→                ),
+   384→   384→                child: Row(
+   385→   385→                  children: [
+   386→   386→                    Icon(
+   387→   387→                      balance.isExhausted
+   388→   388→                          ? Icons.error_outline_rounded
+   389→   389→                          : Icons.warning_amber_rounded,
+   390→   390→                      size: Spacings.mdIcon,
+   391→   391→                      color: balance.isExhausted
+   392→   392→                          ? AppColors.error
+   393→   393→                          : AppColors.warning,
+   394→   394→                    ),
+   395→   395→                    const SizedBox(width: Spacings.sm),
+   396→   396→                    Expanded(
+   397→   397→                      child: Text(
+   398→   398→                        balance.isExhausted
+   399→   399→                            ? 'Credits exhausted. Purchase more to continue using AI features.'
+   400→   400→                            : 'Credits running low. Consider purchasing more.',
+   401→   401→                        style: tt.bodySmall?.copyWith(
+   402→   402→                          color: balance.isExhausted
+   403→   403→                              ? (isDark ? AppColors.errorDark : AppColors.error)
+   404→   404→                              : (isDark ? AppColors.warningDark : AppColors.warning),
+   405→   405→                          fontWeight: AppTypography.wMedium,
+   406→   406→                        ),
+   407→   407→                      ),
+   408→   408→                    ),
+   409→   409→                  ],
+   410→   410→                ),
+   411→   411→              ),
+   412→   412→            ],
+   413→   413→
+   414→   414→            // ── Purchase More Button ──────────────────────────────────
+   415→   415→            if (onPurchaseMore != null) ...[
+   416→   416→              const SizedBox(height: Spacings.md),
+   417→   417→              SizedBox(
+   418→   418→                width: double.infinity,
+   419→   419→                child: OutlinedButton.icon(
+   420→   420→                  onPressed: onPurchaseMore,
+   421→   421→                  icon: const Icon(Icons.add_circle_outline_rounded, size: 18),
+   422→   422→                  label: const Text('Purchase More Credits'),
+   423→   423→                  style: OutlinedButton.styleFrom(
+   424→   424→                    padding: Spacings.paddingButton,
+   425→   425→                    shape: RoundedRectangleBorder(
+   426→   426→                      borderRadius: Spacings.borderRadiusMd,
+   427→   427→                    ),
+   428→   428→                  ),
+   429→   429→                ),
+   430→   430→              ),
+   431→   431→            ],
+   432→   432→          ],
+   433→   433→        ),
+   434→   434→      ),
+   435→   435→    );
+   436→   436→  }
+   437→   437→}
+   438→   438→
+   439→   439→// ============================================================================
+   440→   440→// 3. TRANSACTION LIST TILE
+   441→   441→// ============================================================================
+   442→   442→
+   443→   443→/// Displays a transaction in a list.
+   444→   444→///
+   445→   445→/// Shows the amount, a status badge with colour coding, date,
+   446→   446→/// payment method, a channel icon, and an arrow indicator.
+   447→   447→class TransactionListTile extends StatelessWidget {
+   448→   448→  const TransactionListTile({
+   449→   449→    super.key,
+   450→   450→    required this.transaction,
+   451→   451→    this.onTap,
+   452→   452→  });
+   453→   453→
+   454→   454→  final TransactionEntity transaction;
+   455→   455→  final VoidCallback? onTap;
+   456→   456→
+   457→   457→  @override
+   458→   458→  Widget build(BuildContext context) {
+   459→   459→    final cs = context.colorScheme;
+   460→   460→    final tt = context.textTheme;
+   461→   461→    final isDark = context.isDarkMode;
+   462→   462→
+   463→   463→    final statusColor = _parseHexColor(transaction.status.color);
+   464→   464→    final channelIcon = _channelIcon(transaction.channel);
+   465→   465→    final isSuccessful = transaction.isSuccessful;
+   466→   466→    final isRefund = transaction.status == TransactionStatus.refunded ||
+   467→   467→        transaction.status == TransactionStatus.partiallyRefunded;
+   468→   468→
+   469→   469→    return ListTile(
+   470→   470→      onTap: onTap,
+   471→   471→      contentPadding: const EdgeInsets.symmetric(
+   472→   472→        horizontal: Spacings.lg,
+   473→   473→        vertical: Spacings.xs,
+   474→   474→      ),
+   475→   475→      shape: RoundedRectangleBorder(
+   476→   476→        borderRadius: Spacings.borderRadiusMd,
+   477→   477→      ),
+   478→   478→      leading: Container(
+   479→   479→        width: 40,
+   480→   480→        height: 40,
+   481→   481→        decoration: BoxDecoration(
+   482→   482→          color: (isRefund ? AppColors.info : (isSuccessful ? AppColors.success : statusColor))
+   483→   483→              .withValues(alpha: isDark ? 0.20 : 0.12),
+   484→   484→          borderRadius: Spacings.borderRadiusMd,
+   485→   485→        ),
+   486→   486→        child: Icon(
+   487→   487→          isRefund ? Icons.replay_rounded : channelIcon,
+   488→   488→          color: isRefund ? AppColors.info : (isSuccessful ? AppColors.success : statusColor),
+   489→   489→          size: Spacings.mdIcon - 4,
+   490→   490→        ),
+   491→   491→      ),
+   492→   492→      title: Row(
+   493→   493→        children: [
+   494→   494→          Text(
+   495→   495→            _formatCurrency(
+   496→   496→              isRefund ? transaction.refundAmount : transaction.amount,
+   497→   497→              transaction.currency,
+   498→   498→            ),
+   499→   499→            style: tt.titleSmall?.copyWith(
+   500→   500→              fontWeight: AppTypography.wSemiBold,
+   501→   501→              color: cs.onSurface,
+   502→   502→            ),
+   503→   503→          ),
+   504→   504→          const SizedBox(width: Spacings.sm),
+   505→   505→          _TransactionStatusBadge(status: transaction.status),
+   506→   506→        ],
+   507→   507→      ),
+   508→   508→      subtitle: Text(
+   509→   509→        _formatDate(transaction.initiatedAt),
+   510→   510→        style: tt.bodySmall?.copyWith(
+   511→   511→          color: cs.onSurfaceVariant,
+   512→   512→        ),
+   513→   513→      ),
+   514→   514→      trailing: Row(
+   515→   515→        mainAxisSize: MainAxisSize.min,
+   516→   516→        children: [
+   517→   517→          if (transaction.paymentMethodSummary != null)
+   518→   518→            Flexible(
+   519→   519→              child: Text(
+   520→   520→                transaction.paymentMethodSummary!,
+   521→   521→                style: tt.labelSmall?.copyWith(
+   522→   522→                  color: cs.onSurfaceVariant,
+   523→   523→                ),
+   524→   524→                overflow: TextOverflow.ellipsis,
+   525→   525→              ),
+   526→   526→            ),
+   527→   527→          if (onTap != null) ...[
+   528→   528→            const SizedBox(width: Spacings.xs),
+   529→   529→            Icon(
+   530→   530→              Icons.chevron_right_rounded,
+   531→   531→              size: Spacings.lgIcon,
+   532→   532→              color: cs.onSurfaceVariant,
+   533→   533→            ),
+   534→   534→          ],
+   535→   535→        ],
+   536→   536→      ),
+   537→   537→    );
+   538→   538→  }
+   539→   539→
+   540→   540→  IconData _channelIcon(PaymentChannel channel) {
+   541→   541→    switch (channel) {
+   542→   542→      case PaymentChannel.card:
+   543→   543→        return Icons.credit_card_rounded;
+   544→   544→      case PaymentChannel.bankTransfer:
+   545→   545→        return Icons.account_balance_rounded;
+   546→   546→      case PaymentChannel.ussd:
+   547→   547→        return Icons.phone_android_rounded;
+   548→   548→      case PaymentChannel.mobileMoney:
+   549→   549→        return Icons.phone_android_rounded;
+   550→   550→      case PaymentChannel.qrCode:
+   551→   551→        return Icons.qr_code_rounded;
+   552→   552→      case PaymentChannel.credit:
+   553→   553→        return Icons.auto_awesome_rounded;
+   554→   554→      case PaymentChannel.coupon:
+   555→   555→        return Icons.confirmation_number_rounded;
+   556→   556→      case PaymentChannel.refund:
+   557→   557→        return Icons.replay_rounded;
+   558→   558→    }
+   559→   559→  }
+   560→   560→}
+   561→   561→
+   562→   562→/// Private helper badge for transaction status inside the tile.
+   563→   563→class _TransactionStatusBadge extends StatelessWidget {
+   564→   564→  const _TransactionStatusBadge({required this.status});
+   565→   565→
+   566→   566→  final TransactionStatus status;
+   567→   567→
+   568→   568→  @override
+   569→   569→  Widget build(BuildContext context) {
+   570→   570→    final isDark = context.isDarkMode;
+   571→   571→    final color = _parseHexColor(status.color);
+   572→   572→
+   573→   573→    return Container(
+   574→   574→      padding: const EdgeInsets.symmetric(
+   575→   575→        horizontal: Spacings.sm,
+   576→   576→        vertical: 2,
+   577→   577→      ),
+   578→   578→      decoration: BoxDecoration(
+   579→   579→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+   580→   580→        borderRadius: Spacings.borderRadiusSm,
+   581→   581→      ),
+   582→   582→      child: Text(
+   583→   583→        status.label,
+   584→   584→        style: context.textTheme.labelSmall?.copyWith(
+   585→   585→          color: isDark
+   586→   586→              ? _lightenColor(color)
+   587→   587→              : _darkenColor(color),
+   588→   588→          fontWeight: AppTypography.wSemiBold,
+   589→   589→          fontSize: 10,
+   590→   590→        ),
+   591→   591→      ),
+   592→   592→    );
+   593→   593→  }
+   594→   594→}
+   595→   595→
+   596→   596→// ============================================================================
+   597→   597→// 4. INVOICE CARD
+   598→   598→// ============================================================================
+   599→   599→
+   600→   600→/// Displays an invoice summary.
+   601→   601→///
+   602→   602→/// Shows invoice number, total amount, status badge, issue date,
+   603→   603→/// due date (with an overdue indicator when applicable), and a download
+   604→   604→/// PDF button.
+   605→   605→class InvoiceCard extends StatelessWidget {
+   606→   606→  const InvoiceCard({
+   607→   607→    super.key,
+   608→   608→    required this.invoice,
+   609→   609→    this.onTap,
+   610→   610→    this.onDownloadPdf,
+   611→   611→  });
+   612→   612→
+   613→   613→  final InvoiceEntity invoice;
+   614→   614→  final VoidCallback? onTap;
+   615→   615→  final VoidCallback? onDownloadPdf;
+   616→   616→
+   617→   617→  @override
+   618→   618→  Widget build(BuildContext context) {
+   619→   619→    final cs = context.colorScheme;
+   620→   620→    final tt = context.textTheme;
+   621→   621→    final isDark = context.isDarkMode;
+   622→   622→    final isOverdue = invoice.isOverdue;
+   623→   623→
+   624→   624→    return Card(
+   625→   625→      elevation: Spacings.elevationNone,
+   626→   626→      shape: RoundedRectangleBorder(
+   627→   627→        borderRadius: Spacings.borderRadiusMd,
+   628→   628→        side: isOverdue
+   629→   629→            ? BorderSide(color: AppColors.error.withValues(alpha: 0.5))
+   630→   630→            : BorderSide(
+   631→   631→                color: cs.outlineVariant.withValues(alpha: 0.5),
+   632→   632→              ),
+   633→   633→      ),
+   634→   634→      clipBehavior: Clip.antiAlias,
+   635→   635→      child: InkWell(
+   636→   636→        onTap: onTap,
+   637→   637→        borderRadius: Spacings.borderRadiusMd,
+   638→   638→        child: Padding(
+   639→   639→          padding: const EdgeInsets.all(Spacings.lg),
+   640→   640→          child: Column(
+   641→   641→            crossAxisAlignment: CrossAxisAlignment.start,
+   642→   642→            children: [
+   643→   643→              // ── Top Row: Invoice Number + Status Badge ─────────────
+   644→   644→              Row(
+   645→   645→                children: [
+   646→   646→                  Expanded(
+   647→   647→                    child: Text(
+   648→   648→                      invoice.invoiceNumber,
+   649→   649→                      style: tt.titleSmall?.copyWith(
+   650→   650→                        fontWeight: AppTypography.wSemiBold,
+   651→   651→                        color: cs.onSurface,
+   652→   652→                      ),
+   653→   653→                      maxLines: 1,
+   654→   654→                      overflow: TextOverflow.ellipsis,
+   655→   655→                    ),
+   656→   656→                  ),
+   657→   657→                  const SizedBox(width: Spacings.sm),
+   658→   658→                  _InvoiceStatusBadge(status: invoice.invoiceType),
+   659→   659→                ],
+   660→   660→              ),
+   661→   661→              const SizedBox(height: Spacings.md),
+   662→   662→
+   663→   663→              // ── Amount ─────────────────────────────────────────────
+   664→   664→              Text(
+   665→   665→                _formatCurrency(invoice.totalAmount, invoice.currency),
+   666→   666→                style: tt.headlineSmall?.copyWith(
+   667→   667→                  fontWeight: AppTypography.wBold,
+   668→   668→                  color: cs.onSurface,
+   669→   669→                ),
+   670→   670→              ),
+   671→   671→              const SizedBox(height: Spacings.md),
+   672→   672→
+   673→   673→              // ── Dates Row ──────────────────────────────────────────
+   674→   674→              Row(
+   675→   675→                children: [
+   676→   676→                  // Issue date
+   677→   677→                  Expanded(
+   678→   678→                    child: Column(
+   679→   679→                      crossAxisAlignment: CrossAxisAlignment.start,
+   680→   680→                      children: [
+   681→   681→                        Text(
+   682→   682→                          'Issued',
+   683→   683→                          style: tt.labelSmall?.copyWith(
+   684→   684→                            color: cs.onSurfaceVariant,
+   685→   685→                          ),
+   686→   686→                        ),
+   687→   687→                        const SizedBox(height: Spacings.xs),
+   688→   688→                        Text(
+   689→   689→                          _formatDate(invoice.issueDate),
+   690→   690→                          style: tt.bodySmall?.copyWith(
+   691→   691→                            color: cs.onSurface,
+   692→   692→                            fontWeight: AppTypography.wMedium,
+   693→   693→                          ),
+   694→   694→                        ),
+   695→   695→                      ],
+   696→   696→                    ),
+   697→   697→                  ),
+   698→   698→
+   699→   699→                  // Due date
+   700→   700→                  Expanded(
+   701→   701→                    child: Column(
+   702→   702→                      crossAxisAlignment: CrossAxisAlignment.start,
+   703→   703→                      children: [
+   704→   704→                        Row(
+   705→   705→                          children: [
+   706→   706→                            Text(
+   707→   707→                              'Due',
+   708→   708→                              style: tt.labelSmall?.copyWith(
+   709→   709→                                color: cs.onSurfaceVariant,
+   710→   710→                              ),
+   711→   711→                            ),
+   712→   712→                            if (isOverdue) ...[
+   713→   713→                              const SizedBox(width: Spacings.xs),
+   714→   714→                              Icon(
+   715→   715→                                Icons.error_rounded,
+   716→   716→                                size: 12,
+   717→   717→                                color: AppColors.error,
+   718→   718→                              ),
+   719→   719→                            ],
+   720→   720→                          ],
+   721→   721→                        ),
+   722→   722→                        const SizedBox(height: Spacings.xs),
+   723→   723→                        Text(
+   724→   724→                          _formatDate(invoice.dueDate),
+   725→   725→                          style: tt.bodySmall?.copyWith(
+   726→   726→                            color: isOverdue ? AppColors.error : cs.onSurface,
+   727→   727→                            fontWeight: AppTypography.wMedium,
+   728→   728→                          ),
+   729→   729→                        ),
+   730→   730→                      ],
+   731→   731→                    ),
+   732→   732→                  ),
+   733→   733→                ],
+   734→   734→              ),
+   735→   735→
+   736→   736→              // ── Overdue banner ──────────────────────────────────────
+   737→   737→              if (isOverdue) ...[
+   738→   738→                const SizedBox(height: Spacings.md),
+   739→   739→                Container(
+   740→   740→                  width: double.infinity,
+   741→   741→                  padding: const EdgeInsets.symmetric(
+   742→   742→                    horizontal: Spacings.md,
+   743→   743→                    vertical: Spacings.sm,
+   744→   744→                  ),
+   745→   745→                  decoration: BoxDecoration(
+   746→   746→                    color: AppColors.error
+   747→   747→                        .withValues(alpha: isDark ? 0.20 : 0.08),
+   748→   748→                    borderRadius: Spacings.borderRadiusSm,
+   749→   749→                  ),
+   750→   750→                  child: Row(
+   751→   751→                    children: [
+   752→   752→                      Icon(
+   753→   753→                        Icons.schedule_rounded,
+   754→   754→                        size: 14,
+   755→   755→                        color: isDark ? AppColors.errorDark : AppColors.error,
+   756→   756→                      ),
+   757→   757→                      const SizedBox(width: Spacings.xs),
+   758→   758→                      Text(
+   759→   759→                        'Overdue',
+   760→   760→                        style: tt.labelSmall?.copyWith(
+   761→   761→                          color: isDark ? AppColors.errorDark : AppColors.error,
+   762→   762→                          fontWeight: AppTypography.wSemiBold,
+   763→   763→                        ),
+   764→   764→                      ),
+   765→   765→                    ],
+   766→   766→                  ),
+   767→   767→                ),
+   768→   768→              ],
+   769→   769→
+   770→   770→              // ── Actions Row ─────────────────────────────────────────
+   771→   771→              if (onDownloadPdf != null) ...[
+   772→   772→                const SizedBox(height: Spacings.md),
+   773→   773→                Row(
+   774→   774→                  mainAxisAlignment: MainAxisAlignment.end,
+   775→   775→                  children: [
+   776→   776→                    TextButton.icon(
+   777→   777→                      onPressed: onDownloadPdf,
+   778→   778→                      icon: const Icon(Icons.picture_as_pdf_rounded, size: 16),
+   779→   779→                      label: const Text('Download PDF'),
+   780→   780→                      style: TextButton.styleFrom(
+   781→   781→                        padding: const EdgeInsets.symmetric(
+   782→   782→                          horizontal: Spacings.md,
+   783→   783→                          vertical: Spacings.sm,
+   784→   784→                        ),
+   785→   785→                      ),
+   786→   786→                    ),
+   787→   787→                  ],
+   788→   788→                ),
+   789→   789→              ],
+   790→   790→            ],
+   791→   791→          ),
+   792→   792→        ),
+   793→   793→      ),
+   794→   794→    );
+   795→   795→  }
+   796→   796→}
+   797→   797→
+   798→   798→/// Private status badge for invoices.
+   799→   799→class _InvoiceStatusBadge extends StatelessWidget {
+   800→   800→  const _InvoiceStatusBadge({required this.status});
+   801→   801→
+   802→   802→  final InvoiceStatus status;
+   803→   803→
+   804→   804→  @override
+   805→   805→  Widget build(BuildContext context) {
+   806→   806→    final isDark = context.isDarkMode;
+   807→   807→    final Color color;
+   808→   808→    switch (status) {
+   809→   809→      case InvoiceStatus.paid:
+   810→   810→        color = AppColors.success;
+   811→   811→        break;
+   812→   812→      case InvoiceStatus.overdue:
+   813→   813→        color = AppColors.error;
+   814→   814→        break;
+   815→   815→      case InvoiceStatus.issued:
+   816→   816→        color = AppColors.info;
+   817→   817→        break;
+   818→   818→      case InvoiceStatus.draft:
+   819→   819→        color = AppColors.warning;
+   820→   820→        break;
+   821→   821→      case InvoiceStatus.cancelled:
+   822→   822→      case InvoiceStatus.void_:
+   823→   823→        color = const Color(0xFF6B7280);
+   824→   824→        break;
+   825→   825→      case InvoiceStatus.partiallyPaid:
+   826→   826→        color = const Color(0xFFF97316);
+   827→   827→        break;
+   828→   828→      case InvoiceStatus.creditNote:
+   829→   829→        color = const Color(0xFF8B5CF6);
+   830→   830→        break;
+   831→   831→    }
+   832→   832→
+   833→   833→    return Container(
+   834→   834→      padding: const EdgeInsets.symmetric(
+   835→   835→        horizontal: Spacings.sm,
+   836→   836→        vertical: 2,
+   837→   837→      ),
+   838→   838→      decoration: BoxDecoration(
+   839→   839→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+   840→   840→        borderRadius: Spacings.borderRadiusSm,
+   841→   841→      ),
+   842→   842→      child: Text(
+   843→   843→        status.label,
+   844→   844→        style: context.textTheme.labelSmall?.copyWith(
+   845→   845→          color: isDark ? _lightenColor(color) : _darkenColor(color),
+   846→   846→          fontWeight: AppTypography.wSemiBold,
+   847→   847→          fontSize: 10,
+   848→   848→        ),
+   849→   849→      ),
+   850→   850→    );
+   851→   851→  }
+   852→   852→}
+   853→   853→
+   854→   854→// ============================================================================
+   855→   855→// 5. COUPON INPUT FIELD
+   856→   856→// ============================================================================
+   857→   857→
+   858→   858→/// Input field for coupon codes with validation.
+   859→   859→///
+   860→   860→/// Provides a text field with an "Apply" button, and shows either an error
+   861→   861→/// message or a discount preview below the field.
+   862→   862→class CouponInputField extends StatefulWidget {
+   863→   863→  const CouponInputField({
+   864→   864→    super.key,
+   865→   865→    this.onApply,
+   866→   866→    this.isLoading = false,
+   867→   867→    this.error,
+   868→   868→    this.discountPreview,
+   869→   869→  });
+   870→   870→
+   871→   871→  final Function(String)? onApply;
+   872→   872→  final bool isLoading;
+   873→   873→  final String? error;
+   874→   874→  final String? discountPreview;
+   875→   875→
+   876→   876→  @override
+   877→   877→  State<CouponInputField> createState() => _CouponInputFieldState();
+   878→   878→}
+   879→   879→
+   880→   880→class _CouponInputFieldState extends State<CouponInputField> {
+   881→   881→  final _controller = TextEditingController();
+   882→   882→
+   883→   883→  @override
+   884→   884→  void dispose() {
+   885→   885→    _controller.dispose();
+   886→   886→    super.dispose();
+   887→   887→  }
+   888→   888→
+   889→   889→  void _handleApply() {
+   890→   890→    final code = _controller.text.trim();
+   891→   891→    if (code.isNotEmpty && widget.onApply != null) {
+   892→   892→      widget.onApply!(code);
+   893→   893→    }
+   894→   894→  }
+   895→   895→
+   896→   896→  @override
+   897→   897→  Widget build(BuildContext context) {
+   898→   898→    final cs = context.colorScheme;
+   899→   899→    final tt = context.textTheme;
+   900→   900→    final isDark = context.isDarkMode;
+   901→   901→
+   902→   902→    return Column(
+   903→   903→      crossAxisAlignment: CrossAxisAlignment.start,
+   904→   904→      children: [
+   905→   905→        // ── Label ────────────────────────────────────────────────────
+   906→   906→        Text(
+   907→   907→          'Have a coupon code?',
+   908→   908→          style: tt.titleSmall?.copyWith(
+   909→   909→            fontWeight: AppTypography.wSemiBold,
+   910→   910→            color: cs.onSurface,
+   911→   911→          ),
+   912→   912→        ),
+   913→   913→        const SizedBox(height: Spacings.sm),
+   914→   914→
+   915→   915→        // ── Input Row ────────────────────────────────────────────────
+   916→   916→        Row(
+   917→   917→          children: [
+   918→   918→            Expanded(
+   919→   919→              child: TextField(
+   920→   920→                controller: _controller,
+   921→   921→                textInputAction: TextInputAction.go,
+   922→   922→                onSubmitted: (_) => _handleApply(),
+   923→   923→                decoration: InputDecoration(
+   924→   924→                  hintText: 'Enter coupon code',
+   925→   925→                  prefixIcon: const Icon(Icons.confirmation_number_outlined, size: 20),
+   926→   926→                  isDense: true,
+   927→   927→                  contentPadding: const EdgeInsets.symmetric(
+   928→   928→                    horizontal: Spacings.lg,
+   929→   929→                    vertical: Spacings.md,
+   930→   930→                  ),
+   931→   931→                  border: OutlineInputBorder(
+   932→   932→                    borderRadius: Spacings.borderRadiusMd,
+   933→   933→                    borderSide: BorderSide(
+   934→   934→                      color: cs.outlineVariant,
+   935→   935→                    ),
+   936→   936→                  ),
+   937→   937→                  enabledBorder: OutlineInputBorder(
+   938→   938→                    borderRadius: Spacings.borderRadiusMd,
+   939→   939→                    borderSide: BorderSide(
+   940→   940→                      color: cs.outlineVariant,
+   941→   941→                    ),
+   942→   942→                  ),
+   943→   943→                  errorBorder: widget.error != null
+   944→   944→                      ? OutlineInputBorder(
+   945→   945→                          borderRadius: Spacings.borderRadiusMd,
+   946→   946→                          borderSide: BorderSide(color: AppColors.error),
+   947→   947→                        )
+   948→   948→                      : null,
+   949→   949→                  focusedBorder: OutlineInputBorder(
+   950→   950→                    borderRadius: Spacings.borderRadiusMd,
+   951→   951→                    borderSide: BorderSide(color: cs.primary, width: 1.5),
+   952→   952→                  ),
+   953→   953→                ),
+   954→   954→                inputFormatters: [
+   955→   955→                  FilteringTextInputFormatter.allow(RegExp(r'[A-Za-z0-9_-]')),
+   956→   956→                  UpperCaseTextFormatter(),
+   957→   957→                ],
+   958→   958→              ),
+   959→   959→            ),
+   960→   960→            const SizedBox(width: Spacings.sm),
+   961→   961→            FilledButton(
+   962→   962→              onPressed: widget.isLoading ? null : _handleApply,
+   963→   963→              style: FilledButton.styleFrom(
+   964→   964→                padding: const EdgeInsets.symmetric(
+   965→   965→                  horizontal: Spacings.xl,
+   966→   966→                  vertical: Spacings.lg,
+   967→   967→                ),
+   968→   968→                shape: RoundedRectangleBorder(
+   969→   969→                  borderRadius: Spacings.borderRadiusMd,
+   970→   970→                ),
+   971→   971→              ),
+   972→   972→              child: widget.isLoading
+   973→   973→                  ? SizedBox(
+   974→   974→                      width: 18,
+   975→   975→                      height: 18,
+   976→   976→                      child: CircularProgressIndicator(
+   977→   977→                        strokeWidth: 2,
+   978→   978→                        color: cs.onPrimary,
+   979→   979→                      ),
+   980→   980→                    )
+   981→   981→                  : const Text('Apply'),
+   982→   982→            ),
+   983→   983→          ],
+   984→   984→        ),
+   985→   985→
+   986→   986→        // ── Error Message ────────────────────────────────────────────
+   987→   987→        if (widget.error != null) ...[
+   988→   988→          const SizedBox(height: Spacings.sm),
+   989→   989→          Row(
+   990→   990→            children: [
+   991→   991→              Icon(Icons.error_outline_rounded, size: 14, color: AppColors.error),
+   992→   992→              const SizedBox(width: Spacings.xs),
+   993→   993→              Expanded(
+   994→   994→                child: Text(
+   995→   995→                  widget.error!,
+   996→   996→                  style: tt.bodySmall?.copyWith(
+   997→   997→                    color: isDark ? AppColors.errorDark : AppColors.error,
+   998→   998→                  ),
+   999→   999→                ),
+  1000→  1000→              ),
+  1001→  1001→            ],
+  1002→  1002→          ),
+  1003→  1003→        ],
+  1004→  1004→
+  1005→  1005→        // ── Discount Preview ─────────────────────────────────────────
+  1006→  1006→        if (widget.discountPreview != null) ...[
+  1007→  1007→          const SizedBox(height: Spacings.sm),
+  1008→  1008→          Container(
+  1009→  1009→            width: double.infinity,
+  1010→  1010→            padding: const EdgeInsets.all(Spacings.md),
+  1011→  1011→            decoration: BoxDecoration(
+  1012→  1012→              color: AppColors.success
+  1013→  1013→                  .withValues(alpha: isDark ? 0.20 : 0.10),
+  1014→  1014→              borderRadius: Spacings.borderRadiusMd,
+  1015→  1015→            ),
+  1016→  1016→            child: Row(
+  1017→  1017→              children: [
+  1018→  1018→                Icon(Icons.check_circle_rounded, size: 16, color: AppColors.success),
+  1019→  1019→                const SizedBox(width: Spacings.sm),
+  1020→  1020→                Expanded(
+  1021→  1021→                  child: Text(
+  1022→  1022→                    widget.discountPreview!,
+  1023→  1023→                    style: tt.bodySmall?.copyWith(
+  1024→  1024→                      color: isDark ? AppColors.successDark : AppColors.success,
+  1025→  1025→                      fontWeight: AppTypography.wMedium,
+  1026→  1026→                    ),
+  1027→  1027→                  ),
+  1028→  1028→                ),
+  1029→  1029→              ],
+  1030→  1030→            ),
+  1031→  1031→          ),
+  1032→  1032→        ],
+  1033→  1033→      ],
+  1034→  1034→    );
+  1035→  1035→  }
+  1036→  1036→}
+  1037→  1037→
+  1038→  1038→/// Helper input formatter that converts text to uppercase.
+  1039→  1039→class UpperCaseTextFormatter extends TextInputFormatter {
+  1040→  1040→  @override
+  1041→  1041→  TextEditingValue formatEditUpdate(
+  1042→  1042→    TextEditingValue oldValue,
+  1043→  1043→    TextEditingValue newValue,
+  1044→  1044→  ) {
+  1045→  1045→    return TextEditingValue(
+  1046→  1046→      text: newValue.text.toUpperCase(),
+  1047→  1047→      selection: newValue.selection,
+  1048→  1048→    );
+  1049→  1049→  }
+  1050→  1050→}
+  1051→  1051→
+  1052→  1052→// ============================================================================
+  1053→  1053→// 6. REFERRAL CARD
+  1054→  1054→// ============================================================================
+  1055→  1055→
+  1056→  1056→/// Displays referral code and statistics.
+  1057→  1057→///
+  1058→  1058→/// Shows the referral code in a styled box, total/successful referrals,
+  1059→  1059→/// rewards earned, and copy/share action buttons.
+  1060→  1060→class ReferralCard extends StatelessWidget {
+  1061→  1061→  const ReferralCard({
+  1062→  1062→    super.key,
+  1063→  1063→    required this.referralCode,
+  1064→  1064→    this.onCopyCode,
+  1065→  1065→    this.onShareCode,
+  1066→  1066→  });
+  1067→  1067→
+  1068→  1068→  final ReferralCodeEntity referralCode;
+  1069→  1069→  final VoidCallback? onCopyCode;
+  1070→  1070→  final VoidCallback? onShareCode;
+  1071→  1071→
+  1072→  1072→  @override
+  1073→  1073→  Widget build(BuildContext context) {
+  1074→  1074→    final cs = context.colorScheme;
+  1075→  1075→    final tt = context.textTheme;
+  1076→  1076→    final isDark = context.isDarkMode;
+  1077→  1077→
+  1078→  1078→    return Card(
+  1079→  1079→      elevation: Spacings.elevationSm,
+  1080→  1080→      shadowColor: cs.shadow.withValues(alpha: 0.06),
+  1081→  1081→      shape: RoundedRectangleBorder(
+  1082→  1082→        borderRadius: Spacings.borderRadiusLg,
+  1083→  1083→      ),
+  1084→  1084→      child: Padding(
+  1085→  1085→        padding: const EdgeInsets.all(Spacings.lg),
+  1086→  1086→        child: Column(
+  1087→  1087→          crossAxisAlignment: CrossAxisAlignment.start,
+  1088→  1088→          children: [
+  1089→  1089→            // ── Title ─────────────────────────────────────────────────
+  1090→  1090→            Row(
+  1091→  1091→              children: [
+  1092→  1092→                Icon(
+  1093→  1093→                  Icons.card_giftcard_rounded,
+  1094→  1094→                  color: cs.primary,
+  1095→  1095→                  size: Spacings.mdIcon,
+  1096→  1096→                ),
+  1097→  1097→                const SizedBox(width: Spacings.sm),
+  1098→  1098→                Text(
+  1099→  1099→                  'Refer & Earn',
+  1100→  1100→                  style: tt.titleMedium?.copyWith(
+  1101→  1101→                    fontWeight: AppTypography.wSemiBold,
+  1102→  1102→                    color: cs.onSurface,
+  1103→  1103→                  ),
+  1104→  1104→                ),
+  1105→  1105→              ],
+  1106→  1106→            ),
+  1107→  1107→            const SizedBox(height: Spacings.lg),
+  1108→  1108→
+  1109→  1109→            // ── Referral Code Box ─────────────────────────────────────
+  1110→  1110→            Container(
+  1111→  1111→              width: double.infinity,
+  1112→  1112→              padding: const EdgeInsets.all(Spacings.md),
+  1113→  1113→              decoration: BoxDecoration(
+  1114→  1114→                color: cs.primaryContainer.withValues(alpha: 0.4),
+  1115→  1115→                borderRadius: Spacings.borderRadiusMd,
+  1116→  1116→                border: Border.all(
+  1117→  1117→                  color: cs.primary.withValues(alpha: 0.3),
+  1118→  1118→                  style: BorderStyle.solid,
+  1119→  1119→                ),
+  1120→  1120→              ),
+  1121→  1121→              child: Row(
+  1122→  1122→                mainAxisAlignment: MainAxisAlignment.center,
+  1123→  1123→                children: [
+  1124→  1124→                  Text(
+  1125→  1125→                    referralCode.code,
+  1126→  1126→                    style: tt.headlineSmall?.copyWith(
+  1127→  1127→                      fontWeight: AppTypography.wBold,
+  1128→  1128→                      color: cs.primary,
+  1129→  1129→                      letterSpacing: 3,
+  1130→  1130→                    ),
+  1131→  1131→                  ),
+  1132→  1132→                  const SizedBox(width: Spacings.md),
+  1133→  1133→                  IconButton(
+  1134→  1134→                    onPressed: onCopyCode,
+  1135→  1135→                    icon: Icon(
+  1136→  1136→                      Icons.copy_rounded,
+  1137→  1137→                      color: cs.primary,
+  1138→  1138→                      size: Spacings.mdIcon,
+  1139→  1139→                    ),
+  1140→  1140→                    tooltip: 'Copy code',
+  1141→  1141→                    style: IconButton.styleFrom(
+  1142→  1142→                      backgroundColor:
+  1143→  1143→                          cs.primary.withValues(alpha: 0.12),
+  1144→  1144→                      padding: const EdgeInsets.all(Spacings.sm),
+  1145→  1145→                      minimumSize: const Size(36, 36),
+  1146→  1146→                    ),
+  1147→  1147→                  ),
+  1148→  1148→                ],
+  1149→  1149→              ),
+  1150→  1150→            ),
+  1151→  1151→            const SizedBox(height: Spacings.lg),
+  1152→  1152→
+  1153→  1153→            // ── Stats Row ────────────────────────────────────────────
+  1154→  1154→            Row(
+  1155→  1155→              children: [
+  1156→  1156→                _referralStat(
+  1157→  1157→                  context,
+  1158→  1158→                  label: 'Total Referrals',
+  1159→  1159→                  value: '${referralCode.totalReferrals}',
+  1160→  1160→                  icon: Icons.people_outline_rounded,
+  1161→  1161→                ),
+  1162→  1162→                const SizedBox(width: Spacings.lg),
+  1163→  1163→                _referralStat(
+  1164→  1164→                  context,
+  1165→  1165→                  label: 'Successful',
+  1166→  1166→                  value: '${referralCode.successfulReferrals}',
+  1167→  1167→                  icon: Icons.check_circle_outline_rounded,
+  1168→  1168→                ),
+  1169→  1169→                const SizedBox(width: Spacings.lg),
+  1170→  1170→                _referralStat(
+  1171→  1171→                  context,
+  1172→  1172→                  label: 'Rewards Earned',
+  1173→  1173→                  value: _formatRewardValue(),
+  1174→  1174→                  icon: Icons.stars_rounded,
+  1175→  1175→                ),
+  1176→  1176→              ],
+  1177→  1177→            ),
+  1178→  1178→
+  1179→  1179→            // ── Share Button ──────────────────────────────────────────
+  1180→  1180→            if (onShareCode != null) ...[
+  1181→  1181→              const SizedBox(height: Spacings.lg),
+  1182→  1182→              SizedBox(
+  1183→  1183→                width: double.infinity,
+  1184→  1184→                child: FilledButton.icon(
+  1185→  1185→                  onPressed: onShareCode,
+  1186→  1186→                  icon: const Icon(Icons.share_rounded, size: 18),
+  1187→  1187→                  label: const Text('Share Referral Link'),
+  1188→  1188→                  style: FilledButton.styleFrom(
+  1189→  1189→                    padding: Spacings.paddingButton,
+  1190→  1190→                    shape: RoundedRectangleBorder(
+  1191→  1191→                      borderRadius: Spacings.borderRadiusMd,
+  1192→  1192→                    ),
+  1193→  1193→                  ),
+  1194→  1194→                ),
+  1195→  1195→              ),
+  1196→  1196→            ],
+  1197→  1197→          ],
+  1198→  1198→        ),
+  1199→  1199→      ),
+  1200→  1200→    );
+  1201→  1201→  }
+  1202→  1202→
+  1203→  1203→  Widget _referralStat(
+  1204→  1204→    BuildContext context, {
+  1205→  1205→    required String label,
+  1206→  1206→    required String value,
+  1207→  1207→    required IconData icon,
+  1208→  1208→  }) {
+  1209→  1209→    final cs = context.colorScheme;
+  1210→  1210→    final tt = context.textTheme;
+  1211→  1211→    final isDark = context.isDarkMode;
+  1212→  1212→
+  1213→  1213→    return Expanded(
+  1214→  1214→      child: Column(
+  1215→  1215→        crossAxisAlignment: CrossAxisAlignment.start,
+  1216→  1216→        children: [
+  1217→  1217→          Icon(
+  1218→  1218→            icon,
+  1219→  1219→            size: Spacings.mdIcon - 4,
+  1220→  1220→            color: cs.onSurfaceVariant,
+  1221→  1221→          ),
+  1222→  1222→          const SizedBox(height: Spacings.xs),
+  1223→  1223→          Text(
+  1224→  1224→            value,
+  1225→  1225→            style: tt.titleMedium?.copyWith(
+  1226→  1226→              fontWeight: AppTypography.wBold,
+  1227→  1227→              color: cs.onSurface,
+  1228→  1228→            ),
+  1229→  1229→          ),
+  1230→  1230→          Text(
+  1231→  1231→            label,
+  1232→  1232→            style: tt.labelSmall?.copyWith(
+  1233→  1233→              color: cs.onSurfaceVariant,
+  1234→  1234→            ),
+  1235→  1235→            maxLines: 1,
+  1236→  1236→            overflow: TextOverflow.ellipsis,
+  1237→  1237→          ),
+  1238→  1238→        ],
+  1239→  1239→      ),
+  1240→  1240→    );
+  1241→  1241→  }
+  1242→  1242→
+  1243→  1243→  String _formatRewardValue() {
+  1244→  1244→    if (referralCode.rewardType == ReferralRewardType.creditDays) {
+  1245→  1245→      return '${referralCode.rewardValue.toInt()} days';
+  1246→  1246→    }
+  1247→  1247→    if (referralCode.rewardType == ReferralRewardType.aiCredits) {
+  1248→  1248→      return '${referralCode.rewardValue.toInt()} credits';
+  1249→  1249→    }
+  1250→  1250→    return referralCode.rewardValue.toStringAsFixed(0);
+  1251→  1251→  }
+  1252→  1252→}
+  1253→  1253→
+  1254→  1254→// ============================================================================
+  1255→  1255→// 7. LICENSE CARD
+  1256→  1256→// ============================================================================
+  1257→  1257→
+  1258→  1258→/// Displays license information.
+  1259→  1259→///
+  1260→  1260→/// Shows the license type, a masked key, seats used/total, expiry date,
+  1261→  1261→/// a status badge, and an optional revoke button.
+  1262→  1262→class LicenseCard extends StatelessWidget {
+  1263→  1263→  const LicenseCard({
+  1264→  1264→    super.key,
+  1265→  1265→    required this.license,
+  1266→  1266→    this.onRevoke,
+  1267→  1267→  });
+  1268→  1268→
+  1269→  1269→  final LicenseEntity license;
+  1270→  1270→  final VoidCallback? onRevoke;
+  1271→  1271→
+  1272→  1272→  @override
+  1273→  1273→  Widget build(BuildContext context) {
+  1274→  1274→    final cs = context.colorScheme;
+  1275→  1275→    final tt = context.textTheme;
+  1276→  1276→    final isDark = context.isDarkMode;
+  1277→  1277→    final isExpired = license.isExpired;
+  1278→  1278→
+  1279→  1279→    return Card(
+  1280→  1280→      elevation: Spacings.elevationNone,
+  1281→  1281→      shape: RoundedRectangleBorder(
+  1282→  1282→        borderRadius: Spacings.borderRadiusMd,
+  1283→  1283→        side: BorderSide(
+  1284→  1284→          color: isExpired
+  1285→  1285→              ? AppColors.error.withValues(alpha: 0.5)
+  1286→  1286→              : cs.outlineVariant.withValues(alpha: 0.5),
+  1287→  1287→        ),
+  1288→  1288→      ),
+  1289→  1289→      child: Padding(
+  1290→  1290→        padding: const EdgeInsets.all(Spacings.lg),
+  1291→  1291→        child: Column(
+  1292→  1292→          crossAxisAlignment: CrossAxisAlignment.start,
+  1293→  1293→          children: [
+  1294→  1294→            // ── Header: License Type + Status ────────────────────────
+  1295→  1295→            Row(
+  1296→  1296→              children: [
+  1297→  1297→                Container(
+  1298→  1298→                  padding: const EdgeInsets.all(Spacings.sm),
+  1299→  1299→                  decoration: BoxDecoration(
+  1300→  1300→                    color: cs.primaryContainer.withValues(alpha: 0.5),
+  1301→  1301→                    borderRadius: Spacings.borderRadiusSm,
+  1302→  1302→                  ),
+  1303→  1303→                  child: Icon(
+  1304→  1304→                    Icons.vpn_key_rounded,
+  1305→  1305→                    size: Spacings.mdIcon - 4,
+  1306→  1306→                    color: cs.primary,
+  1307→  1307→                  ),
+  1308→  1308→                ),
+  1309→  1309→                const SizedBox(width: Spacings.md),
+  1310→  1310→                Expanded(
+  1311→  1311→                  child: Text(
+  1312→  1312→                    '${license.licenseType.label} License',
+  1313→  1313→                    style: tt.titleSmall?.copyWith(
+  1314→  1314→                      fontWeight: AppTypography.wSemiBold,
+  1315→  1315→                      color: cs.onSurface,
+  1316→  1316→                    ),
+  1317→  1317→                  ),
+  1318→  1318→                ),
+  1319→  1319→                _LicenseStatusBadge(license: license),
+  1320→  1320→              ],
+  1321→  1321→            ),
+  1322→  1322→            const SizedBox(height: Spacings.md),
+  1323→  1323→
+  1324→  1324→            // ── Masked Key ───────────────────────────────────────────
+  1325→  1325→            Container(
+  1326→  1326→              width: double.infinity,
+  1327→  1327→              padding: const EdgeInsets.all(Spacings.md),
+  1328→  1328→              decoration: BoxDecoration(
+  1329→  1329→                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+  1330→  1330→                borderRadius: Spacings.borderRadiusSm,
+  1331→  1331→              ),
+  1332→  1332→              child: Text(
+  1333→  1333→                _maskKey(license.licenseKey),
+  1334→  1334→                style: tt.bodyMedium?.copyWith(
+  1335→  1335→                  fontFamily: 'monospace',
+  1336→  1336→                  color: cs.onSurfaceVariant,
+  1337→  1337→                  letterSpacing: 1,
+  1338→  1338→                ),
+  1339→  1339→              ),
+  1340→  1340→            ),
+  1341→  1341→            const SizedBox(height: Spacings.md),
+  1342→  1342→
+  1343→  1343→            // ── Details Grid ─────────────────────────────────────────
+  1344→  1344→            Row(
+  1345→  1345→              children: [
+  1346→  1346→                // Seats
+  1347→  1347→                Expanded(
+  1348→  1348→                  child: Column(
+  1349→  1349→                    crossAxisAlignment: CrossAxisAlignment.start,
+  1350→  1350→                    children: [
+  1351→  1351→                      Text(
+  1352→  1352→                        'Seats',
+  1353→  1353→                        style: tt.labelSmall?.copyWith(
+  1354→  1354→                          color: cs.onSurfaceVariant,
+  1355→  1355→                        ),
+  1356→  1356→                      ),
+  1357→  1357→                      const SizedBox(height: Spacings.xs),
+  1358→  1358→                      Row(
+  1359→  1359→                        children: [
+  1360→  1360→                          Text(
+  1361→  1361→                            '${license.seatsUsed}',
+  1362→  1362→                            style: tt.titleMedium?.copyWith(
+  1363→  1363→                              fontWeight: AppTypography.wBold,
+  1364→  1364→                              color: cs.onSurface,
+  1365→  1365→                            ),
+  1366→  1366→                          ),
+  1367→  1367→                          Text(
+  1368→  1368→                            ' / ${license.seatsTotal}',
+  1369→  1369→                            style: tt.bodyMedium?.copyWith(
+  1370→  1370→                              color: cs.onSurfaceVariant,
+  1371→  1371→                            ),
+  1372→  1372→                          ),
+  1373→  1373→                        ],
+  1374→  1374→                      ),
+  1375→  1375→                      const SizedBox(height: Spacings.xs),
+  1376→  1376→                      ClipRRect(
+  1377→  1377→                        borderRadius: Spacings.borderRadiusFull,
+  1378→  1378→                        child: LinearProgressIndicator(
+  1379→  1379→                          value: license.seatsTotal > 0
+  1380→  1380→                              ? license.seatsUsed / license.seatsTotal
+  1381→  1381→                              : 0,
+  1382→  1382→                          backgroundColor: cs.surfaceContainerHighest,
+  1383→  1383→                          valueColor: AlwaysStoppedAnimation(
+  1384→  1384→                            license.seatsUsed >= license.seatsTotal
+  1385→  1385→                                ? AppColors.error
+  1386→  1386→                                : cs.primary,
+  1387→  1387→                          ),
+  1388→  1388→                          minHeight: 4,
+  1389→  1389→                        ),
+  1390→  1390→                      ),
+  1391→  1391→                    ],
+  1392→  1392→                  ),
+  1393→  1393→                ),
+  1394→  1394→                const SizedBox(width: Spacings.xl),
+  1395→  1395→
+  1396→  1396→                // Expiry
+  1397→  1397→                Expanded(
+  1398→  1398→                  child: Column(
+  1399→  1399→                    crossAxisAlignment: CrossAxisAlignment.start,
+  1400→  1400→                    children: [
+  1401→  1401→                      Text(
+  1402→  1402→                        'Expires',
+  1403→  1403→                        style: tt.labelSmall?.copyWith(
+  1404→  1404→                          color: cs.onSurfaceVariant,
+  1405→  1405→                        ),
+  1406→  1406→                      ),
+  1407→  1407→                      const SizedBox(height: Spacings.xs),
+  1408→  1408→                      Text(
+  1409→  1409→                        _formatDate(license.expiresAt),
+  1410→  1410→                        style: tt.bodyMedium?.copyWith(
+  1411→  1411→                          fontWeight: AppTypography.wMedium,
+  1412→  1412→                          color: isExpired ? AppColors.error : cs.onSurface,
+  1413→  1413→                        ),
+  1414→  1414→                      ),
+  1415→  1415→                      if (!isExpired && license.daysUntilExpiry <= 30) ...[
+  1416→  1416→                        const SizedBox(height: Spacings.xs),
+  1417→  1417→                        Text(
+  1418→  1418→                          '${license.daysUntilExpiry} days left',
+  1419→  1419→                          style: tt.labelSmall?.copyWith(
+  1420→  1420→                            color: AppColors.warning,
+  1421→  1421→                            fontWeight: AppTypography.wMedium,
+  1422→  1422→                          ),
+  1423→  1423→                        ),
+  1424→  1424→                      ],
+  1425→  1425→                    ],
+  1426→  1426→                  ),
+  1427→  1427→                ),
+  1428→  1428→              ],
+  1429→  1429→            ),
+  1430→  1430→
+  1431→  1431→            // ── Revoke Button ────────────────────────────────────────
+  1432→  1432→            if (onRevoke != null && license.isActive && !isExpired) ...[
+  1433→  1433→              const SizedBox(height: Spacings.md),
+  1434→  1434→              Row(
+  1435→  1435→                mainAxisAlignment: MainAxisAlignment.end,
+  1436→  1436→                children: [
+  1437→  1437→                  TextButton.icon(
+  1438→  1438→                    onPressed: onRevoke,
+  1439→  1439→                    icon: const Icon(Icons.block_rounded, size: 16),
+  1440→  1440→                    label: const Text('Revoke'),
+  1441→  1441→                    style: TextButton.styleFrom(
+  1442→  1442→                      foregroundColor: AppColors.error,
+  1443→  1443→                      padding: const EdgeInsets.symmetric(
+  1444→  1444→                        horizontal: Spacings.md,
+  1445→  1445→                        vertical: Spacings.sm,
+  1446→  1446→                      ),
+  1447→  1447→                    ),
+  1448→  1448→                  ),
+  1449→  1449→                ],
+  1450→  1450→              ),
+  1451→  1451→            ],
+  1452→  1452→          ],
+  1453→  1453→        ),
+  1454→  1454→      ),
+  1455→  1455→    );
+  1456→  1456→  }
+  1457→  1457→
+  1458→  1458→  String _maskKey(String key) {
+  1459→  1459→    if (key.length <= 8) return key;
+  1460→  1460→    return '${key.substring(0, 4)}${'•' * (key.length - 8)}${key.substring(key.length - 4)}';
+  1461→  1461→  }
+  1462→  1462→}
+  1463→  1463→
+  1464→  1464→/// Private badge for license status.
+  1465→  1465→class _LicenseStatusBadge extends StatelessWidget {
+  1466→  1466→  const _LicenseStatusBadge({required this.license});
+  1467→  1467→
+  1468→  1468→  final LicenseEntity license;
+  1469→  1469→
+  1470→  1470→  @override
+  1471→  1471→  Widget build(BuildContext context) {
+  1472→  1472→    final isDark = context.isDarkMode;
+  1473→  1473→    final Color color;
+  1474→  1474→    final String label;
+  1475→  1475→
+  1476→  1476→    if (!license.isActive) {
+  1477→  1477→      color = const Color(0xFF6B7280);
+  1478→  1478→      label = 'Revoked';
+  1479→  1479→    } else if (license.isExpired) {
+  1480→  1480→      color = AppColors.error;
+  1481→  1481→      label = 'Expired';
+  1482→  1482→    } else if (license.daysUntilExpiry <= 30) {
+  1483→  1483→      color = AppColors.warning;
+  1484→  1484→      label = 'Expiring Soon';
+  1485→  1485→    } else {
+  1486→  1486→      color = AppColors.success;
+  1487→  1487→      label = 'Active';
+  1488→  1488→    }
+  1489→  1489→
+  1490→  1490→    return Container(
+  1491→  1491→      padding: const EdgeInsets.symmetric(
+  1492→  1492→        horizontal: Spacings.sm,
+  1493→  1493→        vertical: 2,
+  1494→  1494→      ),
+  1495→  1495→      decoration: BoxDecoration(
+  1496→  1496→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+  1497→  1497→        borderRadius: Spacings.borderRadiusSm,
+  1498→  1498→      ),
+  1499→  1499→      child: Text(
+  1500→  1500→        label,
+  1501→  1501→        style: context.textTheme.labelSmall?.copyWith(
+  1502→  1502→          color: isDark ? _lightenColor(color) : _darkenColor(color),
+  1503→  1503→          fontWeight: AppTypography.wSemiBold,
+  1504→  1504→          fontSize: 10,
+  1505→  1505→        ),
+  1506→  1506→      ),
+  1507→  1507→    );
+  1508→  1508→  }
+  1509→  1509→}
+  1510→  1510→
+  1511→  1511→// ============================================================================
+  1512→  1512→// 8. REVENUE METRIC CARD
+  1513→  1513→// ============================================================================
+  1514→  1514→
+  1515→  1515→/// Displays a single revenue metric.
+  1516→  1516→///
+  1517→  1517→/// Shows an icon, title, large value, subtitle, and an optional trend
+  1518→  1518→/// indicator (positive or negative percentage).
+  1519→  1519→class RevenueMetricCard extends StatelessWidget {
+  1520→  1520→  const RevenueMetricCard({
+  1521→  1521→    super.key,
+  1522→  1522→    required this.title,
+  1523→  1523→    required this.value,
+  1524→  1524→    this.subtitle,
+  1525→  1525→    this.icon,
+  1526→  1526→    this.color,
+  1527→  1527→    this.trend,
+  1528→  1528→  });
+  1529→  1529→
+  1530→  1530→  final String title;
+  1531→  1531→  final String value;
+  1532→  1532→  final String? subtitle;
+  1533→  1533→  final IconData? icon;
+  1534→  1534→  final Color? color;
+  1535→  1535→  final double? trend;
+  1536→  1536→
+  1537→  1537→  @override
+  1538→  1538→  Widget build(BuildContext context) {
+  1539→  1539→    final cs = context.colorScheme;
+  1540→  1540→    final tt = context.textTheme;
+  1541→  1541→    final isDark = context.isDarkMode;
+  1542→  1542→    final effectiveColor = color ?? cs.primary;
+  1543→  1543→
+  1544→  1544→    return Card(
+  1545→  1545→      elevation: Spacings.elevationSm,
+  1546→  1546→      shadowColor: cs.shadow.withValues(alpha: 0.06),
+  1547→  1547→      shape: RoundedRectangleBorder(
+  1548→  1548→        borderRadius: Spacings.borderRadiusLg,
+  1549→  1549→      ),
+  1550→  1550→      child: Padding(
+  1551→  1551→        padding: const EdgeInsets.all(Spacings.lg),
+  1552→  1552→        child: Column(
+  1553→  1553→          crossAxisAlignment: CrossAxisAlignment.start,
+  1554→  1554→          mainAxisSize: MainAxisSize.min,
+  1555→  1555→          children: [
+  1556→  1556→            // ── Icon + Title Row ──────────────────────────────────────
+  1557→  1557→            Row(
+  1558→  1558→              children: [
+  1559→  1559→                if (icon != null)
+  1560→  1560→                  Container(
+  1561→  1561→                    width: 32,
+  1562→  1562→                    height: 32,
+  1563→  1563→                    decoration: BoxDecoration(
+  1564→  1564→                      color: effectiveColor.withValues(alpha: isDark ? 0.20 : 0.12),
+  1565→  1565→                      shape: BoxShape.circle,
+  1566→  1566→                    ),
+  1567→  1567→                    child: Icon(
+  1568→  1568→                      icon,
+  1569→  1569→                      size: Spacings.mdIcon - 4,
+  1570→  1570→                      color: effectiveColor,
+  1571→  1571→                    ),
+  1572→  1572→                  ),
+  1573→  1573→                if (icon != null) const SizedBox(width: Spacings.md),
+  1574→  1574→                Expanded(
+  1575→  1575→                  child: Text(
+  1576→  1576→                    title,
+  1577→  1577→                    style: tt.labelMedium?.copyWith(
+  1578→  1578→                      color: cs.onSurfaceVariant,
+  1579→  1579→                      fontWeight: AppTypography.wMedium,
+  1580→  1580→                    ),
+  1581→  1581→                    maxLines: 1,
+  1582→  1582→                    overflow: TextOverflow.ellipsis,
+  1583→  1583→                  ),
+  1584→  1584→                ),
+  1585→  1585→              ],
+  1586→  1586→            ),
+  1587→  1587→            const SizedBox(height: Spacings.md),
+  1588→  1588→
+  1589→  1589→            // ── Value + Trend Row ────────────────────────────────────
+  1590→  1590→            Row(
+  1591→  1591→              crossAxisAlignment: CrossAxisAlignment.baseline,
+  1592→  1592→              textBaseline: TextBaseline.alphabetic,
+  1593→  1593→              children: [
+  1594→  1594→                Expanded(
+  1595→  1595→                  child: Text(
+  1596→  1596→                    value,
+  1597→  1597→                    style: tt.headlineSmall?.copyWith(
+  1598→  1598→                      fontWeight: AppTypography.wBold,
+  1599→  1599→                      color: cs.onSurface,
+  1600→  1600→                      height: 1.0,
+  1601→  1601→                    ),
+  1602→  1602→                    maxLines: 1,
+  1603→  1603→                    overflow: TextOverflow.ellipsis,
+  1604→  1604→                  ),
+  1605→  1605→                ),
+  1606→  1606→                if (trend != null) _TrendIndicator(trend: trend!),
+  1607→  1607→              ],
+  1608→  1608→            ),
+  1609→  1609→
+  1610→  1610→            // ── Subtitle ─────────────────────────────────────────────
+  1611→  1611→            if (subtitle != null) ...[
+  1612→  1612→              const SizedBox(height: Spacings.xs),
+  1613→  1613→              Text(
+  1614→  1614→                subtitle!,
+  1615→  1615→                style: tt.labelSmall?.copyWith(
+  1616→  1616→                  color: cs.onSurfaceVariant,
+  1617→  1617→                ),
+  1618→  1618→                maxLines: 1,
+  1619→  1619→                overflow: TextOverflow.ellipsis,
+  1620→  1620→              ),
+  1621→  1621→            ],
+  1622→  1622→          ],
+  1623→  1623→        ),
+  1624→  1624→      ),
+  1625→  1625→    );
+  1626→  1626→  }
+  1627→  1627→}
+  1628→  1628→
+  1629→  1629→/// Private trend indicator chip.
+  1630→  1630→class _TrendIndicator extends StatelessWidget {
+  1631→  1631→  const _TrendIndicator({required this.trend});
+  1632→  1632→
+  1633→  1633→  final double trend;
+  1634→  1634→
+  1635→  1635→  @override
+  1636→  1636→  Widget build(BuildContext context) {
+  1637→  1637→    final isDark = context.isDarkMode;
+  1638→  1638→    final isPositive = trend >= 0;
+  1639→  1639→    final color =
+  1640→  1640→        isPositive ? AppColors.success : AppColors.error;
+  1641→  1641→
+  1642→  1642→    return Container(
+  1643→  1643→      padding: const EdgeInsets.symmetric(
+  1644→  1644→        horizontal: Spacings.sm,
+  1645→  1645→        vertical: 2,
+  1646→  1646→      ),
+  1647→  1647→      decoration: BoxDecoration(
+  1648→  1648→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+  1649→  1649→        borderRadius: Spacings.borderRadiusSm,
+  1650→  1650→      ),
+  1651→  1651→      child: Row(
+  1652→  1652→        mainAxisSize: MainAxisSize.min,
+  1653→  1653→        children: [
+  1654→  1654→          Icon(
+  1655→  1655→            isPositive
+  1656→  1656→                ? Icons.trending_up_rounded
+  1657→  1657→                : Icons.trending_down_rounded,
+  1658→  1658→            size: 14,
+  1659→  1659→            color: color,
+  1660→  1660→          ),
+  1661→  1661→          const SizedBox(width: 2),
+  1662→  1662→          Text(
+  1663→  1663→            '${isPositive ? '+' : ''}${trend.toStringAsFixed(1)}%',
+  1664→  1664→            style: context.textTheme.labelSmall?.copyWith(
+  1665→  1665→              color: isDark ? _lightenColor(color) : _darkenColor(color),
+  1666→  1666→              fontWeight: AppTypography.wSemiBold,
+  1667→  1667→              fontSize: 10,
+  1668→  1668→            ),
+  1669→  1669→          ),
+  1670→  1670→        ],
+  1671→  1671→      ),
+  1672→  1672→    );
+  1673→  1673→  }
+  1674→  1674→}
+  1675→  1675→
+  1676→  1676→// ============================================================================
+  1677→  1677→// 9. BILLING MODEL SELECTOR
+  1678→  1678→// ============================================================================
+  1679→  1679→
+  1680→  1680→/// Tab selector for Teacher / School / Enterprise billing models.
+  1681→  1681→///
+  1682→  1682→/// Displays three segmented tabs that map to [BillingModel] values.
+  1683→  1683→class BillingModelSelector extends StatelessWidget {
+  1684→  1684→  const BillingModelSelector({
+  1685→  1685→    super.key,
+  1686→  1686→    required this.selectedModel,
+  1687→  1687→    this.onChanged,
+  1688→  1688→  });
+  1689→  1689→
+  1690→  1690→  final BillingModel selectedModel;
+  1691→  1691→  final ValueChanged<BillingModel>? onChanged;
+  1692→  1692→
+  1693→  1693→  @override
+  1694→  1694→  Widget build(BuildContext context) {
+  1695→  1695→    final cs = context.colorScheme;
+  1696→  1696→
+  1697→  1697→    return SegmentedButton<BillingModel>(
+  1698→  1698→      segments: [
+  1699→  1699→        ButtonSegment<BillingModel>(
+  1700→  1700→          value: BillingModel.teacherSaas,
+  1701→  1701→          label: const Text('Teacher'),
+  1702→  1702→          icon: const Icon(Icons.person_rounded, size: 18),
+  1703→  1703→          tooltip: 'Teacher SaaS',
+  1704→  1704→        ),
+  1705→  1705→        ButtonSegment<BillingModel>(
+  1706→  1706→          value: BillingModel.schoolSaas,
+  1707→  1707→          label: const Text('School'),
+  1708→  1708→          icon: const Icon(Icons.school_rounded, size: 18),
+  1709→  1709→          tooltip: 'School SaaS',
+  1710→  1710→        ),
+  1711→  1711→        ButtonSegment<BillingModel>(
+  1712→  1712→          value: BillingModel.enterpriseSaas,
+  1713→  1713→          label: const Text('Enterprise'),
+  1714→  1714→          icon: const Icon(Icons.business_rounded, size: 18),
+  1715→  1715→          tooltip: 'Enterprise SaaS',
+  1716→  1716→        ),
+  1717→  1717→      ],
+  1718→  1718→      selected: {selectedModel},
+  1719→  1719→      onSelectionChanged: (selection) {
+  1720→  1720→        if (onChanged != null && selection.isNotEmpty) {
+  1721→  1721→          onChanged!(selection.first);
+  1722→  1722→        }
+  1723→  1723→      },
+  1724→  1724→      style: ButtonStyle(
+  1725→  1725→        visualDensity: VisualDensity.comfortable,
+  1726→  1726→        shape: WidgetStatePropertyAll(
+  1727→  1727→          RoundedRectangleBorder(
+  1728→  1728→            borderRadius: Spacings.borderRadiusMd,
+  1729→  1729→          ),
+  1730→  1730→        ),
+  1731→  1731→        textStyle: WidgetStatePropertyAll(
+  1732→  1732→          AppTypography.buttonSmall.copyWith(fontFamily: AppTypography.fontFamily),
+  1733→  1733→        ),
+  1734→  1734→      ),
+  1735→  1735→    );
+  1736→  1736→  }
+  1737→  1737→}
+  1738→  1738→
+  1739→  1739→// ============================================================================
+  1740→  1740→// 10. SUBSCRIPTION STATUS BADGE
+  1741→  1741→// ============================================================================
+  1742→  1742→
+  1743→  1743→/// Small coloured badge showing the subscription status label.
+  1744→  1744→class SubscriptionStatusBadge extends StatelessWidget {
+  1745→  1745→  const SubscriptionStatusBadge({super.key, required this.status});
+  1746→  1746→
+  1747→  1747→  final SubscriptionStatus status;
+  1748→  1748→
+  1749→  1749→  @override
+  1750→  1750→  Widget build(BuildContext context) {
+  1751→  1751→    final isDark = context.isDarkMode;
+  1752→  1752→    final color = _parseHexColor(status.color);
+  1753→  1753→
+  1754→  1754→    return Container(
+  1755→  1755→      padding: const EdgeInsets.symmetric(
+  1756→  1756→        horizontal: Spacings.sm,
+  1757→  1757→        vertical: Spacings.xs,
+  1758→  1758→      ),
+  1759→  1759→      decoration: BoxDecoration(
+  1760→  1760→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+  1761→  1761→        borderRadius: Spacings.borderRadiusSm,
+  1762→  1762→      ),
+  1763→  1763→      child: Text(
+  1764→  1764→        status.label,
+  1765→  1765→        style: context.textTheme.labelSmall?.copyWith(
+  1766→  1766→          color: isDark ? _lightenColor(color) : _darkenColor(color),
+  1767→  1767→          fontWeight: AppTypography.wSemiBold,
+  1768→  1768→        ),
+  1769→  1769→      ),
+  1770→  1770→    );
+  1771→  1771→  }
+  1772→  1772→}
+  1773→  1773→
+  1774→  1774→// ============================================================================
+  1775→  1775→// 11. PLAN TIER BADGE
+  1776→  1776→// ============================================================================
+  1777→  1777→
+  1778→  1778→/// Small coloured badge showing the plan tier label.
+  1779→  1779→///
+  1780→  1780→/// Tier colours follow the [PlanTier.color] hex values defined in
+  1781→  1781→/// the billing entities.
+  1782→  1782→class PlanTierBadge extends StatelessWidget {
+  1783→  1783→  const PlanTierBadge({super.key, required this.tier});
+  1784→  1784→
+  1785→  1785→  final PlanTier tier;
+  1786→  1786→
+  1787→  1787→  @override
+  1788→  1788→  Widget build(BuildContext context) {
+  1789→  1789→    final isDark = context.isDarkMode;
+  1790→  1790→    final color = _parseHexColor(tier.color);
+  1791→  1791→
+  1792→  1792→    return Container(
+  1793→  1793→      padding: const EdgeInsets.symmetric(
+  1794→  1794→        horizontal: Spacings.md,
+  1795→  1795→        vertical: Spacings.xs,
+  1796→  1796→      ),
+  1797→  1797→      decoration: BoxDecoration(
+  1798→  1798→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+  1799→  1799→        borderRadius: Spacings.borderRadiusSm,
+  1800→  1800→      ),
+  1801→  1801→      child: Text(
+  1802→  1802→        tier.label,
+  1803→  1803→        style: context.textTheme.labelSmall?.copyWith(
+  1804→  1804→          color: isDark ? _lightenColor(color) : _darkenColor(color),
+  1805→  1805→          fontWeight: AppTypography.wSemiBold,
+  1806→  1806→        ),
+  1807→  1807→      ),
+  1808→  1808→    );
+  1809→  1809→  }
+  1810→  1810→}
+  1811→  1811→
+  1812→  1812→// ============================================================================
+  1813→  1813→// 12. CREDIT PACK CARD
+  1814→  1814→// ============================================================================
+  1815→  1815→
+  1816→  1816→/// Displays a purchasable AI credit pack.
+  1817→  1817→///
+  1818→  1818→/// Shows the pack name, credit count, price, price per credit,
+  1819→  1819→/// and a "Buy" button.
+  1820→  1820→class CreditPackCard extends StatelessWidget {
+  1821→  1821→  const CreditPackCard({
+  1822→  1822→    super.key,
+  1823→  1823→    required this.pack,
+  1824→  1824→    this.onPurchase,
+  1825→  1825→  });
+  1826→  1826→
+  1827→  1827→  final AiCreditPackEntity pack;
+  1828→  1828→  final VoidCallback? onPurchase;
+  1829→  1829→
+  1830→  1830→  @override
+  1831→  1831→  Widget build(BuildContext context) {
+  1832→  1832→    final cs = context.colorScheme;
+  1833→  1833→    final tt = context.textTheme;
+  1834→  1834→    final isDark = context.isDarkMode;
+  1835→  1835→
+  1836→  1836→    return Card(
+  1837→  1837→      elevation: Spacings.elevationSm,
+  1838→  1838→      shadowColor: cs.shadow.withValues(alpha: 0.06),
+  1839→  1839→      shape: RoundedRectangleBorder(
+  1840→  1840→        borderRadius: Spacings.borderRadiusLg,
+  1841→  1841→      ),
+  1842→  1842→      child: Padding(
+  1843→  1843→        padding: const EdgeInsets.all(Spacings.lg),
+  1844→  1844→        child: Column(
+  1845→  1845→          crossAxisAlignment: CrossAxisAlignment.start,
+  1846→  1846→          children: [
+  1847→  1847→            // ── Header: Icon + Name ──────────────────────────────────
+  1848→  1848→            Row(
+  1849→  1849→              children: [
+  1850→  1850→                Container(
+  1851→  1851→                  width: 40,
+  1852→  1852→                  height: 40,
+  1853→  1853→                  decoration: BoxDecoration(
+  1854→  1854→                    gradient: AppColors.coolGradient,
+  1855→  1855→                    borderRadius: Spacings.borderRadiusMd,
+  1856→  1856→                  ),
+  1857→  1857→                  child: const Icon(
+  1858→  1858→                    Icons.auto_awesome_rounded,
+  1859→  1859→                    color: Colors.white,
+  1860→  1860→                    size: Spacings.mdIcon - 4,
+  1861→  1861→                  ),
+  1862→  1862→                ),
+  1863→  1863→                const SizedBox(width: Spacings.md),
+  1864→  1864→                Expanded(
+  1865→  1865→                  child: Column(
+  1866→  1866→                    crossAxisAlignment: CrossAxisAlignment.start,
+  1867→  1867→                    children: [
+  1868→  1868→                      Text(
+  1869→  1869→                        pack.name,
+  1870→  1870→                        style: tt.titleSmall?.copyWith(
+  1871→  1871→                          fontWeight: AppTypography.wSemiBold,
+  1872→  1872→                          color: cs.onSurface,
+  1873→  1873→                        ),
+  1874→  1874→                        maxLines: 1,
+  1875→  1875→                        overflow: TextOverflow.ellipsis,
+  1876→  1876→                      ),
+  1877→  1877→                      Text(
+  1878→  1878→                        '${pack.credits} AI Credits',
+  1879→  1879→                        style: tt.bodySmall?.copyWith(
+  1880→  1880→                          color: cs.onSurfaceVariant,
+  1881→  1881→                        ),
+  1882→  1882→                      ),
+  1883→  1883→                    ],
+  1884→  1884→                  ),
+  1885→  1885→                ),
+  1886→  1886→              ],
+  1887→  1887→            ),
+  1888→  1888→
+  1889→  1889→            // ── Description ──────────────────────────────────────────
+  1890→  1890→            if (pack.description != null) ...[
+  1891→  1891→              const SizedBox(height: Spacings.sm),
+  1892→  1892→              Text(
+  1893→  1893→                pack.description!,
+  1894→  1894→                style: tt.bodySmall?.copyWith(
+  1895→  1895→                  color: cs.onSurfaceVariant,
+  1896→  1896→                ),
+  1897→  1897→                maxLines: 2,
+  1898→  1898→                overflow: TextOverflow.ellipsis,
+  1899→  1899→              ),
+  1900→  1900→            ],
+  1901→  1901→
+  1902→  1902→            const SizedBox(height: Spacings.lg),
+  1903→  1903→
+  1904→  1904→            // ── Pricing ─────────────────────────────────────────────
+  1905→  1905→            Row(
+  1906→  1906→              crossAxisAlignment: CrossAxisAlignment.baseline,
+  1907→  1907→              textBaseline: TextBaseline.alphabetic,
+  1908→  1908→              children: [
+  1909→  1909→                Text(
+  1910→  1910→                  _formatCurrency(pack.price, pack.currency),
+  1911→  1911→                  style: tt.headlineSmall?.copyWith(
+  1912→  1912→                    fontWeight: AppTypography.wBold,
+  1913→  1913→                    color: cs.onSurface,
+  1914→  1914→                    height: 1.0,
+  1915→  1915→                  ),
+  1916→  1916→                ),
+  1917→  1917→                const SizedBox(width: Spacings.sm),
+  1918→  1918→                Text(
+  1919→  1919→                  '${_formatCurrency(pack.pricePerCredit, pack.currency)}/credit',
+  1920→  1920→                  style: tt.labelSmall?.copyWith(
+  1921→  1921→                    color: cs.onSurfaceVariant,
+  1922→  1922→                  ),
+  1923→  1923→                ),
+  1924→  1924→              ],
+  1925→  1925→            ),
+  1926→  1926→
+  1927→  1927→            // ── Validity ─────────────────────────────────────────────
+  1928→  1928→            if (pack.validityDays < 365) ...[
+  1929→  1929→              const SizedBox(height: Spacings.xs),
+  1930→  1930→              Text(
+  1931→  1931→                'Valid for ${pack.validityDays} days',
+  1932→  1932→                style: tt.labelSmall?.copyWith(
+  1933→  1933→                  color: cs.onSurfaceVariant,
+  1934→  1934→                ),
+  1935→  1935→              ),
+  1936→  1936→            ],
+  1937→  1937→
+  1938→  1938→            const SizedBox(height: Spacings.lg),
+  1939→  1939→
+  1940→  1940→            // ── Buy Button ──────────────────────────────────────────
+  1941→  1941→            SizedBox(
+  1942→  1942→              width: double.infinity,
+  1943→  1943→              child: FilledButton(
+  1944→  1944→                onPressed: onPurchase,
+  1945→  1945→                style: FilledButton.styleFrom(
+  1946→  1946→                  padding: Spacings.paddingButton,
+  1947→  1947→                  shape: RoundedRectangleBorder(
+  1948→  1948→                    borderRadius: Spacings.borderRadiusMd,
+  1949→  1949→                  ),
+  1950→  1950→                ),
+  1951→  1951→                child: const Text('Buy Now'),
+  1952→  1952→              ),
+  1953→  1953→            ),
+  1954→  1954→          ],
+  1955→  1955→        ),
+  1956→  1956→      ),
+  1957→  1957→    );
+  1958→  1958→  }
+  1959→  1959→}
+  1960→  1960→
+  1961→  1961→// ============================================================================
+  1962→  1962→// SHARED UTILITIES
+  1963→  1963→// ============================================================================
+  1964→  1964→
+  1965→  1965→/// Parses a hex colour string (e.g. '#EF4444') into a [Color].
+  1966→  1966→Color _parseHexColor(String hex) {
+  1967→  1967→  final hexValue = hex.replaceFirst('#', '');
+  1968→  1968→  return Color(int.parse('FF$hexValue', radix: 16));
+  1969→  1969→}
+  1970→  1970→
+  1971→  1971→/// Returns a darker variant of [color] for text on light backgrounds.
+  1972→  1972→Color _darkenColor(Color color) {
+  1973→  1973→  final hsl = HSLColor.fromColor(color);
+  1974→  1974→  return hsl.withLightness((hsl.lightness - 0.1).clamp(0.0, 1.0)).toColor();
+  1975→  1975→}
+  1976→  1976→
+  1977→  1977→/// Returns a lighter variant of [color] for text on dark backgrounds.
+  1978→  1978→Color _lightenColor(Color color) {
+  1979→  1979→  final hsl = HSLColor.fromColor(color);
+  1980→  1980→  return hsl.withLightness((hsl.lightness + 0.2).clamp(0.0, 1.0)).toColor();
+  1981→  1981→}
+  1982→  1982→
+  1983→  1983→/// Formats a date as 'dd MMM yyyy' (e.g. '12 Mar 2025').
+  1984→  1984→String _formatDate(DateTime date) {
+  1985→  1985→  const months = [
+  1986→  1986→    '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  1987→  1987→    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  1988→  1988→  ];
+  1989→  1989→  return '${date.day} ${months[date.month]} ${date.year}';
+  1990→  1990→}
+  1991→  1991→
+  1992→  1992→/// Formats an amount with the appropriate currency symbol.
+  1993→  1993→String _formatCurrency(double amount, String currency) {
+  1994→  1994→  final symbol = currency == 'NGN' ? '\u20A6' : '\$';
+  1995→  1995→  if (amount == amount.roundToDouble()) {
+  1996→  1996→    return '$symbol${amount.toStringAsFixed(0)}';
+  1997→  1997→  }
+  1998→  1998→  return '$symbol${amount.toStringAsFixed(2)}';
+  1999→  1999→}
+  2000→  2000→

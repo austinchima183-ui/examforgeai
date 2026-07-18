@@ -140,6 +140,10 @@ class EnvConfig {
   static String get flutterwaveSecretKey =>
       _env['FLUTTERWAVE_SECRET_KEY'] ?? '';
 
+  /// Flutterwave webhook secret hash for signature verification.
+  static String get flutterwaveWebhookSecretHash =>
+      _env['FLUTTERWAVE_WEBHOOK_SECRET_HASH'] ?? '';
+
   // ─── Environment ────────────────────────────────────────────────
 
   static String get environment => _env['ENVIRONMENT'] ?? 'development';

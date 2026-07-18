@@ -127,6 +127,43 @@ class RouteNames {
   static const String aiGeneratorStats = '/ai-generator/stats';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // BILLING & SUBSCRIPTION ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Subscription plans listing page.
+  static const String billingSubscriptionPlans = '/billing/subscription-plans';
+
+  /// Billing checkout page (plan selection confirmation & payment).
+  static const String billingCheckout = '/billing/checkout';
+
+  /// Payment callback / verification page.
+  static const String billingPaymentCallback = '/billing/payment-callback';
+
+  /// Billing history (transactions & invoices).
+  static const String billingHistory = '/billing/history';
+
+  /// Invoice detail page.
+  static const String billingInvoiceDetail = '/billing/invoice-detail';
+
+  /// AI credits management page.
+  static const String billingAiCredits = '/billing/ai-credits';
+
+  /// Coupon management page (Super Admin).
+  static const String billingCoupons = '/billing/coupons';
+
+  /// Referral program page.
+  static const String billingReferrals = '/billing/referrals';
+
+  /// License management page.
+  static const String billingLicenses = '/billing/licenses';
+
+  /// Revenue dashboard page (Super Admin).
+  static const String billingRevenue = '/billing/revenue';
+
+  /// School billing management page.
+  static const String billingSchoolBilling = '/billing/school-billing';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // CBT ENGINE ROUTES
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -575,6 +612,28 @@ class RouteNames {
   static const String communicationAuditLogs = '/communication/audit-logs';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // BILLING ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Billing module root / dashboard page.
+  static const String billingDashboard = '/billing';
+
+  /// Subscription upgrade page.
+  static const String billingUpgrade = '/billing/upgrade';
+
+  /// Subscription management page.
+  static const String billingManage = '/billing/manage';
+
+  /// Invoice list page.
+  static const String billingInvoices = '/billing/invoices';
+
+  /// AI credits purchase page.
+  static const String billingBuyCredits = '/billing/buy-credits';
+
+  /// Billing notifications page.
+  static const String billingNotifications = '/billing/notifications';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -938,5 +997,17 @@ class RouteNames {
     aiAssistant,
     knowledgeAssistant,
     communicationAuditLogs,
+    billingDashboard,
+    billingSubscriptionPlans,
+    billingCheckout,
+    billingPaymentCallback,
+    billingHistory,
+    billingInvoiceDetail,
+    billingAiCredits,
+    billingCoupons,
+    billingReferrals,
+    billingLicenses,
+    billingRevenue,
+    billingSchoolBilling,
   };
 }

@@ -2868,6 +2868,33 @@ import '../features/communication/presentation/providers/knowledge_assistant_pro
 import '../features/communication/presentation/providers/communication_dashboard_provider.dart';
 import '../features/communication/presentation/providers/moderation_provider.dart';
 
+// ── Billing & Subscription ──
+import '../features/billing/data/datasources/billing_remote_datasource.dart';
+import '../features/billing/data/datasources/flutterwave_datasource.dart';
+import '../features/billing/data/repositories/billing_repository_impl.dart';
+import '../features/billing/domain/repositories/billing_repository.dart';
+import '../features/billing/domain/usecases/get_subscription_plans_usecase.dart';
+import '../features/billing/domain/usecases/manage_subscription_usecase.dart';
+import '../features/billing/domain/usecases/process_payment_usecase.dart';
+import '../features/billing/domain/usecases/manage_ai_credits_usecase.dart';
+import '../features/billing/domain/usecases/manage_coupons_usecase.dart';
+import '../features/billing/domain/usecases/manage_referrals_usecase.dart';
+import '../features/billing/domain/usecases/manage_invoices_usecase.dart';
+import '../features/billing/domain/usecases/manage_licenses_usecase.dart';
+import '../features/billing/domain/usecases/get_revenue_analytics_usecase.dart';
+import '../features/billing/domain/usecases/manage_school_billing_usecase.dart';
+import '../features/billing/domain/usecases/manage_billing_notifications_usecase.dart';
+import '../features/billing/presentation/providers/subscription_provider.dart';
+import '../features/billing/presentation/providers/payment_provider.dart';
+import '../features/billing/presentation/providers/ai_credits_provider.dart';
+import '../features/billing/presentation/providers/coupon_provider.dart';
+import '../features/billing/presentation/providers/referral_provider.dart';
+import '../features/billing/presentation/providers/invoice_provider.dart';
+import '../features/billing/presentation/providers/license_provider.dart';
+import '../features/billing/presentation/providers/revenue_provider.dart';
+import '../features/billing/presentation/providers/school_billing_provider.dart';
+import '../features/billing/presentation/providers/billing_notification_provider.dart';
+
 // ─── Data Source ──────────────────────────────────────────────────────
 
 final communicationRemoteDataSourceProvider =
@@ -3199,5 +3226,288 @@ final moderationProvider =
     muteConversationUseCase: ref.watch(muteConversationUseCaseProvider),
     archiveConversationUseCase: ref.watch(archiveConversationUseCaseProvider),
     getAuditLogsUseCase: ref.watch(getAuditLogsUseCaseProvider),
+  );
+});
+
+// ════════════════════════════════════════════════════════════════════════════
+// BILLING & SUBSCRIPTION
+// ════════════════════════════════════════════════════════════════════════════
+
+// ─── Data Layer ─────────────────────────────────────────────────────────────
+
+final billingRemoteDataSourceProvider = Provider<BillingRemoteDataSource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return BillingRemoteDataSourceImpl(supabaseClient: supabaseClient);
+});
+
+final flutterwaveDataSourceProvider = Provider<FlutterwaveDataSource>((ref) {
+  return FlutterwaveDataSourceImpl(
+    secretKey: EnvConfig.flutterwaveSecretKey,
+    publicKey: EnvConfig.flutterwavePublicKey,
+    webhookSecretHash: EnvConfig.flutterwaveWebhookSecretHash,
+    dio: ref.watch(dioProvider),
+  );
+});
+
+final billingRepositoryProvider = Provider<BillingRepository>((ref) {
+  return BillingRepositoryImpl(
+    remoteDataSource: ref.watch(billingRemoteDataSourceProvider),
+    flutterwaveDataSource: ref.watch(flutterwaveDataSourceProvider),
+  );
+});
+
+// ─── Use Cases ──────────────────────────────────────────────────────────────
+
+// Subscription Plans
+final getSubscriptionPlansUseCaseProvider = Provider<GetSubscriptionPlansUseCase>((ref) {
+  return GetSubscriptionPlansUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Subscription Management
+final createSubscriptionUseCaseProvider = Provider<CreateSubscriptionUseCase>((ref) {
+  return CreateSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final upgradeSubscriptionUseCaseProvider = Provider<UpgradeSubscriptionUseCase>((ref) {
+  return UpgradeSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final downgradeSubscriptionUseCaseProvider = Provider<DowngradeSubscriptionUseCase>((ref) {
+  return DowngradeSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final cancelSubscriptionUseCaseProvider = Provider<CancelSubscriptionUseCase>((ref) {
+  return CancelSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final renewSubscriptionUseCaseProvider = Provider<RenewSubscriptionUseCase>((ref) {
+  return RenewSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final pauseSubscriptionUseCaseProvider = Provider<PauseSubscriptionUseCase>((ref) {
+  return PauseSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final resumeSubscriptionUseCaseProvider = Provider<ResumeSubscriptionUseCase>((ref) {
+  return ResumeSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final getCurrentSubscriptionUseCaseProvider = Provider<GetCurrentSubscriptionUseCase>((ref) {
+  return GetCurrentSubscriptionUseCase(ref.watch(billingRepositoryProvider));
+});
+final getSubscriptionsUseCaseProvider = Provider<GetSubscriptionsUseCase>((ref) {
+  return GetSubscriptionsUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Payments
+final initializePaymentUseCaseProvider = Provider<InitializePaymentUseCase>((ref) {
+  return InitializePaymentUseCase(ref.watch(billingRepositoryProvider));
+});
+final verifyPaymentUseCaseProvider = Provider<VerifyPaymentUseCase>((ref) {
+  return VerifyPaymentUseCase(ref.watch(billingRepositoryProvider));
+});
+final processWebhookUseCaseProvider = Provider<ProcessWebhookUseCase>((ref) {
+  return ProcessWebhookUseCase(ref.watch(billingRepositoryProvider));
+});
+final requestRefundUseCaseProvider = Provider<RequestRefundUseCase>((ref) {
+  return RequestRefundUseCase(ref.watch(billingRepositoryProvider));
+});
+final getTransactionsUseCaseProvider = Provider<GetTransactionsUseCase>((ref) {
+  return GetTransactionsUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// AI Credits
+final getCreditBalanceUseCaseProvider = Provider<GetCreditBalanceUseCase>((ref) {
+  return GetCreditBalanceUseCase(ref.watch(billingRepositoryProvider));
+});
+final getCreditTransactionsUseCaseProvider = Provider<GetCreditTransactionsUseCase>((ref) {
+  return GetCreditTransactionsUseCase(ref.watch(billingRepositoryProvider));
+});
+final consumeCreditsUseCaseProvider = Provider<ConsumeCreditsUseCase>((ref) {
+  return ConsumeCreditsUseCase(ref.watch(billingRepositoryProvider));
+});
+final purchaseCreditsUseCaseProvider = Provider<PurchaseCreditsUseCase>((ref) {
+  return PurchaseCreditsUseCase(ref.watch(billingRepositoryProvider));
+});
+final getCreditPacksUseCaseProvider = Provider<GetCreditPacksUseCase>((ref) {
+  return GetCreditPacksUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Coupons
+final validateCouponUseCaseProvider = Provider<ValidateCouponUseCase>((ref) {
+  return ValidateCouponUseCase(ref.watch(billingRepositoryProvider));
+});
+final redeemCouponUseCaseProvider = Provider<RedeemCouponUseCase>((ref) {
+  return RedeemCouponUseCase(ref.watch(billingRepositoryProvider));
+});
+final getCouponsUseCaseProvider = Provider<GetCouponsUseCase>((ref) {
+  return GetCouponsUseCase(ref.watch(billingRepositoryProvider));
+});
+final createCouponUseCaseProvider = Provider<CreateCouponUseCase>((ref) {
+  return CreateCouponUseCase(ref.watch(billingRepositoryProvider));
+});
+final updateCouponUseCaseProvider = Provider<UpdateCouponUseCase>((ref) {
+  return UpdateCouponUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Referrals
+final getOrCreateReferralCodeUseCaseProvider = Provider<GetOrCreateReferralCodeUseCase>((ref) {
+  return GetOrCreateReferralCodeUseCase(ref.watch(billingRepositoryProvider));
+});
+final applyReferralCodeUseCaseProvider = Provider<ApplyReferralCodeUseCase>((ref) {
+  return ApplyReferralCodeUseCase(ref.watch(billingRepositoryProvider));
+});
+final getReferralTrackingUseCaseProvider = Provider<GetReferralTrackingUseCase>((ref) {
+  return GetReferralTrackingUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Invoices
+final getInvoicesUseCaseProvider = Provider<GetInvoicesUseCase>((ref) {
+  return GetInvoicesUseCase(ref.watch(billingRepositoryProvider));
+});
+final getInvoiceUseCaseProvider = Provider<GetInvoiceUseCase>((ref) {
+  return GetInvoiceUseCase(ref.watch(billingRepositoryProvider));
+});
+final generateInvoiceUseCaseProvider = Provider<GenerateInvoiceUseCase>((ref) {
+  return GenerateInvoiceUseCase(ref.watch(billingRepositoryProvider));
+});
+final getInvoicePdfUrlUseCaseProvider = Provider<GetInvoicePdfUrlUseCase>((ref) {
+  return GetInvoicePdfUrlUseCase(ref.watch(billingRepositoryProvider));
+});
+final getReceiptsUseCaseProvider = Provider<GetReceiptsUseCase>((ref) {
+  return GetReceiptsUseCase(ref.watch(billingRepositoryProvider));
+});
+final getReceiptPdfUrlUseCaseProvider = Provider<GetReceiptPdfUrlUseCase>((ref) {
+  return GetReceiptPdfUrlUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Licenses
+final getLicensesUseCaseProvider = Provider<GetLicensesUseCase>((ref) {
+  return GetLicensesUseCase(ref.watch(billingRepositoryProvider));
+});
+final revokeLicenseUseCaseProvider = Provider<RevokeLicenseUseCase>((ref) {
+  return RevokeLicenseUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Revenue Analytics
+final getRevenueDataUseCaseProvider = Provider<GetRevenueDataUseCase>((ref) {
+  return GetRevenueDataUseCase(ref.watch(billingRepositoryProvider));
+});
+final getBillingDashboardSummaryUseCaseProvider = Provider<GetBillingDashboardSummaryUseCase>((ref) {
+  return GetBillingDashboardSummaryUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// School Billing
+final getSchoolBillingProfileUseCaseProvider = Provider<GetSchoolBillingProfileUseCase>((ref) {
+  return GetSchoolBillingProfileUseCase(ref.watch(billingRepositoryProvider));
+});
+final updateSchoolBillingProfileUseCaseProvider = Provider<UpdateSchoolBillingProfileUseCase>((ref) {
+  return UpdateSchoolBillingProfileUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// Billing Notifications
+final getBillingNotificationsUseCaseProvider = Provider<GetBillingNotificationsUseCase>((ref) {
+  return GetBillingNotificationsUseCase(ref.watch(billingRepositoryProvider));
+});
+final markNotificationReadUseCaseProvider = Provider<MarkNotificationReadUseCase>((ref) {
+  return MarkNotificationReadUseCase(ref.watch(billingRepositoryProvider));
+});
+final updateNotificationPreferencesUseCaseProvider = Provider<UpdateNotificationPreferencesUseCase>((ref) {
+  return UpdateNotificationPreferencesUseCase(ref.watch(billingRepositoryProvider));
+});
+
+// ─── Presentation Layer (State Notifiers) ───────────────────────────────────
+
+final billingSubscriptionProvider =
+    StateNotifierProvider<SubscriptionNotifier, SubscriptionState>((ref) {
+  return SubscriptionNotifier(
+    getSubscriptionPlansUseCase: ref.watch(getSubscriptionPlansUseCaseProvider),
+    getCurrentSubscriptionUseCase: ref.watch(getCurrentSubscriptionUseCaseProvider),
+    createSubscriptionUseCase: ref.watch(createSubscriptionUseCaseProvider),
+    upgradeSubscriptionUseCase: ref.watch(upgradeSubscriptionUseCaseProvider),
+    downgradeSubscriptionUseCase: ref.watch(downgradeSubscriptionUseCaseProvider),
+    cancelSubscriptionUseCase: ref.watch(cancelSubscriptionUseCaseProvider),
+    renewSubscriptionUseCase: ref.watch(renewSubscriptionUseCaseProvider),
+    pauseSubscriptionUseCase: ref.watch(pauseSubscriptionUseCaseProvider),
+    resumeSubscriptionUseCase: ref.watch(resumeSubscriptionUseCaseProvider),
+  );
+});
+
+final billingPaymentProvider =
+    StateNotifierProvider<PaymentNotifier, PaymentState>((ref) {
+  return PaymentNotifier(
+    initializePaymentUseCase: ref.watch(initializePaymentUseCaseProvider),
+    verifyPaymentUseCase: ref.watch(verifyPaymentUseCaseProvider),
+    getTransactionsUseCase: ref.watch(getTransactionsUseCaseProvider),
+    requestRefundUseCase: ref.watch(requestRefundUseCaseProvider),
+  );
+});
+
+final billingAiCreditsProvider =
+    StateNotifierProvider<AiCreditsNotifier, AiCreditsState>((ref) {
+  return AiCreditsNotifier(
+    getCreditBalanceUseCase: ref.watch(getCreditBalanceUseCaseProvider),
+    getCreditTransactionsUseCase: ref.watch(getCreditTransactionsUseCaseProvider),
+    consumeCreditsUseCase: ref.watch(consumeCreditsUseCaseProvider),
+    purchaseCreditsUseCase: ref.watch(purchaseCreditsUseCaseProvider),
+    getCreditPacksUseCase: ref.watch(getCreditPacksUseCaseProvider),
+  );
+});
+
+final billingCouponProvider =
+    StateNotifierProvider<CouponNotifier, CouponState>((ref) {
+  return CouponNotifier(
+    validateCouponUseCase: ref.watch(validateCouponUseCaseProvider),
+    redeemCouponUseCase: ref.watch(redeemCouponUseCaseProvider),
+    getCouponsUseCase: ref.watch(getCouponsUseCaseProvider),
+    createCouponUseCase: ref.watch(createCouponUseCaseProvider),
+    updateCouponUseCase: ref.watch(updateCouponUseCaseProvider),
+  );
+});
+
+final billingReferralProvider =
+    StateNotifierProvider<ReferralNotifier, ReferralState>((ref) {
+  return ReferralNotifier(
+    getOrCreateReferralCodeUseCase: ref.watch(getOrCreateReferralCodeUseCaseProvider),
+    applyReferralCodeUseCase: ref.watch(applyReferralCodeUseCaseProvider),
+    getReferralTrackingUseCase: ref.watch(getReferralTrackingUseCaseProvider),
+  );
+});
+
+final billingInvoiceProvider =
+    StateNotifierProvider<InvoiceNotifier, InvoiceState>((ref) {
+  return InvoiceNotifier(
+    getInvoicesUseCase: ref.watch(getInvoicesUseCaseProvider),
+    getInvoiceUseCase: ref.watch(getInvoiceUseCaseProvider),
+    generateInvoiceUseCase: ref.watch(generateInvoiceUseCaseProvider),
+    getReceiptsUseCase: ref.watch(getReceiptsUseCaseProvider),
+    getInvoicePdfUrlUseCase: ref.watch(getInvoicePdfUrlUseCaseProvider),
+    getReceiptPdfUrlUseCase: ref.watch(getReceiptPdfUrlUseCaseProvider),
+  );
+});
+
+final billingLicenseProvider =
+    StateNotifierProvider<LicenseNotifier, LicenseState>((ref) {
+  return LicenseNotifier(
+    getLicensesUseCase: ref.watch(getLicensesUseCaseProvider),
+    revokeLicenseUseCase: ref.watch(revokeLicenseUseCaseProvider),
+  );
+});
+
+final billingRevenueProvider =
+    StateNotifierProvider<RevenueNotifier, RevenueState>((ref) {
+  return RevenueNotifier(
+    getRevenueDataUseCase: ref.watch(getRevenueDataUseCaseProvider),
+    getBillingDashboardSummaryUseCase: ref.watch(getBillingDashboardSummaryUseCaseProvider),
+  );
+});
+
+final billingSchoolBillingProvider =
+    StateNotifierProvider<SchoolBillingNotifier, SchoolBillingState>((ref) {
+  return SchoolBillingNotifier(
+    getSchoolBillingProfileUseCase: ref.watch(getSchoolBillingProfileUseCaseProvider),
+    updateSchoolBillingProfileUseCase: ref.watch(updateSchoolBillingProfileUseCaseProvider),
+  );
+});
+
+final billingNotificationProvider =
+    StateNotifierProvider<BillingNotificationNotifier, BillingNotificationState>((ref) {
+  return BillingNotificationNotifier(
+    getBillingNotificationsUseCase: ref.watch(getBillingNotificationsUseCaseProvider),
+    markNotificationReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
+    updateNotificationPreferencesUseCase: ref.watch(updateNotificationPreferencesUseCaseProvider),
   );
 });
