@@ -1,0 +1,820 @@
+     1→     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→     2→import '../../../../core/errors/exceptions.dart';
+     3→     3→import '../../../../core/utils/logger.dart';
+     4→     4→import '../models/parent_portal_models.dart';
+     5→     5→
+     6→     6→abstract class ParentPortalRemoteDataSource {
+     7→     7→  // ── Dashboard ──────────────────────────────────────────────────────────
+     8→     8→  Future<ParentDashboardModel> getDashboard();
+     9→     9→
+    10→    10→  // ── Child Profile ──────────────────────────────────────────────────────
+    11→    11→  Future<Map<String, dynamic>> getChildProfile(String studentId);
+    12→    12→
+    13→    13→  // ── Child Performance ──────────────────────────────────────────────────
+    14→    14→  Future<ChildPerformanceModel> getChildPerformance(
+    15→    15→    String studentId,
+    16→    16→    String? academicSessionId,
+    17→    17→  );
+    18→    18→
+    19→    19→  // ── Child Attendance ───────────────────────────────────────────────────
+    20→    20→  Future<Map<String, dynamic>> getChildAttendance(
+    21→    21→    String studentId,
+    22→    22→    DateTime? startDate,
+    23→    23→    DateTime? endDate,
+    24→    24→  );
+    25→    25→
+    26→    26→  // ── Child Assignments ──────────────────────────────────────────────────
+    27→    27→  Future<List<Map<String, dynamic>>> getChildAssignments(
+    28→    28→    String studentId,
+    29→    29→    String? status,
+    30→    30→  );
+    31→    31→
+    32→    32→  // ── Messages ───────────────────────────────────────────────────────────
+    33→    33→  Future<ParentMessageModel> sendMessage(Map<String, dynamic> data);
+    34→    34→  Future<List<ParentMessageModel>> getMessages(Map<String, dynamic> params);
+    35→    35→  Future<List<Map<String, dynamic>>> getMessageThreads(int page, int perPage);
+    36→    36→  Future<void> markMessageRead(String messageId);
+    37→    37→
+    38→    38→  // ── Notifications ──────────────────────────────────────────────────────
+    39→    39→  Future<List<ParentNotificationModel>> getNotifications(
+    40→    40→    Map<String, dynamic> params,
+    41→    41→  );
+    42→    42→  Future<void> markNotificationRead(String notificationId);
+    43→    43→  Future<void> markAllNotificationsRead();
+    44→    44→
+    45→    45→  // ── Calendar ───────────────────────────────────────────────────────────
+    46→    46→  Future<List<ParentCalendarEventModel>> getCalendarEvents(
+    47→    47→    Map<String, dynamic> params,
+    48→    48→  );
+    49→    49→
+    50→    50→  // ── AI Assistant ───────────────────────────────────────────────────────
+    51→    51→  Future<Map<String, dynamic>> askAssistant(Map<String, dynamic> params);
+    52→    52→
+    53→    53→  // ── AI Insights ────────────────────────────────────────────────────────
+    54→    54→  Future<List<ParentAiInsightModel>> getInsights(Map<String, dynamic> params);
+    55→    55→  Future<void> dismissInsight(String insightId);
+    56→    56→  Future<void> markInsightRead(String insightId);
+    57→    57→
+    58→    58→  // ── Reports & Downloads ────────────────────────────────────────────────
+    59→    59→  Future<ParentReportDownloadModel> downloadReport(Map<String, dynamic> params);
+    60→    60→  Future<List<ParentReportDownloadModel>> getDownloadHistory(String studentId);
+    61→    61→
+    62→    62→  // ── Engagement Tracking ────────────────────────────────────────────────
+    63→    63→  Future<void> recordEngagement(Map<String, dynamic> params);
+    64→    64→  Future<Map<String, dynamic>> getEngagementAnalytics(String schoolId);
+    65→    65→}
+    66→    66→
+    67→    67→class ParentPortalRemoteDataSourceImpl
+    68→    68→    implements ParentPortalRemoteDataSource {
+    69→    69→  ParentPortalRemoteDataSourceImpl({
+    70→    70→    required sb.SupabaseClient supabaseClient,
+    71→    71→  }) : _supabase = supabaseClient;
+    72→    72→
+    73→    73→  final sb.SupabaseClient _supabase;
+    74→    74→
+    75→    75→  // ── Table name constants ───────────────────────────────────────────────
+    76→    76→  static const _messagesTable = 'parent_messages';
+    77→    77→  static const _notificationsTable = 'parent_notifications';
+    78→    78→  static const _activityLogsTable = 'parent_activity_logs';
+    79→    79→  static const _insightsTable = 'parent_ai_insights';
+    80→    80→  static const _downloadsTable = 'parent_report_downloads';
+    81→    81→  static const _calendarEventsTable = 'parent_calendar_events';
+    82→    82→  static const _engagementMetricsTable = 'parent_engagement_metrics';
+    83→    83→
+    84→    84→  // ── Exception mapping helper ───────────────────────────────────────────
+    85→    85→  Never _mapPostgrestException(sb.PostgrestException e) {
+    86→    86→    AppLogger.error('Postgrest error: ${e.message}', error: e);
+    87→    87→    switch (e.code) {
+    88→    88→      case 'PGRST116':
+    89→    89→        throw NotFoundException(message: e.message);
+    90→    90→      case '23505':
+    91→    91→        throw ServerException(
+    92→    92→          message: 'A record with this data already exists.',
+    93→    93→          statusCode: 409,
+    94→    94→        );
+    95→    95→      case '23503':
+    96→    96→        throw ServerException(
+    97→    97→          message: 'Referenced record not found.',
+    98→    98→          statusCode: 404,
+    99→    99→        );
+   100→   100→      case '42501':
+   101→   101→        throw ForbiddenException(
+   102→   102→          message: 'You do not have permission for this action.',
+   103→   103→        );
+   104→   104→      default:
+   105→   105→        throw ServerException(
+   106→   106→          message: e.message,
+   107→   107→          statusCode: e.statusCode ?? 500,
+   108→   108→        );
+   109→   109→    }
+   110→   110→  }
+   111→   111→
+   112→   112→  // ═══════════════════════════════════════════════════════════════════════
+   113→   113→  // DASHBOARD
+   114→   114→  // ═══════════════════════════════════════════════════════════════════════
+   115→   115→
+   116→   116→  @override
+   117→   117→  Future<ParentDashboardModel> getDashboard() async {
+   118→   118→    try {
+   119→   119→      AppLogger.info('Fetching parent dashboard');
+   120→   120→      final response = await _supabase.rpc(
+   121→   121→        'get_parent_dashboard',
+   122→   122→        params: {'p_parent_user_id': _supabase.auth.currentUser?.id},
+   123→   123→      );
+   124→   124→      AppLogger.info('Parent dashboard fetched successfully');
+   125→   125→      return ParentDashboardModel.fromJson(
+   126→   126→        response as Map<String, dynamic>,
+   127→   127→      );
+   128→   128→    } on sb.PostgrestException catch (e) {
+   129→   129→      _mapPostgrestException(e);
+   130→   130→    } catch (e) {
+   131→   131→      AppLogger.error('Failed to fetch parent dashboard', error: e);
+   132→   132→      throw ServerException(message: e.toString(), statusCode: 500);
+   133→   133→    }
+   134→   134→  }
+   135→   135→
+   136→   136→  // ═══════════════════════════════════════════════════════════════════════
+   137→   137→  // CHILD PROFILE
+   138→   138→  // ═══════════════════════════════════════════════════════════════════════
+   139→   139→
+   140→   140→  @override
+   141→   141→  Future<Map<String, dynamic>> getChildProfile(String studentId) async {
+   142→   142→    try {
+   143→   143→      AppLogger.info('Fetching child profile for student: $studentId');
+   144→   144→      final response = await _supabase
+   145→   145→          .from('students')
+   146→   146→          .select('''
+   147→   147→            id,
+   148→   148→            first_name,
+   149→   149→            last_name,
+   150→   150→            admission_number,
+   151→   151→            avatar_url,
+   152→   152→            class:class_id(id, name),
+   153→   153→            parent_students!inner(relationship, is_primary_contact)
+   154→   154→          ''')
+   155→   155→          .eq('id', studentId)
+   156→   156→          .eq(
+   157→   157→            'parent_students.parent_user_id',
+   158→   158→            _supabase.auth.currentUser?.id ?? '',
+   159→   159→          )
+   160→   160→          .single();
+   161→   161→      AppLogger.info('Child profile fetched successfully');
+   162→   162→      return response;
+   163→   163→    } on sb.PostgrestException catch (e) {
+   164→   164→      if (e.code == 'PGRST116') {
+   165→   165→        throw NotFoundException(
+   166→   166→          message: 'Child profile not found for student: $studentId',
+   167→   167→        );
+   168→   168→      }
+   169→   169→      _mapPostgrestException(e);
+   170→   170→    } catch (e) {
+   171→   171→      AppLogger.error(
+   172→   172→        'Failed to fetch child profile for student: $studentId',
+   173→   173→        error: e,
+   174→   174→      );
+   175→   175→      throw ServerException(message: e.toString(), statusCode: 500);
+   176→   176→    }
+   177→   177→  }
+   178→   178→
+   179→   179→  // ═══════════════════════════════════════════════════════════════════════
+   180→   180→  // CHILD PERFORMANCE
+   181→   181→  // ═══════════════════════════════════════════════════════════════════════
+   182→   182→
+   183→   183→  @override
+   184→   184→  Future<ChildPerformanceModel> getChildPerformance(
+   185→   185→    String studentId,
+   186→   186→    String? academicSessionId,
+   187→   187→  ) async {
+   188→   188→    try {
+   189→   189→      AppLogger.info(
+   190→   190→        'Fetching child performance for student: $studentId'
+   191→   191→        '${academicSessionId != null ? ', session: $academicSessionId' : ''}',
+   192→   192→      );
+   193→   193→      final rpcParams = <String, dynamic>{'p_student_id': studentId};
+   194→   194→      if (academicSessionId != null) {
+   195→   195→        rpcParams['p_academic_session_id'] = academicSessionId;
+   196→   196→      }
+   197→   197→      final response = await _supabase.rpc(
+   198→   198→        'get_child_performance',
+   199→   199→        params: rpcParams,
+   200→   200→      );
+   201→   201→      AppLogger.info('Child performance fetched successfully');
+   202→   202→      return ChildPerformanceModel.fromJson(
+   203→   203→        response as Map<String, dynamic>,
+   204→   204→      );
+   205→   205→    } on sb.PostgrestException catch (e) {
+   206→   206→      _mapPostgrestException(e);
+   207→   207→    } catch (e) {
+   208→   208→      AppLogger.error(
+   209→   209→        'Failed to fetch child performance for student: $studentId',
+   210→   210→        error: e,
+   211→   211→      );
+   212→   212→      throw ServerException(message: e.toString(), statusCode: 500);
+   213→   213→    }
+   214→   214→  }
+   215→   215→
+   216→   216→  // ═══════════════════════════════════════════════════════════════════════
+   217→   217→  // CHILD ATTENDANCE
+   218→   218→  // ═══════════════════════════════════════════════════════════════════════
+   219→   219→
+   220→   220→  @override
+   221→   221→  Future<Map<String, dynamic>> getChildAttendance(
+   222→   222→    String studentId,
+   223→   223→    DateTime? startDate,
+   224→   224→    DateTime? endDate,
+   225→   225→  ) async {
+   226→   226→    try {
+   227→   227→      AppLogger.info('Fetching child attendance for student: $studentId');
+   228→   228→      var query = _supabase
+   229→   229→          .from('attendance_records')
+   230→   230→          .select('''
+   231→   231→            id,
+   232→   232→            student_id,
+   233→   233→            date,
+   234→   234→            status,
+   235→   235→            check_in_time,
+   236→   236→            check_out_time,
+   237→   237→            remarks
+   238→   238→          ''')
+   239→   239→          .eq('student_id', studentId)
+   240→   240→          .order('date', ascending: false);
+   241→   241→
+   242→   242→      if (startDate != null) {
+   243→   243→        query = query.gte('date', startDate.toIso8601String().split('T').first);
+   244→   244→      }
+   245→   245→      if (endDate != null) {
+   246→   246→        query = query.lte('date', endDate.toIso8601String().split('T').first);
+   247→   247→      }
+   248→   248→
+   249→   249→      final response = await query;
+   250→   250→      AppLogger.info('Child attendance fetched successfully');
+   251→   251→      return {
+   252→   252→        'student_id': studentId,
+   253→   253→        'records': response,
+   254→   254→        'start_date': startDate?.toIso8601String(),
+   255→   255→        'end_date': endDate?.toIso8601String(),
+   256→   256→      };
+   257→   257→    } on sb.PostgrestException catch (e) {
+   258→   258→      _mapPostgrestException(e);
+   259→   259→    } catch (e) {
+   260→   260→      AppLogger.error(
+   261→   261→        'Failed to fetch child attendance for student: $studentId',
+   262→   262→        error: e,
+   263→   263→      );
+   264→   264→      throw ServerException(message: e.toString(), statusCode: 500);
+   265→   265→    }
+   266→   266→  }
+   267→   267→
+   268→   268→  // ═══════════════════════════════════════════════════════════════════════
+   269→   269→  // CHILD ASSIGNMENTS
+   270→   270→  // ═══════════════════════════════════════════════════════════════════════
+   271→   271→
+   272→   272→  @override
+   273→   273→  Future<List<Map<String, dynamic>>> getChildAssignments(
+   274→   274→    String studentId,
+   275→   275→    String? status,
+   276→   276→  ) async {
+   277→   277→    try {
+   278→   278→      AppLogger.info('Fetching child assignments for student: $studentId');
+   279→   279→      var query = _supabase
+   280→   280→          .from('student_assignments')
+   281→   281→          .select('''
+   282→   282→            id,
+   283→   283→            assignment_id,
+   284→   284→            student_id,
+   285→   285→            status,
+   286→   286→            submitted_at,
+   287→   287→            score,
+   288→   288→            assignments(
+   289→   289→              id,
+   290→   290→              title,
+   291→   291→              description,
+   292→   292→              due_date,
+   293→   293→              subject_id,
+   294→   294→              subjects(name)
+   295→   295→            )
+   296→   296→          ''')
+   297→   297→          .eq('student_id', studentId)
+   298→   298→          .order('submitted_at', ascending: false);
+   299→   299→
+   300→   300→      if (status != null) {
+   301→   301→        query = query.eq('status', status);
+   302→   302→      }
+   303→   303→
+   304→   304→      final response = await query;
+   305→   305→      AppLogger.info(
+   306→   306→        'Child assignments fetched: ${response.length} records',
+   307→   307→      );
+   308→   308→      return response.cast<Map<String, dynamic>>();
+   309→   309→    } on sb.PostgrestException catch (e) {
+   310→   310→      _mapPostgrestException(e);
+   311→   311→    } catch (e) {
+   312→   312→      AppLogger.error(
+   313→   313→        'Failed to fetch child assignments for student: $studentId',
+   314→   314→        error: e,
+   315→   315→      );
+   316→   316→      throw ServerException(message: e.toString(), statusCode: 500);
+   317→   317→    }
+   318→   318→  }
+   319→   319→
+   320→   320→  // ═══════════════════════════════════════════════════════════════════════
+   321→   321→  // MESSAGES
+   322→   322→  // ═══════════════════════════════════════════════════════════════════════
+   323→   323→
+   324→   324→  @override
+   325→   325→  Future<ParentMessageModel> sendMessage(Map<String, dynamic> data) async {
+   326→   326→    try {
+   327→   327→      AppLogger.info('Sending parent message');
+   328→   328→      final response = await _supabase
+   329→   329→          .from(_messagesTable)
+   330→   330→          .insert(data)
+   331→   331→          .select()
+   332→   332→          .single();
+   333→   333→      AppLogger.info('Parent message sent successfully');
+   334→   334→      return ParentMessageModel.fromJson(response);
+   335→   335→    } on sb.PostgrestException catch (e) {
+   336→   336→      _mapPostgrestException(e);
+   337→   337→    } catch (e) {
+   338→   338→      AppLogger.error('Failed to send parent message', error: e);
+   339→   339→      throw ServerException(message: e.toString(), statusCode: 500);
+   340→   340→    }
+   341→   341→  }
+   342→   342→
+   343→   343→  @override
+   344→   344→  Future<List<ParentMessageModel>> getMessages(
+   345→   345→    Map<String, dynamic> params,
+   346→   346→  ) async {
+   347→   347→    try {
+   348→   348→      AppLogger.info('Fetching parent messages with params: $params');
+   349→   349→      var query = _supabase
+   350→   350→          .from(_messagesTable)
+   351→   351→          .select()
+   352→   352→          .order('created_at', ascending: false);
+   353→   353→
+   354→   354→      // Apply filters from params
+   355→   355→      if (params.containsKey('thread_id')) {
+   356→   356→        query = query.eq('thread_id', params['thread_id'] as String);
+   357→   357→      }
+   358→   358→      if (params.containsKey('student_id')) {
+   359→   359→        query = query.eq('student_id', params['student_id'] as String);
+   360→   360→      }
+   361→   361→      if (params.containsKey('direction')) {
+   362→   362→        query = query.eq('direction', params['direction'] as String);
+   363→   363→      }
+   364→   364→      if (params.containsKey('is_archived')) {
+   365→   365→        query = query.eq('is_archived', params['is_archived'] as bool);
+   366→   366→      }
+   367→   367→      if (params.containsKey('page') && params.containsKey('per_page')) {
+   368→   368→        final page = params['page'] as int;
+   369→   369→        final perPage = params['per_page'] as int;
+   370→   370→        query = query.range((page - 1) * perPage, page * perPage - 1);
+   371→   371→      }
+   372→   372→
+   373→   373→      final response = await query;
+   374→   374→      AppLogger.info('Parent messages fetched: ${response.length} records');
+   375→   375→      return response
+   376→   376→          .map((e) => ParentMessageModel.fromJson(e))
+   377→   377→          .toList();
+   378→   378→    } on sb.PostgrestException catch (e) {
+   379→   379→      _mapPostgrestException(e);
+   380→   380→    } catch (e) {
+   381→   381→      AppLogger.error('Failed to fetch parent messages', error: e);
+   382→   382→      throw ServerException(message: e.toString(), statusCode: 500);
+   383→   383→    }
+   384→   384→  }
+   385→   385→
+   386→   386→  @override
+   387→   387→  Future<List<Map<String, dynamic>>> getMessageThreads(
+   388→   388→    int page,
+   389→   389→    int perPage,
+   390→   390→  ) async {
+   391→   391→    try {
+   392→   392→      AppLogger.info(
+   393→   393→        'Fetching message threads: page=$page, perPage=$perPage',
+   394→   394→      );
+   395→   395→      final response = await _supabase.rpc(
+   396→   396→        'get_parent_message_threads',
+   397→   397→        params: {
+   398→   398→          'p_parent_user_id': _supabase.auth.currentUser?.id,
+   399→   399→          'p_page': page,
+   400→   400→          'p_per_page': perPage,
+   401→   401→        },
+   402→   402→      );
+   403→   403→      AppLogger.info('Message threads fetched successfully');
+   404→   404→      return (response as List<dynamic>)
+   405→   405→          .map((e) => Map<String, dynamic>.from(e as Map))
+   406→   406→          .toList();
+   407→   407→    } on sb.PostgrestException catch (e) {
+   408→   408→      _mapPostgrestException(e);
+   409→   409→    } catch (e) {
+   410→   410→      AppLogger.error('Failed to fetch message threads', error: e);
+   411→   411→      throw ServerException(message: e.toString(), statusCode: 500);
+   412→   412→    }
+   413→   413→  }
+   414→   414→
+   415→   415→  @override
+   416→   416→  Future<void> markMessageRead(String messageId) async {
+   417→   417→    try {
+   418→   418→      AppLogger.info('Marking message as read: $messageId');
+   419→   419→      await _supabase
+   420→   420→          .from(_messagesTable)
+   421→   421→          .update({
+   422→   422→            'is_read': true,
+   423→   423→            'read_at': DateTime.now().toIso8601String(),
+   424→   424→          })
+   425→   425→          .eq('id', messageId);
+   426→   426→      AppLogger.info('Message marked as read successfully');
+   427→   427→    } on sb.PostgrestException catch (e) {
+   428→   428→      _mapPostgrestException(e);
+   429→   429→    } catch (e) {
+   430→   430→      AppLogger.error(
+   431→   431→        'Failed to mark message as read: $messageId',
+   432→   432→        error: e,
+   433→   433→      );
+   434→   434→      throw ServerException(message: e.toString(), statusCode: 500);
+   435→   435→    }
+   436→   436→  }
+   437→   437→
+   438→   438→  // ═══════════════════════════════════════════════════════════════════════
+   439→   439→  // NOTIFICATIONS
+   440→   440→  // ═══════════════════════════════════════════════════════════════════════
+   441→   441→
+   442→   442→  @override
+   443→   443→  Future<List<ParentNotificationModel>> getNotifications(
+   444→   444→    Map<String, dynamic> params,
+   445→   445→  ) async {
+   446→   446→    try {
+   447→   447→      AppLogger.info('Fetching parent notifications with params: $params');
+   448→   448→      final parentId = _supabase.auth.currentUser?.id ?? '';
+   449→   449→      var query = _supabase
+   450→   450→          .from(_notificationsTable)
+   451→   451→          .select()
+   452→   452→          .eq('parent_id', parentId)
+   453→   453→          .order('created_at', ascending: false);
+   454→   454→
+   455→   455→      // Apply filters from params
+   456→   456→      if (params.containsKey('category')) {
+   457→   457→        query = query.eq('category', params['category'] as String);
+   458→   458→      }
+   459→   459→      if (params.containsKey('is_read')) {
+   460→   460→        query = query.eq('is_read', params['is_read'] as bool);
+   461→   461→      }
+   462→   462→      if (params.containsKey('page') && params.containsKey('per_page')) {
+   463→   463→        final page = params['page'] as int;
+   464→   464→        final perPage = params['per_page'] as int;
+   465→   465→        query = query.range((page - 1) * perPage, page * perPage - 1);
+   466→   466→      }
+   467→   467→
+   468→   468→      final response = await query;
+   469→   469→      AppLogger.info(
+   470→   470→        'Parent notifications fetched: ${response.length} records',
+   471→   471→      );
+   472→   472→      return response
+   473→   473→          .map((e) => ParentNotificationModel.fromJson(e))
+   474→   474→          .toList();
+   475→   475→    } on sb.PostgrestException catch (e) {
+   476→   476→      _mapPostgrestException(e);
+   477→   477→    } catch (e) {
+   478→   478→      AppLogger.error('Failed to fetch parent notifications', error: e);
+   479→   479→      throw ServerException(message: e.toString(), statusCode: 500);
+   480→   480→    }
+   481→   481→  }
+   482→   482→
+   483→   483→  @override
+   484→   484→  Future<void> markNotificationRead(String notificationId) async {
+   485→   485→    try {
+   486→   486→      AppLogger.info('Marking notification as read: $notificationId');
+   487→   487→      await _supabase
+   488→   488→          .from(_notificationsTable)
+   489→   489→          .update({
+   490→   490→            'is_read': true,
+   491→   491→            'read_at': DateTime.now().toIso8601String(),
+   492→   492→          })
+   493→   493→          .eq('id', notificationId);
+   494→   494→      AppLogger.info('Notification marked as read successfully');
+   495→   495→    } on sb.PostgrestException catch (e) {
+   496→   496→      _mapPostgrestException(e);
+   497→   497→    } catch (e) {
+   498→   498→      AppLogger.error(
+   499→   499→        'Failed to mark notification as read: $notificationId',
+   500→   500→        error: e,
+   501→   501→      );
+   502→   502→      throw ServerException(message: e.toString(), statusCode: 500);
+   503→   503→    }
+   504→   504→  }
+   505→   505→
+   506→   506→  @override
+   507→   507→  Future<void> markAllNotificationsRead() async {
+   508→   508→    try {
+   509→   509→      AppLogger.info('Marking all notifications as read');
+   510→   510→      final parentId = _supabase.auth.currentUser?.id ?? '';
+   511→   511→      await _supabase
+   512→   512→          .from(_notificationsTable)
+   513→   513→          .update({
+   514→   514→            'is_read': true,
+   515→   515→            'read_at': DateTime.now().toIso8601String(),
+   516→   516→          })
+   517→   517→          .eq('parent_id', parentId)
+   518→   518→          .eq('is_read', false);
+   519→   519→      AppLogger.info('All notifications marked as read successfully');
+   520→   520→    } on sb.PostgrestException catch (e) {
+   521→   521→      _mapPostgrestException(e);
+   522→   522→    } catch (e) {
+   523→   523→      AppLogger.error('Failed to mark all notifications as read', error: e);
+   524→   524→      throw ServerException(message: e.toString(), statusCode: 500);
+   525→   525→    }
+   526→   526→  }
+   527→   527→
+   528→   528→  // ═══════════════════════════════════════════════════════════════════════
+   529→   529→  // CALENDAR
+   530→   530→  // ═══════════════════════════════════════════════════════════════════════
+   531→   531→
+   532→   532→  @override
+   533→   533→  Future<List<ParentCalendarEventModel>> getCalendarEvents(
+   534→   534→    Map<String, dynamic> params,
+   535→   535→  ) async {
+   536→   536→    try {
+   537→   537→      AppLogger.info('Fetching parent calendar events with params: $params');
+   538→   538→      var query = _supabase
+   539→   539→          .from(_calendarEventsTable)
+   540→   540→          .select()
+   541→   541→          .order('start_time', ascending: true);
+   542→   542→
+   543→   543→      // Apply filters from params
+   544→   544→      if (params.containsKey('start_date')) {
+   545→   545→        final startDate = params['start_date'] as String;
+   546→   546→        query = query.gte('start_time', startDate);
+   547→   547→      }
+   548→   548→      if (params.containsKey('end_date')) {
+   549→   549→        final endDate = params['end_date'] as String;
+   550→   550→        query = query.lte('end_time', endDate);
+   551→   551→      }
+   552→   552→      if (params.containsKey('student_id')) {
+   553→   553→        query = query.eq('student_id', params['student_id'] as String);
+   554→   554→      }
+   555→   555→      if (params.containsKey('event_type')) {
+   556→   556→        query = query.eq('event_type', params['event_type'] as String);
+   557→   557→      }
+   558→   558→
+   559→   559→      final response = await query;
+   560→   560→      AppLogger.info(
+   561→   561→        'Parent calendar events fetched: ${response.length} records',
+   562→   562→      );
+   563→   563→      return response
+   564→   564→          .map((e) => ParentCalendarEventModel.fromJson(e))
+   565→   565→          .toList();
+   566→   566→    } on sb.PostgrestException catch (e) {
+   567→   567→      _mapPostgrestException(e);
+   568→   568→    } catch (e) {
+   569→   569→      AppLogger.error('Failed to fetch parent calendar events', error: e);
+   570→   570→      throw ServerException(message: e.toString(), statusCode: 500);
+   571→   571→    }
+   572→   572→  }
+   573→   573→
+   574→   574→  // ═══════════════════════════════════════════════════════════════════════
+   575→   575→  // AI ASSISTANT
+   576→   576→  // ═══════════════════════════════════════════════════════════════════════
+   577→   577→
+   578→   578→  @override
+   579→   579→  Future<Map<String, dynamic>> askAssistant(
+   580→   580→    Map<String, dynamic> params,
+   581→   581→  ) async {
+   582→   582→    try {
+   583→   583→      AppLogger.info('Asking parent AI assistant');
+   584→   584→      final response = await _supabase.rpc(
+   585→   585→        'ask_parent_assistant',
+   586→   586→        params: {
+   587→   587→          'p_parent_user_id': _supabase.auth.currentUser?.id,
+   588→   588→          'p_question': params['question'],
+   589→   589→          'p_student_id': params['student_id'],
+   590→   590→          'p_context': params['context'],
+   591→   591→        },
+   592→   592→      );
+   593→   593→      AppLogger.info('Parent AI assistant response received');
+   594→   594→      return response as Map<String, dynamic>;
+   595→   595→    } on sb.PostgrestException catch (e) {
+   596→   596→      _mapPostgrestException(e);
+   597→   597→    } catch (e) {
+   598→   598→      AppLogger.error('Failed to ask parent AI assistant', error: e);
+   599→   599→      throw ServerException(message: e.toString(), statusCode: 500);
+   600→   600→    }
+   601→   601→  }
+   602→   602→
+   603→   603→  // ═══════════════════════════════════════════════════════════════════════
+   604→   604→  // AI INSIGHTS
+   605→   605→  // ═══════════════════════════════════════════════════════════════════════
+   606→   606→
+   607→   607→  @override
+   608→   608→  Future<List<ParentAiInsightModel>> getInsights(
+   609→   609→    Map<String, dynamic> params,
+   610→   610→  ) async {
+   611→   611→    try {
+   612→   612→      AppLogger.info('Fetching parent AI insights with params: $params');
+   613→   613→      final parentId = _supabase.auth.currentUser?.id ?? '';
+   614→   614→      var query = _supabase
+   615→   615→          .from(_insightsTable)
+   616→   616→          .select()
+   617→   617→          .eq('parent_id', parentId)
+   618→   618→          .order('created_at', ascending: false);
+   619→   619→
+   620→   620→      // Apply filters from params
+   621→   621→      if (params.containsKey('student_id')) {
+   622→   622→        query = query.eq('student_id', params['student_id'] as String);
+   623→   623→      }
+   624→   624→      if (params.containsKey('is_read')) {
+   625→   625→        query = query.eq('is_read', params['is_read'] as bool);
+   626→   626→      }
+   627→   627→      if (params.containsKey('is_dismissed')) {
+   628→   628→        query = query.eq('is_dismissed', params['is_dismissed'] as bool);
+   629→   629→      } else {
+   630→   630→        // Default: exclude dismissed insights
+   631→   631→        query = query.eq('is_dismissed', false);
+   632→   632→      }
+   633→   633→      if (params.containsKey('insight_type')) {
+   634→   634→        query = query.eq('insight_type', params['insight_type'] as String);
+   635→   635→      }
+   636→   636→      if (params.containsKey('severity')) {
+   637→   637→        query = query.eq('severity', params['severity'] as String);
+   638→   638→      }
+   639→   639→
+   640→   640→      final response = await query;
+   641→   641→      AppLogger.info(
+   642→   642→        'Parent AI insights fetched: ${response.length} records',
+   643→   643→      );
+   644→   644→      return response
+   645→   645→          .map((e) => ParentAiInsightModel.fromJson(e))
+   646→   646→          .toList();
+   647→   647→    } on sb.PostgrestException catch (e) {
+   648→   648→      _mapPostgrestException(e);
+   649→   649→    } catch (e) {
+   650→   650→      AppLogger.error('Failed to fetch parent AI insights', error: e);
+   651→   651→      throw ServerException(message: e.toString(), statusCode: 500);
+   652→   652→    }
+   653→   653→  }
+   654→   654→
+   655→   655→  @override
+   656→   656→  Future<void> dismissInsight(String insightId) async {
+   657→   657→    try {
+   658→   658→      AppLogger.info('Dismissing AI insight: $insightId');
+   659→   659→      await _supabase
+   660→   660→          .from(_insightsTable)
+   661→   661→          .update({'is_dismissed': true})
+   662→   662→          .eq('id', insightId);
+   663→   663→      AppLogger.info('AI insight dismissed successfully');
+   664→   664→    } on sb.PostgrestException catch (e) {
+   665→   665→      _mapPostgrestException(e);
+   666→   666→    } catch (e) {
+   667→   667→      AppLogger.error(
+   668→   668→        'Failed to dismiss AI insight: $insightId',
+   669→   669→        error: e,
+   670→   670→      );
+   671→   671→      throw ServerException(message: e.toString(), statusCode: 500);
+   672→   672→    }
+   673→   673→  }
+   674→   674→
+   675→   675→  @override
+   676→   676→  Future<void> markInsightRead(String insightId) async {
+   677→   677→    try {
+   678→   678→      AppLogger.info('Marking AI insight as read: $insightId');
+   679→   679→      await _supabase
+   680→   680→          .from(_insightsTable)
+   681→   681→          .update({
+   682→   682→            'is_read': true,
+   683→   683→          })
+   684→   684→          .eq('id', insightId);
+   685→   685→      AppLogger.info('AI insight marked as read successfully');
+   686→   686→    } on sb.PostgrestException catch (e) {
+   687→   687→      _mapPostgrestException(e);
+   688→   688→    } catch (e) {
+   689→   689→      AppLogger.error(
+   690→   690→        'Failed to mark AI insight as read: $insightId',
+   691→   691→        error: e,
+   692→   692→      );
+   693→   693→      throw ServerException(message: e.toString(), statusCode: 500);
+   694→   694→    }
+   695→   695→  }
+   696→   696→
+   697→   697→  // ═══════════════════════════════════════════════════════════════════════
+   698→   698→  // REPORTS & DOWNLOADS
+   699→   699→  // ═══════════════════════════════════════════════════════════════════════
+   700→   700→
+   701→   701→  @override
+   702→   702→  Future<ParentReportDownloadModel> downloadReport(
+   703→   703→    Map<String, dynamic> params,
+   704→   704→  ) async {
+   705→   705→    try {
+   706→   706→      AppLogger.info('Downloading report with params: $params');
+   707→   707→      final data = {
+   708→   708→        'parent_id': _supabase.auth.currentUser?.id,
+   709→   709→        'student_id': params['student_id'],
+   710→   710→        'report_type': params['report_type'],
+   711→   711→        'report_id': params['report_id'],
+   712→   712→        'format': params['format'] ?? 'pdf',
+   713→   713→        'file_url': params['file_url'],
+   714→   714→        'file_name': params['file_name'],
+   715→   715→        'file_size_bytes': params['file_size_bytes'],
+   716→   716→        'school_id': params['school_id'],
+   717→   717→        'downloaded_at': DateTime.now().toIso8601String(),
+   718→   718→      };
+   719→   719→      final response = await _supabase
+   720→   720→          .from(_downloadsTable)
+   721→   721→          .insert(data)
+   722→   722→          .select()
+   723→   723→          .single();
+   724→   724→      AppLogger.info('Report download recorded successfully');
+   725→   725→      return ParentReportDownloadModel.fromJson(response);
+   726→   726→    } on sb.PostgrestException catch (e) {
+   727→   727→      _mapPostgrestException(e);
+   728→   728→    } catch (e) {
+   729→   729→      AppLogger.error('Failed to download report', error: e);
+   730→   730→      throw ServerException(message: e.toString(), statusCode: 500);
+   731→   731→    }
+   732→   732→  }
+   733→   733→
+   734→   734→  @override
+   735→   735→  Future<List<ParentReportDownloadModel>> getDownloadHistory(
+   736→   736→    String studentId,
+   737→   737→  ) async {
+   738→   738→    try {
+   739→   739→      AppLogger.info(
+   740→   740→        'Fetching download history for student: $studentId',
+   741→   741→      );
+   742→   742→      final parentId = _supabase.auth.currentUser?.id ?? '';
+   743→   743→      final response = await _supabase
+   744→   744→          .from(_downloadsTable)
+   745→   745→          .select()
+   746→   746→          .eq('parent_id', parentId)
+   747→   747→          .eq('student_id', studentId)
+   748→   748→          .order('downloaded_at', ascending: false);
+   749→   749→      AppLogger.info(
+   750→   750→        'Download history fetched: ${response.length} records',
+   751→   751→      );
+   752→   752→      return response
+   753→   753→          .map((e) => ParentReportDownloadModel.fromJson(e))
+   754→   754→          .toList();
+   755→   755→    } on sb.PostgrestException catch (e) {
+   756→   756→      _mapPostgrestException(e);
+   757→   757→    } catch (e) {
+   758→   758→      AppLogger.error(
+   759→   759→        'Failed to fetch download history for student: $studentId',
+   760→   760→        error: e,
+   761→   761→      );
+   762→   762→      throw ServerException(message: e.toString(), statusCode: 500);
+   763→   763→    }
+   764→   764→  }
+   765→   765→
+   766→   766→  // ═══════════════════════════════════════════════════════════════════════
+   767→   767→  // ENGAGEMENT TRACKING
+   768→   768→  // ═══════════════════════════════════════════════════════════════════════
+   769→   769→
+   770→   770→  @override
+   771→   771→  Future<void> recordEngagement(Map<String, dynamic> params) async {
+   772→   772→    try {
+   773→   773→      AppLogger.info('Recording parent engagement event');
+   774→   774→      final data = {
+   775→   775→        'parent_id': _supabase.auth.currentUser?.id,
+   776→   776→        'school_id': params['school_id'],
+   777→   777→        'student_id': params['student_id'],
+   778→   778→        'metric_type': params['metric_type'],
+   779→   779→        'metric_value': params['metric_value'] ?? 1.0,
+   780→   780→        'details': params['details'] ?? {},
+   781→   781→        'recorded_at': DateTime.now().toIso8601String(),
+   782→   782→      };
+   783→   783→      await _supabase.from(_engagementMetricsTable).insert(data);
+   784→   784→      AppLogger.info('Parent engagement event recorded successfully');
+   785→   785→    } on sb.PostgrestException catch (e) {
+   786→   786→      _mapPostgrestException(e);
+   787→   787→    } catch (e) {
+   788→   788→      AppLogger.error('Failed to record parent engagement event', error: e);
+   789→   789→      throw ServerException(message: e.toString(), statusCode: 500);
+   790→   790→    }
+   791→   791→  }
+   792→   792→
+   793→   793→  // ═══════════════════════════════════════════════════════════════════════
+   794→   794→  // ENGAGEMENT ANALYTICS (ADMIN)
+   795→   795→  // ═══════════════════════════════════════════════════════════════════════
+   796→   796→
+   797→   797→  @override
+   798→   798→  Future<Map<String, dynamic>> getEngagementAnalytics(String schoolId) async {
+   799→   799→    try {
+   800→   800→      AppLogger.info(
+   801→   801→        'Fetching engagement analytics for school: $schoolId',
+   802→   802→      );
+   803→   803→      final response = await _supabase.rpc(
+   804→   804→        'get_parent_engagement_analytics',
+   805→   805→        params: {'p_school_id': schoolId},
+   806→   806→      );
+   807→   807→      AppLogger.info('Engagement analytics fetched successfully');
+   808→   808→      return response as Map<String, dynamic>;
+   809→   809→    } on sb.PostgrestException catch (e) {
+   810→   810→      _mapPostgrestException(e);
+   811→   811→    } catch (e) {
+   812→   812→      AppLogger.error(
+   813→   813→        'Failed to fetch engagement analytics for school: $schoolId',
+   814→   814→        error: e,
+   815→   815→      );
+   816→   816→      throw ServerException(message: e.toString(), statusCode: 500);
+   817→   817→    }
+   818→   818→  }
+   819→   819→}
+   820→   820→

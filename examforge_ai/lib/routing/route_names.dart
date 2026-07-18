@@ -517,6 +517,64 @@ class RouteNames {
   static const String parentEngagement = '/parent-portal/engagement';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // COMMUNICATION SYSTEM ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Communication hub / dashboard.
+  static const String communication = '/communication';
+
+  /// Communication dashboard page.
+  static const String communicationDashboard = '/communication/dashboard';
+
+  /// Conversation list page.
+  static const String conversationList = '/communication/conversations';
+
+  /// Chat page (individual conversation).
+  static const String chat = '/communication/chat';
+
+  /// Create conversation page.
+  static const String createConversation = '/communication/conversations/create';
+
+  /// Announcement list page.
+  static const String announcementList = '/communication/announcements';
+
+  /// Announcement detail page.
+  static const String announcementDetail = '/communication/announcements/detail';
+
+  /// Create announcement page.
+  static const String createAnnouncement = '/communication/announcements/create';
+
+  /// Notification center page.
+  static const String notificationCenter = '/communication/notifications';
+
+  /// Notification preferences page.
+  static const String notificationPreferences = '/communication/notifications/preferences';
+
+  /// Discussion forum list page.
+  static const String forumList = '/communication/forums';
+
+  /// Forum detail page.
+  static const String forumDetail = '/communication/forums/detail';
+
+  /// Forum post detail page.
+  static const String forumPostDetail = '/communication/forums/post';
+
+  /// Calendar events page.
+  static const String communicationCalendar = '/communication/calendar';
+
+  /// Create calendar event page.
+  static const String createCalendarEvent = '/communication/calendar/create';
+
+  /// AI Communication Assistant page.
+  static const String aiAssistant = '/communication/ai-assistant';
+
+  /// AI School Knowledge Assistant page.
+  static const String knowledgeAssistant = '/communication/knowledge-assistant';
+
+  /// Communication audit logs page (admin).
+  static const String communicationAuditLogs = '/communication/audit-logs';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // HELPER SETS
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -702,6 +760,28 @@ class RouteNames {
     parentEngagement,
   };
 
+  /// All communication sub-routes (used for feature-level navigation).
+  static const Set<String> communicationRoutes = <String>{
+    communication,
+    communicationDashboard,
+    conversationList,
+    chat,
+    createConversation,
+    announcementList,
+    announcementDetail,
+    createAnnouncement,
+    notificationCenter,
+    notificationPreferences,
+    forumList,
+    forumDetail,
+    forumPostDetail,
+    communicationCalendar,
+    createCalendarEvent,
+    aiAssistant,
+    knowledgeAssistant,
+    communicationAuditLogs,
+  };
+
   /// All routes that live inside the authenticated [ShellRoute].
   static const Set<String> protectedRoutes = <String>{
     dashboard,
@@ -840,5 +920,23 @@ class RouteNames {
     parentInsights,
     parentReports,
     parentEngagement,
+    communication,
+    communicationDashboard,
+    conversationList,
+    chat,
+    createConversation,
+    announcementList,
+    announcementDetail,
+    createAnnouncement,
+    notificationCenter,
+    notificationPreferences,
+    forumList,
+    forumDetail,
+    forumPostDetail,
+    communicationCalendar,
+    createCalendarEvent,
+    aiAssistant,
+    knowledgeAssistant,
+    communicationAuditLogs,
   };
 }

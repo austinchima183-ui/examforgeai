@@ -2805,3 +2805,399 @@ final parentEngagementProvider =
         ref.watch(getEngagementAnalyticsUseCaseProvider),
   );
 });
+
+// ═══════════════════════════════════════════════════════════════════════
+// COMMUNICATION SYSTEM
+// ═══════════════════════════════════════════════════════════════════════
+
+import '../features/communication/data/datasources/communication_remote_datasource.dart';
+import '../features/communication/data/repositories/communication_repository_impl.dart';
+import '../features/communication/domain/repositories/communication_repository.dart';
+// Use cases
+import '../features/communication/domain/usecases/get_conversations_usecase.dart';
+import '../features/communication/domain/usecases/create_conversation_usecase.dart';
+import '../features/communication/domain/usecases/get_messages_usecase.dart';
+import '../features/communication/domain/usecases/send_message_usecase.dart';
+import '../features/communication/domain/usecases/edit_message_usecase.dart';
+import '../features/communication/domain/usecases/delete_message_usecase.dart';
+import '../features/communication/domain/usecases/pin_message_usecase.dart';
+import '../features/communication/domain/usecases/add_reaction_usecase.dart';
+import '../features/communication/domain/usecases/mark_as_read_usecase.dart';
+import '../features/communication/domain/usecases/get_announcements_usecase.dart';
+import '../features/communication/domain/usecases/create_announcement_usecase.dart';
+import '../features/communication/domain/usecases/acknowledge_announcement_usecase.dart';
+import '../features/communication/domain/usecases/get_notifications_usecase.dart';
+import '../features/communication/domain/usecases/mark_notification_read_usecase.dart';
+import '../features/communication/domain/usecases/mark_all_notifications_read_usecase.dart';
+import '../features/communication/domain/usecases/get_notification_preferences_usecase.dart';
+import '../features/communication/domain/usecases/update_notification_preferences_usecase.dart';
+import '../features/communication/domain/usecases/get_forums_usecase.dart';
+import '../features/communication/domain/usecases/create_forum_usecase.dart';
+import '../features/communication/domain/usecases/get_forum_posts_usecase.dart';
+import '../features/communication/domain/usecases/create_forum_post_usecase.dart';
+import '../features/communication/domain/usecases/create_forum_comment_usecase.dart';
+import '../features/communication/domain/usecases/get_calendar_events_usecase.dart';
+import '../features/communication/domain/usecases/create_calendar_event_usecase.dart';
+import '../features/communication/domain/usecases/rsvp_to_event_usecase.dart';
+import '../features/communication/domain/usecases/ai_draft_announcement_usecase.dart';
+import '../features/communication/domain/usecases/ai_rewrite_message_usecase.dart';
+import '../features/communication/domain/usecases/ai_summarize_conversation_usecase.dart';
+import '../features/communication/domain/usecases/ai_translate_message_usecase.dart';
+import '../features/communication/domain/usecases/ai_suggest_reply_usecase.dart';
+import '../features/communication/domain/usecases/ai_correct_grammar_usecase.dart';
+import '../features/communication/domain/usecases/ai_adjust_tone_usecase.dart';
+import '../features/communication/domain/usecases/ask_school_knowledge_usecase.dart';
+import '../features/communication/domain/usecases/get_knowledge_documents_usecase.dart';
+import '../features/communication/domain/usecases/upload_knowledge_document_usecase.dart';
+import '../features/communication/domain/usecases/report_message_usecase.dart';
+import '../features/communication/domain/usecases/mute_conversation_usecase.dart';
+import '../features/communication/domain/usecases/archive_conversation_usecase.dart';
+import '../features/communication/domain/usecases/get_audit_logs_usecase.dart';
+import '../features/communication/domain/usecases/get_communication_dashboard_usecase.dart';
+import '../features/communication/domain/usecases/set_typing_usecase.dart';
+import '../features/communication/domain/usecases/update_presence_usecase.dart';
+// Providers
+import '../features/communication/presentation/providers/conversation_provider.dart';
+import '../features/communication/presentation/providers/message_provider.dart';
+import '../features/communication/presentation/providers/announcement_provider.dart';
+import '../features/communication/presentation/providers/notification_provider.dart';
+import '../features/communication/presentation/providers/forum_provider.dart';
+import '../features/communication/presentation/providers/calendar_provider.dart';
+import '../features/communication/presentation/providers/ai_assistant_provider.dart';
+import '../features/communication/presentation/providers/knowledge_assistant_provider.dart';
+import '../features/communication/presentation/providers/communication_dashboard_provider.dart';
+import '../features/communication/presentation/providers/moderation_provider.dart';
+
+// ─── Data Source ──────────────────────────────────────────────────────
+
+final communicationRemoteDataSourceProvider =
+    Provider<CommunicationRemoteDataSource>((ref) {
+  return CommunicationRemoteDataSourceImpl(
+    supabaseClient: ref.watch(supabaseClientProvider),
+  );
+});
+
+// ─── Repository ──────────────────────────────────────────────────────
+
+final communicationRepositoryProvider =
+    Provider<CommunicationRepository>((ref) {
+  return CommunicationRepositoryImpl(
+    remoteDataSource: ref.watch(communicationRemoteDataSourceProvider),
+  );
+});
+
+// ─── Use Cases ───────────────────────────────────────────────────────
+
+final getConversationsUseCaseProvider =
+    Provider<GetConversationsUseCase>((ref) {
+  return GetConversationsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final createConversationUseCaseProvider =
+    Provider<CreateConversationUseCase>((ref) {
+  return CreateConversationUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getMessagesUseCaseProvider =
+    Provider<GetMessagesUseCase>((ref) {
+  return GetMessagesUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final sendMessageUseCaseProvider =
+    Provider<SendMessageUseCase>((ref) {
+  return SendMessageUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final editMessageUseCaseProvider =
+    Provider<EditMessageUseCase>((ref) {
+  return EditMessageUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final deleteMessageUseCaseProvider =
+    Provider<DeleteMessageUseCase>((ref) {
+  return DeleteMessageUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final pinMessageUseCaseProvider =
+    Provider<PinMessageUseCase>((ref) {
+  return PinMessageUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final addReactionUseCaseProvider =
+    Provider<AddReactionUseCase>((ref) {
+  return AddReactionUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final markAsReadUseCaseProvider =
+    Provider<MarkAsReadUseCase>((ref) {
+  return MarkAsReadUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getAnnouncementsUseCaseProvider =
+    Provider<GetAnnouncementsUseCase>((ref) {
+  return GetAnnouncementsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final createAnnouncementUseCaseProvider =
+    Provider<CreateAnnouncementUseCase>((ref) {
+  return CreateAnnouncementUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final acknowledgeAnnouncementUseCaseProvider =
+    Provider<AcknowledgeAnnouncementUseCase>((ref) {
+  return AcknowledgeAnnouncementUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getNotificationsUseCaseProvider =
+    Provider<GetNotificationsUseCase>((ref) {
+  return GetNotificationsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final markNotificationReadUseCaseProvider =
+    Provider<MarkNotificationReadUseCase>((ref) {
+  return MarkNotificationReadUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final markAllNotificationsReadUseCaseProvider =
+    Provider<MarkAllNotificationsReadUseCase>((ref) {
+  return MarkAllNotificationsReadUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getNotificationPreferencesUseCaseProvider =
+    Provider<GetNotificationPreferencesUseCase>((ref) {
+  return GetNotificationPreferencesUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final updateNotificationPreferencesUseCaseProvider =
+    Provider<UpdateNotificationPreferencesUseCase>((ref) {
+  return UpdateNotificationPreferencesUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getForumsUseCaseProvider =
+    Provider<GetForumsUseCase>((ref) {
+  return GetForumsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final createForumUseCaseProvider =
+    Provider<CreateForumUseCase>((ref) {
+  return CreateForumUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getForumPostsUseCaseProvider =
+    Provider<GetForumPostsUseCase>((ref) {
+  return GetForumPostsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final createForumPostUseCaseProvider =
+    Provider<CreateForumPostUseCase>((ref) {
+  return CreateForumPostUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final createForumCommentUseCaseProvider =
+    Provider<CreateForumCommentUseCase>((ref) {
+  return CreateForumCommentUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getCalendarEventsUseCaseProvider =
+    Provider<GetCalendarEventsUseCase>((ref) {
+  return GetCalendarEventsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final createCalendarEventUseCaseProvider =
+    Provider<CreateCalendarEventUseCase>((ref) {
+  return CreateCalendarEventUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final rsvpToEventUseCaseProvider =
+    Provider<RsvpToEventUseCase>((ref) {
+  return RsvpToEventUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final aiDraftAnnouncementUseCaseProvider =
+    Provider<AiDraftAnnouncementUseCase>((ref) {
+  return AiDraftAnnouncementUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final aiRewriteMessageUseCaseProvider =
+    Provider<AiRewriteMessageUseCase>((ref) {
+  return AiRewriteMessageUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final aiSummarizeConversationUseCaseProvider =
+    Provider<AiSummarizeConversationUseCase>((ref) {
+  return AiSummarizeConversationUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final aiTranslateMessageUseCaseProvider =
+    Provider<AiTranslateMessageUseCase>((ref) {
+  return AiTranslateMessageUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final aiSuggestReplyUseCaseProvider =
+    Provider<AiSuggestReplyUseCase>((ref) {
+  return AiSuggestReplyUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final aiCorrectGrammarUseCaseProvider =
+    Provider<AiCorrectGrammarUseCase>((ref) {
+  return AiCorrectGrammarUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final aiAdjustToneUseCaseProvider =
+    Provider<AiAdjustToneUseCase>((ref) {
+  return AiAdjustToneUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final askSchoolKnowledgeUseCaseProvider =
+    Provider<AskSchoolKnowledgeUseCase>((ref) {
+  return AskSchoolKnowledgeUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getKnowledgeDocumentsUseCaseProvider =
+    Provider<GetKnowledgeDocumentsUseCase>((ref) {
+  return GetKnowledgeDocumentsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final uploadKnowledgeDocumentUseCaseProvider =
+    Provider<UploadKnowledgeDocumentUseCase>((ref) {
+  return UploadKnowledgeDocumentUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final reportMessageUseCaseProvider =
+    Provider<ReportMessageUseCase>((ref) {
+  return ReportMessageUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final muteConversationUseCaseProvider =
+    Provider<MuteConversationUseCase>((ref) {
+  return MuteConversationUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final archiveConversationUseCaseProvider =
+    Provider<ArchiveConversationUseCase>((ref) {
+  return ArchiveConversationUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getAuditLogsUseCaseProvider =
+    Provider<GetAuditLogsUseCase>((ref) {
+  return GetAuditLogsUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final getCommunicationDashboardUseCaseProvider =
+    Provider<GetCommunicationDashboardUseCase>((ref) {
+  return GetCommunicationDashboardUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final setTypingUseCaseProvider =
+    Provider<SetTypingUseCase>((ref) {
+  return SetTypingUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+final updatePresenceUseCaseProvider =
+    Provider<UpdatePresenceUseCase>((ref) {
+  return UpdatePresenceUseCase(ref.watch(communicationRepositoryProvider));
+});
+
+// ─── State Notifiers ──────────────────────────────────────────────────
+
+final conversationProvider =
+    StateNotifierProvider<ConversationNotifier, ConversationState>((ref) {
+  return ConversationNotifier(
+    getConversationsUseCase: ref.watch(getConversationsUseCaseProvider),
+    createConversationUseCase: ref.watch(createConversationUseCaseProvider),
+    muteConversationUseCase: ref.watch(muteConversationUseCaseProvider),
+    archiveConversationUseCase: ref.watch(archiveConversationUseCaseProvider),
+  );
+});
+
+final messageProvider =
+    StateNotifierProvider<MessageNotifier, MessageState>((ref) {
+  return MessageNotifier(
+    getMessagesUseCase: ref.watch(getMessagesUseCaseProvider),
+    sendMessageUseCase: ref.watch(sendMessageUseCaseProvider),
+    editMessageUseCase: ref.watch(editMessageUseCaseProvider),
+    deleteMessageUseCase: ref.watch(deleteMessageUseCaseProvider),
+    pinMessageUseCase: ref.watch(pinMessageUseCaseProvider),
+    markAsReadUseCase: ref.watch(markAsReadUseCaseProvider),
+    addReactionUseCase: ref.watch(addReactionUseCaseProvider),
+  );
+});
+
+final announcementProvider =
+    StateNotifierProvider<AnnouncementNotifier, AnnouncementState>((ref) {
+  return AnnouncementNotifier(
+    getAnnouncementsUseCase: ref.watch(getAnnouncementsUseCaseProvider),
+    createAnnouncementUseCase: ref.watch(createAnnouncementUseCaseProvider),
+    acknowledgeAnnouncementUseCase: ref.watch(acknowledgeAnnouncementUseCaseProvider),
+  );
+});
+
+final notificationProvider =
+    StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
+  return NotificationNotifier(
+    getNotificationsUseCase: ref.watch(getNotificationsUseCaseProvider),
+    markNotificationReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
+    markAllNotificationsReadUseCase: ref.watch(markAllNotificationsReadUseCaseProvider),
+    getNotificationPreferencesUseCase: ref.watch(getNotificationPreferencesUseCaseProvider),
+    updateNotificationPreferencesUseCase: ref.watch(updateNotificationPreferencesUseCaseProvider),
+  );
+});
+
+final forumProvider =
+    StateNotifierProvider<ForumNotifier, ForumState>((ref) {
+  return ForumNotifier(
+    getForumsUseCase: ref.watch(getForumsUseCaseProvider),
+    createForumUseCase: ref.watch(createForumUseCaseProvider),
+    getForumPostsUseCase: ref.watch(getForumPostsUseCaseProvider),
+    createForumPostUseCase: ref.watch(createForumPostUseCaseProvider),
+    createForumCommentUseCase: ref.watch(createForumCommentUseCaseProvider),
+  );
+});
+
+final calendarProvider =
+    StateNotifierProvider<CalendarNotifier, CalendarState>((ref) {
+  return CalendarNotifier(
+    getCalendarEventsUseCase: ref.watch(getCalendarEventsUseCaseProvider),
+    createCalendarEventUseCase: ref.watch(createCalendarEventUseCaseProvider),
+    rsvpToEventUseCase: ref.watch(rsvpToEventUseCaseProvider),
+  );
+});
+
+final aiAssistantProvider =
+    StateNotifierProvider<AiAssistantNotifier, AiAssistantState>((ref) {
+  return AiAssistantNotifier(
+    aiDraftAnnouncementUseCase: ref.watch(aiDraftAnnouncementUseCaseProvider),
+    aiRewriteMessageUseCase: ref.watch(aiRewriteMessageUseCaseProvider),
+    aiSummarizeConversationUseCase: ref.watch(aiSummarizeConversationUseCaseProvider),
+    aiTranslateMessageUseCase: ref.watch(aiTranslateMessageUseCaseProvider),
+    aiSuggestReplyUseCase: ref.watch(aiSuggestReplyUseCaseProvider),
+    aiCorrectGrammarUseCase: ref.watch(aiCorrectGrammarUseCaseProvider),
+    aiAdjustToneUseCase: ref.watch(aiAdjustToneUseCaseProvider),
+  );
+});
+
+final knowledgeAssistantProvider =
+    StateNotifierProvider<KnowledgeAssistantNotifier, KnowledgeAssistantState>((ref) {
+  return KnowledgeAssistantNotifier(
+    askSchoolKnowledgeUseCase: ref.watch(askSchoolKnowledgeUseCaseProvider),
+    getKnowledgeDocumentsUseCase: ref.watch(getKnowledgeDocumentsUseCaseProvider),
+    uploadKnowledgeDocumentUseCase: ref.watch(uploadKnowledgeDocumentUseCaseProvider),
+  );
+});
+
+final communicationDashboardProvider =
+    StateNotifierProvider<CommunicationDashboardNotifier, CommunicationDashboardState>((ref) {
+  return CommunicationDashboardNotifier(
+    getCommunicationDashboardUseCase: ref.watch(getCommunicationDashboardUseCaseProvider),
+  );
+});
+
+final moderationProvider =
+    StateNotifierProvider<ModerationNotifier, ModerationState>((ref) {
+  return ModerationNotifier(
+    reportMessageUseCase: ref.watch(reportMessageUseCaseProvider),
+    muteConversationUseCase: ref.watch(muteConversationUseCaseProvider),
+    archiveConversationUseCase: ref.watch(archiveConversationUseCaseProvider),
+    getAuditLogsUseCase: ref.watch(getAuditLogsUseCaseProvider),
+  );
+});

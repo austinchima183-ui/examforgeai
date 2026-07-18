@@ -138,6 +138,22 @@ import '../features/parent_portal/presentation/pages/parent_notifications_page.d
 import '../features/parent_portal/presentation/pages/parent_insights_page.dart';
 import '../features/parent_portal/presentation/pages/parent_reports_page.dart';
 import '../features/parent_portal/presentation/pages/parent_engagement_dashboard_page.dart';
+import '../features/communication/presentation/pages/communication_dashboard_page.dart';
+import '../features/communication/presentation/pages/conversation_list_page.dart';
+import '../features/communication/presentation/pages/chat_page.dart';
+import '../features/communication/presentation/pages/create_conversation_page.dart';
+import '../features/communication/presentation/pages/announcement_list_page.dart';
+import '../features/communication/presentation/pages/announcement_detail_page.dart';
+import '../features/communication/presentation/pages/notification_center_page.dart';
+import '../features/communication/presentation/pages/notification_preferences_page.dart';
+import '../features/communication/presentation/pages/forum_list_page.dart';
+import '../features/communication/presentation/pages/forum_detail_page.dart';
+import '../features/communication/presentation/pages/forum_post_detail_page.dart';
+import '../features/communication/presentation/pages/calendar_page.dart';
+import '../features/communication/presentation/pages/create_event_page.dart';
+import '../features/communication/presentation/pages/ai_assistant_page.dart';
+import '../features/communication/presentation/pages/knowledge_assistant_page.dart';
+import '../features/communication/presentation/pages/moderation_audit_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -1185,6 +1201,93 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: 'parent-portal/engagement',
             name: 'parentEngagement',
             builder: (context, state) => const ParentEngagementDashboardPage(),
+          ),
+
+          // ─── Communication System ────────────────────────────────────────────
+          GoRoute(
+            path: RouteNames.communication,
+            name: 'communication',
+            builder: (context, state) => const CommunicationDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.communicationDashboard,
+            name: 'communication-dashboard',
+            builder: (context, state) => const CommunicationDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.conversationList,
+            name: 'conversation-list',
+            builder: (context, state) => const ConversationListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.chat,
+            name: 'chat',
+            builder: (context, state) => ChatPage(conversationId: state.uri.queryParameters['id'] ?? ''),
+          ),
+          GoRoute(
+            path: RouteNames.createConversation,
+            name: 'create-conversation',
+            builder: (context, state) => const CreateConversationPage(),
+          ),
+          GoRoute(
+            path: RouteNames.announcementList,
+            name: 'announcement-list',
+            builder: (context, state) => const AnnouncementListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.announcementDetail,
+            name: 'announcement-detail',
+            builder: (context, state) => AnnouncementDetailPage(announcementId: state.uri.queryParameters['id'] ?? ''),
+          ),
+          GoRoute(
+            path: RouteNames.notificationCenter,
+            name: 'notification-center',
+            builder: (context, state) => const NotificationCenterPage(),
+          ),
+          GoRoute(
+            path: RouteNames.notificationPreferences,
+            name: 'notification-preferences',
+            builder: (context, state) => const NotificationPreferencesPage(),
+          ),
+          GoRoute(
+            path: RouteNames.forumList,
+            name: 'forum-list',
+            builder: (context, state) => const ForumListPage(),
+          ),
+          GoRoute(
+            path: RouteNames.forumDetail,
+            name: 'forum-detail',
+            builder: (context, state) => ForumDetailPage(forumId: state.uri.queryParameters['id'] ?? ''),
+          ),
+          GoRoute(
+            path: RouteNames.forumPostDetail,
+            name: 'forum-post-detail',
+            builder: (context, state) => ForumPostDetailPage(postId: state.uri.queryParameters['id'] ?? ''),
+          ),
+          GoRoute(
+            path: RouteNames.communicationCalendar,
+            name: 'communication-calendar',
+            builder: (context, state) => const CalendarPage(),
+          ),
+          GoRoute(
+            path: RouteNames.createCalendarEvent,
+            name: 'create-calendar-event',
+            builder: (context, state) => const CreateEventPage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiAssistant,
+            name: 'ai-assistant',
+            builder: (context, state) => const AiAssistantPage(),
+          ),
+          GoRoute(
+            path: RouteNames.knowledgeAssistant,
+            name: 'knowledge-assistant',
+            builder: (context, state) => const KnowledgeAssistantPage(),
+          ),
+          GoRoute(
+            path: RouteNames.communicationAuditLogs,
+            name: 'communication-audit-logs',
+            builder: (context, state) => const ModerationAuditPage(),
           ),
         ],
       ),

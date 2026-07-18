@@ -1,0 +1,1403 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/extensions/context_extensions.dart';
+     6→import '../../../../core/themes/app_colors.dart';
+     7→import '../../../../core/themes/app_typography.dart';
+     8→import '../../../../core/themes/spacings.dart';
+     9→import '../../../../routing/route_names.dart';
+    10→import '../../../../shared/providers/auth_state_provider.dart';
+    11→import '../../../../shared/widgets/app_app_bar.dart';
+    12→import '../../../../shared/widgets/app_empty_state.dart';
+    13→import '../../../../shared/widgets/app_error_state.dart';
+    14→import '../../../../shared/widgets/app_loading.dart';
+    15→import '../../domain/entities/parent_portal_entities.dart';
+    16→import '../providers/parent_dashboard_provider.dart';
+    17→
+    18→// ═══════════════════════════════════════════════════════════════════════
+    19→// PARENT DASHBOARD PAGE
+    20→// ═══════════════════════════════════════════════════════════════════════
+    21→
+    22→/// The main Parent Portal Dashboard page.
+    23→///
+    24→/// Presents a modern, information-dense layout with:
+    25→/// - Welcome section with parent name and current date
+    26→/// - Child summary cards (horizontal scrollable)
+    27→/// - Quick stats row (messages, notifications, events, insights)
+    28→/// - AI Insights section (severity color-coded)
+    29→/// - Upcoming events section
+    30→/// - Recent announcements section
+    31→/// - Pending assignments section (grouped by child)
+    32→/// - Notifications preview section
+    33→///
+    34→/// Uses [ConsumerStatefulWidget] with a private [_State] class pattern,
+    35→/// loads data in [initState] via [WidgetsBinding.instance.addPostFrameCallback],
+    36→/// and renders a responsive layout using [CustomScrollView] with slivers.
+    37→class ParentDashboardPage extends ConsumerStatefulWidget {
+    38→  const ParentDashboardPage({super.key});
+    39→
+    40→  @override
+    41→  ConsumerState<ParentDashboardPage> createState() => _State();
+    42→}
+    43→
+    44→class _State extends ConsumerState<ParentDashboardPage> {
+    45→  // ─── Lifecycle ──────────────────────────────────────────────────────
+    46→
+    47→  @override
+    48→  void initState() {
+    49→    super.initState();
+    50→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    51→      ref.read(parentDashboardProvider.notifier).loadDashboard();
+    52→    });
+    53→  }
+    54→
+    55→  // ─── Build ──────────────────────────────────────────────────────────
+    56→
+    57→  @override
+    58→  Widget build(BuildContext context) {
+    59→    final dashboardState = ref.watch(parentDashboardProvider);
+    60→
+    61→    return Scaffold(
+    62→      appBar: AppAppBar(
+    63→        title: 'Parent Portal',
+    64→        actions: [
+    65→          _buildNotificationBell(context, dashboardState),
+    66→        ],
+    67→      ),
+    68→      body: _buildBody(context, dashboardState),
+    69→    );
+    70→  }
+    71→
+    72→  // ─── Notification Bell ─────────────────────────────────────────────
+    73→
+    74→  /// Builds the notification bell icon with an unread count badge.
+    75→  Widget _buildNotificationBell(
+    76→    BuildContext context,
+    77→    ParentDashboardState state,
+    78→  ) {
+    79→    final cs = context.colorScheme;
+    80→    final unreadCount = state.dashboard?.unreadNotifications ?? 0;
+    81→
+    82→    return Stack(
+    83→      alignment: Alignment.center,
+    84→      children: [
+    85→        IconButton(
+    86→          icon: Icon(
+    87→            Icons.notifications_outlined,
+    88→            color: cs.onSurface,
+    89→            size: Spacings.mdIcon,
+    90→          ),
+    91→          onPressed: () => context.go(RouteNames.notifications),
+    92→          tooltip: 'Notifications',
+    93→        ),
+    94→        if (unreadCount > 0)
+    95→          Positioned(
+    96→            top: 8,
+    97→            right: 8,
+    98→            child: Container(
+    99→              padding: const EdgeInsets.all(Spacings.xs),
+   100→              decoration: BoxDecoration(
+   101→                color: AppColors.error,
+   102→                shape: BoxShape.circle,
+   103→              ),
+   104→              constraints: const BoxConstraints(
+   105→                minWidth: Spacings.lg,
+   106→                minHeight: Spacings.lg,
+   107→              ),
+   108→              child: Text(
+   109→                unreadCount > 99 ? '99+' : '$unreadCount',
+   110→                style: const TextStyle(
+   111→                  color: Colors.white,
+   112→                  fontSize: 9,
+   113→                  fontWeight: AppTypography.wBold,
+   114→                ),
+   115→                textAlign: TextAlign.center,
+   116→              ),
+   117→            ),
+   118→          ),
+   119→      ],
+   120→    );
+   121→  }
+   122→
+   123→  // ─── Body Router ────────────────────────────────────────────────────
+   124→
+   125→  Widget _buildBody(BuildContext context, ParentDashboardState state) {
+   126→    // Loading state
+   127→    if (state.isLoading && state.dashboard == null) {
+   128→      return _buildShimmerLoading(context);
+   129→    }
+   130→
+   131→    // Error state
+   132→    if (state.error != null && state.dashboard == null) {
+   133→      return AppErrorState.genericError(
+   134→        message: state.error,
+   135→        onRetry: () =>
+   136→            ref.read(parentDashboardProvider.notifier).loadDashboard(),
+   137→      );
+   138→    }
+   139→
+   140→    // Empty state
+   141→    final dashboard = state.dashboard;
+   142→    if (dashboard == null) {
+   143→      return AppEmptyState.noData(
+   144→        title: 'No Dashboard Data',
+   145→        subtitle: 'Your parent portal dashboard will appear here once loaded.',
+   146→        actionLabel: 'Refresh',
+   147→        onAction: () =>
+   148→            ref.read(parentDashboardProvider.notifier).loadDashboard(),
+   149→      );
+   150→    }
+   151→
+   152→    // Success — render dashboard
+   153→    return RefreshIndicator(
+   154→      onRefresh: () =>
+   155→          ref.read(parentDashboardProvider.notifier).refreshDashboard(),
+   156→      child: CustomScrollView(
+   157→        physics: const AlwaysScrollableScrollPhysics(),
+   158→        slivers: [
+   159→          // ─── Welcome Section ──────────────────────────────────────
+   160→          SliverToBoxAdapter(
+   161→            child: _buildWelcomeSection(context, dashboard),
+   162→          ),
+   163→
+   164→          // ─── Child Summary Cards ──────────────────────────────────
+   165→          SliverToBoxAdapter(
+   166→            child: _buildChildSummaryCards(context, dashboard),
+   167→          ),
+   168→
+   169→          // ─── Quick Stats Row ─────────────────────────────────────
+   170→          SliverToBoxAdapter(
+   171→            child: _buildQuickStatsRow(context, dashboard),
+   172→          ),
+   173→
+   174→          // ─── AI Insights Section ─────────────────────────────────
+   175→          SliverToBoxAdapter(
+   176→            child: _buildAiInsightsSection(context),
+   177→          ),
+   178→
+   179→          // ─── Upcoming Events Section ─────────────────────────────
+   180→          SliverToBoxAdapter(
+   181→            child: _buildUpcomingEventsSection(context, dashboard),
+   182→          ),
+   183→
+   184→          // ─── Recent Announcements Section ────────────────────────
+   185→          SliverToBoxAdapter(
+   186→            child: _buildAnnouncementsSection(context, dashboard),
+   187→          ),
+   188→
+   189→          // ─── Pending Assignments Section ─────────────────────────
+   190→          SliverToBoxAdapter(
+   191→            child: _buildPendingAssignmentsSection(context, dashboard),
+   192→          ),
+   193→
+   194→          // ─── Notifications Preview ───────────────────────────────
+   195→          SliverToBoxAdapter(
+   196→            child: _buildNotificationsPreview(context, dashboard),
+   197→          ),
+   198→
+   199→          // Bottom padding
+   200→          const SliverPadding(padding: EdgeInsets.only(bottom: Spacings.xxl)),
+   201→        ],
+   202→      ),
+   203→    );
+   204→  }
+   205→
+   206→  // ═══════════════════════════════════════════════════════════════════════
+   207→  // SHIMMER LOADING
+   208→  // ═══════════════════════════════════════════════════════════════════════
+   209→
+   210→  Widget _buildShimmerLoading(BuildContext context) {
+   211→    return SingleChildScrollView(
+   212→      physics: const NeverScrollableScrollPhysics(),
+   213→      child: AppLoadingShimmer(
+   214→        child: Column(
+   215→          crossAxisAlignment: CrossAxisAlignment.start,
+   216→          children: [
+   217→            // Welcome shimmer
+   218→            Padding(
+   219→              padding: const EdgeInsets.all(Spacings.lg),
+   220→              child: Column(
+   221→                crossAxisAlignment: CrossAxisAlignment.start,
+   222→                children: [
+   223→                  AppLoadingShimmer.box(
+   224→                    width: 220,
+   225→                    height: 24,
+   226→                    borderRadius: Spacings.borderRadiusSm,
+   227→                  ),
+   228→                  const SizedBox(height: Spacings.sm),
+   229→                  AppLoadingShimmer.box(
+   230→                    width: 180,
+   231→                    height: 16,
+   232→                    borderRadius: Spacings.borderRadiusSm,
+   233→                  ),
+   234→                  const SizedBox(height: Spacings.lg),
+   235→                  // Child card shimmer
+   236→                  SizedBox(
+   237→                    height: 160,
+   238→                    child: ListView.separated(
+   239→                      scrollDirection: Axis.horizontal,
+   240→                      itemCount: 2,
+   241→                      separatorBuilder: (_, __) =>
+   242→                          const SizedBox(width: Spacings.md),
+   243→                      itemBuilder: (_, __) => AppLoadingShimmer.box(
+   244→                        width: 200,
+   245→                        borderRadius: Spacings.borderRadiusLg,
+   246→                      ),
+   247→                    ),
+   248→                  ),
+   249→                  const SizedBox(height: Spacings.lg),
+   250→                  // Stats row shimmer
+   251→                  Row(
+   252→                    children: List.generate(
+   253→                      4,
+   254→                      (_) => Expanded(
+   255→                        child: Padding(
+   256→                          padding: const EdgeInsets.symmetric(
+   257→                            horizontal: Spacings.xs,
+   258→                          ),
+   259→                          child: AppLoadingShimmer.box(
+   260→                            height: 88,
+   261→                            borderRadius: Spacings.borderRadiusLg,
+   262→                          ),
+   263→                        ),
+   264→                      ),
+   265→                    ),
+   266→                  ),
+   267→                ],
+   268→              ),
+   269→            ),
+   270→          ],
+   271→        ),
+   272→      ),
+   273→    );
+   274→  }
+   275→
+   276→  // ═══════════════════════════════════════════════════════════════════════
+   277→  // WELCOME SECTION
+   278→  // ═══════════════════════════════════════════════════════════════════════
+   279→
+   280→  Widget _buildWelcomeSection(
+   281→    BuildContext context,
+   282→    ParentDashboardEntity dashboard,
+   283→  ) {
+   284→    final cs = context.colorScheme;
+   285→    final tt = context.textTheme;
+   286→    final parentName = dashboard.parentName ??
+   287→        ref.watch(userFullNameProvider) ??
+   288→        'Parent';
+   289→    final now = DateTime.now();
+   290→    final greeting = _timeOfDayGreeting(now.hour);
+   291→    final dateStr =
+   292→        '${_weekdayName(now.weekday)}, ${_monthName(now.month)} ${now.day}, ${now.year}';
+   293→
+   294→    return Padding(
+   295→      padding: const EdgeInsets.fromLTRB(
+   296→        Spacings.lg,
+   297→        Spacings.lg,
+   298→        Spacings.lg,
+   299→        Spacings.sm,
+   300→      ),
+   301→      child: Column(
+   302→        crossAxisAlignment: CrossAxisAlignment.start,
+   303→        children: [
+   304→          Text(
+   305→            '$greeting, $parentName!',
+   306→            style: tt.headlineSmall?.copyWith(
+   307→              fontWeight: AppTypography.wBold,
+   308→              color: cs.onSurface,
+   309→            ),
+   310→          ),
+   311→          const SizedBox(height: Spacings.xs),
+   312→          Text(
+   313→            dateStr,
+   314→            style: tt.bodyMedium?.copyWith(
+   315→              color: cs.onSurfaceVariant,
+   316→            ),
+   317→          ),
+   318→        ],
+   319→      ),
+   320→    );
+   321→  }
+   322→
+   323→  // ═══════════════════════════════════════════════════════════════════════
+   324→  // CHILD SUMMARY CARDS
+   325→  // ═══════════════════════════════════════════════════════════════════════
+   326→
+   327→  Widget _buildChildSummaryCards(
+   328→    BuildContext context,
+   329→    ParentDashboardEntity dashboard,
+   330→  ) {
+   331→    final children = dashboard.children;
+   332→
+   333→    if (children.isEmpty) {
+   334→      return const SizedBox.shrink();
+   335→    }
+   336→
+   337→    return Padding(
+   338→      padding: const EdgeInsets.symmetric(
+   339→        horizontal: Spacings.lg,
+   340→        vertical: Spacings.md,
+   341→      ),
+   342→      child: Column(
+   343→        crossAxisAlignment: CrossAxisAlignment.start,
+   344→        children: [
+   345→          if (children.length > 1)
+   346→            Padding(
+   347→              padding: const EdgeInsets.only(bottom: Spacings.sm),
+   348→              child: Text(
+   349→                'My Children',
+   350→                style: context.textTheme.titleMedium?.copyWith(
+   351→                  fontWeight: AppTypography.wSemiBold,
+   352→                  color: context.colorScheme.onSurface,
+   353→                ),
+   354→              ),
+   355→            ),
+   356→          SizedBox(
+   357→            height: children.length == 1 ? null : 170,
+   358→            child: children.length == 1
+   359→                ? _buildChildCard(context, children.first)
+   360→                : ListView.separated(
+   361→                    scrollDirection: Axis.horizontal,
+   362→                    itemCount: children.length,
+   363→                    separatorBuilder: (_, __) =>
+   364→                        const SizedBox(width: Spacings.md),
+   365→                    itemBuilder: (_, index) =>
+   366→                        _buildChildCard(context, children[index]),
+   367→                  ),
+   368→          ),
+   369→        ],
+   370→      ),
+   371→    );
+   372→  }
+   373→
+   374→  Widget _buildChildCard(BuildContext context, ChildSummaryEntity child) {
+   375→    final cs = context.colorScheme;
+   376→    final tt = context.textTheme;
+   377→    final attendancePct = (child.attendanceSummary.attendanceRate * 100)
+   378→        .round();
+   379→    final initial = child.studentName.isNotEmpty
+   380→        ? child.studentName[0].toUpperCase()
+   381→        : '?';
+   382→
+   383→    return Card(
+   384→      elevation: Spacings.elevationSm,
+   385→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+   386→      child: InkWell(
+   387→        onTap: () => context.go(
+   388→          '${RouteNames.parentPortal}/child/${child.studentId}',
+   389→        ),
+   390→        borderRadius: Spacings.borderRadiusLg,
+   391→        child: Container(
+   392→          width: 200,
+   393→          padding: Spacings.paddingCard,
+   394→          child: Column(
+   395→            crossAxisAlignment: CrossAxisAlignment.start,
+   396→            children: [
+   397→              // Avatar + name row
+   398→              Row(
+   399→                children: [
+   400→                  CircleAvatar(
+   401→                    radius: 20,
+   402→                    backgroundColor: cs.primaryContainer,
+   403→                    child: Text(
+   404→                      initial,
+   405→                      style: tt.titleMedium?.copyWith(
+   406→                        color: cs.onPrimaryContainer,
+   407→                        fontWeight: AppTypography.wBold,
+   408→                      ),
+   409→                    ),
+   410→                  ),
+   411→                  const SizedBox(width: Spacings.sm),
+   412→                  Expanded(
+   413→                    child: Column(
+   414→                      crossAxisAlignment: CrossAxisAlignment.start,
+   415→                      children: [
+   416→                        Text(
+   417→                          child.studentName,
+   418→                          style: tt.titleSmall?.copyWith(
+   419→                            fontWeight: AppTypography.wSemiBold,
+   420→                            color: cs.onSurface,
+   421→                          ),
+   422→                          maxLines: 1,
+   423→                          overflow: TextOverflow.ellipsis,
+   424→                        ),
+   425→                        if (child.className != null)
+   426→                          Text(
+   427→                            child.className!,
+   428→                            style: tt.bodySmall?.copyWith(
+   429→                              color: cs.onSurfaceVariant,
+   430→                            ),
+   431→                            maxLines: 1,
+   432→                            overflow: TextOverflow.ellipsis,
+   433→                          ),
+   434→                      ],
+   435→                    ),
+   436→                  ),
+   437→                ],
+   438→              ),
+   439→              const SizedBox(height: Spacings.sm),
+   440→              // Relationship badge
+   441→              Container(
+   442→                padding: const EdgeInsets.symmetric(
+   443→                  horizontal: Spacings.sm,
+   444→                  vertical: Spacings.xs,
+   445→                ),
+   446→                decoration: BoxDecoration(
+   447→                  color: cs.secondaryContainer,
+   448→                  borderRadius: Spacings.borderRadiusSm,
+   449→                ),
+   450→                child: Text(
+   451→                  child.relationship,
+   452→                  style: tt.labelSmall?.copyWith(
+   453→                    color: cs.onSecondaryContainer,
+   454→                    fontWeight: AppTypography.wMedium,
+   455→                  ),
+   456→                ),
+   457→              ),
+   458→              const Spacer(),
+   459→              // Attendance rate
+   460→              Row(
+   461→                children: [
+   462→                  Icon(
+   463→                    Icons.check_circle_outline,
+   464→                    size: Spacings.smIcon,
+   465→                    color: AppColors.successOf(cs.brightness),
+   466→                  ),
+   467→                  const SizedBox(width: Spacings.xs),
+   468→                  Text(
+   469→                    '$attendancePct% Present',
+   470→                    style: tt.bodySmall?.copyWith(
+   471→                      color: cs.onSurfaceVariant,
+   472→                    ),
+   473→                  ),
+   474→                ],
+   475→              ),
+   476→              const SizedBox(height: Spacings.xs),
+   477→              // Pending assignments
+   478→              Row(
+   479→                children: [
+   480→                  Icon(
+   481→                    Icons.assignment_outlined,
+   482→                    size: Spacings.smIcon,
+   483→                    color: AppColors.warningOf(cs.brightness),
+   484→                  ),
+   485→                  const SizedBox(width: Spacings.xs),
+   486→                  Text(
+   487→                    '${child.pendingAssignmentsCount} Pending',
+   488→                    style: tt.bodySmall?.copyWith(
+   489→                      color: cs.onSurfaceVariant,
+   490→                    ),
+   491→                  ),
+   492→                ],
+   493→              ),
+   494→            ],
+   495→          ),
+   496→        ),
+   497→      ),
+   498→    );
+   499→  }
+   500→
+   501→  // ═══════════════════════════════════════════════════════════════════════
+   502→  // QUICK STATS ROW
+   503→  // ═══════════════════════════════════════════════════════════════════════
+   504→
+   505→  Widget _buildQuickStatsRow(
+   506→    BuildContext context,
+   507→    ParentDashboardEntity dashboard,
+   508→  ) {
+   509→    final cs = context.colorScheme;
+   510→    final tt = context.textTheme;
+   511→
+   512→    final stats = [
+   513→      _QuickStat(
+   514→        title: 'Messages',
+   515→        value: dashboard.unreadMessages,
+   516→        icon: Icons.mail_outline,
+   517→        color: cs.primary,
+   518→      ),
+   519→      _QuickStat(
+   520→        title: 'Notifications',
+   521→        value: dashboard.unreadNotifications,
+   522→        icon: Icons.notifications_outlined,
+   523→        color: AppColors.infoOf(cs.brightness),
+   524→      ),
+   525→      _QuickStat(
+   526→        title: 'Upcoming',
+   527→        value: dashboard.upcomingEvents.length,
+   528→        icon: Icons.event_outlined,
+   529→        color: AppColors.successOf(cs.brightness),
+   530→      ),
+   531→      _QuickStat(
+   532→        title: 'Insights',
+   533→        value: dashboard.activeInsights,
+   534→        icon: Icons.auto_awesome_outlined,
+   535→        color: AppColors.warningOf(cs.brightness),
+   536→      ),
+   537→    ];
+   538→
+   539→    return Padding(
+   540→      padding: const EdgeInsets.symmetric(
+   541→        horizontal: Spacings.lg,
+   542→        vertical: Spacings.sm,
+   543→      ),
+   544→      child: Row(
+   545→        children: stats.map((stat) {
+   546→          return Expanded(
+   547→            child: Padding(
+   548→              padding: const EdgeInsets.symmetric(horizontal: Spacings.xs),
+   549→              child: Card(
+   550→                elevation: Spacings.elevationNone,
+   551→                color: cs.surfaceContainerLow,
+   552→                shape: RoundedRectangleBorder(
+   553→                  borderRadius: Spacings.borderRadiusMd,
+   554→                ),
+   555→                child: Padding(
+   556→                  padding: const EdgeInsets.all(Spacings.md),
+   557→                  child: Column(
+   558→                    children: [
+   559→                      Icon(stat.icon, color: stat.color, size: Spacings.lgIcon),
+   560→                      const SizedBox(height: Spacings.xs),
+   561→                      Text(
+   562→                        '${stat.value}',
+   563→                        style: tt.headlineSmall?.copyWith(
+   564→                          fontWeight: AppTypography.wBold,
+   565→                          color: cs.onSurface,
+   566→                        ),
+   567→                      ),
+   568→                      Text(
+   569→                        stat.title,
+   570→                        style: tt.labelSmall?.copyWith(
+   571→                          color: cs.onSurfaceVariant,
+   572→                        ),
+   573→                        textAlign: TextAlign.center,
+   574→                      ),
+   575→                    ],
+   576→                  ),
+   577→                ),
+   578→              ),
+   579→            ),
+   580→          );
+   581→        }).toList(),
+   582→      ),
+   583→    );
+   584→  }
+   585→
+   586→  // ═══════════════════════════════════════════════════════════════════════
+   587→  // AI INSIGHTS SECTION
+   588→  // ═══════════════════════════════════════════════════════════════════════
+   589→
+   590→  Widget _buildAiInsightsSection(BuildContext context) {
+   591→    final insights = ref.watch(parentDashboardProvider).insights;
+   592→    final cs = context.colorScheme;
+   593→    final tt = context.textTheme;
+   594→
+   595→    return Padding(
+   596→      padding: const EdgeInsets.symmetric(
+   597→        horizontal: Spacings.lg,
+   598→        vertical: Spacings.md,
+   599→      ),
+   600→      child: Column(
+   601→        crossAxisAlignment: CrossAxisAlignment.start,
+   602→        children: [
+   603→          Row(
+   604→            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   605→            children: [
+   606→              Text(
+   607→                'AI Insights for You',
+   608→                style: tt.titleMedium?.copyWith(
+   609→                  fontWeight: AppTypography.wSemiBold,
+   610→                  color: cs.onSurface,
+   611→                ),
+   612→              ),
+   613→              TextButton(
+   614→                onPressed: () {
+   615→                  // TODO: Navigate to insights list
+   616→                },
+   617→                child: Text(
+   618→                  'View All Insights',
+   619→                  style: tt.labelMedium?.copyWith(
+   620→                    color: cs.primary,
+   621→                  ),
+   622→                ),
+   623→              ),
+   624→            ],
+   625→          ),
+   626→          const SizedBox(height: Spacings.sm),
+   627→          if (insights.isEmpty)
+   628→            Card(
+   629→              elevation: Spacings.elevationNone,
+   630→              color: cs.surfaceContainerLow,
+   631→              shape: RoundedRectangleBorder(
+   632→                borderRadius: Spacings.borderRadiusMd,
+   633→              ),
+   634→              child: Padding(
+   635→                padding: const EdgeInsets.all(Spacings.xl),
+   636→                child: Center(
+   637→                  child: Text(
+   638→                    'No insights available yet',
+   639→                    style: tt.bodyMedium?.copyWith(
+   640→                      color: cs.onSurfaceVariant,
+   641→                    ),
+   642→                  ),
+   643→                ),
+   644→              ),
+   645→            )
+   646→          else
+   647→            ...insights.take(3).map((insight) => Padding(
+   648→                  padding: const EdgeInsets.only(bottom: Spacings.sm),
+   649→                  child: _buildInsightCard(context, insight),
+   650→                )),
+   651→        ],
+   652→      ),
+   653→    );
+   654→  }
+   655→
+   656→  Widget _buildInsightCard(
+   657→    BuildContext context,
+   658→    ParentAiInsightEntity insight,
+   659→  ) {
+   660→    final cs = context.colorScheme;
+   661→    final tt = context.textTheme;
+   662→    final severityColor = _severityColor(insight.severity, cs.brightness);
+   663→    final severityBg =
+   664→        _severityBackgroundColor(insight.severity, cs.brightness);
+   665→
+   666→    return Card(
+   667→      elevation: Spacings.elevationSm,
+   668→      shape: RoundedRectangleBorder(
+   669→        borderRadius: Spacings.borderRadiusMd,
+   670→      ),
+   671→      child: Padding(
+   672→        padding: Spacings.paddingCard,
+   673→        child: Column(
+   674→          crossAxisAlignment: CrossAxisAlignment.start,
+   675→          children: [
+   676→            Row(
+   677→              children: [
+   678→                // Severity badge
+   679→                Container(
+   680→                  padding: const EdgeInsets.symmetric(
+   681→                    horizontal: Spacings.sm,
+   682→                    vertical: Spacings.xs,
+   683→                  ),
+   684→                  decoration: BoxDecoration(
+   685→                    color: severityBg,
+   686→                    borderRadius: Spacings.borderRadiusSm,
+   687→                  ),
+   688→                  child: Text(
+   689→                    insight.severity.label,
+   690→                    style: tt.labelSmall?.copyWith(
+   691→                      color: severityColor,
+   692→                      fontWeight: AppTypography.wSemiBold,
+   693→                    ),
+   694→                  ),
+   695→                ),
+   696→                const Spacer(),
+   697→                if (insight.isAiGenerated)
+   698→                  Icon(
+   699→                    Icons.auto_awesome,
+   700→                    size: Spacings.smIcon,
+   701→                    color: cs.primary,
+   702→                  ),
+   703→              ],
+   704→            ),
+   705→            const SizedBox(height: Spacings.sm),
+   706→            Text(
+   707→              insight.title,
+   708→              style: tt.titleSmall?.copyWith(
+   709→                fontWeight: AppTypography.wSemiBold,
+   710→                color: cs.onSurface,
+   711→              ),
+   712→              maxLines: 1,
+   713→              overflow: TextOverflow.ellipsis,
+   714→            ),
+   715→            const SizedBox(height: Spacings.xs),
+   716→            Text(
+   717→              insight.description,
+   718→              style: tt.bodySmall?.copyWith(
+   719→                color: cs.onSurfaceVariant,
+   720→              ),
+   721→              maxLines: 2,
+   722→              overflow: TextOverflow.ellipsis,
+   723→            ),
+   724→            const SizedBox(height: Spacings.sm),
+   725→            Align(
+   726→              alignment: Alignment.centerRight,
+   727→              child: TextButton(
+   728→                onPressed: () {
+   729→                  // TODO: Navigate to insight detail
+   730→                },
+   731→                child: Text(
+   732→                  'View Details',
+   733→                  style: tt.labelMedium?.copyWith(color: cs.primary),
+   734→                ),
+   735→              ),
+   736→            ),
+   737→          ],
+   738→        ),
+   739→      ),
+   740→    );
+   741→  }
+   742→
+   743→  // ═══════════════════════════════════════════════════════════════════════
+   744→  // UPCOMING EVENTS SECTION
+   745→  // ═══════════════════════════════════════════════════════════════════════
+   746→
+   747→  Widget _buildUpcomingEventsSection(
+   748→    BuildContext context,
+   749→    ParentDashboardEntity dashboard,
+   750→  ) {
+   751→    final cs = context.colorScheme;
+   752→    final tt = context.textTheme;
+   753→    final events = dashboard.upcomingEvents.take(3).toList();
+   754→
+   755→    return Padding(
+   756→      padding: const EdgeInsets.symmetric(
+   757→        horizontal: Spacings.lg,
+   758→        vertical: Spacings.md,
+   759→      ),
+   760→      child: Column(
+   761→        crossAxisAlignment: CrossAxisAlignment.start,
+   762→        children: [
+   763→          Row(
+   764→            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   765→            children: [
+   766→              Text(
+   767→                'Upcoming Events',
+   768→                style: tt.titleMedium?.copyWith(
+   769→                  fontWeight: AppTypography.wSemiBold,
+   770→                  color: cs.onSurface,
+   771→                ),
+   772→              ),
+   773→              TextButton(
+   774→                onPressed: () {
+   775→                  // TODO: Navigate to calendar
+   776→                },
+   777→                child: Text(
+   778→                  'View Calendar',
+   779→                  style: tt.labelMedium?.copyWith(color: cs.primary),
+   780→                ),
+   781→              ),
+   782→            ],
+   783→          ),
+   784→          const SizedBox(height: Spacings.sm),
+   785→          if (events.isEmpty)
+   786→            Card(
+   787→              elevation: Spacings.elevationNone,
+   788→              color: cs.surfaceContainerLow,
+   789→              shape: RoundedRectangleBorder(
+   790→                borderRadius: Spacings.borderRadiusMd,
+   791→              ),
+   792→              child: Padding(
+   793→                padding: const EdgeInsets.all(Spacings.xl),
+   794→                child: Center(
+   795→                  child: Text(
+   796→                    'No upcoming events',
+   797→                    style: tt.bodyMedium?.copyWith(
+   798→                      color: cs.onSurfaceVariant,
+   799→                    ),
+   800→                  ),
+   801→                ),
+   802→              ),
+   803→            )
+   804→          else
+   805→            ...events.map((event) => Padding(
+   806→                  padding: const EdgeInsets.only(bottom: Spacings.sm),
+   807→                  child: _buildEventCard(context, event),
+   808→                )),
+   809→        ],
+   810→      ),
+   811→    );
+   812→  }
+   813→
+   814→  Widget _buildEventCard(
+   815→    BuildContext context,
+   816→    ParentCalendarEventEntity event,
+   817→  ) {
+   818→    final cs = context.colorScheme;
+   819→    final tt = context.textTheme;
+   820→    final eventIcon = _calendarEventIcon(event.eventType);
+   821→    final eventColor = _calendarEventColor(event.eventType, cs.brightness);
+   822→
+   823→    return Card(
+   824→      elevation: Spacings.elevationNone,
+   825→      color: cs.surfaceContainerLow,
+   826→      shape: RoundedRectangleBorder(
+   827→        borderRadius: Spacings.borderRadiusMd,
+   828→      ),
+   829→      child: Padding(
+   830→        padding: Spacings.paddingCard,
+   831→        child: Row(
+   832→          children: [
+   833→            // Date column
+   834→            Container(
+   835→              width: 48,
+   836→              padding: const EdgeInsets.symmetric(
+   837→                vertical: Spacings.sm,
+   838→              ),
+   839→              decoration: BoxDecoration(
+   840→                color: eventColor.withValues(alpha: 0.1),
+   841→                borderRadius: Spacings.borderRadiusSm,
+   842→              ),
+   843→              child: Column(
+   844→                children: [
+   845→                  Text(
+   846→                    '${event.startTime.day}',
+   847→                    style: tt.titleMedium?.copyWith(
+   848→                      fontWeight: AppTypography.wBold,
+   849→                      color: eventColor,
+   850→                    ),
+   851→                  ),
+   852→                  Text(
+   853→                    _monthAbbr(event.startTime.month),
+   854→                    style: tt.labelSmall?.copyWith(
+   855→                      color: eventColor,
+   856→                    ),
+   857→                  ),
+   858→                ],
+   859→              ),
+   860→            ),
+   861→            const SizedBox(width: Spacings.md),
+   862→            // Event details
+   863→            Expanded(
+   864→              child: Column(
+   865→                crossAxisAlignment: CrossAxisAlignment.start,
+   866→                children: [
+   867→                  Text(
+   868→                    event.title,
+   869→                    style: tt.titleSmall?.copyWith(
+   870→                      fontWeight: AppTypography.wSemiBold,
+   871→                      color: cs.onSurface,
+   872→                    ),
+   873→                    maxLines: 1,
+   874→                    overflow: TextOverflow.ellipsis,
+   875→                  ),
+   876→                  const SizedBox(height: Spacings.xs),
+   877→                  Row(
+   878→                    children: [
+   879→                      Icon(eventIcon, size: Spacings.smIcon, color: eventColor),
+   880→                      const SizedBox(width: Spacings.xs),
+   881→                      Text(
+   882→                        event.isAllDay
+   883→                            ? 'All Day'
+   884→                            : '${_formatTime(event.startTime)} – ${_formatTime(event.endTime)}',
+   885→                        style: tt.bodySmall?.copyWith(
+   886→                          color: cs.onSurfaceVariant,
+   887→                        ),
+   888→                      ),
+   889→                    ],
+   890→                  ),
+   891→                ],
+   892→              ),
+   893→            ),
+   894→          ],
+   895→        ),
+   896→      ),
+   897→    );
+   898→  }
+   899→
+   900→  // ═══════════════════════════════════════════════════════════════════════
+   901→  // ANNOUNCEMENTS SECTION
+   902→  // ═══════════════════════════════════════════════════════════════════════
+   903→
+   904→  Widget _buildAnnouncementsSection(
+   905→    BuildContext context,
+   906→    ParentDashboardEntity dashboard,
+   907→  ) {
+   908→    final cs = context.colorScheme;
+   909→    final tt = context.textTheme;
+   910→    final announcements = dashboard.recentAnnouncements.take(3).toList();
+   911→
+   912→    return Padding(
+   913→      padding: const EdgeInsets.symmetric(
+   914→        horizontal: Spacings.lg,
+   915→        vertical: Spacings.md,
+   916→      ),
+   917→      child: Column(
+   918→        crossAxisAlignment: CrossAxisAlignment.start,
+   919→        children: [
+   920→          Row(
+   921→            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   922→            children: [
+   923→              Text(
+   924→                'School Announcements',
+   925→                style: tt.titleMedium?.copyWith(
+   926→                  fontWeight: AppTypography.wSemiBold,
+   927→                  color: cs.onSurface,
+   928→                ),
+   929→              ),
+   930→              TextButton(
+   931→                onPressed: () => context.go(RouteNames.announcementList),
+   932→                child: Text(
+   933→                  'View All',
+   934→                  style: tt.labelMedium?.copyWith(color: cs.primary),
+   935→                ),
+   936→              ),
+   937→            ],
+   938→          ),
+   939→          const SizedBox(height: Spacings.sm),
+   940→          if (announcements.isEmpty)
+   941→            Card(
+   942→              elevation: Spacings.elevationNone,
+   943→              color: cs.surfaceContainerLow,
+   944→              shape: RoundedRectangleBorder(
+   945→                borderRadius: Spacings.borderRadiusMd,
+   946→              ),
+   947→              child: Padding(
+   948→                padding: const EdgeInsets.all(Spacings.xl),
+   949→                child: Center(
+   950→                  child: Text(
+   951→                    'No announcements',
+   952→                    style: tt.bodyMedium?.copyWith(
+   953→                      color: cs.onSurfaceVariant,
+   954→                    ),
+   955→                  ),
+   956→                ),
+   957→              ),
+   958→            )
+   959→          else
+   960→            ...announcements.map((announcement) => Padding(
+   961→                  padding: const EdgeInsets.only(bottom: Spacings.sm),
+   962→                  child: _buildAnnouncementCard(context, announcement),
+   963→                )),
+   964→        ],
+   965→      ),
+   966→    );
+   967→  }
+   968→
+   969→  Widget _buildAnnouncementCard(
+   970→    BuildContext context,
+   971→    AnnouncementSummaryEntity announcement,
+   972→  ) {
+   973→    final cs = context.colorScheme;
+   974→    final tt = context.textTheme;
+   975→
+   976→    return Card(
+   977→      elevation: Spacings.elevationNone,
+   978→      color: cs.surfaceContainerLow,
+   979→      shape: RoundedRectangleBorder(
+   980→        borderRadius: Spacings.borderRadiusMd,
+   981→      ),
+   982→      child: Padding(
+   983→        padding: Spacings.paddingCard,
+   984→        child: Row(
+   985→          children: [
+   986→            Icon(
+   987→              Icons.campaign_outlined,
+   988→              color: cs.primary,
+   989→              size: Spacings.lgIcon,
+   990→            ),
+   991→            const SizedBox(width: Spacings.md),
+   992→            Expanded(
+   993→              child: Column(
+   994→                crossAxisAlignment: CrossAxisAlignment.start,
+   995→                children: [
+   996→                  Text(
+   997→                    announcement.title,
+   998→                    style: tt.titleSmall?.copyWith(
+   999→                      fontWeight: AppTypography.wSemiBold,
+  1000→                      color: cs.onSurface,
+  1001→                    ),
+  1002→                    maxLines: 1,
+  1003→                    overflow: TextOverflow.ellipsis,
+  1004→                  ),
+  1005→                  const SizedBox(height: Spacings.xs),
+  1006→                  Row(
+  1007→                    children: [
+  1008→                      // Type badge
+  1009→                      Container(
+  1010→                        padding: const EdgeInsets.symmetric(
+  1011→                          horizontal: Spacings.sm,
+  1012→                          vertical: 2,
+  1013→                        ),
+  1014→                        decoration: BoxDecoration(
+  1015→                          color: cs.secondaryContainer,
+  1016→                          borderRadius: Spacings.borderRadiusSm,
+  1017→                        ),
+  1018→                        child: Text(
+  1019→                          announcement.type,
+  1020→                          style: tt.labelSmall?.copyWith(
+  1021→                            color: cs.onSecondaryContainer,
+  1022→                          ),
+  1023→                        ),
+  1024→                      ),
+  1025→                      const SizedBox(width: Spacings.sm),
+  1026→                      // Priority badge
+  1027→                      Container(
+  1028→                        padding: const EdgeInsets.symmetric(
+  1029→                          horizontal: Spacings.sm,
+  1030→                          vertical: 2,
+  1031→                        ),
+  1032→                        decoration: BoxDecoration(
+  1033→                          color: _priorityColor(
+  1034→                            announcement.priority,
+  1035→                            cs.brightness,
+  1036→                          ).withValues(alpha: 0.15),
+  1037→                          borderRadius: Spacings.borderRadiusSm,
+  1038→                        ),
+  1039→                        child: Text(
+  1040→                          announcement.priority,
+  1041→                          style: tt.labelSmall?.copyWith(
+  1042→                            color: _priorityColor(
+  1043→                              announcement.priority,
+  1044→                              cs.brightness,
+  1045→                            ),
+  1046→                            fontWeight: AppTypography.wMedium,
+  1047→                          ),
+  1048→                        ),
+  1049→                      ),
+  1050→                      const Spacer(),
+  1051→                      Text(
+  1052→                        _formatDate(announcement.createdAt),
+  1053→                        style: tt.labelSmall?.copyWith(
+  1054→                          color: cs.onSurfaceVariant,
+  1055→                        ),
+  1056→                      ),
+  1057→                    ],
+  1058→                  ),
+  1059→                ],
+  1060→              ),
+  1061→            ),
+  1062→          ],
+  1063→        ),
+  1064→      ),
+  1065→    );
+  1066→  }
+  1067→
+  1068→  // ═══════════════════════════════════════════════════════════════════════
+  1069→  // PENDING ASSIGNMENTS SECTION
+  1070→  // ═══════════════════════════════════════════════════════════════════════
+  1071→
+  1072→  Widget _buildPendingAssignmentsSection(
+  1073→    BuildContext context,
+  1074→    ParentDashboardEntity dashboard,
+  1075→  ) {
+  1076→    final cs = context.colorScheme;
+  1077→    final tt = context.textTheme;
+  1078→
+  1079→    // Collect children with pending assignments
+  1080→    final childrenWithPending = dashboard.children
+  1081→        .where((c) => c.pendingAssignmentsCount > 0)
+  1082→        .toList();
+  1083→
+  1084→    if (childrenWithPending.isEmpty) {
+  1085→      return const SizedBox.shrink();
+  1086→    }
+  1087→
+  1088→    return Padding(
+  1089→      padding: const EdgeInsets.symmetric(
+  1090→        horizontal: Spacings.lg,
+  1091→        vertical: Spacings.md,
+  1092→      ),
+  1093→      child: Column(
+  1094→        crossAxisAlignment: CrossAxisAlignment.start,
+  1095→        children: [
+  1096→          Text(
+  1097→            'Pending Assignments',
+  1098→            style: tt.titleMedium?.copyWith(
+  1099→              fontWeight: AppTypography.wSemiBold,
+  1100→              color: cs.onSurface,
+  1101→            ),
+  1102→          ),
+  1103→          const SizedBox(height: Spacings.sm),
+  1104→          ...childrenWithPending.map((child) => Padding(
+  1105→                padding: const EdgeInsets.only(bottom: Spacings.sm),
+  1106→                child: Card(
+  1107→                  elevation: Spacings.elevationNone,
+  1108→                  color: cs.surfaceContainerLow,
+  1109→                  shape: RoundedRectangleBorder(
+  1110→                    borderRadius: Spacings.borderRadiusMd,
+  1111→                  ),
+  1112→                  child: ListTile(
+  1113→                    leading: CircleAvatar(
+  1114→                      radius: 16,
+  1115→                      backgroundColor: AppColors.warningOf(cs.brightness)
+  1116→                          .withValues(alpha: 0.15),
+  1117→                      child: Text(
+  1118→                        '${child.pendingAssignmentsCount}',
+  1119→                        style: tt.labelLarge?.copyWith(
+  1120→                          color: AppColors.warningOf(cs.brightness),
+  1121→                          fontWeight: AppTypography.wBold,
+  1122→                        ),
+  1123→                      ),
+  1124→                    ),
+  1125→                    title: Text(
+  1126→                      child.studentName,
+  1127→                      style: tt.titleSmall?.copyWith(
+  1128→                        fontWeight: AppTypography.wSemiBold,
+  1129→                        color: cs.onSurface,
+  1130→                      ),
+  1131→                    ),
+  1132→                    subtitle: Text(
+  1133→                      '${child.pendingAssignmentsCount} assignment${child.pendingAssignmentsCount > 1 ? 's' : ''} pending',
+  1134→                      style: tt.bodySmall?.copyWith(
+  1135→                        color: cs.onSurfaceVariant,
+  1136→                      ),
+  1137→                    ),
+  1138→                    trailing: Icon(
+  1139→                      Icons.arrow_forward_ios,
+  1140→                      size: Spacings.smIcon,
+  1141→                      color: cs.onSurfaceVariant,
+  1142→                    ),
+  1143→                    onTap: () => context.go(
+  1144→                      '${RouteNames.parentPortal}/child/${child.studentId}/assignments',
+  1145→                    ),
+  1146→                  ),
+  1147→                ),
+  1148→              )),
+  1149→        ],
+  1150→      ),
+  1151→    );
+  1152→  }
+  1153→
+  1154→  // ═══════════════════════════════════════════════════════════════════════
+  1155→  // NOTIFICATIONS PREVIEW SECTION
+  1156→  // ═══════════════════════════════════════════════════════════════════════
+  1157→
+  1158→  Widget _buildNotificationsPreview(
+  1159→    BuildContext context,
+  1160→    ParentDashboardEntity dashboard,
+  1161→  ) {
+  1162→    final cs = context.colorScheme;
+  1163→    final tt = context.textTheme;
+  1164→    final unreadCount = dashboard.unreadNotifications;
+  1165→
+  1166→    if (unreadCount == 0) {
+  1167→      return const SizedBox.shrink();
+  1168→    }
+  1169→
+  1170→    return Padding(
+  1171→      padding: const EdgeInsets.symmetric(
+  1172→        horizontal: Spacings.lg,
+  1173→        vertical: Spacings.md,
+  1174→      ),
+  1175→      child: Card(
+  1176→        elevation: Spacings.elevationSm,
+  1177→        color: cs.primaryContainer,
+  1178→        shape: RoundedRectangleBorder(
+  1179→          borderRadius: Spacings.borderRadiusLg,
+  1180→        ),
+  1181→        child: InkWell(
+  1182→          onTap: () => context.go(RouteNames.notifications),
+  1183→          borderRadius: Spacings.borderRadiusLg,
+  1184→          child: Padding(
+  1185→            padding: Spacings.paddingCard,
+  1186→            child: Row(
+  1187→              children: [
+  1188→                Icon(
+  1189→                  Icons.notifications_active_outlined,
+  1190→                  color: cs.onPrimaryContainer,
+  1191→                  size: Spacings.lgIcon,
+  1192→                ),
+  1193→                const SizedBox(width: Spacings.md),
+  1194→                Expanded(
+  1195→                  child: Text(
+  1196→                    'You have $unreadCount unread notification${unreadCount > 1 ? 's' : ''}',
+  1197→                    style: tt.titleSmall?.copyWith(
+  1198→                      fontWeight: AppTypography.wSemiBold,
+  1199→                      color: cs.onPrimaryContainer,
+  1200→                    ),
+  1201→                  ),
+  1202→                ),
+  1203→                Icon(
+  1204→                  Icons.arrow_forward_ios,
+  1205→                  size: Spacings.smIcon,
+  1206→                  color: cs.onPrimaryContainer,
+  1207→                ),
+  1208→              ],
+  1209→            ),
+  1210→          ),
+  1211→        ),
+  1212→      ),
+  1213→    );
+  1214→  }
+  1215→
+  1216→  // ═══════════════════════════════════════════════════════════════════════
+  1217→  // HELPER METHODS
+  1218→  // ═══════════════════════════════════════════════════════════════════════
+  1219→
+  1220→  /// Returns a time-of-day greeting based on the [hour].
+  1221→  String _timeOfDayGreeting(int hour) {
+  1222→    if (hour < 12) return 'Good morning';
+  1223→    if (hour < 17) return 'Good afternoon';
+  1224→    return 'Good evening';
+  1225→  }
+  1226→
+  1227→  /// Returns the weekday name for the given [weekday] (1 = Monday).
+  1228→  String _weekdayName(int weekday) {
+  1229→    const names = [
+  1230→      '',
+  1231→      'Monday',
+  1232→      'Tuesday',
+  1233→      'Wednesday',
+  1234→      'Thursday',
+  1235→      'Friday',
+  1236→      'Saturday',
+  1237→      'Sunday',
+  1238→    ];
+  1239→    return names[weekday];
+  1240→  }
+  1241→
+  1242→  /// Returns the month name for the given [month] (1 = January).
+  1243→  String _monthName(int month) {
+  1244→    const names = [
+  1245→      '',
+  1246→      'January',
+  1247→      'February',
+  1248→      'March',
+  1249→      'April',
+  1250→      'May',
+  1251→      'June',
+  1252→      'July',
+  1253→      'August',
+  1254→      'September',
+  1255→      'October',
+  1256→      'November',
+  1257→      'December',
+  1258→    ];
+  1259→    return names[month];
+  1260→  }
+  1261→
+  1262→  /// Returns the abbreviated month name for the given [month].
+  1263→  String _monthAbbr(int month) {
+  1264→    const abbrs = [
+  1265→      '',
+  1266→      'Jan',
+  1267→      'Feb',
+  1268→      'Mar',
+  1269→      'Apr',
+  1270→      'May',
+  1271→      'Jun',
+  1272→      'Jul',
+  1273→      'Aug',
+  1274→      'Sep',
+  1275→      'Oct',
+  1276→      'Nov',
+  1277→      'Dec',
+  1278→    ];
+  1279→    return abbrs[month];
+  1280→  }
+  1281→
+  1282→  /// Formats a [DateTime] as a short time string (e.g., "2:30 PM").
+  1283→  String _formatTime(DateTime dt) {
+  1284→    final hour = dt.hour > 12 ? dt.hour - 12 : dt.hour;
+  1285→    final minute = dt.minute.toString().padLeft(2, '0');
+  1286→    final ampm = dt.hour >= 12 ? 'PM' : 'AM';
+  1287→    return '$hour:$minute $ampm';
+  1288→  }
+  1289→
+  1290→  /// Formats a [DateTime] as a short date string.
+  1291→  String _formatDate(DateTime dt) {
+  1292→    return '${_monthAbbr(dt.month)} ${dt.day}';
+  1293→  }
+  1294→
+  1295→  /// Returns the color for a given [InsightSeverity].
+  1296→  Color _severityColor(InsightSeverity severity, Brightness brightness) {
+  1297→    switch (severity) {
+  1298→      case InsightSeverity.info:
+  1299→        return AppColors.infoOf(brightness);
+  1300→      case InsightSeverity.warning:
+  1301→        return AppColors.warningOf(brightness);
+  1302→      case InsightSeverity.concern:
+  1303→        return AppColors.errorOf(brightness);
+  1304→      case InsightSeverity.positive:
+  1305→        return AppColors.successOf(brightness);
+  1306→    }
+  1307→  }
+  1308→
+  1309→  /// Returns the background color for a given [InsightSeverity].
+  1310→  Color _severityBackgroundColor(
+  1311→    InsightSeverity severity,
+  1312→    Brightness brightness,
+  1313→  ) {
+  1314→    switch (severity) {
+  1315→      case InsightSeverity.info:
+  1316→        return AppColors.infoLight;
+  1317→      case InsightSeverity.warning:
+  1318→        return AppColors.warningLight;
+  1319→      case InsightSeverity.concern:
+  1320→        return AppColors.errorLight;
+  1321→      case InsightSeverity.positive:
+  1322→        return AppColors.successLight;
+  1323→    }
+  1324→  }
+  1325→
+  1326→  /// Returns the icon for a given [CalendarEventType].
+  1327→  IconData _calendarEventIcon(CalendarEventType type) {
+  1328→    switch (type) {
+  1329→      case CalendarEventType.school:
+  1330→        return Icons.school_outlined;
+  1331→      case CalendarEventType.holiday:
+  1332→        return Icons.celebration_outlined;
+  1333→      case CalendarEventType.meeting:
+  1334→        return Icons.people_outlined;
+  1335→      case CalendarEventType.exam:
+  1336→        return Icons.quiz_outlined;
+  1337→      case CalendarEventType.event:
+  1338→        return Icons.event_outlined;
+  1339→      case CalendarEventType.deadline:
+  1340→        return Icons.schedule_outlined;
+  1341→    }
+  1342→  }
+  1343→
+  1344→  /// Returns the color for a given [CalendarEventType].
+  1345→  Color _calendarEventColor(CalendarEventType type, Brightness brightness) {
+  1346→    switch (type) {
+  1347→      case CalendarEventType.school:
+  1348→        return AppColors.infoOf(brightness);
+  1349→      case CalendarEventType.holiday:
+  1350→        return AppColors.successOf(brightness);
+  1351→      case CalendarEventType.meeting:
+  1352→        return AppColors.warningOf(brightness);
+  1353→      case CalendarEventType.exam:
+  1354→        return AppColors.errorOf(brightness);
+  1355→      case CalendarEventType.event:
+  1356→        return AppColors.infoOf(brightness);
+  1357→      case CalendarEventType.deadline:
+  1358→        return AppColors.warningOf(brightness);
+  1359→    }
+  1360→  }
+  1361→
+  1362→  /// Returns the color for a given priority string.
+  1363→  Color _priorityColor(String priority, Brightness brightness) {
+  1364→    switch (priority.toLowerCase()) {
+  1365→      case 'high':
+  1366→      case 'urgent':
+  1367→        return AppColors.errorOf(brightness);
+  1368→      case 'medium':
+  1369→        return AppColors.warningOf(brightness);
+  1370→      case 'low':
+  1371→        return AppColors.successOf(brightness);
+  1372→      default:
+  1373→        return AppColors.infoOf(brightness);
+  1374→    }
+  1375→  }
+  1376→}
+  1377→
+  1378→// ═══════════════════════════════════════════════════════════════════════
+  1379→// PRIVATE HELPER CLASSES
+  1380→// ═══════════════════════════════════════════════════════════════════════
+  1381→
+  1382→/// A data holder for a single quick-stat entry on the dashboard.
+  1383→class _QuickStat {
+  1384→  const _QuickStat({
+  1385→    required this.title,
+  1386→    required this.value,
+  1387→    required this.icon,
+  1388→    required this.color,
+  1389→  });
+  1390→
+  1391→  /// Label displayed below the value.
+  1392→  final String title;
+  1393→
+  1394→  /// Numeric value displayed prominently.
+  1395→  final int value;
+  1396→
+  1397→  /// Icon displayed above the value.
+  1398→  final IconData icon;
+  1399→
+  1400→  /// Tint colour for the icon.
+  1401→  final Color color;
+  1402→}
+  1403→
