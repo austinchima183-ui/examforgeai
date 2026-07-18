@@ -38,9 +38,11 @@ import '../features/cbt_engine/presentation/pages/teacher/exam_builder_page.dart
 import '../features/cbt_engine/presentation/pages/teacher/exam_detail_page.dart';
 import '../features/cbt_engine/presentation/pages/teacher/exam_monitor_page.dart';
 import '../features/cbt_engine/presentation/pages/teacher/exam_results_page.dart';
+import '../features/cbt_engine/presentation/pages/teacher/exam_templates_page.dart';
 import '../features/cbt_engine/presentation/pages/student/exam_take_page.dart';
 import '../features/cbt_engine/presentation/pages/student/student_exams_page.dart';
 import '../features/cbt_engine/presentation/pages/student/exam_result_view_page.dart';
+import '../features/cbt_engine/presentation/pages/student/submission_receipt_page.dart';
 import '../features/results/presentation/pages/teacher/teacher_grading_page.dart';
 import '../features/results/presentation/pages/teacher/class_results_page.dart';
 import '../features/results/presentation/pages/teacher/grade_scales_page.dart';
@@ -413,6 +415,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (context, state) {
               final examId = state.uri.queryParameters['id'] ?? '';
               return ExamTakePage(examId: examId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.examTemplates,
+            name: 'examTemplates',
+            builder: (context, state) => const ExamTemplatesPage(),
+          ),
+          GoRoute(
+            path: RouteNames.submissionReceipt,
+            name: 'submissionReceipt',
+            builder: (context, state) {
+              final attemptId = state.uri.queryParameters['attemptId'] ?? '';
+              return SubmissionReceiptPage(attemptId: attemptId);
             },
           ),
 

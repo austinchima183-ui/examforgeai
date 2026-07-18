@@ -38,14 +38,19 @@ import '../features/auth/domain/usecases/signup_usecase.dart';
 import '../features/auth/presentation/providers/auth_form_provider.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
 import '../features/cbt_engine/data/datasources/cbt_remote_datasource.dart';
+import '../features/cbt_engine/data/datasources/exam_template_remote_datasource.dart';
 import '../features/cbt_engine/data/repositories/cbt_repository_impl.dart';
+import '../features/cbt_engine/data/repositories/exam_template_repository_impl.dart';
 import '../features/cbt_engine/domain/repositories/cbt_repository.dart';
+import '../features/cbt_engine/domain/repositories/exam_template_repository.dart';
 import '../features/cbt_engine/domain/usecases/create_exam_usecase.dart';
 import '../features/cbt_engine/domain/usecases/get_exam_results_usecase.dart';
 import '../features/cbt_engine/domain/usecases/get_exam_statistics_usecase.dart';
 import '../features/cbt_engine/domain/usecases/get_live_exam_stats_usecase.dart';
+import '../features/cbt_engine/domain/usecases/get_submission_receipt_usecase.dart';
 import '../features/cbt_engine/domain/usecases/grade_exam_usecase.dart';
 import '../features/cbt_engine/domain/usecases/manage_exam_status_usecase.dart';
+import '../features/cbt_engine/domain/usecases/manage_exam_templates_usecase.dart';
 import '../features/cbt_engine/domain/usecases/save_answer_usecase.dart';
 import '../features/cbt_engine/domain/usecases/start_exam_attempt_usecase.dart';
 import '../features/cbt_engine/domain/usecases/submit_exam_attempt_usecase.dart';
@@ -53,9 +58,12 @@ import '../features/cbt_engine/domain/usecases/update_exam_usecase.dart';
 import '../features/cbt_engine/presentation/providers/exam_builder_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_list_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_monitor_provider.dart';
+import '../features/cbt_engine/presentation/providers/exam_notification_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_results_provider.dart';
+import '../features/cbt_engine/presentation/providers/exam_template_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_taker_provider.dart';
 import '../features/cbt_engine/presentation/providers/student_exams_provider.dart';
+import '../features/cbt_engine/presentation/providers/submission_receipt_provider.dart';
 import '../features/question_bank/data/datasources/question_bank_remote_datasource.dart';
 import '../features/question_bank/data/repositories/question_bank_repository_impl.dart';
 import '../features/question_bank/domain/repositories/question_bank_repository.dart';
@@ -85,7 +93,9 @@ import '../services/ai/validation_engine.dart';
 import '../services/auth_service.dart';
 import '../services/cbt/anti_cheat_service.dart';
 import '../services/cbt/auto_save_service.dart';
+import '../services/cbt/exam_notification_service.dart';
 import '../services/cbt/exam_timer_service.dart';
+import '../services/cbt/rate_limiting_service.dart';
 import '../services/cbt/realtime_service.dart';
 import '../services/cbt/result_processor.dart';
 import '../services/cbt/session_recovery_service.dart';
@@ -877,6 +887,124 @@ final examResultsProvider =
 final studentExamsProvider =
     StateNotifierProvider<StudentExamsNotifier, StudentExamsState>((ref) {
   return StudentExamsNotifier(
+    cbtRepository: ref.watch(cbtRepositoryProvider),
+  );
+});
+
+// ─── CBT Exam Template Data Layer ────────────────────────────────────
+
+/// Provides the [ExamTemplateRemoteDataSource] implementation.
+final examTemplateRemoteDataSourceProvider =
+    Provider<ExamTemplateRemoteDataSource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return ExamTemplateRemoteDataSourceImpl(supabaseClient: supabaseClient);
+});
+
+/// Provides the [ExamTemplateRepository] implementation.
+final examTemplateRepositoryProvider = Provider<ExamTemplateRepository>((ref) {
+  final remoteDataSource = ref.watch(examTemplateRemoteDataSourceProvider);
+  return ExamTemplateRepositoryImpl(remoteDataSource: remoteDataSource);
+});
+
+// ─── CBT Exam Template Use Cases ─────────────────────────────────────
+
+/// Provides the [SaveAsTemplateUseCase].
+final saveAsTemplateUseCaseProvider = Provider<SaveAsTemplateUseCase>((ref) {
+  return SaveAsTemplateUseCase(ref.watch(examTemplateRepositoryProvider));
+});
+
+/// Provides the [GetExamTemplatesUseCase].
+final getExamTemplatesUseCaseProvider =
+    Provider<GetExamTemplatesUseCase>((ref) {
+  return GetExamTemplatesUseCase(ref.watch(examTemplateRepositoryProvider));
+});
+
+/// Provides the [GetExamTemplateDetailUseCase].
+final getExamTemplateDetailUseCaseProvider =
+    Provider<GetExamTemplateDetailUseCase>((ref) {
+  return GetExamTemplateDetailUseCase(
+      ref.watch(examTemplateRepositoryProvider));
+});
+
+/// Provides the [DeleteExamTemplateUseCase].
+final deleteExamTemplateUseCaseProvider =
+    Provider<DeleteExamTemplateUseCase>((ref) {
+  return DeleteExamTemplateUseCase(ref.watch(examTemplateRepositoryProvider));
+});
+
+/// Provides the [CreateExamFromTemplateUseCase].
+final createExamFromTemplateUseCaseProvider =
+    Provider<CreateExamFromTemplateUseCase>((ref) {
+  return CreateExamFromTemplateUseCase(
+      ref.watch(examTemplateRepositoryProvider));
+});
+
+// ─── CBT Submission Receipt Use Cases ────────────────────────────────
+
+/// Provides the [GetSubmissionReceiptUseCase].
+final getSubmissionReceiptUseCaseProvider =
+    Provider<GetSubmissionReceiptUseCase>((ref) {
+  return GetSubmissionReceiptUseCase(
+      ref.watch(examTemplateRepositoryProvider));
+});
+
+/// Provides the [VerifySubmissionReceiptUseCase].
+final verifySubmissionReceiptUseCaseProvider =
+    Provider<VerifySubmissionReceiptUseCase>((ref) {
+  return VerifySubmissionReceiptUseCase(
+      ref.watch(examTemplateRepositoryProvider));
+});
+
+// ─── CBT New Service Providers ───────────────────────────────────────
+
+/// Provides the [ExamNotificationService] singleton.
+final examNotificationServiceProvider = Provider<ExamNotificationService>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  final service = ExamNotificationService(supabaseClient: supabaseClient);
+  return service;
+});
+
+/// Provides the [RateLimitingService] singleton.
+final rateLimitingServiceProvider = Provider<RateLimitingService>((ref) {
+  final service = RateLimitingService();
+  ref.onDispose(() {
+    service.dispose();
+  });
+  return service;
+});
+
+// ─── CBT Exam Template State Notifier ────────────────────────────────
+
+/// Provides the [ExamTemplateNotifier] for exam template management state.
+final examTemplateProvider =
+    StateNotifierProvider<ExamTemplateNotifier, ExamTemplateState>((ref) {
+  return ExamTemplateNotifier(
+    saveAsTemplateUseCase: ref.watch(saveAsTemplateUseCaseProvider),
+    getExamTemplatesUseCase: ref.watch(getExamTemplatesUseCaseProvider),
+    getExamTemplateDetailUseCase:
+        ref.watch(getExamTemplateDetailUseCaseProvider),
+    deleteExamTemplateUseCase: ref.watch(deleteExamTemplateUseCaseProvider),
+    createExamFromTemplateUseCase:
+        ref.watch(createExamFromTemplateUseCaseProvider),
+  );
+});
+
+/// Provides the [SubmissionReceiptNotifier] for submission receipt state.
+final submissionReceiptProvider = StateNotifierProvider<SubmissionReceiptNotifier,
+    SubmissionReceiptState>((ref) {
+  return SubmissionReceiptNotifier(
+    getSubmissionReceiptUseCase:
+        ref.watch(getSubmissionReceiptUseCaseProvider),
+    verifySubmissionReceiptUseCase:
+        ref.watch(verifySubmissionReceiptUseCaseProvider),
+  );
+});
+
+/// Provides the [ExamNotificationNotifier] for exam notification state.
+final examNotificationProvider =
+    StateNotifierProvider<ExamNotificationNotifier, ExamNotificationState>(
+        (ref) {
+  return ExamNotificationNotifier(
     cbtRepository: ref.watch(cbtRepositoryProvider),
   );
 });

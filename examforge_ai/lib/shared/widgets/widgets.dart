@@ -39,3 +39,6 @@ export 'app_navigation_drawer.dart';
 
 // ─── Bottom Navigation Bar ────────────────────────────────────────────────────
 export 'app_bottom_nav.dart';
+
+// ─── Stat Card (re-exports AppStatCard + TrendDirection from app_card.dart) ──
+export 'app_stat_card.dart';

@@ -154,6 +154,12 @@ class RouteNames {
   /// Student's exam list (assigned exams).
   static const String studentExams = '/exams/my-exams';
 
+  /// Exam templates library.
+  static const String examTemplates = '/exams/templates';
+
+  /// Submission receipt view.
+  static const String submissionReceipt = '/exams/receipt';
+
   // ═══════════════════════════════════════════════════════════════════════
   // RESULTS & ANALYTICS ROUTES
   // ═══════════════════════════════════════════════════════════════════════
@@ -342,6 +348,8 @@ class RouteNames {
     examResults,
     examTake,
     studentExams,
+    examTemplates,
+    submissionReceipt,
   };
 
   /// All results & analytics sub-routes (used for feature-level navigation).
@@ -429,6 +437,8 @@ class RouteNames {
     examResults,
     examTake,
     studentExams,
+    examTemplates,
+    submissionReceipt,
     results,
     teacherGrading,
     classResults,
