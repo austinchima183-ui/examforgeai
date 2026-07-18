@@ -2,6 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/teacher_workspace_models.dart';
+import '../models/workspace_expansion_models.dart';
 
 abstract class TeacherWorkspaceRemoteDataSource {
   // ── Dashboard ──────────────────────────────────────────────────────────
@@ -87,6 +88,64 @@ abstract class TeacherWorkspaceRemoteDataSource {
   Future<Map<String, dynamic>> generateQuestionsFromContent(
     Map<String, dynamic> params,
   );
+
+  // ── Presentations ────────────────────────────────────────────────────
+  Future<PresentationModel> createPresentation(Map<String, dynamic> data);
+  Future<PresentationModel> updatePresentation(String id, Map<String, dynamic> data);
+  Future<void> deletePresentation(String id);
+  Future<PresentationModel> getPresentation(String id);
+  Future<List<PresentationModel>> getPresentations(Map<String, dynamic> filters);
+  Future<PresentationModel> generatePresentationAI(Map<String, dynamic> params);
+  Future<String> exportPresentation(String id, String format);
+  Future<List<PresentationVersionModel>> getPresentationVersions(String presentationId);
+
+  // ── Communications ───────────────────────────────────────────────────
+  Future<CommunicationModel> createCommunication(Map<String, dynamic> data);
+  Future<CommunicationModel> updateCommunication(String id, Map<String, dynamic> data);
+  Future<void> deleteCommunication(String id);
+  Future<List<CommunicationModel>> getCommunications(Map<String, dynamic> filters);
+  Future<CommunicationModel> generateCommunicationAI(Map<String, dynamic> params);
+  Future<void> sendCommunication(String id);
+
+  // ── Tasks ────────────────────────────────────────────────────────────
+  Future<TaskModel> createTask(Map<String, dynamic> data);
+  Future<TaskModel> updateTask(String id, Map<String, dynamic> data);
+  Future<void> deleteTask(String id);
+  Future<List<TaskModel>> getTasks(Map<String, dynamic> filters);
+  Future<TaskModel> completeTask(String id, String? completionNotes);
+
+  // ── Rubrics ──────────────────────────────────────────────────────────
+  Future<RubricModel> createRubric(Map<String, dynamic> data);
+  Future<RubricModel> updateRubric(String id, Map<String, dynamic> data);
+  Future<void> deleteRubric(String id);
+  Future<List<RubricModel>> getRubrics(Map<String, dynamic> filters);
+  Future<RubricModel> generateRubricAI(Map<String, dynamic> params);
+
+  // ── Oral Questions ───────────────────────────────────────────────────
+  Future<OralQuestionModel> createOralQuestions(Map<String, dynamic> data);
+  Future<OralQuestionModel> updateOralQuestions(String id, Map<String, dynamic> data);
+  Future<void> deleteOralQuestions(String id);
+  Future<List<OralQuestionModel>> getOralQuestions(Map<String, dynamic> filters);
+  Future<OralQuestionModel> generateOralQuestionsAI(Map<String, dynamic> params);
+
+  // ── Practical Assessments ────────────────────────────────────────────
+  Future<PracticalAssessmentModel> createPracticalAssessment(Map<String, dynamic> data);
+  Future<PracticalAssessmentModel> updatePracticalAssessment(String id, Map<String, dynamic> data);
+  Future<void> deletePracticalAssessment(String id);
+  Future<List<PracticalAssessmentModel>> getPracticalAssessments(Map<String, dynamic> filters);
+  Future<PracticalAssessmentModel> generatePracticalAssessmentAI(Map<String, dynamic> params);
+
+  // ── Collaboration ────────────────────────────────────────────────────
+  Future<SharedResourceModel> shareResource(Map<String, dynamic> data);
+  Future<List<SharedResourceModel>> getSharedResources(Map<String, dynamic> filters);
+  Future<void> acceptSharedResource(String id);
+  Future<void> declineSharedResource(String id);
+  Future<CollaborationCommentModel> addComment(Map<String, dynamic> data);
+  Future<List<CollaborationCommentModel>> getComments(String resourceType, String resourceId);
+  Future<void> resolveComment(String commentId);
+
+  // ── Enhanced Dashboard ───────────────────────────────────────────────
+  Future<EnhancedDashboardModel> getEnhancedDashboard();
 }
 
 class TeacherWorkspaceRemoteDataSourceImpl
@@ -109,6 +168,15 @@ class TeacherWorkspaceRemoteDataSourceImpl
   static const _calendarEventsTable = 'calendar_events';
   static const _templatesTable = 'workspace_templates';
   static const _versionHistoryTable = 'workspace_version_history';
+  static const String _presentationsTable = 'presentations';
+  static const String _presentationVersionsTable = 'presentation_versions';
+  static const String _communicationsTable = 'communications';
+  static const String _tasksTable = 'tasks';
+  static const String _rubricsTable = 'rubrics';
+  static const String _oralQuestionsTable = 'oral_questions';
+  static const String _practicalAssessmentsTable = 'practical_assessments';
+  static const String _sharedResourcesTable = 'shared_resources';
+  static const String _commentsTable = 'collaboration_comments';
 
   // ── Exception mapping helper ───────────────────────────────────────────
   Never _mapPostgrestException(sb.PostgrestException e) {
@@ -1300,6 +1368,991 @@ class TeacherWorkspaceRemoteDataSourceImpl
       _mapPostgrestException(e);
     } catch (e) {
       AppLogger.error('Failed to generate questions from content', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PRESENTATIONS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<PresentationModel> createPresentation(Map<String, dynamic> data) async {
+    try {
+      AppLogger.info('Creating presentation');
+      final response = await _supabase
+          .from(_presentationsTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Presentation created successfully');
+      return PresentationModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to create presentation', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<PresentationModel> updatePresentation(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Updating presentation: $id');
+      final response = await _supabase
+          .from(_presentationsTable)
+          .update(data)
+          .eq('id', id)
+          .select();
+      AppLogger.info('Presentation updated successfully: $id');
+      return PresentationModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to update presentation: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> deletePresentation(String id) async {
+    try {
+      AppLogger.info('Deleting presentation: $id');
+      await _supabase.from(_presentationsTable).delete().eq('id', id);
+      AppLogger.info('Presentation deleted successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to delete presentation: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<PresentationModel> getPresentation(String id) async {
+    try {
+      AppLogger.info('Fetching presentation: $id');
+      final response = await _supabase
+          .from(_presentationsTable)
+          .select()
+          .eq('id', id)
+          .single();
+      AppLogger.info('Presentation fetched successfully: $id');
+      return PresentationModel.fromJson(response);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch presentation: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<PresentationModel>> getPresentations(
+    Map<String, dynamic> filters,
+  ) async {
+    try {
+      AppLogger.info('Fetching presentations with filters: $filters');
+      var query = _supabase.from(_presentationsTable).select();
+
+      if (filters['searchQuery'] != null) {
+        query = query.ilike('title', '%${filters['searchQuery']}%');
+      }
+      if (filters['subject_id'] != null) {
+        query = query.eq('subject_id', filters['subject_id']);
+      }
+      if (filters['class_id'] != null) {
+        query = query.eq('class_id', filters['class_id']);
+      }
+      if (filters['is_published'] != null) {
+        query = query.eq('is_published', filters['is_published']);
+      }
+      if (filters['is_archived'] != null) {
+        query = query.eq('is_archived', filters['is_archived']);
+      }
+      if (filters['tags'] != null) {
+        query = query.overlaps('tags', filters['tags']);
+      }
+
+      query = query.order('created_at', ascending: false);
+
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['perPage'] as int? ?? 20;
+      query = query.range((page - 1) * perPage, page * perPage - 1);
+
+      final response = await query;
+      AppLogger.info('Fetched ${response.length} presentations');
+      return response.map(PresentationModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch presentations', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<PresentationModel> generatePresentationAI(
+    Map<String, dynamic> params,
+  ) async {
+    try {
+      AppLogger.info('Generating presentation with AI');
+      final response = await _supabase.rpc(
+        'generate_presentation',
+        params: params,
+      );
+      AppLogger.info('Presentation generated successfully');
+      return PresentationModel.fromJson(response as Map<String, dynamic>);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to generate presentation with AI', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<String> exportPresentation(String id, String format) async {
+    try {
+      AppLogger.info('Exporting presentation: $id (format: $format)');
+      final response = await _supabase.rpc(
+        'export_presentation',
+        params: {
+          'p_presentation_id': id,
+          'p_format': format,
+        },
+      );
+      AppLogger.info('Presentation exported successfully: $id');
+      return response as String;
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to export presentation: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<PresentationVersionModel>> getPresentationVersions(
+    String presentationId,
+  ) async {
+    try {
+      AppLogger.info('Fetching presentation versions: $presentationId');
+      final response = await _supabase
+          .from(_presentationVersionsTable)
+          .select()
+          .eq('presentation_id', presentationId)
+          .order('created_at', ascending: false);
+      AppLogger.info('Fetched ${response.length} presentation versions');
+      return response.map(PresentationVersionModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch presentation versions', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // COMMUNICATIONS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<CommunicationModel> createCommunication(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Creating communication');
+      final response = await _supabase
+          .from(_communicationsTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Communication created successfully');
+      return CommunicationModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to create communication', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<CommunicationModel> updateCommunication(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Updating communication: $id');
+      final response = await _supabase
+          .from(_communicationsTable)
+          .update(data)
+          .eq('id', id)
+          .select();
+      AppLogger.info('Communication updated successfully: $id');
+      return CommunicationModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to update communication: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> deleteCommunication(String id) async {
+    try {
+      AppLogger.info('Deleting communication: $id');
+      await _supabase.from(_communicationsTable).delete().eq('id', id);
+      AppLogger.info('Communication deleted successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to delete communication: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<CommunicationModel>> getCommunications(
+    Map<String, dynamic> filters,
+  ) async {
+    try {
+      AppLogger.info('Fetching communications with filters: $filters');
+      var query = _supabase.from(_communicationsTable).select();
+
+      if (filters['searchQuery'] != null) {
+        query = query.ilike('title', '%${filters['searchQuery']}%');
+      }
+      if (filters['subject_id'] != null) {
+        query = query.eq('subject_id', filters['subject_id']);
+      }
+      if (filters['class_id'] != null) {
+        query = query.eq('class_id', filters['class_id']);
+      }
+      if (filters['communication_type'] != null) {
+        query = query.eq('communication_type', filters['communication_type']);
+      }
+      if (filters['status'] != null) {
+        query = query.eq('status', filters['status']);
+      }
+      if (filters['is_ai_generated'] != null) {
+        query = query.eq('is_ai_generated', filters['is_ai_generated']);
+      }
+
+      query = query.order('created_at', ascending: false);
+
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['perPage'] as int? ?? 20;
+      query = query.range((page - 1) * perPage, page * perPage - 1);
+
+      final response = await query;
+      AppLogger.info('Fetched ${response.length} communications');
+      return response.map(CommunicationModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch communications', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<CommunicationModel> generateCommunicationAI(
+    Map<String, dynamic> params,
+  ) async {
+    try {
+      AppLogger.info('Generating communication with AI');
+      final response = await _supabase.rpc(
+        'generate_communication',
+        params: params,
+      );
+      AppLogger.info('Communication generated successfully');
+      return CommunicationModel.fromJson(response as Map<String, dynamic>);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to generate communication with AI', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> sendCommunication(String id) async {
+    try {
+      AppLogger.info('Sending communication: $id');
+      await _supabase
+          .from(_communicationsTable)
+          .update({'status': 'sent', 'sent_at': DateTime.now().toIso8601String()})
+          .eq('id', id);
+      AppLogger.info('Communication sent successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to send communication: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // TASKS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<TaskModel> createTask(Map<String, dynamic> data) async {
+    try {
+      AppLogger.info('Creating task');
+      final response = await _supabase
+          .from(_tasksTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Task created successfully');
+      return TaskModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to create task', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<TaskModel> updateTask(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Updating task: $id');
+      final response = await _supabase
+          .from(_tasksTable)
+          .update(data)
+          .eq('id', id)
+          .select();
+      AppLogger.info('Task updated successfully: $id');
+      return TaskModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to update task: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> deleteTask(String id) async {
+    try {
+      AppLogger.info('Deleting task: $id');
+      await _supabase.from(_tasksTable).delete().eq('id', id);
+      AppLogger.info('Task deleted successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to delete task: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<TaskModel>> getTasks(Map<String, dynamic> filters) async {
+    try {
+      AppLogger.info('Fetching tasks with filters: $filters');
+      var query = _supabase.from(_tasksTable).select();
+
+      if (filters['searchQuery'] != null) {
+        query = query.ilike('title', '%${filters['searchQuery']}%');
+      }
+      if (filters['subject_id'] != null) {
+        query = query.eq('subject_id', filters['subject_id']);
+      }
+      if (filters['class_id'] != null) {
+        query = query.eq('class_id', filters['class_id']);
+      }
+      if (filters['status'] != null) {
+        query = query.eq('status', filters['status']);
+      }
+      if (filters['priority'] != null) {
+        query = query.eq('priority', filters['priority']);
+      }
+      if (filters['due_date_from'] != null) {
+        query = query.gte('due_date', filters['due_date_from']);
+      }
+      if (filters['due_date_to'] != null) {
+        query = query.lte('due_date', filters['due_date_to']);
+      }
+
+      query = query.order('created_at', ascending: false);
+
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['perPage'] as int? ?? 20;
+      query = query.range((page - 1) * perPage, page * perPage - 1);
+
+      final response = await query;
+      AppLogger.info('Fetched ${response.length} tasks');
+      return response.map(TaskModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch tasks', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<TaskModel> completeTask(String id, String? completionNotes) async {
+    try {
+      AppLogger.info('Completing task: $id');
+      final updateData = <String, dynamic>{
+        'status': 'completed',
+        'completed_at': DateTime.now().toIso8601String(),
+      };
+      if (completionNotes != null) {
+        updateData['completion_notes'] = completionNotes;
+      }
+      final response = await _supabase
+          .from(_tasksTable)
+          .update(updateData)
+          .eq('id', id)
+          .select();
+      AppLogger.info('Task completed successfully: $id');
+      return TaskModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to complete task: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // RUBRICS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<RubricModel> createRubric(Map<String, dynamic> data) async {
+    try {
+      AppLogger.info('Creating rubric');
+      final response = await _supabase
+          .from(_rubricsTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Rubric created successfully');
+      return RubricModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to create rubric', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<RubricModel> updateRubric(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Updating rubric: $id');
+      final response = await _supabase
+          .from(_rubricsTable)
+          .update(data)
+          .eq('id', id)
+          .select();
+      AppLogger.info('Rubric updated successfully: $id');
+      return RubricModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to update rubric: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> deleteRubric(String id) async {
+    try {
+      AppLogger.info('Deleting rubric: $id');
+      await _supabase.from(_rubricsTable).delete().eq('id', id);
+      AppLogger.info('Rubric deleted successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to delete rubric: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<RubricModel>> getRubrics(Map<String, dynamic> filters) async {
+    try {
+      AppLogger.info('Fetching rubrics with filters: $filters');
+      var query = _supabase.from(_rubricsTable).select();
+
+      if (filters['searchQuery'] != null) {
+        query = query.ilike('title', '%${filters['searchQuery']}%');
+      }
+      if (filters['subject_id'] != null) {
+        query = query.eq('subject_id', filters['subject_id']);
+      }
+      if (filters['class_id'] != null) {
+        query = query.eq('class_id', filters['class_id']);
+      }
+      if (filters['is_published'] != null) {
+        query = query.eq('is_published', filters['is_published']);
+      }
+
+      query = query.order('created_at', ascending: false);
+
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['perPage'] as int? ?? 20;
+      query = query.range((page - 1) * perPage, page * perPage - 1);
+
+      final response = await query;
+      AppLogger.info('Fetched ${response.length} rubrics');
+      return response.map(RubricModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch rubrics', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<RubricModel> generateRubricAI(Map<String, dynamic> params) async {
+    try {
+      AppLogger.info('Generating rubric with AI');
+      final response = await _supabase.rpc(
+        'generate_rubric',
+        params: params,
+      );
+      AppLogger.info('Rubric generated successfully');
+      return RubricModel.fromJson(response as Map<String, dynamic>);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to generate rubric with AI', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ORAL QUESTIONS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<OralQuestionModel> createOralQuestions(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Creating oral questions');
+      final response = await _supabase
+          .from(_oralQuestionsTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Oral questions created successfully');
+      return OralQuestionModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to create oral questions', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<OralQuestionModel> updateOralQuestions(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Updating oral questions: $id');
+      final response = await _supabase
+          .from(_oralQuestionsTable)
+          .update(data)
+          .eq('id', id)
+          .select();
+      AppLogger.info('Oral questions updated successfully: $id');
+      return OralQuestionModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to update oral questions: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> deleteOralQuestions(String id) async {
+    try {
+      AppLogger.info('Deleting oral questions: $id');
+      await _supabase.from(_oralQuestionsTable).delete().eq('id', id);
+      AppLogger.info('Oral questions deleted successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to delete oral questions: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<OralQuestionModel>> getOralQuestions(
+    Map<String, dynamic> filters,
+  ) async {
+    try {
+      AppLogger.info('Fetching oral questions with filters: $filters');
+      var query = _supabase.from(_oralQuestionsTable).select();
+
+      if (filters['searchQuery'] != null) {
+        query = query.ilike('title', '%${filters['searchQuery']}%');
+      }
+      if (filters['subject_id'] != null) {
+        query = query.eq('subject_id', filters['subject_id']);
+      }
+      if (filters['class_id'] != null) {
+        query = query.eq('class_id', filters['class_id']);
+      }
+      if (filters['difficulty'] != null) {
+        query = query.eq('difficulty', filters['difficulty']);
+      }
+      if (filters['is_published'] != null) {
+        query = query.eq('is_published', filters['is_published']);
+      }
+
+      query = query.order('created_at', ascending: false);
+
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['perPage'] as int? ?? 20;
+      query = query.range((page - 1) * perPage, page * perPage - 1);
+
+      final response = await query;
+      AppLogger.info('Fetched ${response.length} oral questions');
+      return response.map(OralQuestionModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch oral questions', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<OralQuestionModel> generateOralQuestionsAI(
+    Map<String, dynamic> params,
+  ) async {
+    try {
+      AppLogger.info('Generating oral questions with AI');
+      final response = await _supabase.rpc(
+        'generate_oral_questions',
+        params: params,
+      );
+      AppLogger.info('Oral questions generated successfully');
+      return OralQuestionModel.fromJson(response as Map<String, dynamic>);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to generate oral questions with AI', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // PRACTICAL ASSESSMENTS
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<PracticalAssessmentModel> createPracticalAssessment(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Creating practical assessment');
+      final response = await _supabase
+          .from(_practicalAssessmentsTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Practical assessment created successfully');
+      return PracticalAssessmentModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to create practical assessment', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<PracticalAssessmentModel> updatePracticalAssessment(
+    String id,
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Updating practical assessment: $id');
+      final response = await _supabase
+          .from(_practicalAssessmentsTable)
+          .update(data)
+          .eq('id', id)
+          .select();
+      AppLogger.info('Practical assessment updated successfully: $id');
+      return PracticalAssessmentModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to update practical assessment: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> deletePracticalAssessment(String id) async {
+    try {
+      AppLogger.info('Deleting practical assessment: $id');
+      await _supabase.from(_practicalAssessmentsTable).delete().eq('id', id);
+      AppLogger.info('Practical assessment deleted successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to delete practical assessment: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<PracticalAssessmentModel>> getPracticalAssessments(
+    Map<String, dynamic> filters,
+  ) async {
+    try {
+      AppLogger.info('Fetching practical assessments with filters: $filters');
+      var query = _supabase.from(_practicalAssessmentsTable).select();
+
+      if (filters['searchQuery'] != null) {
+        query = query.ilike('title', '%${filters['searchQuery']}%');
+      }
+      if (filters['subject_id'] != null) {
+        query = query.eq('subject_id', filters['subject_id']);
+      }
+      if (filters['class_id'] != null) {
+        query = query.eq('class_id', filters['class_id']);
+      }
+      if (filters['assessment_type'] != null) {
+        query = query.eq('assessment_type', filters['assessment_type']);
+      }
+      if (filters['is_published'] != null) {
+        query = query.eq('is_published', filters['is_published']);
+      }
+
+      query = query.order('created_at', ascending: false);
+
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['perPage'] as int? ?? 20;
+      query = query.range((page - 1) * perPage, page * perPage - 1);
+
+      final response = await query;
+      AppLogger.info('Fetched ${response.length} practical assessments');
+      return response.map(PracticalAssessmentModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch practical assessments', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<PracticalAssessmentModel> generatePracticalAssessmentAI(
+    Map<String, dynamic> params,
+  ) async {
+    try {
+      AppLogger.info('Generating practical assessment with AI');
+      final response = await _supabase.rpc(
+        'generate_practical_assessment',
+        params: params,
+      );
+      AppLogger.info('Practical assessment generated successfully');
+      return PracticalAssessmentModel.fromJson(response as Map<String, dynamic>);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to generate practical assessment with AI', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // COLLABORATION
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<SharedResourceModel> shareResource(Map<String, dynamic> data) async {
+    try {
+      AppLogger.info('Sharing resource');
+      final response = await _supabase
+          .from(_sharedResourcesTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Resource shared successfully');
+      return SharedResourceModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to share resource', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<SharedResourceModel>> getSharedResources(
+    Map<String, dynamic> filters,
+  ) async {
+    try {
+      AppLogger.info('Fetching shared resources with filters: $filters');
+      var query = _supabase.from(_sharedResourcesTable).select();
+
+      if (filters['shared_with_id'] != null) {
+        query = query.eq('shared_with_id', filters['shared_with_id']);
+      }
+      if (filters['shared_by_id'] != null) {
+        query = query.eq('shared_by_id', filters['shared_by_id']);
+      }
+      if (filters['resource_type'] != null) {
+        query = query.eq('resource_type', filters['resource_type']);
+      }
+      if (filters['status'] != null) {
+        query = query.eq('status', filters['status']);
+      }
+
+      query = query.order('created_at', ascending: false);
+
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['perPage'] as int? ?? 20;
+      query = query.range((page - 1) * perPage, page * perPage - 1);
+
+      final response = await query;
+      AppLogger.info('Fetched ${response.length} shared resources');
+      return response.map(SharedResourceModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch shared resources', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> acceptSharedResource(String id) async {
+    try {
+      AppLogger.info('Accepting shared resource: $id');
+      await _supabase
+          .from(_sharedResourcesTable)
+          .update({'status': 'accepted'})
+          .eq('id', id);
+      AppLogger.info('Shared resource accepted successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to accept shared resource: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> declineSharedResource(String id) async {
+    try {
+      AppLogger.info('Declining shared resource: $id');
+      await _supabase
+          .from(_sharedResourcesTable)
+          .update({'status': 'declined'})
+          .eq('id', id);
+      AppLogger.info('Shared resource declined successfully: $id');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to decline shared resource: $id', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<CollaborationCommentModel> addComment(
+    Map<String, dynamic> data,
+  ) async {
+    try {
+      AppLogger.info('Adding collaboration comment');
+      final response = await _supabase
+          .from(_commentsTable)
+          .insert(data)
+          .select();
+      AppLogger.info('Collaboration comment added successfully');
+      return CollaborationCommentModel.fromJson(response.first);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to add collaboration comment', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<List<CollaborationCommentModel>> getComments(
+    String resourceType,
+    String resourceId,
+  ) async {
+    try {
+      AppLogger.info(
+        'Fetching comments (resourceType: $resourceType, resourceId: $resourceId)',
+      );
+      final response = await _supabase
+          .from(_commentsTable)
+          .select()
+          .eq('resource_type', resourceType)
+          .eq('resource_id', resourceId)
+          .order('created_at', ascending: true);
+      AppLogger.info('Fetched ${response.length} collaboration comments');
+      return response.map(CollaborationCommentModel.fromJson).toList();
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch collaboration comments', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  @override
+  Future<void> resolveComment(String commentId) async {
+    try {
+      AppLogger.info('Resolving collaboration comment: $commentId');
+      await _supabase
+          .from(_commentsTable)
+          .update({'is_resolved': true})
+          .eq('id', commentId);
+      AppLogger.info('Collaboration comment resolved successfully: $commentId');
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to resolve collaboration comment: $commentId', error: e);
+      throw ServerException(message: e.toString(), statusCode: 500);
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ENHANCED DASHBOARD
+  // ═══════════════════════════════════════════════════════════════════════
+
+  @override
+  Future<EnhancedDashboardModel> getEnhancedDashboard() async {
+    try {
+      AppLogger.info('Fetching enhanced workspace dashboard');
+      final response = await _supabase.rpc(
+        'get_enhanced_workspace_dashboard',
+        params: {'p_teacher_id': _supabase.auth.currentUser?.id},
+      );
+      AppLogger.info('Enhanced workspace dashboard fetched successfully');
+      return EnhancedDashboardModel.fromJson(response as Map<String, dynamic>);
+    } on sb.PostgrestException catch (e) {
+      _mapPostgrestException(e);
+    } catch (e) {
+      AppLogger.error('Failed to fetch enhanced workspace dashboard', error: e);
       throw ServerException(message: e.toString(), statusCode: 500);
     }
   }

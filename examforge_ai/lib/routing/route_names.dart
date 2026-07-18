@@ -248,6 +248,49 @@ class RouteNames {
   static const String calendarPlanner = '/workspace/planner';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // TEACHER WORKSPACE EXPANSION ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Enhanced workspace dashboard.
+  static const String workspaceEnhancedDashboard = '/workspace/enhanced-dashboard';
+
+  /// Presentation generator page.
+  static const String presentationGenerator = '/workspace/presentations/generator';
+
+  /// Presentation list page.
+  static const String presentationList = '/workspace/presentations';
+
+  /// Communication generator page.
+  static const String communicationGenerator = '/workspace/communications/generator';
+
+  /// Communication list page.
+  static const String communicationList = '/workspace/communications';
+
+  /// Task manager page.
+  static const String taskManager = '/workspace/tasks';
+
+  /// Rubric generator page.
+  static const String rubricGenerator = '/workspace/rubrics/generator';
+
+  /// Rubric list page.
+  static const String rubricList = '/workspace/rubrics';
+
+  /// Oral question generator page.
+  static const String oralQuestionGenerator = '/workspace/oral-questions/generator';
+
+  /// Oral question list page.
+  static const String oralQuestionList = '/workspace/oral-questions';
+
+  /// Practical assessment generator page.
+  static const String practicalAssessmentGenerator = '/workspace/practical-assessments/generator';
+
+  /// Practical assessment list page.
+  static const String practicalAssessmentList = '/workspace/practical-assessments';
+
+  /// Shared resources page.
+  static const String sharedResources = '/workspace/shared';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // STUDENT PORTAL ROUTES
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -527,6 +570,19 @@ class RouteNames {
     teachingResources,
     resourceLibrary,
     calendarPlanner,
+    workspaceEnhancedDashboard,
+    presentationGenerator,
+    presentationList,
+    communicationGenerator,
+    communicationList,
+    taskManager,
+    rubricGenerator,
+    rubricList,
+    oralQuestionGenerator,
+    oralQuestionList,
+    practicalAssessmentGenerator,
+    practicalAssessmentList,
+    sharedResources,
   };
 
   /// All student portal sub-routes (used for feature-level navigation).
@@ -649,6 +705,19 @@ class RouteNames {
     teachingResources,
     resourceLibrary,
     calendarPlanner,
+    workspaceEnhancedDashboard,
+    presentationGenerator,
+    presentationList,
+    communicationGenerator,
+    communicationList,
+    taskManager,
+    rubricGenerator,
+    rubricList,
+    oralQuestionGenerator,
+    oralQuestionList,
+    practicalAssessmentGenerator,
+    practicalAssessmentList,
+    sharedResources,
     studentPortal,
     studentPortalDashboard,
     aiTutor,

@@ -1,5 +1,6 @@
 import '../../../../core/utils/result.dart';
 import '../entities/teacher_workspace_entities.dart';
+import '../entities/workspace_expansion_entities.dart';
 
 /// Abstract contract for all AI Teacher Workspace operations.
 ///
@@ -308,4 +309,63 @@ abstract class TeacherWorkspaceRepository {
     String resourceId,
     Map<String, dynamic> params,
   );
+
+  // ─── Presentations (CRUD + AI + Export) ────────────────────────────
+  Future<Result<PresentationEntity>> createPresentation(PresentationEntity presentation);
+  Future<Result<PresentationEntity>> updatePresentation(PresentationEntity presentation);
+  Future<Result<void>> deletePresentation(String presentationId);
+  Future<Result<PresentationEntity>> getPresentation(String presentationId);
+  Future<Result<List<PresentationEntity>>> getPresentations(WorkspaceFilterEntity filter);
+  Future<Result<PresentationEntity>> generatePresentation(Map<String, dynamic> params);
+  Future<Result<String>> exportPresentation(String presentationId, String format);
+  Future<Result<List<WorkspaceVersionEntity>>> getPresentationVersions(String presentationId);
+  Future<Result<PresentationEntity>> restorePresentationVersion(String presentationId, int versionNumber);
+
+  // ─── Communications (CRUD + AI) ────────────────────────────────────
+  Future<Result<CommunicationEntity>> createCommunication(CommunicationEntity communication);
+  Future<Result<CommunicationEntity>> updateCommunication(CommunicationEntity communication);
+  Future<Result<void>> deleteCommunication(String communicationId);
+  Future<Result<List<CommunicationEntity>>> getCommunications(WorkspaceFilterEntity filter);
+  Future<Result<CommunicationEntity>> generateCommunication(Map<String, dynamic> params);
+  Future<Result<void>> sendCommunication(String communicationId);
+
+  // ─── Tasks (CRUD) ──────────────────────────────────────────────────
+  Future<Result<TaskEntity>> createTask(TaskEntity task);
+  Future<Result<TaskEntity>> updateTask(TaskEntity task);
+  Future<Result<void>> deleteTask(String taskId);
+  Future<Result<List<TaskEntity>>> getTasks({String? status, String? category, DateTime? dueBefore});
+  Future<Result<TaskEntity>> completeTask(String taskId, String? completionNotes);
+
+  // ─── Rubrics (CRUD + AI) ───────────────────────────────────────────
+  Future<Result<RubricEntity>> createRubric(RubricEntity rubric);
+  Future<Result<RubricEntity>> updateRubric(RubricEntity rubric);
+  Future<Result<void>> deleteRubric(String rubricId);
+  Future<Result<List<RubricEntity>>> getRubrics(WorkspaceFilterEntity filter);
+  Future<Result<RubricEntity>> generateRubric(Map<String, dynamic> params);
+
+  // ─── Oral Questions (CRUD + AI) ────────────────────────────────────
+  Future<Result<OralQuestionEntity>> createOralQuestions(OralQuestionEntity oralQuestion);
+  Future<Result<OralQuestionEntity>> updateOralQuestions(OralQuestionEntity oralQuestion);
+  Future<Result<void>> deleteOralQuestions(String oralQuestionId);
+  Future<Result<List<OralQuestionEntity>>> getOralQuestions(WorkspaceFilterEntity filter);
+  Future<Result<OralQuestionEntity>> generateOralQuestions(Map<String, dynamic> params);
+
+  // ─── Practical Assessments (CRUD + AI) ─────────────────────────────
+  Future<Result<PracticalAssessmentEntity>> createPracticalAssessment(PracticalAssessmentEntity assessment);
+  Future<Result<PracticalAssessmentEntity>> updatePracticalAssessment(PracticalAssessmentEntity assessment);
+  Future<Result<void>> deletePracticalAssessment(String assessmentId);
+  Future<Result<List<PracticalAssessmentEntity>>> getPracticalAssessments(WorkspaceFilterEntity filter);
+  Future<Result<PracticalAssessmentEntity>> generatePracticalAssessment(Map<String, dynamic> params);
+
+  // ─── Collaboration ─────────────────────────────────────────────────
+  Future<Result<SharedResourceEntity>> shareResource(Map<String, dynamic> params);
+  Future<Result<List<SharedResourceEntity>>> getSharedResources({String? resourceType, bool? pendingOnly});
+  Future<Result<void>> acceptSharedResource(String sharedResourceId);
+  Future<Result<void>> declineSharedResource(String sharedResourceId);
+  Future<Result<CollaborationCommentEntity>> addComment(Map<String, dynamic> params);
+  Future<Result<List<CollaborationCommentEntity>>> getComments(String resourceType, String resourceId);
+  Future<Result<void>> resolveComment(String commentId);
+
+  // ─── Enhanced Dashboard ────────────────────────────────────────────
+  Future<Result<EnhancedWorkspaceDashboardEntity>> getEnhancedDashboard();
 }

@@ -66,6 +66,19 @@ import '../features/teacher_workspace/presentation/pages/teaching_resources_page
 import '../features/teacher_workspace/presentation/pages/content_assistant_page.dart';
 import '../features/teacher_workspace/presentation/pages/resource_library_page.dart';
 import '../features/teacher_workspace/presentation/pages/calendar_planner_page.dart';
+import '../features/teacher_workspace/presentation/pages/enhanced_workspace_dashboard_page.dart';
+import '../features/teacher_workspace/presentation/pages/presentation_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/presentation_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/communication_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/communication_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/task_manager_page.dart';
+import '../features/teacher_workspace/presentation/pages/rubric_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/rubric_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/oral_question_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/oral_question_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/practical_assessment_generator_page.dart';
+import '../features/teacher_workspace/presentation/pages/practical_assessment_list_page.dart';
+import '../features/teacher_workspace/presentation/pages/shared_resources_page.dart';
 import '../features/student_portal/presentation/pages/student_portal_dashboard_page.dart';
 import '../features/student_portal/presentation/pages/ai_tutor_page.dart';
 import '../features/student_portal/presentation/pages/practice_mode_page.dart';
@@ -651,6 +664,71 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.calendarPlanner,
             name: 'calendarPlanner',
             builder: (context, state) => const CalendarPlannerPage(),
+          ),
+          GoRoute(
+            path: 'enhanced-dashboard',
+            name: 'workspaceEnhancedDashboard',
+            builder: (context, state) => const EnhancedWorkspaceDashboardPage(),
+          ),
+          GoRoute(
+            path: 'presentations',
+            name: 'presentationList',
+            builder: (context, state) => const PresentationListPage(),
+          ),
+          GoRoute(
+            path: 'presentations/generator',
+            name: 'presentationGenerator',
+            builder: (context, state) => const PresentationGeneratorPage(),
+          ),
+          GoRoute(
+            path: 'communications',
+            name: 'communicationList',
+            builder: (context, state) => const CommunicationListPage(),
+          ),
+          GoRoute(
+            path: 'communications/generator',
+            name: 'communicationGenerator',
+            builder: (context, state) => const CommunicationGeneratorPage(),
+          ),
+          GoRoute(
+            path: 'tasks',
+            name: 'taskManager',
+            builder: (context, state) => const TaskManagerPage(),
+          ),
+          GoRoute(
+            path: 'rubrics',
+            name: 'rubricList',
+            builder: (context, state) => const RubricListPage(),
+          ),
+          GoRoute(
+            path: 'rubrics/generator',
+            name: 'rubricGenerator',
+            builder: (context, state) => const RubricGeneratorPage(),
+          ),
+          GoRoute(
+            path: 'oral-questions',
+            name: 'oralQuestionList',
+            builder: (context, state) => const OralQuestionListPage(),
+          ),
+          GoRoute(
+            path: 'oral-questions/generator',
+            name: 'oralQuestionGenerator',
+            builder: (context, state) => const OralQuestionGeneratorPage(),
+          ),
+          GoRoute(
+            path: 'practical-assessments',
+            name: 'practicalAssessmentList',
+            builder: (context, state) => const PracticalAssessmentListPage(),
+          ),
+          GoRoute(
+            path: 'practical-assessments/generator',
+            name: 'practicalAssessmentGenerator',
+            builder: (context, state) => const PracticalAssessmentGeneratorPage(),
+          ),
+          GoRoute(
+            path: 'shared',
+            name: 'sharedResources',
+            builder: (context, state) => const SharedResourcesPage(),
           ),
 
           // ── Student Portal Routes ─────────────────────────────────────

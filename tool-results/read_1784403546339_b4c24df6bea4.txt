@@ -1,0 +1,806 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_button.dart';
+     9→import '../../../../shared/widgets/app_card.dart';
+    10→import '../../../../shared/widgets/app_text_field.dart';
+    11→import '../../../../shared/widgets/app_app_bar.dart';
+    12→import '../../../../shared/widgets/app_error_state.dart';
+    13→
+    14→import '../../domain/entities/teacher_workspace_entities.dart';
+    15→import '../../domain/usecases/generate_report_comments_usecase.dart';
+    16→import '../providers/report_comment_provider.dart';
+    17→
+    18→// ═══════════════════════════════════════════════════════════════════════
+    19→// REPORT COMMENT GENERATOR PAGE
+    20→// ═══════════════════════════════════════════════════════════════════════
+    21→
+    22→/// AI Report Comment Generator page. Teachers select a class, subject,
+    23→/// and academic session, then AI generates personalized comments for
+    24→/// each student covering academic performance, attendance, behaviour,
+    25→/// participation, strengths, and areas for improvement.
+    26→class ReportCommentGeneratorPage extends ConsumerStatefulWidget {
+    27→  const ReportCommentGeneratorPage({super.key});
+    28→
+    29→  @override
+    30→  ConsumerState<ReportCommentGeneratorPage> createState() =>
+    31→      _ReportCommentGeneratorPageState();
+    32→}
+    33→
+    34→class _ReportCommentGeneratorPageState
+    35→    extends ConsumerState<ReportCommentGeneratorPage> {
+    36→  // ─── Form State ───────────────────────────────────────────────────────
+    37→
+    38→  final _formKey = GlobalKey<FormState>();
+    39→
+    40→  // Sample data – in production, these would be fetched from the backend.
+    41→  final List<_DropdownOption> _classOptions = const [
+    42→    _DropdownOption(id: 'class-1', label: 'JSS 1A'),
+    43→    _DropdownOption(id: 'class-2', label: 'JSS 1B'),
+    44→    _DropdownOption(id: 'class-3', label: 'JSS 2A'),
+    45→    _DropdownOption(id: 'class-4', label: 'JSS 2B'),
+    46→    _DropdownOption(id: 'class-5', label: 'SSS 1A'),
+    47→    _DropdownOption(id: 'class-6', label: 'SSS 1B'),
+    48→  ];
+    49→
+    50→  final List<_DropdownOption> _subjectOptions = const [
+    51→    _DropdownOption(id: 'subj-1', label: 'Mathematics'),
+    52→    _DropdownOption(id: 'subj-2', label: 'English Language'),
+    53→    _DropdownOption(id: 'subj-3', label: 'Physics'),
+    54→    _DropdownOption(id: 'subj-4', label: 'Chemistry'),
+    55→    _DropdownOption(id: 'subj-5', label: 'Biology'),
+    56→    _DropdownOption(id: 'subj-6', label: 'History'),
+    57→  ];
+    58→
+    59→  final List<_DropdownOption> _sessionOptions = const [
+    60→    _DropdownOption(id: 'sess-1', label: '2024/2025'),
+    61→    _DropdownOption(id: 'sess-2', label: '2023/2024'),
+    62→  ];
+    63→
+    64→  _DropdownOption? _selectedClass;
+    65→  _DropdownOption? _selectedSubject;
+    66→  _DropdownOption? _selectedSession;
+    67→  bool _allStudents = true;
+    68→
+    69→  // Editable comment controllers keyed by comment ID.
+    70→  final Map<String, TextEditingController> _overallCommentControllers = {};
+    71→  final Map<String, TextEditingController> _academicControllers = {};
+    72→  final Map<String, TextEditingController> _attendanceControllers = {};
+    73→  final Map<String, TextEditingController> _behaviourControllers = {};
+    74→  final Map<String, TextEditingController> _participationControllers = {};
+    75→
+    76→  // ─── Lifecycle ────────────────────────────────────────────────────────
+    77→
+    78→  @override
+    79→  void dispose() {
+    80→    for (final c in _overallCommentControllers.values) {
+    81→      c.dispose();
+    82→    }
+    83→    for (final c in _academicControllers.values) {
+    84→      c.dispose();
+    85→    }
+    86→    for (final c in _attendanceControllers.values) {
+    87→      c.dispose();
+    88→    }
+    89→    for (final c in _behaviourControllers.values) {
+    90→      c.dispose();
+    91→    }
+    92→    for (final c in _participationControllers.values) {
+    93→      c.dispose();
+    94→    }
+    95→    super.dispose();
+    96→  }
+    97→
+    98→  // ─── Actions ──────────────────────────────────────────────────────────
+    99→
+   100→  Future<void> _generateComments() async {
+   101→    if (!_formKey.currentState!.validate()) return;
+   102→    if (_selectedClass == null) {
+   103→      ScaffoldMessenger.of(context).showSnackBar(
+   104→        const SnackBar(
+   105→          content: Text('Please select a class'),
+   106→          behavior: SnackBarBehavior.floating,
+   107→        ),
+   108→      );
+   109→      return;
+   110→    }
+   111→
+   112→    await ref.read(reportCommentProvider.notifier).generateComments(
+   113→          GenerateReportCommentsParams(
+   114→            classId: _selectedClass!.id,
+   115→            subjectId: _selectedSubject?.id,
+   116→            academicSessionId: _selectedSession?.id,
+   117→          ),
+   118→        );
+   119→
+   120→    if (!mounted) return;
+   121→    final state = ref.read(reportCommentProvider);
+   122→    if (state.error != null) return;
+   123→
+   124→    // Initialize controllers for generated comments.
+   125→    _initControllers(state.comments);
+   126→  }
+   127→
+   128→  void _initControllers(List<ReportCommentEntity> comments) {
+   129→    for (final comment in comments) {
+   130→      _overallCommentControllers.putIfAbsent(
+   131→        comment.id,
+   132→        () => TextEditingController(text: comment.commentText),
+   133→      );
+   134→      _academicControllers.putIfAbsent(
+   135→        comment.id,
+   136→        () => TextEditingController(text: comment.academicPerformance ?? ''),
+   137→      );
+   138→      _attendanceControllers.putIfAbsent(
+   139→        comment.id,
+   140→        () => TextEditingController(text: comment.attendanceComment ?? ''),
+   141→      );
+   142→      _behaviourControllers.putIfAbsent(
+   143→        comment.id,
+   144→        () => TextEditingController(text: comment.behaviourComment ?? ''),
+   145→      );
+   146→      _participationControllers.putIfAbsent(
+   147→        comment.id,
+   148→        () => TextEditingController(text: comment.participationComment ?? ''),
+   149→      );
+   150→    }
+   151→  }
+   152→
+   153→  Future<void> _publishComment(String commentId) async {
+   154→    await ref.read(reportCommentProvider.notifier).publishComment(commentId);
+   155→
+   156→    if (!mounted) return;
+   157→    final state = ref.read(reportCommentProvider);
+   158→    if (state.successMessage != null) {
+   159→      ScaffoldMessenger.of(context).showSnackBar(
+   160→        SnackBar(
+   161→          content: Text(state.successMessage!),
+   162→          behavior: SnackBarBehavior.floating,
+   163→        ),
+   164→      );
+   165→      ref.read(reportCommentProvider.notifier).clearSuccessMessage();
+   166→    }
+   167→  }
+   168→
+   169→  Future<void> _publishAll() async {
+   170→    final state = ref.read(reportCommentProvider);
+   171→    for (final comment in state.comments) {
+   172→      if (!comment.isPublished) {
+   173→        await ref.read(reportCommentProvider.notifier).publishComment(comment.id);
+   174→      }
+   175→    }
+   176→
+   177→    if (!mounted) return;
+   178→    ScaffoldMessenger.of(context).showSnackBar(
+   179→      const SnackBar(
+   180→        content: Text('All comments published successfully'),
+   181→        behavior: SnackBarBehavior.floating,
+   182→      ),
+   183→    );
+   184→  }
+   185→
+   186→  void _editComment(ReportCommentEntity comment) {
+   187→    // Build updated comment from the controllers.
+   188→    final updated = comment.copyWith(
+   189→      commentText: _overallCommentControllers[comment.id]?.text ?? comment.commentText,
+   190→      academicPerformance: _academicControllers[comment.id]?.text ?? comment.academicPerformance,
+   191→      attendanceComment: _attendanceControllers[comment.id]?.text ?? comment.attendanceComment,
+   192→      behaviourComment: _behaviourControllers[comment.id]?.text ?? comment.behaviourComment,
+   193→      participationComment: _participationControllers[comment.id]?.text ?? comment.participationComment,
+   194→      isEdited: true,
+   195→    );
+   196→    ref.read(reportCommentProvider.notifier).updateComment(updated);
+   197→
+   198→    ScaffoldMessenger.of(context).showSnackBar(
+   199→      const SnackBar(
+   200→        content: Text('Comment updated'),
+   201→        behavior: SnackBarBehavior.floating,
+   202→      ),
+   203→    );
+   204→  }
+   205→
+   206→  // ─── Build ────────────────────────────────────────────────────────────
+   207→
+   208→  @override
+   209→  Widget build(BuildContext context) {
+   210→    final cs = context.colorScheme;
+   211→    final tt = context.textTheme;
+   212→    final state = ref.watch(reportCommentProvider);
+   213→
+   214→    return Scaffold(
+   215→      appBar: AppAppBar(
+   216→        title: 'Report Comments',
+   217→        leading: IconButton(
+   218→          icon: const Icon(Icons.arrow_back_rounded),
+   219→          onPressed: () => context.pop(),
+   220→        ),
+   221→      ),
+   222→      body: SingleChildScrollView(
+   223→        padding: Spacings.paddingScreen,
+   224→        child: Form(
+   225→          key: _formKey,
+   226→          child: Column(
+   227→            crossAxisAlignment: CrossAxisAlignment.start,
+   228→            children: [
+   229→              // ── Input Form Section ───────────────────────────────────
+   230→              _buildFormHeader(context),
+   231→              Spacings.sectionGap,
+   232→
+   233→              // Class dropdown (required)
+   234→              _buildClassDropdown(context),
+   235→              Spacings.itemGap,
+   236→
+   237→              // Subject dropdown
+   238→              _buildSubjectDropdown(context),
+   239→              Spacings.itemGap,
+   240→
+   241→              // Academic session dropdown
+   242→              _buildSessionDropdown(context),
+   243→              Spacings.itemGap,
+   244→
+   245→              // Student selection toggle
+   246→              _buildStudentSelectionToggle(context),
+   247→              Spacings.sectionGap,
+   248→
+   249→              // Generate button
+   250→              AppButton(
+   251→                label: 'Generate Comments',
+   252→                onPressed: _generateComments,
+   253→                variant: AppButtonVariant.elevated,
+   254→                icon: Icons.auto_awesome_rounded,
+   255→                fullWidth: true,
+   256→                isLoading: state.isGenerating,
+   257→                isDisabled: state.isGenerating,
+   258→              ),
+   259→
+   260→              // ── Error Display ────────────────────────────────────────
+   261→              if (state.error != null) ...[
+   262→                Spacings.itemGap,
+   263→                AppErrorState.genericError(
+   264→                  message: state.error,
+   265→                  onRetry: _generateComments,
+   266→                ),
+   267→              ],
+   268→
+   269→              // ── Generated Comments Section ───────────────────────────
+   270→              if (state.comments.isNotEmpty) ...[
+   271→                Spacings.sectionGap,
+   272→                _buildDivider(context),
+   273→                Spacings.sectionGap,
+   274→
+   275→                // Bulk Publish All
+   276→                _buildBulkPublishBar(context, state),
+   277→                Spacings.itemGap,
+   278→
+   279→                // Student comment cards
+   280→                ...state.comments.map((comment) {
+   281→                  return Padding(
+   282→                    padding: const EdgeInsets.only(bottom: Spacings.md),
+   283→                    child: _StudentCommentCard(
+   284→                      comment: comment,
+   285→                      overallController:
+   286→                          _overallCommentControllers[comment.id],
+   287→                      academicController:
+   288→                          _academicControllers[comment.id],
+   289→                      attendanceController:
+   290→                          _attendanceControllers[comment.id],
+   291→                      behaviourController:
+   292→                          _behaviourControllers[comment.id],
+   293→                      participationController:
+   294→                          _participationControllers[comment.id],
+   295→                      onEdit: () => _editComment(comment),
+   296→                      onPublish: () => _publishComment(comment.id),
+   297→                    ),
+   298→                  );
+   299→                }),
+   300→              ],
+   301→            ],
+   302→          ),
+   303→        ),
+   304→      ),
+   305→    );
+   306→  }
+   307→
+   308→  // ─── Sub-Builders ─────────────────────────────────────────────────────
+   309→
+   310→  Widget _buildFormHeader(BuildContext context) {
+   311→    final tt = context.textTheme;
+   312→    final cs = context.colorScheme;
+   313→    return Row(
+   314→      children: [
+   315→        Container(
+   316→          padding: const EdgeInsets.all(Spacings.md),
+   317→          decoration: BoxDecoration(
+   318→            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+   319→            borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   320→          ),
+   321→          child: Icon(
+   322→            Icons.rate_review_rounded,
+   323→            size: Spacings.lgIcon,
+   324→            color: cs.primary,
+   325→          ),
+   326→        ),
+   327→        const SizedBox(width: Spacings.md),
+   328→        Expanded(
+   329→          child: Column(
+   330→            crossAxisAlignment: CrossAxisAlignment.start,
+   331→            children: [
+   332→              Text(
+   333→                'AI Report Comments',
+   334→                style: tt.titleMedium?.copyWith(
+   335→                  fontWeight: AppTypography.wSemiBold,
+   336→                  color: cs.onSurface,
+   337→                ),
+   338→              ),
+   339→              const SizedBox(height: Spacings.xs),
+   340→              Text(
+   341→                'Generate personalized comments for each student',
+   342→                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   343→              ),
+   344→            ],
+   345→          ),
+   346→        ),
+   347→      ],
+   348→    );
+   349→  }
+   350→
+   351→  Widget _buildClassDropdown(BuildContext context) {
+   352→    final cs = context.colorScheme;
+   353→    final tt = context.textTheme;
+   354→    final effectiveLabel = 'Class *';
+   355→
+   356→    return DropdownButtonFormField<_DropdownOption>(
+   357→      value: _selectedClass,
+   358→      items: _classOptions
+   359→          .map((opt) => DropdownMenuItem<_DropdownOption>(
+   360→                value: opt,
+   361→                child: Text(
+   362→                  opt.label,
+   363→                  style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+   364→                ),
+   365→              ))
+   366→          .toList(),
+   367→      onChanged: (v) => setState(() => _selectedClass = v),
+   368→      validator: (v) => v == null ? 'Please select a class' : null,
+   369→      style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+   370→      icon: Icon(Icons.arrow_drop_down_rounded, color: cs.onSurfaceVariant),
+   371→      decoration: InputDecoration(
+   372→        labelText: effectiveLabel,
+   373→        prefixIcon: Icon(Icons.class_outlined, size: Spacings.mdIcon),
+   374→      ),
+   375→      dropdownColor: cs.surfaceContainerHigh,
+   376→      borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   377→      menuMaxHeight: 300,
+   378→    );
+   379→  }
+   380→
+   381→  Widget _buildSubjectDropdown(BuildContext context) {
+   382→    final cs = context.colorScheme;
+   383→    final tt = context.textTheme;
+   384→
+   385→    return DropdownButtonFormField<_DropdownOption>(
+   386→      value: _selectedSubject,
+   387→      items: _subjectOptions
+   388→          .map((opt) => DropdownMenuItem<_DropdownOption>(
+   389→                value: opt,
+   390→                child: Text(
+   391→                  opt.label,
+   392→                  style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+   393→                ),
+   394→              ))
+   395→          .toList(),
+   396→      onChanged: (v) => setState(() => _selectedSubject = v),
+   397→      style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+   398→      icon: Icon(Icons.arrow_drop_down_rounded, color: cs.onSurfaceVariant),
+   399→      decoration: InputDecoration(
+   400→        labelText: 'Subject',
+   401→        prefixIcon: Icon(Icons.book_outlined, size: Spacings.mdIcon),
+   402→      ),
+   403→      dropdownColor: cs.surfaceContainerHigh,
+   404→      borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   405→      menuMaxHeight: 300,
+   406→    );
+   407→  }
+   408→
+   409→  Widget _buildSessionDropdown(BuildContext context) {
+   410→    final cs = context.colorScheme;
+   411→    final tt = context.textTheme;
+   412→
+   413→    return DropdownButtonFormField<_DropdownOption>(
+   414→      value: _selectedSession,
+   415→      items: _sessionOptions
+   416→          .map((opt) => DropdownMenuItem<_DropdownOption>(
+   417→                value: opt,
+   418→                child: Text(
+   419→                  opt.label,
+   420→                  style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+   421→                ),
+   422→              ))
+   423→          .toList(),
+   424→      onChanged: (v) => setState(() => _selectedSession = v),
+   425→      style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+   426→      icon: Icon(Icons.arrow_drop_down_rounded, color: cs.onSurfaceVariant),
+   427→      decoration: InputDecoration(
+   428→        labelText: 'Academic Session',
+   429→        prefixIcon: Icon(Icons.school_outlined, size: Spacings.mdIcon),
+   430→      ),
+   431→      dropdownColor: cs.surfaceContainerHigh,
+   432→      borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   433→      menuMaxHeight: 300,
+   434→    );
+   435→  }
+   436→
+   437→  Widget _buildStudentSelectionToggle(BuildContext context) {
+   438→    final cs = context.colorScheme;
+   439→    final tt = context.textTheme;
+   440→
+   441→    return AppCard(
+   442→      padding: const EdgeInsets.symmetric(
+   443→        horizontal: Spacings.lg,
+   444→        vertical: Spacings.sm,
+   445→      ),
+   446→      child: Row(
+   447→        children: [
+   448→          Icon(Icons.people_outline_rounded,
+   449→              size: Spacings.mdIcon, color: cs.onSurfaceVariant),
+   450→          const SizedBox(width: Spacings.md),
+   451→          Expanded(
+   452→            child: Text(
+   453→              'All Students',
+   454→              style: tt.bodyMedium?.copyWith(color: cs.onSurface),
+   455→            ),
+   456→          ),
+   457→          Switch(
+   458→            value: _allStudents,
+   459→            onChanged: (v) => setState(() => _allStudents = v),
+   460→            activeColor: cs.primary,
+   461→          ),
+   462→        ],
+   463→      ),
+   464→    );
+   465→  }
+   466→
+   467→  Widget _buildDivider(BuildContext context) {
+   468→    return Divider(
+   469→      color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+   470→      thickness: 1,
+   471→    );
+   472→  }
+   473→
+   474→  Widget _buildBulkPublishBar(BuildContext context, ReportCommentState state) {
+   475→    final cs = context.colorScheme;
+   476→    final tt = context.textTheme;
+   477→    final publishedCount =
+   478→        state.comments.where((c) => c.isPublished).length;
+   479→    final totalCount = state.comments.length;
+   480→
+   481→    return AppCard(
+   482→      child: Row(
+   483→        children: [
+   484→          Icon(Icons.rate_review_rounded, size: Spacings.mdIcon, color: cs.primary),
+   485→          const SizedBox(width: Spacings.sm),
+   486→          Expanded(
+   487→            child: Column(
+   488→              crossAxisAlignment: CrossAxisAlignment.start,
+   489→              children: [
+   490→                Text(
+   491→                  '$totalCount Comments Generated',
+   492→                  style: tt.titleSmall?.copyWith(
+   493→                    fontWeight: AppTypography.wSemiBold,
+   494→                    color: cs.onSurface,
+   495→                  ),
+   496→                ),
+   497→                Text(
+   498→                  '$publishedCount of $totalCount published',
+   499→                  style: tt.bodySmall?.copyWith(
+   500→                    color: cs.onSurfaceVariant,
+   501→                  ),
+   502→                ),
+   503→              ],
+   504→            ),
+   505→          ),
+   506→          AppButton(
+   507→            label: 'Publish All',
+   508→            onPressed: _publishAll,
+   509→            variant: AppButtonVariant.elevated,
+   510→            icon: Icons.publish_rounded,
+   511→            size: AppButtonSize.small,
+   512→            isLoading: state.isPublishing,
+   513→            isDisabled: state.isPublishing || publishedCount == totalCount,
+   514→          ),
+   515→        ],
+   516→      ),
+   517→    );
+   518→  }
+   519→}
+   520→
+   521→// ═══════════════════════════════════════════════════════════════════════
+   522→// STUDENT COMMENT CARD
+   523→// ═══════════════════════════════════════════════════════════════════════
+   524→
+   525→/// A card displaying a single student's AI-generated report comment with
+   526→/// editable fields for each section.
+   527→class _StudentCommentCard extends StatelessWidget {
+   528→  const _StudentCommentCard({
+   529→    required this.comment,
+   530→    this.overallController,
+   531→    this.academicController,
+   532→    this.attendanceController,
+   533→    this.behaviourController,
+   534→    this.participationController,
+   535→    this.onEdit,
+   536→    this.onPublish,
+   537→  });
+   538→
+   539→  final ReportCommentEntity comment;
+   540→  final TextEditingController? overallController;
+   541→  final TextEditingController? academicController;
+   542→  final TextEditingController? attendanceController;
+   543→  final TextEditingController? behaviourController;
+   544→  final TextEditingController? participationController;
+   545→  final VoidCallback? onEdit;
+   546→  final VoidCallback? onPublish;
+   547→
+   548→  @override
+   549→  Widget build(BuildContext context) {
+   550→    final cs = context.colorScheme;
+   551→    final tt = context.textTheme;
+   552→
+   553→    // Student name from metadata or fallback
+   554→    final studentName = comment.metadata['studentName'] as String? ??
+   555→        'Student ${comment.studentId?.substring(0, 8) ?? 'Unknown'}';
+   556→
+   557→    return AppCard(
+   558→      child: Column(
+   559→        crossAxisAlignment: CrossAxisAlignment.start,
+   560→        children: [
+   561→          // ── Header: Student name + AI badge ──────────────────────────
+   562→          Row(
+   563→            children: [
+   564→              // Avatar
+   565→              CircleAvatar(
+   566→                radius: 20,
+   567→                backgroundColor:
+   568→                    cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+   569→                child: Text(
+   570→                  studentName.isNotEmpty ? studentName[0].toUpperCase() : '?',
+   571→                  style: tt.titleMedium?.copyWith(
+   572→                    color: cs.primary,
+   573→                    fontWeight: AppTypography.wBold,
+   574→                  ),
+   575→                ),
+   576→              ),
+   577→              const SizedBox(width: Spacings.md),
+   578→              Expanded(
+   579→                child: Column(
+   580→                  crossAxisAlignment: CrossAxisAlignment.start,
+   581→                  children: [
+   582→                    Text(
+   583→                      studentName,
+   584→                      style: tt.titleSmall?.copyWith(
+   585→                        fontWeight: AppTypography.wSemiBold,
+   586→                        color: cs.onSurface,
+   587→                      ),
+   588→                    ),
+   589→                    if (comment.isEdited)
+   590→                      Text(
+   591→                        'Edited',
+   592→                        style: tt.bodySmall?.copyWith(
+   593→                          color: cs.onSurfaceVariant,
+   594→                          fontStyle: FontStyle.italic,
+   595→                        ),
+   596→                      ),
+   597→                  ],
+   598→                ),
+   599→              ),
+   600→              // AI-generated indicator
+   601→              if (comment.isAiGenerated)
+   602→                Container(
+   603→                  padding: const EdgeInsets.symmetric(
+   604→                    horizontal: Spacings.sm,
+   605→                    vertical: Spacings.xs,
+   606→                  ),
+   607→                  decoration: BoxDecoration(
+   608→                    color: cs.tertiary.withValues(
+   609→                        alpha: context.isDarkMode ? 0.20 : 0.12),
+   610→                    borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   611→                  ),
+   612→                  child: Row(
+   613→                    mainAxisSize: MainAxisSize.min,
+   614→                    children: [
+   615→                      Icon(Icons.auto_awesome_rounded,
+   616→                          size: Spacings.smIcon, color: cs.tertiary),
+   617→                      const SizedBox(width: Spacings.xs),
+   618→                      Text(
+   619→                        'AI',
+   620→                        style: tt.labelSmall?.copyWith(
+   621→                          color: cs.tertiary,
+   622→                          fontWeight: AppTypography.wSemiBold,
+   623→                        ),
+   624→                      ),
+   625→                    ],
+   626→                  ),
+   627→                ),
+   628→              // Published badge
+   629→              if (comment.isPublished) ...[
+   630→                const SizedBox(width: Spacings.sm),
+   631→                Container(
+   632→                  padding: const EdgeInsets.symmetric(
+   633→                    horizontal: Spacings.sm,
+   634→                    vertical: Spacings.xs,
+   635→                  ),
+   636→                  decoration: BoxDecoration(
+   637→                    color: Colors.green.withValues(
+   638→                        alpha: context.isDarkMode ? 0.20 : 0.12),
+   639→                    borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   640→                  ),
+   641→                  child: Text(
+   642→                    'Published',
+   643→                    style: tt.labelSmall?.copyWith(
+   644→                      color: Colors.green,
+   645→                      fontWeight: AppTypography.wSemiBold,
+   646→                    ),
+   647→                  ),
+   648→                ),
+   649→              ],
+   650→            ],
+   651→          ),
+   652→          Spacings.itemGap,
+   653→
+   654→          // ── Academic Performance ─────────────────────────────────────
+   655→          _buildSectionLabel(context, 'Academic Performance'),
+   656→          AppTextField(
+   657→            controller: academicController,
+   658→            maxLines: 2,
+   659→            minLines: 1,
+   660→            hint: 'Academic performance comment…',
+   661→          ),
+   662→          const SizedBox(height: Spacings.sm),
+   663→
+   664→          // ── Attendance ───────────────────────────────────────────────
+   665→          _buildSectionLabel(context, 'Attendance'),
+   666→          AppTextField(
+   667→            controller: attendanceController,
+   668→            maxLines: 2,
+   669→            minLines: 1,
+   670→            hint: 'Attendance comment…',
+   671→          ),
+   672→          const SizedBox(height: Spacings.sm),
+   673→
+   674→          // ── Behaviour ────────────────────────────────────────────────
+   675→          _buildSectionLabel(context, 'Behaviour'),
+   676→          AppTextField(
+   677→            controller: behaviourController,
+   678→            maxLines: 2,
+   679→            minLines: 1,
+   680→            hint: 'Behaviour comment…',
+   681→          ),
+   682→          const SizedBox(height: Spacings.sm),
+   683→
+   684→          // ── Participation ────────────────────────────────────────────
+   685→          _buildSectionLabel(context, 'Participation'),
+   686→          AppTextField(
+   687→            controller: participationController,
+   688→            maxLines: 2,
+   689→            minLines: 1,
+   690→            hint: 'Participation comment…',
+   691→          ),
+   692→          const SizedBox(height: Spacings.sm),
+   693→
+   694→          // ── Strengths ────────────────────────────────────────────────
+   695→          if (comment.strengths.isNotEmpty) ...[
+   696→            _buildSectionLabel(context, 'Strengths'),
+   697→            Wrap(
+   698→              spacing: Spacings.xs,
+   699→              runSpacing: Spacings.xs,
+   700→              children: comment.strengths.map((s) {
+   701→                return Chip(
+   702→                  label: Text(s, style: tt.bodySmall),
+   703→                  backgroundColor: Colors.green
+   704→                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+   705→                  side: BorderSide.none,
+   706→                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   707→                  visualDensity: VisualDensity.compact,
+   708→                );
+   709→              }).toList(),
+   710→            ),
+   711→            const SizedBox(height: Spacings.sm),
+   712→          ],
+   713→
+   714→          // ── Areas for Improvement ────────────────────────────────────
+   715→          if (comment.areasForImprovement.isNotEmpty) ...[
+   716→            _buildSectionLabel(context, 'Areas for Improvement'),
+   717→            Wrap(
+   718→              spacing: Spacings.xs,
+   719→              runSpacing: Spacings.xs,
+   720→              children: comment.areasForImprovement.map((s) {
+   721→                return Chip(
+   722→                  label: Text(s, style: tt.bodySmall),
+   723→                  backgroundColor: Colors.orange
+   724→                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+   725→                  side: BorderSide.none,
+   726→                  materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   727→                  visualDensity: VisualDensity.compact,
+   728→                );
+   729→              }).toList(),
+   730→            ),
+   731→            const SizedBox(height: Spacings.sm),
+   732→          ],
+   733→
+   734→          // ── Overall Comment (commentText) ────────────────────────────
+   735→          _buildSectionLabel(context, 'Overall Comment'),
+   736→          AppTextField(
+   737→            controller: overallController,
+   738→            maxLines: 3,
+   739→            minLines: 2,
+   740→            hint: 'Overall comment…',
+   741→          ),
+   742→          Spacings.itemGap,
+   743→
+   744→          // ── Action Buttons ───────────────────────────────────────────
+   745→          Row(
+   746→            mainAxisAlignment: MainAxisAlignment.end,
+   747→            children: [
+   748→              AppButton(
+   749→                label: 'Edit',
+   750→                onPressed: onEdit,
+   751→                variant: AppButtonVariant.outlined,
+   752→                icon: Icons.edit_outlined,
+   753→                size: AppButtonSize.small,
+   754→              ),
+   755→              const SizedBox(width: Spacings.sm),
+   756→              AppButton(
+   757→                label: comment.isPublished ? 'Published' : 'Publish',
+   758→                onPressed: comment.isPublished ? null : onPublish,
+   759→                variant: AppButtonVariant.elevated,
+   760→                icon: comment.isPublished
+   761→                    ? Icons.check_circle_rounded
+   762→                    : Icons.publish_rounded,
+   763→                size: AppButtonSize.small,
+   764→                isDisabled: comment.isPublished,
+   765→              ),
+   766→            ],
+   767→          ),
+   768→        ],
+   769→      ),
+   770→    );
+   771→  }
+   772→
+   773→  Widget _buildSectionLabel(BuildContext context, String label) {
+   774→    final cs = context.colorScheme;
+   775→    final tt = context.textTheme;
+   776→    return Padding(
+   777→      padding: const EdgeInsets.only(bottom: Spacings.xs),
+   778→      child: Text(
+   779→        label,
+   780→        style: tt.labelMedium?.copyWith(
+   781→          color: cs.primary,
+   782→          fontWeight: AppTypography.wSemiBold,
+   783→        ),
+   784→      ),
+   785→    );
+   786→  }
+   787→}
+   788→
+   789→// ═══════════════════════════════════════════════════════════════════════
+   790→// HELPER CLASS
+   791→// ═══════════════════════════════════════════════════════════════════════
+   792→
+   793→class _DropdownOption {
+   794→  const _DropdownOption({required this.id, required this.label});
+   795→  final String id;
+   796→  final String label;
+   797→
+   798→  @override
+   799→  bool operator ==(Object other) =>
+   800→      identical(this, other) ||
+   801→      other is _DropdownOption && runtimeType == other.runtimeType && id == other.id;
+   802→
+   803→  @override
+   804→  int get hashCode => id.hashCode;
+   805→}
+   806→

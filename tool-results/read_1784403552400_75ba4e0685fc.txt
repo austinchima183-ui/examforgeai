@@ -1,0 +1,1125 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import '../../../../core/themes/spacings.dart';
+     4→import '../../../../core/themes/app_typography.dart';
+     5→import '../../../../core/extensions/context_extensions.dart';
+     6→import '../../../../shared/widgets/app_button.dart';
+     7→import '../../../../shared/widgets/app_card.dart';
+     8→import '../../../../shared/widgets/app_text_field.dart';
+     9→import '../../../../shared/widgets/app_loading.dart';
+    10→import '../../../../shared/widgets/app_app_bar.dart';
+    11→import '../../../../shared/widgets/app_empty_state.dart';
+    12→import '../../../../shared/widgets/app_error_state.dart';
+    13→import '../../../../shared/widgets/app_dialog.dart';
+    14→import '../../domain/entities/teacher_workspace_entities.dart';
+    15→import '../../domain/usecases/create_resource_usecase.dart';
+    16→import '../../domain/usecases/generate_resource_usecase.dart';
+    17→import '../providers/teaching_resource_provider.dart';
+    18→import '../widgets/generate_questions_button.dart';
+    19→
+    20→// ═══════════════════════════════════════════════════════════════════════
+    21→// TEACHING RESOURCES PAGE
+    22→// ═══════════════════════════════════════════════════════════════════════
+    23→
+    24→/// Page where teachers can create and manage teaching resources: notes,
+    25→/// slides, handouts, study guides, revision materials, classroom
+    26→/// activities, rubrics, and templates.
+    27→class TeachingResourcesPage extends ConsumerStatefulWidget {
+    28→  const TeachingResourcesPage({super.key});
+    29→
+    30→  @override
+    31→  ConsumerState<TeachingResourcesPage> createState() =>
+    32→      _TeachingResourcesPageState();
+    33→}
+    34→
+    35→class _TeachingResourcesPageState
+    36→    extends ConsumerState<TeachingResourcesPage> {
+    37→  final _searchCtrl = TextEditingController();
+    38→  ResourceType? _filterResourceType;
+    39→  bool _favoritesOnly = false;
+    40→
+    41→  // Folder tree sample data (in production this would come from provider)
+    42→  final List<_FolderNode> _folders = const [
+    43→    _FolderNode(id: 'all', name: 'All Resources', icon: Icons.folder_outlined),
+    44→    _FolderNode(id: 'notes', name: 'Notes', icon: Icons.note_outlined),
+    45→    _FolderNode(id: 'slides', name: 'Slides', icon: Icons.slideshow_outlined),
+    46→    _FolderNode(id: 'handouts', name: 'Handouts', icon: Icons.description_outlined),
+    47→    _FolderNode(id: 'guides', name: 'Study Guides', icon: Icons.menu_book_outlined),
+    48→    _FolderNode(id: 'revision', name: 'Revision', icon: Icons.replay_outlined),
+    49→    _FolderNode(id: 'activities', name: 'Activities', icon: Icons.sports_esports_outlined),
+    50→    _FolderNode(id: 'rubrics', name: 'Rubrics', icon: Icons.assessment_outlined),
+    51→    _FolderNode(id: 'templates', name: 'Templates', icon: Icons.dashboard_customize_outlined),
+    52→  ];
+    53→
+    54→  String _selectedFolderId = 'all';
+    55→
+    56→  @override
+    57→  void initState() {
+    58→    super.initState();
+    59→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    60→      ref.read(teachingResourceProvider.notifier).loadResources();
+    61→    });
+    62→  }
+    63→
+    64→  @override
+    65→  void dispose() {
+    66→    _searchCtrl.dispose();
+    67→    super.dispose();
+    68→  }
+    69→
+    70→  // ─── Helpers ─────────────────────────────────────────────────────────
+    71→
+    72→  void _listenForMessages() {
+    73→    final state = ref.read(teachingResourceProvider);
+    74→    if (state.successMessage != null) {
+    75→      _showSnackBar(state.successMessage!, isError: false);
+    76→      ref.read(teachingResourceProvider.notifier).clearSuccessMessage();
+    77→    }
+    78→    if (state.error != null) {
+    79→      _showSnackBar(state.error!, isError: true);
+    80→      ref.read(teachingResourceProvider.notifier).clearError();
+    81→    }
+    82→  }
+    83→
+    84→  void _showSnackBar(String message, {required bool isError}) {
+    85→    if (!mounted) return;
+    86→    final cs = context.colorScheme;
+    87→    context.scaffoldMessenger.showSnackBar(
+    88→      SnackBar(
+    89→        content: Text(message),
+    90→        backgroundColor: isError ? cs.error : cs.primary,
+    91→        behavior: SnackBarBehavior.floating,
+    92→        shape: RoundedRectangleBorder(
+    93→          borderRadius: BorderRadius.circular(Spacings.smRadius),
+    94→        ),
+    95→        duration: const Duration(seconds: 3),
+    96→      ),
+    97→    );
+    98→  }
+    99→
+   100→  List<TeachingResourceEntity> _applyLocalFilters(
+   101→    List<TeachingResourceEntity> resources,
+   102→  ) {
+   103→    var filtered = resources;
+   104→
+   105→    // Search filter
+   106→    final query = _searchCtrl.text.trim().toLowerCase();
+   107→    if (query.isNotEmpty) {
+   108→      filtered = filtered
+   109→          .where((r) =>
+   110→              r.title.toLowerCase().contains(query) ||
+   111→              (r.subject?.toLowerCase().contains(query) ?? false) ||
+   112→              (r.description?.toLowerCase().contains(query) ?? false) ||
+   113→              (r.topic?.toLowerCase().contains(query) ?? false))
+   114→          .toList();
+   115→    }
+   116→
+   117→    // Resource type filter
+   118→    if (_filterResourceType != null) {
+   119→      filtered = filtered
+   120→          .where((r) => r.resourceType == _filterResourceType)
+   121→          .toList();
+   122→    }
+   123→
+   124→    // Favorites only
+   125→    if (_favoritesOnly) {
+   126→      filtered = filtered.where((r) => r.isFavorite).toList();
+   127→    }
+   128→
+   129→    return filtered;
+   130→  }
+   131→
+   132→  Future<void> _handleRefresh() async {
+   133→    await ref.read(teachingResourceProvider.notifier).loadResources();
+   134→    _listenForMessages();
+   135→  }
+   136→
+   137→  void _handleDelete(String resourceId) {
+   138→    ref.read(teachingResourceProvider.notifier).deleteResource(resourceId);
+   139→    _listenForMessages();
+   140→  }
+   141→
+   142→  void _handleToggleFavorite(String resourceId) {
+   143→    ref.read(teachingResourceProvider.notifier).toggleFavorite(resourceId);
+   144→    _listenForMessages();
+   145→  }
+   146→
+   147→  // ─── Build ───────────────────────────────────────────────────────────
+   148→
+   149→  @override
+   150→  Widget build(BuildContext context) {
+   151→    final state = ref.watch(teachingResourceProvider);
+   152→
+   153→    return Scaffold(
+   154→      appBar: AppAppBar(
+   155→        title: 'Teaching Resources',
+   156→        actions: [
+   157→          AppIconButton(
+   158→            icon: Icons.add_rounded,
+   159→            onPressed: _showCreateResourceDialog,
+   160→            tooltip: 'New Resource',
+   161→            variant: AppIconButtonVariant.filled,
+   162→          ),
+   163→        ],
+   164→      ),
+   165→      body: state.isLoading
+   166→          ? _buildLoadingShimmer()
+   167→          : state.error != null && state.resources.isEmpty
+   168→              ? _buildErrorState()
+   169→              : _buildContent(state),
+   170→      floatingActionButton: AppFloatingActionButton(
+   171→        label: 'New Resource',
+   172→        icon: Icons.add_rounded,
+   173→        onPressed: _showCreateResourceDialog,
+   174→        extended: true,
+   175→      ),
+   176→    );
+   177→  }
+   178→
+   179→  // ─── Content ─────────────────────────────────────────────────────────
+   180→
+   181→  Widget _buildContent(TeachingResourceState state) {
+   182→    final filteredResources = _applyLocalFilters(state.resources);
+   183→    final isDesktop = context.isDesktop;
+   184→
+   185→    if (isDesktop) {
+   186→      return Row(
+   187→        crossAxisAlignment: CrossAxisAlignment.start,
+   188→        children: [
+   189→          // Left sidebar with folder tree
+   190→          _buildFolderSidebar(),
+   191→          // Vertical divider
+   192→          const VerticalDivider(width: 1),
+   193→          // Main content
+   194→          Expanded(
+   195→            child: _buildMainContent(state, filteredResources),
+   196→          ),
+   197→        ],
+   198→      );
+   199→    }
+   200→
+   201→    // Mobile layout
+   202→    return _buildMainContent(state, filteredResources);
+   203→  }
+   204→
+   205→  Widget _buildMainContent(
+   206→    TeachingResourceState state,
+   207→    List<TeachingResourceEntity> filteredResources,
+   208→  ) {
+   209→    return RefreshIndicator(
+   210→      onRefresh: _handleRefresh,
+   211→      child: CustomScrollView(
+   212→        slivers: [
+   213→          // Search bar + folder dropdown (mobile)
+   214→          SliverToBoxAdapter(child: _buildSearchBar()),
+   215→          const SliverToBoxAdapter(child: SizedBox(height: Spacings.sm)),
+   216→
+   217→          // Mobile folder dropdown
+   218→          if (!context.isDesktop)
+   219→            SliverToBoxAdapter(child: _buildFolderDropdown()),
+   220→          if (!context.isDesktop)
+   221→            const SliverToBoxAdapter(child: SizedBox(height: Spacings.sm)),
+   222→
+   223→          // Filter chips
+   224→          SliverToBoxAdapter(child: _buildFilterChips()),
+   225→          const SliverToBoxAdapter(child: SizedBox(height: Spacings.md)),
+   226→
+   227→          // Results count
+   228→          SliverToBoxAdapter(
+   229→            child: _buildResultsCount(filteredResources.length),
+   230→          ),
+   231→          const SliverToBoxAdapter(child: SizedBox(height: Spacings.sm)),
+   232→
+   233→          // Resource grid/list
+   234→          if (filteredResources.isEmpty)
+   235→            SliverFillRemaining(child: _buildEmptyState())
+   236→          else
+   237→            SliverPadding(
+   238→              padding: Spacings.paddingScreen,
+   239→              sliver: SliverList(
+   240→                delegate: SliverChildBuilderDelegate(
+   241→                  (context, index) => Padding(
+   242→                    padding: const EdgeInsets.only(bottom: Spacings.md),
+   243→                    child: _buildResourceCard(filteredResources[index]),
+   244→                  ),
+   245→                  childCount: filteredResources.length,
+   246→                ),
+   247→              ),
+   248→            ),
+   249→
+   250→          // Load more trigger
+   251→          if (state.hasMore && filteredResources.isNotEmpty)
+   252→            SliverToBoxAdapter(
+   253→              child: Padding(
+   254→                padding: const EdgeInsets.all(Spacings.lg),
+   255→                child: Center(
+   256→                  child: AppButton(
+   257→                    label: 'Load More',
+   258→                    onPressed: () => ref
+   259→                        .read(teachingResourceProvider.notifier)
+   260→                        .loadResources(),
+   261→                    variant: AppButtonVariant.text,
+   262→                    isLoading: state.isLoadingMore,
+   263→                  ),
+   264→                ),
+   265→              ),
+   266→            ),
+   267→        ],
+   268→      ),
+   269→    );
+   270→  }
+   271→
+   272→  // ─── Folder Sidebar (Desktop) ────────────────────────────────────────
+   273→
+   274→  Widget _buildFolderSidebar() {
+   275→    final cs = context.colorScheme;
+   276→    final tt = context.textTheme;
+   277→
+   278→    return SizedBox(
+   279→      width: 260,
+   280→      child: ListView(
+   281→        padding: const EdgeInsets.symmetric(
+   282→          vertical: Spacings.lg,
+   283→          horizontal: Spacings.sm,
+   284→        ),
+   285→        children: [
+   286→          Padding(
+   287→            padding: const EdgeInsets.symmetric(
+   288→              horizontal: Spacings.md,
+   289→              vertical: Spacings.sm,
+   290→            ),
+   291→            child: Text(
+   292→              'Folders',
+   293→              style: tt.titleSmall?.copyWith(
+   294→                fontWeight: AppTypography.wSemiBold,
+   295→                color: cs.onSurface,
+   296→              ),
+   297→            ),
+   298→          ),
+   299→          const SizedBox(height: Spacings.sm),
+   300→          ..._folders.map((folder) => _buildFolderTile(folder)),
+   301→        ],
+   302→      ),
+   303→    );
+   304→  }
+   305→
+   306→  Widget _buildFolderTile(_FolderNode folder) {
+   307→    final cs = context.colorScheme;
+   308→    final isSelected = _selectedFolderId == folder.id;
+   309→
+   310→    return ListTile(
+   311→      dense: true,
+   312→      leading: Icon(
+   313→        folder.icon,
+   314→        size: Spacings.mdIcon,
+   315→        color: isSelected ? cs.primary : cs.onSurfaceVariant,
+   316→      ),
+   317→      title: Text(
+   318→        folder.name,
+   319→        style: context.textTheme.bodyMedium?.copyWith(
+   320→          color: isSelected ? cs.primary : cs.onSurfaceVariant,
+   321→          fontWeight: isSelected ? AppTypography.wSemiBold : AppTypography.wRegular,
+   322→        ),
+   323→      ),
+   324→      selected: isSelected,
+   325→      selectedTileColor: cs.primary.withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+   326→      shape: RoundedRectangleBorder(
+   327→        borderRadius: BorderRadius.circular(Spacings.smRadius),
+   328→      ),
+   329→      onTap: () => setState(() => _selectedFolderId = folder.id),
+   330→    );
+   331→  }
+   332→
+   333→  // ─── Folder Dropdown (Mobile) ────────────────────────────────────────
+   334→
+   335→  Widget _buildFolderDropdown() {
+   336→    final cs = context.colorScheme;
+   337→
+   338→    return Padding(
+   339→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   340→      child: DropdownButtonFormField<String>(
+   341→        value: _selectedFolderId,
+   342→        decoration: InputDecoration(
+   343→          prefixIcon: Icon(
+   344→            _folders.firstWhere((f) => f.id == _selectedFolderId).icon,
+   345→            color: cs.primary,
+   346→          ),
+   347→          border: OutlineInputBorder(
+   348→            borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   349→          ),
+   350→          contentPadding: const EdgeInsets.symmetric(
+   351→            horizontal: Spacings.md,
+   352→            vertical: Spacings.sm,
+   353→          ),
+   354→        ),
+   355→        items: _folders
+   356→            .map((f) => DropdownMenuItem(
+   357→                  value: f.id,
+   358→                  child: Row(
+   359→                    children: [
+   360→                      Icon(f.icon, size: Spacings.smIcon),
+   361→                      const SizedBox(width: Spacings.sm),
+   362→                      Text(f.name),
+   363→                    ],
+   364→                  ),
+   365→                ))
+   366→            .toList(),
+   367→        onChanged: (v) {
+   368→          if (v != null) setState(() => _selectedFolderId = v);
+   369→        },
+   370→      ),
+   371→    );
+   372→  }
+   373→
+   374→  // ─── Search Bar ──────────────────────────────────────────────────────
+   375→
+   376→  Widget _buildSearchBar() {
+   377→    return Padding(
+   378→      padding: const EdgeInsets.symmetric(
+   379→        horizontal: Spacings.lg,
+   380→        vertical: Spacings.sm,
+   381→      ),
+   382→      child: AppSearchField(
+   383→        hint: 'Search resources...',
+   384→        controller: _searchCtrl,
+   385→        onChanged: (_) => setState(() {}),
+   386→      ),
+   387→    );
+   388→  }
+   389→
+   390→  // ─── Filter Chips ────────────────────────────────────────────────────
+   391→
+   392→  Widget _buildFilterChips() {
+   393→    return SizedBox(
+   394→      height: 44,
+   395→      child: ListView(
+   396→        scrollDirection: Axis.horizontal,
+   397→        padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   398→        children: [
+   399→          // Resource type filter
+   400→          Padding(
+   401→            padding: const EdgeInsets.only(right: Spacings.sm),
+   402→            child: _buildFilterDropdown<ResourceType>(
+   403→              label: 'Resource Type',
+   404→              value: _filterResourceType,
+   405→              items: ResourceType.values,
+   406→              itemLabel: (t) => t.label,
+   407→              onChanged: (v) => setState(() => _filterResourceType = v),
+   408→            ),
+   409→          ),
+   410→
+   411→          // Favorites only toggle
+   412→          Padding(
+   413→            padding: const EdgeInsets.only(right: Spacings.sm),
+   414→            child: FilterChip(
+   415→              label: const Text('Favorites'),
+   416→              avatar: Icon(
+   417→                _favoritesOnly ? Icons.star_rounded : Icons.star_outline_rounded,
+   418→                size: 16,
+   419→              ),
+   420→              selected: _favoritesOnly,
+   421→              onSelected: (selected) =>
+   422→                  setState(() => _favoritesOnly = selected),
+   423→            ),
+   424→          ),
+   425→
+   426→          // Clear all filters
+   427→          if (_filterResourceType != null || _favoritesOnly)
+   428→            Padding(
+   429→              padding: const EdgeInsets.only(right: Spacings.sm),
+   430→              child: ActionChip(
+   431→                label: const Text('Clear'),
+   432→                avatar: const Icon(Icons.clear, size: 16),
+   433→                onPressed: () {
+   434→                  setState(() {
+   435→                    _filterResourceType = null;
+   436→                    _favoritesOnly = false;
+   437→                  });
+   438→                },
+   439→              ),
+   440→            ),
+   441→        ],
+   442→      ),
+   443→    );
+   444→  }
+   445→
+   446→  Widget _buildFilterDropdown<T>({
+   447→    required String label,
+   448→    required T? value,
+   449→    required List<T> items,
+   450→    required String Function(T) itemLabel,
+   451→    required ValueChanged<T?> onChanged,
+   452→  }) {
+   453→    final cs = context.colorScheme;
+   454→    final isSelected = value != null;
+   455→
+   456→    return InputChip(
+   457→      selected: isSelected,
+   458→      label: Text(
+   459→        isSelected ? itemLabel(value as T) : label,
+   460→        style: context.textTheme.labelMedium?.copyWith(
+   461→          color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+   462→        ),
+   463→      ),
+   464→      avatar: Icon(
+   465→        Icons.filter_list_rounded,
+   466→        size: 16,
+   467→        color: isSelected ? cs.onPrimary : cs.onSurfaceVariant,
+   468→      ),
+   469→      onPressed: () => _showFilterSheet<T>(
+   470→        label: label,
+   471→        items: items,
+   472→        itemLabel: itemLabel,
+   473→        selectedValue: value,
+   474→        onSelected: onChanged,
+   475→      ),
+   476→      onDeleted: isSelected ? () => onChanged(null) : null,
+   477→      deleteIconColor: isSelected ? cs.onPrimary : null,
+   478→      selectedColor: cs.primary,
+   479→      backgroundColor: cs.surfaceContainerLow,
+   480→      side: BorderSide(
+   481→        color: isSelected ? cs.primary : cs.outlineVariant,
+   482→      ),
+   483→    );
+   484→  }
+   485→
+   486→  void _showFilterSheet<T>({
+   487→    required String label,
+   488→    required List<T> items,
+   489→    required String Function(T) itemLabel,
+   490→    required T? selectedValue,
+   491→    required ValueChanged<T?> onSelected,
+   492→  }) {
+   493→    showModalBottomSheet(
+   494→      context: context,
+   495→      shape: const RoundedRectangleBorder(
+   496→        borderRadius: BorderRadius.vertical(
+   497→          top: Radius.circular(Spacings.lgRadius),
+   498→        ),
+   499→      ),
+   500→      builder: (ctx) => SafeArea(
+   501→        child: Column(
+   502→          mainAxisSize: MainAxisSize.min,
+   503→          children: [
+   504→            Padding(
+   505→              padding: const EdgeInsets.all(Spacings.lg),
+   506→              child: Row(
+   507→                children: [
+   508→                  Text(
+   509→                    'Filter by $label',
+   510→                    style: context.textTheme.titleMedium?.copyWith(
+   511→                      fontWeight: AppTypography.wSemiBold,
+   512→                    ),
+   513→                  ),
+   514→                  const Spacer(),
+   515→                  AppIconButton(
+   516→                    icon: Icons.close,
+   517→                    onPressed: () => Navigator.pop(ctx),
+   518→                    variant: AppIconButtonVariant.standard,
+   519→                  ),
+   520→                ],
+   521→              ),
+   522→            ),
+   523→            const Divider(height: 1),
+   524→            Flexible(
+   525→              child: ListView.builder(
+   526→                shrinkWrap: true,
+   527→                itemCount: items.length,
+   528→                itemBuilder: (_, i) {
+   529→                  final item = items[i];
+   530→                  final isSelected = item == selectedValue;
+   531→                  return ListTile(
+   532→                    title: Text(itemLabel(item)),
+   533→                    trailing: isSelected
+   534→                        ? Icon(Icons.check_rounded,
+   535→                            color: context.colorScheme.primary)
+   536→                        : null,
+   537→                    onTap: () {
+   538→                      onSelected(isSelected ? null : item);
+   539→                      Navigator.pop(ctx);
+   540→                    },
+   541→                  );
+   542→                },
+   543→              ),
+   544→            ),
+   545→          ],
+   546→        ),
+   547→      ),
+   548→    );
+   549→  }
+   550→
+   551→  // ─── Results Count ───────────────────────────────────────────────────
+   552→
+   553→  Widget _buildResultsCount(int count) {
+   554→    return Padding(
+   555→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   556→      child: Text(
+   557→        '$count resource${count != 1 ? 's' : ''}',
+   558→        style: context.textTheme.bodySmall?.copyWith(
+   559→          color: context.colorScheme.onSurfaceVariant,
+   560→        ),
+   561→      ),
+   562→    );
+   563→  }
+   564→
+   565→  // ─── Resource Card ───────────────────────────────────────────────────
+   566→
+   567→  Widget _buildResourceCard(TeachingResourceEntity resource) {
+   568→    final cs = context.colorScheme;
+   569→    final isDark = context.isDarkMode;
+   570→
+   571→    return AppCard(
+   572→      child: Column(
+   573→        crossAxisAlignment: CrossAxisAlignment.start,
+   574→        children: [
+   575→          // Top row: type icon + title + badges + favorite
+   576→          Row(
+   577→            children: [
+   578→              // Resource type icon/badge
+   579→              Container(
+   580→                padding: const EdgeInsets.all(Spacings.sm),
+   581→                decoration: BoxDecoration(
+   582→                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+   583→                  borderRadius: BorderRadius.circular(Spacings.smRadius),
+   584→                ),
+   585→                child: Icon(
+   586→                  _resourceTypeIcon(resource.resourceType),
+   587→                  size: Spacings.mdIcon,
+   588→                  color: cs.primary,
+   589→                ),
+   590→              ),
+   591→              const SizedBox(width: Spacings.md),
+   592→              Expanded(
+   593→                child: Text(
+   594→                  resource.title,
+   595→                  style: context.textTheme.titleSmall?.copyWith(
+   596→                    fontWeight: AppTypography.wSemiBold,
+   597→                    color: cs.onSurface,
+   598→                  ),
+   599→                  maxLines: 2,
+   600→                  overflow: TextOverflow.ellipsis,
+   601→                ),
+   602→              ),
+   603→              // AI badge
+   604→              if (resource.isAiGenerated)
+   605→                Container(
+   606→                  margin: const EdgeInsets.only(left: Spacings.sm),
+   607→                  padding: const EdgeInsets.symmetric(
+   608→                    horizontal: Spacings.sm,
+   609→                    vertical: 2,
+   610→                  ),
+   611→                  decoration: BoxDecoration(
+   612→                    color: cs.tertiaryContainer,
+   613→                    borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   614→                  ),
+   615→                  child: Row(
+   616→                    mainAxisSize: MainAxisSize.min,
+   617→                    children: [
+   618→                      Icon(Icons.auto_awesome, size: 12, color: cs.onTertiaryContainer),
+   619→                      const SizedBox(width: 2),
+   620→                      Text(
+   621→                        'AI',
+   622→                        style: context.textTheme.labelSmall?.copyWith(
+   623→                          color: cs.onTertiaryContainer,
+   624→                          fontWeight: AppTypography.wSemiBold,
+   625→                        ),
+   626→                      ),
+   627→                    ],
+   628→                  ),
+   629→                ),
+   630→              // Favorite star
+   631→              IconButton(
+   632→                icon: Icon(
+   633→                  resource.isFavorite
+   634→                      ? Icons.star_rounded
+   635→                      : Icons.star_outline_rounded,
+   636→                  size: Spacings.mdIcon,
+   637→                  color: resource.isFavorite
+   638→                      ? cs.tertiary
+   639→                      : cs.onSurfaceVariant,
+   640→                ),
+   641→                onPressed: () => _handleToggleFavorite(resource.id),
+   642→                tooltip: resource.isFavorite ? 'Unfavorite' : 'Favorite',
+   643→                visualDensity: VisualDensity.compact,
+   644→              ),
+   645→            ],
+   646→          ),
+   647→          const SizedBox(height: Spacings.sm),
+   648→
+   649→          // Resource type badge
+   650→          _buildChip(
+   651→            icon: _resourceTypeIcon(resource.resourceType),
+   652→            label: resource.resourceType.label,
+   653→            color: cs.secondary,
+   654→          ),
+   655→
+   656→          // Subject + Class + Topic
+   657→          const SizedBox(height: Spacings.sm),
+   658→          Text(
+   659→            [
+   660→              if (resource.subject != null) resource.subject,
+   661→              if (resource.className != null) resource.className,
+   662→              if (resource.topic != null) resource.topic,
+   663→            ].join(' · '),
+   664→            style: context.textTheme.bodyMedium?.copyWith(
+   665→              color: cs.onSurfaceVariant,
+   666→            ),
+   667→            maxLines: 1,
+   668→            overflow: TextOverflow.ellipsis,
+   669→          ),
+   670→
+   671→          // Tags
+   672→          if (resource.tags.isNotEmpty) ...[
+   673→            const SizedBox(height: Spacings.sm),
+   674→            Wrap(
+   675→              spacing: Spacings.xs,
+   676→              runSpacing: Spacings.xs,
+   677→              children: resource.tags
+   678→                  .take(4)
+   679→                  .map((tag) => Chip(
+   680→                        label: Text(
+   681→                          tag,
+   682→                          style: context.textTheme.labelSmall,
+   683→                        ),
+   684→                        visualDensity: VisualDensity.compact,
+   685→                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   686→                        padding: EdgeInsets.zero,
+   687→                      ))
+   688→                  .toList(),
+   689→            ),
+   690→          ],
+   691→
+   692→          // Created date
+   693→          const SizedBox(height: Spacings.md),
+   694→          Text(
+   695→            'Created ${_formatDate(resource.createdAt)}',
+   696→            style: context.textTheme.bodySmall?.copyWith(
+   697→              color: cs.onSurfaceVariant,
+   698→            ),
+   699→          ),
+   700→
+   701→          const SizedBox(height: Spacings.md),
+   702→
+   703→          // Action buttons row
+   704→          Row(
+   705→            children: [
+   706→              AppButton(
+   707→                label: 'Edit',
+   708→                onPressed: () {
+   709→                  // TODO: Navigate to edit resource
+   710→                },
+   711→                variant: AppButtonVariant.text,
+   712→                icon: Icons.edit_outlined,
+   713→                size: AppButtonSize.small,
+   714→              ),
+   715→              const SizedBox(width: Spacings.xs),
+   716→              AppButton(
+   717→                label: 'Delete',
+   718→                onPressed: () => _confirmDelete(resource),
+   719→                variant: AppButtonVariant.text,
+   720→                icon: Icons.delete_outline_rounded,
+   721→                size: AppButtonSize.small,
+   722→              ),
+   723→              const Spacer(),
+   724→              GenerateQuestionsButton(
+   725→                resourceType: 'teaching_resource',
+   726→                resourceId: resource.id,
+   727→                resourceName: resource.title,
+   728→                subject: resource.subject,
+   729→                topic: resource.topic,
+   730→              ),
+   731→            ],
+   732→          ),
+   733→        ],
+   734→      ),
+   735→    );
+   736→  }
+   737→
+   738→  Widget _buildChip({
+   739→    required IconData icon,
+   740→    required String label,
+   741→    required Color color,
+   742→  }) {
+   743→    final isDark = context.isDarkMode;
+   744→
+   745→    return Container(
+   746→      padding: const EdgeInsets.symmetric(
+   747→        horizontal: Spacings.sm,
+   748→        vertical: 2,
+   749→      ),
+   750→      decoration: BoxDecoration(
+   751→        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+   752→        borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   753→      ),
+   754→      child: Row(
+   755→        mainAxisSize: MainAxisSize.min,
+   756→        children: [
+   757→          Icon(icon, size: 12, color: color),
+   758→          const SizedBox(width: 2),
+   759→          Text(
+   760→            label,
+   761→            style: context.textTheme.labelSmall?.copyWith(
+   762→              color: color,
+   763→              fontWeight: AppTypography.wMedium,
+   764→            ),
+   765→          ),
+   766→        ],
+   767→      ),
+   768→    );
+   769→  }
+   770→
+   771→  // ─── Create Resource Dialog ──────────────────────────────────────────
+   772→
+   773→  void _showCreateResourceDialog() {
+   774→    final titleCtrl = TextEditingController();
+   775→    final subjectCtrl = TextEditingController();
+   776→    final classCtrl = TextEditingController();
+   777→    final topicCtrl = TextEditingController();
+   778→    final contentCtrl = TextEditingController();
+   779→    ResourceType selectedType = ResourceType.notes;
+   780→    final formKey = GlobalKey<FormState>();
+   781→
+   782→    AppDialog.showCustom(
+   783→      context: context,
+   784→      builder: (dialogCtx) {
+   785→        return StatefulBuilder(
+   786→          builder: (dialogCtx, setDialogState) {
+   787→            return Column(
+   788→              mainAxisSize: MainAxisSize.min,
+   789→              crossAxisAlignment: CrossAxisAlignment.stretch,
+   790→              children: [
+   791→                // Dialog title
+   792→                Text(
+   793→                  'New Resource',
+   794→                  style: dialogCtx.textTheme.titleLarge?.copyWith(
+   795→                    color: dialogCtx.colorScheme.onSurface,
+   796→                    fontWeight: AppTypography.wSemiBold,
+   797→                  ),
+   798→                ),
+   799→                const SizedBox(height: Spacings.lg),
+   800→
+   801→                Form(
+   802→                  key: formKey,
+   803→                  child: Column(
+   804→                    mainAxisSize: MainAxisSize.min,
+   805→                    crossAxisAlignment: CrossAxisAlignment.stretch,
+   806→                    children: [
+   807→                      // Title (required)
+   808→                      AppTextField(
+   809→                        label: 'Title',
+   810→                        hint: 'Enter resource title',
+   811→                        controller: titleCtrl,
+   812→                        isRequired: true,
+   813→                        validator: (v) => v == null || v.trim().isEmpty
+   814→                            ? 'Title is required'
+   815→                            : null,
+   816→                      ),
+   817→                      const SizedBox(height: Spacings.md),
+   818→
+   819→                      // Resource Type dropdown
+   820→                      DropdownButtonFormField<ResourceType>(
+   821→                        value: selectedType,
+   822→                        decoration: InputDecoration(
+   823→                          labelText: 'Resource Type',
+   824→                          border: OutlineInputBorder(
+   825→                            borderRadius:
+   826→                                BorderRadius.circular(Spacings.mdRadius),
+   827→                          ),
+   828→                        ),
+   829→                        items: ResourceType.values
+   830→                            .map((t) => DropdownMenuItem(
+   831→                                  value: t,
+   832→                                  child: Row(
+   833→                                    children: [
+   834→                                      Icon(_resourceTypeIcon(t), size: 16),
+   835→                                      const SizedBox(width: Spacings.sm),
+   836→                                      Text(t.label),
+   837→                                    ],
+   838→                                  ),
+   839→                                ))
+   840→                            .toList(),
+   841→                        onChanged: (v) {
+   842→                          if (v != null) {
+   843→                            setDialogState(() => selectedType = v);
+   844→                          }
+   845→                        },
+   846→                      ),
+   847→                      const SizedBox(height: Spacings.md),
+   848→
+   849→                      // Subject
+   850→                      AppTextField(
+   851→                        label: 'Subject',
+   852→                        hint: 'e.g. Mathematics',
+   853→                        controller: subjectCtrl,
+   854→                      ),
+   855→                      const SizedBox(height: Spacings.md),
+   856→
+   857→                      // Class
+   858→                      AppTextField(
+   859→                        label: 'Class',
+   860→                        hint: 'e.g. SS2',
+   861→                        controller: classCtrl,
+   862→                      ),
+   863→                      const SizedBox(height: Spacings.md),
+   864→
+   865→                      // Topic
+   866→                      AppTextField(
+   867→                        label: 'Topic',
+   868→                        hint: 'e.g. Quadratic Equations',
+   869→                        controller: topicCtrl,
+   870→                      ),
+   871→                      const SizedBox(height: Spacings.md),
+   872→
+   873→                      // Content
+   874→                      AppTextField(
+   875→                        label: 'Content',
+   876→                        hint: 'Enter or paste content here...',
+   877→                        controller: contentCtrl,
+   878→                        maxLines: 5,
+   879→                        minLines: 3,
+   880→                      ),
+   881→                    ],
+   882→                  ),
+   883→                ),
+   884→                const SizedBox(height: Spacings.xl),
+   885→
+   886→                // Action buttons
+   887→                Row(
+   888→                  children: [
+   889→                    Expanded(
+   890→                      child: AppButton(
+   891→                        label: 'Create',
+   892→                        onPressed: () => _handleCreateResource(
+   893→                          titleCtrl.text.trim(),
+   894→                          selectedType,
+   895→                          subjectCtrl.text.trim(),
+   896→                          classCtrl.text.trim(),
+   897→                          topicCtrl.text.trim(),
+   898→                          contentCtrl.text.trim(),
+   899→                        ),
+   900→                        variant: AppButtonVariant.elevated,
+   901→                        icon: Icons.check_rounded,
+   902→                        isLoading:
+   903→                            ref.read(teachingResourceProvider).isCreating,
+   904→                      ),
+   905→                    ),
+   906→                    const SizedBox(width: Spacings.md),
+   907→                    Expanded(
+   908→                      child: AppButton(
+   909→                        label: 'Generate with AI',
+   910→                        onPressed: () => _handleGenerateWithAI(
+   911→                          titleCtrl.text.trim(),
+   912→                          selectedType,
+   913→                          subjectCtrl.text.trim(),
+   914→                          classCtrl.text.trim(),
+   915→                          topicCtrl.text.trim(),
+   916→                        ),
+   917→                        variant: AppButtonVariant.tonal,
+   918→                        icon: Icons.auto_awesome,
+   919→                        isLoading:
+   920→                            ref.read(teachingResourceProvider).isGenerating,
+   921→                      ),
+   922→                    ),
+   923→                  ],
+   924→                ),
+   925→              ],
+   926→            );
+   927→          },
+   928→        );
+   929→      },
+   930→    );
+   931→  }
+   932→
+   933→  Future<void> _handleCreateResource(
+   934→    String title,
+   935→    ResourceType type,
+   936→    String subject,
+   937→    String className,
+   938→    String topic,
+   939→    String content,
+   940→  ) async {
+   941→    if (title.isEmpty) {
+   942→      _showSnackBar('Title is required', isError: true);
+   943→      return;
+   944→    }
+   945→
+   946→    Navigator.pop(context); // Close dialog
+   947→
+   948→    final now = DateTime.now();
+   949→    await ref.read(teachingResourceProvider.notifier).createResource(
+   950→          CreateResourceParams(
+   951→            resource: TeachingResourceEntity(
+   952→              id: '',
+   953→              teacherId: '',
+   954→              title: title,
+   955→              resourceType: type,
+   956→              subject: subject.isEmpty ? null : subject,
+   957→              className: className.isEmpty ? null : className,
+   958→              topic: topic.isEmpty ? null : topic,
+   959→              content: content.isEmpty ? null : content,
+   960→              createdAt: now,
+   961→              updatedAt: now,
+   962→            ),
+   963→          ),
+   964→        );
+   965→
+   966→    _listenForMessages();
+   967→  }
+   968→
+   969→  Future<void> _handleGenerateWithAI(
+   970→    String title,
+   971→    ResourceType type,
+   972→    String subject,
+   973→    String className,
+   974→    String topic,
+   975→  ) async {
+   976→    Navigator.pop(context); // Close dialog
+   977→
+   978→    await ref.read(teachingResourceProvider.notifier).generateResource(
+   979→          GenerateResourceParams(
+   980→            resourceType: type,
+   981→            subject: subject.isEmpty ? title : subject,
+   982→            topic: topic.isEmpty ? null : topic,
+   983→            className: className.isEmpty ? null : className,
+   984→          ),
+   985→        );
+   986→
+   987→    _listenForMessages();
+   988→  }
+   989→
+   990→  // ─── States ──────────────────────────────────────────────────────────
+   991→
+   992→  Widget _buildLoadingShimmer() {
+   993→    return ListView.builder(
+   994→      padding: Spacings.paddingScreen,
+   995→      itemCount: 5,
+   996→      itemBuilder: (_, __) => Padding(
+   997→        padding: const EdgeInsets.only(bottom: Spacings.md),
+   998→        child: AppCard(
+   999→          child: Column(
+  1000→            crossAxisAlignment: CrossAxisAlignment.start,
+  1001→            children: [
+  1002→              Row(
+  1003→                children: [
+  1004→                  const AppLoadingShimmer.box(width: 40, height: 40),
+  1005→                  const SizedBox(width: Spacings.md),
+  1006→                  const AppLoadingShimmer.box(width: 200, height: 16),
+  1007→                  const Spacer(),
+  1008→                  const AppLoadingShimmer.box(width: 24, height: 24),
+  1009→                ],
+  1010→              ),
+  1011→              const SizedBox(height: Spacings.sm),
+  1012→              const AppLoadingShimmer.box(width: 150, height: 14),
+  1013→              const SizedBox(height: Spacings.sm),
+  1014→              Row(
+  1015→                children: const [
+  1016→                  AppLoadingShimmer.box(width: 80, height: 22),
+  1017→                  SizedBox(width: Spacings.sm),
+  1018→                  AppLoadingShimmer.box(width: 60, height: 22),
+  1019→                ],
+  1020→              ),
+  1021→              const SizedBox(height: Spacings.md),
+  1022→              const AppLoadingShimmer.box(width: 120, height: 12),
+  1023→            ],
+  1024→          ),
+  1025→        ),
+  1026→      ),
+  1027→    );
+  1028→  }
+  1029→
+  1030→  Widget _buildEmptyState() {
+  1031→    return AppEmptyState(
+  1032→      icon: Icons.folder_open_outlined,
+  1033→      title: 'No Resources Yet',
+  1034→      subtitle:
+  1035→          'Create your first teaching resource with AI assistance or start from scratch.',
+  1036→      actionLabel: 'Create Resource',
+  1037→      onAction: _showCreateResourceDialog,
+  1038→    );
+  1039→  }
+  1040→
+  1041→  Widget _buildErrorState() {
+  1042→    return AppErrorState.genericError(
+  1043→      message: ref.read(teachingResourceProvider).error,
+  1044→      onRetry: _handleRefresh,
+  1045→    );
+  1046→  }
+  1047→
+  1048→  // ─── Delete Confirmation ─────────────────────────────────────────────
+  1049→
+  1050→  void _confirmDelete(TeachingResourceEntity resource) {
+  1051→    final cs = context.colorScheme;
+  1052→
+  1053→    showDialog(
+  1054→      context: context,
+  1055→      builder: (ctx) => AlertDialog(
+  1056→        title: const Text('Delete Resource'),
+  1057→        content: Text(
+  1058→          'Are you sure you want to delete "${resource.title}"? This action cannot be undone.',
+  1059→        ),
+  1060→        shape: RoundedRectangleBorder(
+  1061→          borderRadius: BorderRadius.circular(Spacings.lgRadius),
+  1062→        ),
+  1063→        actions: [
+  1064→          TextButton(
+  1065→            onPressed: () => Navigator.pop(ctx),
+  1066→            child: const Text('Cancel'),
+  1067→          ),
+  1068→          FilledButton(
+  1069→            onPressed: () {
+  1070→              Navigator.pop(ctx);
+  1071→              _handleDelete(resource.id);
+  1072→            },
+  1073→            style: FilledButton.styleFrom(
+  1074→              backgroundColor: cs.error,
+  1075→              foregroundColor: cs.onError,
+  1076→            ),
+  1077→            child: const Text('Delete'),
+  1078→          ),
+  1079→        ],
+  1080→      ),
+  1081→    );
+  1082→  }
+  1083→
+  1084→  // ─── Icon Helper ─────────────────────────────────────────────────────
+  1085→
+  1086→  IconData _resourceTypeIcon(ResourceType type) {
+  1087→    return switch (type) {
+  1088→      ResourceType.notes => Icons.note_outlined,
+  1089→      ResourceType.slides => Icons.slideshow_outlined,
+  1090→      ResourceType.handout => Icons.description_outlined,
+  1091→      ResourceType.studyGuide => Icons.menu_book_outlined,
+  1092→      ResourceType.revisionMaterial => Icons.replay_outlined,
+  1093→      ResourceType.classroomActivity => Icons.sports_esports_outlined,
+  1094→      ResourceType.rubric => Icons.assessment_outlined,
+  1095→      ResourceType.template => Icons.dashboard_customize_outlined,
+  1096→    };
+  1097→  }
+  1098→
+  1099→  // ─── Date Formatting ─────────────────────────────────────────────────
+  1100→
+  1101→  String _formatDate(DateTime date) {
+  1102→    const months = [
+  1103→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  1104→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  1105→    ];
+  1106→    return '${months[date.month]} ${date.day}, ${date.year}';
+  1107→  }
+  1108→}
+  1109→
+  1110→// ═══════════════════════════════════════════════════════════════════════
+  1111→// FOLDER NODE HELPER
+  1112→// ═══════════════════════════════════════════════════════════════════════
+  1113→
+  1114→class _FolderNode {
+  1115→  const _FolderNode({
+  1116→    required this.id,
+  1117→    required this.name,
+  1118→    required this.icon,
+  1119→  });
+  1120→
+  1121→  final String id;
+  1122→  final String name;
+  1123→  final IconData icon;
+  1124→}
+  1125→

@@ -1390,6 +1390,38 @@ import '../features/teacher_workspace/presentation/providers/scheme_of_work_prov
 import '../features/teacher_workspace/presentation/providers/teaching_resource_provider.dart';
 import '../features/teacher_workspace/presentation/providers/worksheet_provider.dart';
 import '../features/teacher_workspace/presentation/providers/workspace_dashboard_provider.dart';
+import '../features/teacher_workspace/domain/usecases/generate_presentation_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_presentations_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_presentation_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/export_presentation_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_communication_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_communications_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_communication_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_task_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/update_task_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/delete_task_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_tasks_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_rubric_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_rubrics_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_rubric_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_oral_questions_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_oral_questions_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_oral_questions_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_practical_assessment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_practical_assessments_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_practical_assessment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/share_resource_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/add_comment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_comments_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_enhanced_dashboard_usecase.dart';
+import '../features/teacher_workspace/presentation/providers/presentation_provider.dart';
+import '../features/teacher_workspace/presentation/providers/communication_provider.dart';
+import '../features/teacher_workspace/presentation/providers/task_provider.dart';
+import '../features/teacher_workspace/presentation/providers/rubric_provider.dart';
+import '../features/teacher_workspace/presentation/providers/oral_question_provider.dart';
+import '../features/teacher_workspace/presentation/providers/practical_assessment_provider.dart';
+import '../features/teacher_workspace/presentation/providers/collaboration_provider.dart';
+import '../features/teacher_workspace/presentation/providers/enhanced_dashboard_provider.dart';
 
 // ─── Data Source ───────────────────────────────────────────────────────────────
 
@@ -1559,6 +1591,104 @@ final generateQuestionsFromContentUseCaseProvider =
   return GenerateQuestionsFromContentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
 });
 
+// ─── Workspace Expansion Use Cases ──────────────────────────────────
+
+final generatePresentationUseCaseProvider = Provider<GeneratePresentationUseCase>((ref) {
+  return GeneratePresentationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getPresentationsUseCaseProvider = Provider<GetPresentationsUseCase>((ref) {
+  return GetPresentationsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final createPresentationUseCaseProvider = Provider<CreatePresentationUseCase>((ref) {
+  return CreatePresentationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final exportPresentationUseCaseProvider = Provider<ExportPresentationUseCase>((ref) {
+  return ExportPresentationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final generateCommunicationUseCaseProvider = Provider<GenerateCommunicationUseCase>((ref) {
+  return GenerateCommunicationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getCommunicationsUseCaseProvider = Provider<GetCommunicationsUseCase>((ref) {
+  return GetCommunicationsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final createCommunicationUseCaseProvider = Provider<CreateCommunicationUseCase>((ref) {
+  return CreateCommunicationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final createTaskUseCaseProvider = Provider<CreateTaskUseCase>((ref) {
+  return CreateTaskUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final updateTaskUseCaseProvider = Provider<UpdateTaskUseCase>((ref) {
+  return UpdateTaskUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final deleteTaskUseCaseProvider = Provider<DeleteTaskUseCase>((ref) {
+  return DeleteTaskUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getTasksUseCaseProvider = Provider<GetTasksUseCase>((ref) {
+  return GetTasksUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final generateRubricUseCaseProvider = Provider<GenerateRubricUseCase>((ref) {
+  return GenerateRubricUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getRubricsUseCaseProvider = Provider<GetRubricsUseCase>((ref) {
+  return GetRubricsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final createRubricUseCaseProvider = Provider<CreateRubricUseCase>((ref) {
+  return CreateRubricUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final generateOralQuestionsUseCaseProvider = Provider<GenerateOralQuestionsUseCase>((ref) {
+  return GenerateOralQuestionsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getOralQuestionsUseCaseProvider = Provider<GetOralQuestionsUseCase>((ref) {
+  return GetOralQuestionsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final createOralQuestionsUseCaseProvider = Provider<CreateOralQuestionsUseCase>((ref) {
+  return CreateOralQuestionsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final generatePracticalAssessmentUseCaseProvider = Provider<GeneratePracticalAssessmentUseCase>((ref) {
+  return GeneratePracticalAssessmentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getPracticalAssessmentsUseCaseProvider = Provider<GetPracticalAssessmentsUseCase>((ref) {
+  return GetPracticalAssessmentsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final createPracticalAssessmentUseCaseProvider = Provider<CreatePracticalAssessmentUseCase>((ref) {
+  return CreatePracticalAssessmentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final shareResourceUseCaseProvider = Provider<ShareResourceUseCase>((ref) {
+  return ShareResourceUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final addCommentUseCaseProvider = Provider<AddCommentUseCase>((ref) {
+  return AddCommentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getCommentsUseCaseProvider = Provider<GetCommentsUseCase>((ref) {
+  return GetCommentsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
+final getEnhancedDashboardUseCaseProvider = Provider<GetEnhancedDashboardUseCase>((ref) {
+  return GetEnhancedDashboardUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+});
+
 // ─── State Notifiers ───────────────────────────────────────────────────────────
 
 final workspaceDashboardProvider =
@@ -1660,6 +1790,80 @@ final generateQuestionsProvider =
   return GenerateQuestionsNotifier(
     generateQuestionsFromContentUseCase:
         ref.watch(generateQuestionsFromContentUseCaseProvider),
+  );
+});
+
+// ─── Workspace Expansion State Notifiers ────────────────────────────
+
+final presentationProvider =
+    StateNotifierProvider<PresentationNotifier, PresentationState>((ref) {
+  return PresentationNotifier(
+    getPresentationsUseCase: ref.watch(getPresentationsUseCaseProvider),
+    createPresentationUseCase: ref.watch(createPresentationUseCaseProvider),
+    generatePresentationUseCase: ref.watch(generatePresentationUseCaseProvider),
+    exportPresentationUseCase: ref.watch(exportPresentationUseCaseProvider),
+  );
+});
+
+final communicationProvider =
+    StateNotifierProvider<CommunicationNotifier, CommunicationState>((ref) {
+  return CommunicationNotifier(
+    getCommunicationsUseCase: ref.watch(getCommunicationsUseCaseProvider),
+    createCommunicationUseCase: ref.watch(createCommunicationUseCaseProvider),
+    generateCommunicationUseCase: ref.watch(generateCommunicationUseCaseProvider),
+  );
+});
+
+final taskProvider =
+    StateNotifierProvider<TaskNotifier, TaskState>((ref) {
+  return TaskNotifier(
+    getTasksUseCase: ref.watch(getTasksUseCaseProvider),
+    createTaskUseCase: ref.watch(createTaskUseCaseProvider),
+    updateTaskUseCase: ref.watch(updateTaskUseCaseProvider),
+    deleteTaskUseCase: ref.watch(deleteTaskUseCaseProvider),
+  );
+});
+
+final rubricProvider =
+    StateNotifierProvider<RubricNotifier, RubricState>((ref) {
+  return RubricNotifier(
+    getRubricsUseCase: ref.watch(getRubricsUseCaseProvider),
+    createRubricUseCase: ref.watch(createRubricUseCaseProvider),
+    generateRubricUseCase: ref.watch(generateRubricUseCaseProvider),
+  );
+});
+
+final oralQuestionProvider =
+    StateNotifierProvider<OralQuestionNotifier, OralQuestionState>((ref) {
+  return OralQuestionNotifier(
+    getOralQuestionsUseCase: ref.watch(getOralQuestionsUseCaseProvider),
+    createOralQuestionsUseCase: ref.watch(createOralQuestionsUseCaseProvider),
+    generateOralQuestionsUseCase: ref.watch(generateOralQuestionsUseCaseProvider),
+  );
+});
+
+final practicalAssessmentProvider =
+    StateNotifierProvider<PracticalAssessmentNotifier, PracticalAssessmentState>((ref) {
+  return PracticalAssessmentNotifier(
+    getPracticalAssessmentsUseCase: ref.watch(getPracticalAssessmentsUseCaseProvider),
+    createPracticalAssessmentUseCase: ref.watch(createPracticalAssessmentUseCaseProvider),
+    generatePracticalAssessmentUseCase: ref.watch(generatePracticalAssessmentUseCaseProvider),
+  );
+});
+
+final collaborationProvider =
+    StateNotifierProvider<CollaborationNotifier, CollaborationState>((ref) {
+  return CollaborationNotifier(
+    shareResourceUseCase: ref.watch(shareResourceUseCaseProvider),
+    addCommentUseCase: ref.watch(addCommentUseCaseProvider),
+    getCommentsUseCase: ref.watch(getCommentsUseCaseProvider),
+  );
+});
+
+final enhancedDashboardProvider =
+    StateNotifierProvider<EnhancedDashboardNotifier, EnhancedDashboardState>((ref) {
+  return EnhancedDashboardNotifier(
+    getEnhancedDashboardUseCase: ref.watch(getEnhancedDashboardUseCaseProvider),
   );
 });
 

@@ -1,0 +1,997 @@
+     1→import '../../../../core/errors/exceptions.dart';
+     2→import '../../../../core/errors/failures.dart';
+     3→import '../../../../core/utils/logger.dart';
+     4→import '../../../../core/utils/result.dart';
+     5→import '../../domain/entities/teacher_workspace_entities.dart';
+     6→import '../../domain/repositories/teacher_workspace_repository.dart';
+     7→import '../datasources/teacher_workspace_remote_datasource.dart';
+     8→import '../models/teacher_workspace_models.dart';
+     9→
+    10→class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
+    11→  TeacherWorkspaceRepositoryImpl({
+    12→    required TeacherWorkspaceRemoteDataSource remoteDataSource,
+    13→  }) : _remoteDataSource = remoteDataSource;
+    14→
+    15→  final TeacherWorkspaceRemoteDataSource _remoteDataSource;
+    16→
+    17→  /// Helper: Convert exceptions to Failures
+    18→  Failure _mapExceptionToFailure(Object e) {
+    19→    if (e is AuthException) {
+    20→      return Failure.auth(message: e.message, code: e.code);
+    21→    } else if (e is ServerException) {
+    22→      return Failure.server(message: e.message, statusCode: e.statusCode, data: e.data);
+    23→    } else if (e is CacheException) {
+    24→      return Failure.cache(message: e.message);
+    25→    } else if (e is NetworkException) {
+    26→      return Failure.network(message: e.message);
+    27→    } else if (e is ValidationException) {
+    28→      return Failure.validation(message: e.message, fieldErrors: e.fieldErrors);
+    29→    } else if (e is NotFoundException) {
+    30→      return Failure.notFound(message: e.message);
+    31→    } else if (e is UnauthorizedException) {
+    32→      return Failure.unauthorized(message: e.message);
+    33→    } else if (e is ForbiddenException) {
+    34→      return Failure.forbidden(message: e.message);
+    35→    } else {
+    36→      AppLogger.error('Unexpected exception in TeacherWorkspaceRepositoryImpl', error: e);
+    37→      return Failure.server(message: 'An unexpected error occurred: $e', statusCode: 500);
+    38→    }
+    39→  }
+    40→
+    41→  // ═══════════════════════════════════════════════════════════════════════
+    42→  // DASHBOARD
+    43→  // ═══════════════════════════════════════════════════════════════════════
+    44→
+    45→  @override
+    46→  Future<Result<WorkspaceDashboardEntity>> getDashboardSummary() async {
+    47→    try {
+    48→      final model = await _remoteDataSource.getDashboardSummary();
+    49→      return Success(model.toEntity());
+    50→    } catch (e) {
+    51→      return FailureResult(_mapExceptionToFailure(e));
+    52→    }
+    53→  }
+    54→
+    55→  // ═══════════════════════════════════════════════════════════════════════
+    56→  // LESSON PLANS (CRUD + AI)
+    57→  // ═══════════════════════════════════════════════════════════════════════
+    58→
+    59→  @override
+    60→  Future<Result<LessonPlanEntity>> createLessonPlan(LessonPlanEntity plan) async {
+    61→    try {
+    62→      final model = LessonPlanModel.fromEntity(plan);
+    63→      final created = await _remoteDataSource.createLessonPlan(model.toJson());
+    64→      return Success(created.toEntity());
+    65→    } on AuthException catch (e) {
+    66→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    67→    } on ServerException catch (e) {
+    68→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+    69→    } catch (e) {
+    70→      return FailureResult(_mapExceptionToFailure(e));
+    71→    }
+    72→  }
+    73→
+    74→  @override
+    75→  Future<Result<LessonPlanEntity>> updateLessonPlan(LessonPlanEntity plan) async {
+    76→    try {
+    77→      final model = LessonPlanModel.fromEntity(plan);
+    78→      final updated = await _remoteDataSource.updateLessonPlan(plan.id, model.toJson());
+    79→      return Success(updated.toEntity());
+    80→    } on AuthException catch (e) {
+    81→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    82→    } on ServerException catch (e) {
+    83→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+    84→    } catch (e) {
+    85→      return FailureResult(_mapExceptionToFailure(e));
+    86→    }
+    87→  }
+    88→
+    89→  @override
+    90→  Future<Result<void>> deleteLessonPlan(String planId) async {
+    91→    try {
+    92→      await _remoteDataSource.deleteLessonPlan(planId);
+    93→      return const Success(null);
+    94→    } on ServerException catch (e) {
+    95→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+    96→    } catch (e) {
+    97→      return FailureResult(_mapExceptionToFailure(e));
+    98→    }
+    99→  }
+   100→
+   101→  @override
+   102→  Future<Result<LessonPlanEntity>> getLessonPlan(String planId) async {
+   103→    try {
+   104→      final model = await _remoteDataSource.getLessonPlan(planId);
+   105→      return Success(model.toEntity());
+   106→    } on ServerException catch (e) {
+   107→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   108→    } catch (e) {
+   109→      return FailureResult(_mapExceptionToFailure(e));
+   110→    }
+   111→  }
+   112→
+   113→  @override
+   114→  Future<Result<List<LessonPlanEntity>>> getLessonPlans(WorkspaceFilterEntity filter) async {
+   115→    try {
+   116→      final filters = <String, dynamic>{
+   117→        'page': filter.page,
+   118→        'perPage': filter.perPage,
+   119→      };
+   120→      if (filter.subjectId != null) filters['subject_id'] = filter.subjectId;
+   121→      if (filter.classId != null) filters['class_id'] = filter.classId;
+   122→      if (filter.searchQuery != null) filters['searchQuery'] = filter.searchQuery;
+   123→      if (filter.isPublished != null) filters['is_published'] = filter.isPublished;
+   124→      filters['is_archived'] = filter.isArchived;
+   125→      if (filter.tags.isNotEmpty) filters['tags'] = filter.tags;
+   126→
+   127→      final models = await _remoteDataSource.getLessonPlans(filters);
+   128→      return Success(models.map((m) => m.toEntity()).toList());
+   129→    } on ServerException catch (e) {
+   130→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   131→    } catch (e) {
+   132→      return FailureResult(_mapExceptionToFailure(e));
+   133→    }
+   134→  }
+   135→
+   136→  @override
+   137→  Future<Result<LessonPlanEntity>> generateLessonPlan(Map<String, dynamic> params) async {
+   138→    try {
+   139→      final model = await _remoteDataSource.createLessonPlan({
+   140→        ...params,
+   141→        'is_ai_generated': true,
+   142→        'ai_prompt_snapshot': params,
+   143→      });
+   144→      return Success(model.toEntity());
+   145→    } catch (e) {
+   146→      return FailureResult(_mapExceptionToFailure(e));
+   147→    }
+   148→  }
+   149→
+   150→  @override
+   151→  Future<Result<void>> publishLessonPlan(String planId) async {
+   152→    try {
+   153→      await _remoteDataSource.updateLessonPlan(planId, {'is_published': true});
+   154→      return const Success(null);
+   155→    } catch (e) {
+   156→      return FailureResult(_mapExceptionToFailure(e));
+   157→    }
+   158→  }
+   159→
+   160→  @override
+   161→  Future<Result<void>> archiveLessonPlan(String planId) async {
+   162→    try {
+   163→      await _remoteDataSource.updateLessonPlan(planId, {'is_archived': true});
+   164→      return const Success(null);
+   165→    } catch (e) {
+   166→      return FailureResult(_mapExceptionToFailure(e));
+   167→    }
+   168→  }
+   169→
+   170→  @override
+   171→  Future<Result<LessonPlanEntity>> duplicateLessonPlan(String planId) async {
+   172→    try {
+   173→      final model = await _remoteDataSource.duplicateLessonPlan(planId);
+   174→      return Success(model.toEntity());
+   175→    } catch (e) {
+   176→      return FailureResult(_mapExceptionToFailure(e));
+   177→    }
+   178→  }
+   179→
+   180→  // ═══════════════════════════════════════════════════════════════════════
+   181→  // SCHEMES OF WORK (CRUD + AI)
+   182→  // ═══════════════════════════════════════════════════════════════════════
+   183→
+   184→  @override
+   185→  Future<Result<SchemeOfWorkEntity>> createSchemeOfWork(SchemeOfWorkEntity scheme) async {
+   186→    try {
+   187→      final model = SchemeOfWorkModel.fromEntity(scheme);
+   188→      final created = await _remoteDataSource.createSchemeOfWork(model.toJson());
+   189→      return Success(created.toEntity());
+   190→    } on AuthException catch (e) {
+   191→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   192→    } on ServerException catch (e) {
+   193→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   194→    } catch (e) {
+   195→      return FailureResult(_mapExceptionToFailure(e));
+   196→    }
+   197→  }
+   198→
+   199→  @override
+   200→  Future<Result<SchemeOfWorkEntity>> updateSchemeOfWork(SchemeOfWorkEntity scheme) async {
+   201→    try {
+   202→      final model = SchemeOfWorkModel.fromEntity(scheme);
+   203→      final updated = await _remoteDataSource.updateSchemeOfWork(scheme.id, model.toJson());
+   204→      return Success(updated.toEntity());
+   205→    } on AuthException catch (e) {
+   206→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   207→    } on ServerException catch (e) {
+   208→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   209→    } catch (e) {
+   210→      return FailureResult(_mapExceptionToFailure(e));
+   211→    }
+   212→  }
+   213→
+   214→  @override
+   215→  Future<Result<void>> deleteSchemeOfWork(String schemeId) async {
+   216→    try {
+   217→      await _remoteDataSource.deleteSchemeOfWork(schemeId);
+   218→      return const Success(null);
+   219→    } on ServerException catch (e) {
+   220→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   221→    } catch (e) {
+   222→      return FailureResult(_mapExceptionToFailure(e));
+   223→    }
+   224→  }
+   225→
+   226→  @override
+   227→  Future<Result<SchemeOfWorkEntity>> getSchemeOfWork(String schemeId) async {
+   228→    try {
+   229→      final model = await _remoteDataSource.getSchemeOfWork(schemeId);
+   230→      return Success(model.toEntity());
+   231→    } on ServerException catch (e) {
+   232→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   233→    } catch (e) {
+   234→      return FailureResult(_mapExceptionToFailure(e));
+   235→    }
+   236→  }
+   237→
+   238→  @override
+   239→  Future<Result<List<SchemeOfWorkEntity>>> getSchemesOfWork(WorkspaceFilterEntity filter) async {
+   240→    try {
+   241→      final filters = <String, dynamic>{
+   242→        'page': filter.page,
+   243→        'perPage': filter.perPage,
+   244→      };
+   245→      if (filter.subjectId != null) filters['subject_id'] = filter.subjectId;
+   246→      if (filter.classId != null) filters['class_id'] = filter.classId;
+   247→      if (filter.searchQuery != null) filters['searchQuery'] = filter.searchQuery;
+   248→      if (filter.isPublished != null) filters['is_published'] = filter.isPublished;
+   249→      filters['is_archived'] = filter.isArchived;
+   250→      if (filter.tags.isNotEmpty) filters['tags'] = filter.tags;
+   251→
+   252→      final models = await _remoteDataSource.getSchemesOfWork(filters);
+   253→      return Success(models.map((m) => m.toEntity()).toList());
+   254→    } on ServerException catch (e) {
+   255→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   256→    } catch (e) {
+   257→      return FailureResult(_mapExceptionToFailure(e));
+   258→    }
+   259→  }
+   260→
+   261→  @override
+   262→  Future<Result<SchemeOfWorkEntity>> generateSchemeOfWork(Map<String, dynamic> params) async {
+   263→    try {
+   264→      final model = await _remoteDataSource.createSchemeOfWork({
+   265→        ...params,
+   266→        'is_ai_generated': true,
+   267→        'ai_prompt_snapshot': params,
+   268→      });
+   269→      return Success(model.toEntity());
+   270→    } catch (e) {
+   271→      return FailureResult(_mapExceptionToFailure(e));
+   272→    }
+   273→  }
+   274→
+   275→  // ═══════════════════════════════════════════════════════════════════════
+   276→  // WORKSHEETS (CRUD + AI + Export)
+   277→  // ═══════════════════════════════════════════════════════════════════════
+   278→
+   279→  @override
+   280→  Future<Result<WorksheetEntity>> createWorksheet(WorksheetEntity worksheet) async {
+   281→    try {
+   282→      final model = WorksheetModel.fromEntity(worksheet);
+   283→      final created = await _remoteDataSource.createWorksheet(model.toJson());
+   284→      return Success(created.toEntity());
+   285→    } on AuthException catch (e) {
+   286→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   287→    } on ServerException catch (e) {
+   288→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   289→    } catch (e) {
+   290→      return FailureResult(_mapExceptionToFailure(e));
+   291→    }
+   292→  }
+   293→
+   294→  @override
+   295→  Future<Result<WorksheetEntity>> updateWorksheet(WorksheetEntity worksheet) async {
+   296→    try {
+   297→      final model = WorksheetModel.fromEntity(worksheet);
+   298→      final updated = await _remoteDataSource.updateWorksheet(worksheet.id, model.toJson());
+   299→      return Success(updated.toEntity());
+   300→    } on AuthException catch (e) {
+   301→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   302→    } on ServerException catch (e) {
+   303→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   304→    } catch (e) {
+   305→      return FailureResult(_mapExceptionToFailure(e));
+   306→    }
+   307→  }
+   308→
+   309→  @override
+   310→  Future<Result<void>> deleteWorksheet(String worksheetId) async {
+   311→    try {
+   312→      await _remoteDataSource.deleteWorksheet(worksheetId);
+   313→      return const Success(null);
+   314→    } on ServerException catch (e) {
+   315→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   316→    } catch (e) {
+   317→      return FailureResult(_mapExceptionToFailure(e));
+   318→    }
+   319→  }
+   320→
+   321→  @override
+   322→  Future<Result<WorksheetEntity>> getWorksheet(String worksheetId) async {
+   323→    try {
+   324→      final model = await _remoteDataSource.getWorksheet(worksheetId);
+   325→      return Success(model.toEntity());
+   326→    } on ServerException catch (e) {
+   327→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   328→    } catch (e) {
+   329→      return FailureResult(_mapExceptionToFailure(e));
+   330→    }
+   331→  }
+   332→
+   333→  @override
+   334→  Future<Result<List<WorksheetEntity>>> getWorksheets(WorkspaceFilterEntity filter) async {
+   335→    try {
+   336→      final filters = <String, dynamic>{
+   337→        'page': filter.page,
+   338→        'perPage': filter.perPage,
+   339→      };
+   340→      if (filter.subjectId != null) filters['subject_id'] = filter.subjectId;
+   341→      if (filter.classId != null) filters['class_id'] = filter.classId;
+   342→      if (filter.searchQuery != null) filters['searchQuery'] = filter.searchQuery;
+   343→      if (filter.isPublished != null) filters['is_published'] = filter.isPublished;
+   344→      filters['is_archived'] = filter.isArchived;
+   345→      if (filter.tags.isNotEmpty) filters['tags'] = filter.tags;
+   346→
+   347→      final models = await _remoteDataSource.getWorksheets(filters);
+   348→      return Success(models.map((m) => m.toEntity()).toList());
+   349→    } on ServerException catch (e) {
+   350→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   351→    } catch (e) {
+   352→      return FailureResult(_mapExceptionToFailure(e));
+   353→    }
+   354→  }
+   355→
+   356→  @override
+   357→  Future<Result<WorksheetEntity>> generateWorksheet(Map<String, dynamic> params) async {
+   358→    try {
+   359→      final model = await _remoteDataSource.createWorksheet({
+   360→        ...params,
+   361→        'is_ai_generated': true,
+   362→        'ai_prompt_snapshot': params,
+   363→      });
+   364→      return Success(model.toEntity());
+   365→    } catch (e) {
+   366→      return FailureResult(_mapExceptionToFailure(e));
+   367→    }
+   368→  }
+   369→
+   370→  @override
+   371→  Future<Result<String>> exportWorksheet(String worksheetId, String format) async {
+   372→    try {
+   373→      final url = await _remoteDataSource.exportWorksheet(worksheetId, format);
+   374→      return Success(url);
+   375→    } catch (e) {
+   376→      return FailureResult(_mapExceptionToFailure(e));
+   377→    }
+   378→  }
+   379→
+   380→  // ═══════════════════════════════════════════════════════════════════════
+   381→  // ASSIGNMENTS (CRUD + AI)
+   382→  // ═══════════════════════════════════════════════════════════════════════
+   383→
+   384→  @override
+   385→  Future<Result<WorkspaceAssignmentEntity>> createAssignment(WorkspaceAssignmentEntity assignment) async {
+   386→    try {
+   387→      final model = WorkspaceAssignmentModel.fromEntity(assignment);
+   388→      final created = await _remoteDataSource.createAssignment(model.toJson());
+   389→      return Success(created.toEntity());
+   390→    } on AuthException catch (e) {
+   391→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   392→    } on ServerException catch (e) {
+   393→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   394→    } catch (e) {
+   395→      return FailureResult(_mapExceptionToFailure(e));
+   396→    }
+   397→  }
+   398→
+   399→  @override
+   400→  Future<Result<WorkspaceAssignmentEntity>> updateAssignment(WorkspaceAssignmentEntity assignment) async {
+   401→    try {
+   402→      final model = WorkspaceAssignmentModel.fromEntity(assignment);
+   403→      final updated = await _remoteDataSource.updateAssignment(assignment.id, model.toJson());
+   404→      return Success(updated.toEntity());
+   405→    } on AuthException catch (e) {
+   406→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   407→    } on ServerException catch (e) {
+   408→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   409→    } catch (e) {
+   410→      return FailureResult(_mapExceptionToFailure(e));
+   411→    }
+   412→  }
+   413→
+   414→  @override
+   415→  Future<Result<void>> deleteAssignment(String assignmentId) async {
+   416→    try {
+   417→      await _remoteDataSource.deleteAssignment(assignmentId);
+   418→      return const Success(null);
+   419→    } on ServerException catch (e) {
+   420→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   421→    } catch (e) {
+   422→      return FailureResult(_mapExceptionToFailure(e));
+   423→    }
+   424→  }
+   425→
+   426→  @override
+   427→  Future<Result<WorkspaceAssignmentEntity>> getAssignment(String assignmentId) async {
+   428→    try {
+   429→      final model = await _remoteDataSource.getAssignment(assignmentId);
+   430→      return Success(model.toEntity());
+   431→    } on ServerException catch (e) {
+   432→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   433→    } catch (e) {
+   434→      return FailureResult(_mapExceptionToFailure(e));
+   435→    }
+   436→  }
+   437→
+   438→  @override
+   439→  Future<Result<List<WorkspaceAssignmentEntity>>> getAssignments(WorkspaceFilterEntity filter) async {
+   440→    try {
+   441→      final filters = <String, dynamic>{
+   442→        'page': filter.page,
+   443→        'perPage': filter.perPage,
+   444→      };
+   445→      if (filter.subjectId != null) filters['subject_id'] = filter.subjectId;
+   446→      if (filter.classId != null) filters['class_id'] = filter.classId;
+   447→      if (filter.searchQuery != null) filters['searchQuery'] = filter.searchQuery;
+   448→      if (filter.isPublished != null) filters['is_published'] = filter.isPublished;
+   449→      filters['is_archived'] = filter.isArchived;
+   450→      if (filter.tags.isNotEmpty) filters['tags'] = filter.tags;
+   451→
+   452→      final models = await _remoteDataSource.getAssignments(filters);
+   453→      return Success(models.map((m) => m.toEntity()).toList());
+   454→    } on ServerException catch (e) {
+   455→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   456→    } catch (e) {
+   457→      return FailureResult(_mapExceptionToFailure(e));
+   458→    }
+   459→  }
+   460→
+   461→  @override
+   462→  Future<Result<WorkspaceAssignmentEntity>> generateAssignment(Map<String, dynamic> params) async {
+   463→    try {
+   464→      final model = await _remoteDataSource.createAssignment({
+   465→        ...params,
+   466→        'is_ai_generated': true,
+   467→        'ai_prompt_snapshot': params,
+   468→      });
+   469→      return Success(model.toEntity());
+   470→    } catch (e) {
+   471→      return FailureResult(_mapExceptionToFailure(e));
+   472→    }
+   473→  }
+   474→
+   475→  @override
+   476→  Future<Result<void>> publishAssignment(String assignmentId) async {
+   477→    try {
+   478→      await _remoteDataSource.updateAssignment(assignmentId, {'is_published': true});
+   479→      return const Success(null);
+   480→    } catch (e) {
+   481→      return FailureResult(_mapExceptionToFailure(e));
+   482→    }
+   483→  }
+   484→
+   485→  // ═══════════════════════════════════════════════════════════════════════
+   486→  // REPORT COMMENTS (CRUD + AI)
+   487→  // ═══════════════════════════════════════════════════════════════════════
+   488→
+   489→  @override
+   490→  Future<Result<ReportCommentEntity>> createReportComment(ReportCommentEntity comment) async {
+   491→    try {
+   492→      final model = ReportCommentModel.fromEntity(comment);
+   493→      final created = await _remoteDataSource.createReportComment(model.toJson());
+   494→      return Success(created.toEntity());
+   495→    } on AuthException catch (e) {
+   496→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   497→    } on ServerException catch (e) {
+   498→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   499→    } catch (e) {
+   500→      return FailureResult(_mapExceptionToFailure(e));
+   501→    }
+   502→  }
+   503→
+   504→  @override
+   505→  Future<Result<ReportCommentEntity>> updateReportComment(ReportCommentEntity comment) async {
+   506→    try {
+   507→      final model = ReportCommentModel.fromEntity(comment);
+   508→      final updated = await _remoteDataSource.updateReportComment(comment.id, model.toJson());
+   509→      return Success(updated.toEntity());
+   510→    } on AuthException catch (e) {
+   511→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   512→    } on ServerException catch (e) {
+   513→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   514→    } catch (e) {
+   515→      return FailureResult(_mapExceptionToFailure(e));
+   516→    }
+   517→  }
+   518→
+   519→  @override
+   520→  Future<Result<void>> deleteReportComment(String commentId) async {
+   521→    try {
+   522→      await _remoteDataSource.deleteReportComment(commentId);
+   523→      return const Success(null);
+   524→    } on ServerException catch (e) {
+   525→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   526→    } catch (e) {
+   527→      return FailureResult(_mapExceptionToFailure(e));
+   528→    }
+   529→  }
+   530→
+   531→  @override
+   532→  Future<Result<List<ReportCommentEntity>>> getReportComments(WorkspaceFilterEntity filter) async {
+   533→    try {
+   534→      final filters = <String, dynamic>{
+   535→        'page': filter.page,
+   536→        'perPage': filter.perPage,
+   537→      };
+   538→      if (filter.subjectId != null) filters['subject_id'] = filter.subjectId;
+   539→      if (filter.classId != null) filters['class_id'] = filter.classId;
+   540→      if (filter.searchQuery != null) filters['searchQuery'] = filter.searchQuery;
+   541→      if (filter.isPublished != null) filters['is_published'] = filter.isPublished;
+   542→      filters['is_archived'] = filter.isArchived;
+   543→      if (filter.tags.isNotEmpty) filters['tags'] = filter.tags;
+   544→
+   545→      final models = await _remoteDataSource.getReportComments(filters);
+   546→      return Success(models.map((m) => m.toEntity()).toList());
+   547→    } on ServerException catch (e) {
+   548→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   549→    } catch (e) {
+   550→      return FailureResult(_mapExceptionToFailure(e));
+   551→    }
+   552→  }
+   553→
+   554→  @override
+   555→  Future<Result<List<ReportCommentEntity>>> generateReportComments(Map<String, dynamic> params) async {
+   556→    try {
+   557→      final models = await _remoteDataSource.generateReportComments({
+   558→        ...params,
+   559→        'is_ai_generated': true,
+   560→        'ai_prompt_snapshot': params,
+   561→      });
+   562→      return Success(models.map((m) => m.toEntity()).toList());
+   563→    } catch (e) {
+   564→      return FailureResult(_mapExceptionToFailure(e));
+   565→    }
+   566→  }
+   567→
+   568→  @override
+   569→  Future<Result<void>> publishReportComment(String commentId) async {
+   570→    try {
+   571→      await _remoteDataSource.updateReportComment(commentId, {'is_published': true});
+   572→      return const Success(null);
+   573→    } catch (e) {
+   574→      return FailureResult(_mapExceptionToFailure(e));
+   575→    }
+   576→  }
+   577→
+   578→  // ═══════════════════════════════════════════════════════════════════════
+   579→  // TEACHING RESOURCES (CRUD + AI)
+   580→  // ═══════════════════════════════════════════════════════════════════════
+   581→
+   582→  @override
+   583→  Future<Result<TeachingResourceEntity>> createResource(TeachingResourceEntity resource) async {
+   584→    try {
+   585→      final model = TeachingResourceModel.fromEntity(resource);
+   586→      final created = await _remoteDataSource.createResource(model.toJson());
+   587→      return Success(created.toEntity());
+   588→    } on AuthException catch (e) {
+   589→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   590→    } on ServerException catch (e) {
+   591→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   592→    } catch (e) {
+   593→      return FailureResult(_mapExceptionToFailure(e));
+   594→    }
+   595→  }
+   596→
+   597→  @override
+   598→  Future<Result<TeachingResourceEntity>> updateResource(TeachingResourceEntity resource) async {
+   599→    try {
+   600→      final model = TeachingResourceModel.fromEntity(resource);
+   601→      final updated = await _remoteDataSource.updateResource(resource.id, model.toJson());
+   602→      return Success(updated.toEntity());
+   603→    } on AuthException catch (e) {
+   604→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   605→    } on ServerException catch (e) {
+   606→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   607→    } catch (e) {
+   608→      return FailureResult(_mapExceptionToFailure(e));
+   609→    }
+   610→  }
+   611→
+   612→  @override
+   613→  Future<Result<void>> deleteResource(String resourceId) async {
+   614→    try {
+   615→      await _remoteDataSource.deleteResource(resourceId);
+   616→      return const Success(null);
+   617→    } on ServerException catch (e) {
+   618→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   619→    } catch (e) {
+   620→      return FailureResult(_mapExceptionToFailure(e));
+   621→    }
+   622→  }
+   623→
+   624→  @override
+   625→  Future<Result<TeachingResourceEntity>> getResource(String resourceId) async {
+   626→    try {
+   627→      final model = await _remoteDataSource.getResource(resourceId);
+   628→      return Success(model.toEntity());
+   629→    } on ServerException catch (e) {
+   630→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   631→    } catch (e) {
+   632→      return FailureResult(_mapExceptionToFailure(e));
+   633→    }
+   634→  }
+   635→
+   636→  @override
+   637→  Future<Result<List<TeachingResourceEntity>>> getResources(WorkspaceFilterEntity filter) async {
+   638→    try {
+   639→      final filters = <String, dynamic>{
+   640→        'page': filter.page,
+   641→        'perPage': filter.perPage,
+   642→      };
+   643→      if (filter.subjectId != null) filters['subject_id'] = filter.subjectId;
+   644→      if (filter.classId != null) filters['class_id'] = filter.classId;
+   645→      if (filter.searchQuery != null) filters['searchQuery'] = filter.searchQuery;
+   646→      if (filter.isPublished != null) filters['is_published'] = filter.isPublished;
+   647→      filters['is_archived'] = filter.isArchived;
+   648→      if (filter.tags.isNotEmpty) filters['tags'] = filter.tags;
+   649→
+   650→      final models = await _remoteDataSource.getResources(filters);
+   651→      return Success(models.map((m) => m.toEntity()).toList());
+   652→    } on ServerException catch (e) {
+   653→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   654→    } catch (e) {
+   655→      return FailureResult(_mapExceptionToFailure(e));
+   656→    }
+   657→  }
+   658→
+   659→  @override
+   660→  Future<Result<TeachingResourceEntity>> generateResource(Map<String, dynamic> params) async {
+   661→    try {
+   662→      final model = await _remoteDataSource.createResource({
+   663→        ...params,
+   664→        'is_ai_generated': true,
+   665→        'ai_prompt_snapshot': params,
+   666→      });
+   667→      return Success(model.toEntity());
+   668→    } catch (e) {
+   669→      return FailureResult(_mapExceptionToFailure(e));
+   670→    }
+   671→  }
+   672→
+   673→  @override
+   674→  Future<Result<void>> toggleFavorite(String resourceId) async {
+   675→    try {
+   676→      final resource = await _remoteDataSource.getResource(resourceId);
+   677→      await _remoteDataSource.updateResource(resourceId, {
+   678→        'is_favorite': !resource.isFavorite,
+   679→      });
+   680→      return const Success(null);
+   681→    } catch (e) {
+   682→      return FailureResult(_mapExceptionToFailure(e));
+   683→    }
+   684→  }
+   685→
+   686→  // ═══════════════════════════════════════════════════════════════════════
+   687→  // RESOURCE FOLDERS
+   688→  // ═══════════════════════════════════════════════════════════════════════
+   689→
+   690→  @override
+   691→  Future<Result<ResourceFolderEntity>> createFolder(ResourceFolderEntity folder) async {
+   692→    try {
+   693→      final model = ResourceFolderModel.fromEntity(folder);
+   694→      final created = await _remoteDataSource.createFolder(model.toJson());
+   695→      return Success(created.toEntity());
+   696→    } on AuthException catch (e) {
+   697→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   698→    } on ServerException catch (e) {
+   699→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   700→    } catch (e) {
+   701→      return FailureResult(_mapExceptionToFailure(e));
+   702→    }
+   703→  }
+   704→
+   705→  @override
+   706→  Future<Result<ResourceFolderEntity>> updateFolder(ResourceFolderEntity folder) async {
+   707→    try {
+   708→      final model = ResourceFolderModel.fromEntity(folder);
+   709→      final updated = await _remoteDataSource.updateFolder(folder.id, model.toJson());
+   710→      return Success(updated.toEntity());
+   711→    } on AuthException catch (e) {
+   712→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   713→    } on ServerException catch (e) {
+   714→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   715→    } catch (e) {
+   716→      return FailureResult(_mapExceptionToFailure(e));
+   717→    }
+   718→  }
+   719→
+   720→  @override
+   721→  Future<Result<void>> deleteFolder(String folderId) async {
+   722→    try {
+   723→      await _remoteDataSource.deleteFolder(folderId);
+   724→      return const Success(null);
+   725→    } on ServerException catch (e) {
+   726→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   727→    } catch (e) {
+   728→      return FailureResult(_mapExceptionToFailure(e));
+   729→    }
+   730→  }
+   731→
+   732→  @override
+   733→  Future<Result<List<ResourceFolderEntity>>> getFolders(String? parentFolderId) async {
+   734→    try {
+   735→      final filters = <String, dynamic>{};
+   736→      if (parentFolderId != null) filters['parent_folder_id'] = parentFolderId;
+   737→
+   738→      final models = await _remoteDataSource.getFolders(filters);
+   739→      return Success(models.map((m) => m.toEntity()).toList());
+   740→    } on ServerException catch (e) {
+   741→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   742→    } catch (e) {
+   743→      return FailureResult(_mapExceptionToFailure(e));
+   744→    }
+   745→  }
+   746→
+   747→  // ═══════════════════════════════════════════════════════════════════════
+   748→  // AI CONTENT ASSISTANT
+   749→  // ═══════════════════════════════════════════════════════════════════════
+   750→
+   751→  @override
+   752→  Future<Result<AiContentHistoryEntity>> generateContent(
+   753→    ContentAction action,
+   754→    String sourceContent,
+   755→    Map<String, dynamic>? params,
+   756→  ) async {
+   757→    try {
+   758→      final requestParams = <String, dynamic>{
+   759→        'action': action.value,
+   760→        'source_content': sourceContent,
+   761→        if (params != null) ...params,
+   762→      };
+   763→      final model = await _remoteDataSource.generateContent(requestParams);
+   764→      return Success(model.toEntity());
+   765→    } catch (e) {
+   766→      return FailureResult(_mapExceptionToFailure(e));
+   767→    }
+   768→  }
+   769→
+   770→  @override
+   771→  Future<Result<List<AiContentHistoryEntity>>> getContentHistory(WorkspaceFilterEntity filter) async {
+   772→    try {
+   773→      final filters = <String, dynamic>{
+   774→        'page': filter.page,
+   775→        'perPage': filter.perPage,
+   776→      };
+   777→      if (filter.searchQuery != null) filters['searchQuery'] = filter.searchQuery;
+   778→
+   779→      final models = await _remoteDataSource.getContentHistory(filters);
+   780→      return Success(models.map((m) => m.toEntity()).toList());
+   781→    } on ServerException catch (e) {
+   782→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   783→    } catch (e) {
+   784→      return FailureResult(_mapExceptionToFailure(e));
+   785→    }
+   786→  }
+   787→
+   788→  @override
+   789→  Future<Result<AiContentHistoryEntity>> saveContentAs(
+   790→    AiContentHistoryEntity history,
+   791→    String targetType,
+   792→  ) async {
+   793→    try {
+   794→      final model = AiContentHistoryModel.fromEntity(history);
+   795→      final saved = await _remoteDataSource.saveContentAs(model.toJson(), targetType);
+   796→      return Success(saved.toEntity());
+   797→    } on AuthException catch (e) {
+   798→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   799→    } on ServerException catch (e) {
+   800→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   801→    } catch (e) {
+   802→      return FailureResult(_mapExceptionToFailure(e));
+   803→    }
+   804→  }
+   805→
+   806→  // ═══════════════════════════════════════════════════════════════════════
+   807→  // CALENDAR & PLANNER
+   808→  // ═══════════════════════════════════════════════════════════════════════
+   809→
+   810→  @override
+   811→  Future<Result<CalendarEventEntity>> createEvent(CalendarEventEntity event) async {
+   812→    try {
+   813→      final model = CalendarEventModel.fromEntity(event);
+   814→      final created = await _remoteDataSource.createEvent(model.toJson());
+   815→      return Success(created.toEntity());
+   816→    } on AuthException catch (e) {
+   817→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   818→    } on ServerException catch (e) {
+   819→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   820→    } catch (e) {
+   821→      return FailureResult(_mapExceptionToFailure(e));
+   822→    }
+   823→  }
+   824→
+   825→  @override
+   826→  Future<Result<CalendarEventEntity>> updateEvent(CalendarEventEntity event) async {
+   827→    try {
+   828→      final model = CalendarEventModel.fromEntity(event);
+   829→      final updated = await _remoteDataSource.updateEvent(event.id, model.toJson());
+   830→      return Success(updated.toEntity());
+   831→    } on AuthException catch (e) {
+   832→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   833→    } on ServerException catch (e) {
+   834→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   835→    } catch (e) {
+   836→      return FailureResult(_mapExceptionToFailure(e));
+   837→    }
+   838→  }
+   839→
+   840→  @override
+   841→  Future<Result<void>> deleteEvent(String eventId) async {
+   842→    try {
+   843→      await _remoteDataSource.deleteEvent(eventId);
+   844→      return const Success(null);
+   845→    } on ServerException catch (e) {
+   846→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   847→    } catch (e) {
+   848→      return FailureResult(_mapExceptionToFailure(e));
+   849→    }
+   850→  }
+   851→
+   852→  @override
+   853→  Future<Result<List<CalendarEventEntity>>> getEvents({
+   854→    DateTime? startDate,
+   855→    DateTime? endDate,
+   856→  }) async {
+   857→    try {
+   858→      final filters = <String, dynamic>{};
+   859→      if (startDate != null) filters['start_date'] = startDate.toIso8601String();
+   860→      if (endDate != null) filters['end_date'] = endDate.toIso8601String();
+   861→
+   862→      final models = await _remoteDataSource.getEvents(filters);
+   863→      return Success(models.map((m) => m.toEntity()).toList());
+   864→    } on ServerException catch (e) {
+   865→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   866→    } catch (e) {
+   867→      return FailureResult(_mapExceptionToFailure(e));
+   868→    }
+   869→  }
+   870→
+   871→  @override
+   872→  Future<Result<List<CalendarEventEntity>>> suggestSchedule(Map<String, dynamic> params) async {
+   873→    try {
+   874→      final models = await _remoteDataSource.suggestSchedule(params);
+   875→      return Success(models.map((m) => m.toEntity()).toList());
+   876→    } catch (e) {
+   877→      return FailureResult(_mapExceptionToFailure(e));
+   878→    }
+   879→  }
+   880→
+   881→  // ═══════════════════════════════════════════════════════════════════════
+   882→  // TEMPLATES
+   883→  // ═══════════════════════════════════════════════════════════════════════
+   884→
+   885→  @override
+   886→  Future<Result<WorkspaceTemplateEntity>> createTemplate(WorkspaceTemplateEntity template) async {
+   887→    try {
+   888→      final model = WorkspaceTemplateModel.fromEntity(template);
+   889→      final created = await _remoteDataSource.createTemplate(model.toJson());
+   890→      return Success(created.toEntity());
+   891→    } on AuthException catch (e) {
+   892→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   893→    } on ServerException catch (e) {
+   894→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   895→    } catch (e) {
+   896→      return FailureResult(_mapExceptionToFailure(e));
+   897→    }
+   898→  }
+   899→
+   900→  @override
+   901→  Future<Result<List<WorkspaceTemplateEntity>>> getTemplates(String templateType) async {
+   902→    try {
+   903→      final models = await _remoteDataSource.getTemplates({'template_type': templateType});
+   904→      return Success(models.map((m) => m.toEntity()).toList());
+   905→    } on ServerException catch (e) {
+   906→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   907→    } catch (e) {
+   908→      return FailureResult(_mapExceptionToFailure(e));
+   909→    }
+   910→  }
+   911→
+   912→  @override
+   913→  Future<Result<WorkspaceTemplateEntity>> useTemplate(String templateId) async {
+   914→    try {
+   915→      final model = await _remoteDataSource.useTemplate(templateId);
+   916→      return Success(model.toEntity());
+   917→    } catch (e) {
+   918→      return FailureResult(_mapExceptionToFailure(e));
+   919→    }
+   920→  }
+   921→
+   922→  // ═══════════════════════════════════════════════════════════════════════
+   923→  // VERSION HISTORY
+   924→  // ═══════════════════════════════════════════════════════════════════════
+   925→
+   926→  @override
+   927→  Future<Result<List<WorkspaceVersionEntity>>> getVersionHistory(
+   928→    String resourceType,
+   929→    String resourceId,
+   930→  ) async {
+   931→    try {
+   932→      final models = await _remoteDataSource.getVersionHistory({
+   933→        'resource_type': resourceType,
+   934→        'resource_id': resourceId,
+   935→      });
+   936→      return Success(models.map((m) => m.toEntity()).toList());
+   937→    } on ServerException catch (e) {
+   938→      return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
+   939→    } catch (e) {
+   940→      return FailureResult(_mapExceptionToFailure(e));
+   941→    }
+   942→  }
+   943→
+   944→  @override
+   945→  Future<Result<LessonPlanEntity>> restoreLessonPlanVersion(
+   946→    String planId,
+   947→    int versionNumber,
+   948→  ) async {
+   949→    try {
+   950→      final model = await _remoteDataSource.restoreLessonPlanVersion(planId, versionNumber);
+   951→      return Success(model.toEntity());
+   952→    } catch (e) {
+   953→      return FailureResult(_mapExceptionToFailure(e));
+   954→    }
+   955→  }
+   956→
+   957→  // ═══════════════════════════════════════════════════════════════════════
+   958→  // EXPORT (general)
+   959→  // ═══════════════════════════════════════════════════════════════════════
+   960→
+   961→  @override
+   962→  Future<Result<String>> exportResource(
+   963→    String resourceType,
+   964→    String resourceId,
+   965→    String format,
+   966→  ) async {
+   967→    try {
+   968→      final url = await _remoteDataSource.exportResource(resourceType, resourceId, format);
+   969→      return Success(url);
+   970→    } catch (e) {
+   971→      return FailureResult(_mapExceptionToFailure(e));
+   972→    }
+   973→  }
+   974→
+   975→  // ═══════════════════════════════════════════════════════════════════════
+   976→  // GENERATE QUESTIONS INTEGRATION
+   977→  // ═══════════════════════════════════════════════════════════════════════
+   978→
+   979→  @override
+   980→  Future<Result<Map<String, dynamic>>> generateQuestionsFromContent(
+   981→    String resourceType,
+   982→    String resourceId,
+   983→    Map<String, dynamic> params,
+   984→  ) async {
+   985→    try {
+   986→      final result = await _remoteDataSource.generateQuestionsFromContent({
+   987→        'resource_type': resourceType,
+   988→        'resource_id': resourceId,
+   989→        ...params,
+   990→      });
+   991→      return Success(result);
+   992→    } catch (e) {
+   993→      return FailureResult(_mapExceptionToFailure(e));
+   994→    }
+   995→  }
+   996→}
+   997→

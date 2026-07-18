@@ -1,0 +1,783 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/extensions/context_extensions.dart';
+     5→import '../../../../core/themes/app_colors.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/themes/spacings.dart';
+     8→import '../../../../shared/providers/auth_state_provider.dart';
+     9→import '../../../../shared/widgets/app_app_bar.dart';
+    10→import '../../../../shared/widgets/app_empty_state.dart';
+    11→import '../../../../shared/widgets/app_error_state.dart';
+    12→import '../../../../shared/widgets/app_loading.dart';
+    13→import '../../domain/entities/teacher_workspace_entities.dart';
+    14→import '../providers/workspace_dashboard_provider.dart';
+    15→import '../widgets/workspace_widgets.dart';
+    16→
+    17→// ═══════════════════════════════════════════════════════════════════════
+    18→// TEACHER WORKSPACE DASHBOARD PAGE
+    19→// ═══════════════════════════════════════════════════════════════════════
+    20→
+    21→/// The main Teacher Workspace Dashboard page.
+    22→///
+    23→/// This is the entry point for the workspace module, presenting a modern
+    24→/// SaaS-style dashboard with:
+    25→/// - Welcome section with teacher name and current date
+    26→/// - Stats cards row (Lesson Plans, Worksheets, Assignments, Resources)
+    27→/// - Quick AI Actions grid (8 action buttons)
+    28→/// - Today's Schedule timeline
+    29→/// - Upcoming Events
+    30→/// - Recently Generated AI Content
+    31→/// - Draft Lesson Plans with "Generate Questions" buttons
+    32→///
+    33→/// Uses [ConsumerStatefulWidget] with a private [_State] class pattern,
+    34→/// loads data in [initState] via [WidgetsBinding.instance.addPostFrameCallback],
+    35→/// and renders a responsive layout using [CustomScrollView] with slivers.
+    36→class TeacherWorkspaceDashboardPage extends ConsumerStatefulWidget {
+    37→  const TeacherWorkspaceDashboardPage({super.key});
+    38→
+    39→  @override
+    40→  ConsumerState<TeacherWorkspaceDashboardPage> createState() => _State();
+    41→}
+    42→
+    43→class _State extends ConsumerState<TeacherWorkspaceDashboardPage> {
+    44→  // ─── Lifecycle ──────────────────────────────────────────────────────
+    45→
+    46→  @override
+    47→  void initState() {
+    48→    super.initState();
+    49→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    50→      ref.read(workspaceDashboardProvider.notifier).loadDashboard();
+    51→    });
+    52→  }
+    53→
+    54→  // ─── Build ──────────────────────────────────────────────────────────
+    55→
+    56→  @override
+    57→  Widget build(BuildContext context) {
+    58→    final dashboardState = ref.watch(workspaceDashboardProvider);
+    59→
+    60→    return Scaffold(
+    61→      appBar: const AppAppBar(title: 'Workspace'),
+    62→      body: _buildBody(context, dashboardState),
+    63→    );
+    64→  }
+    65→
+    66→  // ─── Body Router ────────────────────────────────────────────────────
+    67→
+    68→  Widget _buildBody(BuildContext context, WorkspaceDashboardState state) {
+    69→    // Loading state
+    70→    if (state.isLoading && state.dashboardSummary == null) {
+    71→      return const Center(child: AppLoadingSpinner());
+    72→    }
+    73→
+    74→    // Error state
+    75→    if (state.error != null && state.dashboardSummary == null) {
+    76→      return AppErrorState.genericError(
+    77→        message: state.error,
+    78→        onRetry: () =>
+    79→            ref.read(workspaceDashboardProvider.notifier).loadDashboard(),
+    80→      );
+    81→    }
+    82→
+    83→    // Empty state
+    84→    final summary = state.dashboardSummary;
+    85→    if (summary == null) {
+    86→      return AppEmptyState.noData(
+    87→        title: 'No Workspace Data',
+    88→        subtitle: 'Your workspace dashboard will appear here once loaded.',
+    89→        actionLabel: 'Refresh',
+    90→        onAction: () =>
+    91→            ref.read(workspaceDashboardProvider.notifier).loadDashboard(),
+    92→      );
+    93→    }
+    94→
+    95→    // Success — render dashboard
+    96→    return RefreshIndicator(
+    97→      onRefresh: () =>
+    98→          ref.read(workspaceDashboardProvider.notifier).refresh(),
+    99→      child: CustomScrollView(
+   100→        physics: const AlwaysScrollableScrollPhysics(),
+   101→        slivers: [
+   102→          // ─── Welcome Section ──────────────────────────────────────
+   103→          SliverToBoxAdapter(child: _buildWelcomeSection(context)),
+   104→
+   105→          // ─── Stats Cards ──────────────────────────────────────────
+   106→          SliverToBoxAdapter(child: _buildStatsCards(context, summary)),
+   107→
+   108→          // ─── Quick AI Actions ─────────────────────────────────────
+   109→          SliverToBoxAdapter(child: _buildQuickActionsSection(context)),
+   110→
+   111→          // ─── Schedule & Events (2-column on desktop) ──────────────
+   112→          SliverToBoxAdapter(
+   113→            child: _buildScheduleAndEvents(context, summary),
+   114→          ),
+   115→
+   116→          // ─── Recently Generated AI Content ────────────────────────
+   117→          SliverToBoxAdapter(
+   118→            child: _buildRecentAiContent(context, summary),
+   119→          ),
+   120→
+   121→          // ─── Draft Lesson Plans ───────────────────────────────────
+   122→          SliverToBoxAdapter(
+   123→            child: _buildDraftLessonPlans(context, summary),
+   124→          ),
+   125→
+   126→          // Bottom padding
+   127→          const SliverPadding(padding: EdgeInsets.only(bottom: Spacings.xxl)),
+   128→        ],
+   129→      ),
+   130→    );
+   131→  }
+   132→
+   133→  // ═══════════════════════════════════════════════════════════════════════
+   134→  // WELCOME SECTION
+   135→  // ═══════════════════════════════════════════════════════════════════════
+   136→
+   137→  Widget _buildWelcomeSection(BuildContext context) {
+   138→    final cs = context.colorScheme;
+   139→    final tt = context.textTheme;
+   140→    final userName = ref.watch(userFullNameProvider) ?? 'Teacher';
+   141→    final now = DateTime.now();
+   142→    final dateStr =
+   143→        '${_weekdayName(now.weekday)}, ${_monthName(now.month)} ${now.day}, ${now.year}';
+   144→
+   145→    return Padding(
+   146→      padding: const EdgeInsets.fromLTRB(
+   147→        Spacings.lg,
+   148→        Spacings.lg,
+   149→        Spacings.lg,
+   150→        Spacings.sm,
+   151→      ),
+   152→      child: Column(
+   153→        crossAxisAlignment: CrossAxisAlignment.start,
+   154→        children: [
+   155→          Text(
+   156→            'Welcome back, $userName!',
+   157→            style: tt.headlineSmall?.copyWith(
+   158→              fontWeight: AppTypography.wBold,
+   159→              color: cs.onSurface,
+   160→            ),
+   161→          ),
+   162→          const SizedBox(height: Spacings.xs),
+   163→          Text(
+   164→            dateStr,
+   165→            style: tt.bodyMedium?.copyWith(
+   166→              color: cs.onSurfaceVariant,
+   167→            ),
+   168→          ),
+   169→        ],
+   170→      ),
+   171→    );
+   172→  }
+   173→
+   174→  // ═══════════════════════════════════════════════════════════════════════
+   175→  // STATS CARDS
+   176→  // ═══════════════════════════════════════════════════════════════════════
+   177→
+   178→  Widget _buildStatsCards(
+   179→    BuildContext context,
+   180→    WorkspaceDashboardEntity summary,
+   181→  ) {
+   182→    final isDesktop = context.isDesktop;
+   183→    final crossAxisCount = isDesktop ? 4 : 2;
+   184→
+   185→    final stats = [
+   186→      _StatEntry(
+   187→        title: 'Lesson Plans',
+   188→        value: summary.totalLessonPlans,
+   189→        icon: Icons.auto_stories_outlined,
+   190→        color: context.colorScheme.primary,
+   191→      ),
+   192→      _StatEntry(
+   193→        title: 'Worksheets',
+   194→        value: summary.totalWorksheets,
+   195→        icon: Icons.assignment_outlined,
+   196→        color: AppColors.success,
+   197→      ),
+   198→      _StatEntry(
+   199→        title: 'Assignments',
+   200→        value: summary.totalAssignments,
+   201→        icon: Icons.task_outlined,
+   202→        color: AppColors.warning,
+   203→      ),
+   204→      _StatEntry(
+   205→        title: 'Resources',
+   206→        value: summary.totalResources,
+   207→        icon: Icons.folder_outlined,
+   208→        color: AppColors.info,
+   209→      ),
+   210→    ];
+   211→
+   212→    return Padding(
+   213→      padding: const EdgeInsets.symmetric(
+   214→        horizontal: Spacings.lg,
+   215→        vertical: Spacings.md,
+   216→      ),
+   217→      child: GridView.builder(
+   218→        shrinkWrap: true,
+   219→        physics: const NeverScrollableScrollPhysics(),
+   220→        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+   221→          crossAxisCount: crossAxisCount,
+   222→          childAspectRatio: isDesktop ? 2.0 : 1.6,
+   223→          mainAxisSpacing: Spacings.md,
+   224→          crossAxisSpacing: Spacings.md,
+   225→        ),
+   226→        itemCount: stats.length,
+   227→        itemBuilder: (context, index) => _StatCard(stat: stats[index]),
+   228→      ),
+   229→    );
+   230→  }
+   231→
+   232→  // ═══════════════════════════════════════════════════════════════════════
+   233→  // QUICK AI ACTIONS
+   234→  // ═══════════════════════════════════════════════════════════════════════
+   235→
+   236→  Widget _buildQuickActionsSection(BuildContext context) {
+   237→    return Padding(
+   238→      padding: const EdgeInsets.symmetric(
+   239→        horizontal: Spacings.lg,
+   240→        vertical: Spacings.sm,
+   241→      ),
+   242→      child: Column(
+   243→        crossAxisAlignment: CrossAxisAlignment.start,
+   244→        children: [
+   245→          _sectionTitle(context, 'Quick AI Actions'),
+   246→          const SizedBox(height: Spacings.md),
+   247→          const WorkspaceQuickActions(),
+   248→        ],
+   249→      ),
+   250→    );
+   251→  }
+   252→
+   253→  // ═══════════════════════════════════════════════════════════════════════
+   254→  // SCHEDULE & EVENTS
+   255→  // ═══════════════════════════════════════════════════════════════════════
+   256→
+   257→  Widget _buildScheduleAndEvents(
+   258→    BuildContext context,
+   259→    WorkspaceDashboardEntity summary,
+   260→  ) {
+   261→    final isDesktop = context.isDesktop;
+   262→
+   263→    if (isDesktop) {
+   264→      return Padding(
+   265→        padding: const EdgeInsets.symmetric(
+   266→          horizontal: Spacings.lg,
+   267→          vertical: Spacings.md,
+   268→        ),
+   269→        child: Row(
+   270→          crossAxisAlignment: CrossAxisAlignment.start,
+   271→          children: [
+   272→            Expanded(
+   273→              child: ScheduleTimeline(
+   274→                events: summary.todayEvents,
+   275→                title: "Today's Schedule",
+   276→              ),
+   277→            ),
+   278→            const SizedBox(width: Spacings.lg),
+   279→            Expanded(
+   280→              child: ScheduleTimeline(
+   281→                events: summary.upcomingEvents,
+   282→                title: 'Upcoming Events',
+   283→              ),
+   284→            ),
+   285→          ],
+   286→        ),
+   287→      );
+   288→    }
+   289→
+   290→    return Padding(
+   291→      padding: const EdgeInsets.symmetric(
+   292→        horizontal: Spacings.lg,
+   293→        vertical: Spacings.md,
+   294→      ),
+   295→      child: Column(
+   296→        children: [
+   297→          ScheduleTimeline(
+   298→            events: summary.todayEvents,
+   299→            title: "Today's Schedule",
+   300→          ),
+   301→          const SizedBox(height: Spacings.md),
+   302→          ScheduleTimeline(
+   303→            events: summary.upcomingEvents,
+   304→            title: 'Upcoming Events',
+   305→          ),
+   306→        ],
+   307→      ),
+   308→    );
+   309→  }
+   310→
+   311→  // ═══════════════════════════════════════════════════════════════════════
+   312→  // RECENTLY GENERATED AI CONTENT
+   313→  // ═══════════════════════════════════════════════════════════════════════
+   314→
+   315→  Widget _buildRecentAiContent(
+   316→    BuildContext context,
+   317→    WorkspaceDashboardEntity summary,
+   318→  ) {
+   319→    final tt = context.textTheme;
+   320→    final cs = context.colorScheme;
+   321→
+   322→    return Padding(
+   323→      padding: const EdgeInsets.symmetric(
+   324→        horizontal: Spacings.lg,
+   325→        vertical: Spacings.md,
+   326→      ),
+   327→      child: Column(
+   328→        crossAxisAlignment: CrossAxisAlignment.start,
+   329→        children: [
+   330→          _sectionTitle(context, 'Recently Generated AI Content'),
+   331→          const SizedBox(height: Spacings.md),
+   332→          if (summary.recentAiContent.isEmpty)
+   333→            Card(
+   334→              clipBehavior: Clip.antiAlias,
+   335→              elevation: Spacings.elevationNone,
+   336→              shape: RoundedRectangleBorder(
+   337→                borderRadius: Spacings.borderRadiusLg,
+   338→                side: BorderSide(
+   339→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   340→                ),
+   341→              ),
+   342→              child: Padding(
+   343→                padding: const EdgeInsets.all(Spacings.xl),
+   344→                child: Center(
+   345→                  child: Text(
+   346→                    'No AI-generated content yet. Start by creating a lesson plan!',
+   347→                    style: tt.bodyMedium?.copyWith(
+   348→                      color: cs.onSurfaceVariant,
+   349→                    ),
+   350→                    textAlign: TextAlign.center,
+   351→                  ),
+   352→                ),
+   353→              ),
+   354→            )
+   355→          else
+   356→            ...summary.recentAiContent.map(
+   357→              (item) => _AiContentCard(data: item),
+   358→            ),
+   359→        ],
+   360→      ),
+   361→    );
+   362→  }
+   363→
+   364→  // ═══════════════════════════════════════════════════════════════════════
+   365→  // DRAFT LESSON PLANS
+   366→  // ═══════════════════════════════════════════════════════════════════════
+   367→
+   368→  Widget _buildDraftLessonPlans(
+   369→    BuildContext context,
+   370→    WorkspaceDashboardEntity summary,
+   371→  ) {
+   372→    final tt = context.textTheme;
+   373→    final cs = context.colorScheme;
+   374→
+   375→    return Padding(
+   376→      padding: const EdgeInsets.symmetric(
+   377→        horizontal: Spacings.lg,
+   378→        vertical: Spacings.md,
+   379→      ),
+   380→      child: Column(
+   381→        crossAxisAlignment: CrossAxisAlignment.start,
+   382→        children: [
+   383→          _sectionTitle(context, 'Draft Lesson Plans'),
+   384→          const SizedBox(height: Spacings.md),
+   385→          if (summary.draftLessonPlans.isEmpty)
+   386→            Card(
+   387→              clipBehavior: Clip.antiAlias,
+   388→              elevation: Spacings.elevationNone,
+   389→              shape: RoundedRectangleBorder(
+   390→                borderRadius: Spacings.borderRadiusLg,
+   391→                side: BorderSide(
+   392→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   393→                ),
+   394→              ),
+   395→              child: Padding(
+   396→                padding: const EdgeInsets.all(Spacings.xl),
+   397→                child: Center(
+   398→                  child: Text(
+   399→                    'No draft lesson plans. Create one to get started!',
+   400→                    style: tt.bodyMedium?.copyWith(
+   401→                      color: cs.onSurfaceVariant,
+   402→                    ),
+   403→                    textAlign: TextAlign.center,
+   404→                  ),
+   405→                ),
+   406→              ),
+   407→            )
+   408→          else
+   409→            ...summary.draftLessonPlans.map(
+   410→              (item) => _DraftLessonPlanCard(data: item),
+   411→            ),
+   412→        ],
+   413→      ),
+   414→    );
+   415→  }
+   416→
+   417→  // ═══════════════════════════════════════════════════════════════════════
+   418→  // HELPERS
+   419→  // ═══════════════════════════════════════════════════════════════════════
+   420→
+   421→  /// Renders a section title with consistent styling.
+   422→  Widget _sectionTitle(BuildContext context, String title) {
+   423→    final tt = context.textTheme;
+   424→    final cs = context.colorScheme;
+   425→
+   426→    return Text(
+   427→      title,
+   428→      style: tt.titleMedium?.copyWith(
+   429→        fontWeight: AppTypography.wSemiBold,
+   430→        color: cs.onSurface,
+   431→      ),
+   432→    );
+   433→  }
+   434→
+   435→  /// Returns the short weekday name for [weekday] (1 = Monday).
+   436→  String _weekdayName(int weekday) {
+   437→    const names = [
+   438→      'Monday',
+   439→      'Tuesday',
+   440→      'Wednesday',
+   441→      'Thursday',
+   442→      'Friday',
+   443→      'Saturday',
+   444→      'Sunday',
+   445→    ];
+   446→    return names[weekday - 1];
+   447→  }
+   448→
+   449→  /// Returns the month name for [month] (1 = January).
+   450→  String _monthName(int month) {
+   451→    const names = [
+   452→      'January',
+   453→      'February',
+   454→      'March',
+   455→      'April',
+   456→      'May',
+   457→      'June',
+   458→      'July',
+   459→      'August',
+   460→      'September',
+   461→      'October',
+   462→      'November',
+   463→      'December',
+   464→    ];
+   465→    return names[month - 1];
+   466→  }
+   467→}
+   468→
+   469→// ═══════════════════════════════════════════════════════════════════════
+   470→// STAT CARD
+   471→// ═══════════════════════════════════════════════════════════════════════
+   472→
+   473→/// Data model for a single stat entry.
+   474→class _StatEntry {
+   475→  final String title;
+   476→  final int value;
+   477→  final IconData icon;
+   478→  final Color color;
+   479→
+   480→  const _StatEntry({
+   481→    required this.title,
+   482→    required this.value,
+   483→    required this.icon,
+   484→    required this.color,
+   485→  });
+   486→}
+   487→
+   488→/// A compact stat card displaying an icon, value, and title.
+   489→class _StatCard extends StatelessWidget {
+   490→  final _StatEntry stat;
+   491→
+   492→  const _StatCard({required this.stat});
+   493→
+   494→  @override
+   495→  Widget build(BuildContext context) {
+   496→    final cs = context.colorScheme;
+   497→    final tt = context.textTheme;
+   498→
+   499→    return Card(
+   500→      clipBehavior: Clip.antiAlias,
+   501→      elevation: Spacings.elevationNone,
+   502→      shape: RoundedRectangleBorder(
+   503→        borderRadius: Spacings.borderRadiusLg,
+   504→        side: BorderSide(
+   505→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   506→        ),
+   507→      ),
+   508→      child: Padding(
+   509→        padding: const EdgeInsets.all(Spacings.lg),
+   510→        child: Column(
+   511→          crossAxisAlignment: CrossAxisAlignment.start,
+   512→          mainAxisAlignment: MainAxisAlignment.center,
+   513→          children: [
+   514→            Container(
+   515→              padding: const EdgeInsets.all(Spacings.sm),
+   516→              decoration: BoxDecoration(
+   517→                color: stat.color.withValues(alpha: 0.12),
+   518→                borderRadius: Spacings.borderRadiusSm,
+   519→              ),
+   520→              child: Icon(stat.icon, color: stat.color, size: 20),
+   521→            ),
+   522→            const SizedBox(height: Spacings.md),
+   523→            Text(
+   524→              '${stat.value}',
+   525→              style: tt.headlineSmall?.copyWith(
+   526→                fontWeight: AppTypography.wBold,
+   527→                color: cs.onSurface,
+   528→              ),
+   529→            ),
+   530→            const SizedBox(height: Spacings.xs),
+   531→            Text(
+   532→              stat.title,
+   533→              style: tt.bodySmall?.copyWith(
+   534→                color: cs.onSurfaceVariant,
+   535→              ),
+   536→              maxLines: 1,
+   537→              overflow: TextOverflow.ellipsis,
+   538→            ),
+   539→          ],
+   540→        ),
+   541→      ),
+   542→    );
+   543→  }
+   544→}
+   545→
+   546→// ═══════════════════════════════════════════════════════════════════════
+   547→// AI CONTENT CARD
+   548→// ═══════════════════════════════════════════════════════════════════════
+   549→
+   550→/// Card showing a recently AI-generated content item.
+   551→class _AiContentCard extends StatelessWidget {
+   552→  final Map<String, dynamic> data;
+   553→
+   554→  const _AiContentCard({required this.data});
+   555→
+   556→  @override
+   557→  Widget build(BuildContext context) {
+   558→    final cs = context.colorScheme;
+   559→    final tt = context.textTheme;
+   560→    final type = data['resource_type'] as String? ?? 'content';
+   561→    final title = data['title'] as String? ?? 'Untitled';
+   562→    final createdAt = data['created_at'] as String?;
+   563→    final resourceId = data['id'] as String? ?? '';
+   564→
+   565→    return Card(
+   566→      clipBehavior: Clip.antiAlias,
+   567→      margin: const EdgeInsets.only(bottom: Spacings.md),
+   568→      elevation: Spacings.elevationNone,
+   569→      shape: RoundedRectangleBorder(
+   570→        borderRadius: Spacings.borderRadiusLg,
+   571→        side: BorderSide(
+   572→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   573→        ),
+   574→      ),
+   575→      child: Padding(
+   576→        padding: const EdgeInsets.all(Spacings.lg),
+   577→        child: Row(
+   578→          children: [
+   579→            Container(
+   580→              padding: const EdgeInsets.all(Spacings.sm),
+   581→              decoration: BoxDecoration(
+   582→                color: cs.primaryContainer,
+   583→                borderRadius: Spacings.borderRadiusSm,
+   584→              ),
+   585→              child: Icon(
+   586→                _typeIcon(type),
+   587→                color: cs.onPrimaryContainer,
+   588→                size: 20,
+   589→              ),
+   590→            ),
+   591→            const SizedBox(width: Spacings.md),
+   592→            Expanded(
+   593→              child: Column(
+   594→                crossAxisAlignment: CrossAxisAlignment.start,
+   595→                children: [
+   596→                  Text(
+   597→                    title,
+   598→                    style: tt.bodyMedium?.copyWith(
+   599→                      fontWeight: AppTypography.wMedium,
+   600→                    ),
+   601→                    maxLines: 1,
+   602→                    overflow: TextOverflow.ellipsis,
+   603→                  ),
+   604→                  if (createdAt != null)
+   605→                    Text(
+   606→                      _formatRelativeTime(createdAt),
+   607→                      style: tt.bodySmall?.copyWith(
+   608→                        color: cs.onSurfaceVariant,
+   609→                      ),
+   610→                    ),
+   611→                ],
+   612→              ),
+   613→            ),
+   614→            GenerateQuestionsButton(
+   615→              resourceType: type,
+   616→              resourceId: resourceId,
+   617→              resourceName: title,
+   618→            ),
+   619→          ],
+   620→        ),
+   621→      ),
+   622→    );
+   623→  }
+   624→
+   625→  IconData _typeIcon(String type) {
+   626→    switch (type) {
+   627→      case 'lesson_plan':
+   628→        return Icons.auto_stories_rounded;
+   629→      case 'worksheet':
+   630→        return Icons.assignment_rounded;
+   631→      case 'scheme_of_work':
+   632→        return Icons.calendar_month_rounded;
+   633→      case 'assignment':
+   634→        return Icons.task_rounded;
+   635→      default:
+   636→        return Icons.smart_toy_rounded;
+   637→    }
+   638→  }
+   639→
+   640→  String _formatRelativeTime(String isoDate) {
+   641→    final dt = DateTime.tryParse(isoDate);
+   642→    if (dt == null) return '';
+   643→    final diff = DateTime.now().difference(dt);
+   644→    if (diff.inMinutes < 1) return 'Just now';
+   645→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+   646→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+   647→    return '${diff.inDays}d ago';
+   648→  }
+   649→}
+   650→
+   651→// ═══════════════════════════════════════════════════════════════════════
+   652→// DRAFT LESSON PLAN CARD
+   653→// ═══════════════════════════════════════════════════════════════════════
+   654→
+   655→/// Card showing a draft lesson plan with a "Generate Questions" button.
+   656→class _DraftLessonPlanCard extends StatelessWidget {
+   657→  final Map<String, dynamic> data;
+   658→
+   659→  const _DraftLessonPlanCard({required this.data});
+   660→
+   661→  @override
+   662→  Widget build(BuildContext context) {
+   663→    final cs = context.colorScheme;
+   664→    final tt = context.textTheme;
+   665→    final title = data['title'] as String? ?? 'Untitled Lesson Plan';
+   666→    final subject = data['subject'] as String?;
+   667→    final topic = data['topic'] as String?;
+   668→    final resourceId = data['id'] as String? ?? '';
+   669→    final updatedAt = data['updated_at'] as String?;
+   670→
+   671→    return Card(
+   672→      clipBehavior: Clip.antiAlias,
+   673→      margin: const EdgeInsets.only(bottom: Spacings.md),
+   674→      elevation: Spacings.elevationNone,
+   675→      shape: RoundedRectangleBorder(
+   676→        borderRadius: Spacings.borderRadiusLg,
+   677→        side: BorderSide(
+   678→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   679→        ),
+   680→      ),
+   681→      child: Padding(
+   682→        padding: const EdgeInsets.all(Spacings.lg),
+   683→        child: Column(
+   684→          crossAxisAlignment: CrossAxisAlignment.start,
+   685→          children: [
+   686→            Row(
+   687→              children: [
+   688→                Container(
+   689→                  padding: const EdgeInsets.all(Spacings.sm),
+   690→                  decoration: BoxDecoration(
+   691→                    color: cs.primaryContainer,
+   692→                    borderRadius: Spacings.borderRadiusSm,
+   693→                  ),
+   694→                  child: Icon(
+   695→                    Icons.auto_stories_rounded,
+   696→                    color: cs.onPrimaryContainer,
+   697→                    size: 20,
+   698→                  ),
+   699→                ),
+   700→                const SizedBox(width: Spacings.md),
+   701→                Expanded(
+   702→                  child: Column(
+   703→                    crossAxisAlignment: CrossAxisAlignment.start,
+   704→                    children: [
+   705→                      Text(
+   706→                        title,
+   707→                        style: tt.bodyMedium?.copyWith(
+   708→                          fontWeight: AppTypography.wMedium,
+   709→                        ),
+   710→                        maxLines: 1,
+   711→                        overflow: TextOverflow.ellipsis,
+   712→                      ),
+   713→                      if (subject != null || topic != null)
+   714→                        Text(
+   715→                          [subject, topic].whereType<String>().join(' · '),
+   716→                          style: tt.bodySmall?.copyWith(
+   717→                            color: cs.onSurfaceVariant,
+   718→                          ),
+   719→                          maxLines: 1,
+   720→                          overflow: TextOverflow.ellipsis,
+   721→                        ),
+   722→                    ],
+   723→                  ),
+   724→                ),
+   725→                // Draft badge
+   726→                Container(
+   727→                  padding: const EdgeInsets.symmetric(
+   728→                    horizontal: Spacings.sm,
+   729→                    vertical: Spacings.xs,
+   730→                  ),
+   731→                  decoration: BoxDecoration(
+   732→                    color: AppColors.warningLight,
+   733→                    borderRadius: Spacings.borderRadiusFull,
+   734→                  ),
+   735→                  child: Text(
+   736→                    'DRAFT',
+   737→                    style: tt.labelSmall?.copyWith(
+   738→                      color: AppColors.warningDark,
+   739→                      fontWeight: AppTypography.wSemiBold,
+   740→                    ),
+   741→                  ),
+   742→                ),
+   743→              ],
+   744→            ),
+   745→            if (updatedAt != null) ...[
+   746→              const SizedBox(height: Spacings.sm),
+   747→              Text(
+   748→                'Updated ${_formatRelativeTime(updatedAt)}',
+   749→                style: tt.bodySmall?.copyWith(
+   750→                  color: cs.onSurfaceVariant,
+   751→                ),
+   752→              ),
+   753→            ],
+   754→            const SizedBox(height: Spacings.md),
+   755→            Row(
+   756→              mainAxisAlignment: MainAxisAlignment.end,
+   757→              children: [
+   758→                GenerateQuestionsButton(
+   759→                  resourceType: 'lesson_plan',
+   760→                  resourceId: resourceId,
+   761→                  resourceName: title,
+   762→                  subject: subject,
+   763→                  topic: topic,
+   764→                ),
+   765→              ],
+   766→            ),
+   767→          ],
+   768→        ),
+   769→      ),
+   770→    );
+   771→  }
+   772→
+   773→  String _formatRelativeTime(String isoDate) {
+   774→    final dt = DateTime.tryParse(isoDate);
+   775→    if (dt == null) return '';
+   776→    final diff = DateTime.now().difference(dt);
+   777→    if (diff.inMinutes < 1) return 'just now';
+   778→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+   779→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+   780→    return '${diff.inDays}d ago';
+   781→  }
+   782→}
+   783→

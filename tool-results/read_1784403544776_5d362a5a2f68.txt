@@ -1,0 +1,1745 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/themes/app_colors.dart';
+     8→import '../../../../core/extensions/context_extensions.dart';
+     9→import '../../../../shared/widgets/app_button.dart';
+    10→import '../../../../shared/widgets/app_card.dart';
+    11→import '../../../../shared/widgets/app_text_field.dart';
+    12→import '../../../../shared/widgets/app_loading.dart';
+    13→import '../../../../shared/widgets/app_app_bar.dart';
+    14→import '../../../../shared/widgets/app_empty_state.dart';
+    15→import '../../../../shared/widgets/app_dialog.dart';
+    16→import '../../../../routing/route_names.dart';
+    17→import '../../domain/entities/teacher_workspace_entities.dart';
+    18→import '../providers/calendar_planner_provider.dart';
+    19→
+    20→// ═══════════════════════════════════════════════════════════════════════
+    21→// CALENDAR VIEW MODE
+    22→// ═══════════════════════════════════════════════════════════════════════
+    23→
+    24→/// The calendar display mode.
+    25→enum CalendarViewMode {
+    26→  monthly,
+    27→  weekly,
+    28→  daily;
+    29→
+    30→  String get label => switch (this) {
+    31→        monthly => 'Monthly',
+    32→        weekly => 'Weekly',
+    33→        daily => 'Daily',
+    34→      };
+    35→
+    36→  IconData get icon => switch (this) {
+    37→        monthly => Icons.calendar_month_rounded,
+    38→        weekly => Icons.view_week_rounded,
+    39→        daily => Icons.view_day_rounded,
+    40→      };
+    41→}
+    42→
+    43→// ═══════════════════════════════════════════════════════════════════════
+    44→// REMINDER OPTION
+    45→// ═══════════════════════════════════════════════════════════════════════
+    46→
+    47→/// Reminder preset options for the event form.
+    48→enum ReminderOption {
+    49→  none(label: 'None', minutes: null),
+    50→  five(label: '5 min before', minutes: 5),
+    51→  fifteen(label: '15 min before', minutes: 15),
+    52→  thirty(label: '30 min before', minutes: 30),
+    53→  oneHour(label: '1 hour before', minutes: 60);
+    54→
+    55→  const ReminderOption({required this.label, required this.minutes});
+    56→
+    57→  final String label;
+    58→  final int? minutes;
+    59→}
+    60→
+    61→// ═══════════════════════════════════════════════════════════════════════
+    62→// PRESET EVENT COLORS
+    63→// ═══════════════════════════════════════════════════════════════════════
+    64→
+    65→const _kPresetColors = <Color>[
+    66→  Color(0xFF4F46E5), // Indigo 600
+    67→  Color(0xFF7C3AED), // Violet 600
+    68→  Color(0xFF06B6D4), // Cyan 500
+    69→  Color(0xFF16A34A), // Green 600
+    70→  Color(0xFFF59E0B), // Amber 500
+    71→  Color(0xFFDC2626), // Red 600
+    72→];
+    73→
+    74→// ═══════════════════════════════════════════════════════════════════════
+    75→// CALENDAR PLANNER PAGE
+    76→// ═══════════════════════════════════════════════════════════════════════
+    77→
+    78→/// A comprehensive calendar and planner page for teachers with daily, weekly,
+    79→/// and monthly views, event CRUD, and AI schedule suggestions.
+    80→class CalendarPlannerPage extends ConsumerStatefulWidget {
+    81→  const CalendarPlannerPage({super.key});
+    82→
+    83→  @override
+    84→  ConsumerState<CalendarPlannerPage> createState() =>
+    85→      _CalendarPlannerPageState();
+    86→}
+    87→
+    88→class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
+    89→    with SingleTickerProviderStateMixin {
+    90→  // ─── State ─────────────────────────────────────────────────────────
+    91→
+    92→  CalendarViewMode _viewMode = CalendarViewMode.monthly;
+    93→  DateTime _focusedDate = DateTime.now();
+    94→  late DateTime _selectedDate;
+    95→
+    96→  // Form controllers
+    97→  final _titleCtrl = TextEditingController();
+    98→  final _subjectCtrl = TextEditingController();
+    99→  final _locationCtrl = TextEditingController();
+   100→
+   101→  // Form state
+   102→  EventType _eventType = EventType.class_;
+   103→  TimeOfDay _startTime = TimeOfDay.now();
+   104→  TimeOfDay _endTime = TimeOfDay(
+   105→    hour: TimeOfDay.now().hour + 1,
+   106→    minute: 0,
+   107→  );
+   108→  bool _isAllDay = false;
+   109→  Color _selectedColor = _kPresetColors.first;
+   110→  ReminderOption _reminder = ReminderOption.none;
+   111→
+   112→  // Editing state
+   113→  CalendarEventEntity? _editingEvent;
+   114→
+   115→  // Animation
+   116→  late final AnimationController _animController;
+   117→  late final Animation<double> _fadeAnimation;
+   118→
+   119→  @override
+   120→  void initState() {
+   121→    super.initState();
+   122→    _selectedDate = _normalizeDate(DateTime.now());
+   123→
+   124→    _animController = AnimationController(
+   125→      vsync: this,
+   126→      duration: const Duration(milliseconds: 350),
+   127→    );
+   128→    _fadeAnimation = CurvedAnimation(
+   129→      parent: _animController,
+   130→      curve: Curves.easeOut,
+   131→    );
+   132→    _animController.forward();
+   133→
+   134→    WidgetsBinding.instance.addPostFrameCallback((_) {
+   135→      ref.read(calendarPlannerProvider.notifier).loadEvents();
+   136→    });
+   137→  }
+   138→
+   139→  @override
+   140→  void dispose() {
+   141→    _titleCtrl.dispose();
+   142→    _subjectCtrl.dispose();
+   143→    _locationCtrl.dispose();
+   144→    _animController.dispose();
+   145→    super.dispose();
+   146→  }
+   147→
+   148→  // ─── Helpers ─────────────────────────────────────────────────────────
+   149→
+   150→  DateTime _normalizeDate(DateTime d) => DateTime(d.year, d.month, d.day);
+   151→
+   152→  String _formatTime(TimeOfDay t) =>
+   153→      '${t.hour.toString().padLeft(2, '0')}:${t.minute.toString().padLeft(2, '0')}';
+   154→
+   155→  String _formatDateTime(DateTime dt) {
+   156→    const months = [
+   157→      '',
+   158→      'Jan',
+   159→      'Feb',
+   160→      'Mar',
+   161→      'Apr',
+   162→      'May',
+   163→      'Jun',
+   164→      'Jul',
+   165→      'Aug',
+   166→      'Sep',
+   167→      'Oct',
+   168→      'Nov',
+   169→      'Dec',
+   170→    ];
+   171→    return '${months[dt.month]} ${dt.day}, ${dt.year} '
+   172→        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+   173→  }
+   174→
+   175→  String _formatMonthYear(DateTime d) {
+   176→    const months = [
+   177→      '',
+   178→      'January',
+   179→      'February',
+   180→      'March',
+   181→      'April',
+   182→      'May',
+   183→      'June',
+   184→      'July',
+   185→      'August',
+   186→      'September',
+   187→      'October',
+   188→      'November',
+   189→      'December',
+   190→    ];
+   191→    return '${months[d.month]} ${d.year}';
+   192→  }
+   193→
+   194→  String _formatWeekRange(DateTime focused) {
+   195→    // Week starts on Monday
+   196→    final weekday = focused.weekday;
+   197→    final monday = focused.subtract(Duration(days: weekday - 1));
+   198→    final sunday = monday.add(const Duration(days: 6));
+   199→    const months = [
+   200→      '',
+   201→      'Jan',
+   202→      'Feb',
+   203→      'Mar',
+   204→      'Apr',
+   205→      'May',
+   206→      'Jun',
+   207→      'Jul',
+   208→      'Aug',
+   209→      'Sep',
+   210→      'Oct',
+   211→      'Nov',
+   212→      'Dec',
+   213→    ];
+   214→    return '${months[monday.month]} ${monday.day} – ${months[sunday.month]} ${sunday.day}, ${sunday.year}';
+   215→  }
+   216→
+   217→  String _colorToHex(Color c) =>
+   218→      '#${(c.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+   219→
+   220→  Color _hexToColor(String? hex) {
+   221→    if (hex == null || hex.isEmpty) return _kPresetColors.first;
+   222→    final code = hex.replaceFirst('#', '');
+   223→    if (code.length != 6) return _kPresetColors.first;
+   224→    return Color(int.parse('FF$code', radix: 16));
+   225→  }
+   226→
+   227→  IconData _iconForEventType(EventType type) => switch (type) {
+   228→        EventType.class_ => Icons.school_rounded,
+   229→        EventType.meeting => Icons.groups_rounded,
+   230→        EventType.deadline => Icons.flag_rounded,
+   231→        EventType.reminder => Icons.notifications_active_rounded,
+   232→        EventType.exam => Icons.quiz_rounded,
+   233→        EventType.holiday => Icons.celebration_rounded,
+   234→        EventType.personal => Icons.person_rounded,
+   235→        EventType.other => Icons.event_rounded,
+   236→      };
+   237→
+   238→  Color _colorForEventType(EventType type) => switch (type) {
+   239→        EventType.class_ => const Color(0xFF4F46E5),
+   240→        EventType.meeting => const Color(0xFF7C3AED),
+   241→        EventType.deadline => const Color(0xFFDC2626),
+   242→        EventType.reminder => const Color(0xFFF59E0B),
+   243→        EventType.exam => const Color(0xFF06B6D4),
+   244→        EventType.holiday => const Color(0xFF16A34A),
+   245→        EventType.personal => const Color(0xFFEC4899),
+   246→        EventType.other => const Color(0xFF6B7280),
+   247→      };
+   248→
+   249→  void _listenForMessages() {
+   250→    final state = ref.read(calendarPlannerProvider);
+   251→    if (state.successMessage != null) {
+   252→      _showSnackBar(state.successMessage!, isError: false);
+   253→      ref.read(calendarPlannerProvider.notifier).clearSuccessMessage();
+   254→    }
+   255→    if (state.error != null) {
+   256→      _showSnackBar(state.error!, isError: true);
+   257→      ref.read(calendarPlannerProvider.notifier).clearError();
+   258→    }
+   259→  }
+   260→
+   261→  void _showSnackBar(String message, {required bool isError}) {
+   262→    if (!mounted) return;
+   263→    final cs = context.colorScheme;
+   264→    context.scaffoldMessenger.showSnackBar(
+   265→      SnackBar(
+   266→        content: Text(message),
+   267→        backgroundColor: isError ? cs.error : cs.primary,
+   268→        behavior: SnackBarBehavior.floating,
+   269→        shape: RoundedRectangleBorder(
+   270→          borderRadius: BorderRadius.circular(Spacings.smRadius),
+   271→        ),
+   272→        duration: const Duration(seconds: 3),
+   273→      ),
+   274→    );
+   275→  }
+   276→
+   277→  // ─── Navigation ─────────────────────────────────────────────────────
+   278→
+   279→  void _goToPrevious() {
+   280→    setState(() {
+   281→      switch (_viewMode) {
+   282→        case CalendarViewMode.monthly:
+   283→          _focusedDate = DateTime(_focusedDate.year, _focusedDate.month - 1);
+   284→        case CalendarViewMode.weekly:
+   285→          _focusedDate = _focusedDate.subtract(const Duration(days: 7));
+   286→        case CalendarViewMode.daily:
+   287→          _focusedDate = _focusedDate.subtract(const Duration(days: 1));
+   288→      }
+   289→      _selectedDate = _normalizeDate(_focusedDate);
+   290→    });
+   291→    ref.read(calendarPlannerProvider.notifier).selectDate(_selectedDate);
+   292→  }
+   293→
+   294→  void _goToNext() {
+   295→    setState(() {
+   296→      switch (_viewMode) {
+   297→        case CalendarViewMode.monthly:
+   298→          _focusedDate = DateTime(_focusedDate.year, _focusedDate.month + 1);
+   299→        case CalendarViewMode.weekly:
+   300→          _focusedDate = _focusedDate.add(const Duration(days: 7));
+   301→        case CalendarViewMode.daily:
+   302→          _focusedDate = _focusedDate.add(const Duration(days: 1));
+   303→      }
+   304→      _selectedDate = _normalizeDate(_focusedDate);
+   305→    });
+   306→    ref.read(calendarPlannerProvider.notifier).selectDate(_selectedDate);
+   307→  }
+   308→
+   309→  void _goToToday() {
+   310→    setState(() {
+   311→      _focusedDate = DateTime.now();
+   312→      _selectedDate = _normalizeDate(DateTime.now());
+   313→    });
+   314→    ref.read(calendarPlannerProvider.notifier).selectDate(_selectedDate);
+   315→  }
+   316→
+   317→  void _selectDate(DateTime date) {
+   318→    setState(() {
+   319→      _selectedDate = _normalizeDate(date);
+   320→      _focusedDate = _selectedDate;
+   321→    });
+   322→    ref.read(calendarPlannerProvider.notifier).selectDate(_selectedDate);
+   323→  }
+   324→
+   325→  // ─── Event CRUD ─────────────────────────────────────────────────────
+   326→
+   327→  void _openAddEventSheet() {
+   328→    _resetForm();
+   329→    _editingEvent = null;
+   330→    _showEventBottomSheet();
+   331→  }
+   332→
+   333→  void _openEditEventSheet(CalendarEventEntity event) {
+   334→    _titleCtrl.text = event.title;
+   335→    _subjectCtrl.text = event.subject ?? '';
+   336→    _locationCtrl.text = event.location ?? '';
+   337→    _eventType = event.eventType;
+   338→    _startTime = TimeOfDay.fromDateTime(event.startTime);
+   339→    _endTime = TimeOfDay.fromDateTime(event.endTime);
+   340→    _isAllDay = event.isAllDay;
+   341→    _selectedColor = _hexToColor(event.color);
+   342→    _reminder = ReminderOption.values.firstWhere(
+   343→      (r) => r.minutes == event.reminderMinutesBefore,
+   344→      orElse: () => ReminderOption.none,
+   345→    );
+   346→    _editingEvent = event;
+   347→    _showEventBottomSheet();
+   348→  }
+   349→
+   350→  void _resetForm() {
+   351→    _titleCtrl.clear();
+   352→    _subjectCtrl.clear();
+   353→    _locationCtrl.clear();
+   354→    _eventType = EventType.class_;
+   355→    _startTime = TimeOfDay.now();
+   356→    _endTime = TimeOfDay(
+   357→      hour: (TimeOfDay.now().hour + 1) % 24,
+   358→      minute: 0,
+   359→    );
+   360→    _isAllDay = false;
+   361→    _selectedColor = _kPresetColors.first;
+   362→    _reminder = ReminderOption.none;
+   363→  }
+   364→
+   365→  void _handleSaveEvent() {
+   366→    if (_titleCtrl.text.trim().isEmpty) {
+   367→      _showSnackBar('Event title is required', isError: true);
+   368→      return;
+   369→    }
+   370→
+   371→    final now = DateTime.now();
+   372→    final eventDate = _selectedDate;
+   373→    final startDateTime = DateTime(
+   374→      eventDate.year,
+   375→      eventDate.month,
+   376→      eventDate.day,
+   377→      _startTime.hour,
+   378→      _startTime.minute,
+   379→    );
+   380→    var endDateTime = DateTime(
+   381→      eventDate.year,
+   382→      eventDate.month,
+   383→      eventDate.day,
+   384→      _endTime.hour,
+   385→      _endTime.minute,
+   386→    );
+   387→    if (!endDateTime.isAfter(startDateTime)) {
+   388→      endDateTime = startDateTime.add(const Duration(hours: 1));
+   389→    }
+   390→
+   391→    final event = CalendarEventEntity(
+   392→      id: _editingEvent?.id ?? '',
+   393→      teacherId: _editingEvent?.teacherId ?? '',
+   394→      title: _titleCtrl.text.trim(),
+   395→      description: _editingEvent?.description,
+   396→      eventType: _eventType,
+   397→      subject: _subjectCtrl.text.trim().isEmpty ? null : _subjectCtrl.text.trim(),
+   398→      subjectId: _editingEvent?.subjectId,
+   399→      classId: _editingEvent?.classId,
+   400→      location: _locationCtrl.text.trim().isEmpty ? null : _locationCtrl.text.trim(),
+   401→      startTime: startDateTime,
+   402→      endTime: endDateTime,
+   403→      isAllDay: _isAllDay,
+   404→      isRecurring: _editingEvent?.isRecurring ?? false,
+   405→      recurrenceRule: _editingEvent?.recurrenceRule,
+   406→      color: _colorToHex(_selectedColor),
+   407→      reminderMinutesBefore: _reminder.minutes,
+   408→      relatedResourceType: _editingEvent?.relatedResourceType,
+   409→      relatedResourceId: _editingEvent?.relatedResourceId,
+   410→      metadata: _editingEvent?.metadata ?? {},
+   411→      createdAt: _editingEvent?.createdAt ?? now,
+   412→      updatedAt: now,
+   413→    );
+   414→
+   415→    Navigator.pop(context); // Close bottom sheet first
+   416→
+   417→    if (_editingEvent != null) {
+   418→      ref.read(calendarPlannerProvider.notifier).updateEvent(event);
+   419→    } else {
+   420→      ref.read(calendarPlannerProvider.notifier).createEvent(
+   421→            CreateEventParams(event: event),
+   422→          );
+   423→    }
+   424→    _listenForMessages();
+   425→  }
+   426→
+   427→  void _handleDeleteEvent(String eventId) {
+   428→    AppDialog.showConfirm(
+   429→      context: context,
+   430→      title: 'Delete Event',
+   431→      message: 'Are you sure you want to delete this event? This action cannot be undone.',
+   432→      confirmText: 'Delete',
+   433→      isDestructive: true,
+   434→    ).then((confirmed) {
+   435→      if (confirmed == true) {
+   436→        ref.read(calendarPlannerProvider.notifier).deleteEvent(eventId);
+   437→        _listenForMessages();
+   438→      }
+   439→    });
+   440→  }
+   441→
+   442→  // ─── AI Schedule Suggestions ────────────────────────────────────────
+   443→
+   444→  void _openAiSuggestions() {
+   445→    ref.read(calendarPlannerProvider.notifier).suggestSchedule({
+   446→      'selectedDate': _selectedDate.toIso8601String(),
+   447→      'viewMode': _viewMode.name,
+   448→    });
+   449→    _listenForMessages();
+   450→  }
+   451→
+   452→  // ─── Build ──────────────────────────────────────────────────────────
+   453→
+   454→  @override
+   455→  Widget build(BuildContext context) {
+   456→    final state = ref.watch(calendarPlannerProvider);
+   457→
+   458→    return Scaffold(
+   459→      appBar: AppAppBar(
+   460→        title: 'Calendar & Planner',
+   461→        actions: [
+   462→          AppIconButton(
+   463→            icon: Icons.auto_awesome_rounded,
+   464→            onPressed: state.isSuggesting ? null : _openAiSuggestions,
+   465→            tooltip: 'AI Schedule Suggestions',
+   466→            variant: AppIconButtonVariant.tonal,
+   467→          ),
+   468→          AppIconButton(
+   469→            icon: Icons.today_rounded,
+   470→            onPressed: _goToToday,
+   471→            tooltip: 'Go to Today',
+   472→            variant: AppIconButtonVariant.standard,
+   473→          ),
+   474→        ],
+   475→      ),
+   476→      body: state.isLoading
+   477→          ? _buildLoadingState()
+   478→          : state.error != null && state.events.isEmpty
+   479→              ? _buildErrorState(state)
+   480→              : _buildContent(state),
+   481→      floatingActionButton: AppFloatingActionButton(
+   482→        label: 'Add Event',
+   483→        icon: Icons.add_rounded,
+   484→        onPressed: _openAddEventSheet,
+   485→        extended: true,
+   486→      ),
+   487→    );
+   488→  }
+   489→
+   490→  // ═══════════════════════════════════════════════════════════════════════
+   491→  // MAIN CONTENT
+   492→  // ═══════════════════════════════════════════════════════════════════════
+   493→
+   494→  Widget _buildContent(CalendarPlannerState state) {
+   495→    return Column(
+   496→      children: [
+   497→        // View mode toggle
+   498→        _buildViewToggle(),
+   499→
+   500→        // Navigation bar
+   501→        _buildNavigationBar(),
+   502→
+   503→        // Calendar view
+   504→        Expanded(
+   505→          flex: 3,
+   506→          child: FadeTransition(
+   507→            opacity: _fadeAnimation,
+   508→            child: _buildCalendarView(state),
+   509→          ),
+   510→        ),
+   511→
+   512→        // Divider
+   513→        Divider(
+   514→          height: 1,
+   515→          thickness: 1,
+   516→          color: context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+   517→        ),
+   518→
+   519→        // Events for selected date
+   520→        Expanded(
+   521→          flex: 2,
+   522→          child: _buildSelectedDateEvents(state),
+   523→        ),
+   524→      ],
+   525→    );
+   526→  }
+   527→
+   528→  // ─── View Toggle ────────────────────────────────────────────────────
+   529→
+   530→  Widget _buildViewToggle() {
+   531→    final cs = context.colorScheme;
+   532→
+   533→    return Padding(
+   534→      padding: const EdgeInsets.fromLTRB(
+   535→        Spacings.lg,
+   536→        Spacings.md,
+   537→        Spacings.lg,
+   538→        Spacings.sm,
+   539→      ),
+   540→      child: Container(
+   541→        decoration: BoxDecoration(
+   542→          color: cs.surfaceContainerLow,
+   543→          borderRadius: BorderRadius.circular(Spacings.lgRadius),
+   544→        ),
+   545→        padding: const EdgeInsets.all(Spacings.xs),
+   546→        child: Row(
+   547→          children: CalendarViewMode.values.map((mode) {
+   548→            final isSelected = _viewMode == mode;
+   549→            return Expanded(
+   550→              child: GestureDetector(
+   551→                onTap: () => setState(() => _viewMode = mode),
+   552→                child: AnimatedContainer(
+   553→                  duration: const Duration(milliseconds: 250),
+   554→                  curve: Curves.easeInOut,
+   555→                  padding: const EdgeInsets.symmetric(
+   556→                    vertical: Spacings.sm + 2,
+   557→                  ),
+   558→                  decoration: BoxDecoration(
+   559→                    color: isSelected ? cs.primary : Colors.transparent,
+   560→                    borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   561→                  ),
+   562→                  child: Row(
+   563→                    mainAxisAlignment: MainAxisAlignment.center,
+   564→                    children: [
+   565→                      Icon(
+   566→                        mode.icon,
+   567→                        size: Spacings.smIcon + 2,
+   568→                        color: isSelected
+   569→                            ? cs.onPrimary
+   570→                            : cs.onSurfaceVariant,
+   571→                      ),
+   572→                      const SizedBox(width: Spacings.xs),
+   573→                      Text(
+   574→                        mode.label,
+   575→                        style: context.textTheme.labelMedium?.copyWith(
+   576→                          color: isSelected
+   577→                              ? cs.onPrimary
+   578→                              : cs.onSurfaceVariant,
+   579→                          fontWeight: isSelected
+   580→                              ? AppTypography.wSemiBold
+   581→                              : AppTypography.wMedium,
+   582→                        ),
+   583→                      ),
+   584→                    ],
+   585→                  ),
+   586→                ),
+   587→              ),
+   588→            );
+   589→          }).toList(),
+   590→        ),
+   591→      ),
+   592→    );
+   593→  }
+   594→
+   595→  // ─── Navigation Bar ─────────────────────────────────────────────────
+   596→
+   597→  Widget _buildNavigationBar() {
+   598→    final cs = context.colorScheme;
+   599→    final tt = context.textTheme;
+   600→
+   601→    final title = switch (_viewMode) {
+   602→      CalendarViewMode.monthly => _formatMonthYear(_focusedDate),
+   603→      CalendarViewMode.weekly => _formatWeekRange(_focusedDate),
+   604→      CalendarViewMode.daily => _formatDateTime(_selectedDate).split(' ').take(3).join(' '),
+   605→    };
+   606→
+   607→    return Padding(
+   608→      padding: const EdgeInsets.symmetric(
+   609→        horizontal: Spacings.lg,
+   610→        vertical: Spacings.sm,
+   611→      ),
+   612→      child: Row(
+   613→        children: [
+   614→          AppIconButton(
+   615→            icon: Icons.chevron_left_rounded,
+   616→            onPressed: _goToPrevious,
+   617→            variant: AppIconButtonVariant.standard,
+   618→            size: AppButtonSize.small,
+   619→            tooltip: 'Previous',
+   620→          ),
+   621→          Expanded(
+   622→            child: Text(
+   623→              title,
+   624→              textAlign: TextAlign.center,
+   625→              style: tt.titleSmall?.copyWith(
+   626→                fontWeight: AppTypography.wSemiBold,
+   627→                color: cs.onSurface,
+   628→              ),
+   629→            ),
+   630→          ),
+   631→          AppIconButton(
+   632→            icon: Icons.chevron_right_rounded,
+   633→            onPressed: _goToNext,
+   634→            variant: AppIconButtonVariant.standard,
+   635→            size: AppButtonSize.small,
+   636→            tooltip: 'Next',
+   637→          ),
+   638→        ],
+   639→      ),
+   640→    );
+   641→  }
+   642→
+   643→  // ─── Calendar View Switch ───────────────────────────────────────────
+   644→
+   645→  Widget _buildCalendarView(CalendarPlannerState state) {
+   646→    return switch (_viewMode) {
+   647→      CalendarViewMode.monthly => _buildMonthlyView(state),
+   648→      CalendarViewMode.weekly => _buildWeeklyView(state),
+   649→      CalendarViewMode.daily => _buildDailyView(state),
+   650→    };
+   651→  }
+   652→
+   653→  // ═══════════════════════════════════════════════════════════════════════
+   654→  // MONTHLY VIEW
+   655→  // ═══════════════════════════════════════════════════════════════════════
+   656→
+   657→  Widget _buildMonthlyView(CalendarPlannerState state) {
+   658→    final cs = context.colorScheme;
+   659→    final tt = context.textTheme;
+   660→
+   661→    final firstDayOfMonth = DateTime(_focusedDate.year, _focusedDate.month, 1);
+   662→    final daysInMonth =
+   663→        DateTime(_focusedDate.year, _focusedDate.month + 1, 0).day;
+   664→    final startWeekday = firstDayOfMonth.weekday % 7; // Sun = 0
+   665→
+   666→    // Build a set of dates that have events
+   667→    final eventDates = <DateTime>{};
+   668→    for (final e in state.events) {
+   669→      eventDates.add(_normalizeDate(e.startTime));
+   670→    }
+   671→
+   672→    // Build grid cells
+   673→    final cells = <Widget>[];
+   674→
+   675→    // Day-of-week headers
+   676→    const dayLabels = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+   677→    for (final label in dayLabels) {
+   678→      cells.add(
+   679→        Center(
+   680→          child: Text(
+   681→            label,
+   682→            style: tt.labelSmall?.copyWith(
+   683→              color: cs.onSurfaceVariant,
+   684→              fontWeight: AppTypography.wSemiBold,
+   685→            ),
+   686→          ),
+   687→        ),
+   688→      );
+   689→    }
+   690→
+   691→    // Empty cells before the first day
+   692→    for (var i = 0; i < startWeekday; i++) {
+   693→      cells.add(const SizedBox.shrink());
+   694→    }
+   695→
+   696→    // Day cells
+   697→    final today = _normalizeDate(DateTime.now());
+   698→    for (var day = 1; day <= daysInMonth; day++) {
+   699→      final date = DateTime(_focusedDate.year, _focusedDate.month, day);
+   700→      final isToday = date == today;
+   701→      final isSelected = date == _selectedDate;
+   702→      final hasEvents = eventDates.contains(date);
+   703→      final dayEvents = state.events
+   704→          .where((e) => _normalizeDate(e.startTime) == date)
+   705→          .toList();
+   706→      final dotColors = dayEvents
+   707→          .take(3)
+   708→          .map((e) => _hexToColor(e.color))
+   709→          .toList();
+   710→
+   711→      cells.add(
+   712→        GestureDetector(
+   713→          onTap: () => _selectDate(date),
+   714→          child: Container(
+   715→            margin: const EdgeInsets.all(1),
+   716→            decoration: BoxDecoration(
+   717→              color: isSelected
+   718→                  ? cs.primary
+   719→                  : isToday
+   720→                      ? cs.primary.withValues(alpha: 0.08)
+   721→                      : Colors.transparent,
+   722→              borderRadius: BorderRadius.circular(Spacings.smRadius),
+   723→              border: isToday && !isSelected
+   724→                  ? Border.all(color: cs.primary, width: 1.5)
+   725→                  : null,
+   726→            ),
+   727→            child: Column(
+   728→              mainAxisAlignment: MainAxisAlignment.center,
+   729→              children: [
+   730→                Text(
+   731→                  '$day',
+   732→                  style: tt.bodySmall?.copyWith(
+   733→                    color: isSelected
+   734→                        ? cs.onPrimary
+   735→                        : isToday
+   736→                            ? cs.primary
+   737→                            : cs.onSurface,
+   738→                    fontWeight: isToday || isSelected
+   739→                        ? AppTypography.wBold
+   740→                        : AppTypography.wRegular,
+   741→                  ),
+   742→                ),
+   743→                if (hasEvents)
+   744→                  Padding(
+   745→                    padding: const EdgeInsets.only(top: 2),
+   746→                    child: Row(
+   747→                      mainAxisAlignment: MainAxisAlignment.center,
+   748→                      mainAxisSize: MainAxisSize.min,
+   749→                      children: List.generate(
+   750→                        dotColors.length.clamp(0, 3),
+   751→                        (i) => Container(
+   752→                          width: 4,
+   753→                          height: 4,
+   754→                          margin: const EdgeInsets.symmetric(horizontal: 0.5),
+   755→                          decoration: BoxDecoration(
+   756→                            color: isSelected
+   757→                                ? cs.onPrimary
+   758→                                : dotColors[i],
+   759→                            shape: BoxShape.circle,
+   760→                          ),
+   761→                        ),
+   762→                      ),
+   763→                    ),
+   764→                  ),
+   765→              ],
+   766→            ),
+   767→          ),
+   768→        ),
+   769→      );
+   770→    }
+   771→
+   772→    // Pad remaining cells to fill the grid
+   773→    final totalCells = 7 + startWeekday + daysInMonth;
+   774→    final remainder = totalCells % 7;
+   775→    if (remainder > 0) {
+   776→      for (var i = 0; i < 7 - remainder; i++) {
+   777→        cells.add(const SizedBox.shrink());
+   778→      }
+   779→    }
+   780→
+   781→    return Padding(
+   782→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   783→      child: GridView.count(
+   784→        crossAxisCount: 7,
+   785→        childAspectRatio: 1.0,
+   786→        shrinkWrap: true,
+   787→        physics: const NeverScrollableScrollPhysics(),
+   788→        children: cells,
+   789→      ),
+   790→    );
+   791→  }
+   792→
+   793→  // ═══════════════════════════════════════════════════════════════════════
+   794→  // WEEKLY VIEW
+   795→  // ═══════════════════════════════════════════════════════════════════════
+   796→
+   797→  Widget _buildWeeklyView(CalendarPlannerState state) {
+   798→    final cs = context.colorScheme;
+   799→    final tt = context.textTheme;
+   800→
+   801→    // Calculate the week's Monday
+   802→    final weekday = _focusedDate.weekday;
+   803→    final monday = _focusedDate.subtract(Duration(days: weekday - 1));
+   804→    final today = _normalizeDate(DateTime.now());
+   805→
+   806→    final weekDays = List.generate(
+   807→      7,
+   808→      (i) => _normalizeDate(monday.add(Duration(days: i))),
+   809→    );
+   810→
+   811→    // Hourly slots 7am - 9pm
+   812→    const startHour = 7;
+   813→    const endHour = 21;
+   814→
+   815→    return Column(
+   816→      children: [
+   817→        // Day headers
+   818→        Padding(
+   819→          padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   820→          child: Row(
+   821→            children: [
+   822→              // Time gutter header
+   823→              const SizedBox(width: 48),
+   824→              ...weekDays.map((date) {
+   825→                final isToday = date == today;
+   826→                final isSelected = date == _selectedDate;
+   827→                final dayName = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'][
+   828→                    date.weekday - 1];
+   829→                return Expanded(
+   830→                  child: GestureDetector(
+   831→                    onTap: () => _selectDate(date),
+   832→                    child: Column(
+   833→                      children: [
+   834→                        Text(
+   835→                          dayName,
+   836→                          style: tt.labelSmall?.copyWith(
+   837→                            color: cs.onSurfaceVariant,
+   838→                          ),
+   839→                        ),
+   840→                        const SizedBox(height: 2),
+   841→                        Container(
+   842→                          width: 32,
+   843→                          height: 32,
+   844→                          decoration: BoxDecoration(
+   845→                            color: isSelected
+   846→                                ? cs.primary
+   847→                                : isToday
+   848→                                    ? cs.primary.withValues(alpha: 0.12)
+   849→                                    : Colors.transparent,
+   850→                            shape: BoxShape.circle,
+   851→                          ),
+   852→                          child: Center(
+   853→                            child: Text(
+   854→                              '${date.day}',
+   855→                              style: tt.bodySmall?.copyWith(
+   856→                                color: isSelected
+   857→                                    ? cs.onPrimary
+   858→                                    : isToday
+   859→                                        ? cs.primary
+   860→                                        : cs.onSurface,
+   861→                                fontWeight:
+   862→                                    isToday || isSelected
+   863→                                        ? AppTypography.wBold
+   864→                                        : AppTypography.wRegular,
+   865→                              ),
+   866→                            ),
+   867→                          ),
+   868→                        ),
+   869→                      ],
+   870→                    ),
+   871→                  ),
+   872→                );
+   873→              }),
+   874→            ],
+   875→          ),
+   876→        ),
+   877→        const SizedBox(height: Spacings.sm),
+   878→
+   879→        // Time grid
+   880→        Expanded(
+   881→          child: SingleChildScrollView(
+   882→            padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   883→            child: Row(
+   884→              crossAxisAlignment: CrossAxisAlignment.start,
+   885→              children: [
+   886→                // Time gutter
+   887→                SizedBox(
+   888→                  width: 48,
+   889→                  child: Column(
+   890→                    children: List.generate(
+   891→                      endHour - startHour,
+   892→                      (i) {
+   893→                        final hour = startHour + i;
+   894→                        return SizedBox(
+   895→                          height: 48,
+   896→                          child: Align(
+   897→                            alignment: Alignment.topCenter,
+   898→                            child: Padding(
+   899→                              padding: const EdgeInsets.only(top: 2),
+   900→                              child: Text(
+   901→                                '${hour.toString().padLeft(2, '0')}:00',
+   902→                                style: tt.labelSmall?.copyWith(
+   903→                                  color: cs.onSurfaceVariant,
+   904→                                ),
+   905→                              ),
+   906→                            ),
+   907→                          ),
+   908→                        );
+   909→                      },
+   910→                    ),
+   911→                  ),
+   912→                ),
+   913→
+   914→                // Day columns
+   915→                ...weekDays.map((date) {
+   916→                  final dayEvents = state.events
+   917→                      .where((e) => _normalizeDate(e.startTime) == date)
+   918→                      .toList();
+   919→
+   920→                  return Expanded(
+   921→                    child: Column(
+   922→                      children: List.generate(
+   923→                        endHour - startHour,
+   924→                        (i) {
+   925→                          final hour = startHour + i;
+   926→                          final slotEvents = dayEvents
+   927→                              .where((e) => e.startTime.hour == hour)
+   928→                              .toList();
+   929→
+   930→                          return GestureDetector(
+   931→                            onTap: () {
+   932→                              _selectDate(date);
+   933→                              setState(() {
+   934→                                _startTime = TimeOfDay(hour: hour, minute: 0);
+   935→                                _endTime = TimeOfDay(
+   936→                                  hour: hour + 1,
+   937→                                  minute: 0,
+   938→                                );
+   939→                              });
+   940→                            },
+   941→                            child: Container(
+   942→                              height: 48,
+   943→                              decoration: BoxDecoration(
+   944→                                border: Border(
+   945→                                  bottom: BorderSide(
+   946→                                    color: cs.outlineVariant
+   947→                                        .withValues(alpha: 0.3),
+   948→                                    width: 0.5,
+   949→                                  ),
+   950→                                  right: BorderSide(
+   951→                                    color: cs.outlineVariant
+   952→                                        .withValues(alpha: 0.3),
+   953→                                    width: 0.5,
+   954→                                  ),
+   955→                                ),
+   956→                              ),
+   957→                              child: Stack(
+   958→                                children: slotEvents.map((event) {
+   959→                                  final eventColor = _hexToColor(event.color);
+   960→                                  return Positioned(
+   961→                                    top: 1,
+   962→                                    left: 1,
+   963→                                    right: 1,
+   964→                                    child: Container(
+   965→                                      padding: const EdgeInsets.symmetric(
+   966→                                        horizontal: 3,
+   967→                                        vertical: 1,
+   968→                                      ),
+   969→                                      decoration: BoxDecoration(
+   970→                                        color: eventColor.withValues(
+   971→                                          alpha: context.isDarkMode ? 0.30 : 0.15,
+   972→                                        ),
+   973→                                        borderRadius: BorderRadius.circular(
+   974→                                          Spacings.xs,
+   975→                                        ),
+   976→                                        border: Border.all(
+   977→                                          color: eventColor.withValues(
+   978→                                            alpha: 0.5,
+   979→                                          ),
+   980→                                          width: 0.5,
+   981→                                        ),
+   982→                                      ),
+   983→                                      child: Text(
+   984→                                        event.title,
+   985→                                        maxLines: 1,
+   986→                                        overflow: TextOverflow.ellipsis,
+   987→                                        style: tt.labelSmall?.copyWith(
+   988→                                          color: eventColor,
+   989→                                          fontWeight: AppTypography.wSemiBold,
+   990→                                          fontSize: 9,
+   991→                                        ),
+   992→                                      ),
+   993→                                    ),
+   994→                                  );
+   995→                                }).toList(),
+   996→                              ),
+   997→                            ),
+   998→                          );
+   999→                        },
+  1000→                      ),
+  1001→                    ),
+  1002→                  );
+  1003→                }),
+  1004→              ],
+  1005→            ),
+  1006→          ),
+  1007→        ),
+  1008→      ],
+  1009→    );
+  1010→  }
+  1011→
+  1012→  // ═══════════════════════════════════════════════════════════════════════
+  1013→  // DAILY VIEW
+  1014→  // ═══════════════════════════════════════════════════════════════════════
+  1015→
+  1016→  Widget _buildDailyView(CalendarPlannerState state) {
+  1017→    final cs = context.colorScheme;
+  1018→    final tt = context.textTheme;
+  1019→
+  1020→    const startHour = 6;
+  1021→    const endHour = 22;
+  1022→
+  1023→    final dayEvents = state.events
+  1024→        .where((e) => _normalizeDate(e.startTime) == _selectedDate)
+  1025→        .toList()
+  1026→      ..sort((a, b) => a.startTime.compareTo(b.startTime));
+  1027→
+  1028→    // All-day events
+  1029→    final allDayEvents = dayEvents.where((e) => e.isAllDay).toList();
+  1030→    final timedEvents = dayEvents.where((e) => !e.isAllDay).toList();
+  1031→
+  1032→    return SingleChildScrollView(
+  1033→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+  1034→      child: Column(
+  1035→        crossAxisAlignment: CrossAxisAlignment.start,
+  1036→        children: [
+  1037→          // All-day section
+  1038→          if (allDayEvents.isNotEmpty) ...[
+  1039→            Text(
+  1040→              'All Day',
+  1041→              style: tt.labelMedium?.copyWith(
+  1042→                color: cs.onSurfaceVariant,
+  1043→                fontWeight: AppTypography.wSemiBold,
+  1044→              ),
+  1045→            ),
+  1046→            const SizedBox(height: Spacings.sm),
+  1047→            ...allDayEvents.map((e) => _buildDailyEventBlock(e)),
+  1048→            const SizedBox(height: Spacings.md),
+  1049→          ],
+  1050→
+  1051→          // Hourly timeline
+  1052→          ...List.generate(endHour - startHour, (i) {
+  1053→            final hour = startHour + i;
+  1054→            final hourEvents = timedEvents
+  1055→                .where((e) => e.startTime.hour == hour)
+  1056→                .toList();
+  1057→
+  1058→            return IntrinsicHeight(
+  1059→              child: Row(
+  1060→                crossAxisAlignment: CrossAxisAlignment.start,
+  1061→                children: [
+  1062→                  // Time label
+  1063→                  SizedBox(
+  1064→                    width: 52,
+  1065→                    child: Padding(
+  1066→                      padding: const EdgeInsets.only(top: 2),
+  1067→                      child: Text(
+  1068→                        '${hour.toString().padLeft(2, '0')}:00',
+  1069→                        style: tt.labelSmall?.copyWith(
+  1070→                          color: cs.onSurfaceVariant,
+  1071→                        ),
+  1072→                      ),
+  1073→                    ),
+  1074→                  ),
+  1075→
+  1076→                  // Timeline indicator
+  1077→                  Column(
+  1078→                    children: [
+  1079→                      Container(
+  1080→                        width: 10,
+  1081→                        height: 10,
+  1082→                        decoration: BoxDecoration(
+  1083→                          color: hourEvents.isNotEmpty
+  1084→                              ? cs.primary
+  1085→                              : cs.outlineVariant.withValues(alpha: 0.5),
+  1086→                          shape: BoxShape.circle,
+  1087→                        ),
+  1088→                      ),
+  1089→                      Expanded(
+  1090→                        child: VerticalDivider(
+  1091→                          width: 1,
+  1092→                          thickness: 1,
+  1093→                          color: cs.outlineVariant.withValues(alpha: 0.3),
+  1094→                        ),
+  1095→                      ),
+  1096→                    ],
+  1097→                  ),
+  1098→
+  1099→                  const SizedBox(width: Spacings.sm),
+  1100→
+  1101→                  // Events for this hour
+  1102→                  Expanded(
+  1103→                    child: hourEvents.isEmpty
+  1104→                        ? SizedBox(
+  1105→                            height: 48,
+  1106→                            child: GestureDetector(
+  1107→                              behavior: HitTestBehavior.opaque,
+  1108→                              onTap: () {
+  1109→                                setState(() {
+  1110→                                  _startTime = TimeOfDay(
+  1111→                                    hour: hour,
+  1112→                                    minute: 0,
+  1113→                                  );
+  1114→                                  _endTime = TimeOfDay(
+  1115→                                    hour: hour + 1,
+  1116→                                    minute: 0,
+  1117→                                  );
+  1118→                                });
+  1119→                                _openAddEventSheet();
+  1120→                              },
+  1121→                            ),
+  1122→                          )
+  1123→                        : Column(
+  1124→                            children: hourEvents
+  1125→                                .map((e) => _buildDailyEventBlock(e))
+  1126→                                .toList(),
+  1127→                          ),
+  1128→                  ),
+  1129→                ],
+  1130→              ),
+  1131→            );
+  1132→          }),
+  1133→
+  1134→          const SizedBox(height: Spacings.xl),
+  1135→        ],
+  1136→      ),
+  1137→    );
+  1138→  }
+  1139→
+  1140→  Widget _buildDailyEventBlock(CalendarEventEntity event) {
+  1141→    final cs = context.colorScheme;
+  1142→    final tt = context.textTheme;
+  1143→    final eventColor = _hexToColor(event.color);
+  1144→    final isDark = context.isDarkMode;
+  1145→
+  1146→    return GestureDetector(
+  1147→      onTap: () => _openEditEventSheet(event),
+  1148→      child: Container(
+  1149→        margin: const EdgeInsets.only(bottom: Spacings.sm),
+  1150→        padding: const EdgeInsets.all(Spacings.sm),
+  1151→        decoration: BoxDecoration(
+  1152→          color: eventColor.withValues(alpha: isDark ? 0.18 : 0.08),
+  1153→          borderRadius: BorderRadius.circular(Spacings.smRadius),
+  1154→          border: Border.all(
+  1155→            color: eventColor.withValues(alpha: 0.3),
+  1156→          ),
+  1157→        ),
+  1158→        child: Row(
+  1159→          children: [
+  1160→            Container(
+  1161→              width: 3,
+  1162→              height: 28,
+  1163→              decoration: BoxDecoration(
+  1164→                color: eventColor,
+  1165→                borderRadius: BorderRadius.circular(2),
+  1166→              ),
+  1167→            ),
+  1168→            const SizedBox(width: Spacings.sm),
+  1169→            Expanded(
+  1170→              child: Column(
+  1171→                crossAxisAlignment: CrossAxisAlignment.start,
+  1172→                children: [
+  1173→                  Text(
+  1174→                    event.title,
+  1175→                    maxLines: 1,
+  1176→                    overflow: TextOverflow.ellipsis,
+  1177→                    style: tt.bodySmall?.copyWith(
+  1178→                      color: cs.onSurface,
+  1179→                      fontWeight: AppTypography.wSemiBold,
+  1180→                    ),
+  1181→                  ),
+  1182→                  if (!event.isAllDay)
+  1183→                    Text(
+  1184→                      '${_formatTime(TimeOfDay.fromDateTime(event.startTime))} – '
+  1185→                      '${_formatTime(TimeOfDay.fromDateTime(event.endTime))}',
+  1186→                      style: tt.labelSmall?.copyWith(
+  1187→                        color: cs.onSurfaceVariant,
+  1188→                      ),
+  1189→                    ),
+  1190→                ],
+  1191→              ),
+  1192→            ),
+  1193→          ],
+  1194→        ),
+  1195→      ),
+  1196→    );
+  1197→  }
+  1198→
+  1199→  // ═══════════════════════════════════════════════════════════════════════
+  1200→  // SELECTED DATE EVENTS LIST
+  1201→  // ═══════════════════════════════════════════════════════════════════════
+  1202→
+  1203→  Widget _buildSelectedDateEvents(CalendarPlannerState state) {
+  1204→    final cs = context.colorScheme;
+  1205→    final tt = context.textTheme;
+  1206→    final events = state.eventsForSelectedDate;
+  1207→
+  1208→    return Column(
+  1209→      children: [
+  1210→        // Header
+  1211→        Padding(
+  1212→          padding: const EdgeInsets.fromLTRB(
+  1213→            Spacings.lg,
+  1214→            Spacings.md,
+  1215→            Spacings.lg,
+  1216→            Spacings.sm,
+  1217→          ),
+  1218→          child: Row(
+  1219→            children: [
+  1220→              Text(
+  1221→                '${events.length} Event${events.length != 1 ? 's' : ''}',
+  1222→                style: tt.titleSmall?.copyWith(
+  1223→                  fontWeight: AppTypography.wSemiBold,
+  1224→                  color: cs.onSurface,
+  1225→                ),
+  1226→              ),
+  1227→              const Spacer(),
+  1228→              Text(
+  1229→                _formatMonthYear(_selectedDate).split(' ').first +
+  1230→                    ' ${_selectedDate.day}',
+  1231→                style: tt.bodySmall?.copyWith(
+  1232→                  color: cs.onSurfaceVariant,
+  1233→                ),
+  1234→              ),
+  1235→            ],
+  1236→          ),
+  1237→        ),
+  1238→
+  1239→        // Events list
+  1240→        Expanded(
+  1241→          child: events.isEmpty
+  1242→              ? AppEmptyState(
+  1243→                  icon: Icons.event_available_rounded,
+  1244→                  title: 'No Events',
+  1245→                  subtitle: 'No events scheduled for this day. Tap + to add one.',
+  1246→                )
+  1247→              : ListView.separated(
+  1248→                  padding: const EdgeInsets.fromLTRB(
+  1249→                    Spacings.lg,
+  1250→                    0,
+  1251→                    Spacings.lg,
+  1252→                    Spacings.xxl,
+  1253→                  ),
+  1254→                  itemCount: events.length,
+  1255→                  separatorBuilder: (_, __) =>
+  1256→                      const SizedBox(height: Spacings.sm),
+  1257→                  itemBuilder: (context, index) =>
+  1258→                      _buildEventCard(events[index]),
+  1259→                ),
+  1260→        ),
+  1261→      ],
+  1262→    );
+  1263→  }
+  1264→
+  1265→  Widget _buildEventCard(CalendarEventEntity event) {
+  1266→    final cs = context.colorScheme;
+  1267→    final tt = context.textTheme;
+  1268→    final isDark = context.isDarkMode;
+  1269→    final eventColor = _hexToColor(event.color);
+  1270→
+  1271→    return AppCard(
+  1272→      padding: const EdgeInsets.all(Spacings.md),
+  1273→      child: Row(
+  1274→        children: [
+  1275→          // Color indicator
+  1276→          Container(
+  1277→            width: 4,
+  1278→            height: 44,
+  1279→            decoration: BoxDecoration(
+  1280→              color: eventColor,
+  1281→              borderRadius: BorderRadius.circular(2),
+  1282→            ),
+  1283→          ),
+  1284→          const SizedBox(width: Spacings.md),
+  1285→
+  1286→          // Content
+  1287→          Expanded(
+  1288→            child: Column(
+  1289→              crossAxisAlignment: CrossAxisAlignment.start,
+  1290→              children: [
+  1291→                // Title + event type badge
+  1292→                Row(
+  1293→                  children: [
+  1294→                    Expanded(
+  1295→                      child: Text(
+  1296→                        event.title,
+  1297→                        maxLines: 1,
+  1298→                        overflow: TextOverflow.ellipsis,
+  1299→                        style: tt.titleSmall?.copyWith(
+  1300→                          fontWeight: AppTypography.wSemiBold,
+  1301→                          color: cs.onSurface,
+  1302→                        ),
+  1303→                      ),
+  1304→                    ),
+  1305→                    const SizedBox(width: Spacings.sm),
+  1306→                    _buildEventTypeBadge(event.eventType),
+  1307→                  ],
+  1308→                ),
+  1309→                const SizedBox(height: Spacings.xs),
+  1310→
+  1311→                // Time range
+  1312→                Row(
+  1313→                  children: [
+  1314→                    Icon(
+  1315→                      Icons.schedule_rounded,
+  1316→                      size: 12,
+  1317→                      color: cs.onSurfaceVariant,
+  1318→                    ),
+  1319→                    const SizedBox(width: Spacings.xs),
+  1320→                    Text(
+  1321→                      event.isAllDay
+  1322→                          ? 'All Day'
+  1323→                          : '${_formatTime(TimeOfDay.fromDateTime(event.startTime))} – '
+  1324→                              '${_formatTime(TimeOfDay.fromDateTime(event.endTime))}',
+  1325→                      style: tt.bodySmall?.copyWith(
+  1326→                        color: cs.onSurfaceVariant,
+  1327→                      ),
+  1328→                    ),
+  1329→                    if (event.location != null &&
+  1330→                        event.location!.isNotEmpty) ...[
+  1331→                      const SizedBox(width: Spacings.md),
+  1332→                      Icon(
+  1333→                        Icons.location_on_outlined,
+  1334→                        size: 12,
+  1335→                        color: cs.onSurfaceVariant,
+  1336→                      ),
+  1337→                      const SizedBox(width: Spacings.xs),
+  1338→                      Flexible(
+  1339→                        child: Text(
+  1340→                          event.location!,
+  1341→                          maxLines: 1,
+  1342→                          overflow: TextOverflow.ellipsis,
+  1343→                          style: tt.bodySmall?.copyWith(
+  1344→                            color: cs.onSurfaceVariant,
+  1345→                          ),
+  1346→                        ),
+  1347→                      ),
+  1348→                    ],
+  1349→                  ],
+  1350→                ),
+  1351→
+  1352→                // Subject
+  1353→                if (event.subject != null && event.subject!.isNotEmpty) ...[
+  1354→                  const SizedBox(height: Spacings.xs),
+  1355→                  Text(
+  1356→                    event.subject!,
+  1357→                    maxLines: 1,
+  1358→                    overflow: TextOverflow.ellipsis,
+  1359→                    style: tt.bodySmall?.copyWith(
+  1360→                      color: cs.onSurfaceVariant,
+  1361→                      fontStyle: FontStyle.italic,
+  1362→                    ),
+  1363→                  ),
+  1364→                ],
+  1365→              ],
+  1366→            ),
+  1367→          ),
+  1368→
+  1369→          // Action buttons
+  1370→          Column(
+  1371→            mainAxisSize: MainAxisSize.min,
+  1372→            children: [
+  1373→              AppIconButton(
+  1374→                icon: Icons.edit_outlined,
+  1375→                onPressed: () => _openEditEventSheet(event),
+  1376→                variant: AppIconButtonVariant.standard,
+  1377→                size: AppButtonSize.small,
+  1378→                tooltip: 'Edit',
+  1379→              ),
+  1380→              AppIconButton(
+  1381→                icon: Icons.delete_outline_rounded,
+  1382→                onPressed: () => _handleDeleteEvent(event.id),
+  1383→                variant: AppIconButtonVariant.standard,
+  1384→                size: AppButtonSize.small,
+  1385→                tooltip: 'Delete',
+  1386→              ),
+  1387→            ],
+  1388→          ),
+  1389→        ],
+  1390→      ),
+  1391→    );
+  1392→  }
+  1393→
+  1394→  Widget _buildEventTypeBadge(EventType type) {
+  1395→    final cs = context.colorScheme;
+  1396→    final isDark = context.isDarkMode;
+  1397→    final color = _colorForEventType(type);
+  1398→
+  1399→    return Container(
+  1400→      padding: const EdgeInsets.symmetric(
+  1401→        horizontal: Spacings.sm,
+  1402→        vertical: 1,
+  1403→      ),
+  1404→      decoration: BoxDecoration(
+  1405→        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+  1406→        borderRadius: BorderRadius.circular(Spacings.fullRadius),
+  1407→      ),
+  1408→      child: Row(
+  1409→        mainAxisSize: MainAxisSize.min,
+  1410→        children: [
+  1411→          Icon(_iconForEventType(type), size: 10, color: color),
+  1412→          const SizedBox(width: 2),
+  1413→          Text(
+  1414→            type.label,
+  1415→            style: context.textTheme.labelSmall?.copyWith(
+  1416→              color: color,
+  1417→              fontWeight: AppTypography.wSemiBold,
+  1418→              fontSize: 9,
+  1419→            ),
+  1420→          ),
+  1421→        ],
+  1422→      ),
+  1423→    );
+  1424→  }
+  1425→
+  1426→  // ═══════════════════════════════════════════════════════════════════════
+  1427→  // ADD / EDIT EVENT BOTTOM SHEET
+  1428→  // ═══════════════════════════════════════════════════════════════════════
+  1429→
+  1430→  void _showEventBottomSheet() {
+  1431→    showModalBottomSheet(
+  1432→      context: context,
+  1433→      isScrollControlled: true,
+  1434→      shape: const RoundedRectangleBorder(
+  1435→        borderRadius: BorderRadius.vertical(
+  1436→          top: Radius.circular(Spacings.lgRadius),
+  1437→        ),
+  1438→      ),
+  1439→      builder: (ctx) => StatefulBuilder(
+  1440→        builder: (ctx, setModalState) {
+  1441→          return Padding(
+  1442→            padding: EdgeInsets.only(
+  1443→              left: Spacings.lg,
+  1444→              right: Spacings.lg,
+  1445→              top: Spacings.lg,
+  1446→              bottom: MediaQuery.of(ctx).viewInsets.bottom + Spacings.lg,
+  1447→            ),
+  1448→            child: SingleChildScrollView(
+  1449→              child: Column(
+  1450→                mainAxisSize: MainAxisSize.min,
+  1451→                crossAxisAlignment: CrossAxisAlignment.start,
+  1452→                children: [
+  1453→                  // Handle bar
+  1454→                  Center(
+  1455→                    child: Container(
+  1456→                      width: 40,
+  1457→                      height: 4,
+  1458→                      margin: const EdgeInsets.only(bottom: Spacings.lg),
+  1459→                      decoration: BoxDecoration(
+  1460→                        color: ctx.colorScheme.onSurfaceVariant
+  1461→                            .withValues(alpha: 0.3),
+  1462→                        borderRadius: BorderRadius.circular(2),
+  1463→                      ),
+  1464→                    ),
+  1465→                  ),
+  1466→
+  1467→                  // Title
+  1468→                  Text(
+  1469→                    _editingEvent != null ? 'Edit Event' : 'New Event',
+  1470→                    style: ctx.textTheme.titleLarge?.copyWith(
+  1471→                      fontWeight: AppTypography.wSemiBold,
+  1472→                      color: ctx.colorScheme.onSurface,
+  1473→                    ),
+  1474→                  ),
+  1475→                  const SizedBox(height: Spacings.xl),
+  1476→
+  1477→                  // Title field
+  1478→                  AppTextField(
+  1479→                    label: 'Title',
+  1480→                    hint: 'Enter event title',
+  1481→                    controller: _titleCtrl,
+  1482→                    isRequired: true,
+  1483→                    prefixIcon: Icons.title_rounded,
+  1484→                  ),
+  1485→                  const SizedBox(height: Spacings.md),
+  1486→
+  1487→                  // Event type dropdown
+  1488→                  AppDropdownField<EventType>(
+  1489→                    label: 'Event Type',
+  1490→                    items: EventType.values,
+  1491→                    selectedItem: _eventType,
+  1492→                    onChanged: (v) {
+  1493→                      if (v != null) {
+  1494→                        setModalState(() => _eventType = v);
+  1495→                      }
+  1496→                    },
+  1497→                    itemLabel: (t) => t.label,
+  1498→                    prefixIcon: _iconForEventType(_eventType),
+  1499→                    isRequired: true,
+  1500→                  ),
+  1501→                  const SizedBox(height: Spacings.md),
+  1502→
+  1503→                  // Subject field
+  1504→                  AppTextField(
+  1505→                    label: 'Subject',
+  1506→                    hint: 'e.g. Mathematics',
+  1507→                    controller: _subjectCtrl,
+  1508→                    prefixIcon: Icons.book_outlined,
+  1509→                  ),
+  1510→                  const SizedBox(height: Spacings.md),
+  1511→
+  1512→                  // Location field
+  1513→                  AppTextField(
+  1514→                    label: 'Location',
+  1515→                    hint: 'e.g. Room 204',
+  1516→                    controller: _locationCtrl,
+  1517→                    prefixIcon: Icons.location_on_outlined,
+  1518→                  ),
+  1519→                  const SizedBox(height: Spacings.md),
+  1520→
+  1521→                  // All day toggle
+  1522→                  Row(
+  1523→                    children: [
+  1524→                      Icon(
+  1525→                        Icons.access_time_rounded,
+  1526→                        size: Spacings.mdIcon,
+  1527→                        color: ctx.colorScheme.onSurfaceVariant,
+  1528→                      ),
+  1529→                      const SizedBox(width: Spacings.md),
+  1530→                      Expanded(
+  1531→                        child: Text(
+  1532→                          'All Day',
+  1533→                          style: ctx.textTheme.bodyLarge?.copyWith(
+  1534→                            color: ctx.colorScheme.onSurface,
+  1535→                          ),
+  1536→                        ),
+  1537→                      ),
+  1538→                      Switch.adaptive(
+  1539→                        value: _isAllDay,
+  1540→                        onChanged: (v) {
+  1541→                          setModalState(() => _isAllDay = v);
+  1542→                        },
+  1543→                      ),
+  1544→                    ],
+  1545→                  ),
+  1546→                  const SizedBox(height: Spacings.md),
+  1547→
+  1548→                  // Start / End time pickers
+  1549→                  if (!_isAllDay)
+  1550→                    Row(
+  1551→                      children: [
+  1552→                        Expanded(
+  1553→                          child: _buildTimePickerField(
+  1554→                            context: ctx,
+  1555→                            label: 'Start Time',
+  1556→                            time: _startTime,
+  1557→                            onPicked: (t) {
+  1558→                              setModalState(() => _startTime = t);
+  1559→                            },
+  1560→                          ),
+  1561→                        ),
+  1562→                        const SizedBox(width: Spacings.md),
+  1563→                        Expanded(
+  1564→                          child: _buildTimePickerField(
+  1565→                            context: ctx,
+  1566→                            label: 'End Time',
+  1567→                            time: _endTime,
+  1568→                            onPicked: (t) {
+  1569→                              setModalState(() => _endTime = t);
+  1570→                            },
+  1571→                          ),
+  1572→                        ),
+  1573→                      ],
+  1574→                    ),
+  1575→                  if (!_isAllDay) const SizedBox(height: Spacings.md),
+  1576→
+  1577→                  // Color picker
+  1578→                  Text(
+  1579→                    'Color',
+  1580→                    style: ctx.textTheme.bodyMedium?.copyWith(
+  1581→                      color: ctx.colorScheme.onSurfaceVariant,
+  1582→                    ),
+  1583→                  ),
+  1584→                  const SizedBox(height: Spacings.sm),
+  1585→                  Row(
+  1586→                    children: _kPresetColors.map((color) {
+  1587→                      final isSelected = _selectedColor == color;
+  1588→                      return GestureDetector(
+  1589→                        onTap: () {
+  1590→                          setModalState(() => _selectedColor = color);
+  1591→                        },
+  1592→                        child: Container(
+  1593→                          width: 36,
+  1594→                          height: 36,
+  1595→                          margin: const EdgeInsets.only(right: Spacings.sm),
+  1596→                          decoration: BoxDecoration(
+  1597→                            color: color,
+  1598→                            shape: BoxShape.circle,
+  1599→                            border: isSelected
+  1600→                                ? Border.all(
+  1601→                                    color: ctx.colorScheme.onSurface,
+  1602→                                    width: 2.5,
+  1603→                                  )
+  1604→                                : null,
+  1605→                            boxShadow: isSelected
+  1606→                                ? [
+  1607→                                    BoxShadow(
+  1608→                                      color: color.withValues(alpha: 0.4),
+  1609→                                      blurRadius: 6,
+  1610→                                      offset: const Offset(0, 2),
+  1611→                                    ),
+  1612→                                  ]
+  1613→                                : null,
+  1614→                          ),
+  1615→                          child: isSelected
+  1616→                              ? Icon(
+  1617→                                  Icons.check_rounded,
+  1618→                                  color: Colors.white,
+  1619→                                  size: 18,
+  1620→                                )
+  1621→                              : null,
+  1622→                        ),
+  1623→                      );
+  1624→                    }).toList(),
+  1625→                  ),
+  1626→                  const SizedBox(height: Spacings.md),
+  1627→
+  1628→                  // Reminder dropdown
+  1629→                  AppDropdownField<ReminderOption>(
+  1630→                    label: 'Reminder',
+  1631→                    items: ReminderOption.values,
+  1632→                    selectedItem: _reminder,
+  1633→                    onChanged: (v) {
+  1634→                      if (v != null) {
+  1635→                        setModalState(() => _reminder = v);
+  1636→                      }
+  1637→                    },
+  1638→                    itemLabel: (r) => r.label,
+  1639→                    prefixIcon: Icons.notifications_outlined,
+  1640→                  ),
+  1641→                  const SizedBox(height: Spacings.xl),
+  1642→
+  1643→                  // Save button
+  1644→                  SizedBox(
+  1645→                    width: double.infinity,
+  1646→                    child: AppButton(
+  1647→                      label: _editingEvent != null ? 'Update Event' : 'Save Event',
+  1648→                      onPressed: _handleSaveEvent,
+  1649→                      variant: AppButtonVariant.elevated,
+  1650→                      icon: Icons.check_rounded,
+  1651→                      fullWidth: true,
+  1652→                    ),
+  1653→                  ),
+  1654→                  const SizedBox(height: Spacings.sm),
+  1655→                ],
+  1656→              ),
+  1657→            ),
+  1658→          );
+  1659→        },
+  1660→      ),
+  1661→    );
+  1662→  }
+  1663→
+  1664→  Widget _buildTimePickerField({
+  1665→    required BuildContext context,
+  1666→    required String label,
+  1667→    required TimeOfDay time,
+  1668→    required ValueChanged<TimeOfDay> onPicked,
+  1669→  }) {
+  1670→    final cs = context.colorScheme;
+  1671→    final tt = context.textTheme;
+  1672→
+  1673→    return GestureDetector(
+  1674→      onTap: () async {
+  1675→        final picked = await showTimePicker(
+  1676→          context: context,
+  1677→          initialTime: time,
+  1678→          builder: (ctx, child) {
+  1679→            return Theme(
+  1680→              data: Theme.of(ctx).copyWith(
+  1681→                dialogTheme: DialogTheme(
+  1682→                  shape: RoundedRectangleBorder(
+  1683→                    borderRadius: BorderRadius.circular(Spacings.lgRadius),
+  1684→                  ),
+  1685→                ),
+  1686→              ),
+  1687→              child: child!,
+  1688→            );
+  1689→          },
+  1690→        );
+  1691→        if (picked != null) {
+  1692→          onPicked(picked);
+  1693→        }
+  1694→      },
+  1695→      child: InputDecorator(
+  1696→        decoration: InputDecoration(
+  1697→          labelText: label,
+  1698→          prefixIcon: Icon(Icons.schedule_rounded, size: Spacings.mdIcon),
+  1699→        ),
+  1700→        child: Text(
+  1701→          _formatTime(time),
+  1702→          style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+  1703→        ),
+  1704→      ),
+  1705→    );
+  1706→  }
+  1707→
+  1708→  // ═══════════════════════════════════════════════════════════════════════
+  1709→  // AI SUGGESTIONS DIALOG
+  1710→  // ═══════════════════════════════════════════════════════════════════════
+  1711→
+  1712→  // The AI suggestion button is in the app bar; the provider call is made
+  1713→  // in _openAiSuggestions(). We show suggestions as a dialog when they
+  1714→  // arrive. The listener in the build method will pick up changes.
+  1715→
+  1716→  // ═══════════════════════════════════════════════════════════════════════
+  1717→  // LOADING / ERROR STATES
+  1718→  // ═══════════════════════════════════════════════════════════════════════
+  1719→
+  1720→  Widget _buildLoadingState() {
+  1721→    return Center(
+  1722→      child: Column(
+  1723→        mainAxisSize: MainAxisSize.min,
+  1724→        children: [
+  1725→          const AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+  1726→          const SizedBox(height: Spacings.lg),
+  1727→          Text(
+  1728→            'Loading calendar…',
+  1729→            style: context.textTheme.bodyMedium?.copyWith(
+  1730→              color: context.colorScheme.onSurfaceVariant,
+  1731→            ),
+  1732→          ),
+  1733→        ],
+  1734→      ),
+  1735→    );
+  1736→  }
+  1737→
+  1738→  Widget _buildErrorState(CalendarPlannerState state) {
+  1739→    return AppErrorState.genericError(
+  1740→      message: state.error,
+  1741→      onRetry: () => ref.read(calendarPlannerProvider.notifier).loadEvents(),
+  1742→    );
+  1743→  }
+  1744→}
+  1745→

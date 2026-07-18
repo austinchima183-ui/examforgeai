@@ -1,0 +1,1101 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_button.dart';
+     9→import '../../../../shared/widgets/app_card.dart';
+    10→import '../../../../shared/widgets/app_text_field.dart';
+    11→import '../../../../shared/widgets/app_loading.dart';
+    12→import '../../../../shared/widgets/app_app_bar.dart';
+    13→import '../../../../shared/widgets/app_empty_state.dart';
+    14→import '../../../../shared/widgets/app_error_state.dart';
+    15→import '../../../../routing/route_names.dart';
+    16→import '../../domain/entities/teacher_workspace_entities.dart';
+    17→import '../../domain/usecases/update_lesson_plan_usecase.dart';
+    18→import '../providers/lesson_plan_provider.dart';
+    19→import '../widgets/generate_questions_button.dart';
+    20→
+    21→// ═══════════════════════════════════════════════════════════════════════
+    22→// LESSON PLAN DETAIL PAGE
+    23→// ═══════════════════════════════════════════════════════════════════════
+    24→
+    25→/// Detail page for a single lesson plan with all sections, edit mode toggle,
+    26→/// and the "Generate Questions" button prominently displayed.
+    27→class LessonPlanDetailPage extends ConsumerStatefulWidget {
+    28→  const LessonPlanDetailPage({
+    29→    super.key,
+    30→    required this.planId,
+    31→  });
+    32→
+    33→  /// The ID of the lesson plan to display.
+    34→  final String planId;
+    35→
+    36→  @override
+    37→  ConsumerState<LessonPlanDetailPage> createState() =>
+    38→      _LessonPlanDetailPageState();
+    39→}
+    40→
+    41→class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
+    42→  bool _isEditing = false;
+    43→
+    44→  // ─── Edit Controllers ────────────────────────────────────────────────
+    45→
+    46→  final _titleCtrl = TextEditingController();
+    47→  final _notesCtrl = TextEditingController();
+    48→  final List<TextEditingController> _objectiveControllers = [];
+    49→  final List<TextEditingController> _outcomeControllers = [];
+    50→  final List<TextEditingController> _materialControllers = [];
+    51→  final List<TextEditingController> _homeworkControllers = [];
+    52→  final List<TextEditingController> _referenceControllers = [];
+    53→  final List<TextEditingController> _extensionControllers = [];
+    54→
+    55→  bool _controllersInitialized = false;
+    56→
+    57→  @override
+    58→  void initState() {
+    59→    super.initState();
+    60→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    61→      _loadPlan();
+    62→    });
+    63→  }
+    64→
+    65→  @override
+    66→  void dispose() {
+    67→    _titleCtrl.dispose();
+    68→    _notesCtrl.dispose();
+    69→    _disposeControllers(_objectiveControllers);
+    70→    _disposeControllers(_outcomeControllers);
+    71→    _disposeControllers(_materialControllers);
+    72→    _disposeControllers(_homeworkControllers);
+    73→    _disposeControllers(_referenceControllers);
+    74→    _disposeControllers(_extensionControllers);
+    75→    super.dispose();
+    76→  }
+    77→
+    78→  void _disposeControllers(List<TextEditingController> controllers) {
+    79→    for (final c in controllers) {
+    80→      c.dispose();
+    81→    }
+    82→  }
+    83→
+    84→  // ─── Data Loading ────────────────────────────────────────────────────
+    85→
+    86→  void _loadPlan() {
+    87→    final state = ref.read(lessonPlanProvider);
+    88→    // First check if the plan is already in the list
+    89→    final plan = state.lessonPlans.where((p) => p.id == widget.planId).firstOrNull;
+    90→    if (plan != null) {
+    91→      ref.read(lessonPlanProvider.notifier).setCurrentPlan(plan);
+    92→    }
+    93→    // If no plan is loaded, try loading from the API
+    94→    if (ref.read(lessonPlanProvider).currentPlan == null) {
+    95→      ref.read(lessonPlanProvider.notifier).loadLessonPlans();
+    96→    }
+    97→  }
+    98→
+    99→  void _initEditControllers(LessonPlanEntity plan) {
+   100→    if (_controllersInitialized) return;
+   101→    _controllersInitialized = true;
+   102→
+   103→    _titleCtrl.text = plan.title;
+   104→    _notesCtrl.text = plan.notes ?? '';
+   105→    _initListControllers(plan.learningObjectives, _objectiveControllers);
+   106→    _initListControllers(plan.learningOutcomes, _outcomeControllers);
+   107→    _initListControllers(plan.teachingMaterials, _materialControllers);
+   108→    _initListControllers(plan.homework, _homeworkControllers);
+   109→    _initListControllers(plan.referencesList, _referenceControllers);
+   110→    _initListControllers(plan.extensionActivities, _extensionControllers);
+   111→  }
+   112→
+   113→  void _initListControllers(
+   114→    List<String> items,
+   115→    List<TextEditingController> controllers,
+   116→  ) {
+   117→    for (final c in controllers) {
+   118→      c.dispose();
+   119→    }
+   120→    controllers.clear();
+   121→    for (final item in items) {
+   122→      controllers.add(TextEditingController(text: item));
+   123→    }
+   124→  }
+   125→
+   126→  // ─── Helpers ─────────────────────────────────────────────────────────
+   127→
+   128→  void _listenForMessages() {
+   129→    final state = ref.read(lessonPlanProvider);
+   130→    if (state.successMessage != null) {
+   131→      _showSnackBar(state.successMessage!, isError: false);
+   132→      ref.read(lessonPlanProvider.notifier).clearSuccessMessage();
+   133→    }
+   134→    if (state.error != null) {
+   135→      _showSnackBar(state.error!, isError: true);
+   136→      ref.read(lessonPlanProvider.notifier).clearError();
+   137→    }
+   138→  }
+   139→
+   140→  void _showSnackBar(String message, {required bool isError}) {
+   141→    if (!mounted) return;
+   142→    final cs = context.colorScheme;
+   143→    context.scaffoldMessenger.showSnackBar(
+   144→      SnackBar(
+   145→        content: Text(message),
+   146→        backgroundColor: isError ? cs.error : cs.primary,
+   147→        behavior: SnackBarBehavior.floating,
+   148→        shape: RoundedRectangleBorder(
+   149→          borderRadius: BorderRadius.circular(Spacings.smRadius),
+   150→        ),
+   151→        duration: const Duration(seconds: 3),
+   152→      ),
+   153→    );
+   154→  }
+   155→
+   156→  Future<void> _handleSave() async {
+   157→    final plan = ref.read(lessonPlanProvider).currentPlan;
+   158→    if (plan == null) return;
+   159→
+   160→    final updatedPlan = plan.copyWith(
+   161→      title: _titleCtrl.text.trim().isNotEmpty
+   162→          ? _titleCtrl.text.trim()
+   163→          : plan.title,
+   164→      notes: _notesCtrl.text.trim().isNotEmpty
+   165→          ? _notesCtrl.text.trim()
+   166→          : plan.notes,
+   167→      learningObjectives: _controllersToList(_objectiveControllers),
+   168→      learningOutcomes: _controllersToList(_outcomeControllers),
+   169→      teachingMaterials: _controllersToList(_materialControllers),
+   170→      homework: _controllersToList(_homeworkControllers),
+   171→      referencesList: _controllersToList(_referenceControllers),
+   172→      extensionActivities: _controllersToList(_extensionControllers),
+   173→    );
+   174→
+   175→    await ref.read(lessonPlanProvider.notifier).updateLessonPlan(
+   176→      UpdateLessonPlanParams(plan: updatedPlan),
+   177→    );
+   178→
+   179→    setState(() => _isEditing = false);
+   180→    _controllersInitialized = false;
+   181→    _listenForMessages();
+   182→  }
+   183→
+   184→  List<String> _controllersToList(List<TextEditingController> controllers) {
+   185→    return controllers
+   186→        .map((c) => c.text.trim())
+   187→        .where((s) => s.isNotEmpty)
+   188→        .toList();
+   189→  }
+   190→
+   191→  void _handleDelete() {
+   192→    final plan = ref.read(lessonPlanProvider).currentPlan;
+   193→    if (plan == null) return;
+   194→
+   195→    final cs = context.colorScheme;
+   196→    showDialog(
+   197→      context: context,
+   198→      builder: (ctx) => AlertDialog(
+   199→        title: const Text('Delete Lesson Plan'),
+   200→        content: Text(
+   201→          'Are you sure you want to delete "${plan.title}"? This action cannot be undone.',
+   202→        ),
+   203→        shape: RoundedRectangleBorder(
+   204→          borderRadius: BorderRadius.circular(Spacings.lgRadius),
+   205→        ),
+   206→        actions: [
+   207→          TextButton(
+   208→            onPressed: () => Navigator.pop(ctx),
+   209→            child: const Text('Cancel'),
+   210→          ),
+   211→          FilledButton(
+   212→            onPressed: () async {
+   213→              Navigator.pop(ctx);
+   214→              await ref.read(lessonPlanProvider.notifier).deleteLessonPlan(plan.id);
+   215→              _listenForMessages();
+   216→              if (mounted) context.pop();
+   217→            },
+   218→            style: FilledButton.styleFrom(
+   219→              backgroundColor: cs.error,
+   220→              foregroundColor: cs.onError,
+   221→            ),
+   222→            child: const Text('Delete'),
+   223→          ),
+   224→        ],
+   225→      ),
+   226→    );
+   227→  }
+   228→
+   229→  void _handlePublish() {
+   230→    ref.read(lessonPlanProvider.notifier).publishLessonPlan(widget.planId);
+   231→    _listenForMessages();
+   232→  }
+   233→
+   234→  // ─── Build ───────────────────────────────────────────────────────────
+   235→
+   236→  @override
+   237→  Widget build(BuildContext context) {
+   238→    final state = ref.watch(lessonPlanProvider);
+   239→    final plan = state.currentPlan;
+   240→
+   241→    if (state.isLoading && plan == null) {
+   242→      return Scaffold(
+   243→        appBar: AppAppBar(title: 'Lesson Plan'),
+   244→        body: const Center(
+   245→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+   246→        ),
+   247→      );
+   248→    }
+   249→
+   250→    if (plan == null && state.error != null) {
+   251→      return Scaffold(
+   252→        appBar: AppAppBar(title: 'Lesson Plan'),
+   253→        body: AppErrorState.genericError(
+   254→          message: state.error,
+   255→          onRetry: () => ref.read(lessonPlanProvider.notifier).loadLessonPlans(),
+   256→        ),
+   257→      );
+   258→    }
+   259→
+   260→    if (plan == null) {
+   261→      return Scaffold(
+   262→        appBar: AppAppBar(title: 'Lesson Plan'),
+   263→        body: AppEmptyState(
+   264→          icon: Icons.description_outlined,
+   265→          title: 'Lesson Plan Not Found',
+   266→          subtitle: 'The lesson plan you are looking for does not exist or has been removed.',
+   267→          actionLabel: 'Go Back',
+   268→          onAction: () => context.pop(),
+   269→        ),
+   270→      );
+   271→    }
+   272→
+   273→    // Initialize edit controllers when plan is available
+   274→    _initEditControllers(plan);
+   275→
+   276→    return Scaffold(
+   277→      appBar: AppAppBar(
+   278→        title: _isEditing ? 'Edit Lesson Plan' : 'Lesson Plan Details',
+   279→        leading: IconButton(
+   280→          icon: const Icon(Icons.arrow_back_rounded),
+   281→          onPressed: () => context.pop(),
+   282→        ),
+   283→        actions: [
+   284→          if (!_isEditing) ...[
+   285→            AppIconButton(
+   286→              icon: Icons.edit_rounded,
+   287→              onPressed: () => setState(() => _isEditing = true),
+   288→              tooltip: 'Edit',
+   289→              variant: AppIconButtonVariant.tonal,
+   290→            ),
+   291→            AppIconButton(
+   292→              icon: Icons.delete_outline_rounded,
+   293→              onPressed: _handleDelete,
+   294→              tooltip: 'Delete',
+   295→              variant: AppIconButtonVariant.standard,
+   296→            ),
+   297→          ] else ...[
+   298→            AppIconButton(
+   299→              icon: Icons.save_rounded,
+   300→              onPressed: _handleSave,
+   301→              tooltip: 'Save',
+   302→              variant: AppIconButtonVariant.filled,
+   303→              isLoading: state.isUpdating,
+   304→            ),
+   305→            AppIconButton(
+   306→              icon: Icons.close_rounded,
+   307→              onPressed: () {
+   308→                setState(() {
+   309→                  _isEditing = false;
+   310→                  _controllersInitialized = false;
+   311→                });
+   312→              },
+   313→              tooltip: 'Cancel',
+   314→              variant: AppIconButtonVariant.standard,
+   315→            ),
+   316→          ],
+   317→        ],
+   318→      ),
+   319→      body: RefreshIndicator(
+   320→        onRefresh: () async {
+   321→          await ref.read(lessonPlanProvider.notifier).loadLessonPlans();
+   322→          _listenForMessages();
+   323→        },
+   324→        child: _buildDetailContent(plan),
+   325→      ),
+   326→    );
+   327→  }
+   328→
+   329→  // ─── Detail Content ──────────────────────────────────────────────────
+   330→
+   331→  Widget _buildDetailContent(LessonPlanEntity plan) {
+   332→    return SingleChildScrollView(
+   333→      padding: Spacings.paddingScreen,
+   334→      child: Column(
+   335→        crossAxisAlignment: CrossAxisAlignment.start,
+   336→        children: [
+   337→          // Status badges
+   338→          _buildStatusBadges(plan),
+   339→          const SizedBox(height: Spacings.md),
+   340→
+   341→          // Title
+   342→          _buildSectionCard(
+   343→            icon: Icons.title_rounded,
+   344→            title: 'Title',
+   345→            child: _isEditing
+   346→                ? AppTextField(
+   347→                    controller: _titleCtrl,
+   348→                    label: 'Lesson Plan Title',
+   349→                    isRequired: true,
+   350→                  )
+   351→                : Text(
+   352→                    plan.title,
+   353→                    style: context.textTheme.headlineSmall?.copyWith(
+   354→                      fontWeight: AppTypography.wBold,
+   355→                      color: context.colorScheme.onSurface,
+   356→                    ),
+   357→                  ),
+   358→          ),
+   359→          Spacings.itemGap,
+   360→
+   361→          // Meta info
+   362→          _buildMetaSection(plan),
+   363→          Spacings.itemGap,
+   364→
+   365→          // Lesson Objectives
+   366→          _buildEditableListSection(
+   367→            icon: Icons.flag_rounded,
+   368→            title: 'Lesson Objectives',
+   369→            controllers: _objectiveControllers,
+   370→            displayItems: plan.learningObjectives,
+   371→          ),
+   372→          Spacings.itemGap,
+   373→
+   374→          // Learning Outcomes
+   375→          _buildEditableListSection(
+   376→            icon: Icons.emoji_events_rounded,
+   377→            title: 'Learning Outcomes',
+   378→            controllers: _outcomeControllers,
+   379→            displayItems: plan.learningOutcomes,
+   380→          ),
+   381→          Spacings.itemGap,
+   382→
+   383→          // Teaching Materials
+   384→          _buildEditableListSection(
+   385→            icon: Icons.inventory_2_outlined,
+   386→            title: 'Teaching Materials',
+   387→            controllers: _materialControllers,
+   388→            displayItems: plan.teachingMaterials,
+   389→          ),
+   390→          Spacings.itemGap,
+   391→
+   392→          // Classroom Activities
+   393→          _buildActivitySection(
+   394→            icon: Icons.groups_rounded,
+   395→            title: 'Classroom Activities',
+   396→            activities: plan.classroomActivities,
+   397→          ),
+   398→          Spacings.itemGap,
+   399→
+   400→          // Practical Activities
+   401→          _buildActivitySection(
+   402→            icon: Icons.science_rounded,
+   403→            title: 'Practical Activities',
+   404→            activities: plan.practicalActivities,
+   405→          ),
+   406→          Spacings.itemGap,
+   407→
+   408→          // Homework
+   409→          _buildEditableListSection(
+   410→            icon: Icons.assignment_outlined,
+   411→            title: 'Homework',
+   412→            controllers: _homeworkControllers,
+   413→            displayItems: plan.homework,
+   414→          ),
+   415→          Spacings.itemGap,
+   416→
+   417→          // Assessment Questions
+   418→          _buildAssessmentSection(plan.assessmentQuestions),
+   419→          Spacings.itemGap,
+   420→
+   421→          // References
+   422→          _buildEditableListSection(
+   423→            icon: Icons.menu_book_rounded,
+   424→            title: 'References',
+   425→            controllers: _referenceControllers,
+   426→            displayItems: plan.referencesList,
+   427→          ),
+   428→          Spacings.itemGap,
+   429→
+   430→          // Extension Activities
+   431→          _buildEditableListSection(
+   432→            icon: Icons.extension_rounded,
+   433→            title: 'Extension Activities',
+   434→            controllers: _extensionControllers,
+   435→            displayItems: plan.extensionActivities,
+   436→          ),
+   437→          Spacings.itemGap,
+   438→
+   439→          // Notes (editable)
+   440→          if (_isEditing || (plan.notes != null && plan.notes!.isNotEmpty)) ...[
+   441→            _buildSectionCard(
+   442→              icon: Icons.sticky_note_2_outlined,
+   443→              title: 'Notes',
+   444→              child: _isEditing
+   445→                  ? AppTextField(
+   446→                      controller: _notesCtrl,
+   447→                      label: 'Additional Notes',
+   448→                      maxLines: 4,
+   449→                      minLines: 2,
+   450→                    )
+   451→                  : Text(
+   452→                      plan.notes!,
+   453→                      style: context.textTheme.bodyMedium?.copyWith(
+   454→                        color: context.colorScheme.onSurface,
+   455→                        height: 1.5,
+   456→                      ),
+   457→                    ),
+   458→            ),
+   459→            Spacings.itemGap,
+   460→          ],
+   461→
+   462→          Spacings.sectionGap,
+   463→
+   464→          // Generate Questions button (CRITICAL - prominent)
+   465→          GenerateQuestionsButton(
+   466→            resourceType: 'lesson_plan',
+   467→            resourceId: plan.id,
+   468→          ),
+   469→          Spacings.sectionGap,
+   470→
+   471→          // Action buttons (when not in edit mode)
+   472→          if (!_isEditing) _buildBottomActions(plan),
+   473→          const SizedBox(height: Spacings.xxl),
+   474→        ],
+   475→      ),
+   476→    );
+   477→  }
+   478→
+   479→  // ─── Status Badges ───────────────────────────────────────────────────
+   480→
+   481→  Widget _buildStatusBadges(LessonPlanEntity plan) {
+   482→    final cs = context.colorScheme;
+   483→    final isDark = context.isDarkMode;
+   484→
+   485→    return Wrap(
+   486→      spacing: Spacings.sm,
+   487→      runSpacing: Spacings.sm,
+   488→      children: [
+   489→        if (plan.isAiGenerated)
+   490→          Container(
+   491→            padding: const EdgeInsets.symmetric(
+   492→              horizontal: Spacings.md,
+   493→              vertical: Spacings.sm,
+   494→            ),
+   495→            decoration: BoxDecoration(
+   496→              color: cs.tertiaryContainer,
+   497→              borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   498→            ),
+   499→            child: Row(
+   500→              mainAxisSize: MainAxisSize.min,
+   501→              children: [
+   502→                Icon(Icons.auto_awesome, size: 14, color: cs.onTertiaryContainer),
+   503→                const SizedBox(width: Spacings.xs),
+   504→                Text(
+   505→                  'AI Generated',
+   506→                  style: context.textTheme.labelSmall?.copyWith(
+   507→                    color: cs.onTertiaryContainer,
+   508→                    fontWeight: AppTypography.wSemiBold,
+   509→                  ),
+   510→                ),
+   511→              ],
+   512→            ),
+   513→          ),
+   514→        Container(
+   515→          padding: const EdgeInsets.symmetric(
+   516→            horizontal: Spacings.md,
+   517→            vertical: Spacings.sm,
+   518→          ),
+   519→          decoration: BoxDecoration(
+   520→            color: plan.isPublished
+   521→                ? cs.primary.withValues(alpha: isDark ? 0.20 : 0.10)
+   522→                : cs.surfaceContainerHighest,
+   523→            borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   524→          ),
+   525→          child: Row(
+   526→            mainAxisSize: MainAxisSize.min,
+   527→            children: [
+   528→              Icon(
+   529→                plan.isPublished ? Icons.public_rounded : Icons.drafts_rounded,
+   530→                size: 14,
+   531→                color: plan.isPublished ? cs.primary : cs.onSurfaceVariant,
+   532→              ),
+   533→              const SizedBox(width: Spacings.xs),
+   534→              Text(
+   535→                plan.isPublished ? 'Published' : 'Draft',
+   536→                style: context.textTheme.labelSmall?.copyWith(
+   537→                  color: plan.isPublished ? cs.primary : cs.onSurfaceVariant,
+   538→                  fontWeight: AppTypography.wSemiBold,
+   539→                ),
+   540→              ),
+   541→            ],
+   542→          ),
+   543→        ),
+   544→        Container(
+   545→          padding: const EdgeInsets.symmetric(
+   546→            horizontal: Spacings.md,
+   547→            vertical: Spacings.sm,
+   548→          ),
+   549→          decoration: BoxDecoration(
+   550→            color: cs.secondaryContainer,
+   551→            borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   552→          ),
+   553→          child: Text(
+   554→            'Version ${plan.version}',
+   555→            style: context.textTheme.labelSmall?.copyWith(
+   556→              color: cs.onSecondaryContainer,
+   557→              fontWeight: AppTypography.wMedium,
+   558→            ),
+   559→          ),
+   560→        ),
+   561→      ],
+   562→    );
+   563→  }
+   564→
+   565→  // ─── Meta Section ────────────────────────────────────────────────────
+   566→
+   567→  Widget _buildMetaSection(LessonPlanEntity plan) {
+   568→    final cs = context.colorScheme;
+   569→
+   570→    return AppCard(
+   571→      child: Column(
+   572→        crossAxisAlignment: CrossAxisAlignment.start,
+   573→        children: [
+   574→          Row(
+   575→            children: [
+   576→              Icon(Icons.info_outline_rounded, size: Spacings.mdIcon, color: cs.primary),
+   577→              const SizedBox(width: Spacings.sm),
+   578→              Text(
+   579→                'Overview',
+   580→                style: context.textTheme.titleSmall?.copyWith(
+   581→                  fontWeight: AppTypography.wSemiBold,
+   582→                  color: cs.onSurface,
+   583→                ),
+   584→              ),
+   585→            ],
+   586→          ),
+   587→          const SizedBox(height: Spacings.md),
+   588→          Wrap(
+   589→            spacing: Spacings.md,
+   590→            runSpacing: Spacings.sm,
+   591→            children: [
+   592→              _buildMetaChip(Icons.book_outlined, plan.subject, cs.primary),
+   593→              if (plan.className != null)
+   594→                _buildMetaChip(Icons.school_outlined, plan.className!, cs.tertiary),
+   595→              if (plan.topic != null)
+   596→                _buildMetaChip(Icons.topic_outlined, plan.topic!, cs.secondary),
+   597→              if (plan.subtopic != null)
+   598→                _buildMetaChip(Icons.subdirectory_arrow_right_rounded, plan.subtopic!, cs.secondary),
+   599→              _buildMetaChip(Icons.psychology_outlined, plan.teachingStyle.label, cs.secondary),
+   600→              _buildMetaChip(Icons.timer_outlined, '${plan.durationMinutes} min', cs.primary),
+   601→              _buildMetaChip(Icons.people_outlined, plan.studentLevel.label, cs.tertiary),
+   602→              _buildMetaChip(Icons.curriculum_outlined, plan.curriculum.label, cs.secondary),
+   603→            ],
+   604→          ),
+   605→          const SizedBox(height: Spacings.md),
+   606→          Row(
+   607→            children: [
+   608→              Icon(Icons.calendar_today_outlined, size: Spacings.smIcon, color: cs.onSurfaceVariant),
+   609→              const SizedBox(width: Spacings.xs),
+   610→              Text(
+   611→                'Created ${_formatDate(plan.createdAt)} · Updated ${_formatDate(plan.updatedAt)}',
+   612→                style: context.textTheme.bodySmall?.copyWith(
+   613→                  color: cs.onSurfaceVariant,
+   614→                ),
+   615→              ),
+   616→            ],
+   617→          ),
+   618→        ],
+   619→      ),
+   620→    );
+   621→  }
+   622→
+   623→  Widget _buildMetaChip(IconData icon, String label, Color color) {
+   624→    final isDark = context.isDarkMode;
+   625→
+   626→    return Container(
+   627→      padding: const EdgeInsets.symmetric(
+   628→        horizontal: Spacings.md,
+   629→        vertical: Spacings.sm,
+   630→      ),
+   631→      decoration: BoxDecoration(
+   632→        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+   633→        borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   634→      ),
+   635→      child: Row(
+   636→        mainAxisSize: MainAxisSize.min,
+   637→        children: [
+   638→          Icon(icon, size: 14, color: color),
+   639→          const SizedBox(width: Spacings.xs),
+   640→          Text(
+   641→            label,
+   642→            style: context.textTheme.labelSmall?.copyWith(
+   643→              color: color,
+   644→              fontWeight: AppTypography.wSemiBold,
+   645→            ),
+   646→          ),
+   647→        ],
+   648→      ),
+   649→    );
+   650→  }
+   651→
+   652→  // ─── Section Card ────────────────────────────────────────────────────
+   653→
+   654→  Widget _buildSectionCard({
+   655→    required IconData icon,
+   656→    required String title,
+   657→    required Widget child,
+   658→  }) {
+   659→    final cs = context.colorScheme;
+   660→
+   661→    return AppCard(
+   662→      child: Column(
+   663→        crossAxisAlignment: CrossAxisAlignment.start,
+   664→        children: [
+   665→          Row(
+   666→            children: [
+   667→              Icon(icon, size: Spacings.mdIcon, color: cs.primary),
+   668→              const SizedBox(width: Spacings.sm),
+   669→              Text(
+   670→                title,
+   671→                style: context.textTheme.titleSmall?.copyWith(
+   672→                  fontWeight: AppTypography.wSemiBold,
+   673→                  color: cs.onSurface,
+   674→                ),
+   675→              ),
+   676→            ],
+   677→          ),
+   678→          const SizedBox(height: Spacings.md),
+   679→          child,
+   680→        ],
+   681→      ),
+   682→    );
+   683→  }
+   684→
+   685→  // ─── Editable List Section ───────────────────────────────────────────
+   686→
+   687→  Widget _buildEditableListSection({
+   688→    required IconData icon,
+   689→    required String title,
+   690→    required List<TextEditingController> controllers,
+   691→    required List<String> displayItems,
+   692→  }) {
+   693→    final cs = context.colorScheme;
+   694→    final items = _isEditing ? controllers : displayItems;
+   695→
+   696→    if (items.isEmpty && !_isEditing) return const SizedBox.shrink();
+   697→
+   698→    return AppCard(
+   699→      child: Column(
+   700→        crossAxisAlignment: CrossAxisAlignment.start,
+   701→        children: [
+   702→          Row(
+   703→            children: [
+   704→              Icon(icon, size: Spacings.mdIcon, color: cs.primary),
+   705→              const SizedBox(width: Spacings.sm),
+   706→              Text(
+   707→                title,
+   708→                style: context.textTheme.titleSmall?.copyWith(
+   709→                  fontWeight: AppTypography.wSemiBold,
+   710→                  color: cs.onSurface,
+   711→                ),
+   712→              ),
+   713→              const Spacer(),
+   714→              if (!_isEditing)
+   715→                Text(
+   716→                  '${displayItems.length} item${displayItems.length != 1 ? 's' : ''}',
+   717→                  style: context.textTheme.bodySmall?.copyWith(
+   718→                    color: cs.onSurfaceVariant,
+   719→                  ),
+   720→                ),
+   721→            ],
+   722→          ),
+   723→          const SizedBox(height: Spacings.md),
+   724→          if (_isEditing) ...[
+   725→            ...List.generate(controllers.length, (i) {
+   726→              return Padding(
+   727→                padding: const EdgeInsets.only(bottom: Spacings.sm),
+   728→                child: Row(
+   729→                  children: [
+   730→                    Expanded(
+   731→                      child: AppTextField(
+   732→                        controller: controllers[i],
+   733→                        hint: '$title ${i + 1}',
+   734→                      ),
+   735→                    ),
+   736→                    const SizedBox(width: Spacings.sm),
+   737→                    AppIconButton(
+   738→                      icon: Icons.delete_outline_rounded,
+   739→                      onPressed: () {
+   740→                        setState(() {
+   741→                          controllers[i].dispose();
+   742→                          controllers.removeAt(i);
+   743→                        });
+   744→                      },
+   745→                      variant: AppIconButtonVariant.standard,
+   746→                      size: AppButtonSize.small,
+   747→                      color: cs.error,
+   748→                    ),
+   749→                  ],
+   750→                ),
+   751→              );
+   752→            }),
+   753→            // Add item button
+   754→            AppButton(
+   755→              label: 'Add $title',
+   756→              onPressed: () {
+   757→                setState(() {
+   758→                  controllers.add(TextEditingController());
+   759→                });
+   760→              },
+   761→              variant: AppButtonVariant.text,
+   762→              icon: Icons.add_rounded,
+   763→              size: AppButtonSize.small,
+   764→            ),
+   765→          ] else ...[
+   766→            ...displayItems.map((item) => _buildBulletItem(item)),
+   767→          ],
+   768→        ],
+   769→      ),
+   770→    );
+   771→  }
+   772→
+   773→  Widget _buildBulletItem(String text) {
+   774→    final cs = context.colorScheme;
+   775→
+   776→    return Padding(
+   777→      padding: const EdgeInsets.only(bottom: Spacings.sm),
+   778→      child: Row(
+   779→        crossAxisAlignment: CrossAxisAlignment.start,
+   780→        children: [
+   781→          Container(
+   782→            margin: const EdgeInsets.only(top: 6, right: Spacings.sm),
+   783→            width: 6,
+   784→            height: 6,
+   785→            decoration: BoxDecoration(
+   786→              color: cs.primary,
+   787→              shape: BoxShape.circle,
+   788→            ),
+   789→          ),
+   790→          Expanded(
+   791→            child: Text(
+   792→              text,
+   793→              style: context.textTheme.bodyMedium?.copyWith(
+   794→                color: cs.onSurface,
+   795→                height: 1.5,
+   796→              ),
+   797→            ),
+   798→          ),
+   799→        ],
+   800→      ),
+   801→    );
+   802→  }
+   803→
+   804→  // ─── Activity Section ────────────────────────────────────────────────
+   805→
+   806→  Widget _buildActivitySection({
+   807→    required IconData icon,
+   808→    required String title,
+   809→    required List<Map<String, dynamic>> activities,
+   810→  }) {
+   811→    final cs = context.colorScheme;
+   812→
+   813→    if (activities.isEmpty) return const SizedBox.shrink();
+   814→
+   815→    return AppCard(
+   816→      child: Column(
+   817→        crossAxisAlignment: CrossAxisAlignment.start,
+   818→        children: [
+   819→          Row(
+   820→            children: [
+   821→              Icon(icon, size: Spacings.mdIcon, color: cs.primary),
+   822→              const SizedBox(width: Spacings.sm),
+   823→              Text(
+   824→                title,
+   825→                style: context.textTheme.titleSmall?.copyWith(
+   826→                  fontWeight: AppTypography.wSemiBold,
+   827→                  color: cs.onSurface,
+   828→                ),
+   829→              ),
+   830→              const Spacer(),
+   831→              Text(
+   832→                '${activities.length} activit${activities.length != 1 ? 'ies' : 'y'}',
+   833→                style: context.textTheme.bodySmall?.copyWith(
+   834→                  color: cs.onSurfaceVariant,
+   835→                ),
+   836→              ),
+   837→            ],
+   838→          ),
+   839→          const SizedBox(height: Spacings.md),
+   840→          ...activities.map((activity) => _buildActivityCard(activity)),
+   841→        ],
+   842→      ),
+   843→    );
+   844→  }
+   845→
+   846→  Widget _buildActivityCard(Map<String, dynamic> activity) {
+   847→    final cs = context.colorScheme;
+   848→    final isDark = context.isDarkMode;
+   849→    final name = activity['name'] as String? ?? activity['title'] as String? ?? 'Activity';
+   850→    final description = activity['description'] as String? ?? '';
+   851→    final duration = activity['duration'] as int?;
+   852→    final type = activity['type'] as String?;
+   853→
+   854→    return Container(
+   855→      margin: const EdgeInsets.only(bottom: Spacings.sm),
+   856→      padding: const EdgeInsets.all(Spacings.md),
+   857→      decoration: BoxDecoration(
+   858→        color: cs.surfaceContainerLow,
+   859→        borderRadius: BorderRadius.circular(Spacings.smRadius),
+   860→        border: Border.all(
+   861→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   862→        ),
+   863→      ),
+   864→      child: Column(
+   865→        crossAxisAlignment: CrossAxisAlignment.start,
+   866→        children: [
+   867→          Row(
+   868→            children: [
+   869→              Expanded(
+   870→                child: Text(
+   871→                  name,
+   872→                  style: context.textTheme.titleSmall?.copyWith(
+   873→                    fontWeight: AppTypography.wSemiBold,
+   874→                    color: cs.onSurface,
+   875→                  ),
+   876→                ),
+   877→              ),
+   878→              if (duration != null)
+   879→                Container(
+   880→                  padding: const EdgeInsets.symmetric(
+   881→                    horizontal: Spacings.sm,
+   882→                    vertical: Spacings.xs,
+   883→                  ),
+   884→                  decoration: BoxDecoration(
+   885→                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+   886→                    borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   887→                  ),
+   888→                  child: Text(
+   889→                    '$duration min',
+   890→                    style: context.textTheme.labelSmall?.copyWith(
+   891→                      color: cs.primary,
+   892→                      fontWeight: AppTypography.wSemiBold,
+   893→                    ),
+   894→                  ),
+   895→                ),
+   896→            ],
+   897→          ),
+   898→          if (description.isNotEmpty) ...[
+   899→            const SizedBox(height: Spacings.xs),
+   900→            Text(
+   901→              description,
+   902→              style: context.textTheme.bodySmall?.copyWith(
+   903→                color: cs.onSurfaceVariant,
+   904→                height: 1.5,
+   905→              ),
+   906→            ),
+   907→          ],
+   908→          if (type != null) ...[
+   909→            const SizedBox(height: Spacings.xs),
+   910→            Container(
+   911→              padding: const EdgeInsets.symmetric(
+   912→                horizontal: Spacings.sm,
+   913→                vertical: 2,
+   914→              ),
+   915→              decoration: BoxDecoration(
+   916→                color: cs.secondaryContainer,
+   917→                borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   918→              ),
+   919→              child: Text(
+   920→                type,
+   921→                style: context.textTheme.labelSmall?.copyWith(
+   922→                  color: cs.onSecondaryContainer,
+   923→                ),
+   924→              ),
+   925→            ),
+   926→          ],
+   927→        ],
+   928→      ),
+   929→    );
+   930→  }
+   931→
+   932→  // ─── Assessment Section ──────────────────────────────────────────────
+   933→
+   934→  Widget _buildAssessmentSection(List<Map<String, dynamic>> questions) {
+   935→    final cs = context.colorScheme;
+   936→
+   937→    if (questions.isEmpty) return const SizedBox.shrink();
+   938→
+   939→    return AppCard(
+   940→      child: Column(
+   941→        crossAxisAlignment: CrossAxisAlignment.start,
+   942→        children: [
+   943→          Row(
+   944→            children: [
+   945→              Icon(Icons.quiz_rounded, size: Spacings.mdIcon, color: cs.primary),
+   946→              const SizedBox(width: Spacings.sm),
+   947→              Text(
+   948→                'Assessment Questions',
+   949→                style: context.textTheme.titleSmall?.copyWith(
+   950→                  fontWeight: AppTypography.wSemiBold,
+   951→                  color: cs.onSurface,
+   952→                ),
+   953→              ),
+   954→              const Spacer(),
+   955→              Text(
+   956→                '${questions.length} question${questions.length != 1 ? 's' : ''}',
+   957→                style: context.textTheme.bodySmall?.copyWith(
+   958→                  color: cs.onSurfaceVariant,
+   959→                ),
+   960→              ),
+   961→            ],
+   962→          ),
+   963→          const SizedBox(height: Spacings.md),
+   964→          ...List.generate(questions.length, (i) {
+   965→            final q = questions[i];
+   966→            final questionText = q['question'] as String? ?? q['text'] as String? ?? 'Question ${i + 1}';
+   967→            final type = q['type'] as String?;
+   968→            final marks = q['marks'] as int?;
+   969→
+   970→            return Container(
+   971→              margin: const EdgeInsets.only(bottom: Spacings.sm),
+   972→              padding: const EdgeInsets.all(Spacings.md),
+   973→              decoration: BoxDecoration(
+   974→                color: cs.surfaceContainerLow,
+   975→                borderRadius: BorderRadius.circular(Spacings.smRadius),
+   976→                border: Border.all(
+   977→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   978→                ),
+   979→              ),
+   980→              child: Row(
+   981→                crossAxisAlignment: CrossAxisAlignment.start,
+   982→                children: [
+   983→                  Container(
+   984→                    width: 28,
+   985→                    height: 28,
+   986→                    decoration: BoxDecoration(
+   987→                      color: cs.primary.withValues(
+   988→                        alpha: context.isDarkMode ? 0.20 : 0.10,
+   989→                      ),
+   990→                      shape: BoxShape.circle,
+   991→                    ),
+   992→                    child: Center(
+   993→                      child: Text(
+   994→                        '${i + 1}',
+   995→                        style: context.textTheme.labelSmall?.copyWith(
+   996→                          color: cs.primary,
+   997→                          fontWeight: AppTypography.wSemiBold,
+   998→                        ),
+   999→                      ),
+  1000→                    ),
+  1001→                  ),
+  1002→                  const SizedBox(width: Spacings.sm),
+  1003→                  Expanded(
+  1004→                    child: Column(
+  1005→                      crossAxisAlignment: CrossAxisAlignment.start,
+  1006→                      children: [
+  1007→                        Text(
+  1008→                          questionText,
+  1009→                          style: context.textTheme.bodyMedium?.copyWith(
+  1010→                            color: cs.onSurface,
+  1011→                          ),
+  1012→                        ),
+  1013→                        const SizedBox(height: Spacings.xs),
+  1014→                        Row(
+  1015→                          children: [
+  1016→                            if (type != null)
+  1017→                              Container(
+  1018→                                padding: const EdgeInsets.symmetric(
+  1019→                                  horizontal: Spacings.sm,
+  1020→                                  vertical: 2,
+  1021→                                ),
+  1022→                                decoration: BoxDecoration(
+  1023→                                  color: cs.secondaryContainer,
+  1024→                                  borderRadius:
+  1025→                                      BorderRadius.circular(Spacings.fullRadius),
+  1026→                                ),
+  1027→                                child: Text(
+  1028→                                  type,
+  1029→                                  style: context.textTheme.labelSmall?.copyWith(
+  1030→                                    color: cs.onSecondaryContainer,
+  1031→                                  ),
+  1032→                                ),
+  1033→                              ),
+  1034→                            if (marks != null) ...[
+  1035→                              const SizedBox(width: Spacings.sm),
+  1036→                              Text(
+  1037→                                '$marks marks',
+  1038→                                style: context.textTheme.labelSmall?.copyWith(
+  1039→                                  color: cs.onSurfaceVariant,
+  1040→                                ),
+  1041→                              ),
+  1042→                            ],
+  1043→                          ],
+  1044→                        ),
+  1045→                      ],
+  1046→                    ),
+  1047→                  ),
+  1048→                ],
+  1049→              ),
+  1050→            );
+  1051→          }),
+  1052→        ],
+  1053→      ),
+  1054→    );
+  1055→  }
+  1056→
+  1057→  // ─── Bottom Actions ──────────────────────────────────────────────────
+  1058→
+  1059→  Widget _buildBottomActions(LessonPlanEntity plan) {
+  1060→    return Column(
+  1061→      crossAxisAlignment: CrossAxisAlignment.stretch,
+  1062→      children: [
+  1063→        AppButton(
+  1064→          label: 'Edit Lesson Plan',
+  1065→          onPressed: () => setState(() => _isEditing = true),
+  1066→          variant: AppButtonVariant.outlined,
+  1067→          icon: Icons.edit_rounded,
+  1068→          fullWidth: true,
+  1069→        ),
+  1070→        const SizedBox(height: Spacings.sm),
+  1071→        if (!plan.isPublished)
+  1072→          AppButton(
+  1073→            label: 'Publish Lesson Plan',
+  1074→            onPressed: _handlePublish,
+  1075→            variant: AppButtonVariant.tonal,
+  1076→            icon: Icons.public_rounded,
+  1077→            fullWidth: true,
+  1078→          ),
+  1079→        const SizedBox(height: Spacings.sm),
+  1080→        AppButton(
+  1081→          label: 'Delete Lesson Plan',
+  1082→          onPressed: _handleDelete,
+  1083→          variant: AppButtonVariant.text,
+  1084→          icon: Icons.delete_outline_rounded,
+  1085→          fullWidth: true,
+  1086→        ),
+  1087→      ],
+  1088→    );
+  1089→  }
+  1090→
+  1091→  // ─── Date Formatting ─────────────────────────────────────────────────
+  1092→
+  1093→  String _formatDate(DateTime date) {
+  1094→    const months = [
+  1095→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  1096→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  1097→    ];
+  1098→    return '${months[date.month]} ${date.day}, ${date.year}';
+  1099→  }
+  1100→}
+  1101→
