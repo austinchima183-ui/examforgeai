@@ -1,0 +1,1020 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../../core/themes/app_colors.dart';
+     6→import '../../../../../core/themes/spacings.dart';
+     7→import '../../../../../core/themes/app_typography.dart';
+     8→import '../../../../../shared/widgets/app_app_bar.dart';
+     9→import '../../../../../shared/widgets/app_loading.dart';
+    10→import '../../domain/entities/super_admin_entities.dart';
+    11→import '../providers/super_admin_providers.dart';
+    12→import '../widgets/super_admin_widgets.dart';
+    13→
+    14→// ═══════════════════════════════════════════════════════════════════════════════
+    15→// AI MANAGEMENT PAGE
+    16→// ═══════════════════════════════════════════════════════════════════════════════
+    17→
+    18→/// Super Admin AI Management Console.
+    19→///
+    20→/// Monitors and controls AI providers including:
+    21→/// - Provider cards with status, budget, cost, and rate limit info
+    22→/// - Add provider dialog
+    23→/// - Request logs data table with filters
+    24→/// - Usage analytics summary
+    25→class AIManagementPage extends ConsumerStatefulWidget {
+    26→  const AIManagementPage({super.key});
+    27→
+    28→  @override
+    29→  ConsumerState<AIManagementPage> createState() => _AIManagementPageState();
+    30→}
+    31→
+    32→class _AIManagementPageState extends ConsumerState<AIManagementPage> {
+    33→  String? _filterProviderId;
+    34→  DateTimeRange? _filterDateRange;
+    35→
+    36→  @override
+    37→  void initState() {
+    38→    super.initState();
+    39→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    40→      _loadData();
+    41→    });
+    42→  }
+    43→
+    44→  void _loadData() {
+    45→    ref.read(aiManagementProvider.notifier).loadProviders();
+    46→    ref.read(aiManagementProvider.notifier).loadRequestLogs(
+    47→      providerId: _filterProviderId,
+    48→      startDate: _filterDateRange?.start,
+    49→      endDate: _filterDateRange?.end,
+    50→    );
+    51→  }
+    52→
+    53→  // ─── Provider Status Color ──────────────────────────────────────────────
+    54→
+    55→  Color _providerStatusColor(AIProviderStatus status) {
+    56→    switch (status) {
+    57→      case AIProviderStatus.active:
+    58→        return AppColors.success;
+    59→      case AIProviderStatus.inactive:
+    60→        return AppColors.error;
+    61→      case AIProviderStatus.degraded:
+    62→        return AppColors.warning;
+    63→      case AIProviderStatus.maintenance:
+    64→        return AppColors.info;
+    65→      case AIProviderStatus.suspended:
+    66→        return AppColors.error;
+    67→    }
+    68→  }
+    69→
+    70→  IconData _providerStatusIcon(AIProviderStatus status) {
+    71→    switch (status) {
+    72→      case AIProviderStatus.active:
+    73→        return Icons.check_circle;
+    74→      case AIProviderStatus.inactive:
+    75→        return Icons.cancel;
+    76→      case AIProviderStatus.degraded:
+    77→        return Icons.warning_amber;
+    78→      case AIProviderStatus.maintenance:
+    79→        return Icons.build;
+    80→      case AIProviderStatus.suspended:
+    81→        return Icons.block;
+    82→    }
+    83→  }
+    84→
+    85→  Color _budgetBarColor(double utilization) {
+    86→    if (utilization >= 90) return AppColors.error;
+    87→    if (utilization >= 70) return AppColors.warning;
+    88→    return AppColors.success;
+    89→  }
+    90→
+    91→  // ─── Build ──────────────────────────────────────────────────────────────
+    92→
+    93→  @override
+    94→  Widget build(BuildContext context) {
+    95→    final state = ref.watch(aiManagementProvider);
+    96→    final cs = Theme.of(context).colorScheme;
+    97→
+    98→    // Success snackbar
+    99→    ref.listen<AIManagementState>(aiManagementProvider, (prev, next) {
+   100→      if (next.successMessage != null && next.successMessage != prev?.successMessage) {
+   101→        ScaffoldMessenger.of(context).showSnackBar(
+   102→          SnackBar(
+   103→            content: Text(next.successMessage!),
+   104→            backgroundColor: AppColors.success,
+   105→            behavior: SnackBarBehavior.floating,
+   106→          ),
+   107→        );
+   108→        ref.read(aiManagementProvider.notifier).state = ref.read(aiManagementProvider).clearSuccess();
+   109→      }
+   110→      if (next.error != null && next.error != prev?.error) {
+   111→        ScaffoldMessenger.of(context).showSnackBar(
+   112→          SnackBar(
+   113→            content: Text(next.error!),
+   114→            backgroundColor: AppColors.error,
+   115→            behavior: SnackBarBehavior.floating,
+   116→          ),
+   117→        );
+   118→        ref.read(aiManagementProvider.notifier).state = ref.read(aiManagementProvider).clearError();
+   119→      }
+   120→    });
+   121→
+   122→    return Scaffold(
+   123→      appBar: AppAppBar(
+   124→        title: 'AI Management Console',
+   125→        actions: [
+   126→          IconButton(
+   127→            icon: const Icon(Icons.refresh),
+   128→            tooltip: 'Refresh',
+   129→            onPressed: () => _loadData(),
+   130→          ),
+   131→        ],
+   132→      ),
+   133→      body: state.isLoading && state.providers.isEmpty
+   134→          ? const Center(child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+   135→          : state.error != null && state.providers.isEmpty
+   136→              ? _buildErrorState(state.error!, cs)
+   137→              : RefreshIndicator(
+   138→                  onRefresh: () async => _loadData(),
+   139→                  child: SingleChildScrollView(
+   140→                    physics: const AlwaysScrollableScrollPhysics(),
+   141→                    padding: Spacings.paddingScreen,
+   142→                    child: Column(
+   143→                      crossAxisAlignment: CrossAxisAlignment.start,
+   144→                      children: [
+   145→                        // ─── Usage Analytics Summary ───────────────────
+   146→                        _buildUsageAnalytics(state, cs),
+   147→                        Spacings.sectionGap,
+   148→
+   149→                        // ─── Provider Cards ────────────────────────────
+   150→                        SectionHeader(
+   151→                          title: 'AI Providers',
+   152→                          subtitle: '${state.providers.length} provider(s) configured',
+   153→                          action: FilledButton.icon(
+   154→                            onPressed: () => _showAddProviderDialog(context),
+   155→                            icon: const Icon(Icons.add, size: Spacings.smIcon),
+   156→                            label: const Text('Add Provider'),
+   157→                          ),
+   158→                        ),
+   159→                        const SizedBox(height: Spacings.md),
+   160→                        if (state.providers.isEmpty)
+   161→                          const AdminEmptyState(
+   162→                            message: 'No AI providers configured. Add one to get started.',
+   163→                            icon: Icons.smart_toy_outlined,
+   164→                          )
+   165→                        else
+   166→                          ...state.providers.map((provider) => Padding(
+   167→                            padding: const EdgeInsets.only(bottom: Spacings.md),
+   168→                            child: _ProviderCard(
+   169→                              provider: provider,
+   170→                              statusColor: _providerStatusColor(provider.status),
+   171→                              statusIcon: _providerStatusIcon(provider.status),
+   172→                              budgetBarColor: _budgetBarColor(provider.budgetUtilization),
+   173→                              onSetDefault: () => ref
+   174→                                  .read(aiManagementProvider.notifier)
+   175→                                  .setDefault(provider.id),
+   176→                              onToggle: () => ref
+   177→                                  .read(aiManagementProvider.notifier)
+   178→                                  .toggleProvider(provider.id, !provider.isActive),
+   179→                              onEdit: () => _showEditProviderDialog(context, provider),
+   180→                            ),
+   181→                          )),
+   182→
+   183→                        Spacings.sectionGap,
+   184→
+   185→                        // ─── Request Logs ──────────────────────────────
+   186→                        SectionHeader(
+   187→                          title: 'Request Logs',
+   188→                          subtitle: 'Recent AI API requests',
+   189→                          action: _buildLogFilters(cs),
+   190→                        ),
+   191→                        const SizedBox(height: Spacings.md),
+   192→                        _buildRequestLogsTable(state, cs),
+   193→                      ],
+   194→                    ),
+   195→                  ),
+   196→                ),
+   197→    );
+   198→  }
+   199→
+   200→  // ─── Error State ────────────────────────────────────────────────────────
+   201→
+   202→  Widget _buildErrorState(String error, ColorScheme cs) {
+   203→    return Center(
+   204→      child: Padding(
+   205→        padding: const EdgeInsets.all(Spacings.xl),
+   206→        child: Column(
+   207→          mainAxisSize: MainAxisSize.min,
+   208→          children: [
+   209→            Icon(Icons.error_outline, size: Spacings.xlIcon, color: cs.error),
+   210→            const SizedBox(height: Spacings.lg),
+   211→            Text(
+   212→              error,
+   213→              style: AppTypography.wRegular.copyWith(
+   214→                fontSize: 14,
+   215→                color: cs.onSurface.withValues(alpha: 0.7),
+   216→              ),
+   217→              textAlign: TextAlign.center,
+   218→            ),
+   219→            const SizedBox(height: Spacings.lg),
+   220→            FilledButton.tonal(
+   221→              onPressed: () => _loadData(),
+   222→              child: const Text('Retry'),
+   223→            ),
+   224→          ],
+   225→        ),
+   226→      ),
+   227→    );
+   228→  }
+   229→
+   230→  // ─── Usage Analytics Summary ────────────────────────────────────────────
+   231→
+   232→  Widget _buildUsageAnalytics(AIManagementState state, ColorScheme cs) {
+   233→    final analytics = state.usageAnalytics;
+   234→    final totalRequests = analytics?['totalRequests'] as int? ?? 0;
+   235→    final totalCost = analytics?['totalCost'] as double? ?? 0.0;
+   236→    final avgLatency = analytics?['averageLatencyMs'] as double? ?? 0.0;
+   237→    final successRate = analytics?['successRate'] as double? ?? 0.0;
+   238→
+   239→    return Row(
+   240→      children: [
+   241→        Expanded(
+   242→          child: MetricCard(
+   243→            title: 'Total Requests',
+   244→            value: _formatNumber(totalRequests),
+   245→            icon: Icons.api,
+   246→            color: AppColors.info,
+   247→            subtitle: 'This month',
+   248→          ),
+   249→        ),
+   250→        const SizedBox(width: Spacings.md),
+   251→        Expanded(
+   252→          child: MetricCard(
+   253→            title: 'Total Cost',
+   254→            value: '\$${totalCost.toStringAsFixed(2)}',
+   255→            icon: Icons.attach_money,
+   256→            color: AppColors.success,
+   257→            subtitle: 'This month',
+   258→          ),
+   259→        ),
+   260→        const SizedBox(width: Spacings.md),
+   261→        Expanded(
+   262→          child: MetricCard(
+   263→            title: 'Avg Latency',
+   264→            value: '${avgLatency.toStringAsFixed(0)}ms',
+   265→            icon: Icons.speed,
+   266→            color: AppColors.warning,
+   267→            subtitle: 'Average response time',
+   268→          ),
+   269→        ),
+   270→        const SizedBox(width: Spacings.md),
+   271→        Expanded(
+   272→          child: MetricCard(
+   273→            title: 'Success Rate',
+   274→            value: '${successRate.toStringAsFixed(1)}%',
+   275→            icon: Icons.check_circle_outline,
+   276→            color: successRate >= 95 ? AppColors.success : AppColors.warning,
+   277→            subtitle: 'Request success',
+   278→          ),
+   279→        ),
+   280→      ],
+   281→    );
+   282→  }
+   283→
+   284→  // ─── Log Filters ────────────────────────────────────────────────────────
+   285→
+   286→  Widget _buildLogFilters(ColorScheme cs) {
+   287→    return Row(
+   288→      mainAxisSize: MainAxisSize.min,
+   289→      children: [
+   290→        // Provider filter dropdown
+   291→        Container(
+   292→          height: 40,
+   293→          padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
+   294→          decoration: BoxDecoration(
+   295→            border: Border.all(color: cs.outline.withValues(alpha: 0.3)),
+   296→            borderRadius: Spacings.borderRadiusMd,
+   297→          ),
+   298→          child: DropdownButton<String?>(
+   299→            value: _filterProviderId,
+   300→            hint: const Text('Provider', style: TextStyle(fontSize: 12)),
+   301→            underline: const SizedBox.shrink(),
+   302→            isDense: true,
+   303→            items: [
+   304→              const DropdownMenuItem<String?>(value: null, child: Text('All Providers')),
+   305→              ...ref.read(aiManagementProvider).providers.map(
+   306→                    (p) => DropdownMenuItem<String?>(value: p.id, child: Text(p.name)),
+   307→                  ),
+   308→            ],
+   309→            onChanged: (value) {
+   310→              setState(() => _filterProviderId = value);
+   311→              ref.read(aiManagementProvider.notifier).loadRequestLogs(
+   312→                    providerId: value,
+   313→                    startDate: _filterDateRange?.start,
+   314→                    endDate: _filterDateRange?.end,
+   315→                  );
+   316→            },
+   317→          ),
+   318→        ),
+   319→        const SizedBox(width: Spacings.sm),
+   320→        // Date range filter
+   321→        IconButton.outlined(
+   322→          onPressed: _pickDateRange,
+   323→          icon: const Icon(Icons.date_range, size: Spacings.mdIcon),
+   324→          tooltip: 'Filter by date range',
+   325→        ),
+   326→        if (_filterDateRange != null)
+   327→          IconButton(
+   328→            onPressed: () {
+   329→              setState(() => _filterDateRange = null);
+   330→              ref.read(aiManagementProvider.notifier).loadRequestLogs(
+   331→                    providerId: _filterProviderId,
+   332→                  );
+   333→            },
+   334→            icon: const Icon(Icons.clear, size: Spacings.mdIcon),
+   335→            tooltip: 'Clear date filter',
+   336→          ),
+   337→      ],
+   338→    );
+   339→  }
+   340→
+   341→  // ─── Request Logs DataTable ─────────────────────────────────────────────
+   342→
+   343→  Widget _buildRequestLogsTable(AIManagementState state, ColorScheme cs) {
+   344→    final logs = state.requestLogs;
+   345→
+   346→    if (logs.isEmpty) {
+   347→      return const AdminEmptyState(
+   348→        message: 'No request logs found.',
+   349→        icon: Icons.receipt_long_outlined,
+   350→      );
+   351→    }
+   352→
+   353→    // Build a name lookup map from provider id → name
+   354→    final providerNameMap = <String, String>{};
+   355→    for (final p in state.providers) {
+   356→      providerNameMap[p.id] = p.name;
+   357→    }
+   358→
+   359→    return Card(
+   360→      elevation: Spacings.elevationSm,
+   361→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   362→      child: SingleChildScrollView(
+   363→        scrollDirection: Axis.horizontal,
+   364→        child: DataTable(
+   365→          columnSpacing: Spacings.xl,
+   366→          headingRowColor: WidgetStatePropertyAll(cs.surfaceContainerHighest),
+   367→          columns: [
+   368→            DataColumn(label: _tableHeader('Timestamp', cs)),
+   369→            DataColumn(label: _tableHeader('Provider', cs)),
+   370→            DataColumn(label: _tableHeader('Model', cs)),
+   371→            DataColumn(label: _tableHeader('Request Type', cs)),
+   372→            DataColumn(label: _tableHeader('Tokens In', cs)),
+   373→            DataColumn(label: _tableHeader('Tokens Out', cs)),
+   374→            DataColumn(label: _tableHeader('Total Tokens', cs)),
+   375→            DataColumn(label: _tableHeader('Cost', cs)),
+   376→            DataColumn(label: _tableHeader('Latency', cs)),
+   377→            DataColumn(label: _tableHeader('Status', cs)),
+   378→          ],
+   379→          rows: logs.map((log) {
+   380→            final isSuccess = log.isSuccess;
+   381→            return DataRow(
+   382→              cells: [
+   383→                DataCell(Text(
+   384→                  _formatTimestamp(log.createdAt),
+   385→                  style: AppTypography.wRegular.copyWith(fontSize: 12),
+   386→                )),
+   387→                DataCell(Text(
+   388→                  providerNameMap[log.providerId] ?? log.providerId.substring(0, 8),
+   389→                  style: AppTypography.wMedium.copyWith(fontSize: 12),
+   390→                )),
+   391→                DataCell(Text(
+   392→                  log.model,
+   393→                  style: AppTypography.wRegular.copyWith(fontSize: 12),
+   394→                )),
+   395→                DataCell(Text(
+   396→                  log.requestType,
+   397→                  style: AppTypography.wRegular.copyWith(fontSize: 12),
+   398→                )),
+   399→                DataCell(Text(
+   400→                  _formatNumber(log.inputTokens),
+   401→                  style: AppTypography.wRegular.copyWith(fontSize: 12),
+   402→                )),
+   403→                DataCell(Text(
+   404→                  _formatNumber(log.outputTokens),
+   405→                  style: AppTypography.wRegular.copyWith(fontSize: 12),
+   406→                )),
+   407→                DataCell(Text(
+   408→                  _formatNumber(log.totalTokens),
+   409→                  style: AppTypography.wSemiBold.copyWith(fontSize: 12),
+   410→                )),
+   411→                DataCell(Text(
+   412→                  '\$${log.cost.toStringAsFixed(4)}',
+   413→                  style: AppTypography.wSemiBold.copyWith(fontSize: 12),
+   414→                )),
+   415→                DataCell(Text(
+   416→                  '${log.latencyMs}ms',
+   417→                  style: AppTypography.wRegular.copyWith(
+   418→                    fontSize: 12,
+   419→                    color: log.latencyMs > 3000
+   420→                        ? AppColors.error
+   421→                        : log.latencyMs > 1500
+   422→                            ? AppColors.warning
+   423→                            : null,
+   424→                  ),
+   425→                )),
+   426→                DataCell(
+   427→                  StatusBadge(
+   428→                    label: isSuccess ? 'Success' : 'Failed',
+   429→                    color: isSuccess ? AppColors.success : AppColors.error,
+   430→                    icon: isSuccess ? Icons.check_circle : Icons.error,
+   431→                  ),
+   432→                ),
+   433→              ],
+   434→            );
+   435→          }).toList(),
+   436→        ),
+   437→      ),
+   438→    );
+   439→  }
+   440→
+   441→  Widget _tableHeader(String text, ColorScheme cs) {
+   442→    return Text(
+   443→      text,
+   444→      style: AppTypography.wSemiBold.copyWith(
+   445→        fontSize: 12,
+   446→        color: cs.onSurface.withValues(alpha: 0.7),
+   447→      ),
+   448→    );
+   449→  }
+   450→
+   451→  // ─── Date Range Picker ──────────────────────────────────────────────────
+   452→
+   453→  Future<void> _pickDateRange() async {
+   454→    final now = DateTime.now();
+   455→    final picked = await showDateRangePicker(
+   456→      context: context,
+   457→      firstDate: now.subtract(const Duration(days: 90)),
+   458→      lastDate: now,
+   459→      initialDateRange: _filterDateRange,
+   460→    );
+   461→    if (picked != null) {
+   462→      setState(() => _filterDateRange = picked);
+   463→      ref.read(aiManagementProvider.notifier).loadRequestLogs(
+   464→            providerId: _filterProviderId,
+   465→            startDate: picked.start,
+   466→            endDate: picked.end,
+   467→          );
+   468→    }
+   469→  }
+   470→
+   471→  // ─── Add Provider Dialog ────────────────────────────────────────────────
+   472→
+   473→  void _showAddProviderDialog(BuildContext context) {
+   474→    final nameCtrl = TextEditingController();
+   475→    final slugCtrl = TextEditingController();
+   476→    final typeCtrl = TextEditingController();
+   477→    final urlCtrl = TextEditingController();
+   478→    final modelCtrl = TextEditingController();
+   479→    final budgetCtrl = TextEditingController();
+   480→    final costInCtrl = TextEditingController();
+   481→    final costOutCtrl = TextEditingController();
+   482→    final rateMinCtrl = TextEditingController(text: '60');
+   483→    final rateDayCtrl = TextEditingController(text: '10000');
+   484→    final formKey = GlobalKey<FormState>();
+   485→
+   486→    showDialog(
+   487→      context: context,
+   488→      builder: (ctx) => AlertDialog(
+   489→        title: Text('Add AI Provider', style: AppTypography.wBold.copyWith(fontSize: 18)),
+   490→        content: SingleChildScrollView(
+   491→          child: Form(
+   492→            key: formKey,
+   493→            child: Column(
+   494→              mainAxisSize: MainAxisSize.min,
+   495→              crossAxisAlignment: CrossAxisAlignment.start,
+   496→              children: [
+   497→                TextFormField(
+   498→                  controller: nameCtrl,
+   499→                  decoration: const InputDecoration(labelText: 'Provider Name *'),
+   500→                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+   501→                ),
+   502→                const SizedBox(height: Spacings.sm),
+   503→                TextFormField(
+   504→                  controller: slugCtrl,
+   505→                  decoration: const InputDecoration(labelText: 'Slug *'),
+   506→                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+   507→                ),
+   508→                const SizedBox(height: Spacings.sm),
+   509→                TextFormField(
+   510→                  controller: typeCtrl,
+   511→                  decoration: const InputDecoration(labelText: 'Provider Type * (e.g. openai, google)'),
+   512→                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+   513→                ),
+   514→                const SizedBox(height: Spacings.sm),
+   515→                TextFormField(
+   516→                  controller: urlCtrl,
+   517→                  decoration: const InputDecoration(labelText: 'API Base URL *'),
+   518→                  keyboardType: TextInputType.url,
+   519→                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+   520→                ),
+   521→                const SizedBox(height: Spacings.sm),
+   522→                TextFormField(
+   523→                  controller: modelCtrl,
+   524→                  decoration: const InputDecoration(labelText: 'Default Model'),
+   525→                ),
+   526→                const SizedBox(height: Spacings.sm),
+   527→                Row(
+   528→                  children: [
+   529→                    Expanded(
+   530→                      child: TextFormField(
+   531→                        controller: costInCtrl,
+   532→                        decoration: const InputDecoration(labelText: 'Cost/1K In'),
+   533→                        keyboardType: TextInputType.number,
+   534→                      ),
+   535→                    ),
+   536→                    const SizedBox(width: Spacings.sm),
+   537→                    Expanded(
+   538→                      child: TextFormField(
+   539→                        controller: costOutCtrl,
+   540→                        decoration: const InputDecoration(labelText: 'Cost/1K Out'),
+   541→                        keyboardType: TextInputType.number,
+   542→                      ),
+   543→                    ),
+   544→                  ],
+   545→                ),
+   546→                const SizedBox(height: Spacings.sm),
+   547→                TextFormField(
+   548→                  controller: budgetCtrl,
+   549→                  decoration: const InputDecoration(labelText: 'Monthly Budget (\$)'),
+   550→                  keyboardType: TextInputType.number,
+   551→                ),
+   552→                const SizedBox(height: Spacings.sm),
+   553→                Row(
+   554→                  children: [
+   555→                    Expanded(
+   556→                      child: TextFormField(
+   557→                        controller: rateMinCtrl,
+   558→                        decoration: const InputDecoration(labelText: 'Rate/Min'),
+   559→                        keyboardType: TextInputType.number,
+   560→                      ),
+   561→                    ),
+   562→                    const SizedBox(width: Spacings.sm),
+   563→                    Expanded(
+   564→                      child: TextFormField(
+   565→                        controller: rateDayCtrl,
+   566→                        decoration: const InputDecoration(labelText: 'Rate/Day'),
+   567→                        keyboardType: TextInputType.number,
+   568→                      ),
+   569→                    ),
+   570→                  ],
+   571→                ),
+   572→              ],
+   573→            ),
+   574→          ),
+   575→        ),
+   576→        actions: [
+   577→          TextButton(
+   578→            onPressed: () => Navigator.of(ctx).pop(),
+   579→            child: const Text('Cancel'),
+   580→          ),
+   581→          FilledButton(
+   582→            onPressed: () {
+   583→              if (!formKey.currentState!.validate()) return;
+   584→              final now = DateTime.now();
+   585→              final provider = AIProvider(
+   586→                id: '',
+   587→                name: nameCtrl.text.trim(),
+   588→                slug: slugCtrl.text.trim(),
+   589→                providerType: typeCtrl.text.trim(),
+   590→                apiBaseUrl: urlCtrl.text.trim(),
+   591→                defaultModel: modelCtrl.text.trim().isNotEmpty ? modelCtrl.text.trim() : null,
+   592→                costPer1kInputTokens: double.tryParse(costInCtrl.text) ?? 0,
+   593→                costPer1kOutputTokens: double.tryParse(costOutCtrl.text) ?? 0,
+   594→                monthlyBudget: double.tryParse(budgetCtrl.text),
+   595→                rateLimitPerMinute: int.tryParse(rateMinCtrl.text) ?? 60,
+   596→                rateLimitPerDay: int.tryParse(rateDayCtrl.text) ?? 10000,
+   597→                status: AIProviderStatus.active,
+   598→                createdAt: now,
+   599→                updatedAt: now,
+   600→              );
+   601→              ref.read(aiManagementProvider.notifier).createProvider(provider);
+   602→              Navigator.of(ctx).pop();
+   603→            },
+   604→            child: const Text('Add Provider'),
+   605→          ),
+   606→        ],
+   607→      ),
+   608→    );
+   609→  }
+   610→
+   611→  // ─── Edit Provider Dialog ───────────────────────────────────────────────
+   612→
+   613→  void _showEditProviderDialog(BuildContext context, AIProvider provider) {
+   614→    final nameCtrl = TextEditingController(text: provider.name);
+   615→    final urlCtrl = TextEditingController(text: provider.apiBaseUrl);
+   616→    final modelCtrl = TextEditingController(text: provider.defaultModel ?? '');
+   617→    final budgetCtrl = TextEditingController(
+   618→      text: provider.monthlyBudget?.toStringAsFixed(2) ?? '',
+   619→    );
+   620→    final costInCtrl = TextEditingController(text: provider.costPer1kInputTokens.toString());
+   621→    final costOutCtrl = TextEditingController(text: provider.costPer1kOutputTokens.toString());
+   622→    final rateMinCtrl = TextEditingController(text: provider.rateLimitPerMinute.toString());
+   623→    final rateDayCtrl = TextEditingController(text: provider.rateLimitPerDay.toString());
+   624→    final formKey = GlobalKey<FormState>();
+   625→
+   626→    showDialog(
+   627→      context: context,
+   628→      builder: (ctx) => AlertDialog(
+   629→        title: Text('Edit ${provider.name}', style: AppTypography.wBold.copyWith(fontSize: 18)),
+   630→        content: SingleChildScrollView(
+   631→          child: Form(
+   632→            key: formKey,
+   633→            child: Column(
+   634→              mainAxisSize: MainAxisSize.min,
+   635→              crossAxisAlignment: CrossAxisAlignment.start,
+   636→              children: [
+   637→                TextFormField(
+   638→                  controller: nameCtrl,
+   639→                  decoration: const InputDecoration(labelText: 'Provider Name'),
+   640→                  validator: (v) => v == null || v.isEmpty ? 'Required' : null,
+   641→                ),
+   642→                const SizedBox(height: Spacings.sm),
+   643→                TextFormField(
+   644→                  controller: urlCtrl,
+   645→                  decoration: const InputDecoration(labelText: 'API Base URL'),
+   646→                  keyboardType: TextInputType.url,
+   647→                ),
+   648→                const SizedBox(height: Spacings.sm),
+   649→                TextFormField(
+   650→                  controller: modelCtrl,
+   651→                  decoration: const InputDecoration(labelText: 'Default Model'),
+   652→                ),
+   653→                const SizedBox(height: Spacings.sm),
+   654→                Row(
+   655→                  children: [
+   656→                    Expanded(
+   657→                      child: TextFormField(
+   658→                        controller: costInCtrl,
+   659→                        decoration: const InputDecoration(labelText: 'Cost/1K In'),
+   660→                        keyboardType: TextInputType.number,
+   661→                      ),
+   662→                    ),
+   663→                    const SizedBox(width: Spacings.sm),
+   664→                    Expanded(
+   665→                      child: TextFormField(
+   666→                        controller: costOutCtrl,
+   667→                        decoration: const InputDecoration(labelText: 'Cost/1K Out'),
+   668→                        keyboardType: TextInputType.number,
+   669→                      ),
+   670→                    ),
+   671→                  ],
+   672→                ),
+   673→                const SizedBox(height: Spacings.sm),
+   674→                TextFormField(
+   675→                  controller: budgetCtrl,
+   676→                  decoration: const InputDecoration(labelText: 'Monthly Budget (\$)'),
+   677→                  keyboardType: TextInputType.number,
+   678→                ),
+   679→                const SizedBox(height: Spacings.sm),
+   680→                Row(
+   681→                  children: [
+   682→                    Expanded(
+   683→                      child: TextFormField(
+   684→                        controller: rateMinCtrl,
+   685→                        decoration: const InputDecoration(labelText: 'Rate/Min'),
+   686→                        keyboardType: TextInputType.number,
+   687→                      ),
+   688→                    ),
+   689→                    const SizedBox(width: Spacings.sm),
+   690→                    Expanded(
+   691→                      child: TextFormField(
+   692→                        controller: rateDayCtrl,
+   693→                        decoration: const InputDecoration(labelText: 'Rate/Day'),
+   694→                        keyboardType: TextInputType.number,
+   695→                      ),
+   696→                    ),
+   697→                  ],
+   698→                ),
+   699→              ],
+   700→            ),
+   701→          ),
+   702→        ),
+   703→        actions: [
+   704→          TextButton(
+   705→            onPressed: () => Navigator.of(ctx).pop(),
+   706→            child: const Text('Cancel'),
+   707→          ),
+   708→          FilledButton(
+   709→            onPressed: () {
+   710→              if (!formKey.currentState!.validate()) return;
+   711→              final updated = provider.copyWith(
+   712→                name: nameCtrl.text.trim(),
+   713→                apiBaseUrl: urlCtrl.text.trim(),
+   714→                defaultModel: modelCtrl.text.trim().isNotEmpty ? modelCtrl.text.trim() : null,
+   715→                costPer1kInputTokens: double.tryParse(costInCtrl.text) ?? provider.costPer1kInputTokens,
+   716→                costPer1kOutputTokens: double.tryParse(costOutCtrl.text) ?? provider.costPer1kOutputTokens,
+   717→                monthlyBudget: double.tryParse(budgetCtrl.text) ?? provider.monthlyBudget,
+   718→                rateLimitPerMinute: int.tryParse(rateMinCtrl.text) ?? provider.rateLimitPerMinute,
+   719→                rateLimitPerDay: int.tryParse(rateDayCtrl.text) ?? provider.rateLimitPerDay,
+   720→              );
+   721→              ref.read(aiManagementProvider.notifier).updateProvider(updated);
+   722→              Navigator.of(ctx).pop();
+   723→            },
+   724→            child: const Text('Save Changes'),
+   725→          ),
+   726→        ],
+   727→      ),
+   728→    );
+   729→  }
+   730→
+   731→  // ─── Helpers ────────────────────────────────────────────────────────────
+   732→
+   733→  String _formatTimestamp(DateTime dt) {
+   734→    return '${dt.year}-${_pad(dt.month)}-${_pad(dt.day)} '
+   735→        '${_pad(dt.hour)}:${_pad(dt.minute)}';
+   736→  }
+   737→
+   738→  String _pad(int n) => n.toString().padLeft(2, '0');
+   739→
+   740→  String _formatNumber(int n) {
+   741→    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+   742→    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}K';
+   743→    return n.toString();
+   744→  }
+   745→}
+   746→
+   747→// ═══════════════════════════════════════════════════════════════════════════════
+   748→// PROVIDER CARD WIDGET
+   749→// ═══════════════════════════════════════════════════════════════════════════════
+   750→
+   751→class _ProviderCard extends StatelessWidget {
+   752→  const _ProviderCard({
+   753→    required this.provider,
+   754→    required this.statusColor,
+   755→    required this.statusIcon,
+   756→    required this.budgetBarColor,
+   757→    required this.onSetDefault,
+   758→    required this.onToggle,
+   759→    required this.onEdit,
+   760→  });
+   761→
+   762→  final AIProvider provider;
+   763→  final Color statusColor;
+   764→  final IconData statusIcon;
+   765→  final Color budgetBarColor;
+   766→  final VoidCallback onSetDefault;
+   767→  final VoidCallback onToggle;
+   768→  final VoidCallback onEdit;
+   769→
+   770→  @override
+   771→  Widget build(BuildContext context) {
+   772→    final cs = Theme.of(context).colorScheme;
+   773→    final utilization = provider.budgetUtilization;
+   774→
+   775→    return Card(
+   776→      elevation: provider.isDefault ? Spacings.elevationMd : Spacings.elevationSm,
+   777→      shape: RoundedRectangleBorder(
+   778→        borderRadius: Spacings.borderRadiusMd,
+   779→        side: provider.isDefault
+   780→            ? BorderSide(color: cs.primary, width: 2)
+   781→            : BorderSide.none,
+   782→      ),
+   783→      child: Padding(
+   784→        padding: Spacings.paddingAll,
+   785→        child: Column(
+   786→          crossAxisAlignment: CrossAxisAlignment.start,
+   787→          children: [
+   788→            // ─── Header Row ────────────────────────────────────────────
+   789→            Row(
+   790→              children: [
+   791→                Expanded(
+   792→                  child: Row(
+   793→                    children: [
+   794→                      Icon(Icons.smart_toy, color: cs.primary, size: Spacings.lgIcon),
+   795→                      const SizedBox(width: Spacings.sm),
+   796→                      Expanded(
+   797→                        child: Column(
+   798→                          crossAxisAlignment: CrossAxisAlignment.start,
+   799→                          children: [
+   800→                            Row(
+   801→                              children: [
+   802→                                Flexible(
+   803→                                  child: Text(
+   804→                                    provider.name,
+   805→                                    style: AppTypography.wSemiBold.copyWith(fontSize: 16),
+   806→                                    overflow: TextOverflow.ellipsis,
+   807→                                  ),
+   808→                                ),
+   809→                                if (provider.isDefault) ...[
+   810→                                  const SizedBox(width: Spacings.sm),
+   811→                                  Container(
+   812→                                    padding: const EdgeInsets.symmetric(
+   813→                                      horizontal: Spacings.sm,
+   814→                                      vertical: Spacings.xs,
+   815→                                    ),
+   816→                                    decoration: BoxDecoration(
+   817→                                      color: cs.primary.withValues(alpha: 0.1),
+   818→                                      borderRadius: Spacings.borderRadiusSm,
+   819→                                    ),
+   820→                                    child: Text(
+   821→                                      'DEFAULT',
+   822→                                      style: AppTypography.wBold.copyWith(
+   823→                                        fontSize: 10,
+   824→                                        color: cs.primary,
+   825→                                      ),
+   826→                                    ),
+   827→                                  ),
+   828→                                ],
+   829→                              ],
+   830→                            ),
+   831→                            const SizedBox(height: Spacings.xs),
+   832→                            Text(
+   833→                              provider.slug,
+   834→                              style: AppTypography.wRegular.copyWith(
+   835→                                fontSize: 12,
+   836→                                color: cs.onSurface.withValues(alpha: 0.5),
+   837→                              ),
+   838→                            ),
+   839→                          ],
+   840→                        ),
+   841→                      ),
+   842→                    ],
+   843→                  ),
+   844→                ),
+   845→                StatusBadge(
+   846→                  label: provider.status.label,
+   847→                  color: statusColor,
+   848→                  icon: statusIcon,
+   849→                ),
+   850→              ],
+   851→            ),
+   852→
+   853→            const SizedBox(height: Spacings.md),
+   854→
+   855→            // ─── Budget Utilization ────────────────────────────────────
+   856→            if (provider.monthlyBudget != null) ...[
+   857→              Row(
+   858→                children: [
+   859→                  Text(
+   860→                    'Monthly Budget',
+   861→                    style: AppTypography.wRegular.copyWith(
+   862→                      fontSize: 12,
+   863→                      color: cs.onSurface.withValues(alpha: 0.6),
+   864→                    ),
+   865→                  ),
+   866→                  const Spacer(),
+   867→                  Text(
+   868→                    '\$${provider.currentMonthSpend.toStringAsFixed(2)} / \$${provider.monthlyBudget!.toStringAsFixed(2)}',
+   869→                    style: AppTypography.wSemiBold.copyWith(fontSize: 12),
+   870→                  ),
+   871→                ],
+   872→              ),
+   873→              const SizedBox(height: Spacings.xs),
+   874→              ClipRRect(
+   875→                borderRadius: Spacings.borderRadiusFull,
+   876→                child: LinearProgressIndicator(
+   877→                  value: (utilization / 100).clamp(0.0, 1.0),
+   878→                  backgroundColor: cs.surfaceContainerHighest,
+   879→                  color: budgetBarColor,
+   880→                  minHeight: 8,
+   881→                ),
+   882→              ),
+   883→              const SizedBox(height: Spacings.xs),
+   884→              Row(
+   885→                children: [
+   886→                  Text(
+   887→                    '${utilization.toStringAsFixed(1)}% utilized',
+   888→                    style: AppTypography.wRegular.copyWith(
+   889→                      fontSize: 11,
+   890→                      color: budgetBarColor,
+   891→                    ),
+   892→                  ),
+   893→                ],
+   894→              ),
+   895→              const SizedBox(height: Spacings.md),
+   896→            ] else ...[
+   897→              Row(
+   898→                children: [
+   899→                  Text(
+   900→                    'Current Spend: ',
+   901→                    style: AppTypography.wRegular.copyWith(
+   902→                      fontSize: 12,
+   903→                      color: cs.onSurface.withValues(alpha: 0.6),
+   904→                    ),
+   905→                  ),
+   906→                  Text(
+   907→                    '\$${provider.currentMonthSpend.toStringAsFixed(2)}',
+   908→                    style: AppTypography.wSemiBold.copyWith(fontSize: 12),
+   909→                  ),
+   910→                  const SizedBox(width: Spacings.md),
+   911→                  Text(
+   912→                    '(No budget set)',
+   913→                    style: AppTypography.wRegular.copyWith(
+   914→                      fontSize: 11,
+   915→                      color: cs.onSurface.withValues(alpha: 0.4),
+   916→                    ),
+   917→                  ),
+   918→                ],
+   919→              ),
+   920→              const SizedBox(height: Spacings.md),
+   921→            ],
+   922→
+   923→            // ─── Cost & Rate Info ──────────────────────────────────────
+   924→            Wrap(
+   925→              spacing: Spacings.lg,
+   926→              runSpacing: Spacings.sm,
+   927→              children: [
+   928→                _infoChip(
+   929→                  icon: Icons.input,
+   930→                  label: 'In: \$${provider.costPer1kInputTokens.toStringAsFixed(3)}/1K',
+   931→                  cs: cs,
+   932→                ),
+   933→                _infoChip(
+   934→                  icon: Icons.output,
+   935→                  label: 'Out: \$${provider.costPer1kOutputTokens.toStringAsFixed(3)}/1K',
+   936→                  cs: cs,
+   937→                ),
+   938→                _infoChip(
+   939→                  icon: Icons.timer,
+   940→                  label: '${provider.rateLimitPerMinute}/min',
+   941→                  cs: cs,
+   942→                ),
+   943→                _infoChip(
+   944→                  icon: Icons.today,
+   945→                  label: '${provider.rateLimitPerDay}/day',
+   946→                  cs: cs,
+   947→                ),
+   948→                if (provider.defaultModel != null)
+   949→                  _infoChip(
+   950→                    icon: Icons.memory,
+   951→                    label: provider.defaultModel!,
+   952→                    cs: cs,
+   953→                  ),
+   954→              ],
+   955→            ),
+   956→
+   957→            const SizedBox(height: Spacings.md),
+   958→
+   959→            // ─── Actions ──────────────────────────────────────────────
+   960→            Row(
+   961→              mainAxisAlignment: MainAxisAlignment.end,
+   962→              children: [
+   963→                if (!provider.isDefault)
+   964→                  OutlinedButton.icon(
+   965→                    onPressed: onSetDefault,
+   966→                    icon: const Icon(Icons.star_outline, size: Spacings.smIcon),
+   967→                    label: const Text('Set Default'),
+   968→                    style: OutlinedButton.styleFrom(
+   969→                      visualDensity: VisualDensity.compact,
+   970→                    ),
+   971→                  ),
+   972→                const SizedBox(width: Spacings.sm),
+   973→                FilledButton.tonalIcon(
+   974→                  onPressed: onToggle,
+   975→                  icon: Icon(
+   976→                    provider.isActive ? Icons.pause : Icons.play_arrow,
+   977→                    size: Spacings.smIcon,
+   978→                  ),
+   979→                  label: Text(provider.isActive ? 'Disable' : 'Enable'),
+   980→                  style: FilledButton.styleFrom(
+   981→                    visualDensity: VisualDensity.compact,
+   982→                  ),
+   983→                ),
+   984→                const SizedBox(width: Spacings.sm),
+   985→                IconButton.outlined(
+   986→                  onPressed: onEdit,
+   987→                  icon: const Icon(Icons.edit, size: Spacings.mdIcon),
+   988→                  tooltip: 'Edit Provider',
+   989→                  visualDensity: VisualDensity.compact,
+   990→                ),
+   991→              ],
+   992→            ),
+   993→          ],
+   994→        ),
+   995→      ),
+   996→    );
+   997→  }
+   998→
+   999→  Widget _infoChip({
+  1000→    required IconData icon,
+  1001→    required String label,
+  1002→    required ColorScheme cs,
+  1003→  }) {
+  1004→    return Row(
+  1005→      mainAxisSize: MainAxisSize.min,
+  1006→      children: [
+  1007→        Icon(icon, size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+  1008→        const SizedBox(width: Spacings.xs),
+  1009→        Text(
+  1010→          label,
+  1011→          style: AppTypography.wRegular.copyWith(
+  1012→            fontSize: 12,
+  1013→            color: cs.onSurface.withValues(alpha: 0.7),
+  1014→          ),
+  1015→        ),
+  1016→      ],
+  1017→    );
+  1018→  }
+  1019→}
+  1020→

@@ -1,0 +1,746 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../../core/themes/app_colors.dart';
+     5→import '../../../../../core/themes/spacings.dart';
+     6→import '../../../../../core/themes/app_typography.dart';
+     7→import '../../../../../shared/widgets/app_app_bar.dart';
+     8→import '../../../../../shared/widgets/app_loading.dart';
+     9→import '../../domain/entities/super_admin_entities.dart';
+    10→import '../providers/super_admin_providers.dart';
+    11→import '../widgets/super_admin_widgets.dart';
+    12→
+    13→// ═══════════════════════════════════════════════════════════════════════════════
+    14→// BILLING MANAGEMENT PAGE
+    15→// ═══════════════════════════════════════════════════════════════════════════════
+    16→
+    17→/// Revenue and billing oversight page for the Enterprise Super Admin Platform.
+    18→///
+    19→/// Displays revenue overview KPIs, revenue by billing model breakdown,
+    20→/// failed payments, refunds, pending invoices, revenue trends, and
+    21→/// recent transactions.
+    22→///
+    23→/// Follows the standard ExamForge AI page pattern:
+    24→/// - [ConsumerStatefulWidget] + private state class
+    25→/// - `initState` → `addPostFrameCallback` → `_loadData()` via `ref.read`
+    26→/// - `ref.watch(provider)` in `build()` for reactive rebuilds
+    27→/// - Loading → Error → Content pattern
+    28→/// - Design tokens everywhere
+    29→class BillingManagementPage extends ConsumerStatefulWidget {
+    30→  const BillingManagementPage({super.key});
+    31→
+    32→  @override
+    33→  ConsumerState<BillingManagementPage> createState() =>
+    34→      _BillingManagementPageState();
+    35→}
+    36→
+    37→class _BillingManagementPageState
+    38→    extends ConsumerState<BillingManagementPage> {
+    39→  // ─── Lifecycle ──────────────────────────────────────────────────────────
+    40→
+    41→  @override
+    42→  void initState() {
+    43→    super.initState();
+    44→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    45→      _loadData();
+    46→    });
+    47→  }
+    48→
+    49→  void _loadData() {
+    50→    ref.read(billingManagementProvider.notifier).loadRevenueAnalytics();
+    51→  }
+    52→
+    53→  // ─── Build ──────────────────────────────────────────────────────────────
+    54→
+    55→  @override
+    56→  Widget build(BuildContext context) {
+    57→    final billingState = ref.watch(billingManagementProvider);
+    58→    final cs = Theme.of(context).colorScheme;
+    59→
+    60→    return Scaffold(
+    61→      appBar: const AppAppBar(title: 'Billing & Revenue'),
+    62→      body: _buildBody(context, billingState, cs),
+    63→    );
+    64→  }
+    65→
+    66→  // ─── Body: Loading → Error → Content ────────────────────────────────────
+    67→
+    68→  Widget _buildBody(
+    69→    BuildContext context,
+    70→    BillingManagementState state,
+    71→    ColorScheme cs,
+    72→  ) {
+    73→    // Loading state
+    74→    if (state.isLoading && state.revenueAnalytics == null) {
+    75→      return const Center(
+    76→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+    77→    }
+    78→
+    79→    // Error state
+    80→    if (state.error != null && state.revenueAnalytics == null) {
+    81→      return _buildErrorState(state);
+    82→    }
+    83→
+    84→    // Content
+    85→    final analytics = state.revenueAnalytics;
+    86→    if (analytics == null) {
+    87→      return const Center(
+    88→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+    89→    }
+    90→
+    91→    return RefreshIndicator(
+    92→      onRefresh: () => ref
+    93→          .read(billingManagementProvider.notifier)
+    94→          .loadRevenueAnalytics(),
+    95→      child: SingleChildScrollView(
+    96→        physics: const AlwaysScrollableScrollPhysics(),
+    97→        padding: Spacings.paddingScreen,
+    98→        child: Column(
+    99→          crossAxisAlignment: CrossAxisAlignment.start,
+   100→          children: [
+   101→            // Revenue Overview
+   102→            SectionHeader(title: 'Revenue Overview'),
+   103→            Spacings.itemGap,
+   104→            _buildRevenueOverview(analytics, cs),
+   105→            Spacings.sectionGap,
+   106→
+   107→            // Revenue by Billing Model
+   108→            SectionHeader(title: 'Revenue by Billing Model'),
+   109→            Spacings.itemGap,
+   110→            _buildRevenueByBillingModel(analytics, cs),
+   111→            Spacings.sectionGap,
+   112→
+   113→            // Billing Alerts Row
+   114→            SectionHeader(title: 'Billing Alerts'),
+   115→            Spacings.itemGap,
+   116→            _buildBillingAlerts(analytics, cs),
+   117→            Spacings.sectionGap,
+   118→
+   119→            // Revenue Trends
+   120→            SectionHeader(title: 'Revenue Trends'),
+   121→            Spacings.itemGap,
+   122→            _buildRevenueTrends(analytics, cs),
+   123→            Spacings.sectionGap,
+   124→
+   125→            // Recent Transactions
+   126→            SectionHeader(title: 'Recent Transactions'),
+   127→            Spacings.itemGap,
+   128→            _buildRecentTransactions(analytics, cs),
+   129→            const SizedBox(height: Spacings.xxl),
+   130→          ],
+   131→        ),
+   132→      ),
+   133→    );
+   134→  }
+   135→
+   136→  // ─── Error State ─────────────────────────────────────────────────────────
+   137→
+   138→  Widget _buildErrorState(BillingManagementState state) {
+   139→    return Center(
+   140→      child: Padding(
+   141→        padding: Spacings.paddingXl,
+   142→        child: Column(
+   143→          mainAxisSize: MainAxisSize.min,
+   144→          children: [
+   145→            Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
+   146→            const SizedBox(height: Spacings.lg),
+   147→            Text(
+   148→              'Failed to load billing data',
+   149→              style: AppTypography.wSemiBold.copyWith(
+   150→                fontSize: 18,
+   151→                color: Theme.of(context).colorScheme.onSurface,
+   152→              ),
+   153→            ),
+   154→            const SizedBox(height: Spacings.sm),
+   155→            Text(
+   156→              state.error ?? 'An unexpected error occurred.',
+   157→              style: AppTypography.wRegular.copyWith(
+   158→                fontSize: 14,
+   159→                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+   160→              ),
+   161→              textAlign: TextAlign.center,
+   162→            ),
+   163→            const SizedBox(height: Spacings.xl),
+   164→            FilledButton.tonal(
+   165→              onPressed: _loadData,
+   166→              child: const Text('Retry'),
+   167→            ),
+   168→          ],
+   169→        ),
+   170→      ),
+   171→    );
+   172→  }
+   173→
+   174→  // ─── Revenue Overview ───────────────────────────────────────────────────
+   175→
+   176→  Widget _buildRevenueOverview(RevenueAnalytics analytics, ColorScheme cs) {
+   177→    return LayoutBuilder(
+   178→      builder: (context, constraints) {
+   179→        final width = constraints.maxWidth;
+   180→        int crossAxisCount;
+   181→        if (width >= 1200) {
+   182→          crossAxisCount = 3;
+   183→        } else if (width >= 700) {
+   184→          crossAxisCount = 2;
+   185→        } else {
+   186→          crossAxisCount = 1;
+   187→        }
+   188→
+   189→        final cards = <Widget>[
+   190→          MetricCard(
+   191→            title: 'Total Revenue',
+   192→            value: _formatCurrency(analytics.totalRevenue),
+   193→            icon: Icons.account_balance_wallet,
+   194→            color: AppColors.success,
+   195→            trend: analytics.growthRate > 0
+   196→                ? '+${analytics.growthRate.toStringAsFixed(1)}%'
+   197→                : '${analytics.growthRate.toStringAsFixed(1)}%',
+   198→            trendIsUp: analytics.growthRate > 0,
+   199→          ),
+   200→          MetricCard(
+   201→            title: 'Monthly Recurring Revenue',
+   202→            value: _formatCurrency(analytics.monthlyRecurringRevenue),
+   203→            icon: Icons.trending_up,
+   204→            color: cs.primary,
+   205→            subtitle: 'MRR',
+   206→          ),
+   207→          MetricCard(
+   208→            title: 'ARPU',
+   209→            value: _formatCurrency(analytics.averageRevenuePerUser),
+   210→            icon: Icons.person_outline,
+   211→            color: Colors.teal,
+   212→            subtitle: 'Average Revenue Per User',
+   213→          ),
+   214→          MetricCard(
+   215→            title: 'ARPS',
+   216→            value: _formatCurrency(analytics.averageRevenuePerSchool),
+   217→            icon: Icons.school_outlined,
+   218→            color: Colors.deepPurple,
+   219→            subtitle: 'Average Revenue Per School',
+   220→          ),
+   221→          MetricCard(
+   222→            title: 'Churn Rate',
+   223→            value: '${analytics.churnRate.toStringAsFixed(1)}%',
+   224→            icon: Icons.person_off,
+   225→            color: analytics.churnRate > 5 ? AppColors.error : AppColors.warning,
+   226→            trend: analytics.churnRate <= 2 ? 'Low' : analytics.churnRate <= 5 ? 'Medium' : 'High',
+   227→            trendIsUp: analytics.churnRate <= 2,
+   228→          ),
+   229→          MetricCard(
+   230→            title: 'Growth Rate',
+   231→            value: '${analytics.growthRate.toStringAsFixed(1)}%',
+   232→            icon: Icons.rocket_launch,
+   233→            color: analytics.growthRate > 0 ? AppColors.success : AppColors.error,
+   234→            trend: analytics.growthRate > 0 ? 'Growing' : 'Declining',
+   235→            trendIsUp: analytics.growthRate > 0,
+   236→          ),
+   237→        ];
+   238→
+   239→        return GridView(
+   240→          shrinkWrap: true,
+   241→          physics: const NeverScrollableScrollPhysics(),
+   242→          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+   243→            crossAxisCount: crossAxisCount,
+   244→            childAspectRatio: 1.1,
+   245→            crossAxisSpacing: Spacings.md,
+   246→            mainAxisSpacing: Spacings.md,
+   247→          ),
+   248→          children: cards,
+   249→        );
+   250→      },
+   251→    );
+   252→  }
+   253→
+   254→  // ─── Revenue by Billing Model ───────────────────────────────────────────
+   255→
+   256→  Widget _buildRevenueByBillingModel(RevenueAnalytics analytics, ColorScheme cs) {
+   257→    final modelData = analytics.revenueByBillingModel;
+   258→    if (modelData.isEmpty) {
+   259→      return const AdminEmptyState(
+   260→        message: 'No billing model data available.',
+   261→        icon: Icons.pie_chart_outline,
+   262→      );
+   263→    }
+   264→
+   265→    // Extract billing model entries
+   266→    final entries = <_BillingModelEntry>[];
+   267→    double maxValue = 0;
+   268→
+   269→    modelData.forEach((key, value) {
+   270→      final amount = (value is num) ? value.toDouble() : 0.0;
+   271→      if (amount > maxValue) maxValue = amount;
+   272→      entries.add(_BillingModelEntry(
+   273→        name: _formatModelName(key),
+   274→        revenue: amount,
+   275→        color: _modelColor(entries.length),
+   276→      ));
+   277→    });
+   278→
+   279→    if (maxValue == 0) maxValue = 1; // Prevent division by zero
+   280→
+   281→    return Card(
+   282→      elevation: Spacings.elevationSm,
+   283→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   284→      child: Padding(
+   285→        padding: Spacings.paddingAll,
+   286→        child: Column(
+   287→          children: entries.map((entry) {
+   288→            final percentage = (entry.revenue / maxValue * 100).clamp(0, 100);
+   289→            return Padding(
+   290→              padding: const EdgeInsets.only(bottom: Spacings.md),
+   291→              child: Column(
+   292→                crossAxisAlignment: CrossAxisAlignment.start,
+   293→                children: [
+   294→                  Row(
+   295→                    children: [
+   296→                      Container(
+   297→                        width: 12,
+   298→                        height: 12,
+   299→                        decoration: BoxDecoration(
+   300→                          color: entry.color,
+   301→                          borderRadius: Spacings.borderRadiusSm,
+   302→                        ),
+   303→                      ),
+   304→                      const SizedBox(width: Spacings.sm),
+   305→                      Expanded(
+   306→                        child: Text(
+   307→                          entry.name,
+   308→                          style: AppTypography.wSemiBold.copyWith(fontSize: 13),
+   309→                        ),
+   310→                      ),
+   311→                      Text(
+   312→                        _formatCurrency(entry.revenue),
+   313→                        style: AppTypography.wSemiBold.copyWith(
+   314→                          fontSize: 13,
+   315→                          color: cs.onSurface,
+   316→                        ),
+   317→                      ),
+   318→                    ],
+   319→                  ),
+   320→                  const SizedBox(height: Spacings.sm),
+   321→                  ClipRRect(
+   322→                    borderRadius: Spacings.borderRadiusSm,
+   323→                    child: LinearProgressIndicator(
+   324→                      value: percentage / 100,
+   325→                      minHeight: 8,
+   326→                      backgroundColor: cs.surfaceContainerHighest,
+   327→                      color: entry.color,
+   328→                    ),
+   329→                  ),
+   330→                ],
+   331→              ),
+   332→            );
+   333→          }).toList(),
+   334→        ),
+   335→      ),
+   336→    );
+   337→  }
+   338→
+   339→  Color _modelColor(int index) {
+   340→    const colors = [
+   341→      AppColors.success,
+   342→      AppColors.info,
+   343→      Colors.deepPurple,
+   344→      Colors.orange,
+   345→      Colors.teal,
+   346→      Colors.pink,
+   347→    ];
+   348→    return colors[index % colors.length];
+   349→  }
+   350→
+   351→  String _formatModelName(String key) {
+   352→    // Convert snake_case or camelCase to Title Case
+   353→    return key
+   354→        .replaceAllMapped(
+   355→          RegExp(r'[_\s]|(?<=[a-z])(?=[A-Z])'),
+   356→          (match) => ' ',
+   357→        )
+   358→        .split(' ')
+   359→        .where((s) => s.isNotEmpty)
+   360→        .map((s) => s[0].toUpperCase() + s.substring(1).toLowerCase())
+   361→        .join(' ');
+   362→  }
+   363→
+   364→  // ─── Billing Alerts ─────────────────────────────────────────────────────
+   365→
+   366→  Widget _buildBillingAlerts(RevenueAnalytics analytics, ColorScheme cs) {
+   367→    return LayoutBuilder(
+   368→      builder: (context, constraints) {
+   369→        final width = constraints.maxWidth;
+   370→        int crossAxisCount = width >= 900 ? 3 : (width >= 500 ? 2 : 1);
+   371→
+   372→        return GridView(
+   373→          shrinkWrap: true,
+   374→          physics: const NeverScrollableScrollPhysics(),
+   375→          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+   376→            crossAxisCount: crossAxisCount,
+   377→            childAspectRatio: 1.3,
+   378→            crossAxisSpacing: Spacings.md,
+   379→            mainAxisSpacing: Spacings.md,
+   380→          ),
+   381→          children: [
+   382→            _buildAlertCard(
+   383→              title: 'Failed Payments',
+   384→              value: '${analytics.failedPayments}',
+   385→              icon: Icons.error_outline,
+   386→              color: analytics.failedPayments > 0 ? AppColors.error : AppColors.success,
+   387→              subtitle: analytics.failedPayments > 0
+   388→                  ? 'Requires attention'
+   389→                  : 'No issues',
+   390→              cs: cs,
+   391→            ),
+   392→            _buildAlertCard(
+   393→              title: 'Refunds This Month',
+   394→              value: _formatCurrency(analytics.refundsThisMonth),
+   395→              icon: Icons.money_off,
+   396→              color: analytics.refundsThisMonth > 0
+   397→                  ? AppColors.warning
+   398→                  : AppColors.success,
+   399→              subtitle: analytics.refundsThisMonth > 0
+   400→                  ? 'Total refund amount'
+   401→                  : 'No refunds',
+   402→              cs: cs,
+   403→            ),
+   404→            _buildAlertCard(
+   405→              title: 'Pending Invoices',
+   406→              value: '${analytics.pendingInvoices}',
+   407→              icon: Icons.receipt_long,
+   408→              color: analytics.pendingInvoices > 10
+   409→                  ? AppColors.warning
+   410→                  : cs.primary,
+   411→              subtitle: analytics.pendingInvoices > 0
+   412→                  ? 'Awaiting payment'
+   413→                  : 'All cleared',
+   414→              cs: cs,
+   415→            ),
+   416→          ],
+   417→        );
+   418→      },
+   419→    );
+   420→  }
+   421→
+   422→  Widget _buildAlertCard({
+   423→    required String title,
+   424→    required String value,
+   425→    required IconData icon,
+   426→    required Color color,
+   427→    required String subtitle,
+   428→    required ColorScheme cs,
+   429→  }) {
+   430→    return Card(
+   431→      elevation: Spacings.elevationSm,
+   432→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   433→      child: Padding(
+   434→        padding: Spacings.paddingAll,
+   435→        child: Column(
+   436→          crossAxisAlignment: CrossAxisAlignment.start,
+   437→          children: [
+   438→            Container(
+   439→              padding: const EdgeInsets.all(Spacings.sm),
+   440→              decoration: BoxDecoration(
+   441→                color: color.withValues(alpha: 0.1),
+   442→                borderRadius: Spacings.borderRadiusSm,
+   443→              ),
+   444→              child: Icon(icon, color: color, size: Spacings.mdIcon),
+   445→            ),
+   446→            const SizedBox(height: Spacings.md),
+   447→            Text(
+   448→              value,
+   449→              style: AppTypography.wBold.copyWith(
+   450→                fontSize: 22,
+   451→                color: cs.onSurface,
+   452→              ),
+   453→            ),
+   454→            const SizedBox(height: Spacings.xs),
+   455→            Text(
+   456→              title,
+   457→              style: AppTypography.wSemiBold.copyWith(
+   458→                fontSize: 13,
+   459→                color: cs.onSurface,
+   460→              ),
+   461→            ),
+   462→            const SizedBox(height: Spacings.xs),
+   463→            Text(
+   464→              subtitle,
+   465→              style: AppTypography.wRegular.copyWith(
+   466→                fontSize: 11,
+   467→                color: cs.onSurface.withValues(alpha: 0.5),
+   468→              ),
+   469→            ),
+   470→          ],
+   471→        ),
+   472→      ),
+   473→    );
+   474→  }
+   475→
+   476→  // ─── Revenue Trends ─────────────────────────────────────────────────────
+   477→
+   478→  Widget _buildRevenueTrends(RevenueAnalytics analytics, ColorScheme cs) {
+   479→    final monthlyData = analytics.revenueByMonth;
+   480→    if (monthlyData.isEmpty) {
+   481→      return const AdminEmptyState(
+   482→        message: 'No revenue trend data available.',
+   483→        icon: Icons.show_chart,
+   484→      );
+   485→    }
+   486→
+   487→    // Find max revenue for scaling bars
+   488→    double maxRevenue = 0;
+   489→    for (final entry in monthlyData) {
+   490→      final revenue = (entry['revenue'] is num)
+   491→          ? (entry['revenue'] as num).toDouble()
+   492→          : 0.0;
+   493→      if (revenue > maxRevenue) maxRevenue = revenue;
+   494→    }
+   495→    if (maxRevenue == 0) maxRevenue = 1;
+   496→
+   497→    return Card(
+   498→      elevation: Spacings.elevationSm,
+   499→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   500→      child: Padding(
+   501→        padding: Spacings.paddingAll,
+   502→        child: Column(
+   503→          crossAxisAlignment: CrossAxisAlignment.start,
+   504→          children: [
+   505→            // Bar chart visualization
+   506→            SizedBox(
+   507→              height: 200,
+   508→              child: LayoutBuilder(
+   509→                builder: (context, constraints) {
+   510→                  final barCount = monthlyData.length;
+   511→                  final barWidth =
+   512→                      (constraints.maxWidth - (barCount - 1) * Spacings.sm) /
+   513→                          barCount;
+   514→
+   515→                  return Row(
+   516→                    crossAxisAlignment: CrossAxisAlignment.end,
+   517→                    children: monthlyData.map((entry) {
+   518→                      final revenue = (entry['revenue'] is num)
+   519→                          ? (entry['revenue'] as num).toDouble()
+   520→                          : 0.0;
+   521→                      final heightPercent =
+   522→                          (revenue / maxRevenue).clamp(0.05, 1.0);
+   523→                      final month =
+   524→                          (entry['month'] as String?) ?? '—';
+   525→
+   526→                      return Expanded(
+   527→                        child: Padding(
+   528→                          padding: const EdgeInsets.symmetric(
+   529→                              horizontal: Spacings.xs),
+   530→                          child: Column(
+   531→                            mainAxisAlignment: MainAxisAlignment.end,
+   532→                            children: [
+   533→                              // Revenue label
+   534→                              Text(
+   535→                                _formatCompactCurrency(revenue),
+   536→                                style: AppTypography.wSemiBold.copyWith(
+   537→                                  fontSize: 10,
+   538→                                  color: cs.onSurface.withValues(alpha: 0.7),
+   539→                                ),
+   540→                                textAlign: TextAlign.center,
+   541→                              ),
+   542→                              const SizedBox(height: Spacings.xs),
+   543→                              // Bar
+   544→                              Container(
+   545→                                height: heightPercent * 140,
+   546→                                decoration: BoxDecoration(
+   547→                                  color: cs.primary.withValues(alpha: 0.8),
+   548→                                  borderRadius: const BorderRadius.only(
+   549→                                    topLeft:
+   550→                                        Radius.circular(Spacings.smRadius / 2),
+   551→                                    topRight:
+   552→                                        Radius.circular(Spacings.smRadius / 2),
+   553→                                  ),
+   554→                                ),
+   555→                              ),
+   556→                              const SizedBox(height: Spacings.xs),
+   557→                              // Month label
+   558→                              Text(
+   559→                                _shortMonth(month),
+   560→                                style: AppTypography.wRegular.copyWith(
+   561→                                  fontSize: 10,
+   562→                                  color:
+   563→                                      cs.onSurface.withValues(alpha: 0.5),
+   564→                                ),
+   565→                                textAlign: TextAlign.center,
+   566→                              ),
+   567→                            ],
+   568→                          ),
+   569→                        ),
+   570→                      );
+   571→                    }).toList(),
+   572→                  );
+   573→                },
+   574→              ),
+   575→            ),
+   576→          ],
+   577→        ),
+   578→      ),
+   579→    );
+   580→  }
+   581→
+   582→  String _shortMonth(String month) {
+   583→    // Expecting format like "2024-01" or "Jan 2024"
+   584→    if (month.length >= 7 && month.contains('-')) {
+   585→      const months = [
+   586→        '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+   587→        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+   588→      ];
+   589→      final parts = month.split('-');
+   590→      final m = int.tryParse(parts[1]) ?? 0;
+   591→      return m > 0 && m < 13 ? '${months[m]} ${parts[0].substring(2)}' : month;
+   592→    }
+   593→    return month.length > 6 ? month.substring(0, 6) : month;
+   594→  }
+   595→
+   596→  // ─── Recent Transactions ────────────────────────────────────────────────
+   597→
+   598→  Widget _buildRecentTransactions(RevenueAnalytics analytics, ColorScheme cs) {
+   599→    final monthlyData = analytics.revenueByMonth;
+   600→    if (monthlyData.isEmpty) {
+   601→      return const AdminEmptyState(
+   602→        message: 'No transaction data available.',
+   603→        icon: Icons.receipt,
+   604→      );
+   605→    }
+   606→
+   607→    // Show recent monthly entries as a transaction-like table
+   608→    final recentEntries = monthlyData.length > 12
+   609→        ? monthlyData.sublist(monthlyData.length - 12)
+   610→        : monthlyData;
+   611→
+   612→    return Card(
+   613→      elevation: Spacings.elevationSm,
+   614→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   615→      child: SingleChildScrollView(
+   616→        scrollDirection: Axis.horizontal,
+   617→        child: DataTable(
+   618→          columnSpacing: Spacings.xl,
+   619→          headingRowHeight: 48,
+   620→          dataRowMinHeight: 44,
+   621→          dataRowMaxHeight: 56,
+   622→          columns: [
+   623→            DataColumn(
+   624→              label: Text('Period',
+   625→                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+   626→            ),
+   627→            DataColumn(
+   628→              label: Text('Revenue',
+   629→                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+   630→              numeric: true,
+   631→            ),
+   632→            DataColumn(
+   633→              label: Text('Growth',
+   634→                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+   635→              numeric: true,
+   636→            ),
+   637→            DataColumn(
+   638→              label: Text('Status',
+   639→                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+   640→            ),
+   641→          ],
+   642→          rows: recentEntries.map((entry) {
+   643→            final revenue = (entry['revenue'] is num)
+   644→                ? (entry['revenue'] as num).toDouble()
+   645→                : 0.0;
+   646→            final month = (entry['month'] as String?) ?? '—';
+   647→            final growth = (entry['growth'] is num)
+   648→                ? (entry['growth'] as num).toDouble()
+   649→                : null;
+   650→            final transactionCount = (entry['transaction_count'] is num)
+   651→                ? (entry['transaction_count'] as num).toInt()
+   652→                : null;
+   653→
+   654→            final isPositive = growth != null && growth >= 0;
+   655→            final statusColor =
+   656→                isPositive ? AppColors.success : AppColors.error;
+   657→
+   658→            return DataRow(cells: [
+   659→              DataCell(
+   660→                Text(month,
+   661→                    style:
+   662→                        AppTypography.wRegular.copyWith(fontSize: 13)),
+   663→              ),
+   664→              DataCell(
+   665→                Text(_formatCurrency(revenue),
+   666→                    style: AppTypography.wSemiBold.copyWith(
+   667→                        fontSize: 13, color: cs.onSurface)),
+   668→              ),
+   669→              DataCell(
+   670→                Text(
+   671→                  growth != null
+   672→                      ? '${isPositive ? '+' : ''}${growth.toStringAsFixed(1)}%'
+   673→                      : '—',
+   674→                  style: AppTypography.wSemiBold.copyWith(
+   675→                    fontSize: 13,
+   676→                    color: growth != null ? statusColor : cs.onSurface.withValues(alpha: 0.4),
+   677→                  ),
+   678→                ),
+   679→              ),
+   680→              DataCell(
+   681→                Row(
+   682→                  mainAxisSize: MainAxisSize.min,
+   683→                  children: [
+   684→                    Icon(
+   685→                      isPositive ? Icons.check_circle : Icons.warning_amber,
+   686→                      size: 16,
+   687→                      color: statusColor,
+   688→                    ),
+   689→                    const SizedBox(width: Spacings.xs),
+   690→                    Text(
+   691→                      transactionCount != null
+   692→                          ? '$transactionCount txn'
+   693→                          : (isPositive ? 'Healthy' : 'Review'),
+   694→                      style: AppTypography.wRegular.copyWith(
+   695→                        fontSize: 12,
+   696→                        color: cs.onSurface.withValues(alpha: 0.6),
+   697→                      ),
+   698→                    ),
+   699→                  ],
+   700→                ),
+   701→              ),
+   702→            ]);
+   703→          }).toList(),
+   704→        ),
+   705→      ),
+   706→    );
+   707→  }
+   708→
+   709→  // ─── Formatting Helpers ─────────────────────────────────────────────────
+   710→
+   711→  /// Formats a double as Naira currency with comma separators.
+   712→  static String _formatCurrency(double n) {
+   713→    final formatted = n.toStringAsFixed(0).replaceAllMapped(
+   714→          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+   715→          (Match m) => '${m[1]},',
+   716→        );
+   717→    return '₦$formatted';
+   718→  }
+   719→
+   720→  /// Compact currency format for bar chart labels (e.g. "₦1.2M").
+   721→  static String _formatCompactCurrency(double n) {
+   722→    if (n >= 1000000) {
+   723→      return '₦${(n / 1000000).toStringAsFixed(1)}M';
+   724→    } else if (n >= 1000) {
+   725→      return '₦${(n / 1000).toStringAsFixed(0)}K';
+   726→    }
+   727→    return '₦${n.toStringAsFixed(0)}';
+   728→  }
+   729→}
+   730→
+   731→// ═══════════════════════════════════════════════════════════════════════════════
+   732→// BILLING MODEL ENTRY — Data class for billing model bars
+   733→// ═══════════════════════════════════════════════════════════════════════════════
+   734→
+   735→class _BillingModelEntry {
+   736→  const _BillingModelEntry({
+   737→    required this.name,
+   738→    required this.revenue,
+   739→    required this.color,
+   740→  });
+   741→
+   742→  final String name;
+   743→  final double revenue;
+   744→  final Color color;
+   745→}
+   746→

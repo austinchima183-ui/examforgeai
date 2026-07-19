@@ -1,0 +1,1224 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import '../../../../../core/themes/app_colors.dart';
+     4→import '../../../../../core/themes/spacings.dart';
+     5→import '../../../../../core/themes/app_typography.dart';
+     6→import '../../../../../shared/widgets/app_app_bar.dart';
+     7→import '../../../../../shared/widgets/app_loading.dart';
+     8→import '../../domain/entities/super_admin_entities.dart';
+     9→import '../providers/super_admin_providers.dart';
+    10→import '../widgets/super_admin_widgets.dart';
+    11→
+    12→// ═══════════════════════════════════════════════════════════════════════════════
+    13→// HELPERS
+    14→// ═══════════════════════════════════════════════════════════════════════════════
+    15→
+    16→Color _priorityColor(TicketPriority priority) {
+    17→  switch (priority) {
+    18→    case TicketPriority.low:
+    19→      return Colors.grey;
+    20→    case TicketPriority.medium:
+    21→      return AppColors.info;
+    22→    case TicketPriority.high:
+    23→      return Colors.orange;
+    24→    case TicketPriority.urgent:
+    25→      return AppColors.error;
+    26→    case TicketPriority.critical:
+    27→      return AppColors.errorDark;
+    28→  }
+    29→}
+    30→
+    31→Color _statusColor(TicketStatus status) {
+    32→  switch (status) {
+    33→    case TicketStatus.open:
+    34→      return AppColors.info;
+    35→    case TicketStatus.inProgress:
+    36→      return Colors.orange;
+    37→    case TicketStatus.waitingOnUser:
+    38→      return AppColors.warning;
+    39→    case TicketStatus.waitingOnThirdParty:
+    40→      return AppColors.warning;
+    41→    case TicketStatus.resolved:
+    42→      return AppColors.success;
+    43→    case TicketStatus.closed:
+    44→      return Colors.grey;
+    45→    case TicketStatus.reopened:
+    46→      return AppColors.info;
+    47→  }
+    48→}
+    49→
+    50→String _formatTimeAgo(DateTime dt) {
+    51→  final now = DateTime.now();
+    52→  final diff = now.difference(dt);
+    53→  if (diff.inMinutes < 1) return 'Just now';
+    54→  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    55→  if (diff.inDays < 1) return '${diff.inHours}h ago';
+    56→  if (diff.inDays < 7) return '${diff.inDays}d ago';
+    57→  return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    58→}
+    59→
+    60→// ═══════════════════════════════════════════════════════════════════════════════
+    61→// FEEDBACK TYPE ENUM (local to this feature)
+    62→// ═══════════════════════════════════════════════════════════════════════════════
+    63→
+    64→enum FeedbackType {
+    65→  bugReport('bug_report', 'Bug Report', Icons.bug_report_rounded),
+    66→  featureRequest('feature_request', 'Feature Request', Icons.lightbulb_outline),
+    67→  complaint('complaint', 'Complaint', Icons.sentiment_dissatisfied_outlined),
+    68→  compliment('compliment', 'Compliment', Icons.sentiment_satisfied_outlined),
+    69→  suggestion('suggestion', 'Suggestion', Icons.tips_and_updates_outlined),
+    70→  rating('rating', 'Rating', Icons.star_outline_rounded);
+    71→
+    72→  const FeedbackType(this.value, this.label, this.icon);
+    73→  final String value;
+    74→  final String label;
+    75→  final IconData icon;
+    76→
+    77→  static FeedbackType fromString(String v) => FeedbackType.values.firstWhere(
+    78→        (e) => e.value == v,
+    79→        orElse: () => FeedbackType.suggestion,
+    80→      );
+    81→}
+    82→
+    83→// ═══════════════════════════════════════════════════════════════════════════════
+    84→// SUPPORT CENTER PAGE
+    85→// ═══════════════════════════════════════════════════════════════════════════════
+    86→
+    87→/// Support Center page for the Super Admin.
+    88→///
+    89→/// Features:
+    90→/// - **Tickets tab**: Searchable, filterable ticket list with assign/escalate/resolve actions
+    91→/// - **Feedback tab**: User feedback cards with type filtering and star ratings
+    92→class SupportCenterPage extends ConsumerStatefulWidget {
+    93→  const SupportCenterPage({super.key});
+    94→
+    95→  @override
+    96→  ConsumerState<SupportCenterPage> createState() =>
+    97→      _SupportCenterPageState();
+    98→}
+    99→
+   100→class _SupportCenterPageState extends ConsumerState<SupportCenterPage>
+   101→    with SingleTickerProviderStateMixin {
+   102→  late final TabController _tabController;
+   103→
+   104→  // ─── Ticket Filters ─────────────────────────────────────────────────────
+   105→
+   106→  final _searchController = TextEditingController();
+   107→  TicketStatus? _filterStatus;
+   108→  TicketPriority? _filterPriority;
+   109→  TicketCategory? _filterCategory;
+   110→
+   111→  // ─── Feedback Filters ───────────────────────────────────────────────────
+   112→
+   113→  FeedbackType? _filterFeedbackType;
+   114→
+   115→  static const _tabs = [
+   116→    Tab(icon: Icon(Icons.confirmation_number_outlined), text: 'Tickets'),
+   117→    Tab(icon: Icon(Icons.feedback_outlined), text: 'Feedback'),
+   118→  ];
+   119→
+   120→  // ─── Lifecycle ──────────────────────────────────────────────────────────
+   121→
+   122→  @override
+   123→  void initState() {
+   124→    super.initState();
+   125→    _tabController = TabController(length: _tabs.length, vsync: this);
+   126→    _tabController.addListener(_onTabChanged);
+   127→    WidgetsBinding.instance.addPostFrameCallback((_) {
+   128→      _loadData();
+   129→    });
+   130→  }
+   131→
+   132→  @override
+   133→  void dispose() {
+   134→    _tabController.removeListener(_onTabChanged);
+   135→    _tabController.dispose();
+   136→    _searchController.dispose();
+   137→    super.dispose();
+   138→  }
+   139→
+   140→  void _onTabChanged() {
+   141→    if (!_tabController.indexIsChanging) {
+   142→      _loadTabData(_tabController.index);
+   143→    }
+   144→  }
+   145→
+   146→  void _loadData() {
+   147→    _loadTabData(_tabController.index);
+   148→  }
+   149→
+   150→  void _loadTabData(int index) {
+   151→    final notifier = ref.read(supportCenterProvider.notifier);
+   152→    switch (index) {
+   153→      case 0:
+   154→        notifier.loadTickets(
+   155→          status: _filterStatus,
+   156→          priority: _filterPriority,
+   157→          search: _searchController.text.trim().isEmpty
+   158→              ? null
+   159→              : _searchController.text.trim(),
+   160→        );
+   161→        break;
+   162→      case 1:
+   163→        // Feedback is loaded alongside tickets; no separate load method
+   164→        notifier.loadTickets();
+   165→        break;
+   166→    }
+   167→  }
+   168→
+   169→  // ─── Build ──────────────────────────────────────────────────────────────
+   170→
+   171→  @override
+   172→  Widget build(BuildContext context) {
+   173→    final state = ref.watch(supportCenterProvider);
+   174→    final cs = Theme.of(context).colorScheme;
+   175→
+   176→    // Listen for success/error snackbar messages
+   177→    ref.listen<SupportCenterState>(supportCenterProvider, (prev, next) {
+   178→      if (next.successMessage != null &&
+   179→          next.successMessage != prev?.successMessage) {
+   180→        ScaffoldMessenger.of(context).showSnackBar(
+   181→          SnackBar(
+   182→            content: Text(next.successMessage!),
+   183→            backgroundColor: AppColors.success,
+   184→            behavior: SnackBarBehavior.floating,
+   185→          ),
+   186→        );
+   187→        ref.read(supportCenterProvider.notifier).state =
+   188→            ref.read(supportCenterProvider).clearSuccess();
+   189→      }
+   190→      if (next.error != null && next.error != prev?.error) {
+   191→        ScaffoldMessenger.of(context).showSnackBar(
+   192→          SnackBar(
+   193→            content: Text(next.error!),
+   194→            backgroundColor: AppColors.error,
+   195→            behavior: SnackBarBehavior.floating,
+   196→          ),
+   197→        );
+   198→        ref.read(supportCenterProvider.notifier).state =
+   199→            ref.read(supportCenterProvider).clearError();
+   200→      }
+   201→    });
+   202→
+   203→    return Scaffold(
+   204→      appBar: AppAppBar(
+   205→        title: 'Support Center',
+   206→        actions: [
+   207→          IconButton(
+   208→            icon: const Icon(Icons.refresh_rounded),
+   209→            tooltip: 'Refresh',
+   210→            onPressed: _loadData,
+   211→          ),
+   212→        ],
+   213→      ),
+   214→      body: state.isLoading && state.tickets.isEmpty
+   215→          ? const Center(
+   216→              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+   217→          : state.error != null && state.tickets.isEmpty
+   218→              ? _buildErrorState(state.error!, cs)
+   219→              : Column(
+   220→                  children: [
+   221→                    // ─── Tab Bar ──────────────────────────────────────
+   222→                    Container(
+   223→                      decoration: BoxDecoration(
+   224→                        color: cs.surface,
+   225→                        border: Border(
+   226→                          bottom: BorderSide(
+   227→                            color: cs.outlineVariant,
+   228→                            width: 1,
+   229→                          ),
+   230→                        ),
+   231→                      ),
+   232→                      child: TabBar(
+   233→                        controller: _tabController,
+   234→                        tabs: _tabs,
+   235→                        labelColor: cs.primary,
+   236→                        unselectedLabelColor:
+   237→                            cs.onSurface.withValues(alpha: 0.6),
+   238→                        indicatorColor: cs.primary,
+   239→                        indicatorSize: TabBarIndicatorSize.tab,
+   240→                      ),
+   241→                    ),
+   242→
+   243→                    // ─── Tab Content ──────────────────────────────────
+   244→                    Expanded(
+   245→                      child: TabBarView(
+   246→                        controller: _tabController,
+   247→                        children: [
+   248→                          _TicketsTab(
+   249→                            searchController: _searchController,
+   250→                            filterStatus: _filterStatus,
+   251→                            filterPriority: _filterPriority,
+   252→                            filterCategory: _filterCategory,
+   253→                            onSearchChanged: (_) => _loadData(),
+   254→                            onStatusChanged: (status) {
+   255→                              setState(() => _filterStatus = status);
+   256→                              _loadData();
+   257→                            },
+   258→                            onPriorityChanged: (priority) {
+   259→                              setState(() => _filterPriority = priority);
+   260→                              _loadData();
+   261→                            },
+   262→                            onCategoryChanged: (category) {
+   263→                              setState(() => _filterCategory = category);
+   264→                              _loadData();
+   265→                            },
+   266→                          ),
+   267→                          _FeedbackTab(
+   268→                            filterFeedbackType: _filterFeedbackType,
+   269→                            onFeedbackTypeChanged: (type) {
+   270→                              setState(() => _filterFeedbackType = type);
+   271→                            },
+   272→                          ),
+   273→                        ],
+   274→                      ),
+   275→                    ),
+   276→                  ],
+   277→                ),
+   278→    );
+   279→  }
+   280→
+   281→  // ─── Error State ────────────────────────────────────────────────────────
+   282→
+   283→  Widget _buildErrorState(String error, ColorScheme cs) {
+   284→    return Center(
+   285→      child: Padding(
+   286→        padding: const EdgeInsets.all(Spacings.xl),
+   287→        child: Column(
+   288→          mainAxisSize: MainAxisSize.min,
+   289→          children: [
+   290→            Icon(Icons.error_outline,
+   291→                size: Spacings.xlIcon, color: cs.error),
+   292→            const SizedBox(height: Spacings.lg),
+   293→            Text(
+   294→              error,
+   295→              style: AppTypography.wRegular.copyWith(
+   296→                fontSize: 14,
+   297→                color: cs.onSurface.withValues(alpha: 0.7),
+   298→              ),
+   299→              textAlign: TextAlign.center,
+   300→            ),
+   301→            const SizedBox(height: Spacings.lg),
+   302→            FilledButton.tonal(
+   303→              onPressed: () => _loadData(),
+   304→              child: const Text('Retry'),
+   305→            ),
+   306→          ],
+   307→        ),
+   308→      ),
+   309→    );
+   310→  }
+   311→}
+   312→
+   313→// ═══════════════════════════════════════════════════════════════════════════════
+   314→// TICKETS TAB
+   315→// ═══════════════════════════════════════════════════════════════════════════════
+   316→
+   317→class _TicketsTab extends StatelessWidget {
+   318→  const _TicketsTab({
+   319→    required this.searchController,
+   320→    required this.filterStatus,
+   321→    required this.filterPriority,
+   322→    required this.filterCategory,
+   323→    required this.onSearchChanged,
+   324→    required this.onStatusChanged,
+   325→    required this.onPriorityChanged,
+   326→    required this.onCategoryChanged,
+   327→  });
+   328→
+   329→  final TextEditingController searchController;
+   330→  final TicketStatus? filterStatus;
+   331→  final TicketPriority? filterPriority;
+   332→  final TicketCategory? filterCategory;
+   333→  final ValueChanged<String> onSearchChanged;
+   334→  final ValueChanged<TicketStatus?> onStatusChanged;
+   335→  final ValueChanged<TicketPriority?> onPriorityChanged;
+   336→  final ValueChanged<TicketCategory?> onCategoryChanged;
+   337→
+   338→  @override
+   339→  Widget build(BuildContext context) {
+   340→    return Consumer(builder: (context, ref, _) {
+   341→      final state = ref.watch(supportCenterProvider);
+   342→      final cs = Theme.of(context).colorScheme;
+   343→
+   344→      return Column(
+   345→        children: [
+   346→          // ─── Search & Filters ─────────────────────────────────────
+   347→          Padding(
+   348→            padding: Spacings.paddingScreen,
+   349→            child: Column(
+   350→              children: [
+   351→                AdminSearchBar(
+   352→                  controller: searchController,
+   353→                  hint: 'Search tickets by subject or number...',
+   354→                  onChanged: onSearchChanged,
+   355→                ),
+   356→                const SizedBox(height: Spacings.md),
+   357→                _buildFilterRow(cs),
+   358→              ],
+   359→            ),
+   360→          ),
+   361→
+   362→          // ─── Count ────────────────────────────────────────────────
+   363→          Padding(
+   364→            padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   365→            child: Row(
+   366→              children: [
+   367→                Text(
+   368→                  '${state.tickets.length} ${state.tickets.length == 1 ? 'ticket' : 'tickets'}',
+   369→                  style: AppTypography.wMedium.copyWith(
+   370→                    fontSize: 13,
+   371→                    color: cs.onSurface.withValues(alpha: 0.6),
+   372→                  ),
+   373→                ),
+   374→              ],
+   375→            ),
+   376→          ),
+   377→          const SizedBox(height: Spacings.sm),
+   378→
+   379→          // ─── Ticket List ──────────────────────────────────────────
+   380→          Expanded(
+   381→            child: state.tickets.isEmpty
+   382→                ? const AdminEmptyState(
+   383→                    message: 'No tickets found',
+   384→                    icon: Icons.confirmation_number_outlined,
+   385→                  )
+   386→                : RefreshIndicator(
+   387→                    onRefresh: () async {
+   388→                      ref.read(supportCenterProvider.notifier).loadTickets(
+   389→                            status: filterStatus,
+   390→                            priority: filterPriority,
+   391→                            search: searchController.text.trim().isEmpty
+   392→                                ? null
+   393→                                : searchController.text.trim(),
+   394→                          );
+   395→                    },
+   396→                    child: ListView.separated(
+   397→                      physics: const AlwaysScrollableScrollPhysics(),
+   398→                      padding: Spacings.paddingScreen,
+   399→                      itemCount: state.tickets.length,
+   400→                      separatorBuilder: (_, __) =>
+   401→                          const SizedBox(height: Spacings.sm),
+   402→                      itemBuilder: (context, index) {
+   403→                        return _TicketCard(
+   404→                          ticket: state.tickets[index],
+   405→                        );
+   406→                      },
+   407→                    ),
+   408→                  ),
+   409→          ),
+   410→        ],
+   411→      );
+   412→    });
+   413→  }
+   414→
+   415→  Widget _buildFilterRow(ColorScheme cs) {
+   416→    return Row(
+   417→      children: [
+   418→        // Status dropdown
+   419→        Expanded(
+   420→          child: Column(
+   421→            crossAxisAlignment: CrossAxisAlignment.start,
+   422→            children: [
+   423→              Text(
+   424→                'Status',
+   425→                style: AppTypography.wSemiBold.copyWith(
+   426→                  fontSize: 12,
+   427→                  color: cs.onSurface.withValues(alpha: 0.6),
+   428→                ),
+   429→              ),
+   430→              const SizedBox(height: Spacings.xs),
+   431→              DropdownButtonFormField<TicketStatus?>(
+   432→                value: filterStatus,
+   433→                decoration: InputDecoration(
+   434→                  border: OutlineInputBorder(
+   435→                      borderRadius: Spacings.borderRadiusMd),
+   436→                  contentPadding: Spacings.paddingInput,
+   437→                  isDense: true,
+   438→                ),
+   439→                items: [
+   440→                  const DropdownMenuItem<TicketStatus?>(
+   441→                    value: null,
+   442→                    child: Text('All'),
+   443→                  ),
+   444→                  ...TicketStatus.values.map(
+   445→                    (s) => DropdownMenuItem<TicketStatus?>(
+   446→                      value: s,
+   447→                      child: Text(s.label),
+   448→                    ),
+   449→                  ),
+   450→                ],
+   451→                onChanged: onStatusChanged,
+   452→              ),
+   453→            ],
+   454→          ),
+   455→        ),
+   456→        const SizedBox(width: Spacings.md),
+   457→        // Priority dropdown
+   458→        Expanded(
+   459→          child: Column(
+   460→            crossAxisAlignment: CrossAxisAlignment.start,
+   461→            children: [
+   462→              Text(
+   463→                'Priority',
+   464→                style: AppTypography.wSemiBold.copyWith(
+   465→                  fontSize: 12,
+   466→                  color: cs.onSurface.withValues(alpha: 0.6),
+   467→                ),
+   468→              ),
+   469→              const SizedBox(height: Spacings.xs),
+   470→              DropdownButtonFormField<TicketPriority?>(
+   471→                value: filterPriority,
+   472→                decoration: InputDecoration(
+   473→                  border: OutlineInputBorder(
+   474→                      borderRadius: Spacings.borderRadiusMd),
+   475→                  contentPadding: Spacings.paddingInput,
+   476→                  isDense: true,
+   477→                ),
+   478→                items: [
+   479→                  const DropdownMenuItem<TicketPriority?>(
+   480→                    value: null,
+   481→                    child: Text('All'),
+   482→                  ),
+   483→                  ...TicketPriority.values.map(
+   484→                    (p) => DropdownMenuItem<TicketPriority?>(
+   485→                      value: p,
+   486→                      child: Text(p.label),
+   487→                    ),
+   488→                  ),
+   489→                ],
+   490→                onChanged: onPriorityChanged,
+   491→              ),
+   492→            ],
+   493→          ),
+   494→        ),
+   495→        const SizedBox(width: Spacings.md),
+   496→        // Category dropdown
+   497→        Expanded(
+   498→          child: Column(
+   499→            crossAxisAlignment: CrossAxisAlignment.start,
+   500→            children: [
+   501→              Text(
+   502→                'Category',
+   503→                style: AppTypography.wSemiBold.copyWith(
+   504→                  fontSize: 12,
+   505→                  color: cs.onSurface.withValues(alpha: 0.6),
+   506→                ),
+   507→              ),
+   508→              const SizedBox(height: Spacings.xs),
+   509→              DropdownButtonFormField<TicketCategory?>(
+   510→                value: filterCategory,
+   511→                decoration: InputDecoration(
+   512→                  border: OutlineInputBorder(
+   513→                      borderRadius: Spacings.borderRadiusMd),
+   514→                  contentPadding: Spacings.paddingInput,
+   515→                  isDense: true,
+   516→                ),
+   517→                items: [
+   518→                  const DropdownMenuItem<TicketCategory?>(
+   519→                    value: null,
+   520→                    child: Text('All'),
+   521→                  ),
+   522→                  ...TicketCategory.values.map(
+   523→                    (c) => DropdownMenuItem<TicketCategory?>(
+   524→                      value: c,
+   525→                      child: Text(c.label),
+   526→                    ),
+   527→                  ),
+   528→                ],
+   529→                onChanged: onCategoryChanged,
+   530→              ),
+   531→            ],
+   532→          ),
+   533→        ),
+   534→      ],
+   535→    );
+   536→  }
+   537→}
+   538→
+   539→// ═══════════════════════════════════════════════════════════════════════════════
+   540→// TICKET CARD
+   541→// ═══════════════════════════════════════════════════════════════════════════════
+   542→
+   543→class _TicketCard extends StatelessWidget {
+   544→  const _TicketCard({required this.ticket});
+   545→  final SupportTicket ticket;
+   546→
+   547→  @override
+   548→  Widget build(BuildContext context) {
+   549→    final cs = Theme.of(context).colorScheme;
+   550→    final priColor = _priorityColor(ticket.priority);
+   551→    final staColor = _statusColor(ticket.status);
+   552→
+   553→    return Card(
+   554→      elevation: ticket.isEscalated
+   555→          ? Spacings.elevationMd
+   556→          : Spacings.elevationSm,
+   557→      shape: RoundedRectangleBorder(
+   558→        borderRadius: Spacings.borderRadiusMd,
+   559→        side: ticket.isEscalated
+   560→            ? BorderSide(color: AppColors.error.withValues(alpha: 0.4))
+   561→            : BorderSide.none,
+   562→      ),
+   563→      child: InkWell(
+   564→        borderRadius: Spacings.borderRadiusMd,
+   565→        onTap: () => _showTicketDetail(context),
+   566→        child: Padding(
+   567→          padding: Spacings.paddingAll,
+   568→          child: Column(
+   569→            crossAxisAlignment: CrossAxisAlignment.start,
+   570→            children: [
+   571→              // ─── Row 1: Ticket # + Subject ───────────────────────
+   572→              Row(
+   573→                children: [
+   574→                  Text(
+   575→                    '#${ticket.ticketNumber}',
+   576→                    style: AppTypography.wSemiBold.copyWith(
+   577→                      fontSize: 12,
+   578→                      color: cs.primary,
+   579→                    ),
+   580→                  ),
+   581→                  const SizedBox(width: Spacings.sm),
+   582→                  if (ticket.isEscalated)
+   583→                    StatusBadge(
+   584→                      label: 'Escalated',
+   585→                      color: AppColors.error,
+   586→                      icon: Icons.arrow_upward,
+   587→                    ),
+   588→                  const Spacer(),
+   589→                  StatusBadge(
+   590→                    label: ticket.priority.label,
+   591→                    color: priColor,
+   592→                  ),
+   593→                  const SizedBox(width: Spacings.sm),
+   594→                  StatusBadge(
+   595→                    label: ticket.status.label,
+   596→                    color: staColor,
+   597→                  ),
+   598→                ],
+   599→              ),
+   600→              const SizedBox(height: Spacings.sm),
+   601→
+   602→              // ─── Row 2: Subject ──────────────────────────────────
+   603→              Text(
+   604→                ticket.subject,
+   605→                style: AppTypography.wSemiBold.copyWith(fontSize: 15),
+   606→                maxLines: 2,
+   607→                overflow: TextOverflow.ellipsis,
+   608→              ),
+   609→              const SizedBox(height: Spacings.sm),
+   610→
+   611→              // ─── Row 3: Reporter + Assigned + Date ───────────────
+   612→              Row(
+   613→                children: [
+   614→                  Icon(Icons.person_outline_rounded,
+   615→                      size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+   616→                  const SizedBox(width: Spacings.xs),
+   617→                  Text(
+   618→                    ticket.reporterId,
+   619→                    style: AppTypography.wRegular.copyWith(
+   620→                      fontSize: 12,
+   621→                      color: cs.onSurface.withValues(alpha: 0.6),
+   622→                    ),
+   623→                  ),
+   624→                  const SizedBox(width: Spacings.lg),
+   625→                  Icon(Icons.assignment_ind_outlined,
+   626→                      size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+   627→                  const SizedBox(width: Spacings.xs),
+   628→                  Text(
+   629→                    ticket.assignedTo ?? 'Unassigned',
+   630→                    style: AppTypography.wRegular.copyWith(
+   631→                      fontSize: 12,
+   632→                      color: ticket.assignedTo != null
+   633→                          ? cs.onSurface.withValues(alpha: 0.6)
+   634→                          : AppColors.warning,
+   635→                    ),
+   636→                  ),
+   637→                  const Spacer(),
+   638→                  Icon(Icons.schedule_rounded,
+   639→                      size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
+   640→                  const SizedBox(width: Spacings.xs),
+   641→                  Text(
+   642→                    _formatTimeAgo(ticket.createdAt),
+   643→                    style: AppTypography.wRegular.copyWith(
+   644→                      fontSize: 11,
+   645→                      color: cs.onSurface.withValues(alpha: 0.5),
+   646→                    ),
+   647→                  ),
+   648→                ],
+   649→              ),
+   650→              const SizedBox(height: Spacings.md),
+   651→
+   652→              // ─── Action Buttons ───────────────────────────────────
+   653→              Row(
+   654→                mainAxisAlignment: MainAxisAlignment.end,
+   655→                children: [
+   656→                  TextButton.icon(
+   657→                    onPressed: () => _showAssignDialog(context),
+   658→                    icon: const Icon(Icons.person_add_outlined, size: 16),
+   659→                    label: const Text('Assign'),
+   660→                  ),
+   661→                  const SizedBox(width: Spacings.sm),
+   662→                  TextButton.icon(
+   663→                    onPressed: () => _showEscalateDialog(context),
+   664→                    icon: const Icon(Icons.arrow_upward, size: 16),
+   665→                    label: const Text('Escalate'),
+   666→                  ),
+   667→                  const SizedBox(width: Spacings.sm),
+   668→                  FilledButton.tonal.icon(
+   669→                    onPressed: () => _showResolveDialog(context),
+   670→                    icon: const Icon(Icons.check_circle_outline, size: 16),
+   671→                    label: const Text('Resolve'),
+   672→                  ),
+   673→                ],
+   674→              ),
+   675→            ],
+   676→          ),
+   677→        ),
+   678→      ),
+   679→    );
+   680→  }
+   681→
+   682→  void _showTicketDetail(BuildContext context) {
+   683→    // Navigate to ticket detail or expand inline — placeholder for now
+   684→  }
+   685→
+   686→  void _showAssignDialog(BuildContext context) {
+   687→    final userSearchController = TextEditingController();
+   688→    String selectedUser = '';
+   689→
+   690→    showDialog(
+   691→      context: context,
+   692→      builder: (dialogContext) => Consumer(builder: (context, ref, _) {
+   693→        return StatefulBuilder(
+   694→          builder: (dialogContext, setDialogState) {
+   695→            return AlertDialog(
+   696→              title: Text(
+   697→                'Assign Ticket #${ticket.ticketNumber}',
+   698→                style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   699→              ),
+   700→              content: SizedBox(
+   701→                width: 400,
+   702→                child: Column(
+   703→                  mainAxisSize: MainAxisSize.min,
+   704→                  crossAxisAlignment: CrossAxisAlignment.start,
+   705→                  children: [
+   706→                    Text(
+   707→                      'Select a user to assign this ticket to:',
+   708→                      style: AppTypography.wRegular.copyWith(
+   709→                        fontSize: 14,
+   710→                        color: Theme.of(context)
+   711→                            .colorScheme
+   712→                            .onSurface
+   713→                            .withValues(alpha: 0.7),
+   714→                      ),
+   715→                    ),
+   716→                    const SizedBox(height: Spacings.lg),
+   717→                    TextField(
+   718→                      controller: userSearchController,
+   719→                      decoration: InputDecoration(
+   720→                        labelText: 'User ID or Email',
+   721→                        hintText: 'Enter user ID to assign',
+   722→                        prefixIcon: const Icon(Icons.search, size: Spacings.mdIcon),
+   723→                        border: OutlineInputBorder(
+   724→                            borderRadius: Spacings.borderRadiusMd),
+   725→                        contentPadding: Spacings.paddingInput,
+   726→                        isDense: true,
+   727→                      ),
+   728→                      onChanged: (value) {
+   729→                        setDialogState(() => selectedUser = value.trim());
+   730→                      },
+   731→                    ),
+   732→                  ],
+   733→                ),
+   734→              ),
+   735→              actions: [
+   736→                TextButton(
+   737→                  onPressed: () {
+   738→                    userSearchController.dispose();
+   739→                    Navigator.of(dialogContext).pop();
+   740→                  },
+   741→                  child: const Text('Cancel'),
+   742→                ),
+   743→                FilledButton(
+   744→                  onPressed: selectedUser.isEmpty
+   745→                      ? null
+   746→                      : () {
+   747→                          Navigator.of(dialogContext).pop();
+   748→                          ref
+   749→                              .read(supportCenterProvider.notifier)
+   750→                              .assignTicket(ticket.id, selectedUser);
+   751→                          userSearchController.dispose();
+   752→                        },
+   753→                  child: const Text('Assign'),
+   754→                ),
+   755→              ],
+   756→            );
+   757→          },
+   758→        );
+   759→      }),
+   760→    );
+   761→  }
+   762→
+   763→  void _showEscalateDialog(BuildContext context) {
+   764→    final reasonController = TextEditingController();
+   765→    final targetUserController = TextEditingController();
+   766→
+   767→    showDialog(
+   768→      context: context,
+   769→      builder: (dialogContext) => Consumer(builder: (context, ref, _) {
+   770→        return AlertDialog(
+   771→          title: Text(
+   772→            'Escalate Ticket #${ticket.ticketNumber}',
+   773→            style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   774→          ),
+   775→          content: SizedBox(
+   776→            width: 400,
+   777→            child: Column(
+   778→              mainAxisSize: MainAxisSize.min,
+   779→              crossAxisAlignment: CrossAxisAlignment.start,
+   780→              children: [
+   781→                Text(
+   782→                  'Escalate this ticket to a higher-level support agent.',
+   783→                  style: AppTypography.wRegular.copyWith(
+   784→                    fontSize: 14,
+   785→                    color: Theme.of(context)
+   786→                        .colorScheme
+   787→                        .onSurface
+   788→                        .withValues(alpha: 0.7),
+   789→                  ),
+   790→                ),
+   791→                const SizedBox(height: Spacings.lg),
+   792→                TextField(
+   793→                  controller: targetUserController,
+   794→                  decoration: InputDecoration(
+   795→                    labelText: 'Escalate To (User ID)',
+   796→                    hintText: 'Enter target user ID',
+   797→                    prefixIcon: const Icon(Icons.person_outline, size: Spacings.mdIcon),
+   798→                    border: OutlineInputBorder(
+   799→                        borderRadius: Spacings.borderRadiusMd),
+   800→                    contentPadding: Spacings.paddingInput,
+   801→                    isDense: true,
+   802→                  ),
+   803→                ),
+   804→                const SizedBox(height: Spacings.md),
+   805→                TextField(
+   806→                  controller: reasonController,
+   807→                  decoration: InputDecoration(
+   808→                    labelText: 'Reason',
+   809→                    hintText: 'Why is this being escalated?',
+   810→                    border: OutlineInputBorder(
+   811→                        borderRadius: Spacings.borderRadiusMd),
+   812→                    contentPadding: Spacings.paddingInput,
+   813→                    isDense: true,
+   814→                  ),
+   815→                  maxLines: 3,
+   816→                  textCapitalization: TextCapitalization.sentences,
+   817→                ),
+   818→              ],
+   819→            ),
+   820→          ),
+   821→          actions: [
+   822→            TextButton(
+   823→              onPressed: () {
+   824→                reasonController.dispose();
+   825→                targetUserController.dispose();
+   826→                Navigator.of(dialogContext).pop();
+   827→              },
+   828→              child: const Text('Cancel'),
+   829→            ),
+   830→            FilledButton(
+   831→              onPressed: () {
+   832→                final target = targetUserController.text.trim();
+   833→                if (target.isEmpty) return;
+   834→                Navigator.of(dialogContext).pop();
+   835→                // TODO: Call escalate when notifier method is available
+   836→                // ref.read(supportCenterProvider.notifier).escalateTicket(
+   837→                //   ticket.id, target, reasonController.text.trim());
+   838→                ScaffoldMessenger.of(context).showSnackBar(
+   839→                  const SnackBar(
+   840→                    content: Text('Ticket escalated'),
+   841→                    backgroundColor: AppColors.warning,
+   842→                    behavior: SnackBarBehavior.floating,
+   843→                  ),
+   844→                );
+   845→                reasonController.dispose();
+   846→                targetUserController.dispose();
+   847→              },
+   848→              style: FilledButton.styleFrom(
+   849→                backgroundColor: Colors.orange,
+   850→              ),
+   851→              child: const Text('Escalate'),
+   852→            ),
+   853→          ],
+   854→        );
+   855→      }),
+   856→    );
+   857→  }
+   858→
+   859→  void _showResolveDialog(BuildContext context) {
+   860→    final notesController = TextEditingController();
+   861→
+   862→    showDialog(
+   863→      context: context,
+   864→      builder: (dialogContext) => Consumer(builder: (context, ref, _) {
+   865→        return AlertDialog(
+   866→          title: Text(
+   867→            'Resolve Ticket #${ticket.ticketNumber}',
+   868→            style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   869→          ),
+   870→          content: SizedBox(
+   871→            width: 400,
+   872→            child: Column(
+   873→              mainAxisSize: MainAxisSize.min,
+   874→              crossAxisAlignment: CrossAxisAlignment.start,
+   875→              children: [
+   876→                Text(
+   877→                  '"${ticket.subject}"',
+   878→                  style: AppTypography.wMedium.copyWith(
+   879→                    fontSize: 14,
+   880→                    color: Theme.of(context)
+   881→                        .colorScheme
+   882→                        .onSurface
+   883→                        .withValues(alpha: 0.8),
+   884→                  ),
+   885→                  maxLines: 2,
+   886→                  overflow: TextOverflow.ellipsis,
+   887→                ),
+   888→                const SizedBox(height: Spacings.lg),
+   889→                TextField(
+   890→                  controller: notesController,
+   891→                  decoration: InputDecoration(
+   892→                    labelText: 'Resolution Notes',
+   893→                    hintText: 'Describe how the issue was resolved...',
+   894→                    border: OutlineInputBorder(
+   895→                        borderRadius: Spacings.borderRadiusMd),
+   896→                    contentPadding: Spacings.paddingInput,
+   897→                    alignLabelWithHint: true,
+   898→                  ),
+   899→                  maxLines: 5,
+   900→                  textCapitalization: TextCapitalization.sentences,
+   901→                ),
+   902→              ],
+   903→            ),
+   904→          ),
+   905→          actions: [
+   906→            TextButton(
+   907→              onPressed: () {
+   908→                notesController.dispose();
+   909→                Navigator.of(dialogContext).pop();
+   910→              },
+   911→              child: const Text('Cancel'),
+   912→            ),
+   913→            FilledButton(
+   914→              onPressed: () {
+   915→                final notes = notesController.text.trim();
+   916→                if (notes.isEmpty) return;
+   917→                Navigator.of(dialogContext).pop();
+   918→                ref
+   919→                    .read(supportCenterProvider.notifier)
+   920→                    .resolveTicket(ticket.id, notes);
+   921→                notesController.dispose();
+   922→              },
+   923→              child: const Text('Resolve'),
+   924→            ),
+   925→          ],
+   926→        );
+   927→      }),
+   928→    );
+   929→  }
+   930→}
+   931→
+   932→// ═══════════════════════════════════════════════════════════════════════════════
+   933→// FEEDBACK TAB
+   934→// ═══════════════════════════════════════════════════════════════════════════════
+   935→
+   936→class _FeedbackTab extends StatelessWidget {
+   937→  const _FeedbackTab({
+   938→    required this.filterFeedbackType,
+   939→    required this.onFeedbackTypeChanged,
+   940→  });
+   941→
+   942→  final FeedbackType? filterFeedbackType;
+   943→  final ValueChanged<FeedbackType?> onFeedbackTypeChanged;
+   944→
+   945→  @override
+   946→  Widget build(BuildContext context) {
+   947→    return Consumer(builder: (context, ref, _) {
+   948→      final state = ref.watch(supportCenterProvider);
+   949→      final cs = Theme.of(context).colorScheme;
+   950→
+   951→      // Derive feedback from tickets tagged with feedback metadata
+   952→      // In production this would come from a dedicated feedback endpoint
+   953→      final feedbackItems = state.tickets
+   954→          .where((t) =>
+   955→              t.category == TicketCategory.featureRequest ||
+   956→              t.category == TicketCategory.bugReport ||
+   957→              t.tags?.any((tag) => tag.startsWith('feedback_')) == true)
+   958→          .toList();
+   959→
+   960→      // Apply feedback type filter
+   961→      final filteredItems = filterFeedbackType != null
+   962→          ? feedbackItems.where((t) {
+   963→              if (filterFeedbackType == FeedbackType.bugReport &&
+   964→                  t.category == TicketCategory.bugReport) {
+   965→                return true;
+   966→              }
+   967→              if (filterFeedbackType == FeedbackType.featureRequest &&
+   968→                  t.category == TicketCategory.featureRequest) {
+   969→                return true;
+   970→              }
+   971→              return t.tags?.contains('feedback_${filterFeedbackType!.value}') ==
+   972→                  true;
+   973→            }).toList()
+   974→          : feedbackItems;
+   975→
+   976→      return Column(
+   977→        children: [
+   978→          // ─── Filter ───────────────────────────────────────────────
+   979→          Padding(
+   980→            padding: Spacings.paddingScreen,
+   981→            child: Row(
+   982→              children: [
+   983→                Expanded(
+   984→                  child: Column(
+   985→                    crossAxisAlignment: CrossAxisAlignment.start,
+   986→                    children: [
+   987→                      Text(
+   988→                        'Feedback Type',
+   989→                        style: AppTypography.wSemiBold.copyWith(
+   990→                          fontSize: 12,
+   991→                          color: cs.onSurface.withValues(alpha: 0.6),
+   992→                        ),
+   993→                      ),
+   994→                      const SizedBox(height: Spacings.xs),
+   995→                      DropdownButtonFormField<FeedbackType?>(
+   996→                        value: filterFeedbackType,
+   997→                        decoration: InputDecoration(
+   998→                          border: OutlineInputBorder(
+   999→                              borderRadius: Spacings.borderRadiusMd),
+  1000→                          contentPadding: Spacings.paddingInput,
+  1001→                          isDense: true,
+  1002→                        ),
+  1003→                        items: [
+  1004→                          const DropdownMenuItem<FeedbackType?>(
+  1005→                            value: null,
+  1006→                            child: Text('All Types'),
+  1007→                          ),
+  1008→                          ...FeedbackType.values.map(
+  1009→                            (type) => DropdownMenuItem<FeedbackType?>(
+  1010→                              value: type,
+  1011→                              child: Row(
+  1012→                                children: [
+  1013→                                  Icon(type.icon, size: 16),
+  1014→                                  const SizedBox(width: Spacings.sm),
+  1015→                                  Text(type.label),
+  1016→                                ],
+  1017→                              ),
+  1018→                            ),
+  1019→                          ),
+  1020→                        ],
+  1021→                        onChanged: onFeedbackTypeChanged,
+  1022→                      ),
+  1023→                    ],
+  1024→                  ),
+  1025→                ),
+  1026→              ],
+  1027→            ),
+  1028→          ),
+  1029→
+  1030→          // ─── Count ────────────────────────────────────────────────
+  1031→          Padding(
+  1032→            padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+  1033→            child: Row(
+  1034→              children: [
+  1035→                Text(
+  1036→                  '${filteredItems.length} ${filteredItems.length == 1 ? 'item' : 'items'}',
+  1037→                  style: AppTypography.wMedium.copyWith(
+  1038→                    fontSize: 13,
+  1039→                    color: cs.onSurface.withValues(alpha: 0.6),
+  1040→                  ),
+  1041→                ),
+  1042→              ],
+  1043→            ),
+  1044→          ),
+  1045→          const SizedBox(height: Spacings.sm),
+  1046→
+  1047→          // ─── Feedback List ────────────────────────────────────────
+  1048→          Expanded(
+  1049→            child: filteredItems.isEmpty
+  1050→                ? const AdminEmptyState(
+  1051→                    message: 'No feedback found',
+  1052→                    icon: Icons.feedback_outlined,
+  1053→                  )
+  1054→                : ListView.separated(
+  1055→                    physics: const AlwaysScrollableScrollPhysics(),
+  1056→                    padding: Spacings.paddingScreen,
+  1057→                    itemCount: filteredItems.length,
+  1058→                    separatorBuilder: (_, __) =>
+  1059→                        const SizedBox(height: Spacings.sm),
+  1060→                    itemBuilder: (context, index) {
+  1061→                      final ticket = filteredItems[index];
+  1062→                      return _FeedbackCard(ticket: ticket);
+  1063→                    },
+  1064→                  ),
+  1065→          ),
+  1066→        ],
+  1067→      );
+  1068→    });
+  1069→  }
+  1070→}
+  1071→
+  1072→// ═══════════════════════════════════════════════════════════════════════════════
+  1073→// FEEDBACK CARD
+  1074→// ═══════════════════════════════════════════════════════════════════════════════
+  1075→
+  1076→class _FeedbackCard extends StatelessWidget {
+  1077→  const _FeedbackCard({required this.ticket});
+  1078→  final SupportTicket ticket;
+  1079→
+  1080→  FeedbackType _feedbackType() {
+  1081→    if (ticket.category == TicketCategory.bugReport) {
+  1082→      return FeedbackType.bugReport;
+  1083→    }
+  1084→    if (ticket.category == TicketCategory.featureRequest) {
+  1085→      return FeedbackType.featureRequest;
+  1086→    }
+  1087→    // Check tags for feedback type
+  1088→    for (final tag in ticket.tags ?? <String>[]) {
+  1089→      if (tag.startsWith('feedback_')) {
+  1090→        return FeedbackType.fromString(tag.replaceFirst('feedback_', ''));
+  1091→      }
+  1092→    }
+  1093→    return FeedbackType.suggestion;
+  1094→  }
+  1095→
+  1096→  int _rating() => ticket.satisfactionRating ?? 0;
+  1097→
+  1098→  @override
+  1099→  Widget build(BuildContext context) {
+  1100→    final cs = Theme.of(context).colorScheme;
+  1101→    final fbType = _feedbackType();
+  1102→    final rating = _rating();
+  1103→
+  1104→    return Card(
+  1105→      elevation: Spacings.elevationSm,
+  1106→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+  1107→      child: Padding(
+  1108→        padding: Spacings.paddingAll,
+  1109→        child: Column(
+  1110→          crossAxisAlignment: CrossAxisAlignment.start,
+  1111→          children: [
+  1112→            // ─── Row 1: Title + Type Badge ──────────────────────────
+  1113→            Row(
+  1114→              children: [
+  1115→                Icon(fbType.icon, color: cs.primary, size: Spacings.mdIcon),
+  1116→                const SizedBox(width: Spacings.sm),
+  1117→                Expanded(
+  1118→                  child: Text(
+  1119→                    ticket.subject,
+  1120→                    style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+  1121→                    maxLines: 1,
+  1122→                    overflow: TextOverflow.ellipsis,
+  1123→                  ),
+  1124→                ),
+  1125→                StatusBadge(
+  1126→                  label: fbType.label,
+  1127→                  color: _feedbackTypeColor(fbType),
+  1128→                ),
+  1129→              ],
+  1130→            ),
+  1131→            const SizedBox(height: Spacings.sm),
+  1132→
+  1133→            // ─── Row 2: User ───────────────────────────────────────
+  1134→            Row(
+  1135→              children: [
+  1136→                Icon(Icons.person_outline_rounded,
+  1137→                    size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+  1138→                const SizedBox(width: Spacings.xs),
+  1139→                Text(
+  1140→                  ticket.reporterId,
+  1141→                  style: AppTypography.wRegular.copyWith(
+  1142→                    fontSize: 12,
+  1143→                    color: cs.onSurface.withValues(alpha: 0.6),
+  1144→                  ),
+  1145→                ),
+  1146→                const Spacer(),
+  1147→                // ─── Star Rating ────────────────────────────────────
+  1148→                if (rating > 0) ...[
+  1149→                  _StarRating(rating: rating),
+  1150→                ],
+  1151→              ],
+  1152→            ),
+  1153→            const SizedBox(height: Spacings.sm),
+  1154→
+  1155→            // ─── Row 3: Content Preview ─────────────────────────────
+  1156→            Text(
+  1157→              ticket.description,
+  1158→              style: AppTypography.wRegular.copyWith(
+  1159→                fontSize: 13,
+  1160→                color: cs.onSurface.withValues(alpha: 0.7),
+  1161→              ),
+  1162→              maxLines: 3,
+  1163→              overflow: TextOverflow.ellipsis,
+  1164→            ),
+  1165→            const SizedBox(height: Spacings.sm),
+  1166→
+  1167→            // ─── Row 4: Date ────────────────────────────────────────
+  1168→            Text(
+  1169→              _formatTimeAgo(ticket.createdAt),
+  1170→              style: AppTypography.wRegular.copyWith(
+  1171→                fontSize: 11,
+  1172→                color: cs.onSurface.withValues(alpha: 0.4),
+  1173→              ),
+  1174→            ),
+  1175→          ],
+  1176→        ),
+  1177→      ),
+  1178→    );
+  1179→  }
+  1180→
+  1181→  Color _feedbackTypeColor(FeedbackType type) {
+  1182→    switch (type) {
+  1183→      case FeedbackType.bugReport:
+  1184→        return AppColors.error;
+  1185→      case FeedbackType.featureRequest:
+  1186→        return AppColors.info;
+  1187→      case FeedbackType.complaint:
+  1188→        return Colors.orange;
+  1189→      case FeedbackType.compliment:
+  1190→        return AppColors.success;
+  1191→      case FeedbackType.suggestion:
+  1192→        return AppColors.seed;
+  1193→      case FeedbackType.rating:
+  1194→        return AppColors.warning;
+  1195→    }
+  1196→  }
+  1197→}
+  1198→
+  1199→// ═══════════════════════════════════════════════════════════════════════════════
+  1200→// STAR RATING WIDGET
+  1201→// ═══════════════════════════════════════════════════════════════════════════════
+  1202→
+  1203→class _StarRating extends StatelessWidget {
+  1204→  const _StarRating({required this.rating});
+  1205→  final int rating;
+  1206→
+  1207→  @override
+  1208→  Widget build(BuildContext context) {
+  1209→    return Row(
+  1210→      mainAxisSize: MainAxisSize.min,
+  1211→      children: List.generate(5, (index) {
+  1212→        final starValue = index + 1;
+  1213→        return Icon(
+  1214→          starValue <= rating
+  1215→              ? Icons.star_rounded
+  1216→              : Icons.star_outline_rounded,
+  1217→          size: 14,
+  1218→          color: starValue <= rating ? AppColors.warning : Colors.grey,
+  1219→        );
+  1220→      }),
+  1221→    );
+  1222→  }
+  1223→}
+  1224→

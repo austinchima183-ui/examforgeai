@@ -136,6 +136,10 @@ import '../features/parent_portal/presentation/providers/parent_assistant_provid
 import '../features/parent_portal/presentation/providers/parent_insights_provider.dart';
 import '../features/parent_portal/presentation/providers/parent_reports_provider.dart';
 import '../features/parent_portal/presentation/providers/parent_engagement_provider.dart';
+import '../features/super_admin/data/datasources/super_admin_remote_datasource.dart';
+import '../features/super_admin/data/repositories/super_admin_repository_impl.dart';
+import '../features/super_admin/domain/repositories/super_admin_repository.dart';
+import '../features/super_admin/domain/usecases/super_admin_usecases.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // INFRASTRUCTURE PROVIDERS
@@ -3509,5 +3513,394 @@ final billingNotificationProvider =
     getBillingNotificationsUseCase: ref.watch(getBillingNotificationsUseCaseProvider),
     markNotificationReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
     updateNotificationPreferencesUseCase: ref.watch(updateNotificationPreferencesUseCaseProvider),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// SUPER ADMIN FEATURE
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// ─── Data Sources ──────────────────────────────────────────────────────────
+
+final superAdminRemoteDataSourceProvider = Provider<SuperAdminRemoteDataSource>((ref) {
+  return SuperAdminRemoteDataSourceImpl(
+    supabaseClient: ref.watch(supabaseClientProvider),
+  );
+});
+
+// ─── Repository ────────────────────────────────────────────────────────────
+
+final superAdminRepositoryProvider = Provider<SuperAdminRepository>((ref) {
+  return SuperAdminRepositoryImpl(
+    remoteDataSource: ref.watch(superAdminRemoteDataSourceProvider),
+  );
+});
+
+// ─── Use Cases — Dashboard ──────────────────────────────────────────────────
+
+final getDashboardMetricsUseCaseProvider = Provider<GetDashboardMetricsUseCase>((ref) {
+  return GetDashboardMetricsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — AI Management ─────────────────────────────────────────────
+
+final getAIProvidersUseCaseProvider = Provider<GetAIProvidersUseCase>((ref) {
+  return GetAIProvidersUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final createAIProviderUseCaseProvider = Provider<CreateAIProviderUseCase>((ref) {
+  return CreateAIProviderUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final updateAIProviderUseCaseProvider = Provider<UpdateAIProviderUseCase>((ref) {
+  return UpdateAIProviderUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final setDefaultProviderUseCaseProvider = Provider<SetDefaultProviderUseCase>((ref) {
+  return SetDefaultProviderUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final toggleProviderUseCaseProvider = Provider<ToggleProviderUseCase>((ref) {
+  return ToggleProviderUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getAIRequestLogsUseCaseProvider = Provider<GetAIRequestLogsUseCase>((ref) {
+  return GetAIRequestLogsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Intelligence ──────────────────────────────────────────────
+
+final getIntelligenceAlertsUseCaseProvider = Provider<GetIntelligenceAlertsUseCase>((ref) {
+  return GetIntelligenceAlertsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final acknowledgeAlertUseCaseProvider = Provider<AcknowledgeAlertUseCase>((ref) {
+  return AcknowledgeAlertUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final resolveAlertUseCaseProvider = Provider<ResolveAlertUseCase>((ref) {
+  return ResolveAlertUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final generateIntelligenceInsightsUseCaseProvider = Provider<GenerateIntelligenceInsightsUseCase>((ref) {
+  return GenerateIntelligenceInsightsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getChurnPredictionsUseCaseProvider = Provider<GetChurnPredictionsUseCase>((ref) {
+  return GetChurnPredictionsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getRevenueForecastUseCaseProvider = Provider<GetRevenueForecastUseCase>((ref) {
+  return GetRevenueForecastUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getCostOptimizationsUseCaseProvider = Provider<GetCostOptimizationsUseCase>((ref) {
+  return GetCostOptimizationsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Infrastructure ────────────────────────────────────────────
+
+final getInfrastructureServicesUseCaseProvider = Provider<GetInfrastructureServicesUseCase>((ref) {
+  return GetInfrastructureServicesUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final runHealthCheckUseCaseProvider = Provider<RunHealthCheckUseCase>((ref) {
+  return RunHealthCheckUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Maintenance Windows ───────────────────────────────────────
+
+final getMaintenanceWindowsUseCaseProvider = Provider<GetMaintenanceWindowsUseCase>((ref) {
+  return GetMaintenanceWindowsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final createMaintenanceWindowUseCaseProvider = Provider<CreateMaintenanceWindowUseCase>((ref) {
+  return CreateMaintenanceWindowUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final cancelMaintenanceWindowUseCaseProvider = Provider<CancelMaintenanceWindowUseCase>((ref) {
+  return CancelMaintenanceWindowUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Revenue & Billing ─────────────────────────────────────────
+
+final getRevenueAnalyticsUseCaseProvider = Provider<GetRevenueAnalyticsUseCase>((ref) {
+  return GetRevenueAnalyticsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Platform Settings ─────────────────────────────────────────
+
+final getPlatformSettingsUseCaseProvider = Provider<GetPlatformSettingsUseCase>((ref) {
+  return GetPlatformSettingsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final updatePlatformSettingUseCaseProvider = Provider<UpdatePlatformSettingUseCase>((ref) {
+  return UpdatePlatformSettingUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final bulkUpdateSettingsUseCaseProvider = Provider<BulkUpdateSettingsUseCase>((ref) {
+  return BulkUpdateSettingsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Feature Flags ──────────────────────────────────────────────
+
+final getFeatureFlagsUseCaseProvider = Provider<GetFeatureFlagsUseCase>((ref) {
+  return GetFeatureFlagsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final createFeatureFlagUseCaseProvider = Provider<CreateFeatureFlagUseCase>((ref) {
+  return CreateFeatureFlagUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final updateFeatureFlagUseCaseProvider = Provider<UpdateFeatureFlagUseCase>((ref) {
+  return UpdateFeatureFlagUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final toggleFeatureFlagUseCaseProvider = Provider<ToggleFeatureFlagUseCase>((ref) {
+  return ToggleFeatureFlagUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Marketplace Management ─────────────────────────────────────
+
+final getMarketplaceContentUseCaseProvider = Provider<GetMarketplaceContentUseCase>((ref) {
+  return GetMarketplaceContentUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final approveContentUseCaseProvider = Provider<ApproveContentUseCase>((ref) {
+  return ApproveContentUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final rejectContentUseCaseProvider = Provider<RejectContentUseCase>((ref) {
+  return RejectContentUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final featureContentUseCaseProvider = Provider<FeatureContentUseCase>((ref) {
+  return FeatureContentUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — School Management ───────────────────────────────────────
+
+final getSchoolsUseCaseProvider = Provider<GetSchoolsUseCase>((ref) {
+  return GetSchoolsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final createSchoolUseCaseProvider = Provider<CreateSchoolUseCase>((ref) {
+  return CreateSchoolUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final suspendSchoolUseCaseProvider = Provider<SuspendSchoolUseCase>((ref) {
+  return SuspendSchoolUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final reactivateSchoolUseCaseProvider = Provider<ReactivateSchoolUseCase>((ref) {
+  return ReactivateSchoolUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final verifySchoolUseCaseProvider = Provider<VerifySchoolUseCase>((ref) {
+  return VerifySchoolUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — User Management ─────────────────────────────────────────
+
+final getUsersUseCaseProvider = Provider<GetUsersUseCase>((ref) {
+  return GetUsersUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final suspendUserUseCaseProvider = Provider<SuspendUserUseCase>((ref) {
+  return SuspendUserUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final activateUserUseCaseProvider = Provider<ActivateUserUseCase>((ref) {
+  return ActivateUserUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final resetUserPasswordUseCaseProvider = Provider<ResetUserPasswordUseCase>((ref) {
+  return ResetUserPasswordUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final changeUserRoleUseCaseProvider = Provider<ChangeUserRoleUseCase>((ref) {
+  return ChangeUserRoleUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final startImpersonationUseCaseProvider = Provider<StartImpersonationUseCase>((ref) {
+  return StartImpersonationUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final endImpersonationUseCaseProvider = Provider<EndImpersonationUseCase>((ref) {
+  return EndImpersonationUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Support ─────────────────────────────────────────────────
+
+final getSupportTicketsUseCaseProvider = Provider<GetSupportTicketsUseCase>((ref) {
+  return GetSupportTicketsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final assignTicketUseCaseProvider = Provider<AssignTicketUseCase>((ref) {
+  return AssignTicketUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final escalateTicketUseCaseProvider = Provider<EscalateTicketUseCase>((ref) {
+  return EscalateTicketUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final resolveTicketUseCaseProvider = Provider<ResolveTicketUseCase>((ref) {
+  return ResolveTicketUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Security ────────────────────────────────────────────────
+
+final getLoginMonitoringUseCaseProvider = Provider<GetLoginMonitoringUseCase>((ref) {
+  return GetLoginMonitoringUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final detectSuspiciousActivityUseCaseProvider = Provider<DetectSuspiciousActivityUseCase>((ref) {
+  return DetectSuspiciousActivityUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final lockUserAccountUseCaseProvider = Provider<LockUserAccountUseCase>((ref) {
+  return LockUserAccountUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final unlockUserAccountUseCaseProvider = Provider<UnlockUserAccountUseCase>((ref) {
+  return UnlockUserAccountUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Audit Logs ──────────────────────────────────────────────
+
+final getAuditLogsUseCaseProvider = Provider<GetAuditLogsUseCase>((ref) {
+  return GetAuditLogsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final createAuditLogUseCaseProvider = Provider<CreateAuditLogUseCase>((ref) {
+  return CreateAuditLogUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Notifications ───────────────────────────────────────────
+
+final getNotificationsUseCaseProvider = Provider<GetNotificationsUseCase>((ref) {
+  return GetNotificationsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final markNotificationReadUseCaseProvider = Provider<MarkNotificationReadUseCase>((ref) {
+  return MarkNotificationReadUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getUnreadNotificationCountUseCaseProvider = Provider<GetUnreadNotificationCountUseCase>((ref) {
+  return GetUnreadNotificationCountUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Use Cases — Platform Analytics ──────────────────────────────────────
+
+final getSchoolGrowthUseCaseProvider = Provider<GetSchoolGrowthUseCase>((ref) {
+  return GetSchoolGrowthUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getUserGrowthUseCaseProvider = Provider<GetUserGrowthUseCase>((ref) {
+  return GetUserGrowthUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getFeatureUsageUseCaseProvider = Provider<GetFeatureUsageUseCase>((ref) {
+  return GetFeatureUsageUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+final getRetentionMetricsUseCaseProvider = Provider<GetRetentionMetricsUseCase>((ref) {
+  return GetRetentionMetricsUseCase(ref.watch(superAdminRepositoryProvider));
+});
+
+// ─── Presentation Providers ──────────────────────────────────────────────
+
+final dashboardProvider = StateNotifierProvider<DashboardNotifier, DashboardState>((ref) {
+  return DashboardNotifier(
+    getDashboardMetricsUseCase: ref.watch(getDashboardMetricsUseCaseProvider),
+  );
+});
+
+final platformSettingsProvider = StateNotifierProvider<PlatformSettingsNotifier, PlatformSettingsState>((ref) {
+  return PlatformSettingsNotifier(
+    getSettingsUseCase: ref.watch(getPlatformSettingsUseCaseProvider),
+    updateSettingUseCase: ref.watch(updatePlatformSettingUseCaseProvider),
+    bulkUpdateUseCase: ref.watch(bulkUpdateSettingsUseCaseProvider),
+  );
+});
+
+final featureFlagsProvider = StateNotifierProvider<FeatureFlagsNotifier, FeatureFlagsState>((ref) {
+  return FeatureFlagsNotifier(
+    getFlagsUseCase: ref.watch(getFeatureFlagsUseCaseProvider),
+    createFlagUseCase: ref.watch(createFeatureFlagUseCaseProvider),
+    updateFlagUseCase: ref.watch(updateFeatureFlagUseCaseProvider),
+    toggleFlagUseCase: ref.watch(toggleFeatureFlagUseCaseProvider),
+  );
+});
+
+final schoolManagementProvider = StateNotifierProvider<SchoolManagementNotifier, SchoolManagementState>((ref) {
+  return SchoolManagementNotifier(
+    getSchoolsUseCase: ref.watch(getSchoolsUseCaseProvider),
+    createSchoolUseCase: ref.watch(createSchoolUseCaseProvider),
+    suspendSchoolUseCase: ref.watch(suspendSchoolUseCaseProvider),
+    reactivateSchoolUseCase: ref.watch(reactivateSchoolUseCaseProvider),
+    verifySchoolUseCase: ref.watch(verifySchoolUseCaseProvider),
+  );
+});
+
+final userManagementProvider = StateNotifierProvider<UserManagementNotifier, UserManagementState>((ref) {
+  return UserManagementNotifier(
+    getUsersUseCase: ref.watch(getUsersUseCaseProvider),
+    suspendUserUseCase: ref.watch(suspendUserUseCaseProvider),
+    activateUserUseCase: ref.watch(activateUserUseCaseProvider),
+    resetPasswordUseCase: ref.watch(resetUserPasswordUseCaseProvider),
+    changeRoleUseCase: ref.watch(changeUserRoleUseCaseProvider),
+    startImpersonationUseCase: ref.watch(startImpersonationUseCaseProvider),
+    endImpersonationUseCase: ref.watch(endImpersonationUseCaseProvider),
+  );
+});
+
+final aiManagementProvider = StateNotifierProvider<AIManagementNotifier, AIManagementState>((ref) {
+  return AIManagementNotifier(
+    getProvidersUseCase: ref.watch(getAIProvidersUseCaseProvider),
+    createProviderUseCase: ref.watch(createAIProviderUseCaseProvider),
+    updateProviderUseCase: ref.watch(updateAIProviderUseCaseProvider),
+    setDefaultUseCase: ref.watch(setDefaultProviderUseCaseProvider),
+    toggleProviderUseCase: ref.watch(toggleProviderUseCaseProvider),
+    getRequestLogsUseCase: ref.watch(getAIRequestLogsUseCaseProvider),
+  );
+});
+
+final supportCenterProvider = StateNotifierProvider<SupportCenterNotifier, SupportCenterState>((ref) {
+  return SupportCenterNotifier(
+    getTicketsUseCase: ref.watch(getSupportTicketsUseCaseProvider),
+    assignTicketUseCase: ref.watch(assignTicketUseCaseProvider),
+    escalateTicketUseCase: ref.watch(escalateTicketUseCaseProvider),
+    resolveTicketUseCase: ref.watch(resolveTicketUseCaseProvider),
+  );
+});
+
+final intelligenceProvider = StateNotifierProvider<IntelligenceNotifier, IntelligenceState>((ref) {
+  return IntelligenceNotifier(
+    getAlertsUseCase: ref.watch(getIntelligenceAlertsUseCaseProvider),
+    acknowledgeAlertUseCase: ref.watch(acknowledgeAlertUseCaseProvider),
+    resolveAlertUseCase: ref.watch(resolveAlertUseCaseProvider),
+    generateInsightsUseCase: ref.watch(generateIntelligenceInsightsUseCaseProvider),
+    getChurnPredictionsUseCase: ref.watch(getChurnPredictionsUseCaseProvider),
+    getRevenueForecastUseCase: ref.watch(getRevenueForecastUseCaseProvider),
+    getCostOptimizationsUseCase: ref.watch(getCostOptimizationsUseCaseProvider),
+  );
+});
+
+final securityCenterProvider = StateNotifierProvider<SecurityCenterNotifier, SecurityCenterState>((ref) {
+  return SecurityCenterNotifier(
+    getLoginMonitoringUseCase: ref.watch(getLoginMonitoringUseCaseProvider),
+    detectSuspiciousUseCase: ref.watch(detectSuspiciousActivityUseCaseProvider),
+    lockAccountUseCase: ref.watch(lockUserAccountUseCaseProvider),
+    unlockAccountUseCase: ref.watch(unlockUserAccountUseCaseProvider),
+    getAuditLogsUseCase: ref.watch(getAuditLogsUseCaseProvider),
+  );
+});
+
+final adminNotificationProvider = StateNotifierProvider<AdminNotificationNotifier, AdminNotificationState>((ref) {
+  return AdminNotificationNotifier(
+    getNotificationsUseCase: ref.watch(getNotificationsUseCaseProvider),
+    markReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
+    getUnreadCountUseCase: ref.watch(getUnreadNotificationCountUseCaseProvider),
   );
 });

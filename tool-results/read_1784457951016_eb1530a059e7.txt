@@ -1,0 +1,2002 @@
+     1→     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→     2→
+     3→     3→import '../../../../../core/errors/exceptions.dart';
+     4→     4→import '../../../../../core/utils/logger.dart';
+     5→     5→import '../models/super_admin_models.dart';
+     6→     6→
+     7→     7→// ═══════════════════════════════════════════════════════════════════════
+     8→     8→// ABSTRACT INTERFACE
+     9→     9→// ═══════════════════════════════════════════════════════════════════════
+    10→    10→
+    11→    11→/// Abstract interface for all remote super-admin data operations.
+    12→    12→///
+    13→    13→/// Implementations handle all network communication with the Supabase
+    14→    14→/// backend and return plain model instances. Exceptions are allowed to
+    15→    15→/// propagate so the repository layer can catch and convert them to
+    16→    16→/// domain [Failure] types.
+    17→    17→abstract class SuperAdminRemoteDataSource {
+    18→    18→  // ─── Dashboard ─────────────────────────────────────────────────────
+    19→    19→
+    20→    20→  Future<DashboardMetricsModel> getDashboardMetrics({bool forceRefresh = false});
+    21→    21→
+    22→    22→  // ─── Platform Settings ─────────────────────────────────────────────
+    23→    23→
+    24→    24→  Future<List<PlatformSettingModel>> getPlatformSettings({String? scope});
+    25→    25→  Future<PlatformSettingModel> getPlatformSetting(String key, {String? scope});
+    26→    26→  Future<PlatformSettingModel> updatePlatformSetting(Map<String, dynamic> settingData);
+    27→    27→  Future<List<PlatformSettingModel>> bulkUpdateSettings(List<Map<String, dynamic>> settingsData);
+    28→    28→
+    29→    29→  // ─── Feature Flags ─────────────────────────────────────────────────
+    30→    30→
+    31→    31→  Future<List<FeatureFlagModel>> getFeatureFlags({bool? isActive});
+    32→    32→  Future<FeatureFlagModel> getFeatureFlag(String key);
+    33→    33→  Future<FeatureFlagModel> createFeatureFlag(Map<String, dynamic> flagData);
+    34→    34→  Future<FeatureFlagModel> updateFeatureFlag(String flagId, Map<String, dynamic> data);
+    35→    35→  Future<void> deleteFeatureFlag(String flagId);
+    36→    36→  Future<FeatureFlagModel> toggleFeatureFlag(String flagId, bool isActive);
+    37→    37→
+    38→    38→  // ─── Audit Logs ────────────────────────────────────────────────────
+    39→    39→
+    40→    40→  Future<List<AuditLogModel>> getAuditLogs({
+    41→    41→    String? category,
+    42→    42→    String? severity,
+    43→    43→    String? actorId,
+    44→    44→    String? resourceType,
+    45→    45→    String? resourceId,
+    46→    46→    String? schoolId,
+    47→    47→    DateTime? startDate,
+    48→    48→    DateTime? endDate,
+    49→    49→    int limit = 50,
+    50→    50→    int offset = 0,
+    51→    51→  });
+    52→    52→  Future<AuditLogModel> createAuditLog(Map<String, dynamic> logData);
+    53→    53→  Future<int> getAuditLogCount({String? category, DateTime? startDate, DateTime? endDate});
+    54→    54→
+    55→    55→  // ─── School Management ─────────────────────────────────────────────
+    56→    56→
+    57→    57→  Future<List<SchoolManagementDetailModel>> getSchools({
+    58→    58→    bool? isActive,
+    59→    59→    bool? isVerified,
+    60→    60→    String? search,
+    61→    61→    String? subscriptionStatus,
+    62→    62→    int limit = 50,
+    63→    63→    int offset = 0,
+    64→    64→  });
+    65→    65→  Future<SchoolManagementDetailModel> getSchool(String schoolId);
+    66→    66→  Future<SchoolManagementDetailModel> createSchool(Map<String, dynamic> schoolData);
+    67→    67→  Future<SchoolManagementDetailModel> updateSchool(String schoolId, Map<String, dynamic> data);
+    68→    68→  Future<void> suspendSchool(String schoolId, String reason);
+    69→    69→  Future<void> reactivateSchool(String schoolId);
+    70→    70→  Future<void> deleteSchool(String schoolId);
+    71→    71→  Future<void> verifySchool(String schoolId);
+    72→    72→  Future<int> getSchoolCount({bool? isActive});
+    73→    73→
+    74→    74→  // ─── User Management ───────────────────────────────────────────────
+    75→    75→
+    76→    76→  Future<List<UserManagementDetailModel>> getUsers({
+    77→    77→    String? role,
+    78→    78→    String? schoolId,
+    79→    79→    bool? isActive,
+    80→    80→    String? search,
+    81→    81→    int limit = 50,
+    82→    82→    int offset = 0,
+    83→    83→  });
+    84→    84→  Future<UserManagementDetailModel> getUser(String userId);
+    85→    85→  Future<void> suspendUser(String userId, String reason);
+    86→    86→  Future<void> activateUser(String userId);
+    87→    87→  Future<void> resetUserPassword(String userId);
+    88→    88→  Future<void> changeUserRole(String userId, String newRole);
+    89→    89→  Future<ImpersonationSessionModel> startImpersonation(Map<String, dynamic> data);
+    90→    90→  Future<void> endImpersonation(String sessionId);
+    91→    91→  Future<List<ImpersonationSessionModel>> getImpersonationSessions({String? status, int limit = 20});
+    92→    92→  Future<int> getUserCount({String? role, bool? isActive});
+    93→    93→
+    94→    94→  // ─── AI Management ─────────────────────────────────────────────────
+    95→    95→
+    96→    96→  Future<List<AIProviderModel>> getAIProviders({bool? isActive});
+    97→    97→  Future<AIProviderModel> getAIProvider(String providerId);
+    98→    98→  Future<AIProviderModel> createAIProvider(Map<String, dynamic> providerData);
+    99→    99→  Future<AIProviderModel> updateAIProvider(String providerId, Map<String, dynamic> data);
+   100→   100→  Future<void> deleteAIProvider(String providerId);
+   101→   101→  Future<AIProviderModel> setDefaultProvider(String providerId);
+   102→   102→  Future<AIProviderModel> toggleProvider(String providerId, bool isActive);
+   103→   103→  Future<List<AIRequestLogModel>> getAIRequestLogs({
+   104→   104→    String? providerId,
+   105→   105→    String? userId,
+   106→   106→    String? schoolId,
+   107→   107→    bool? isSuccess,
+   108→   108→    DateTime? startDate,
+   109→   109→    DateTime? endDate,
+   110→   110→    int limit = 50,
+   111→   111→    int offset = 0,
+   112→   112→  });
+   113→   113→  Future<Map<String, dynamic>> getAIUsageAnalytics({
+   114→   114→    DateTime? startDate,
+   115→   115→    DateTime? endDate,
+   116→   116→  });
+   117→   117→
+   118→   118→  // ─── Infrastructure ────────────────────────────────────────────────
+   119→   119→
+   120→   120→  Future<List<InfrastructureServiceModel>> getInfrastructureServices({String? status});
+   121→   121→  Future<InfrastructureServiceModel> getInfrastructureService(String serviceId);
+   122→   122→  Future<InfrastructureServiceModel> updateInfrastructureService(String serviceId, Map<String, dynamic> data);
+   123→   123→  Future<void> runHealthCheck(String serviceId);
+   124→   124→  Future<void> runAllHealthChecks();
+   125→   125→
+   126→   126→  // ─── Support Tickets ───────────────────────────────────────────────
+   127→   127→
+   128→   128→  Future<List<SupportTicketModel>> getSupportTickets({
+   129→   129→    String? status,
+   130→   130→    String? priority,
+   131→   131→    String? category,
+   132→   132→    String? assignedTo,
+   133→   133→    String? schoolId,
+   134→   134→    String? search,
+   135→   135→    int limit = 50,
+   136→   136→    int offset = 0,
+   137→   137→  });
+   138→   138→  Future<SupportTicketModel> getSupportTicket(String ticketId);
+   139→   139→  Future<SupportTicketModel> updateSupportTicket(String ticketId, Map<String, dynamic> data);
+   140→   140→  Future<SupportTicketModel> assignTicket(String ticketId, String assignToUserId);
+   141→   141→  Future<SupportTicketModel> escalateTicket(String ticketId, String escalateToUserId, String reason);
+   142→   142→  Future<SupportTicketModel> resolveTicket(String ticketId, String resolutionNotes);
+   143→   143→  Future<TicketCommentModel> addTicketComment(Map<String, dynamic> commentData);
+   144→   144→  Future<List<TicketCommentModel>> getTicketComments(String ticketId);
+   145→   145→  Future<int> getTicketCount({String? status});
+   146→   146→
+   147→   147→  // ─── Marketplace ───────────────────────────────────────────────────
+   148→   148→
+   149→   149→  Future<List<MarketplaceContentModel>> getMarketplaceContent({
+   150→   150→    String? status,
+   151→   151→    String? contentType,
+   152→   152→    String? search,
+   153→   153→    int limit = 50,
+   154→   154→    int offset = 0,
+   155→   155→  });
+   156→   156→  Future<MarketplaceContentModel> getMarketplaceItem(String contentId);
+   157→   157→  Future<MarketplaceContentModel> approveMarketplaceContent(String contentId, {String? notes});
+   158→   158→  Future<MarketplaceContentModel> rejectMarketplaceContent(String contentId, String reason);
+   159→   159→  Future<MarketplaceContentModel> featureMarketplaceContent(String contentId, DateTime? until);
+   160→   160→  Future<MarketplaceContentModel> removeMarketplaceContent(String contentId, String reason);
+   161→   161→  Future<MarketplaceContentModel> flagMarketplaceContent(String contentId, String reason);
+   162→   162→  Future<int> getMarketplaceContentCount({String? status});
+   163→   163→
+   164→   164→  // ─── Platform Notifications ────────────────────────────────────────
+   165→   165→
+   166→   166→  Future<List<PlatformNotificationModel>> getNotifications({
+   167→   167→    String? recipientId,
+   168→   168→    String? category,
+   169→   169→    String? priority,
+   170→   170→    bool? unreadOnly,
+   171→   171→    int limit = 50,
+   172→   172→    int offset = 0,
+   173→   173→  });
+   174→   174→  Future<PlatformNotificationModel> markNotificationRead(String notificationId);
+   175→   175→  Future<void> markAllNotificationsRead({String? recipientId});
+   176→   176→  Future<void> dismissNotification(String notificationId);
+   177→   177→  Future<PlatformNotificationModel> createNotification(Map<String, dynamic> notificationData);
+   178→   178→  Future<int> getUnreadNotificationCount({String? recipientId});
+   179→   179→
+   180→   180→  // ─── Operations Intelligence ───────────────────────────────────────
+   181→   181→
+   182→   182→  Future<List<IntelligenceAlertModel>> getIntelligenceAlerts({
+   183→   183→    String? alertType,
+   184→   184→    String? severity,
+   185→   185→    bool? unacknowledgedOnly,
+   186→   186→    bool? unresolvedOnly,
+   187→   187→    String? schoolId,
+   188→   188→    int limit = 50,
+   189→   189→    int offset = 0,
+   190→   190→  });
+   191→   191→  Future<IntelligenceAlertModel> getIntelligenceAlert(String alertId);
+   192→   192→  Future<IntelligenceAlertModel> acknowledgeAlert(String alertId);
+   193→   193→  Future<IntelligenceAlertModel> resolveAlert(String alertId, String resolutionNotes);
+   194→   194→  Future<List<IntelligenceAlertModel>> generateIntelligenceInsights();
+   195→   195→  Future<Map<String, dynamic>> getChurnPredictions({int limit = 20});
+   196→   196→  Future<Map<String, dynamic>> getRevenueForecast({int monthsAhead = 6});
+   197→   197→  Future<Map<String, dynamic>> getEngagementInsights();
+   198→   198→  Future<Map<String, dynamic>> getCostOptimizationSuggestions();
+   199→   199→
+   200→   200→  // ─── Revenue Analytics ─────────────────────────────────────────────
+   201→   201→
+   202→   202→  Future<RevenueAnalyticsModel> getRevenueAnalytics({DateTime? startDate, DateTime? endDate});
+   203→   203→
+   204→   204→  // ─── Security ──────────────────────────────────────────────────────
+   205→   205→
+   206→   206→  Future<List<LoginMonitoringEntryModel>> getLoginMonitoring({
+   207→   207→    String? userId,
+   208→   208→    bool? failedOnly,
+   209→   209→    String? ipAddress,
+   210→   210→    DateTime? startDate,
+   211→   211→    DateTime? endDate,
+   212→   212→    int limit = 50,
+   213→   213→    int offset = 0,
+   214→   214→  });
+   215→   215→  Future<List<ActiveSessionModel>> getActiveSessions({String? userId});
+   216→   216→  Future<void> terminateSession(String sessionId);
+   217→   217→  Future<List<Map<String, dynamic>>> detectSuspiciousActivity({int lookbackHours = 24});
+   218→   218→  Future<void> lockUserAccount(String userId, String reason);
+   219→   219→  Future<void> unlockUserAccount(String userId);
+   220→   220→
+   221→   221→  // ─── System Reports ────────────────────────────────────────────────
+   222→   222→
+   223→   223→  Future<List<SystemReportModel>> getSystemReports({String? type, String? status});
+   224→   224→  Future<SystemReportModel> generateReport(Map<String, dynamic> params);
+   225→   225→  Future<SystemReportModel> getSystemReport(String reportId);
+   226→   226→
+   227→   227→  // ─── Maintenance Windows ───────────────────────────────────────────
+   228→   228→
+   229→   229→  Future<List<MaintenanceWindowModel>> getMaintenanceWindows({String? status});
+   230→   230→  Future<MaintenanceWindowModel> createMaintenanceWindow(Map<String, dynamic> windowData);
+   231→   231→  Future<MaintenanceWindowModel> updateMaintenanceWindow(String windowId, Map<String, dynamic> data);
+   232→   232→  Future<void> cancelMaintenanceWindow(String windowId);
+   233→   233→
+   234→   234→  // ─── Platform Policies ─────────────────────────────────────────────
+   235→   235→
+   236→   236→  Future<List<PlatformPolicyModel>> getPlatformPolicies({bool? isActive});
+   237→   237→  Future<PlatformPolicyModel> getPlatformPolicy(String policyKey);
+   238→   238→  Future<PlatformPolicyModel> upsertPlatformPolicy(Map<String, dynamic> policyData);
+   239→   239→
+   240→   240→  // ─── Email Templates ───────────────────────────────────────────────
+   241→   241→
+   242→   242→  Future<List<EmailTemplateModel>> getEmailTemplates({String? category});
+   243→   243→  Future<EmailTemplateModel> getEmailTemplate(String templateKey);
+   244→   244→  Future<EmailTemplateModel> upsertEmailTemplate(Map<String, dynamic> templateData);
+   245→   245→
+   246→   246→  // ─── Platform Analytics ────────────────────────────────────────────
+   247→   247→
+   248→   248→  Future<Map<String, dynamic>> getSchoolGrowthMetrics({DateTime? startDate, DateTime? endDate});
+   249→   249→  Future<Map<String, dynamic>> getUserGrowthMetrics({DateTime? startDate, DateTime? endDate});
+   250→   250→  Future<Map<String, dynamic>> getFeatureUsageMetrics({DateTime? startDate, DateTime? endDate});
+   251→   251→  Future<Map<String, dynamic>> getStorageUsageMetrics();
+   252→   252→  Future<Map<String, dynamic>> getGeographicDistribution();
+   253→   253→  Future<Map<String, dynamic>> getRetentionMetrics({int months = 12});
+   254→   254→}
+   255→   255→
+   256→   256→// ═══════════════════════════════════════════════════════════════════════
+   257→   257→// SUPABASE IMPLEMENTATION
+   258→   258→// ═══════════════════════════════════════════════════════════════════════
+   259→   259→
+   260→   260→/// Supabase-backed implementation of [SuperAdminRemoteDataSource].
+   261→   261→///
+   262→   262→/// Every method maps Supabase-specific responses and errors into the
+   263→   263→/// domain-agnostic types defined in the data layer. Supabase
+   264→   264→/// [sb.PostgrestException] instances are converted to our custom
+   265→   265→/// exceptions with user-friendly messages.
+   266→   266→class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
+   267→   267→  SuperAdminRemoteDataSourceImpl({
+   268→   268→    required sb.SupabaseClient supabaseClient,
+   269→   269→  }) : _supabase = supabaseClient;
+   270→   270→
+   271→   271→  final sb.SupabaseClient _supabase;
+   272→   272→
+   273→   273→  // ─── Table names ───────────────────────────────────────────────────
+   274→   274→  static const _platformSettingsTable = 'platform_settings';
+   275→   275→  static const _featureFlagsTable = 'feature_flags';
+   276→   276→  static const _auditLogsTable = 'audit_logs';
+   277→   277→  static const _schoolsTable = 'schools';
+   278→   278→  static const _userProfilesTable = 'user_profiles';
+   279→   279→  static const _impersonationSessionsTable = 'impersonation_sessions';
+   280→   280→  static const _aiProvidersTable = 'ai_providers';
+   281→   281→  static const _aiRequestLogsTable = 'ai_request_logs';
+   282→   282→  static const _infrastructureServicesTable = 'infrastructure_services';
+   283→   283→  static const _supportTicketsTable = 'support_tickets';
+   284→   284→  static const _ticketCommentsTable = 'ticket_comments';
+   285→   285→  static const _marketplaceContentTable = 'marketplace_content';
+   286→   286→  static const _platformNotificationsTable = 'platform_notifications';
+   287→   287→  static const _intelligenceAlertsTable = 'intelligence_alerts';
+   288→   288→  static const _loginMonitoringTable = 'login_monitoring';
+   289→   289→  static const _activeSessionsTable = 'active_sessions';
+   290→   290→  static const _systemReportsTable = 'system_reports';
+   291→   291→  static const _maintenanceWindowsTable = 'maintenance_windows';
+   292→   292→  static const _platformPoliciesTable = 'platform_policies';
+   293→   293→  static const _emailTemplatesTable = 'email_templates';
+   294→   294→
+   295→   295→  // ═══════════════════════════════════════════════════════════════════
+   296→   296→  // DASHBOARD
+   297→   297→  // ═══════════════════════════════════════════════════════════════════
+   298→   298→
+   299→   299→  @override
+   300→   300→  Future<DashboardMetricsModel> getDashboardMetrics({
+   301→   301→    bool forceRefresh = false,
+   302→   302→  }) async {
+   303→   303→    try {
+   304→   304→      final response = await _supabase.rpc(
+   305→   305→        'get_platform_dashboard_metrics',
+   306→   306→      );
+   307→   307→
+   308→   308→      AppLogger.info('Fetched platform dashboard metrics');
+   309→   309→      return DashboardMetricsModel.fromJson(response as Map<String, dynamic>);
+   310→   310→    } on sb.PostgrestException catch (e) {
+   311→   311→      throw _mapPostgrestException(e);
+   312→   312→    } catch (e) {
+   313→   313→      AppLogger.error('Unexpected getDashboardMetrics error', error: e);
+   314→   314→      throw const ServerException(
+   315→   315→        message: 'Failed to fetch dashboard metrics.',
+   316→   316→        statusCode: 500,
+   317→   317→      );
+   318→   318→    }
+   319→   319→  }
+   320→   320→
+   321→   321→  // ═══════════════════════════════════════════════════════════════════
+   322→   322→  // PLATFORM SETTINGS
+   323→   323→  // ═══════════════════════════════════════════════════════════════════
+   324→   324→
+   325→   325→  @override
+   326→   326→  Future<List<PlatformSettingModel>> getPlatformSettings({
+   327→   327→    String? scope,
+   328→   328→  }) async {
+   329→   329→    try {
+   330→   330→      var query = _supabase.from(_platformSettingsTable).select();
+   331→   331→
+   332→   332→      if (scope != null) {
+   333→   333→        query = query.eq('scope', scope);
+   334→   334→      }
+   335→   335→
+   336→   336→      final list = await query.order('key', ascending: true);
+   337→   337→      AppLogger.info('Fetched ${list.length} platform settings');
+   338→   338→      return list
+   339→   339→          .map<PlatformSettingModel>(
+   340→   340→            (row) => PlatformSettingModel.fromJson(row),
+   341→   341→          )
+   342→   342→          .toList();
+   343→   343→    } on sb.PostgrestException catch (e) {
+   344→   344→      throw _mapPostgrestException(e);
+   345→   345→    } catch (e) {
+   346→   346→      AppLogger.error('Unexpected getPlatformSettings error', error: e);
+   347→   347→      throw const ServerException(
+   348→   348→        message: 'Failed to fetch platform settings.',
+   349→   349→        statusCode: 500,
+   350→   350→      );
+   351→   351→    }
+   352→   352→  }
+   353→   353→
+   354→   354→  @override
+   355→   355→  Future<PlatformSettingModel> getPlatformSetting(
+   356→   356→    String key, {
+   357→   357→    String? scope,
+   358→   358→  }) async {
+   359→   359→    try {
+   360→   360→      var query = _supabase
+   361→   361→          .from(_platformSettingsTable)
+   362→   362→          .select()
+   363→   363→          .eq('key', key);
+   364→   364→
+   365→   365→      if (scope != null) {
+   366→   366→        query = query.eq('scope', scope);
+   367→   367→      }
+   368→   368→
+   369→   369→      final response = await query.limit(1);
+   370→   370→
+   371→   371→      if (response.isEmpty) {
+   372→   372→        throw const NotFoundException('Platform setting not found.');
+   373→   373→      }
+   374→   374→
+   375→   375→      return PlatformSettingModel.fromJson(response.first);
+   376→   376→    } on sb.PostgrestException catch (e) {
+   377→   377→      throw _mapPostgrestException(e);
+   378→   378→    } on NotFoundException {
+   379→   379→      rethrow;
+   380→   380→    } catch (e) {
+   381→   381→      AppLogger.error('Unexpected getPlatformSetting error', error: e);
+   382→   382→      throw const ServerException(
+   383→   383→        message: 'Failed to fetch platform setting.',
+   384→   384→        statusCode: 500,
+   385→   385→      );
+   386→   386→    }
+   387→   387→  }
+   388→   388→
+   389→   389→  @override
+   390→   390→  Future<PlatformSettingModel> updatePlatformSetting(
+   391→   391→    Map<String, dynamic> settingData,
+   392→   392→  ) async {
+   393→   393→    try {
+   394→   394→      settingData['updated_at'] = DateTime.now().toIso8601String();
+   395→   395→
+   396→   396→      final response = await _supabase
+   397→   397→          .from(_platformSettingsTable)
+   398→   398→          .update(settingData)
+   399→   399→          .eq('id', settingData['id'] as String)
+   400→   400→          .select();
+   401→   401→
+   402→   402→      if (response.isEmpty) {
+   403→   403→        throw const NotFoundException('Platform setting not found for update.');
+   404→   404→      }
+   405→   405→
+   406→   406→      AppLogger.info('Platform setting updated: ${response.first['key']}');
+   407→   407→      return PlatformSettingModel.fromJson(response.first);
+   408→   408→    } on sb.PostgrestException catch (e) {
+   409→   409→      throw _mapPostgrestException(e);
+   410→   410→    } on NotFoundException {
+   411→   411→      rethrow;
+   412→   412→    } catch (e) {
+   413→   413→      AppLogger.error('Unexpected updatePlatformSetting error', error: e);
+   414→   414→      throw const ServerException(
+   415→   415→        message: 'Failed to update platform setting.',
+   416→   416→        statusCode: 500,
+   417→   417→      );
+   418→   418→    }
+   419→   419→  }
+   420→   420→
+   421→   421→  @override
+   422→   422→  Future<List<PlatformSettingModel>> bulkUpdateSettings(
+   423→   423→    List<Map<String, dynamic>> settingsData,
+   424→   424→  ) async {
+   425→   425→    try {
+   426→   426→      final results = <PlatformSettingModel>[];
+   427→   427→
+   428→   428→      for (final data in settingsData) {
+   429→   429→        data['updated_at'] = DateTime.now().toIso8601String();
+   430→   430→
+   431→   431→        final response = await _supabase
+   432→   432→            .from(_platformSettingsTable)
+   433→   433→            .update(data)
+   434→   434→            .eq('id', data['id'] as String)
+   435→   435→            .select();
+   436→   436→
+   437→   437→        if (response.isNotEmpty) {
+   438→   438→          results.add(PlatformSettingModel.fromJson(response.first));
+   439→   439→        }
+   440→   440→      }
+   441→   441→
+   442→   442→      AppLogger.info('Bulk updated ${results.length} platform settings');
+   443→   443→      return results;
+   444→   444→    } on sb.PostgrestException catch (e) {
+   445→   445→      throw _mapPostgrestException(e);
+   446→   446→    } catch (e) {
+   447→   447→      AppLogger.error('Unexpected bulkUpdateSettings error', error: e);
+   448→   448→      throw const ServerException(
+   449→   449→        message: 'Failed to bulk update platform settings.',
+   450→   450→        statusCode: 500,
+   451→   451→      );
+   452→   452→    }
+   453→   453→  }
+   454→   454→
+   455→   455→  // ═══════════════════════════════════════════════════════════════════
+   456→   456→  // FEATURE FLAGS
+   457→   457→  // ═══════════════════════════════════════════════════════════════════
+   458→   458→
+   459→   459→  @override
+   460→   460→  Future<List<FeatureFlagModel>> getFeatureFlags({bool? isActive}) async {
+   461→   461→    try {
+   462→   462→      var query = _supabase.from(_featureFlagsTable).select();
+   463→   463→
+   464→   464→      if (isActive != null) {
+   465→   465→        query = query.eq('is_active', isActive);
+   466→   466→      }
+   467→   467→
+   468→   468→      final list = await query.order('key', ascending: true);
+   469→   469→      AppLogger.info('Fetched ${list.length} feature flags');
+   470→   470→      return list
+   471→   471→          .map<FeatureFlagModel>(
+   472→   472→            (row) => FeatureFlagModel.fromJson(row),
+   473→   473→          )
+   474→   474→          .toList();
+   475→   475→    } on sb.PostgrestException catch (e) {
+   476→   476→      throw _mapPostgrestException(e);
+   477→   477→    } catch (e) {
+   478→   478→      AppLogger.error('Unexpected getFeatureFlags error', error: e);
+   479→   479→      throw const ServerException(
+   480→   480→        message: 'Failed to fetch feature flags.',
+   481→   481→        statusCode: 500,
+   482→   482→      );
+   483→   483→    }
+   484→   484→  }
+   485→   485→
+   486→   486→  @override
+   487→   487→  Future<FeatureFlagModel> getFeatureFlag(String key) async {
+   488→   488→    try {
+   489→   489→      final response = await _supabase
+   490→   490→          .from(_featureFlagsTable)
+   491→   491→          .select()
+   492→   492→          .eq('key', key)
+   493→   493→          .limit(1);
+   494→   494→
+   495→   495→      if (response.isEmpty) {
+   496→   496→        throw const NotFoundException('Feature flag not found.');
+   497→   497→      }
+   498→   498→
+   499→   499→      return FeatureFlagModel.fromJson(response.first);
+   500→   500→    } on sb.PostgrestException catch (e) {
+   501→   501→      throw _mapPostgrestException(e);
+   502→   502→    } on NotFoundException {
+   503→   503→      rethrow;
+   504→   504→    } catch (e) {
+   505→   505→      AppLogger.error('Unexpected getFeatureFlag error', error: e);
+   506→   506→      throw const ServerException(
+   507→   507→        message: 'Failed to fetch feature flag.',
+   508→   508→        statusCode: 500,
+   509→   509→      );
+   510→   510→    }
+   511→   511→  }
+   512→   512→
+   513→   513→  @override
+   514→   514→  Future<FeatureFlagModel> createFeatureFlag(
+   515→   515→    Map<String, dynamic> flagData,
+   516→   516→  ) async {
+   517→   517→    try {
+   518→   518→      final response = await _supabase
+   519→   519→          .from(_featureFlagsTable)
+   520→   520→          .insert(flagData)
+   521→   521→          .select();
+   522→   522→
+   523→   523→      if (response.isEmpty) {
+   524→   524→        throw const ServerException(
+   525→   525→          message: 'Feature flag creation returned no data.',
+   526→   526→          statusCode: 500,
+   527→   527→        );
+   528→   528→      }
+   529→   529→
+   530→   530→      AppLogger.info('Feature flag created: ${response.first['key']}');
+   531→   531→      return FeatureFlagModel.fromJson(response.first);
+   532→   532→    } on sb.PostgrestException catch (e) {
+   533→   533→      throw _mapPostgrestException(e);
+   534→   534→    } on ServerException {
+   535→   535→      rethrow;
+   536→   536→    } catch (e) {
+   537→   537→      AppLogger.error('Unexpected createFeatureFlag error', error: e);
+   538→   538→      throw const ServerException(
+   539→   539→        message: 'Failed to create feature flag.',
+   540→   540→        statusCode: 500,
+   541→   541→      );
+   542→   542→    }
+   543→   543→  }
+   544→   544→
+   545→   545→  @override
+   546→   546→  Future<FeatureFlagModel> updateFeatureFlag(
+   547→   547→    String flagId,
+   548→   548→    Map<String, dynamic> data,
+   549→   549→  ) async {
+   550→   550→    try {
+   551→   551→      data['updated_at'] = DateTime.now().toIso8601String();
+   552→   552→
+   553→   553→      final response = await _supabase
+   554→   554→          .from(_featureFlagsTable)
+   555→   555→          .update(data)
+   556→   556→          .eq('id', flagId)
+   557→   557→          .select();
+   558→   558→
+   559→   559→      if (response.isEmpty) {
+   560→   560→        throw const NotFoundException('Feature flag not found for update.');
+   561→   561→      }
+   562→   562→
+   563→   563→      AppLogger.info('Feature flag updated: $flagId');
+   564→   564→      return FeatureFlagModel.fromJson(response.first);
+   565→   565→    } on sb.PostgrestException catch (e) {
+   566→   566→      throw _mapPostgrestException(e);
+   567→   567→    } on NotFoundException {
+   568→   568→      rethrow;
+   569→   569→    } catch (e) {
+   570→   570→      AppLogger.error('Unexpected updateFeatureFlag error', error: e);
+   571→   571→      throw const ServerException(
+   572→   572→        message: 'Failed to update feature flag.',
+   573→   573→        statusCode: 500,
+   574→   574→      );
+   575→   575→    }
+   576→   576→  }
+   577→   577→
+   578→   578→  @override
+   579→   579→  Future<void> deleteFeatureFlag(String flagId) async {
+   580→   580→    try {
+   581→   581→      await _supabase
+   582→   582→          .from(_featureFlagsTable)
+   583→   583→          .delete()
+   584→   584→          .eq('id', flagId);
+   585→   585→
+   586→   586→      AppLogger.info('Feature flag deleted: $flagId');
+   587→   587→    } on sb.PostgrestException catch (e) {
+   588→   588→      throw _mapPostgrestException(e);
+   589→   589→    } catch (e) {
+   590→   590→      AppLogger.error('Unexpected deleteFeatureFlag error', error: e);
+   591→   591→      throw const ServerException(
+   592→   592→        message: 'Failed to delete feature flag.',
+   593→   593→        statusCode: 500,
+   594→   594→      );
+   595→   595→    }
+   596→   596→  }
+   597→   597→
+   598→   598→  @override
+   599→   599→  Future<FeatureFlagModel> toggleFeatureFlag(
+   600→   600→    String flagId,
+   601→   601→    bool isActive,
+   602→   602→  ) async {
+   603→   603→    try {
+   604→   604→      final response = await _supabase
+   605→   605→          .from(_featureFlagsTable)
+   606→   606→          .update({
+   607→   607→            'is_active': isActive,
+   608→   608→            'updated_at': DateTime.now().toIso8601String(),
+   609→   609→          })
+   610→   610→          .eq('id', flagId)
+   611→   611→          .select();
+   612→   612→
+   613→   613→      if (response.isEmpty) {
+   614→   614→        throw const NotFoundException('Feature flag not found for toggle.');
+   615→   615→      }
+   616→   616→
+   617→   617→      AppLogger.info('Feature flag toggled: $flagId → isActive=$isActive');
+   618→   618→      return FeatureFlagModel.fromJson(response.first);
+   619→   619→    } on sb.PostgrestException catch (e) {
+   620→   620→      throw _mapPostgrestException(e);
+   621→   621→    } on NotFoundException {
+   622→   622→      rethrow;
+   623→   623→    } catch (e) {
+   624→   624→      AppLogger.error('Unexpected toggleFeatureFlag error', error: e);
+   625→   625→      throw const ServerException(
+   626→   626→        message: 'Failed to toggle feature flag.',
+   627→   627→        statusCode: 500,
+   628→   628→      );
+   629→   629→    }
+   630→   630→  }
+   631→   631→
+   632→   632→  // ═══════════════════════════════════════════════════════════════════
+   633→   633→  // AUDIT LOGS
+   634→   634→  // ═══════════════════════════════════════════════════════════════════
+   635→   635→
+   636→   636→  @override
+   637→   637→  Future<List<AuditLogModel>> getAuditLogs({
+   638→   638→    String? category,
+   639→   639→    String? severity,
+   640→   640→    String? actorId,
+   641→   641→    String? resourceType,
+   642→   642→    String? resourceId,
+   643→   643→    String? schoolId,
+   644→   644→    DateTime? startDate,
+   645→   645→    DateTime? endDate,
+   646→   646→    int limit = 50,
+   647→   647→    int offset = 0,
+   648→   648→  }) async {
+   649→   649→    try {
+   650→   650→      var query = _supabase.from(_auditLogsTable).select();
+   651→   651→
+   652→   652→      if (category != null) {
+   653→   653→        query = query.eq('category', category);
+   654→   654→      }
+   655→   655→      if (severity != null) {
+   656→   656→        query = query.eq('severity', severity);
+   657→   657→      }
+   658→   658→      if (actorId != null) {
+   659→   659→        query = query.eq('actor_id', actorId);
+   660→   660→      }
+   661→   661→      if (resourceType != null) {
+   662→   662→        query = query.eq('resource_type', resourceType);
+   663→   663→      }
+   664→   664→      if (resourceId != null) {
+   665→   665→        query = query.eq('resource_id', resourceId);
+   666→   666→      }
+   667→   667→      if (schoolId != null) {
+   668→   668→        query = query.eq('school_id', schoolId);
+   669→   669→      }
+   670→   670→      if (startDate != null) {
+   671→   671→        query = query.gte('created_at', startDate.toIso8601String());
+   672→   672→      }
+   673→   673→      if (endDate != null) {
+   674→   674→        query = query.lte('created_at', endDate.toIso8601String());
+   675→   675→      }
+   676→   676→
+   677→   677→      final list = await query
+   678→   678→          .order('created_at', ascending: false)
+   679→   679→          .range(offset, offset + limit - 1);
+   680→   680→
+   681→   681→      AppLogger.info('Fetched ${list.length} audit logs');
+   682→   682→      return list
+   683→   683→          .map<AuditLogModel>(
+   684→   684→            (row) => AuditLogModel.fromJson(row),
+   685→   685→          )
+   686→   686→          .toList();
+   687→   687→    } on sb.PostgrestException catch (e) {
+   688→   688→      throw _mapPostgrestException(e);
+   689→   689→    } catch (e) {
+   690→   690→      AppLogger.error('Unexpected getAuditLogs error', error: e);
+   691→   691→      throw const ServerException(
+   692→   692→        message: 'Failed to fetch audit logs.',
+   693→   693→        statusCode: 500,
+   694→   694→      );
+   695→   695→    }
+   696→   696→  }
+   697→   697→
+   698→   698→  @override
+   699→   699→  Future<AuditLogModel> createAuditLog(Map<String, dynamic> logData) async {
+   700→   700→    try {
+   701→   701→      final response = await _supabase
+   702→   702→          .from(_auditLogsTable)
+   703→   703→          .insert(logData)
+   704→   704→          .select();
+   705→   705→
+   706→   706→      if (response.isEmpty) {
+   707→   707→        throw const ServerException(
+   708→   708→          message: 'Audit log creation returned no data.',
+   709→   709→          statusCode: 500,
+   710→   710→        );
+   711→   711→      }
+   712→   712→
+   713→   713→      AppLogger.info('Audit log created: ${response.first['id']}');
+   714→   714→      return AuditLogModel.fromJson(response.first);
+   715→   715→    } on sb.PostgrestException catch (e) {
+   716→   716→      throw _mapPostgrestException(e);
+   717→   717→    } on ServerException {
+   718→   718→      rethrow;
+   719→   719→    } catch (e) {
+   720→   720→      AppLogger.error('Unexpected createAuditLog error', error: e);
+   721→   721→      throw const ServerException(
+   722→   722→        message: 'Failed to create audit log.',
+   723→   723→        statusCode: 500,
+   724→   724→      );
+   725→   725→    }
+   726→   726→  }
+   727→   727→
+   728→   728→  @override
+   729→   729→  Future<int> getAuditLogCount({
+   730→   730→    String? category,
+   731→   731→    DateTime? startDate,
+   732→   732→    DateTime? endDate,
+   733→   733→  }) async {
+   734→   734→    try {
+   735→   735→      var query = _supabase
+   736→   736→          .from(_auditLogsTable)
+   737→   737→          .select('id');
+   738→   738→
+   739→   739→      if (category != null) {
+   740→   740→        query = query.eq('category', category);
+   741→   741→      }
+   742→   742→      if (startDate != null) {
+   743→   743→        query = query.gte('created_at', startDate.toIso8601String());
+   744→   744→      }
+   745→   745→      if (endDate != null) {
+   746→   746→        query = query.lte('created_at', endDate.toIso8601String());
+   747→   747→      }
+   748→   748→
+   749→   749→      final response = await query;
+   750→   750→      AppLogger.info('Audit log count: ${response.length}');
+   751→   751→      return response.length;
+   752→   752→    } on sb.PostgrestException catch (e) {
+   753→   753→      throw _mapPostgrestException(e);
+   754→   754→    } catch (e) {
+   755→   755→      AppLogger.error('Unexpected getAuditLogCount error', error: e);
+   756→   756→      throw const ServerException(
+   757→   757→        message: 'Failed to fetch audit log count.',
+   758→   758→        statusCode: 500,
+   759→   759→      );
+   760→   760→    }
+   761→   761→  }
+   762→   762→
+   763→   763→  // ═══════════════════════════════════════════════════════════════════
+   764→   764→  // SCHOOL MANAGEMENT
+   765→   765→  // ═══════════════════════════════════════════════════════════════════
+   766→   766→
+   767→   767→  @override
+   768→   768→  Future<List<SchoolManagementDetailModel>> getSchools({
+   769→   769→    bool? isActive,
+   770→   770→    bool? isVerified,
+   771→   771→    String? search,
+   772→   772→    String? subscriptionStatus,
+   773→   773→    int limit = 50,
+   774→   774→    int offset = 0,
+   775→   775→  }) async {
+   776→   776→    try {
+   777→   777→      var query = _supabase.from(_schoolsTable).select();
+   778→   778→
+   779→   779→      if (isActive != null) {
+   780→   780→        query = query.eq('is_active', isActive);
+   781→   781→      }
+   782→   782→      if (isVerified != null) {
+   783→   783→        query = query.eq('is_verified', isVerified);
+   784→   784→      }
+   785→   785→      if (subscriptionStatus != null) {
+   786→   786→        query = query.eq('subscription_status', subscriptionStatus);
+   787→   787→      }
+   788→   788→      if (search != null && search.isNotEmpty) {
+   789→   789→        query = query.ilike('name', '%$search%');
+   790→   790→      }
+   791→   791→
+   792→   792→      final list = await query
+   793→   793→          .order('created_at', ascending: false)
+   794→   794→          .range(offset, offset + limit - 1);
+   795→   795→
+   796→   796→      AppLogger.info('Fetched ${list.length} schools');
+   797→   797→      return list
+   798→   798→          .map<SchoolManagementDetailModel>(
+   799→   799→            (row) => SchoolManagementDetailModel.fromJson(row),
+   800→   800→          )
+   801→   801→          .toList();
+   802→   802→    } on sb.PostgrestException catch (e) {
+   803→   803→      throw _mapPostgrestException(e);
+   804→   804→    } catch (e) {
+   805→   805→      AppLogger.error('Unexpected getSchools error', error: e);
+   806→   806→      throw const ServerException(
+   807→   807→        message: 'Failed to fetch schools.',
+   808→   808→        statusCode: 500,
+   809→   809→      );
+   810→   810→    }
+   811→   811→  }
+   812→   812→
+   813→   813→  @override
+   814→   814→  Future<SchoolManagementDetailModel> getSchool(String schoolId) async {
+   815→   815→    try {
+   816→   816→      final response = await _supabase
+   817→   817→          .from(_schoolsTable)
+   818→   818→          .select()
+   819→   819→          .eq('id', schoolId)
+   820→   820→          .limit(1);
+   821→   821→
+   822→   822→      if (response.isEmpty) {
+   823→   823→        throw const NotFoundException('School not found.');
+   824→   824→      }
+   825→   825→
+   826→   826→      return SchoolManagementDetailModel.fromJson(response.first);
+   827→   827→    } on sb.PostgrestException catch (e) {
+   828→   828→      throw _mapPostgrestException(e);
+   829→   829→    } on NotFoundException {
+   830→   830→      rethrow;
+   831→   831→    } catch (e) {
+   832→   832→      AppLogger.error('Unexpected getSchool error', error: e);
+   833→   833→      throw const ServerException(
+   834→   834→        message: 'Failed to fetch school.',
+   835→   835→        statusCode: 500,
+   836→   836→      );
+   837→   837→    }
+   838→   838→  }
+   839→   839→
+   840→   840→  @override
+   841→   841→  Future<SchoolManagementDetailModel> createSchool(
+   842→   842→    Map<String, dynamic> schoolData,
+   843→   843→  ) async {
+   844→   844→    try {
+   845→   845→      final response = await _supabase
+   846→   846→          .from(_schoolsTable)
+   847→   847→          .insert(schoolData)
+   848→   848→          .select();
+   849→   849→
+   850→   850→      if (response.isEmpty) {
+   851→   851→        throw const ServerException(
+   852→   852→          message: 'School creation returned no data.',
+   853→   853→          statusCode: 500,
+   854→   854→        );
+   855→   855→      }
+   856→   856→
+   857→   857→      AppLogger.info('School created: ${response.first['id']}');
+   858→   858→      return SchoolManagementDetailModel.fromJson(response.first);
+   859→   859→    } on sb.PostgrestException catch (e) {
+   860→   860→      throw _mapPostgrestException(e);
+   861→   861→    } on ServerException {
+   862→   862→      rethrow;
+   863→   863→    } catch (e) {
+   864→   864→      AppLogger.error('Unexpected createSchool error', error: e);
+   865→   865→      throw const ServerException(
+   866→   866→        message: 'Failed to create school.',
+   867→   867→        statusCode: 500,
+   868→   868→      );
+   869→   869→    }
+   870→   870→  }
+   871→   871→
+   872→   872→  @override
+   873→   873→  Future<SchoolManagementDetailModel> updateSchool(
+   874→   874→    String schoolId,
+   875→   875→    Map<String, dynamic> data,
+   876→   876→  ) async {
+   877→   877→    try {
+   878→   878→      data['updated_at'] = DateTime.now().toIso8601String();
+   879→   879→
+   880→   880→      final response = await _supabase
+   881→   881→          .from(_schoolsTable)
+   882→   882→          .update(data)
+   883→   883→          .eq('id', schoolId)
+   884→   884→          .select();
+   885→   885→
+   886→   886→      if (response.isEmpty) {
+   887→   887→        throw const NotFoundException('School not found for update.');
+   888→   888→      }
+   889→   889→
+   890→   890→      AppLogger.info('School updated: $schoolId');
+   891→   891→      return SchoolManagementDetailModel.fromJson(response.first);
+   892→   892→    } on sb.PostgrestException catch (e) {
+   893→   893→      throw _mapPostgrestException(e);
+   894→   894→    } on NotFoundException {
+   895→   895→      rethrow;
+   896→   896→    } catch (e) {
+   897→   897→      AppLogger.error('Unexpected updateSchool error', error: e);
+   898→   898→      throw const ServerException(
+   899→   899→        message: 'Failed to update school.',
+   900→   900→        statusCode: 500,
+   901→   901→      );
+   902→   902→    }
+   903→   903→  }
+   904→   904→
+   905→   905→  @override
+   906→   906→  Future<void> suspendSchool(String schoolId, String reason) async {
+   907→   907→    try {
+   908→   908→      await _supabase
+   909→   909→          .from(_schoolsTable)
+   910→   910→          .update({
+   911→   911→            'is_active': false,
+   912→   912→            'suspension_reason': reason,
+   913→   913→            'suspended_at': DateTime.now().toIso8601String(),
+   914→   914→            'updated_at': DateTime.now().toIso8601String(),
+   915→   915→          })
+   916→   916→          .eq('id', schoolId);
+   917→   917→
+   918→   918→      AppLogger.info('School suspended: $schoolId');
+   919→   919→    } on sb.PostgrestException catch (e) {
+   920→   920→      throw _mapPostgrestException(e);
+   921→   921→    } catch (e) {
+   922→   922→      AppLogger.error('Unexpected suspendSchool error', error: e);
+   923→   923→      throw const ServerException(
+   924→   924→        message: 'Failed to suspend school.',
+   925→   925→        statusCode: 500,
+   926→   926→      );
+   927→   927→    }
+   928→   928→  }
+   929→   929→
+   930→   930→  @override
+   931→   931→  Future<void> reactivateSchool(String schoolId) async {
+   932→   932→    try {
+   933→   933→      await _supabase
+   934→   934→          .from(_schoolsTable)
+   935→   935→          .update({
+   936→   936→            'is_active': true,
+   937→   937→            'suspension_reason': null,
+   938→   938→            'suspended_at': null,
+   939→   939→            'updated_at': DateTime.now().toIso8601String(),
+   940→   940→          })
+   941→   941→          .eq('id', schoolId);
+   942→   942→
+   943→   943→      AppLogger.info('School reactivated: $schoolId');
+   944→   944→    } on sb.PostgrestException catch (e) {
+   945→   945→      throw _mapPostgrestException(e);
+   946→   946→    } catch (e) {
+   947→   947→      AppLogger.error('Unexpected reactivateSchool error', error: e);
+   948→   948→      throw const ServerException(
+   949→   949→        message: 'Failed to reactivate school.',
+   950→   950→        statusCode: 500,
+   951→   951→      );
+   952→   952→    }
+   953→   953→  }
+   954→   954→
+   955→   955→  @override
+   956→   956→  Future<void> deleteSchool(String schoolId) async {
+   957→   957→    try {
+   958→   958→      await _supabase
+   959→   959→          .from(_schoolsTable)
+   960→   960→          .delete()
+   961→   961→          .eq('id', schoolId);
+   962→   962→
+   963→   963→      AppLogger.info('School deleted: $schoolId');
+   964→   964→    } on sb.PostgrestException catch (e) {
+   965→   965→      throw _mapPostgrestException(e);
+   966→   966→    } catch (e) {
+   967→   967→      AppLogger.error('Unexpected deleteSchool error', error: e);
+   968→   968→      throw const ServerException(
+   969→   969→        message: 'Failed to delete school.',
+   970→   970→        statusCode: 500,
+   971→   971→      );
+   972→   972→    }
+   973→   973→  }
+   974→   974→
+   975→   975→  @override
+   976→   976→  Future<void> verifySchool(String schoolId) async {
+   977→   977→    try {
+   978→   978→      await _supabase
+   979→   979→          .from(_schoolsTable)
+   980→   980→          .update({
+   981→   981→            'is_verified': true,
+   982→   982→            'verified_at': DateTime.now().toIso8601String(),
+   983→   983→            'updated_at': DateTime.now().toIso8601String(),
+   984→   984→          })
+   985→   985→          .eq('id', schoolId);
+   986→   986→
+   987→   987→      AppLogger.info('School verified: $schoolId');
+   988→   988→    } on sb.PostgrestException catch (e) {
+   989→   989→      throw _mapPostgrestException(e);
+   990→   990→    } catch (e) {
+   991→   991→      AppLogger.error('Unexpected verifySchool error', error: e);
+   992→   992→      throw const ServerException(
+   993→   993→        message: 'Failed to verify school.',
+   994→   994→        statusCode: 500,
+   995→   995→      );
+   996→   996→    }
+   997→   997→  }
+   998→   998→
+   999→   999→  @override
+  1000→  1000→  Future<int> getSchoolCount({bool? isActive}) async {
+  1001→  1001→    try {
+  1002→  1002→      var query = _supabase.from(_schoolsTable).select('id');
+  1003→  1003→
+  1004→  1004→      if (isActive != null) {
+  1005→  1005→        query = query.eq('is_active', isActive);
+  1006→  1006→      }
+  1007→  1007→
+  1008→  1008→      final response = await query;
+  1009→  1009→      AppLogger.info('School count: ${response.length}');
+  1010→  1010→      return response.length;
+  1011→  1011→    } on sb.PostgrestException catch (e) {
+  1012→  1012→      throw _mapPostgrestException(e);
+  1013→  1013→    } catch (e) {
+  1014→  1014→      AppLogger.error('Unexpected getSchoolCount error', error: e);
+  1015→  1015→      throw const ServerException(
+  1016→  1016→        message: 'Failed to fetch school count.',
+  1017→  1017→        statusCode: 500,
+  1018→  1018→      );
+  1019→  1019→    }
+  1020→  1020→  }
+  1021→  1021→
+  1022→  1022→  // ═══════════════════════════════════════════════════════════════════
+  1023→  1023→  // USER MANAGEMENT
+  1024→  1024→  // ═══════════════════════════════════════════════════════════════════
+  1025→  1025→
+  1026→  1026→  @override
+  1027→  1027→  Future<List<UserManagementDetailModel>> getUsers({
+  1028→  1028→    String? role,
+  1029→  1029→    String? schoolId,
+  1030→  1030→    bool? isActive,
+  1031→  1031→    String? search,
+  1032→  1032→    int limit = 50,
+  1033→  1033→    int offset = 0,
+  1034→  1034→  }) async {
+  1035→  1035→    try {
+  1036→  1036→      var query = _supabase.from(_userProfilesTable).select();
+  1037→  1037→
+  1038→  1038→      if (role != null) {
+  1039→  1039→        query = query.eq('role', role);
+  1040→  1040→      }
+  1041→  1041→      if (schoolId != null) {
+  1042→  1042→        query = query.eq('school_id', schoolId);
+  1043→  1043→      }
+  1044→  1044→      if (isActive != null) {
+  1045→  1045→        query = query.eq('is_active', isActive);
+  1046→  1046→      }
+  1047→  1047→      if (search != null && search.isNotEmpty) {
+  1048→  1048→        query = query.or('full_name.ilike.%$search%,email.ilike.%$search%');
+  1049→  1049→      }
+  1050→  1050→
+  1051→  1051→      final list = await query
+  1052→  1052→          .order('created_at', ascending: false)
+  1053→  1053→          .range(offset, offset + limit - 1);
+  1054→  1054→
+  1055→  1055→      AppLogger.info('Fetched ${list.length} users');
+  1056→  1056→      return list
+  1057→  1057→          .map<UserManagementDetailModel>(
+  1058→  1058→            (row) => UserManagementDetailModel.fromJson(row),
+  1059→  1059→          )
+  1060→  1060→          .toList();
+  1061→  1061→    } on sb.PostgrestException catch (e) {
+  1062→  1062→      throw _mapPostgrestException(e);
+  1063→  1063→    } catch (e) {
+  1064→  1064→      AppLogger.error('Unexpected getUsers error', error: e);
+  1065→  1065→      throw const ServerException(
+  1066→  1066→        message: 'Failed to fetch users.',
+  1067→  1067→        statusCode: 500,
+  1068→  1068→      );
+  1069→  1069→    }
+  1070→  1070→  }
+  1071→  1071→
+  1072→  1072→  @override
+  1073→  1073→  Future<UserManagementDetailModel> getUser(String userId) async {
+  1074→  1074→    try {
+  1075→  1075→      final response = await _supabase
+  1076→  1076→          .from(_userProfilesTable)
+  1077→  1077→          .select()
+  1078→  1078→          .eq('id', userId)
+  1079→  1079→          .limit(1);
+  1080→  1080→
+  1081→  1081→      if (response.isEmpty) {
+  1082→  1082→        throw const NotFoundException('User not found.');
+  1083→  1083→      }
+  1084→  1084→
+  1085→  1085→      return UserManagementDetailModel.fromJson(response.first);
+  1086→  1086→    } on sb.PostgrestException catch (e) {
+  1087→  1087→      throw _mapPostgrestException(e);
+  1088→  1088→    } on NotFoundException {
+  1089→  1089→      rethrow;
+  1090→  1090→    } catch (e) {
+  1091→  1091→      AppLogger.error('Unexpected getUser error', error: e);
+  1092→  1092→      throw const ServerException(
+  1093→  1093→        message: 'Failed to fetch user.',
+  1094→  1094→        statusCode: 500,
+  1095→  1095→      );
+  1096→  1096→    }
+  1097→  1097→  }
+  1098→  1098→
+  1099→  1099→  @override
+  1100→  1100→  Future<void> suspendUser(String userId, String reason) async {
+  1101→  1101→    try {
+  1102→  1102→      await _supabase
+  1103→  1103→          .from(_userProfilesTable)
+  1104→  1104→          .update({
+  1105→  1105→            'is_active': false,
+  1106→  1106→            'suspension_reason': reason,
+  1107→  1107→            'suspended_at': DateTime.now().toIso8601String(),
+  1108→  1108→            'updated_at': DateTime.now().toIso8601String(),
+  1109→  1109→          })
+  1110→  1110→          .eq('id', userId);
+  1111→  1111→
+  1112→  1112→      AppLogger.info('User suspended: $userId');
+  1113→  1113→    } on sb.PostgrestException catch (e) {
+  1114→  1114→      throw _mapPostgrestException(e);
+  1115→  1115→    } catch (e) {
+  1116→  1116→      AppLogger.error('Unexpected suspendUser error', error: e);
+  1117→  1117→      throw const ServerException(
+  1118→  1118→        message: 'Failed to suspend user.',
+  1119→  1119→        statusCode: 500,
+  1120→  1120→      );
+  1121→  1121→    }
+  1122→  1122→  }
+  1123→  1123→
+  1124→  1124→  @override
+  1125→  1125→  Future<void> activateUser(String userId) async {
+  1126→  1126→    try {
+  1127→  1127→      await _supabase
+  1128→  1128→          .from(_userProfilesTable)
+  1129→  1129→          .update({
+  1130→  1130→            'is_active': true,
+  1131→  1131→            'suspension_reason': null,
+  1132→  1132→            'suspended_at': null,
+  1133→  1133→            'updated_at': DateTime.now().toIso8601String(),
+  1134→  1134→          })
+  1135→  1135→          .eq('id', userId);
+  1136→  1136→
+  1137→  1137→      AppLogger.info('User activated: $userId');
+  1138→  1138→    } on sb.PostgrestException catch (e) {
+  1139→  1139→      throw _mapPostgrestException(e);
+  1140→  1140→    } catch (e) {
+  1141→  1141→      AppLogger.error('Unexpected activateUser error', error: e);
+  1142→  1142→      throw const ServerException(
+  1143→  1143→        message: 'Failed to activate user.',
+  1144→  1144→        statusCode: 500,
+  1145→  1145→      );
+  1146→  1146→    }
+  1147→  1147→  }
+  1148→  1148→
+  1149→  1149→  @override
+  1150→  1150→  Future<void> resetUserPassword(String userId) async {
+  1151→  1151→    try {
+  1152→  1152→      // Retrieve user email to send password reset
+  1153→  1153→      final profile = await _supabase
+  1154→  1154→          .from(_userProfilesTable)
+  1155→  1155→          .select('email')
+  1156→  1156→          .eq('id', userId)
+  1157→  1157→          .limit(1);
+  1158→  1158→
+  1159→  1159→      if (profile.isEmpty) {
+  1160→  1160→        throw const NotFoundException('User not found for password reset.');
+  1161→  1161→      }
+  1162→  1162→
+  1163→  1163→      final email = profile.first['email'] as String;
+  1164→  1164→
+  1165→  1165→      await _supabase.auth.resetPasswordForEmail(email);
+  1166→  1166→
+  1167→  1167→      AppLogger.info('Password reset initiated for user: $userId');
+  1168→  1168→    } on sb.PostgrestException catch (e) {
+  1169→  1169→      throw _mapPostgrestException(e);
+  1170→  1170→    } on NotFoundException {
+  1171→  1171→      rethrow;
+  1172→  1172→    } on sb.AuthException catch (e) {
+  1173→  1173→      throw AuthException(
+  1174→  1174→        message: e.message,
+  1175→  1175→        code: e.statusCode?.toString() ?? 'auth_error',
+  1176→  1176→      );
+  1177→  1177→    } catch (e) {
+  1178→  1178→      AppLogger.error('Unexpected resetUserPassword error', error: e);
+  1179→  1179→      throw const ServerException(
+  1180→  1180→        message: 'Failed to reset user password.',
+  1181→  1181→        statusCode: 500,
+  1182→  1182→      );
+  1183→  1183→    }
+  1184→  1184→  }
+  1185→  1185→
+  1186→  1186→  @override
+  1187→  1187→  Future<void> changeUserRole(String userId, String newRole) async {
+  1188→  1188→    try {
+  1189→  1189→      await _supabase
+  1190→  1190→          .from(_userProfilesTable)
+  1191→  1191→          .update({
+  1192→  1192→            'role': newRole,
+  1193→  1193→            'updated_at': DateTime.now().toIso8601String(),
+  1194→  1194→          })
+  1195→  1195→          .eq('id', userId);
+  1196→  1196→
+  1197→  1197→      AppLogger.info('User role changed: $userId → $newRole');
+  1198→  1198→    } on sb.PostgrestException catch (e) {
+  1199→  1199→      throw _mapPostgrestException(e);
+  1200→  1200→    } catch (e) {
+  1201→  1201→      AppLogger.error('Unexpected changeUserRole error', error: e);
+  1202→  1202→      throw const ServerException(
+  1203→  1203→        message: 'Failed to change user role.',
+  1204→  1204→        statusCode: 500,
+  1205→  1205→      );
+  1206→  1206→    }
+  1207→  1207→  }
+  1208→  1208→
+  1209→  1209→  @override
+  1210→  1210→  Future<ImpersonationSessionModel> startImpersonation(
+  1211→  1211→    Map<String, dynamic> data,
+  1212→  1212→  ) async {
+  1213→  1213→    try {
+  1214→  1214→      data['admin_id'] = _supabase.auth.currentUser?.id;
+  1215→  1215→      data['started_at'] = DateTime.now().toIso8601String();
+  1216→  1216→      data['status'] = 'active';
+  1217→  1217→
+  1218→  1218→      final response = await _supabase
+  1219→  1219→          .from(_impersonationSessionsTable)
+  1220→  1220→          .insert(data)
+  1221→  1221→          .select();
+  1222→  1222→
+  1223→  1223→      if (response.isEmpty) {
+  1224→  1224→        throw const ServerException(
+  1225→  1225→          message: 'Impersonation session creation returned no data.',
+  1226→  1226→          statusCode: 500,
+  1227→  1227→        );
+  1228→  1228→      }
+  1229→  1229→
+  1230→  1230→      AppLogger.info('Impersonation session started: ${response.first['id']}');
+  1231→  1231→      return ImpersonationSessionModel.fromJson(response.first);
+  1232→  1232→    } on sb.PostgrestException catch (e) {
+  1233→  1233→      throw _mapPostgrestException(e);
+  1234→  1234→    } on ServerException {
+  1235→  1235→      rethrow;
+  1236→  1236→    } catch (e) {
+  1237→  1237→      AppLogger.error('Unexpected startImpersonation error', error: e);
+  1238→  1238→      throw const ServerException(
+  1239→  1239→        message: 'Failed to start impersonation session.',
+  1240→  1240→        statusCode: 500,
+  1241→  1241→      );
+  1242→  1242→    }
+  1243→  1243→  }
+  1244→  1244→
+  1245→  1245→  @override
+  1246→  1246→  Future<void> endImpersonation(String sessionId) async {
+  1247→  1247→    try {
+  1248→  1248→      await _supabase
+  1249→  1249→          .from(_impersonationSessionsTable)
+  1250→  1250→          .update({
+  1251→  1251→            'status': 'ended',
+  1252→  1252→            'ended_at': DateTime.now().toIso8601String(),
+  1253→  1253→          })
+  1254→  1254→          .eq('id', sessionId);
+  1255→  1255→
+  1256→  1256→      AppLogger.info('Impersonation session ended: $sessionId');
+  1257→  1257→    } on sb.PostgrestException catch (e) {
+  1258→  1258→      throw _mapPostgrestException(e);
+  1259→  1259→    } catch (e) {
+  1260→  1260→      AppLogger.error('Unexpected endImpersonation error', error: e);
+  1261→  1261→      throw const ServerException(
+  1262→  1262→        message: 'Failed to end impersonation session.',
+  1263→  1263→        statusCode: 500,
+  1264→  1264→      );
+  1265→  1265→    }
+  1266→  1266→  }
+  1267→  1267→
+  1268→  1268→  @override
+  1269→  1269→  Future<List<ImpersonationSessionModel>> getImpersonationSessions({
+  1270→  1270→    String? status,
+  1271→  1271→    int limit = 20,
+  1272→  1272→  }) async {
+  1273→  1273→    try {
+  1274→  1274→      var query = _supabase
+  1275→  1275→          .from(_impersonationSessionsTable)
+  1276→  1276→          .select();
+  1277→  1277→
+  1278→  1278→      if (status != null) {
+  1279→  1279→        query = query.eq('status', status);
+  1280→  1280→      }
+  1281→  1281→
+  1282→  1282→      final list = await query
+  1283→  1283→          .order('created_at', ascending: false)
+  1284→  1284→          .limit(limit);
+  1285→  1285→
+  1286→  1286→      AppLogger.info('Fetched ${list.length} impersonation sessions');
+  1287→  1287→      return list
+  1288→  1288→          .map<ImpersonationSessionModel>(
+  1289→  1289→            (row) => ImpersonationSessionModel.fromJson(row),
+  1290→  1290→          )
+  1291→  1291→          .toList();
+  1292→  1292→    } on sb.PostgrestException catch (e) {
+  1293→  1293→      throw _mapPostgrestException(e);
+  1294→  1294→    } catch (e) {
+  1295→  1295→      AppLogger.error('Unexpected getImpersonationSessions error', error: e);
+  1296→  1296→      throw const ServerException(
+  1297→  1297→        message: 'Failed to fetch impersonation sessions.',
+  1298→  1298→        statusCode: 500,
+  1299→  1299→      );
+  1300→  1300→    }
+  1301→  1301→  }
+  1302→  1302→
+  1303→  1303→  @override
+  1304→  1304→  Future<int> getUserCount({String? role, bool? isActive}) async {
+  1305→  1305→    try {
+  1306→  1306→      var query = _supabase.from(_userProfilesTable).select('id');
+  1307→  1307→
+  1308→  1308→      if (role != null) {
+  1309→  1309→        query = query.eq('role', role);
+  1310→  1310→      }
+  1311→  1311→      if (isActive != null) {
+  1312→  1312→        query = query.eq('is_active', isActive);
+  1313→  1313→      }
+  1314→  1314→
+  1315→  1315→      final response = await query;
+  1316→  1316→      AppLogger.info('User count: ${response.length}');
+  1317→  1317→      return response.length;
+  1318→  1318→    } on sb.PostgrestException catch (e) {
+  1319→  1319→      throw _mapPostgrestException(e);
+  1320→  1320→    } catch (e) {
+  1321→  1321→      AppLogger.error('Unexpected getUserCount error', error: e);
+  1322→  1322→      throw const ServerException(
+  1323→  1323→        message: 'Failed to fetch user count.',
+  1324→  1324→        statusCode: 500,
+  1325→  1325→      );
+  1326→  1326→    }
+  1327→  1327→  }
+  1328→  1328→
+  1329→  1329→  // ═══════════════════════════════════════════════════════════════════
+  1330→  1330→  // AI MANAGEMENT
+  1331→  1331→  // ═══════════════════════════════════════════════════════════════════
+  1332→  1332→
+  1333→  1333→  @override
+  1334→  1334→  Future<List<AIProviderModel>> getAIProviders({bool? isActive}) async {
+  1335→  1335→    try {
+  1336→  1336→      var query = _supabase.from(_aiProvidersTable).select();
+  1337→  1337→
+  1338→  1338→      if (isActive != null) {
+  1339→  1339→        query = query.eq('is_active', isActive);
+  1340→  1340→      }
+  1341→  1341→
+  1342→  1342→      final list = await query.order('priority', ascending: true);
+  1343→  1343→      AppLogger.info('Fetched ${list.length} AI providers');
+  1344→  1344→      return list
+  1345→  1345→          .map<AIProviderModel>(
+  1346→  1346→            (row) => AIProviderModel.fromJson(row),
+  1347→  1347→          )
+  1348→  1348→          .toList();
+  1349→  1349→    } on sb.PostgrestException catch (e) {
+  1350→  1350→      throw _mapPostgrestException(e);
+  1351→  1351→    } catch (e) {
+  1352→  1352→      AppLogger.error('Unexpected getAIProviders error', error: e);
+  1353→  1353→      throw const ServerException(
+  1354→  1354→        message: 'Failed to fetch AI providers.',
+  1355→  1355→        statusCode: 500,
+  1356→  1356→      );
+  1357→  1357→    }
+  1358→  1358→  }
+  1359→  1359→
+  1360→  1360→  @override
+  1361→  1361→  Future<AIProviderModel> getAIProvider(String providerId) async {
+  1362→  1362→    try {
+  1363→  1363→      final response = await _supabase
+  1364→  1364→          .from(_aiProvidersTable)
+  1365→  1365→          .select()
+  1366→  1366→          .eq('id', providerId)
+  1367→  1367→          .limit(1);
+  1368→  1368→
+  1369→  1369→      if (response.isEmpty) {
+  1370→  1370→        throw const NotFoundException('AI provider not found.');
+  1371→  1371→      }
+  1372→  1372→
+  1373→  1373→      return AIProviderModel.fromJson(response.first);
+  1374→  1374→    } on sb.PostgrestException catch (e) {
+  1375→  1375→      throw _mapPostgrestException(e);
+  1376→  1376→    } on NotFoundException {
+  1377→  1377→      rethrow;
+  1378→  1378→    } catch (e) {
+  1379→  1379→      AppLogger.error('Unexpected getAIProvider error', error: e);
+  1380→  1380→      throw const ServerException(
+  1381→  1381→        message: 'Failed to fetch AI provider.',
+  1382→  1382→        statusCode: 500,
+  1383→  1383→      );
+  1384→  1384→    }
+  1385→  1385→  }
+  1386→  1386→
+  1387→  1387→  @override
+  1388→  1388→  Future<AIProviderModel> createAIProvider(
+  1389→  1389→    Map<String, dynamic> providerData,
+  1390→  1390→  ) async {
+  1391→  1391→    try {
+  1392→  1392→      final response = await _supabase
+  1393→  1393→          .from(_aiProvidersTable)
+  1394→  1394→          .insert(providerData)
+  1395→  1395→          .select();
+  1396→  1396→
+  1397→  1397→      if (response.isEmpty) {
+  1398→  1398→        throw const ServerException(
+  1399→  1399→          message: 'AI provider creation returned no data.',
+  1400→  1400→          statusCode: 500,
+  1401→  1401→        );
+  1402→  1402→      }
+  1403→  1403→
+  1404→  1404→      AppLogger.info('AI provider created: ${response.first['id']}');
+  1405→  1405→      return AIProviderModel.fromJson(response.first);
+  1406→  1406→    } on sb.PostgrestException catch (e) {
+  1407→  1407→      throw _mapPostgrestException(e);
+  1408→  1408→    } on ServerException {
+  1409→  1409→      rethrow;
+  1410→  1410→    } catch (e) {
+  1411→  1411→      AppLogger.error('Unexpected createAIProvider error', error: e);
+  1412→  1412→      throw const ServerException(
+  1413→  1413→        message: 'Failed to create AI provider.',
+  1414→  1414→        statusCode: 500,
+  1415→  1415→      );
+  1416→  1416→    }
+  1417→  1417→  }
+  1418→  1418→
+  1419→  1419→  @override
+  1420→  1420→  Future<AIProviderModel> updateAIProvider(
+  1421→  1421→    String providerId,
+  1422→  1422→    Map<String, dynamic> data,
+  1423→  1423→  ) async {
+  1424→  1424→    try {
+  1425→  1425→      data['updated_at'] = DateTime.now().toIso8601String();
+  1426→  1426→
+  1427→  1427→      final response = await _supabase
+  1428→  1428→          .from(_aiProvidersTable)
+  1429→  1429→          .update(data)
+  1430→  1430→          .eq('id', providerId)
+  1431→  1431→          .select();
+  1432→  1432→
+  1433→  1433→      if (response.isEmpty) {
+  1434→  1434→        throw const NotFoundException('AI provider not found for update.');
+  1435→  1435→      }
+  1436→  1436→
+  1437→  1437→      AppLogger.info('AI provider updated: $providerId');
+  1438→  1438→      return AIProviderModel.fromJson(response.first);
+  1439→  1439→    } on sb.PostgrestException catch (e) {
+  1440→  1440→      throw _mapPostgrestException(e);
+  1441→  1441→    } on NotFoundException {
+  1442→  1442→      rethrow;
+  1443→  1443→    } catch (e) {
+  1444→  1444→      AppLogger.error('Unexpected updateAIProvider error', error: e);
+  1445→  1445→      throw const ServerException(
+  1446→  1446→        message: 'Failed to update AI provider.',
+  1447→  1447→        statusCode: 500,
+  1448→  1448→      );
+  1449→  1449→    }
+  1450→  1450→  }
+  1451→  1451→
+  1452→  1452→  @override
+  1453→  1453→  Future<void> deleteAIProvider(String providerId) async {
+  1454→  1454→    try {
+  1455→  1455→      await _supabase
+  1456→  1456→          .from(_aiProvidersTable)
+  1457→  1457→          .delete()
+  1458→  1458→          .eq('id', providerId);
+  1459→  1459→
+  1460→  1460→      AppLogger.info('AI provider deleted: $providerId');
+  1461→  1461→    } on sb.PostgrestException catch (e) {
+  1462→  1462→      throw _mapPostgrestException(e);
+  1463→  1463→    } catch (e) {
+  1464→  1464→      AppLogger.error('Unexpected deleteAIProvider error', error: e);
+  1465→  1465→      throw const ServerException(
+  1466→  1466→        message: 'Failed to delete AI provider.',
+  1467→  1467→        statusCode: 500,
+  1468→  1468→      );
+  1469→  1469→    }
+  1470→  1470→  }
+  1471→  1471→
+  1472→  1472→  @override
+  1473→  1473→  Future<AIProviderModel> setDefaultProvider(String providerId) async {
+  1474→  1474→    try {
+  1475→  1475→      // Unset current default(s)
+  1476→  1476→      await _supabase
+  1477→  1477→          .from(_aiProvidersTable)
+  1478→  1478→          .update({
+  1479→  1479→            'is_default': false,
+  1480→  1480→            'updated_at': DateTime.now().toIso8601String(),
+  1481→  1481→          })
+  1482→  1482→          .eq('is_default', true);
+  1483→  1483→
+  1484→  1484→      // Set new default
+  1485→  1485→      final response = await _supabase
+  1486→  1486→          .from(_aiProvidersTable)
+  1487→  1487→          .update({
+  1488→  1488→            'is_default': true,
+  1489→  1489→            'updated_at': DateTime.now().toIso8601String(),
+  1490→  1490→          })
+  1491→  1491→          .eq('id', providerId)
+  1492→  1492→          .select();
+  1493→  1493→
+  1494→  1494→      if (response.isEmpty) {
+  1495→  1495→        throw const NotFoundException('AI provider not found for setting default.');
+  1496→  1496→      }
+  1497→  1497→
+  1498→  1498→      AppLogger.info('Default AI provider set: $providerId');
+  1499→  1499→      return AIProviderModel.fromJson(response.first);
+  1500→  1500→    } on sb.PostgrestException catch (e) {
+  1501→  1501→      throw _mapPostgrestException(e);
+  1502→  1502→    } on NotFoundException {
+  1503→  1503→      rethrow;
+  1504→  1504→    } catch (e) {
+  1505→  1505→      AppLogger.error('Unexpected setDefaultProvider error', error: e);
+  1506→  1506→      throw const ServerException(
+  1507→  1507→        message: 'Failed to set default AI provider.',
+  1508→  1508→        statusCode: 500,
+  1509→  1509→      );
+  1510→  1510→    }
+  1511→  1511→  }
+  1512→  1512→
+  1513→  1513→  @override
+  1514→  1514→  Future<AIProviderModel> toggleProvider(
+  1515→  1515→    String providerId,
+  1516→  1516→    bool isActive,
+  1517→  1517→  ) async {
+  1518→  1518→    try {
+  1519→  1519→      final response = await _supabase
+  1520→  1520→          .from(_aiProvidersTable)
+  1521→  1521→          .update({
+  1522→  1522→            'is_active': isActive,
+  1523→  1523→            'updated_at': DateTime.now().toIso8601String(),
+  1524→  1524→          })
+  1525→  1525→          .eq('id', providerId)
+  1526→  1526→          .select();
+  1527→  1527→
+  1528→  1528→      if (response.isEmpty) {
+  1529→  1529→        throw const NotFoundException('AI provider not found for toggle.');
+  1530→  1530→      }
+  1531→  1531→
+  1532→  1532→      AppLogger.info('AI provider toggled: $providerId → isActive=$isActive');
+  1533→  1533→      return AIProviderModel.fromJson(response.first);
+  1534→  1534→    } on sb.PostgrestException catch (e) {
+  1535→  1535→      throw _mapPostgrestException(e);
+  1536→  1536→    } on NotFoundException {
+  1537→  1537→      rethrow;
+  1538→  1538→    } catch (e) {
+  1539→  1539→      AppLogger.error('Unexpected toggleProvider error', error: e);
+  1540→  1540→      throw const ServerException(
+  1541→  1541→        message: 'Failed to toggle AI provider.',
+  1542→  1542→        statusCode: 500,
+  1543→  1543→      );
+  1544→  1544→    }
+  1545→  1545→  }
+  1546→  1546→
+  1547→  1547→  @override
+  1548→  1548→  Future<List<AIRequestLogModel>> getAIRequestLogs({
+  1549→  1549→    String? providerId,
+  1550→  1550→    String? userId,
+  1551→  1551→    String? schoolId,
+  1552→  1552→    bool? isSuccess,
+  1553→  1553→    DateTime? startDate,
+  1554→  1554→    DateTime? endDate,
+  1555→  1555→    int limit = 50,
+  1556→  1556→    int offset = 0,
+  1557→  1557→  }) async {
+  1558→  1558→    try {
+  1559→  1559→      var query = _supabase.from(_aiRequestLogsTable).select();
+  1560→  1560→
+  1561→  1561→      if (providerId != null) {
+  1562→  1562→        query = query.eq('provider_id', providerId);
+  1563→  1563→      }
+  1564→  1564→      if (userId != null) {
+  1565→  1565→        query = query.eq('user_id', userId);
+  1566→  1566→      }
+  1567→  1567→      if (schoolId != null) {
+  1568→  1568→        query = query.eq('school_id', schoolId);
+  1569→  1569→      }
+  1570→  1570→      if (isSuccess != null) {
+  1571→  1571→        query = query.eq('is_success', isSuccess);
+  1572→  1572→      }
+  1573→  1573→      if (startDate != null) {
+  1574→  1574→        query = query.gte('created_at', startDate.toIso8601String());
+  1575→  1575→      }
+  1576→  1576→      if (endDate != null) {
+  1577→  1577→        query = query.lte('created_at', endDate.toIso8601String());
+  1578→  1578→      }
+  1579→  1579→
+  1580→  1580→      final list = await query
+  1581→  1581→          .order('created_at', ascending: false)
+  1582→  1582→          .range(offset, offset + limit - 1);
+  1583→  1583→
+  1584→  1584→      AppLogger.info('Fetched ${list.length} AI request logs');
+  1585→  1585→      return list
+  1586→  1586→          .map<AIRequestLogModel>(
+  1587→  1587→            (row) => AIRequestLogModel.fromJson(row),
+  1588→  1588→          )
+  1589→  1589→          .toList();
+  1590→  1590→    } on sb.PostgrestException catch (e) {
+  1591→  1591→      throw _mapPostgrestException(e);
+  1592→  1592→    } catch (e) {
+  1593→  1593→      AppLogger.error('Unexpected getAIRequestLogs error', error: e);
+  1594→  1594→      throw const ServerException(
+  1595→  1595→        message: 'Failed to fetch AI request logs.',
+  1596→  1596→        statusCode: 500,
+  1597→  1597→      );
+  1598→  1598→    }
+  1599→  1599→  }
+  1600→  1600→
+  1601→  1601→  @override
+  1602→  1602→  Future<Map<String, dynamic>> getAIUsageAnalytics({
+  1603→  1603→    DateTime? startDate,
+  1604→  1604→    DateTime? endDate,
+  1605→  1605→  }) async {
+  1606→  1606→    try {
+  1607→  1607→      final response = await _supabase.rpc(
+  1608→  1608→        'get_ai_usage_analytics',
+  1609→  1609→        params: {
+  1610→  1610→          if (startDate != null) 'start_date': startDate.toIso8601String(),
+  1611→  1611→          if (endDate != null) 'end_date': endDate.toIso8601String(),
+  1612→  1612→        },
+  1613→  1613→      );
+  1614→  1614→
+  1615→  1615→      AppLogger.info('Fetched AI usage analytics');
+  1616→  1616→      return response as Map<String, dynamic>;
+  1617→  1617→    } on sb.PostgrestException catch (e) {
+  1618→  1618→      throw _mapPostgrestException(e);
+  1619→  1619→    } catch (e) {
+  1620→  1620→      AppLogger.error('Unexpected getAIUsageAnalytics error', error: e);
+  1621→  1621→      throw const ServerException(
+  1622→  1622→        message: 'Failed to fetch AI usage analytics.',
+  1623→  1623→        statusCode: 500,
+  1624→  1624→      );
+  1625→  1625→    }
+  1626→  1626→  }
+  1627→  1627→
+  1628→  1628→  // ═══════════════════════════════════════════════════════════════════
+  1629→  1629→  // INFRASTRUCTURE
+  1630→  1630→  // ═══════════════════════════════════════════════════════════════════
+  1631→  1631→
+  1632→  1632→  @override
+  1633→  1633→  Future<List<InfrastructureServiceModel>> getInfrastructureServices({
+  1634→  1634→    String? status,
+  1635→  1635→  }) async {
+  1636→  1636→    try {
+  1637→  1637→      var query = _supabase.from(_infrastructureServicesTable).select();
+  1638→  1638→
+  1639→  1639→      if (status != null) {
+  1640→  1640→        query = query.eq('health_status', status);
+  1641→  1641→      }
+  1642→  1642→
+  1643→  1643→      final list = await query.order('service_name', ascending: true);
+  1644→  1644→      AppLogger.info('Fetched ${list.length} infrastructure services');
+  1645→  1645→      return list
+  1646→  1646→          .map<InfrastructureServiceModel>(
+  1647→  1647→            (row) => InfrastructureServiceModel.fromJson(row),
+  1648→  1648→          )
+  1649→  1649→          .toList();
+  1650→  1650→    } on sb.PostgrestException catch (e) {
+  1651→  1651→      throw _mapPostgrestException(e);
+  1652→  1652→    } catch (e) {
+  1653→  1653→      AppLogger.error('Unexpected getInfrastructureServices error', error: e);
+  1654→  1654→      throw const ServerException(
+  1655→  1655→        message: 'Failed to fetch infrastructure services.',
+  1656→  1656→        statusCode: 500,
+  1657→  1657→      );
+  1658→  1658→    }
+  1659→  1659→  }
+  1660→  1660→
+  1661→  1661→  @override
+  1662→  1662→  Future<InfrastructureServiceModel> getInfrastructureService(
+  1663→  1663→    String serviceId,
+  1664→  1664→  ) async {
+  1665→  1665→    try {
+  1666→  1666→      final response = await _supabase
+  1667→  1667→          .from(_infrastructureServicesTable)
+  1668→  1668→          .select()
+  1669→  1669→          .eq('id', serviceId)
+  1670→  1670→          .limit(1);
+  1671→  1671→
+  1672→  1672→      if (response.isEmpty) {
+  1673→  1673→        throw const NotFoundException('Infrastructure service not found.');
+  1674→  1674→      }
+  1675→  1675→
+  1676→  1676→      return InfrastructureServiceModel.fromJson(response.first);
+  1677→  1677→    } on sb.PostgrestException catch (e) {
+  1678→  1678→      throw _mapPostgrestException(e);
+  1679→  1679→    } on NotFoundException {
+  1680→  1680→      rethrow;
+  1681→  1681→    } catch (e) {
+  1682→  1682→      AppLogger.error('Unexpected getInfrastructureService error', error: e);
+  1683→  1683→      throw const ServerException(
+  1684→  1684→        message: 'Failed to fetch infrastructure service.',
+  1685→  1685→        statusCode: 500,
+  1686→  1686→      );
+  1687→  1687→    }
+  1688→  1688→  }
+  1689→  1689→
+  1690→  1690→  @override
+  1691→  1691→  Future<InfrastructureServiceModel> updateInfrastructureService(
+  1692→  1692→    String serviceId,
+  1693→  1693→    Map<String, dynamic> data,
+  1694→  1694→  ) async {
+  1695→  1695→    try {
+  1696→  1696→      data['updated_at'] = DateTime.now().toIso8601String();
+  1697→  1697→
+  1698→  1698→      final response = await _supabase
+  1699→  1699→          .from(_infrastructureServicesTable)
+  1700→  1700→          .update(data)
+  1701→  1701→          .eq('id', serviceId)
+  1702→  1702→          .select();
+  1703→  1703→
+  1704→  1704→      if (response.isEmpty) {
+  1705→  1705→        throw const NotFoundException(
+  1706→  1706→          'Infrastructure service not found for update.',
+  1707→  1707→        );
+  1708→  1708→      }
+  1709→  1709→
+  1710→  1710→      AppLogger.info('Infrastructure service updated: $serviceId');
+  1711→  1711→      return InfrastructureServiceModel.fromJson(response.first);
+  1712→  1712→    } on sb.PostgrestException catch (e) {
+  1713→  1713→      throw _mapPostgrestException(e);
+  1714→  1714→    } on NotFoundException {
+  1715→  1715→      rethrow;
+  1716→  1716→    } catch (e) {
+  1717→  1717→      AppLogger.error('Unexpected updateInfrastructureService error', error: e);
+  1718→  1718→      throw const ServerException(
+  1719→  1719→        message: 'Failed to update infrastructure service.',
+  1720→  1720→        statusCode: 500,
+  1721→  1721→      );
+  1722→  1722→    }
+  1723→  1723→  }
+  1724→  1724→
+  1725→  1725→  @override
+  1726→  1726→  Future<void> runHealthCheck(String serviceId) async {
+  1727→  1727→    try {
+  1728→  1728→      await _supabase.rpc(
+  1729→  1729→        'run_health_check',
+  1730→  1730→        params: {'service_id': serviceId},
+  1731→  1731→      );
+  1732→  1732→
+  1733→  1733→      AppLogger.info('Health check triggered for service: $serviceId');
+  1734→  1734→    } on sb.PostgrestException catch (e) {
+  1735→  1735→      throw _mapPostgrestException(e);
+  1736→  1736→    } catch (e) {
+  1737→  1737→      AppLogger.error('Unexpected runHealthCheck error', error: e);
+  1738→  1738→      throw const ServerException(
+  1739→  1739→        message: 'Failed to run health check.',
+  1740→  1740→        statusCode: 500,
+  1741→  1741→      );
+  1742→  1742→    }
+  1743→  1743→  }
+  1744→  1744→
+  1745→  1745→  @override
+  1746→  1746→  Future<void> runAllHealthChecks() async {
+  1747→  1747→    try {
+  1748→  1748→      await _supabase.rpc('run_all_health_checks');
+  1749→  1749→
+  1750→  1750→      AppLogger.info('All health checks triggered');
+  1751→  1751→    } on sb.PostgrestException catch (e) {
+  1752→  1752→      throw _mapPostgrestException(e);
+  1753→  1753→    } catch (e) {
+  1754→  1754→      AppLogger.error('Unexpected runAllHealthChecks error', error: e);
+  1755→  1755→      throw const ServerException(
+  1756→  1756→        message: 'Failed to run all health checks.',
+  1757→  1757→        statusCode: 500,
+  1758→  1758→      );
+  1759→  1759→    }
+  1760→  1760→  }
+  1761→  1761→
+  1762→  1762→  // ═══════════════════════════════════════════════════════════════════
+  1763→  1763→  // SUPPORT TICKETS
+  1764→  1764→  // ═══════════════════════════════════════════════════════════════════
+  1765→  1765→
+  1766→  1766→  @override
+  1767→  1767→  Future<List<SupportTicketModel>> getSupportTickets({
+  1768→  1768→    String? status,
+  1769→  1769→    String? priority,
+  1770→  1770→    String? category,
+  1771→  1771→    String? assignedTo,
+  1772→  1772→    String? schoolId,
+  1773→  1773→    String? search,
+  1774→  1774→    int limit = 50,
+  1775→  1775→    int offset = 0,
+  1776→  1776→  }) async {
+  1777→  1777→    try {
+  1778→  1778→      var query = _supabase.from(_supportTicketsTable).select();
+  1779→  1779→
+  1780→  1780→      if (status != null) {
+  1781→  1781→        query = query.eq('status', status);
+  1782→  1782→      }
+  1783→  1783→      if (priority != null) {
+  1784→  1784→        query = query.eq('priority', priority);
+  1785→  1785→      }
+  1786→  1786→      if (category != null) {
+  1787→  1787→        query = query.eq('category', category);
+  1788→  1788→      }
+  1789→  1789→      if (assignedTo != null) {
+  1790→  1790→        query = query.eq('assigned_to', assignedTo);
+  1791→  1791→      }
+  1792→  1792→      if (schoolId != null) {
+  1793→  1793→        query = query.eq('school_id', schoolId);
+  1794→  1794→      }
+  1795→  1795→      if (search != null && search.isNotEmpty) {
+  1796→  1796→        query = query.or('subject.ilike.%$search%,ticket_number.ilike.%$search%');
+  1797→  1797→      }
+  1798→  1798→
+  1799→  1799→      final list = await query
+  1800→  1800→          .order('created_at', ascending: false)
+  1801→  1801→          .range(offset, offset + limit - 1);
+  1802→  1802→
+  1803→  1803→      AppLogger.info('Fetched ${list.length} support tickets');
+  1804→  1804→      return list
+  1805→  1805→          .map<SupportTicketModel>(
+  1806→  1806→            (row) => SupportTicketModel.fromJson(row),
+  1807→  1807→          )
+  1808→  1808→          .toList();
+  1809→  1809→    } on sb.PostgrestException catch (e) {
+  1810→  1810→      throw _mapPostgrestException(e);
+  1811→  1811→    } catch (e) {
+  1812→  1812→      AppLogger.error('Unexpected getSupportTickets error', error: e);
+  1813→  1813→      throw const ServerException(
+  1814→  1814→        message: 'Failed to fetch support tickets.',
+  1815→  1815→        statusCode: 500,
+  1816→  1816→      );
+  1817→  1817→    }
+  1818→  1818→  }
+  1819→  1819→
+  1820→  1820→  @override
+  1821→  1821→  Future<SupportTicketModel> getSupportTicket(String ticketId) async {
+  1822→  1822→    try {
+  1823→  1823→      final response = await _supabase
+  1824→  1824→          .from(_supportTicketsTable)
+  1825→  1825→          .select()
+  1826→  1826→          .eq('id', ticketId)
+  1827→  1827→          .limit(1);
+  1828→  1828→
+  1829→  1829→      if (response.isEmpty) {
+  1830→  1830→        throw const NotFoundException('Support ticket not found.');
+  1831→  1831→      }
+  1832→  1832→
+  1833→  1833→      return SupportTicketModel.fromJson(response.first);
+  1834→  1834→    } on sb.PostgrestException catch (e) {
+  1835→  1835→      throw _mapPostgrestException(e);
+  1836→  1836→    } on NotFoundException {
+  1837→  1837→      rethrow;
+  1838→  1838→    } catch (e) {
+  1839→  1839→      AppLogger.error('Unexpected getSupportTicket error', error: e);
+  1840→  1840→      throw const ServerException(
+  1841→  1841→        message: 'Failed to fetch support ticket.',
+  1842→  1842→        statusCode: 500,
+  1843→  1843→      );
+  1844→  1844→    }
+  1845→  1845→  }
+  1846→  1846→
+  1847→  1847→  @override
+  1848→  1848→  Future<SupportTicketModel> updateSupportTicket(
+  1849→  1849→    String ticketId,
+  1850→  1850→    Map<String, dynamic> data,
+  1851→  1851→  ) async {
+  1852→  1852→    try {
+  1853→  1853→      data['updated_at'] = DateTime.now().toIso8601String();
+  1854→  1854→
+  1855→  1855→      final response = await _supabase
+  1856→  1856→          .from(_supportTicketsTable)
+  1857→  1857→          .update(data)
+  1858→  1858→          .eq('id', ticketId)
+  1859→  1859→          .select();
+  1860→  1860→
+  1861→  1861→      if (response.isEmpty) {
+  1862→  1862→        throw const NotFoundException('Support ticket not found for update.');
+  1863→  1863→      }
+  1864→  1864→
+  1865→  1865→      AppLogger.info('Support ticket updated: $ticketId');
+  1866→  1866→      return SupportTicketModel.fromJson(response.first);
+  1867→  1867→    } on sb.PostgrestException catch (e) {
+  1868→  1868→      throw _mapPostgrestException(e);
+  1869→  1869→    } on NotFoundException {
+  1870→  1870→      rethrow;
+  1871→  1871→    } catch (e) {
+  1872→  1872→      AppLogger.error('Unexpected updateSupportTicket error', error: e);
+  1873→  1873→      throw const ServerException(
+  1874→  1874→        message: 'Failed to update support ticket.',
+  1875→  1875→        statusCode: 500,
+  1876→  1876→      );
+  1877→  1877→    }
+  1878→  1878→  }
+  1879→  1879→
+  1880→  1880→  @override
+  1881→  1881→  Future<SupportTicketModel> assignTicket(
+  1882→  1882→    String ticketId,
+  1883→  1883→    String assignToUserId,
+  1884→  1884→  ) async {
+  1885→  1885→    try {
+  1886→  1886→      final response = await _supabase
+  1887→  1887→          .from(_supportTicketsTable)
+  1888→  1888→          .update({
+  1889→  1889→            'assigned_to': assignToUserId,
+  1890→  1890→            'status': 'in_progress',
+  1891→  1891→            if (null == (await _supabase
+  1892→  1892→                .from(_supportTicketsTable)
+  1893→  1893→                .select('first_response_at')
+  1894→  1894→                .eq('id', ticketId)
+  1895→  1895→                .limit(1))
+  1896→  1896→                .first['first_response_at'])
+  1897→  1897→              'first_response_at': DateTime.now().toIso8601String(),
+  1898→  1898→            'updated_at': DateTime.now().toIso8601String(),
+  1899→  1899→          })
+  1900→  1900→          .eq('id', ticketId)
+  1901→  1901→          .select();
+  1902→  1902→
+  1903→  1903→      if (response.isEmpty) {
+  1904→  1904→        throw const NotFoundException('Support ticket not found for assignment.');
+  1905→  1905→      }
+  1906→  1906→
+  1907→  1907→      AppLogger.info('Support ticket assigned: $ticketId → $assignToUserId');
+  1908→  1908→      return SupportTicketModel.fromJson(response.first);
+  1909→  1909→    } on sb.PostgrestException catch (e) {
+  1910→  1910→      throw _mapPostgrestException(e);
+  1911→  1911→    } on NotFoundException {
+  1912→  1912→      rethrow;
+  1913→  1913→    } catch (e) {
+  1914→  1914→      AppLogger.error('Unexpected assignTicket error', error: e);
+  1915→  1915→      throw const ServerException(
+  1916→  1916→        message: 'Failed to assign support ticket.',
+  1917→  1917→        statusCode: 500,
+  1918→  1918→      );
+  1919→  1919→    }
+  1920→  1920→  }
+  1921→  1921→
+  1922→  1922→  @override
+  1923→  1923→  Future<SupportTicketModel> escalateTicket(
+  1924→  1924→    String ticketId,
+  1925→  1925→    String escalateToUserId,
+  1926→  1926→    String reason,
+  1927→  1927→  ) async {
+  1928→  1928→    try {
+  1929→  1929→      final response = await _supabase
+  1930→  1930→          .from(_supportTicketsTable)
+  1931→  1931→          .update({
+  1932→  1932→            'is_escalated': true,
+  1933→  1933→            'escalated_to': escalateToUserId,
+  1934→  1934→            'escalated_at': DateTime.now().toIso8601String(),
+  1935→  1935→            'priority': 'urgent',
+  1936→  1936→            'updated_at': DateTime.now().toIso8601String(),
+  1937→  1937→          })
+  1938→  1938→          .eq('id', ticketId)
+  1939→  1939→          .select();
+  1940→  1940→
+  1941→  1941→      if (response.isEmpty) {
+  1942→  1942→        throw const NotFoundException('Support ticket not found for escalation.');
+  1943→  1943→      }
+  1944→  1944→
+  1945→  1945→      AppLogger.info('Support ticket escalated: $ticketId');
+  1946→  1946→      return SupportTicketModel.fromJson(response.first);
+  1947→  1947→    } on sb.PostgrestException catch (e) {
+  1948→  1948→      throw _mapPostgrestException(e);
+  1949→  1949→    } on NotFoundException {
+  1950→  1950→      rethrow;
+  1951→  1951→    } catch (e) {
+  1952→  1952→      AppLogger.error('Unexpected escalateTicket error', error: e);
+  1953→  1953→      throw const ServerException(
+  1954→  1954→        message: 'Failed to escalate support ticket.',
+  1955→  1955→        statusCode: 500,
+  1956→  1956→      );
+  1957→  1957→    }
+  1958→  1958→  }
+  1959→  1959→
+  1960→  1960→  @override
+  1961→  1961→  Future<SupportTicketModel> resolveTicket(
+  1962→  1962→    String ticketId,
+  1963→  1963→    String resolutionNotes,
+  1964→  1964→  ) async {
+  1965→  1965→    try {
+  1966→  1966→      final response = await _supabase
+  1967→  1967→          .from(_supportTicketsTable)
+  1968→  1968→          .update({
+  1969→  1969→            'status': 'resolved',
+  1970→  1970→            'resolution_notes': resolutionNotes,
+  1971→  1971→            'resolved_at': DateTime.now().toIso8601String(),
+  1972→  1972→            'updated_at': DateTime.now().toIso8601String(),
+  1973→  1973→          })
+  1974→  1974→          .eq('id', ticketId)
+  1975→  1975→          .select();
+  1976→  1976→
+  1977→  1977→      if (response.isEmpty) {
+  1978→  1978→        throw const NotFoundException('Support ticket not found for resolution.');
+  1979→  1979→      }
+  1980→  1980→
+  1981→  1981→      AppLogger.info('Support ticket resolved: $ticketId');
+  1982→  1982→      return SupportTicketModel.fromJson(response.first);
+  1983→  1983→    } on sb.PostgrestException catch (e) {
+  1984→  1984→      throw _mapPostgrestException(e);
+  1985→  1985→    } on NotFoundException {
+  1986→  1986→      rethrow;
+  1987→  1987→    } catch (e) {
+  1988→  1988→      AppLogger.error('Unexpected resolveTicket error', error: e);
+  1989→  1989→      throw const ServerException(
+  1990→  1990→        message: 'Failed to resolve support ticket.',
+  1991→  1991→        statusCode: 500,
+  1992→  1992→      );
+  1993→  1993→    }
+  1994→  1994→  }
+  1995→  1995→
+  1996→  1996→  @override
+  1997→  1997→  Future<TicketCommentModel> addTicketComment(
+  1998→  1998→    Map<String, dynamic> commentData,
+  1999→  1999→  ) async {
+  2000→  2000→    try {
+
+[showing lines 1-2000 of 2002; use offset=2001 with limit to continue reading]

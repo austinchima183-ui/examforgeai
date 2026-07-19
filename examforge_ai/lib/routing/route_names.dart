@@ -612,6 +612,43 @@ class RouteNames {
   static const String communicationAuditLogs = '/communication/audit-logs';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // SUPER ADMIN ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Super Admin — School Management.
+  static const String superAdminSchools = '/super-admin/schools';
+
+  /// Super Admin — User Management.
+  static const String superAdminUsers = '/super-admin/users';
+
+  /// Super Admin — AI Management.
+  static const String superAdminAI = '/super-admin/ai';
+
+  /// Super Admin — Billing & Revenue.
+  static const String superAdminBilling = '/super-admin/billing';
+
+  /// Super Admin — Support Center.
+  static const String superAdminSupport = '/super-admin/support';
+
+  /// Super Admin — Security Center.
+  static const String superAdminSecurity = '/super-admin/security';
+
+  /// Super Admin — Infrastructure.
+  static const String superAdminInfrastructure = '/super-admin/infrastructure';
+
+  /// Super Admin — Intelligence Center.
+  static const String superAdminIntelligence = '/super-admin/intelligence';
+
+  /// Super Admin — Marketplace.
+  static const String superAdminMarketplace = '/super-admin/marketplace';
+
+  /// Super Admin — Analytics.
+  static const String superAdminAnalytics = '/super-admin/analytics';
+
+  /// Super Admin — Settings.
+  static const String superAdminSettings = '/super-admin/settings';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // BILLING ROUTES
   // ═══════════════════════════════════════════════════════════════════════
 

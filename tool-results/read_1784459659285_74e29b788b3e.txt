@@ -1,0 +1,967 @@
+     1→import 'dart:async';
+     2→
+     3→import 'package:flutter/material.dart';
+     4→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     5→
+     6→import '../../../../../core/themes/app_colors.dart';
+     7→import '../../../../../core/themes/spacings.dart';
+     8→import '../../../../../core/themes/app_typography.dart';
+     9→import '../../../../../shared/widgets/app_app_bar.dart';
+    10→import '../../../../../shared/widgets/app_loading.dart';
+    11→import '../../domain/entities/super_admin_entities.dart';
+    12→import '../providers/super_admin_providers.dart';
+    13→import '../widgets/super_admin_widgets.dart';
+    14→
+    15→// ═══════════════════════════════════════════════════════════════════════════════
+    16→// INFRASTRUCTURE MONITORING PAGE
+    17→// ═══════════════════════════════════════════════════════════════════════════════
+    18→
+    19→/// Real-time infrastructure health monitoring page.
+    20→///
+    21→/// Displays service status cards, health indicators, maintenance windows,
+    22→/// and provides actions for running health checks. Auto-refreshes every
+    23→/// 30 seconds.
+    24→///
+    25→/// Follows the standard ExamForge AI page pattern:
+    26→/// - [ConsumerStatefulWidget] + private state class
+    27→/// - `initState` → `addPostFrameCallback` → `_loadData()` via `ref.read`
+    28→/// - `ref.watch(provider)` in `build()` for reactive rebuilds
+    29→/// - Loading → Error → Content pattern
+    30→/// - Design tokens everywhere
+    31→class InfrastructureMonitoringPage extends ConsumerStatefulWidget {
+    32→  const InfrastructureMonitoringPage({super.key});
+    33→
+    34→  @override
+    35→  ConsumerState<InfrastructureMonitoringPage> createState() =>
+    36→      _InfrastructureMonitoringPageState();
+    37→}
+    38→
+    39→class _InfrastructureMonitoringPageState
+    40→    extends ConsumerState<InfrastructureMonitoringPage> {
+    41→  Timer? _autoRefreshTimer;
+    42→
+    43→  // ─── Lifecycle ──────────────────────────────────────────────────────────
+    44→
+    45→  @override
+    46→  void initState() {
+    47→    super.initState();
+    48→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    49→      _loadData();
+    50→    });
+    51→    _autoRefreshTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+    52→      if (mounted) _loadData();
+    53→    });
+    54→  }
+    55→
+    56→  @override
+    57→  void dispose() {
+    58→    _autoRefreshTimer?.cancel();
+    59→    super.dispose();
+    60→  }
+    61→
+    62→  void _loadData() {
+    63→    ref.read(infrastructureMonitoringProvider.notifier).loadServices();
+    64→    ref.read(infrastructureMonitoringProvider.notifier).loadMaintenanceWindows();
+    65→  }
+    66→
+    67→  // ─── Build ──────────────────────────────────────────────────────────────
+    68→
+    69→  @override
+    70→  Widget build(BuildContext context) {
+    71→    final infraState = ref.watch(infrastructureMonitoringProvider);
+    72→    final cs = Theme.of(context).colorScheme;
+    73→
+    74→    return Scaffold(
+    75→      appBar: const AppAppBar(title: 'Infrastructure Monitoring'),
+    76→      body: _buildBody(context, infraState, cs),
+    77→    );
+    78→  }
+    79→
+    80→  // ─── Body: Loading → Error → Content ────────────────────────────────────
+    81→
+    82→  Widget _buildBody(
+    83→    BuildContext context,
+    84→    InfrastructureMonitoringState state,
+    85→    ColorScheme cs,
+    86→  ) {
+    87→    // Loading state
+    88→    if (state.isLoading && state.services.isEmpty) {
+    89→      return const Center(
+    90→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+    91→    }
+    92→
+    93→    // Error state
+    94→    if (state.error != null && state.services.isEmpty) {
+    95→      return _buildErrorState(state);
+    96→    }
+    97→
+    98→    // Content
+    99→    return RefreshIndicator(
+   100→      onRefresh: () async {
+   101→        ref
+   102→            .read(infrastructureMonitoringProvider.notifier)
+   103→            .loadServices();
+   104→        ref
+   105→            .read(infrastructureMonitoringProvider.notifier)
+   106→            .loadMaintenanceWindows();
+   107→      },
+   108→      child: SingleChildScrollView(
+   109→        physics: const AlwaysScrollableScrollPhysics(),
+   110→        padding: Spacings.paddingScreen,
+   111→        child: Column(
+   112→          crossAxisAlignment: CrossAxisAlignment.start,
+   113→          children: [
+   114→            // Overall System Health
+   115→            _buildOverallHealth(state, cs),
+   116→            Spacings.sectionGap,
+   117→
+   118→            // Service Status Grid
+   119→            SectionHeader(
+   120→              title: 'Service Status',
+   121→              subtitle: '${state.services.length} services monitored',
+   122→              action: _buildRunAllHealthChecksButton(state),
+   123→            ),
+   124→            Spacings.itemGap,
+   125→            _buildServiceGrid(state, cs),
+   126→            Spacings.sectionGap,
+   127→
+   128→            // Maintenance Windows
+   129→            SectionHeader(
+   130→              title: 'Maintenance Windows',
+   131→              subtitle:
+   132→                  '${state.maintenanceWindows.where((w) => w.status == MaintenanceStatus.scheduled || w.status == MaintenanceStatus.inProgress).length} active',
+   133→              action: _buildScheduleMaintenanceButton(cs),
+   134→            ),
+   135→            Spacings.itemGap,
+   136→            _buildMaintenanceWindows(state, cs),
+   137→            const SizedBox(height: Spacings.xxl),
+   138→          ],
+   139→        ),
+   140→      ),
+   141→    );
+   142→  }
+   143→
+   144→  // ─── Error State ─────────────────────────────────────────────────────────
+   145→
+   146→  Widget _buildErrorState(InfrastructureMonitoringState state) {
+   147→    return Center(
+   148→      child: Padding(
+   149→        padding: Spacings.paddingXl,
+   150→        child: Column(
+   151→          mainAxisSize: MainAxisSize.min,
+   152→          children: [
+   153→            Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
+   154→            const SizedBox(height: Spacings.lg),
+   155→            Text(
+   156→              'Failed to load infrastructure data',
+   157→              style: AppTypography.wSemiBold.copyWith(
+   158→                fontSize: 18,
+   159→                color: Theme.of(context).colorScheme.onSurface,
+   160→              ),
+   161→            ),
+   162→            const SizedBox(height: Spacings.sm),
+   163→            Text(
+   164→              state.error ?? 'An unexpected error occurred.',
+   165→              style: AppTypography.wRegular.copyWith(
+   166→                fontSize: 14,
+   167→                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+   168→              ),
+   169→              textAlign: TextAlign.center,
+   170→            ),
+   171→            const SizedBox(height: Spacings.xl),
+   172→            FilledButton.tonal(
+   173→              onPressed: _loadData,
+   174→              child: const Text('Retry'),
+   175→            ),
+   176→          ],
+   177→        ),
+   178→      ),
+   179→    );
+   180→  }
+   181→
+   182→  // ─── Overall System Health ──────────────────────────────────────────────
+   183→
+   184→  Widget _buildOverallHealth(InfrastructureMonitoringState state, ColorScheme cs) {
+   185→    final services = state.services;
+   186→    if (services.isEmpty) return const SizedBox.shrink();
+   187→
+   188→    final healthyCount =
+   189→        services.where((s) => s.healthStatus == HealthStatus.healthy).length;
+   190→    final degradedCount =
+   191→        services.where((s) => s.healthStatus == HealthStatus.degraded).length;
+   192→    final unhealthyCount = services
+   193→        .where((s) =>
+   194→            s.healthStatus == HealthStatus.unhealthy ||
+   195→            s.healthStatus == HealthStatus.down)
+   196→        .length;
+   197→    final maintenanceCount = services
+   198→        .where((s) => s.healthStatus == HealthStatus.maintenance)
+   199→        .length;
+   200→
+   201→    // Determine overall health
+   202→    HealthStatus overallStatus;
+   203→    if (unhealthyCount > 0) {
+   204→      overallStatus = HealthStatus.unhealthy;
+   205→    } else if (degradedCount > 0) {
+   206→      overallStatus = HealthStatus.degraded;
+   207→    } else if (maintenanceCount > 0) {
+   208→      overallStatus = HealthStatus.maintenance;
+   209→    } else {
+   210→      overallStatus = HealthStatus.healthy;
+   211→    }
+   212→
+   213→    return Card(
+   214→      elevation: Spacings.elevationSm,
+   215→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   216→      child: Padding(
+   217→        padding: Spacings.paddingAll,
+   218→        child: Column(
+   219→          crossAxisAlignment: CrossAxisAlignment.start,
+   220→          children: [
+   221→            Row(
+   222→              children: [
+   223→                Text(
+   224→                  'Overall System Health',
+   225→                  style: AppTypography.wBold.copyWith(fontSize: 16),
+   226→                ),
+   227→                const Spacer(),
+   228→                HealthIndicator(status: overallStatus),
+   229→              ],
+   230→            ),
+   231→            const SizedBox(height: Spacings.md),
+   232→            Row(
+   233→              children: [
+   234→                _buildHealthStatChip(
+   235→                  'Healthy',
+   236→                  healthyCount,
+   237→                  AppColors.success,
+   238→                ),
+   239→                const SizedBox(width: Spacings.md),
+   240→                _buildHealthStatChip(
+   241→                  'Degraded',
+   242→                  degradedCount,
+   243→                  AppColors.warning,
+   244→                ),
+   245→                const SizedBox(width: Spacings.md),
+   246→                _buildHealthStatChip(
+   247→                  'Down',
+   248→                  unhealthyCount,
+   249→                  AppColors.error,
+   250→                ),
+   251→                const SizedBox(width: Spacings.md),
+   252→                _buildHealthStatChip(
+   253→                  'Maintenance',
+   254→                  maintenanceCount,
+   255→                  AppColors.info,
+   256→                ),
+   257→              ],
+   258→            ),
+   259→          ],
+   260→        ),
+   261→      ),
+   262→    );
+   263→  }
+   264→
+   265→  Widget _buildHealthStatChip(String label, int count, Color color) {
+   266→    return Container(
+   267→      padding: const EdgeInsets.symmetric(
+   268→          horizontal: Spacings.md, vertical: Spacings.sm),
+   269→      decoration: BoxDecoration(
+   270→        color: color.withValues(alpha: 0.1),
+   271→        borderRadius: Spacings.borderRadiusSm,
+   272→      ),
+   273→      child: Row(
+   274→        mainAxisSize: MainAxisSize.min,
+   275→        children: [
+   276→          Container(
+   277→            width: 8,
+   278→            height: 8,
+   279→            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+   280→          ),
+   281→          const SizedBox(width: Spacings.sm),
+   282→          Text(
+   283→            '$count $label',
+   284→            style: AppTypography.wSemiBold.copyWith(fontSize: 12, color: color),
+   285→          ),
+   286→        ],
+   287→      ),
+   288→    );
+   289→  }
+   290→
+   291→  // ─── Run All Health Checks Button ───────────────────────────────────────
+   292→
+   293→  Widget _buildRunAllHealthChecksButton(InfrastructureMonitoringState state) {
+   294→    final isRunning = state.runningHealthCheckFor == '__all__';
+   295→    return FilledButton.tonal(
+   296→      onPressed: isRunning
+   297→          ? null
+   298→          : () => ref
+   299→              .read(infrastructureMonitoringProvider.notifier)
+   300→              .runHealthCheck(),
+   301→      child: isRunning
+   302→          ? const SizedBox(
+   303→              width: 16,
+   304→              height: 16,
+   305→              child: CircularProgressIndicator(strokeWidth: 2),
+   306→            )
+   307→          : const Row(
+   308→              mainAxisSize: MainAxisSize.min,
+   309→              children: [
+   310→                Icon(Icons.health_and_safety, size: 18),
+   311→                SizedBox(width: Spacings.sm),
+   312→                Text('Run All Health Checks'),
+   313→              ],
+   314→            ),
+   315→    );
+   316→  }
+   317→
+   318→  // ─── Service Status Grid ────────────────────────────────────────────────
+   319→
+   320→  Widget _buildServiceGrid(InfrastructureMonitoringState state, ColorScheme cs) {
+   321→    if (state.services.isEmpty) {
+   322→      return const AdminEmptyState(
+   323→        message: 'No infrastructure services found.',
+   324→        icon: Icons.dns_outlined,
+   325→      );
+   326→    }
+   327→
+   328→    return LayoutBuilder(
+   329→      builder: (context, constraints) {
+   330→        final width = constraints.maxWidth;
+   331→        int crossAxisCount;
+   332→        if (width >= 1400) {
+   333→          crossAxisCount = 4;
+   334→        } else if (width >= 1100) {
+   335→          crossAxisCount = 3;
+   336→        } else if (width >= 700) {
+   337→          crossAxisCount = 2;
+   338→        } else {
+   339→          crossAxisCount = 1;
+   340→        }
+   341→
+   342→        return GridView.builder(
+   343→          shrinkWrap: true,
+   344→          physics: const NeverScrollableScrollPhysics(),
+   345→          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+   346→            crossAxisCount: crossAxisCount,
+   347→            childAspectRatio: 0.72,
+   348→            crossAxisSpacing: Spacings.md,
+   349→            mainAxisSpacing: Spacings.md,
+   350→          ),
+   351→          itemCount: state.services.length,
+   352→          itemBuilder: (context, index) {
+   353→            return _ServiceStatusCard(
+   354→              service: state.services[index],
+   355→              isRunningHealthCheck:
+   356→                  state.runningHealthCheckFor == state.services[index].id,
+   357→              onRunHealthCheck: () => ref
+   358→                  .read(infrastructureMonitoringProvider.notifier)
+   359→                  .runHealthCheck(serviceId: state.services[index].id),
+   360→              cs: cs,
+   361→            );
+   362→          },
+   363→        );
+   364→      },
+   365→    );
+   366→  }
+   367→
+   368→  // ─── Schedule Maintenance Button ────────────────────────────────────────
+   369→
+   370→  Widget _buildScheduleMaintenanceButton(ColorScheme cs) {
+   371→    return FilledButton.tonal(
+   372→      onPressed: _showScheduleMaintenanceDialog,
+   373→      child: const Row(
+   374→        mainAxisSize: MainAxisSize.min,
+   375→        children: [
+   376→          Icon(Icons.calendar_month, size: 18),
+   377→          SizedBox(width: Spacings.sm),
+   378→          Text('Schedule Maintenance'),
+   379→        ],
+   380→      ),
+   381→    );
+   382→  }
+   383→
+   384→  // ─── Maintenance Windows ────────────────────────────────────────────────
+   385→
+   386→  Widget _buildMaintenanceWindows(
+   387→      InfrastructureMonitoringState state, ColorScheme cs) {
+   388→    final windows = state.maintenanceWindows;
+   389→
+   390→    if (windows.isEmpty) {
+   391→      return const AdminEmptyState(
+   392→        message: 'No maintenance windows scheduled.',
+   393→        icon: Icons.calendar_today_outlined,
+   394→      );
+   395→    }
+   396→
+   397→    return Card(
+   398→      elevation: Spacings.elevationSm,
+   399→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   400→      child: ListView.separated(
+   401→        shrinkWrap: true,
+   402→        physics: const NeverScrollableScrollPhysics(),
+   403→        padding: Spacings.paddingAll,
+   404→        itemCount: windows.length,
+   405→        separatorBuilder: (_, __) => const Divider(height: Spacings.lg),
+   406→        itemBuilder: (context, index) {
+   407→          return _MaintenanceWindowTile(
+   408→            window: windows[index],
+   409→            onCancel: windows[index].status == MaintenanceStatus.scheduled
+   410→                ? () => ref
+   411→                    .read(infrastructureMonitoringProvider.notifier)
+   412→                    .cancelMaintenanceWindow(windows[index].id)
+   413→                : null,
+   414→            cs: cs,
+   415→          );
+   416→        },
+   417→      ),
+   418→    );
+   419→  }
+   420→
+   421→  // ─── Schedule Maintenance Dialog ────────────────────────────────────────
+   422→
+   423→  void _showScheduleMaintenanceDialog() {
+   424→    final titleController = TextEditingController();
+   425→    final descriptionController = TextEditingController();
+   426→    DateTime? startAt;
+   427→    DateTime? endAt;
+   428→    final selectedServices = <String>[];
+   429→
+   430→    final services =
+   431→        ref.read(infrastructureMonitoringProvider).services;
+   432→
+   433→    showDialog(
+   434→      context: context,
+   435→      builder: (dialogContext) {
+   436→        return StatefulBuilder(
+   437→          builder: (context, setDialogState) {
+   438→            return AlertDialog(
+   439→              title: const Text('Schedule Maintenance Window'),
+   440→              content: SizedBox(
+   441→                width: 500,
+   442→                child: SingleChildScrollView(
+   443→                  child: Column(
+   444→                    mainAxisSize: MainAxisSize.min,
+   445→                    crossAxisAlignment: CrossAxisAlignment.start,
+   446→                    children: [
+   447→                      TextField(
+   448→                        controller: titleController,
+   449→                        decoration: const InputDecoration(
+   450→                          labelText: 'Title',
+   451→                          border: OutlineInputBorder(),
+   452→                        ),
+   453→                      ),
+   454→                      const SizedBox(height: Spacings.md),
+   455→                      TextField(
+   456→                        controller: descriptionController,
+   457→                        decoration: const InputDecoration(
+   458→                          labelText: 'Description',
+   459→                          border: OutlineInputBorder(),
+   460→                        ),
+   461→                        maxLines: 3,
+   462→                      ),
+   463→                      const SizedBox(height: Spacings.md),
+   464→                      // Start time picker
+   465→                      ListTile(
+   466→                        contentPadding: EdgeInsets.zero,
+   467→                        leading: const Icon(Icons.play_arrow),
+   468→                        title: Text(
+   469→                          startAt != null
+   470→                              ? _formatDateTime(startAt!)
+   471→                              : 'Select start time',
+   472→                          style: AppTypography.wRegular.copyWith(
+   473→                            fontSize: 14,
+   474→                            color: startAt != null
+   475→                                ? null
+   476→                                : AppColors.info,
+   477→                          ),
+   478→                        ),
+   479→                        trailing: const Icon(Icons.calendar_today, size: 20),
+   480→                        onTap: () async {
+   481→                          final picked = await _pickDateTime(context, startAt);
+   482→                          if (picked != null) {
+   483→                            setDialogState(() => startAt = picked);
+   484→                          }
+   485→                        },
+   486→                      ),
+   487→                      // End time picker
+   488→                      ListTile(
+   489→                        contentPadding: EdgeInsets.zero,
+   490→                        leading: const Icon(Icons.stop),
+   491→                        title: Text(
+   492→                          endAt != null
+   493→                              ? _formatDateTime(endAt!)
+   494→                              : 'Select end time',
+   495→                          style: AppTypography.wRegular.copyWith(
+   496→                            fontSize: 14,
+   497→                            color: endAt != null
+   498→                                ? null
+   499→                                : AppColors.info,
+   500→                          ),
+   501→                        ),
+   502→                        trailing: const Icon(Icons.calendar_today, size: 20),
+   503→                        onTap: () async {
+   504→                          final picked = await _pickDateTime(context, endAt);
+   505→                          if (picked != null) {
+   506→                            setDialogState(() => endAt = picked);
+   507→                          }
+   508→                        },
+   509→                      ),
+   510→                      const SizedBox(height: Spacings.sm),
+   511→                      Text(
+   512→                        'Affected Services',
+   513→                        style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+   514→                      ),
+   515→                      const SizedBox(height: Spacings.sm),
+   516→                      Wrap(
+   517→                        spacing: Spacings.sm,
+   518→                        runSpacing: Spacings.sm,
+   519→                        children: services.map((service) {
+   520→                          final isSelected = selectedServices
+   521→                              .contains(service.serviceName);
+   522→                          return FilterChip(
+   523→                            label: Text(service.serviceName),
+   524→                            selected: isSelected,
+   525→                            onSelected: (selected) {
+   526→                              setDialogState(() {
+   527→                                if (selected) {
+   528→                                  selectedServices.add(service.serviceName);
+   529→                                } else {
+   530→                                  selectedServices.remove(service.serviceName);
+   531→                                }
+   532→                              });
+   533→                            },
+   534→                          );
+   535→                        }).toList(),
+   536→                      ),
+   537→                    ],
+   538→                  ),
+   539→                ),
+   540→              ),
+   541→              actions: [
+   542→                TextButton(
+   543→                  onPressed: () => Navigator.of(dialogContext).pop(),
+   544→                  child: const Text('Cancel'),
+   545→                ),
+   546→                FilledButton(
+   547→                  onPressed: () {
+   548→                    if (titleController.text.isEmpty ||
+   549→                        startAt == null ||
+   550→                        endAt == null) {
+   551→                      ScaffoldMessenger.of(context).showSnackBar(
+   552→                        const SnackBar(
+   553→                            content: Text(
+   554→                                'Title, start time, and end time are required')),
+   555→                      );
+   556→                      return;
+   557→                    }
+   558→                    final window = MaintenanceWindow(
+   559→                      id: '',
+   560→                      title: titleController.text,
+   561→                      description: descriptionController.text.isEmpty
+   562→                          ? null
+   563→                          : descriptionController.text,
+   564→                      status: MaintenanceStatus.scheduled,
+   565→                      affectedServices: selectedServices.isEmpty
+   566→                          ? null
+   567→                          : selectedServices,
+   568→                      startAt: startAt!,
+   569→                      endAt: endAt!,
+   570→                      isPlanned: true,
+   571→                      createdAt: DateTime.now(),
+   572→                      updatedAt: DateTime.now(),
+   573→                    );
+   574→                    ref
+   575→                        .read(infrastructureMonitoringProvider.notifier)
+   576→                        .createMaintenanceWindow(window);
+   577→                    Navigator.of(dialogContext).pop();
+   578→                  },
+   579→                  child: const Text('Schedule'),
+   580→                ),
+   581→              ],
+   582→            );
+   583→          },
+   584→        );
+   585→      },
+   586→    );
+   587→  }
+   588→
+   589→  // ─── Date/Time Picker Helper ─────────────────────────────────────────────
+   590→
+   591→  Future<DateTime?> _pickDateTime(
+   592→      BuildContext context, DateTime? initial) async {
+   593→    final date = await showDatePicker(
+   594→      context: context,
+   595→      initialDate: initial ?? DateTime.now().add(const Duration(days: 1)),
+   596→      firstDate: DateTime.now(),
+   597→      lastDate: DateTime.now().add(const Duration(days: 365)),
+   598→    );
+   599→    if (date == null) return null;
+   600→
+   601→    final time = await showTimePicker(
+   602→      context: context,
+   603→      initialTime: TimeOfDay.fromDateTime(initial ?? DateTime.now()),
+   604→    );
+   605→    if (time == null) return null;
+   606→
+   607→    return DateTime(
+   608→      date.year, date.month, date.day, time.hour, time.minute,
+   609→    );
+   610→  }
+   611→
+   612→  // ─── Formatting Helpers ─────────────────────────────────────────────────
+   613→
+   614→  static String _formatDateTime(DateTime dt) {
+   615→    final month = _monthShort(dt.month);
+   616→    return '$month ${dt.day}, ${dt.year} at ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+   617→  }
+   618→
+   619→  static String _monthShort(int month) {
+   620→    const months = [
+   621→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+   622→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+   623→    ];
+   624→    return months[month];
+   625→  }
+   626→}
+   627→
+   628→// ═══════════════════════════════════════════════════════════════════════════════
+   629→// SERVICE STATUS CARD — Single infrastructure service card
+   630→// ═══════════════════════════════════════════════════════════════════════════════
+   631→
+   632→class _ServiceStatusCard extends StatelessWidget {
+   633→  const _ServiceStatusCard({
+   634→    required this.service,
+   635→    required this.isRunningHealthCheck,
+   636→    required this.onRunHealthCheck,
+   637→    required this.cs,
+   638→  });
+   639→
+   640→  final InfrastructureService service;
+   641→  final bool isRunningHealthCheck;
+   642→  final VoidCallback onRunHealthCheck;
+   643→  final ColorScheme cs;
+   644→
+   645→  Color _responseTimeColor(int? ms) {
+   646→    if (ms == null) return cs.onSurface.withValues(alpha: 0.4);
+   647→    if (ms < 500) return AppColors.success;
+   648→    if (ms < 2000) return AppColors.warning;
+   649→    return AppColors.error;
+   650→  }
+   651→
+   652→  Color _errorRateColor(double rate) {
+   653→    if (rate < 1) return AppColors.success;
+   654→    if (rate < 5) return AppColors.warning;
+   655→    return AppColors.error;
+   656→  }
+   657→
+   658→  String _formatLastCheck(DateTime? dt) {
+   659→    if (dt == null) return 'Never';
+   660→    final diff = DateTime.now().difference(dt);
+   661→    if (diff.inSeconds < 60) return '${diff.inSeconds}s ago';
+   662→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+   663→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+   664→    return '${diff.inDays}d ago';
+   665→  }
+   666→
+   667→  @override
+   668→  Widget build(BuildContext context) {
+   669→    return Card(
+   670→      elevation: service.isCritical ? Spacings.elevationMd : Spacings.elevationSm,
+   671→      shape: RoundedRectangleBorder(
+   672→        borderRadius: Spacings.borderRadiusMd,
+   673→        side: service.isCritical && service.isAlerting
+   674→            ? const BorderSide(color: AppColors.error, width: 1.5)
+   675→            : BorderSide.none,
+   676→      ),
+   677→      child: Padding(
+   678→        padding: Spacings.paddingAll,
+   679→        child: Column(
+   680→          crossAxisAlignment: CrossAxisAlignment.start,
+   681→          children: [
+   682→            // Header row: name + badges
+   683→            Row(
+   684→              children: [
+   685→                Expanded(
+   686→                  child: Text(
+   687→                    service.serviceName,
+   688→                    style: AppTypography.wSemiBold.copyWith(fontSize: 15),
+   689→                    maxLines: 1,
+   690→                    overflow: TextOverflow.ellipsis,
+   691→                  ),
+   692→                ),
+   693→                if (service.isCritical) ...[
+   694→                  const SizedBox(width: Spacings.sm),
+   695→                  StatusBadge(
+   696→                    label: 'Critical',
+   697→                    color: AppColors.error,
+   698→                    icon: Icons.warning_amber,
+   699→                  ),
+   700→                ],
+   701→              ],
+   702→            ),
+   703→            const SizedBox(height: Spacings.sm),
+   704→
+   705→            // Type badge + Health indicator
+   706→            Row(
+   707→              children: [
+   708→                StatusBadge(
+   709→                  label: service.serviceType,
+   710→                  color: cs.primary,
+   711→                ),
+   712→                const SizedBox(width: Spacings.md),
+   713→                HealthIndicator(status: service.healthStatus),
+   714→              ],
+   715→            ),
+   716→            const SizedBox(height: Spacings.md),
+   717→
+   718→            // Response time
+   719→            _buildMetricRow(
+   720→              icon: Icons.speed,
+   721→              label: 'Response',
+   722→              value: service.responseTimeMs != null
+   723→                  ? '${service.responseTimeMs}ms'
+   724→                  : 'N/A',
+   725→              valueColor: _responseTimeColor(service.responseTimeMs),
+   726→            ),
+   727→            const SizedBox(height: Spacings.sm),
+   728→
+   729→            // Uptime
+   730→            _buildMetricRow(
+   731→              icon: Icons.timeline,
+   732→              label: 'Uptime',
+   733→              value: '${service.uptimePercentage.toStringAsFixed(1)}%',
+   734→              valueColor: service.uptimePercentage >= 99.9
+   735→                  ? AppColors.success
+   736→                  : service.uptimePercentage >= 99
+   737→                      ? AppColors.warning
+   738→                      : AppColors.error,
+   739→            ),
+   740→            const SizedBox(height: Spacings.sm),
+   741→
+   742→            // Error rate
+   743→            _buildMetricRow(
+   744→              icon: Icons.error_outline,
+   745→              label: 'Error Rate',
+   746→              value: '${service.errorRate.toStringAsFixed(1)}%',
+   747→              valueColor: _errorRateColor(service.errorRate),
+   748→            ),
+   749→            const SizedBox(height: Spacings.sm),
+   750→
+   751→            // Last check
+   752→            _buildMetricRow(
+   753→              icon: Icons.schedule,
+   754→              label: 'Last Check',
+   755→              value: _formatLastCheck(service.lastCheckAt),
+   756→              valueColor: cs.onSurface.withValues(alpha: 0.6),
+   757→            ),
+   758→
+   759→            const Spacer(),
+   760→
+   761→            // Run Health Check button
+   762→            SizedBox(
+   763→              width: double.infinity,
+   764→              child: OutlinedButton.icon(
+   765→                onPressed: isRunningHealthCheck ? null : onRunHealthCheck,
+   766→                icon: isRunningHealthCheck
+   767→                    ? const SizedBox(
+   768→                        width: 16,
+   769→                        height: 16,
+   770→                        child: CircularProgressIndicator(strokeWidth: 2),
+   771→                      )
+   772→                    : const Icon(Icons.refresh, size: 18),
+   773→                label: Text(
+   774→                  isRunningHealthCheck ? 'Checking...' : 'Run Health Check',
+   775→                ),
+   776→                style: OutlinedButton.styleFrom(
+   777→                  padding: const EdgeInsets.symmetric(
+   778→                      horizontal: Spacings.md, vertical: Spacings.sm),
+   779→                  textStyle: AppTypography.wSemiBold.copyWith(fontSize: 12),
+   780→                ),
+   781→              ),
+   782→            ),
+   783→          ],
+   784→        ),
+   785→      ),
+   786→    );
+   787→  }
+   788→
+   789→  Widget _buildMetricRow({
+   790→    required IconData icon,
+   791→    required String label,
+   792→    required String value,
+   793→    required Color valueColor,
+   794→  }) {
+   795→    return Row(
+   796→      children: [
+   797→        Icon(icon, size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
+   798→        const SizedBox(width: Spacings.sm),
+   799→        Text(
+   800→          label,
+   801→          style: AppTypography.wRegular.copyWith(
+   802→            fontSize: 12,
+   803→            color: cs.onSurface.withValues(alpha: 0.6),
+   804→          ),
+   805→        ),
+   806→        const Spacer(),
+   807→        Text(
+   808→          value,
+   809→          style: AppTypography.wSemiBold.copyWith(
+   810→            fontSize: 12,
+   811→            color: valueColor,
+   812→          ),
+   813→        ),
+   814→      ],
+   815→    );
+   816→  }
+   817→}
+   818→
+   819→// ═══════════════════════════════════════════════════════════════════════════════
+   820→// MAINTENANCE WINDOW TILE — Single maintenance window row
+   821→// ═══════════════════════════════════════════════════════════════════════════════
+   822→
+   823→class _MaintenanceWindowTile extends StatelessWidget {
+   824→  const _MaintenanceWindowTile({
+   825→    required this.window,
+   826→    this.onCancel,
+   827→    required this.cs,
+   828→  });
+   829→
+   830→  final MaintenanceWindow window;
+   831→  final VoidCallback? onCancel;
+   832→  final ColorScheme cs;
+   833→
+   834→  Color _statusColor() {
+   835→    switch (window.status) {
+   836→      case MaintenanceStatus.scheduled:
+   837→        return AppColors.info;
+   838→      case MaintenanceStatus.inProgress:
+   839→        return AppColors.warning;
+   840→      case MaintenanceStatus.completed:
+   841→        return AppColors.success;
+   842→      case MaintenanceStatus.cancelled:
+   843→        return cs.onSurface.withValues(alpha: 0.4);
+   844→    }
+   845→  }
+   846→
+   847→  IconData _statusIcon() {
+   848→    switch (window.status) {
+   849→      case MaintenanceStatus.scheduled:
+   850→        return Icons.schedule;
+   851→      case MaintenanceStatus.inProgress:
+   852→        return Icons.engineering;
+   853→      case MaintenanceStatus.completed:
+   854→        return Icons.check_circle;
+   855→      case MaintenanceStatus.cancelled:
+   856→        return Icons.cancel;
+   857→    }
+   858→  }
+   859→
+   860→  String _formatDateTime(DateTime dt) {
+   861→    const months = [
+   862→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+   863→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+   864→    ];
+   865→    return '${months[dt.month]} ${dt.day}, ${dt.year} '
+   866→        '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+   867→  }
+   868→
+   869→  @override
+   870→  Widget build(BuildContext context) {
+   871→    final statusColor = _statusColor();
+   872→
+   873→    return Column(
+   874→      crossAxisAlignment: CrossAxisAlignment.start,
+   875→      children: [
+   876→        Row(
+   877→          children: [
+   878→            Expanded(
+   879→              child: Text(
+   880→                window.title,
+   881→                style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+   882→                maxLines: 1,
+   883→                overflow: TextOverflow.ellipsis,
+   884→              ),
+   885→            ),
+   886→            const SizedBox(width: Spacings.sm),
+   887→            StatusBadge(
+   888→              label: window.status.label,
+   889→              color: statusColor,
+   890→              icon: _statusIcon(),
+   891→            ),
+   892→          ],
+   893→        ),
+   894→        if (window.description != null &&
+   895→            window.description!.isNotEmpty) ...[
+   896→          const SizedBox(height: Spacings.xs),
+   897→          Text(
+   898→            window.description!,
+   899→            style: AppTypography.wRegular.copyWith(
+   900→              fontSize: 13,
+   901→              color: cs.onSurface.withValues(alpha: 0.7),
+   902→            ),
+   903→            maxLines: 2,
+   904→            overflow: TextOverflow.ellipsis,
+   905→          ),
+   906→        ],
+   907→        const SizedBox(height: Spacings.sm),
+   908→        Row(
+   909→          children: [
+   910→            Icon(Icons.play_arrow, size: 14,
+   911→                color: cs.onSurface.withValues(alpha: 0.5)),
+   912→            const SizedBox(width: Spacings.xs),
+   913→            Text(
+   914→              _formatDateTime(window.startAt),
+   915→              style: AppTypography.wRegular.copyWith(
+   916→                fontSize: 12,
+   917→                color: cs.onSurface.withValues(alpha: 0.6),
+   918→              ),
+   919→            ),
+   920→            const SizedBox(width: Spacings.lg),
+   921→            Icon(Icons.stop, size: 14,
+   922→                color: cs.onSurface.withValues(alpha: 0.5)),
+   923→            const SizedBox(width: Spacings.xs),
+   924→            Text(
+   925→              _formatDateTime(window.endAt),
+   926→              style: AppTypography.wRegular.copyWith(
+   927→                fontSize: 12,
+   928→                color: cs.onSurface.withValues(alpha: 0.6),
+   929→              ),
+   930→            ),
+   931→          ],
+   932→        ),
+   933→        if (window.affectedServices != null &&
+   934→            window.affectedServices!.isNotEmpty) ...[
+   935→          const SizedBox(height: Spacings.sm),
+   936→          Wrap(
+   937→            spacing: Spacings.xs,
+   938→            runSpacing: Spacings.xs,
+   939→            children: window.affectedServices!.map((s) {
+   940→              return Chip(
+   941→                label: Text(s, style: AppTypography.wRegular.copyWith(fontSize: 11)),
+   942→                materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   943→                visualDensity: VisualDensity.compact,
+   944→              );
+   945→            }).toList(),
+   946→          ),
+   947→        ],
+   948→        if (onCancel != null) ...[
+   949→          const SizedBox(height: Spacings.md),
+   950→          Row(
+   951→            mainAxisAlignment: MainAxisAlignment.end,
+   952→            children: [
+   953→              TextButton(
+   954→                onPressed: onCancel,
+   955→                style: TextButton.styleFrom(
+   956→                  foregroundColor: AppColors.error,
+   957→                ),
+   958→                child: const Text('Cancel Window'),
+   959→              ),
+   960→            ],
+   961→          ),
+   962→        ],
+   963→      ],
+   964→    );
+   965→  }
+   966→}
+   967→

@@ -12,7 +12,7 @@ import '../features/dashboard/presentation/pages/dashboard_redirector.dart';
 import '../features/dashboard/presentation/pages/dashboard_shell.dart';
 import '../features/dashboard/presentation/pages/school_admin_dashboard_page.dart';
 import '../features/dashboard/presentation/pages/student_dashboard_page.dart';
-import '../features/dashboard/presentation/pages/super_admin_dashboard_page.dart';
+// Original dashboard redirector — now replaced by full Super Admin Platform
 import '../features/dashboard/presentation/pages/teacher_dashboard_page.dart';
 import '../features/notifications/presentation/pages/notifications_page.dart';
 import '../features/onboarding/presentation/onboarding_page.dart';
@@ -168,6 +168,20 @@ import '../features/billing/presentation/pages/referral_program_page.dart';
 import '../features/billing/presentation/pages/license_management_page.dart';
 import '../features/billing/presentation/pages/revenue_dashboard_page.dart';
 import '../features/billing/presentation/pages/school_billing_page.dart';
+
+// ── Super Admin Platform ──
+import '../features/super_admin/presentation/pages/super_admin_dashboard_page.dart';
+import '../features/super_admin/presentation/pages/school_management_page.dart';
+import '../features/super_admin/presentation/pages/user_management_page.dart';
+import '../features/super_admin/presentation/pages/ai_management_page.dart';
+import '../features/super_admin/presentation/pages/billing_management_page.dart';
+import '../features/super_admin/presentation/pages/support_center_page.dart';
+import '../features/super_admin/presentation/pages/security_center_page.dart';
+import '../features/super_admin/presentation/pages/infrastructure_monitoring_page.dart';
+import '../features/super_admin/presentation/pages/intelligence_center_page.dart';
+import '../features/super_admin/presentation/pages/marketplace_management_page.dart';
+import '../features/super_admin/presentation/pages/platform_analytics_page.dart';
+import '../features/super_admin/presentation/pages/global_settings_page.dart';
 import 'route_guards.dart';
 import 'route_names.dart';
 
@@ -341,7 +355,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'super-admin',
                 name: 'superAdminDashboard',
-                builder: (context, state) => const SuperAdminDashboardPage(),
+                redirect: (context, state) => RouteNames.superAdminDashboard,
               ),
             ],
           ),
@@ -1379,6 +1393,68 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               return SchoolBillingPage(schoolId: schoolId);
             },
+          ),
+
+          // ── Super Admin Platform Routes ──────────────────────────
+          GoRoute(
+            path: RouteNames.superAdminDashboard,
+            name: 'super-admin-dashboard',
+            builder: (context, state) => const SuperAdminDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminSchools,
+            name: 'super-admin-schools',
+            builder: (context, state) => const SchoolManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminUsers,
+            name: 'super-admin-users',
+            builder: (context, state) => const UserManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminAI,
+            name: 'super-admin-ai',
+            builder: (context, state) => const AIManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminBilling,
+            name: 'super-admin-billing',
+            builder: (context, state) => const BillingManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminSupport,
+            name: 'super-admin-support',
+            builder: (context, state) => const SupportCenterPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminSecurity,
+            name: 'super-admin-security',
+            builder: (context, state) => const SecurityCenterPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminInfrastructure,
+            name: 'super-admin-infrastructure',
+            builder: (context, state) => const InfrastructureMonitoringPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminIntelligence,
+            name: 'super-admin-intelligence',
+            builder: (context, state) => const IntelligenceCenterPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminMarketplace,
+            name: 'super-admin-marketplace',
+            builder: (context, state) => const MarketplaceManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminAnalytics,
+            name: 'super-admin-analytics',
+            builder: (context, state) => const PlatformAnalyticsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.superAdminSettings,
+            name: 'super-admin-settings',
+            builder: (context, state) => const GlobalSettingsPage(),
           ),
         ],
       ),

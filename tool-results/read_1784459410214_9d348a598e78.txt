@@ -1,0 +1,1239 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../../core/themes/app_colors.dart';
+     6→import '../../../../../core/themes/spacings.dart';
+     7→import '../../../../../core/themes/app_typography.dart';
+     8→import '../../../../../shared/widgets/app_app_bar.dart';
+     9→import '../../../../../shared/widgets/app_loading.dart';
+    10→import '../../domain/entities/super_admin_entities.dart';
+    11→import '../providers/super_admin_providers.dart';
+    12→import '../widgets/super_admin_widgets.dart';
+    13→
+    14→// ═══════════════════════════════════════════════════════════════════════════════
+    15→// INTELLIGENCE CENTER PAGE
+    16→// ═══════════════════════════════════════════════════════════════════════════════
+    17→
+    18→/// Operations Intelligence Center with AI — the "game-changer" feature.
+    19→///
+    20→/// Provides AI-driven operational insights through four tabs:
+    21→/// - **Alerts**: Intelligence alerts with filtering and acknowledge/resolve actions
+    22→/// - **Churn Prediction**: Schools at risk of churning with probability scores
+    23→/// - **Revenue Forecast**: 6-month revenue prediction with confidence intervals
+    24→/// - **Cost Optimization**: AI provider cost analysis and optimization suggestions
+    25→class IntelligenceCenterPage extends ConsumerStatefulWidget {
+    26→  const IntelligenceCenterPage({super.key});
+    27→
+    28→  @override
+    29→  ConsumerState<IntelligenceCenterPage> createState() =>
+    30→      _IntelligenceCenterPageState();
+    31→}
+    32→
+    33→class _IntelligenceCenterPageState
+    34→    extends ConsumerState<IntelligenceCenterPage>
+    35→    with SingleTickerProviderStateMixin {
+    36→  late final TabController _tabController;
+    37→
+    38→  // ─── Alert Filters ──────────────────────────────────────────────────────
+    39→
+    40→  IntelligenceAlertType? _filterAlertType;
+    41→  IntelligenceSeverity? _filterSeverity;
+    42→
+    43→  static const _tabs = [
+    44→    Tab(icon: Icon(Icons.notification_important), text: 'Alerts'),
+    45→    Tab(icon: Icon(Icons.person_off), text: 'Churn Prediction'),
+    46→    Tab(icon: Icon(Icons.show_chart), text: 'Revenue Forecast'),
+    47→    Tab(icon: Icon(Icons.savings), text: 'Cost Optimization'),
+    48→  ];
+    49→
+    50→  @override
+    51→  void initState() {
+    52→    super.initState();
+    53→    _tabController = TabController(length: _tabs.length, vsync: this);
+    54→    _tabController.addListener(_onTabChanged);
+    55→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    56→      _loadData();
+    57→    });
+    58→  }
+    59→
+    60→  @override
+    61→  void dispose() {
+    62→    _tabController.removeListener(_onTabChanged);
+    63→    _tabController.dispose();
+    64→    super.dispose();
+    65→  }
+    66→
+    67→  void _onTabChanged() {
+    68→    if (!_tabController.indexIsChanging) {
+    69→      _loadTabData(_tabController.index);
+    70→    }
+    71→  }
+    72→
+    73→  void _loadData() {
+    74→    _loadTabData(_tabController.index);
+    75→  }
+    76→
+    77→  void _loadTabData(int index) {
+    78→    final notifier = ref.read(intelligenceProvider.notifier);
+    79→    switch (index) {
+    80→      case 0:
+    81→        notifier.loadAlerts(
+    82→          type: _filterAlertType,
+    83→          severity: _filterSeverity,
+    84→          unresolvedOnly: false,
+    85→        );
+    86→        break;
+    87→      case 1:
+    88→        notifier.loadChurnPredictions();
+    89→        break;
+    90→      case 2:
+    91→        notifier.loadRevenueForecast();
+    92→        break;
+    93→      case 3:
+    94→        notifier.loadCostOptimizations();
+    95→        break;
+    96→    }
+    97→  }
+    98→
+    99→  // ─── Build ──────────────────────────────────────────────────────────────
+   100→
+   101→  @override
+   102→  Widget build(BuildContext context) {
+   103→    final state = ref.watch(intelligenceProvider);
+   104→    final cs = Theme.of(context).colorScheme;
+   105→
+   106→    // Listen for success/error snackbar messages
+   107→    ref.listen<IntelligenceState>(intelligenceProvider, (prev, next) {
+   108→      if (next.successMessage != null &&
+   109→          next.successMessage != prev?.successMessage) {
+   110→        ScaffoldMessenger.of(context).showSnackBar(
+   111→          SnackBar(
+   112→            content: Text(next.successMessage!),
+   113→            backgroundColor: AppColors.success,
+   114→            behavior: SnackBarBehavior.floating,
+   115→          ),
+   116→        );
+   117→        ref.read(intelligenceProvider.notifier).state =
+   118→            ref.read(intelligenceProvider).clearSuccess();
+   119→      }
+   120→      if (next.error != null && next.error != prev?.error) {
+   121→        ScaffoldMessenger.of(context).showSnackBar(
+   122→          SnackBar(
+   123→            content: Text(next.error!),
+   124→            backgroundColor: AppColors.error,
+   125→            behavior: SnackBarBehavior.floating,
+   126→          ),
+   127→        );
+   128→        ref.read(intelligenceProvider.notifier).state =
+   129→            ref.read(intelligenceProvider).clearError();
+   130→      }
+   131→    });
+   132→
+   133→    return Scaffold(
+   134→      appBar: AppAppBar(
+   135→        title: 'Intelligence Center',
+   136→        actions: [
+   137→          IconButton(
+   138→            icon: const Icon(Icons.auto_awesome),
+   139→            tooltip: 'Generate Insights',
+   140→            onPressed: () {
+   141→              ref.read(intelligenceProvider.notifier).generateInsights();
+   142→            },
+   143→          ),
+   144→          IconButton(
+   145→            icon: const Icon(Icons.refresh),
+   146→            tooltip: 'Refresh',
+   147→            onPressed: () => _loadData(),
+   148→          ),
+   149→        ],
+   150→      ),
+   151→      body: state.isLoading && state.alerts.isEmpty
+   152→          ? const Center(child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+   153→          : state.error != null && state.alerts.isEmpty
+   154→              ? _buildErrorState(state.error!, cs)
+   155→              : Column(
+   156→                  children: [
+   157→                    // ─── Tab Bar ──────────────────────────────────────
+   158→                    Container(
+   159→                      decoration: BoxDecoration(
+   160→                        color: cs.surface,
+   161→                        border: Border(
+   162→                          bottom: BorderSide(
+   163→                            color: cs.outlineVariant,
+   164→                            width: 1,
+   165→                          ),
+   166→                        ),
+   167→                      ),
+   168→                      child: TabBar(
+   169→                        controller: _tabController,
+   170→                        tabs: _tabs,
+   171→                        labelColor: cs.primary,
+   172→                        unselectedLabelColor: cs.onSurface.withValues(alpha: 0.6),
+   173→                        indicatorColor: cs.primary,
+   174→                        indicatorSize: TabBarIndicatorSize.tab,
+   175→                        isScrollable: true,
+   176→                      ),
+   177→                    ),
+   178→
+   179→                    // ─── Tab Content ──────────────────────────────────
+   180→                    Expanded(
+   181→                      child: TabBarView(
+   182→                        controller: _tabController,
+   183→                        children: [
+   184→                          _AlertsTab(
+   185→                            filterAlertType: _filterAlertType,
+   186→                            filterSeverity: _filterSeverity,
+   187→                            onAlertTypeChanged: (type) {
+   188→                              setState(() => _filterAlertType = type);
+   189→                              ref.read(intelligenceProvider.notifier).loadAlerts(
+   190→                                    type: type,
+   191→                                    severity: _filterSeverity,
+   192→                                    unresolvedOnly: false,
+   193→                                  );
+   194→                            },
+   195→                            onSeverityChanged: (severity) {
+   196→                              setState(() => _filterSeverity = severity);
+   197→                              ref.read(intelligenceProvider.notifier).loadAlerts(
+   198→                                    type: _filterAlertType,
+   199→                                    severity: severity,
+   200→                                    unresolvedOnly: false,
+   201→                                  );
+   202→                            },
+   203→                            onAcknowledge: (alertId) {
+   204→                              ref.read(intelligenceProvider.notifier).acknowledgeAlert(alertId);
+   205→                            },
+   206→                            onResolve: (alertId) {
+   207→                              ref.read(intelligenceProvider.notifier).resolveAlert(alertId, 'Resolved via Intelligence Center');
+   208→                            },
+   209→                          ),
+   210→                          _ChurnPredictionTab(churnPredictions: state.churnPredictions),
+   211→                          _RevenueForecastTab(revenueForecast: state.revenueForecast),
+   212→                          _CostOptimizationTab(costOptimizations: state.costOptimizations),
+   213→                        ],
+   214→                      ),
+   215→                    ),
+   216→                  ],
+   217→                ),
+   218→    );
+   219→  }
+   220→
+   221→  // ─── Error State ────────────────────────────────────────────────────────
+   222→
+   223→  Widget _buildErrorState(String error, ColorScheme cs) {
+   224→    return Center(
+   225→      child: Padding(
+   226→        padding: const EdgeInsets.all(Spacings.xl),
+   227→        child: Column(
+   228→          mainAxisSize: MainAxisSize.min,
+   229→          children: [
+   230→            Icon(Icons.error_outline, size: Spacings.xlIcon, color: cs.error),
+   231→            const SizedBox(height: Spacings.lg),
+   232→            Text(
+   233→              error,
+   234→              style: AppTypography.wRegular.copyWith(
+   235→                fontSize: 14,
+   236→                color: cs.onSurface.withValues(alpha: 0.7),
+   237→              ),
+   238→              textAlign: TextAlign.center,
+   239→            ),
+   240→            const SizedBox(height: Spacings.lg),
+   241→            FilledButton.tonal(
+   242→              onPressed: () => _loadData(),
+   243→              child: const Text('Retry'),
+   244→            ),
+   245→          ],
+   246→        ),
+   247→      ),
+   248→    );
+   249→  }
+   250→}
+   251→
+   252→// ═══════════════════════════════════════════════════════════════════════════════
+   253→// ALERTS TAB
+   254→// ═══════════════════════════════════════════════════════════════════════════════
+   255→
+   256→class _AlertsTab extends StatelessWidget {
+   257→  const _AlertsTab({
+   258→    required this.filterAlertType,
+   259→    required this.filterSeverity,
+   260→    required this.onAlertTypeChanged,
+   261→    required this.onSeverityChanged,
+   262→    required this.onAcknowledge,
+   263→    required this.onResolve,
+   264→  });
+   265→
+   266→  final IntelligenceAlertType? filterAlertType;
+   267→  final IntelligenceSeverity? filterSeverity;
+   268→  final ValueChanged<IntelligenceAlertType?> onAlertTypeChanged;
+   269→  final ValueChanged<IntelligenceSeverity?> onSeverityChanged;
+   270→  final ValueChanged<String> onAcknowledge;
+   271→  final ValueChanged<String> onResolve;
+   272→
+   273→  @override
+   274→  Widget build(BuildContext context) {
+   275→    // We need a ref here to read the state, but since this is a StatelessWidget
+   276→    // in a ConsumerStatefulWidget, the parent will handle state. However, we
+   277→    // need alerts from the provider. We'll use Consumer.
+   278→    return Consumer(builder: (context, ref, _) {
+   279→      final state = ref.watch(intelligenceProvider);
+   280→      final cs = Theme.of(context).colorScheme;
+   281→
+   282→      return SingleChildScrollView(
+   283→        padding: Spacings.paddingScreen,
+   284→        child: Column(
+   285→          crossAxisAlignment: CrossAxisAlignment.start,
+   286→          children: [
+   287→            // ─── Generate Insights Button ─────────────────────────────
+   288→            Row(
+   289→              children: [
+   290→                Expanded(
+   291→                  child: Text(
+   292→                    'AI-Generated Alerts',
+   293→                    style: AppTypography.wBold.copyWith(fontSize: 18),
+   294→                  ),
+   295→                ),
+   296→                FilledButton.icon(
+   297→                  onPressed: () {
+   298→                    ref.read(intelligenceProvider.notifier).generateInsights();
+   299→                  },
+   300→                  icon: const Icon(Icons.auto_awesome, size: Spacings.smIcon),
+   301→                  label: const Text('Generate Insights'),
+   302→                ),
+   303→              ],
+   304→            ),
+   305→            const SizedBox(height: Spacings.md),
+   306→
+   307→            // ─── Filters ──────────────────────────────────────────────
+   308→            Row(
+   309→              crossAxisAlignment: CrossAxisAlignment.start,
+   310→              children: [
+   311→                Expanded(
+   312→                  child: Column(
+   313→                    crossAxisAlignment: CrossAxisAlignment.start,
+   314→                    children: [
+   315→                      Text(
+   316→                        'Alert Type',
+   317→                        style: AppTypography.wSemiBold.copyWith(
+   318→                          fontSize: 12,
+   319→                          color: cs.onSurface.withValues(alpha: 0.6),
+   320→                        ),
+   321→                      ),
+   322→                      const SizedBox(height: Spacings.xs),
+   323→                      FilterChipGroup<IntelligenceAlertType>(
+   324→                        items: IntelligenceAlertType.values.toList(),
+   325→                        selected: filterAlertType,
+   326→                        onSelected: onAlertTypeChanged,
+   327→                        labelBuilder: (type) => type.label,
+   328→                      ),
+   329→                    ],
+   330→                  ),
+   331→                ),
+   332→              ],
+   333→            ),
+   334→            const SizedBox(height: Spacings.sm),
+   335→            Column(
+   336→              crossAxisAlignment: CrossAxisAlignment.start,
+   337→              children: [
+   338→                Text(
+   339→                  'Severity',
+   340→                  style: AppTypography.wSemiBold.copyWith(
+   341→                    fontSize: 12,
+   342→                    color: cs.onSurface.withValues(alpha: 0.6),
+   343→                  ),
+   344→                ),
+   345→                const SizedBox(height: Spacings.xs),
+   346→                FilterChipGroup<IntelligenceSeverity>(
+   347→                  items: IntelligenceSeverity.values.toList(),
+   348→                  selected: filterSeverity,
+   349→                  onSelected: onSeverityChanged,
+   350→                  labelBuilder: (severity) => severity.label,
+   351→                ),
+   352→              ],
+   353→            ),
+   354→            const SizedBox(height: Spacings.lg),
+   355→
+   356→            // ─── Alert List ───────────────────────────────────────────
+   357→            if (state.alerts.isEmpty)
+   358→              const AdminEmptyState(
+   359→                message: 'No alerts match the current filters.',
+   360→                icon: Icons.notifications_off_outlined,
+   361→              )
+   362→            else
+   363→              ...state.alerts.map((alert) => Padding(
+   364→                    padding: const EdgeInsets.only(bottom: Spacings.md),
+   365→                    child: IntelligenceAlertCard(
+   366→                      alert: alert,
+   367→                      onAcknowledge: alert.isAcknowledged
+   368→                          ? null
+   369→                          : () => onAcknowledge(alert.id),
+   370→                      onResolve: alert.isResolved
+   371→                          ? null
+   372→                          : () => onResolve(alert.id),
+   373→                    ),
+   374→                  )),
+   375→          ],
+   376→        ),
+   377→      );
+   378→    });
+   379→  }
+   380→}
+   381→
+   382→// ═══════════════════════════════════════════════════════════════════════════════
+   383→// CHURN PREDICTION TAB
+   384→// ═══════════════════════════════════════════════════════════════════════════════
+   385→
+   386→class _ChurnPredictionTab extends StatelessWidget {
+   387→  const _ChurnPredictionTab({required this.churnPredictions});
+   388→
+   389→  final Map<String, dynamic>? churnPredictions;
+   390→
+   391→  @override
+   392→  Widget build(BuildContext context) {
+   393→    final cs = Theme.of(context).colorScheme;
+   394→
+   395→    if (churnPredictions == null) {
+   396→      return const AdminEmptyState(
+   397→        message: 'No churn prediction data available. Generate insights first.',
+   398→        icon: Icons.person_off_outlined,
+   399→      );
+   400→    }
+   401→
+   402→    final predictions = churnPredictions!['predictions'] as List<dynamic>? ?? [];
+   403→    if (predictions.isEmpty) {
+   404→      return const AdminEmptyState(
+   405→        message: 'No schools predicted to churn at this time.',
+   406→        icon: Icons.thumb_up_outlined,
+   407→      );
+   408→    }
+   409→
+   410→    return SingleChildScrollView(
+   411→      padding: Spacings.paddingScreen,
+   412→      child: Column(
+   413→        crossAxisAlignment: CrossAxisAlignment.start,
+   414→        children: [
+   415→          SectionHeader(
+   416→            title: 'Churn Prediction',
+   417→            subtitle: 'Schools at risk of churning based on AI analysis',
+   418→          ),
+   419→          const SizedBox(height: Spacings.md),
+   420→          ...predictions.map((pred) {
+   421→            final data = pred as Map<String, dynamic>;
+   422→            final schoolName = data['schoolName'] as String? ?? 'Unknown School';
+   423→            final probability = (data['churnProbability'] as num?)?.toDouble() ?? 0.0;
+   424→            final riskLevel = data['riskLevel'] as String? ?? 'low';
+   425→            final recommendedActions = data['recommendedActions'] as List<dynamic>? ?? [];
+   426→
+   427→            return _ChurnPredictionCard(
+   428→              schoolName: schoolName,
+   429→              probability: probability,
+   430→              riskLevel: riskLevel,
+   431→              recommendedActions: recommendedActions.cast<Map<String, dynamic>>(),
+   432→            );
+   433→          }),
+   434→        ],
+   435→      ),
+   436→    );
+   437→  }
+   438→}
+   439→
+   440→// ═══════════════════════════════════════════════════════════════════════════════
+   441→// CHURN PREDICTION CARD
+   442→// ═══════════════════════════════════════════════════════════════════════════════
+   443→
+   444→class _ChurnPredictionCard extends StatelessWidget {
+   445→  const _ChurnPredictionCard({
+   446→    required this.schoolName,
+   447→    required this.probability,
+   448→    required this.riskLevel,
+   449→    required this.recommendedActions,
+   450→  });
+   451→
+   452→  final String schoolName;
+   453→  final double probability;
+   454→  final String riskLevel;
+   455→  final List<Map<String, dynamic>> recommendedActions;
+   456→
+   457→  Color _riskColor() {
+   458→    switch (riskLevel.toLowerCase()) {
+   459→      case 'critical':
+   460→        return AppColors.error;
+   461→      case 'high':
+   462→        return AppColors.error;
+   463→      case 'medium':
+   464→        return AppColors.warning;
+   465→      case 'low':
+   466→        return AppColors.success;
+   467→      default:
+   468→        return AppColors.info;
+   469→    }
+   470→  }
+   471→
+   472→  IconData _riskIcon() {
+   473→    switch (riskLevel.toLowerCase()) {
+   474→      case 'critical':
+   475→        return Icons.dangerous;
+   476→      case 'high':
+   477→        return Icons.warning;
+   478→      case 'medium':
+   479→        return Icons.info;
+   480→      case 'low':
+   481→        return Icons.check_circle;
+   482→      default:
+   483→        return Icons.help;
+   484→    }
+   485→  }
+   486→
+   487→  @override
+   488→  Widget build(BuildContext context) {
+   489→    final cs = Theme.of(context).colorScheme;
+   490→    final riskColor = _riskColor();
+   491→
+   492→    return Card(
+   493→      elevation: Spacings.elevationSm,
+   494→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   495→      child: Padding(
+   496→        padding: Spacings.paddingAll,
+   497→        child: Column(
+   498→          crossAxisAlignment: CrossAxisAlignment.start,
+   499→          children: [
+   500→            // ─── Header ────────────────────────────────────────────────
+   501→            Row(
+   502→              children: [
+   503→                // Visual indicator dot
+   504→                Container(
+   505→                  width: 12,
+   506→                  height: 12,
+   507→                  decoration: BoxDecoration(
+   508→                    color: riskColor,
+   509→                    shape: BoxShape.circle,
+   510→                  ),
+   511→                ),
+   512→                const SizedBox(width: Spacings.sm),
+   513→                Expanded(
+   514→                  child: Text(
+   515→                    schoolName,
+   516→                    style: AppTypography.wSemiBold.copyWith(fontSize: 15),
+   517→                    overflow: TextOverflow.ellipsis,
+   518→                  ),
+   519→                ),
+   520→                StatusBadge(
+   521→                  label: riskLevel.toUpperCase(),
+   522→                  color: riskColor,
+   523→                  icon: _riskIcon(),
+   524→                ),
+   525→              ],
+   526→            ),
+   527→
+   528→            const SizedBox(height: Spacings.md),
+   529→
+   530→            // ─── Churn Probability Bar ─────────────────────────────────
+   531→            Row(
+   532→              children: [
+   533→                Text(
+   534→                  'Churn Probability',
+   535→                  style: AppTypography.wRegular.copyWith(
+   536→                    fontSize: 12,
+   537→                    color: cs.onSurface.withValues(alpha: 0.6),
+   538→                  ),
+   539→                ),
+   540→                const Spacer(),
+   541→                Text(
+   542→                  '${probability.toStringAsFixed(1)}%',
+   543→                  style: AppTypography.wBold.copyWith(
+   544→                    fontSize: 18,
+   545→                    color: riskColor,
+   546→                  ),
+   547→                ),
+   548→              ],
+   549→            ),
+   550→            const SizedBox(height: Spacings.xs),
+   551→            ClipRRect(
+   552→              borderRadius: Spacings.borderRadiusFull,
+   553→              child: LinearProgressIndicator(
+   554→                value: (probability / 100).clamp(0.0, 1.0),
+   555→                backgroundColor: cs.surfaceContainerHighest,
+   556→                color: riskColor,
+   557→                minHeight: 8,
+   558→              ),
+   559→            ),
+   560→
+   561→            // ─── Recommended Actions ──────────────────────────────────
+   562→            if (recommendedActions.isNotEmpty) ...[
+   563→              const SizedBox(height: Spacings.md),
+   564→              Text(
+   565→                'Recommended Actions',
+   566→                style: AppTypography.wSemiBold.copyWith(
+   567→                  fontSize: 13,
+   568→                  color: cs.onSurface.withValues(alpha: 0.7),
+   569→                ),
+   570→              ),
+   571→              const SizedBox(height: Spacings.sm),
+   572→              ...recommendedActions.map((action) => Padding(
+   573→                    padding: const EdgeInsets.only(bottom: Spacings.xs),
+   574→                    child: Row(
+   575→                      crossAxisAlignment: CrossAxisAlignment.start,
+   576→                      children: [
+   577→                        Icon(
+   578→                          Icons.arrow_right,
+   579→                          size: Spacings.mdIcon,
+   580→                          color: cs.primary,
+   581→                        ),
+   582→                        const SizedBox(width: Spacings.xs),
+   583→                        Expanded(
+   584→                          child: Text(
+   585→                            action['description'] as String? ?? action['action'] as String? ?? '',
+   586→                            style: AppTypography.wRegular.copyWith(fontSize: 13),
+   587→                          ),
+   588→                        ),
+   589→                      ],
+   590→                    ),
+   591→                  )),
+   592→            ],
+   593→          ],
+   594→        ),
+   595→      ),
+   596→    );
+   597→  }
+   598→}
+   599→
+   600→// ═══════════════════════════════════════════════════════════════════════════════
+   601→// REVENUE FORECAST TAB
+   602→// ═══════════════════════════════════════════════════════════════════════════════
+   603→
+   604→class _RevenueForecastTab extends StatelessWidget {
+   605→  const _RevenueForecastTab({required this.revenueForecast});
+   606→
+   607→  final Map<String, dynamic>? revenueForecast;
+   608→
+   609→  @override
+   610→  Widget build(BuildContext context) {
+   611→    final cs = Theme.of(context).colorScheme;
+   612→
+   613→    if (revenueForecast == null) {
+   614→      return const AdminEmptyState(
+   615→        message: 'No revenue forecast data available. Generate insights first.',
+   616→        icon: Icons.show_chart,
+   617→      );
+   618→    }
+   619→
+   620→    final forecastMonths =
+   621→        revenueForecast!['months'] as List<dynamic>? ?? [];
+   622→    final overallConfidence =
+   623→        (revenueForecast!['overallConfidence'] as num?)?.toDouble() ?? 0.0;
+   624→
+   625→    if (forecastMonths.isEmpty) {
+   626→      return const AdminEmptyState(
+   627→        message: 'No forecast data available.',
+   628→        icon: Icons.show_chart,
+   629→      );
+   630→    }
+   631→
+   632→    // Find max value for scaling
+   633→    double maxValue = 0;
+   634→    for (final m in forecastMonths) {
+   635→      final data = m as Map<String, dynamic>;
+   636→      final upper = (data['upperBound'] as num?)?.toDouble() ?? 0;
+   637→      if (upper > maxValue) maxValue = upper;
+   638→    }
+   639→    if (maxValue == 0) maxValue = 1;
+   640→
+   641→    return SingleChildScrollView(
+   642→      padding: Spacings.paddingScreen,
+   643→      child: Column(
+   644→        crossAxisAlignment: CrossAxisAlignment.start,
+   645→        children: [
+   646→          SectionHeader(
+   647→            title: 'Revenue Forecast',
+   648→            subtitle: '6-month AI-powered revenue prediction',
+   649→          ),
+   650→          const SizedBox(height: Spacings.md),
+   651→
+   652→          // ─── Confidence Indicator ──────────────────────────────────
+   653→          Card(
+   654→            elevation: Spacings.elevationSm,
+   655→            shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   656→            child: Padding(
+   657→              padding: Spacings.paddingAll,
+   658→              child: Row(
+   659→                children: [
+   660→                  Icon(Icons.analytics, color: cs.primary, size: Spacings.lgIcon),
+   661→                  const SizedBox(width: Spacings.sm),
+   662→                  Expanded(
+   663→                    child: Column(
+   664→                      crossAxisAlignment: CrossAxisAlignment.start,
+   665→                      children: [
+   666→                        Text(
+   667→                          'Overall Confidence',
+   668→                          style: AppTypography.wRegular.copyWith(
+   669→                            fontSize: 12,
+   670→                            color: cs.onSurface.withValues(alpha: 0.6),
+   671→                          ),
+   672→                        ),
+   673→                        Text(
+   674→                          '${overallConfidence.toStringAsFixed(1)}%',
+   675→                          style: AppTypography.wBold.copyWith(
+   676→                            fontSize: 20,
+   677→                            color: overallConfidence >= 80
+   678→                                ? AppColors.success
+   679→                                : overallConfidence >= 60
+   680→                                    ? AppColors.warning
+   681→                                    : AppColors.error,
+   682→                          ),
+   683→                        ),
+   684→                      ],
+   685→                    ),
+   686→                  ),
+   687→                ],
+   688→              ),
+   689→            ),
+   690→          ),
+   691→
+   692→          const SizedBox(height: Spacings.lg),
+   693→
+   694→          // ─── Forecast Bars ─────────────────────────────────────────
+   695→          Card(
+   696→            elevation: Spacings.elevationSm,
+   697→            shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   698→            child: Padding(
+   699→              padding: Spacings.paddingAll,
+   700→              child: Column(
+   701→                crossAxisAlignment: CrossAxisAlignment.start,
+   702→                children: [
+   703→                  Text(
+   704→                    'Monthly Forecast',
+   705→                    style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+   706→                  ),
+   707→                  const SizedBox(height: Spacings.lg),
+   708→                  ...forecastMonths.map((m) {
+   709→                    final data = m as Map<String, dynamic>;
+   710→                    final month = data['month'] as String? ?? 'Unknown';
+   711→                    final predicted = (data['predicted'] as num?)?.toDouble() ?? 0;
+   712→                    final lower = (data['lowerBound'] as num?)?.toDouble() ?? 0;
+   713→                    final upper = (data['upperBound'] as num?)?.toDouble() ?? 0;
+   714→                    final confidence = (data['confidence'] as num?)?.toDouble() ?? 0;
+   715→
+   716→                    return _ForecastBar(
+   717→                      month: month,
+   718→                      predicted: predicted,
+   719→                      lowerBound: lower,
+   720→                      upperBound: upper,
+   721→                      confidence: confidence,
+   722→                      maxValue: maxValue,
+   723→                    );
+   724→                  }),
+   725→                ],
+   726→              ),
+   727→            ),
+   728→          ),
+   729→        ],
+   730→      ),
+   731→    );
+   732→  }
+   733→}
+   734→
+   735→// ═══════════════════════════════════════════════════════════════════════════════
+   736→// FORECAST BAR WIDGET
+   737→// ═══════════════════════════════════════════════════════════════════════════════
+   738→
+   739→class _ForecastBar extends StatelessWidget {
+   740→  const _ForecastBar({
+   741→    required this.month,
+   742→    required this.predicted,
+   743→    required this.lowerBound,
+   744→    required this.upperBound,
+   745→    required this.confidence,
+   746→    required this.maxValue,
+   747→  });
+   748→
+   749→  final String month;
+   750→  final double predicted;
+   751→  final double lowerBound;
+   752→  final double upperBound;
+   753→  final double confidence;
+   754→  final double maxValue;
+   755→
+   756→  @override
+   757→  Widget build(BuildContext context) {
+   758→    final cs = Theme.of(context).colorScheme;
+   759→    final predictedFraction = (predicted / maxValue).clamp(0.0, 1.0);
+   760→    final lowerFraction = (lowerBound / maxValue).clamp(0.0, 1.0);
+   761→    final upperFraction = (upperBound / maxValue).clamp(0.0, 1.0);
+   762→
+   763→    return Padding(
+   764→      padding: const EdgeInsets.only(bottom: Spacings.md),
+   765→      child: Column(
+   766→        crossAxisAlignment: CrossAxisAlignment.start,
+   767→        children: [
+   768→          Row(
+   769→            children: [
+   770→              SizedBox(
+   771→                width: 80,
+   772→                child: Text(
+   773→                  month,
+   774→                  style: AppTypography.wSemiBold.copyWith(fontSize: 13),
+   775→                ),
+   776→              ),
+   777→              Expanded(
+   778→                child: Column(
+   779→                  crossAxisAlignment: CrossAxisAlignment.start,
+   780→                  children: [
+   781→                    // Confidence interval range
+   782→                    Stack(
+   783→                      children: [
+   784→                        // Background
+   785→                        Container(
+   786→                          height: 28,
+   787→                          decoration: BoxDecoration(
+   788→                            color: cs.surfaceContainerHighest,
+   789→                            borderRadius: Spacings.borderRadiusSm,
+   790→                          ),
+   791→                        ),
+   792→                        // Confidence interval (lighter)
+   793→                        FractionallySizedBox(
+   794→                          widthFactor: upperFraction,
+   795→                          child: Container(
+   796→                            height: 28,
+   797→                            decoration: BoxDecoration(
+   798→                              color: cs.primary.withValues(alpha: 0.15),
+   799→                              borderRadius: Spacings.borderRadiusSm,
+   800→                            ),
+   801→                          ),
+   802→                        ),
+   803→                        // Predicted value (darker bar)
+   804→                        FractionallySizedBox(
+   805→                          widthFactor: predictedFraction,
+   806→                          child: Container(
+   807→                            height: 28,
+   808→                            decoration: BoxDecoration(
+   809→                              color: cs.primary.withValues(alpha: 0.5),
+   810→                              borderRadius: Spacings.borderRadiusSm,
+   811→                            ),
+   812→                            alignment: Alignment.centerLeft,
+   813→                            padding: const EdgeInsets.only(left: Spacings.sm),
+   814→                            child: Text(
+   815→                              '\$${_formatCompact(predicted)}',
+   816→                              style: AppTypography.wSemiBold.copyWith(
+   817→                                fontSize: 11,
+   818→                                color: cs.onPrimary,
+   819→                              ),
+   820→                              overflow: TextOverflow.ellipsis,
+   821→                            ),
+   822→                          ),
+   823→                        ),
+   824→                      ],
+   825→                    ),
+   826→                  ],
+   827→                ),
+   828→              ),
+   829→              const SizedBox(width: Spacings.sm),
+   830→              SizedBox(
+   831→                width: 60,
+   832→                child: Text(
+   833→                  '${confidence.toStringAsFixed(0)}% conf.',
+   834→                  style: AppTypography.wRegular.copyWith(
+   835→                    fontSize: 11,
+   836→                    color: cs.onSurface.withValues(alpha: 0.5),
+   837→                  ),
+   838→                  textAlign: TextAlign.right,
+   839→                ),
+   840→              ),
+   841→            ],
+   842→          ),
+   843→          const SizedBox(height: Spacings.xs),
+   844→          Row(
+   845→            children: [
+   846→              const SizedBox(width: 80),
+   847→              Text(
+   848→                'Range: \$${_formatCompact(lowerBound)} — \$${_formatCompact(upperBound)}',
+   849→                style: AppTypography.wRegular.copyWith(
+   850→                  fontSize: 11,
+   851→                  color: cs.onSurface.withValues(alpha: 0.4),
+   852→                ),
+   853→              ),
+   854→            ],
+   855→          ),
+   856→        ],
+   857→      ),
+   858→    );
+   859→  }
+   860→
+   861→  String _formatCompact(double value) {
+   862→    if (value >= 1000000) return '${(value / 1000000).toStringAsFixed(1)}M';
+   863→    if (value >= 1000) return '${(value / 1000).toStringAsFixed(1)}K';
+   864→    return value.toStringAsFixed(0);
+   865→  }
+   866→}
+   867→
+   868→// ═══════════════════════════════════════════════════════════════════════════════
+   869→// COST OPTIMIZATION TAB
+   870→// ═══════════════════════════════════════════════════════════════════════════════
+   871→
+   872→class _CostOptimizationTab extends StatelessWidget {
+   873→  const _CostOptimizationTab({required this.costOptimizations});
+   874→
+   875→  final Map<String, dynamic>? costOptimizations;
+   876→
+   877→  @override
+   878→  Widget build(BuildContext context) {
+   879→    final cs = Theme.of(context).colorScheme;
+   880→
+   881→    if (costOptimizations == null) {
+   882→      return const AdminEmptyState(
+   883→        message: 'No cost optimization data available. Generate insights first.',
+   884→        icon: Icons.savings_outlined,
+   885→      );
+   886→    }
+   887→
+   888→    final currentSpend = (costOptimizations!['currentMonthlySpend'] as num?)?.toDouble() ?? 0;
+   889→    final optimizedSpend = (costOptimizations!['optimizedMonthlySpend'] as num?)?.toDouble() ?? 0;
+   890→    final potentialSavings = currentSpend - optimizedSpend;
+   891→    final savingsPercentage = currentSpend > 0 ? (potentialSavings / currentSpend) * 100 : 0;
+   892→    final suggestions = costOptimizations!['suggestions'] as List<dynamic>? ?? [];
+   893→    final providerBreakdown = costOptimizations!['providerBreakdown'] as List<dynamic>? ?? [];
+   894→
+   895→    return SingleChildScrollView(
+   896→      padding: Spacings.paddingScreen,
+   897→      child: Column(
+   898→        crossAxisAlignment: CrossAxisAlignment.start,
+   899→        children: [
+   900→          SectionHeader(
+   901→            title: 'Cost Optimization',
+   902→            subtitle: 'AI-powered suggestions to reduce infrastructure costs',
+   903→          ),
+   904→          const SizedBox(height: Spacings.md),
+   905→
+   906→          // ─── Spend Comparison Cards ────────────────────────────────
+   907→          Row(
+   908→            children: [
+   909→              Expanded(
+   910→                child: MetricCard(
+   911→                  title: 'Current Spend',
+   912→                  value: '\$${currentSpend.toStringAsFixed(2)}',
+   913→                  icon: Icons.payments,
+   914→                  color: AppColors.error,
+   915→                  subtitle: 'Per month',
+   916→                ),
+   917→              ),
+   918→              const SizedBox(width: Spacings.md),
+   919→              Expanded(
+   920→                child: MetricCard(
+   921→                  title: 'Optimized Spend',
+   922→                  value: '\$${optimizedSpend.toStringAsFixed(2)}',
+   923→                  icon: Icons.savings,
+   924→                  color: AppColors.success,
+   925→                  subtitle: 'Per month',
+   926→                ),
+   927→              ),
+   928→              const SizedBox(width: Spacings.md),
+   929→              Expanded(
+   930→                child: MetricCard(
+   931→                  title: 'Potential Savings',
+   932→                  value: '\$${potentialSavings.toStringAsFixed(2)}',
+   933→                  icon: Icons.trending_down,
+   934→                  color: AppColors.success,
+   935→                  subtitle: '${savingsPercentage.toStringAsFixed(1)}% reduction',
+   936→                  trend: savingsPercentage > 0 ? '-${savingsPercentage.toStringAsFixed(1)}%' : null,
+   937→                  trendIsUp: false,
+   938→                ),
+   939→              ),
+   940→            ],
+   941→          ),
+   942→
+   943→          const SizedBox(height: Spacings.xl),
+   944→
+   945→          // ─── Spend Comparison Bar ──────────────────────────────────
+   946→          Card(
+   947→            elevation: Spacings.elevationSm,
+   948→            shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   949→            child: Padding(
+   950→              padding: Spacings.paddingAll,
+   951→              child: Column(
+   952→                crossAxisAlignment: CrossAxisAlignment.start,
+   953→                children: [
+   954→                  Text(
+   955→                    'Spend Comparison',
+   956→                    style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+   957→                  ),
+   958→                  const SizedBox(height: Spacings.lg),
+   959→                  _ComparisonBar(
+   960→                    label: 'Current',
+   961→                    value: currentSpend,
+   962→                    maxValue: currentSpend > 0 ? currentSpend : 1,
+   963→                    color: AppColors.error,
+   964→                  ),
+   965→                  const SizedBox(height: Spacings.md),
+   966→                  _ComparisonBar(
+   967→                    label: 'Optimized',
+   968→                    value: optimizedSpend,
+   969→                    maxValue: currentSpend > 0 ? currentSpend : 1,
+   970→                    color: AppColors.success,
+   971→                  ),
+   972→                ],
+   973→              ),
+   974→            ),
+   975→          ),
+   976→
+   977→          const SizedBox(height: Spacings.xl),
+   978→
+   979→          // ─── Provider Breakdown ────────────────────────────────────
+   980→          if (providerBreakdown.isNotEmpty) ...[
+   981→            Text(
+   982→              'Provider Cost Breakdown',
+   983→              style: AppTypography.wBold.copyWith(fontSize: 16),
+   984→            ),
+   985→            const SizedBox(height: Spacings.md),
+   986→            ...providerBreakdown.map((item) {
+   987→              final data = item as Map<String, dynamic>;
+   988→              final name = data['providerName'] as String? ?? 'Unknown';
+   989→              final current = (data['currentSpend'] as num?)?.toDouble() ?? 0;
+   990→              final optimized = (data['optimizedSpend'] as num?)?.toDouble() ?? 0;
+   991→              return _ProviderCostCard(
+   992→                providerName: name,
+   993→                currentSpend: current,
+   994→                optimizedSpend: optimized,
+   995→                maxValue: currentSpend > 0 ? currentSpend : 1,
+   996→              );
+   997→            }),
+   998→            const SizedBox(height: Spacings.xl),
+   999→          ],
+  1000→
+  1001→          // ─── Optimization Suggestions ──────────────────────────────
+  1002→          if (suggestions.isNotEmpty) ...[
+  1003→            Text(
+  1004→              'Optimization Suggestions',
+  1005→              style: AppTypography.wBold.copyWith(fontSize: 16),
+  1006→            ),
+  1007→            const SizedBox(height: Spacings.md),
+  1008→            ...suggestions.map((suggestion) {
+  1009→              final data = suggestion as Map<String, dynamic>;
+  1010→              final title = data['title'] as String? ?? 'Optimization';
+  1011→              final description = data['description'] as String? ?? '';
+  1012→              final impact = data['impact'] as String? ?? 'medium';
+  1013→              final estimatedSavings = (data['estimatedSavings'] as num?)?.toDouble() ?? 0;
+  1014→
+  1015→              return Card(
+  1016→                elevation: Spacings.elevationNone,
+  1017→                shape: RoundedRectangleBorder(
+  1018→                  borderRadius: Spacings.borderRadiusMd,
+  1019→                  side: BorderSide(
+  1020→                    color: cs.outlineVariant,
+  1021→                  ),
+  1022→                ),
+  1023→                child: Padding(
+  1024→                  padding: Spacings.paddingAll,
+  1025→                  child: Row(
+  1026→                    crossAxisAlignment: CrossAxisAlignment.start,
+  1027→                    children: [
+  1028→                      Container(
+  1029→                        padding: const EdgeInsets.all(Spacings.sm),
+  1030→                        decoration: BoxDecoration(
+  1031→                          color: AppColors.success.withValues(alpha: 0.1),
+  1032→                          borderRadius: Spacings.borderRadiusSm,
+  1033→                        ),
+  1034→                        child: const Icon(
+  1035→                          Icons.lightbulb_outline,
+  1036→                          color: AppColors.success,
+  1037→                          size: Spacings.mdIcon,
+  1038→                        ),
+  1039→                      ),
+  1040→                      const SizedBox(width: Spacings.md),
+  1041→                      Expanded(
+  1042→                        child: Column(
+  1043→                          crossAxisAlignment: CrossAxisAlignment.start,
+  1044→                          children: [
+  1045→                            Row(
+  1046→                              children: [
+  1047→                                Expanded(
+  1048→                                  child: Text(
+  1049→                                    title,
+  1050→                                    style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+  1051→                                  ),
+  1052→                                ),
+  1053→                                StatusBadge(
+  1054→                                  label: impact.toUpperCase(),
+  1055→                                  color: impact == 'high'
+  1056→                                      ? AppColors.error
+  1057→                                      : impact == 'medium'
+  1058→                                          ? AppColors.warning
+  1059→                                          : AppColors.info,
+  1060→                                ),
+  1061→                              ],
+  1062→                            ),
+  1063→                            const SizedBox(height: Spacings.xs),
+  1064→                            Text(
+  1065→                              description,
+  1066→                              style: AppTypography.wRegular.copyWith(
+  1067→                                fontSize: 13,
+  1068→                                color: cs.onSurface.withValues(alpha: 0.7),
+  1069→                              ),
+  1070→                            ),
+  1071→                            if (estimatedSavings > 0) ...[
+  1072→                              const SizedBox(height: Spacings.sm),
+  1073→                              Text(
+  1074→                                'Estimated savings: \$${estimatedSavings.toStringAsFixed(2)}/mo',
+  1075→                                style: AppTypography.wSemiBold.copyWith(
+  1076→                                  fontSize: 12,
+  1077→                                  color: AppColors.success,
+  1078→                                ),
+  1079→                              ),
+  1080→                            ],
+  1081→                          ],
+  1082→                        ),
+  1083→                      ),
+  1084→                    ],
+  1085→                  ),
+  1086→                ),
+  1087→              );
+  1088→            }),
+  1089→          ],
+  1090→        ],
+  1091→      ),
+  1092→    );
+  1093→  }
+  1094→}
+  1095→
+  1096→// ═══════════════════════════════════════════════════════════════════════════════
+  1097→// COMPARISON BAR WIDGET
+  1098→// ═══════════════════════════════════════════════════════════════════════════════
+  1099→
+  1100→class _ComparisonBar extends StatelessWidget {
+  1101→  const _ComparisonBar({
+  1102→    required this.label,
+  1103→    required this.value,
+  1104→    required this.maxValue,
+  1105→    required this.color,
+  1106→  });
+  1107→
+  1108→  final String label;
+  1109→  final double value;
+  1110→  final double maxValue;
+  1111→  final Color color;
+  1112→
+  1113→  @override
+  1114→  Widget build(BuildContext context) {
+  1115→    final cs = Theme.of(context).colorScheme;
+  1116→    final fraction = maxValue > 0 ? (value / maxValue).clamp(0.0, 1.0) : 0.0;
+  1117→
+  1118→    return Row(
+  1119→      children: [
+  1120→        SizedBox(
+  1121→          width: 80,
+  1122→          child: Text(
+  1123→            label,
+  1124→            style: AppTypography.wSemiBold.copyWith(
+  1125→              fontSize: 13,
+  1126→              color: cs.onSurface.withValues(alpha: 0.7),
+  1127→            ),
+  1128→          ),
+  1129→        ),
+  1130→        Expanded(
+  1131→          child: ClipRRect(
+  1132→            borderRadius: Spacings.borderRadiusSm,
+  1133→            child: LinearProgressIndicator(
+  1134→              value: fraction,
+  1135→              backgroundColor: cs.surfaceContainerHighest,
+  1136→              color: color,
+  1137→              minHeight: 20,
+  1138→            ),
+  1139→          ),
+  1140→        ),
+  1141→        const SizedBox(width: Spacings.sm),
+  1142→        SizedBox(
+  1143→          width: 90,
+  1144→          child: Text(
+  1145→            '\$${value.toStringAsFixed(2)}',
+  1146→            style: AppTypography.wSemiBold.copyWith(fontSize: 13),
+  1147→            textAlign: TextAlign.right,
+  1148→          ),
+  1149→        ),
+  1150→      ],
+  1151→    );
+  1152→  }
+  1153→}
+  1154→
+  1155→// ═══════════════════════════════════════════════════════════════════════════════
+  1156→// PROVIDER COST CARD
+  1157→// ═══════════════════════════════════════════════════════════════════════════════
+  1158→
+  1159→class _ProviderCostCard extends StatelessWidget {
+  1160→  const _ProviderCostCard({
+  1161→    required this.providerName,
+  1162→    required this.currentSpend,
+  1163→    required this.optimizedSpend,
+  1164→    required this.maxValue,
+  1165→  });
+  1166→
+  1167→  final String providerName;
+  1168→  final double currentSpend;
+  1169→  final double optimizedSpend;
+  1170→  final double maxValue;
+  1171→
+  1172→  @override
+  1173→  Widget build(BuildContext context) {
+  1174→    final cs = Theme.of(context).colorScheme;
+  1175→    final savings = currentSpend - optimizedSpend;
+  1176→    final savingsPercent = currentSpend > 0 ? (savings / currentSpend) * 100 : 0;
+  1177→
+  1178→    return Card(
+  1179→      elevation: Spacings.elevationNone,
+  1180→      shape: RoundedRectangleBorder(
+  1181→        borderRadius: Spacings.borderRadiusMd,
+  1182→        side: BorderSide(color: cs.outlineVariant),
+  1183→      ),
+  1184→      child: Padding(
+  1185→        padding: Spacings.paddingAll,
+  1186→        child: Column(
+  1187→          crossAxisAlignment: CrossAxisAlignment.start,
+  1188→          children: [
+  1189→            Row(
+  1190→              children: [
+  1191→                Icon(Icons.cloud, size: Spacings.mdIcon, color: cs.primary),
+  1192→                const SizedBox(width: Spacings.sm),
+  1193→                Expanded(
+  1194→                  child: Text(
+  1195→                    providerName,
+  1196→                    style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+  1197→                  ),
+  1198→                ),
+  1199→                if (savings > 0)
+  1200→                  Container(
+  1201→                    padding: const EdgeInsets.symmetric(
+  1202→                      horizontal: Spacings.sm,
+  1203→                      vertical: Spacings.xs,
+  1204→                    ),
+  1205→                    decoration: BoxDecoration(
+  1206→                      color: AppColors.success.withValues(alpha: 0.1),
+  1207→                      borderRadius: Spacings.borderRadiusSm,
+  1208→                    ),
+  1209→                    child: Text(
+  1210→                      'Save ${savingsPercent.toStringAsFixed(0)}%',
+  1211→                      style: AppTypography.wSemiBold.copyWith(
+  1212→                        fontSize: 11,
+  1213→                        color: AppColors.success,
+  1214→                      ),
+  1215→                    ),
+  1216→                  ),
+  1217→              ],
+  1218→            ),
+  1219→            const SizedBox(height: Spacings.sm),
+  1220→            _ComparisonBar(
+  1221→              label: 'Current',
+  1222→              value: currentSpend,
+  1223→              maxValue: maxValue,
+  1224→              color: AppColors.error,
+  1225→            ),
+  1226→            const SizedBox(height: Spacings.xs),
+  1227→            _ComparisonBar(
+  1228→              label: 'Optimized',
+  1229→              value: optimizedSpend,
+  1230→              maxValue: maxValue,
+  1231→              color: AppColors.success,
+  1232→            ),
+  1233→          ],
+  1234→        ),
+  1235→      ),
+  1236→    );
+  1237→  }
+  1238→}
+  1239→

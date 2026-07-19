@@ -1,0 +1,830 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→import '../../../../../core/themes/app_colors.dart';
+     5→import '../../../../../core/themes/spacings.dart';
+     6→import '../../../../../core/themes/app_typography.dart';
+     7→import '../../../../../shared/widgets/app_app_bar.dart';
+     8→import '../../../../../shared/widgets/app_loading.dart';
+     9→import '../../../../../routing/route_names.dart';
+    10→import '../../domain/entities/super_admin_entities.dart';
+    11→import '../providers/super_admin_providers.dart';
+    12→import '../widgets/super_admin_widgets.dart';
+    13→
+    14→// ═══════════════════════════════════════════════════════════════════════════════
+    15→// CONSTANTS
+    16→// ═══════════════════════════════════════════════════════════════════════════════
+    17→
+    18→const List<MapEntry<String, String>> _kRoleOptions = [
+    19→  MapEntry('super_admin', 'Super Admin'),
+    20→  MapEntry('school_admin', 'School Admin'),
+    21→  MapEntry('teacher', 'Teacher'),
+    22→  MapEntry('student', 'Student'),
+    23→  MapEntry('parent', 'Parent'),
+    24→];
+    25→
+    26→// ═══════════════════════════════════════════════════════════════════════════════
+    27→// HELPER FUNCTIONS
+    28→// ═══════════════════════════════════════════════════════════════════════════════
+    29→
+    30→String _roleLabel(String role) {
+    31→  for (final entry in _kRoleOptions) {
+    32→    if (entry.key == role) return entry.value;
+    33→  }
+    34→  return role;
+    35→}
+    36→
+    37→Color _roleColor(String role) {
+    38→  switch (role) {
+    39→    case 'super_admin':
+    40→      return AppColors.error;
+    41→    case 'school_admin':
+    42→      return AppColors.info;
+    43→    case 'teacher':
+    44→      return AppColors.success;
+    45→    case 'student':
+    46→      return AppColors.seed;
+    47→    case 'parent':
+    48→      return AppColors.warning;
+    49→    default:
+    50→      return Colors.grey;
+    51→  }
+    52→}
+    53→
+    54→IconData _roleIcon(String role) {
+    55→  switch (role) {
+    56→    case 'super_admin':
+    57→      return Icons.admin_panel_settings_outlined;
+    58→    case 'school_admin':
+    59→      return Icons.domain_outlined;
+    60→    case 'teacher':
+    61→      return Icons.school_outlined;
+    62→    case 'student':
+    63→      return Icons.person_outline_rounded;
+    64→    case 'parent':
+    65→      return Icons.family_restroom_outlined;
+    66→    default:
+    67→      return Icons.person_outline;
+    68→  }
+    69→}
+    70→
+    71→String _formatLastLogin(DateTime? lastLoginAt) {
+    72→  if (lastLoginAt == null) return 'Never';
+    73→  final now = DateTime.now();
+    74→  final diff = now.difference(lastLoginAt);
+    75→  if (diff.inMinutes < 1) return 'Just now';
+    76→  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    77→  if (diff.inDays < 1) return '${diff.inHours}h ago';
+    78→  if (diff.inDays < 30) return '${diff.inDays}d ago';
+    79→  return '${lastLoginAt.day}/${lastLoginAt.month}/${lastLoginAt.year}';
+    80→}
+    81→
+    82→// ═══════════════════════════════════════════════════════════════════════════════
+    83→// USER MANAGEMENT PAGE
+    84→// ═══════════════════════════════════════════════════════════════════════════════
+    85→
+    86→/// Super Admin page for managing all users across the platform.
+    87→///
+    88→/// Features:
+    89→/// - Search bar for filtering users by name/email
+    90→/// - Filter chips for role: Super Admin, School Admin, Teacher, Student, Parent
+    91→/// - Filter for: Active/Inactive
+    92→/// - DataTable/ListView showing: Name, Email, Role, School, Status, Last Login, Actions
+    93→/// - Actions per user: Suspend/Activate, Reset Password, Change Role, Impersonate
+    94→/// - Suspend dialog with reason
+    95→/// - Impersonate dialog with reason + confirmation warning
+    96→/// - Change Role dialog with dropdown
+    97→class UserManagementPage extends ConsumerStatefulWidget {
+    98→  const UserManagementPage({super.key});
+    99→
+   100→  @override
+   101→  ConsumerState<UserManagementPage> createState() =>
+   102→      _UserManagementPageState();
+   103→}
+   104→
+   105→class _UserManagementPageState extends ConsumerState<UserManagementPage> {
+   106→  // ─── Controllers & State ─────────────────────────────────────────────────
+   107→
+   108→  final _searchController = TextEditingController();
+   109→  final _suspendReasonController = TextEditingController();
+   110→  final _impersonateReasonController = TextEditingController();
+   111→
+   112→  String? _roleFilter;
+   113→  bool? _activeFilter;
+   114→
+   115→  // ─── Lifecycle ───────────────────────────────────────────────────────────
+   116→
+   117→  @override
+   118→  void initState() {
+   119→    super.initState();
+   120→    WidgetsBinding.instance.addPostFrameCallback((_) {
+   121→      _loadData();
+   122→    });
+   123→  }
+   124→
+   125→  @override
+   126→  void dispose() {
+   127→    _searchController.dispose();
+   128→    _suspendReasonController.dispose();
+   129→    _impersonateReasonController.dispose();
+   130→    super.dispose();
+   131→  }
+   132→
+   133→  void _loadData() {
+   134→    ref.read(userManagementProvider.notifier).loadUsers(
+   135→          role: _roleFilter,
+   136→          isActive: _activeFilter,
+   137→          search: _searchController.text.trim().isEmpty
+   138→              ? null
+   139→              : _searchController.text.trim(),
+   140→        );
+   141→  }
+   142→
+   143→  // ─── Build ───────────────────────────────────────────────────────────────
+   144→
+   145→  @override
+   146→  Widget build(BuildContext context) {
+   147→    final state = ref.watch(userManagementProvider);
+   148→    final cs = Theme.of(context).colorScheme;
+   149→
+   150→    // Listen for success/error messages
+   151→    ref.listen<UserManagementState>(userManagementProvider, (prev, next) {
+   152→      if (next.successMessage != null &&
+   153→          prev?.successMessage != next.successMessage) {
+   154→        ScaffoldMessenger.of(context).showSnackBar(
+   155→          SnackBar(
+   156→            content: Text(next.successMessage!),
+   157→            backgroundColor: AppColors.success,
+   158→            behavior: SnackBarBehavior.floating,
+   159→          ),
+   160→        );
+   161→        ref.read(userManagementProvider.notifier).state =
+   162→            ref.read(userManagementProvider).clearSuccess();
+   163→      }
+   164→      if (next.error != null && prev?.error != next.error) {
+   165→        ScaffoldMessenger.of(context).showSnackBar(
+   166→          SnackBar(
+   167→            content: Text(next.error!),
+   168→            backgroundColor: AppColors.error,
+   169→            behavior: SnackBarBehavior.floating,
+   170→          ),
+   171→        );
+   172→        ref.read(userManagementProvider.notifier).state =
+   173→            ref.read(userManagementProvider).clearError();
+   174→      }
+   175→    });
+   176→
+   177→    return Scaffold(
+   178→      appBar: AppAppBar(
+   179→        title: 'User Management',
+   180→        actions: [
+   181→          IconButton(
+   182→            icon: const Icon(Icons.refresh_rounded),
+   183→            tooltip: 'Refresh',
+   184→            onPressed: _loadData,
+   185→          ),
+   186→        ],
+   187→      ),
+   188→      body: _buildBody(context, state, cs),
+   189→    );
+   190→  }
+   191→
+   192→  // ─── Body ────────────────────────────────────────────────────────────────
+   193→
+   194→  Widget _buildBody(
+   195→      BuildContext context, UserManagementState state, ColorScheme cs) {
+   196→    if (state.isLoading && state.users.isEmpty) {
+   197→      return const Center(
+   198→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+   199→    }
+   200→
+   201→    if (state.error != null && state.users.isEmpty) {
+   202→      return Center(
+   203→        child: Padding(
+   204→          padding: Spacings.paddingAll,
+   205→          child: Column(
+   206→            mainAxisSize: MainAxisSize.min,
+   207→            children: [
+   208→              Icon(Icons.error_outline_rounded, size: 48, color: cs.error),
+   209→              const SizedBox(height: Spacings.lg),
+   210→              Text(
+   211→                state.error!,
+   212→                style: AppTypography.wRegular.copyWith(
+   213→                  fontSize: 14,
+   214→                  color: cs.onSurface.withValues(alpha: 0.7),
+   215→                ),
+   216→                textAlign: TextAlign.center,
+   217→              ),
+   218→              const SizedBox(height: Spacings.lg),
+   219→              FilledButton.tonal(
+   220→                onPressed: _loadData,
+   221→                child: const Text('Retry'),
+   222→              ),
+   223→            ],
+   224→          ),
+   225→        ),
+   226→      );
+   227→    }
+   228→
+   229→    return Column(
+   230→      children: [
+   231→        // ─── Search & Filters ────────────────────────────────────────────
+   232→        Padding(
+   233→          padding: Spacings.paddingScreen,
+   234→          child: Column(
+   235→            children: [
+   236→              AdminSearchBar(
+   237→                controller: _searchController,
+   238→                hint: 'Search users by name or email...',
+   239→                onChanged: (value) => _loadData(),
+   240→              ),
+   241→              const SizedBox(height: Spacings.md),
+   242→              _buildFilterChips(cs),
+   243→            ],
+   244→          ),
+   245→        ),
+   246→
+   247→        // ─── Count Label ─────────────────────────────────────────────────
+   248→        Padding(
+   249→          padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   250→          child: Row(
+   251→            children: [
+   252→              Text(
+   253→                '${state.totalCount} user${state.totalCount == 1 ? '' : 's'}',
+   254→                style: AppTypography.wMedium.copyWith(
+   255→                  fontSize: 13,
+   256→                  color: cs.onSurface.withValues(alpha: 0.6),
+   257→                ),
+   258→              ),
+   259→            ],
+   260→          ),
+   261→        ),
+   262→        const SizedBox(height: Spacings.sm),
+   263→
+   264→        // ─── User List ───────────────────────────────────────────────────
+   265→        Expanded(
+   266→          child: state.users.isEmpty
+   267→              ? const AdminEmptyState(
+   268→                  message: 'No users found',
+   269→                  icon: Icons.people_outline_rounded,
+   270→                )
+   271→              : _buildUserList(context, state, cs),
+   272→        ),
+   273→      ],
+   274→    );
+   275→  }
+   276→
+   277→  // ─── Filter Chips ────────────────────────────────────────────────────────
+   278→
+   279→  Widget _buildFilterChips(ColorScheme cs) {
+   280→    return Wrap(
+   281→      spacing: Spacings.sm,
+   282→      runSpacing: Spacings.sm,
+   283→      children: [
+   284→        // Role filters
+   285→        ..._kRoleOptions.map(
+   286→          (role) => FilterChip(
+   287→            label: Text(role.value),
+   288→            selected: _roleFilter == role.key,
+   289→            onSelected: (selected) {
+   290→              setState(() => _roleFilter = selected ? role.key : null);
+   291→              _loadData();
+   292→            },
+   293→          ),
+   294→        ),
+   295→        const SizedBox(width: Spacings.xs),
+   296→        // Active / Inactive
+   297→        FilterChip(
+   298→          label: const Text('Active'),
+   299→          selected: _activeFilter == true,
+   300→          onSelected: (selected) {
+   301→            setState(() => _activeFilter = selected ? true : null);
+   302→            _loadData();
+   303→          },
+   304→        ),
+   305→        FilterChip(
+   306→          label: const Text('Inactive'),
+   307→          selected: _activeFilter == false,
+   308→          onSelected: (selected) {
+   309→            setState(() => _activeFilter = selected ? false : null);
+   310→            _loadData();
+   311→          },
+   312→        ),
+   313→      ],
+   314→    );
+   315→  }
+   316→
+   317→  // ─── User List ───────────────────────────────────────────────────────────
+   318→
+   319→  Widget _buildUserList(
+   320→      BuildContext context, UserManagementState state, ColorScheme cs) {
+   321→    return RefreshIndicator(
+   322→      onRefresh: () async => _loadData(),
+   323→      child: ListView.separated(
+   324→        physics: const AlwaysScrollableScrollPhysics(),
+   325→        padding: Spacings.paddingScreen,
+   326→        itemCount: state.users.length,
+   327→        separatorBuilder: (_, __) => const SizedBox(height: Spacings.sm),
+   328→        itemBuilder: (context, index) {
+   329→          final user = state.users[index];
+   330→          return _UserManagementCard(
+   331→            user: user,
+   332→            onSuspend: user.isActive
+   333→                ? () => _showSuspendDialog(user)
+   334→                : () => _activateUser(user.id),
+   335→            onResetPassword: () => _resetPassword(user.id),
+   336→            onChangeRole: () => _showChangeRoleDialog(user),
+   337→            onImpersonate: () => _showImpersonateDialog(user),
+   338→          );
+   339→        },
+   340→      ),
+   341→    );
+   342→  }
+   343→
+   344→  // ─── Suspend Dialog ─────────────────────────────────────────────────────
+   345→
+   346→  void _showSuspendDialog(UserManagementDetail user) {
+   347→    _suspendReasonController.clear();
+   348→    showDialog(
+   349→      context: context,
+   350→      builder: (dialogContext) => AlertDialog(
+   351→        title: Text(
+   352→          'Suspend User',
+   353→          style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   354→        ),
+   355→        content: Column(
+   356→          mainAxisSize: MainAxisSize.min,
+   357→          crossAxisAlignment: CrossAxisAlignment.start,
+   358→          children: [
+   359→            Text(
+   360→              'You are about to suspend "${user.fullName}" (${user.email}). This will revoke their access to the platform.',
+   361→              style: AppTypography.wRegular.copyWith(
+   362→                fontSize: 14,
+   363→                color: Theme.of(context)
+   364→                    .colorScheme
+   365→                    .onSurface
+   366→                    .withValues(alpha: 0.7),
+   367→              ),
+   368→            ),
+   369→            const SizedBox(height: Spacings.lg),
+   370→            TextField(
+   371→              controller: _suspendReasonController,
+   372→              maxLines: 3,
+   373→              decoration: InputDecoration(
+   374→                labelText: 'Reason for suspension',
+   375→                hintText: 'Provide a reason...',
+   376→                border: OutlineInputBorder(
+   377→                  borderRadius: Spacings.borderRadiusMd,
+   378→                ),
+   379→                alignLabelWithHint: true,
+   380→              ),
+   381→            ),
+   382→          ],
+   383→        ),
+   384→        actions: [
+   385→          TextButton(
+   386→            onPressed: () => Navigator.of(dialogContext).pop(),
+   387→            child: const Text('Cancel'),
+   388→          ),
+   389→          FilledButton(
+   390→            onPressed: () {
+   391→              final reason = _suspendReasonController.text.trim();
+   392→              if (reason.isEmpty) {
+   393→                ScaffoldMessenger.of(context).showSnackBar(
+   394→                  const SnackBar(
+   395→                    content: Text('Please provide a reason for suspension'),
+   396→                    backgroundColor: AppColors.warning,
+   397→                  ),
+   398→                );
+   399→                return;
+   400→              }
+   401→              Navigator.of(dialogContext).pop();
+   402→              ref
+   403→                  .read(userManagementProvider.notifier)
+   404→                  .suspendUser(user.id, reason);
+   405→            },
+   406→            style: FilledButton.styleFrom(
+   407→              backgroundColor: AppColors.error,
+   408→            ),
+   409→            child: const Text('Suspend'),
+   410→          ),
+   411→        ],
+   412→      ),
+   413→    );
+   414→  }
+   415→
+   416→  // ─── Impersonate Dialog ──────────────────────────────────────────────────
+   417→
+   418→  void _showImpersonateDialog(UserManagementDetail user) {
+   419→    _impersonateReasonController.clear();
+   420→    showDialog(
+   421→      context: context,
+   422→      builder: (dialogContext) => AlertDialog(
+   423→        title: Row(
+   424→          children: [
+   425→            Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+   426→            const SizedBox(width: Spacings.sm),
+   427→            Text(
+   428→              'Impersonate User',
+   429→              style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   430→            ),
+   431→          ],
+   432→        ),
+   433→        content: Column(
+   434→          mainAxisSize: MainAxisSize.min,
+   435→          crossAxisAlignment: CrossAxisAlignment.start,
+   436→          children: [
+   437→            // Warning banner
+   438→            Container(
+   439→              padding: Spacings.paddingAll,
+   440→              decoration: BoxDecoration(
+   441→                color: AppColors.warningLight.withValues(alpha: 0.3),
+   442→                borderRadius: Spacings.borderRadiusMd,
+   443→                border:
+   444→                    Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+   445→              ),
+   446→              child: Row(
+   447→                children: [
+   448→                  Icon(Icons.shield_outlined,
+   449→                      size: Spacings.mdIcon, color: AppColors.warning),
+   450→                  const SizedBox(width: Spacings.sm),
+   451→                  Expanded(
+   452→                    child: Text(
+   453→                      'Warning: Impersonation grants full access to this user\'s account. All actions will be logged and auditable.',
+   454→                      style: AppTypography.wMedium.copyWith(
+   455→                        fontSize: 12,
+   456→                        color: AppColors.warningDark,
+   457→                      ),
+   458→                    ),
+   459→                  ),
+   460→                ],
+   461→              ),
+   462→            ),
+   463→            const SizedBox(height: Spacings.lg),
+   464→            Text(
+   465→              'You are about to impersonate "${user.fullName}" (${user.email}) with role ${_roleLabel(user.role)}.',
+   466→              style: AppTypography.wRegular.copyWith(
+   467→                fontSize: 14,
+   468→                color: Theme.of(context)
+   469→                    .colorScheme
+   470→                    .onSurface
+   471→                    .withValues(alpha: 0.7),
+   472→              ),
+   473→            ),
+   474→            const SizedBox(height: Spacings.lg),
+   475→            TextField(
+   476→              controller: _impersonateReasonController,
+   477→              maxLines: 3,
+   478→              decoration: InputDecoration(
+   479→                labelText: 'Reason for impersonation',
+   480→                hintText: 'Provide a justified reason...',
+   481→                border: OutlineInputBorder(
+   482→                  borderRadius: Spacings.borderRadiusMd,
+   483→                ),
+   484→                alignLabelWithHint: true,
+   485→              ),
+   486→            ),
+   487→          ],
+   488→        ),
+   489→        actions: [
+   490→          TextButton(
+   491→            onPressed: () => Navigator.of(dialogContext).pop(),
+   492→            child: const Text('Cancel'),
+   493→          ),
+   494→          FilledButton(
+   495→            onPressed: () {
+   496→              final reason = _impersonateReasonController.text.trim();
+   497→              if (reason.isEmpty) {
+   498→                ScaffoldMessenger.of(context).showSnackBar(
+   499→                  const SnackBar(
+   500→                    content:
+   501→                        Text('Please provide a reason for impersonation'),
+   502→                    backgroundColor: AppColors.warning,
+   503→                  ),
+   504→                );
+   505→                return;
+   506→              }
+   507→              Navigator.of(dialogContext).pop();
+   508→              ref
+   509→                  .read(userManagementProvider.notifier)
+   510→                  .startImpersonation(user.id, reason);
+   511→            },
+   512→            style: FilledButton.styleFrom(
+   513→              backgroundColor: AppColors.warning,
+   514→            ),
+   515→            child: Text(
+   516→              'Confirm Impersonation',
+   517→              style: AppTypography.wSemiBold.copyWith(
+   518→                fontSize: 14,
+   519→                color: AppColors.warningDark,
+   520→              ),
+   521→            ),
+   522→          ),
+   523→        ],
+   524→      ),
+   525→    );
+   526→  }
+   527→
+   528→  // ─── Change Role Dialog ──────────────────────────────────────────────────
+   529→
+   530→  void _showChangeRoleDialog(UserManagementDetail user) {
+   531→    String? selectedRole = user.role;
+   532→
+   533→    showDialog(
+   534→      context: context,
+   535→      builder: (dialogContext) {
+   536→        return StatefulBuilder(
+   537→          builder: (dialogContext, setDialogState) {
+   538→            return AlertDialog(
+   539→              title: Text(
+   540→                'Change Role',
+   541→                style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   542→              ),
+   543→              content: Column(
+   544→                mainAxisSize: MainAxisSize.min,
+   545→                crossAxisAlignment: CrossAxisAlignment.start,
+   546→                children: [
+   547→                  Text(
+   548→                    'Change role for "${user.fullName}" (${user.email}).',
+   549→                    style: AppTypography.wRegular.copyWith(
+   550→                      fontSize: 14,
+   551→                      color: Theme.of(context)
+   552→                          .colorScheme
+   553→                          .onSurface
+   554→                          .withValues(alpha: 0.7),
+   555→                    ),
+   556→                  ),
+   557→                  const SizedBox(height: Spacings.lg),
+   558→                  DropdownButtonFormField<String>(
+   559→                    value: selectedRole,
+   560→                    decoration: InputDecoration(
+   561→                      labelText: 'New Role',
+   562→                      border: OutlineInputBorder(
+   563→                        borderRadius: Spacings.borderRadiusMd,
+   564→                      ),
+   565→                    ),
+   566→                    items: _kRoleOptions
+   567→                        .map(
+   568→                          (role) => DropdownMenuItem(
+   569→                            value: role.key,
+   570→                            child: Text(role.value),
+   571→                          ),
+   572→                        )
+   573→                        .toList(),
+   574→                    onChanged: (value) {
+   575→                      setDialogState(() => selectedRole = value);
+   576→                    },
+   577→                  ),
+   578→                ],
+   579→              ),
+   580→              actions: [
+   581→                TextButton(
+   582→                  onPressed: () => Navigator.of(dialogContext).pop(),
+   583→                  child: const Text('Cancel'),
+   584→                ),
+   585→                FilledButton(
+   586→                  onPressed: () {
+   587→                    if (selectedRole == null || selectedRole == user.role) {
+   588→                      Navigator.of(dialogContext).pop();
+   589→                      return;
+   590→                    }
+   591→                    Navigator.of(dialogContext).pop();
+   592→                    ref
+   593→                        .read(userManagementProvider.notifier)
+   594→                        .changeRole(user.id, selectedRole!);
+   595→                  },
+   596→                  child: const Text('Update Role'),
+   597→                ),
+   598→              ],
+   599→            );
+   600→          },
+   601→        );
+   602→      },
+   603→    );
+   604→  }
+   605→
+   606→  // ─── Actions ─────────────────────────────────────────────────────────────
+   607→
+   608→  void _activateUser(String userId) {
+   609→    ref.read(userManagementProvider.notifier).activateUser(userId);
+   610→  }
+   611→
+   612→  void _resetPassword(String userId) {
+   613→    ref.read(userManagementProvider.notifier).resetPassword(userId);
+   614→  }
+   615→}
+   616→
+   617→// ═══════════════════════════════════════════════════════════════════════════════
+   618→// USER MANAGEMENT CARD
+   619→// ═══════════════════════════════════════════════════════════════════════════════
+   620→
+   621→class _UserManagementCard extends StatelessWidget {
+   622→  const _UserManagementCard({
+   623→    required this.user,
+   624→    required this.onSuspend,
+   625→    required this.onResetPassword,
+   626→    required this.onChangeRole,
+   627→    required this.onImpersonate,
+   628→  });
+   629→
+   630→  final UserManagementDetail user;
+   631→  final VoidCallback onSuspend;
+   632→  final VoidCallback onResetPassword;
+   633→  final VoidCallback onChangeRole;
+   634→  final VoidCallback onImpersonate;
+   635→
+   636→  @override
+   637→  Widget build(BuildContext context) {
+   638→    final cs = Theme.of(context).colorScheme;
+   639→    final roleClr = _roleColor(user.role);
+   640→
+   641→    return Card(
+   642→      elevation: Spacings.elevationSm,
+   643→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   644→      child: Padding(
+   645→        padding: Spacings.paddingAll,
+   646→        child: Column(
+   647→          crossAxisAlignment: CrossAxisAlignment.start,
+   648→          children: [
+   649→            // ─── Header Row ────────────────────────────────────────────────
+   650→            Row(
+   651→              children: [
+   652→                // Avatar
+   653→                CircleAvatar(
+   654→                  radius: 20,
+   655→                  backgroundColor: roleClr.withValues(alpha: 0.12),
+   656→                  child: Icon(
+   657→                    _roleIcon(user.role),
+   658→                    size: Spacings.mdIcon,
+   659→                    color: roleClr,
+   660→                  ),
+   661→                ),
+   662→                const SizedBox(width: Spacings.md),
+   663→                // Name & email
+   664→                Expanded(
+   665→                  child: Column(
+   666→                    crossAxisAlignment: CrossAxisAlignment.start,
+   667→                    children: [
+   668→                      Row(
+   669→                        children: [
+   670→                          Flexible(
+   671→                            child: Text(
+   672→                              user.fullName,
+   673→                              style: AppTypography.wSemiBold.copyWith(
+   674→                                fontSize: 15,
+   675→                                color: cs.onSurface,
+   676→                              ),
+   677→                              maxLines: 1,
+   678→                              overflow: TextOverflow.ellipsis,
+   679→                            ),
+   680→                          ),
+   681→                          if (user.isEmailVerified) ...[
+   682→                            const SizedBox(width: Spacings.xs),
+   683→                            Icon(
+   684→                              Icons.verified_rounded,
+   685→                              size: 14,
+   686→                              color: AppColors.success,
+   687→                            ),
+   688→                          ],
+   689→                        ],
+   690→                      ),
+   691→                      Text(
+   692→                        user.email,
+   693→                        style: AppTypography.wRegular.copyWith(
+   694→                          fontSize: 12,
+   695→                          color: cs.onSurface.withValues(alpha: 0.5),
+   696→                        ),
+   697→                        maxLines: 1,
+   698→                        overflow: TextOverflow.ellipsis,
+   699→                      ),
+   700→                    ],
+   701→                  ),
+   702→                ),
+   703→                // Role badge
+   704→                StatusBadge(
+   705→                  label: _roleLabel(user.role),
+   706→                  color: roleClr,
+   707→                  icon: _roleIcon(user.role),
+   708→                ),
+   709→              ],
+   710→            ),
+   711→            const SizedBox(height: Spacings.md),
+   712→
+   713→            // ─── Info Row ──────────────────────────────────────────────────
+   714→            Row(
+   715→              children: [
+   716→                // Status badge
+   717→                StatusBadge(
+   718→                  label: user.isActive ? 'Active' : 'Inactive',
+   719→                  color: user.isActive ? AppColors.success : AppColors.error,
+   720→                  icon: user.isActive
+   721→                      ? Icons.check_circle_outline
+   722→                      : Icons.cancel_outlined,
+   723→                ),
+   724→                const SizedBox(width: Spacings.lg),
+   725→                // School
+   726→                if (user.schoolName != null) ...[
+   727→                  Icon(
+   728→                    Icons.domain_outlined,
+   729→                    size: Spacings.smIcon,
+   730→                    color: cs.onSurface.withValues(alpha: 0.5),
+   731→                  ),
+   732→                  const SizedBox(width: Spacings.xs),
+   733→                  Flexible(
+   734→                    child: Text(
+   735→                      user.schoolName!,
+   736→                      style: AppTypography.wRegular.copyWith(
+   737→                        fontSize: 12,
+   738→                        color: cs.onSurface.withValues(alpha: 0.6),
+   739→                      ),
+   740→                      maxLines: 1,
+   741→                      overflow: TextOverflow.ellipsis,
+   742→                    ),
+   743→                  ),
+   744→                  const SizedBox(width: Spacings.lg),
+   745→                ],
+   746→                // Last login
+   747→                Icon(
+   748→                  Icons.access_time_rounded,
+   749→                  size: Spacings.smIcon,
+   750→                  color: cs.onSurface.withValues(alpha: 0.5),
+   751→                ),
+   752→                const SizedBox(width: Spacings.xs),
+   753→                Text(
+   754→                  _formatLastLogin(user.lastLoginAt),
+   755→                  style: AppTypography.wRegular.copyWith(
+   756→                    fontSize: 12,
+   757→                    color: cs.onSurface.withValues(alpha: 0.6),
+   758→                  ),
+   759→                ),
+   760→              ],
+   761→            ),
+   762→            const SizedBox(height: Spacings.md),
+   763→
+   764→            // ─── Action Buttons ────────────────────────────────────────────
+   765→            Row(
+   766→              mainAxisAlignment: MainAxisAlignment.end,
+   767→              children: [
+   768→                _actionButton(
+   769→                  label: user.isActive ? 'Suspend' : 'Activate',
+   770→                  icon: user.isActive
+   771→                      ? Icons.block_outlined
+   772→                      : Icons.play_arrow_outlined,
+   773→                  onPressed: onSuspend,
+   774→                  color: user.isActive ? AppColors.error : AppColors.success,
+   775→                ),
+   776→                const SizedBox(width: Spacings.sm),
+   777→                _actionButton(
+   778→                  label: 'Reset Password',
+   779→                  icon: Icons.lock_reset_outlined,
+   780→                  onPressed: onResetPassword,
+   781→                  color: AppColors.info,
+   782→                ),
+   783→                const SizedBox(width: Spacings.sm),
+   784→                _actionButton(
+   785→                  label: 'Change Role',
+   786→                  icon: Icons.swap_horiz_rounded,
+   787→                  onPressed: onChangeRole,
+   788→                ),
+   789→                const SizedBox(width: Spacings.sm),
+   790→                _actionButton(
+   791→                  label: 'Impersonate',
+   792→                  icon: Icons.login_rounded,
+   793→                  onPressed: onImpersonate,
+   794→                  color: AppColors.warning,
+   795→                ),
+   796→              ],
+   797→            ),
+   798→          ],
+   799→        ),
+   800→      ),
+   801→    );
+   802→  }
+   803→
+   804→  // ─── Helper Widgets ──────────────────────────────────────────────────────
+   805→
+   806→  Widget _actionButton({
+   807→    required String label,
+   808→    required IconData icon,
+   809→    required VoidCallback onPressed,
+   810→    Color? color,
+   811→  }) {
+   812→    return TextButton.icon(
+   813→      onPressed: onPressed,
+   814→      icon: Icon(icon, size: Spacings.smIcon, color: color),
+   815→      label: Text(
+   816→        label,
+   817→        style: AppTypography.wMedium.copyWith(fontSize: 12, color: color),
+   818→      ),
+   819→      style: TextButton.styleFrom(
+   820→        padding: const EdgeInsets.symmetric(
+   821→          horizontal: Spacings.sm,
+   822→          vertical: Spacings.xs,
+   823→        ),
+   824→        minimumSize: Size.zero,
+   825→        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   826→      ),
+   827→    );
+   828→  }
+   829→}
+   830→
