@@ -1,0 +1,1192 @@
+     1→// ===========================================================================
+     2→// ExamForge AI — Performance Optimization Layer
+     3→// ===========================================================================
+     4→//
+     5→// A comprehensive performance management system that provides lazy loading,
+     6→// image optimization, request batching, memory management, data compression,
+     7→// caching strategies, and performance monitoring.
+     8→//
+     9→// Usage:
+    10→//   // In your provider scope:
+    11→//   final config = ref.watch(performanceConfigProvider);
+    12→//   final optimizer = ref.read(imageOptimizerProvider);
+    13→//   final monitor = ref.read(performanceMonitorProvider);
+    14→//
+    15→//   // Lazy loading in a scroll view:
+    16→//   final lazyLoader = ref.read(lazyLoadControllerProvider);
+    17→//   lazyLoader.createSliverLazyLoader(
+    18→//     loader: (offset, limit) => api.fetchItems(offset, limit),
+    19→//     builder: (context, item, index) => ItemTile(item),
+    20→//   );
+    21→//
+    22→//   // Request batching:
+    23→//   final batcher = ref.read(requestBatcherProvider);
+    24→//   final result = await batcher.batch(
+    25→//     request: () => api.fetchData(),
+    26→//     groupKey: 'user-data',
+    27→//   );
+    28→// ===========================================================================
+    29→
+    30→import 'dart:async';
+    31→import 'dart:collection';
+    32→import 'dart:convert';
+    33→import 'dart:io';
+    34→
+    35→import 'package:cached_network_image/cached_network_image.dart';
+    36→import 'package:equatable/equatable.dart';
+    37→import 'package:flutter/foundation.dart';
+    38→import 'package:flutter/material.dart';
+    39→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    40→
+    41→import '../connectivity/connectivity_engine.dart';
+    42→import '../storage/cache_manager.dart';
+    43→import '../utils/logger.dart';
+    44→
+    45→// ═══════════════════════════════════════════════════════════════════════════════
+    46→// PERFORMANCE CONFIG
+    47→// ═══════════════════════════════════════════════════════════════════════════════
+    48→
+    49→/// Configuration for the performance optimization layer.
+    50→///
+    51→/// Controls cache sizes, image quality thresholds, lazy loading behaviour,
+    52→/// request concurrency limits, and compression settings. Immutable via
+    53→/// [Equatable] — use [copyWith] to derive modified copies.
+    54→class PerformanceConfig extends Equatable {
+    55→  const PerformanceConfig({
+    56→    this.maxCacheSizeMB = 200,
+    57→    this.imageQuality = 0.8,
+    58→    this.enableLazyLoading = true,
+    59→    this.enableImageCache = true,
+    60→    this.prefetchCount = 5,
+    61→    this.debounceDuration = const Duration(milliseconds: 300),
+    62→    this.maxConcurrentRequests = 6,
+    63→    this.requestTimeout = const Duration(seconds: 15),
+    64→    this.enableCompression = true,
+    65→  });
+    66→
+    67→  /// Maximum cache size in megabytes before eviction is triggered.
+    68→  final int maxCacheSizeMB;
+    69→
+    70→  /// Default image quality factor (0.0 – 1.0) for optimized images.
+    71→  final double imageQuality;
+    72→
+    73→  /// Whether lazy loading of list data is enabled.
+    74→  final bool enableLazyLoading;
+    75→
+    76→  /// Whether image caching via [CachedNetworkImage] is enabled.
+    77→  final bool enableImageCache;
+    78→
+    79→  /// Number of items to prefetch ahead of the visible viewport.
+    80→  final int prefetchCount;
+    81→
+    82→  /// Duration used for debouncing rapid operations (e.g. scroll events).
+    83→  final Duration debounceDuration;
+    84→
+    85→  /// Maximum number of concurrent network requests.
+    86→  final int maxConcurrentRequests;
+    87→
+    88→  /// Timeout for individual network requests.
+    89→  final Duration requestTimeout;
+    90→
+    91→  /// Whether to compress data before caching or transferring.
+    92→  final bool enableCompression;
+    93→
+    94→  // ── Serialisation ──────────────────────────────────────────────────────
+    95→
+    96→  /// Creates a [PerformanceConfig] from a JSON map.
+    97→  factory PerformanceConfig.fromJson(Map<String, dynamic> json) {
+    98→    return PerformanceConfig(
+    99→      maxCacheSizeMB: json['maxCacheSizeMB'] as int? ?? 200,
+   100→      imageQuality: (json['imageQuality'] as num?)?.toDouble() ?? 0.8,
+   101→      enableLazyLoading: json['enableLazyLoading'] as bool? ?? true,
+   102→      enableImageCache: json['enableImageCache'] as bool? ?? true,
+   103→      prefetchCount: json['prefetchCount'] as int? ?? 5,
+   104→      debounceDuration: json['debounceDurationMs'] != null
+   105→          ? Duration(milliseconds: json['debounceDurationMs'] as int)
+   106→          : const Duration(milliseconds: 300),
+   107→      maxConcurrentRequests: json['maxConcurrentRequests'] as int? ?? 6,
+   108→      requestTimeout: json['requestTimeoutMs'] != null
+   109→          ? Duration(milliseconds: json['requestTimeoutMs'] as int)
+   110→          : const Duration(seconds: 15),
+   111→      enableCompression: json['enableCompression'] as bool? ?? true,
+   112→    );
+   113→  }
+   114→
+   115→  /// Serialises this config to a JSON map.
+   116→  Map<String, dynamic> toJson() => {
+   117→        'maxCacheSizeMB': maxCacheSizeMB,
+   118→        'imageQuality': imageQuality,
+   119→        'enableLazyLoading': enableLazyLoading,
+   120→        'enableImageCache': enableImageCache,
+   121→        'prefetchCount': prefetchCount,
+   122→        'debounceDurationMs': debounceDuration.inMilliseconds,
+   123→        'maxConcurrentRequests': maxConcurrentRequests,
+   124→        'requestTimeoutMs': requestTimeout.inMilliseconds,
+   125→        'enableCompression': enableCompression,
+   126→      };
+   127→
+   128→  // ── Copy-with ──────────────────────────────────────────────────────────
+   129→
+   130→  /// Returns a new [PerformanceConfig] with the given fields replaced.
+   131→  PerformanceConfig copyWith({
+   132→    int? maxCacheSizeMB,
+   133→    double? imageQuality,
+   134→    bool? enableLazyLoading,
+   135→    bool? enableImageCache,
+   136→    int? prefetchCount,
+   137→    Duration? debounceDuration,
+   138→    int? maxConcurrentRequests,
+   139→    Duration? requestTimeout,
+   140→    bool? enableCompression,
+   141→  }) {
+   142→    return PerformanceConfig(
+   143→      maxCacheSizeMB: maxCacheSizeMB ?? this.maxCacheSizeMB,
+   144→      imageQuality: imageQuality ?? this.imageQuality,
+   145→      enableLazyLoading: enableLazyLoading ?? this.enableLazyLoading,
+   146→      enableImageCache: enableImageCache ?? this.enableImageCache,
+   147→      prefetchCount: prefetchCount ?? this.prefetchCount,
+   148→      debounceDuration: debounceDuration ?? this.debounceDuration,
+   149→      maxConcurrentRequests: maxConcurrentRequests ?? this.maxConcurrentRequests,
+   150→      requestTimeout: requestTimeout ?? this.requestTimeout,
+   151→      enableCompression: enableCompression ?? this.enableCompression,
+   152→    );
+   153→  }
+   154→
+   155→  @override
+   156→  List<Object?> get props => [
+   157→        maxCacheSizeMB,
+   158→        imageQuality,
+   159→        enableLazyLoading,
+   160→        enableImageCache,
+   161→        prefetchCount,
+   162→        debounceDuration,
+   163→        maxConcurrentRequests,
+   164→        requestTimeout,
+   165→        enableCompression,
+   166→      ];
+   167→
+   168→  @override
+   169→  String toString() => 'PerformanceConfig('
+   170→      'maxCacheSizeMB: $maxCacheSizeMB, '
+   171→      'imageQuality: $imageQuality, '
+   172→      'enableLazyLoading: $enableLazyLoading, '
+   173→      'enableImageCache: $enableImageCache, '
+   174→      'prefetchCount: $prefetchCount, '
+   175→      'debounceDuration: $debounceDuration, '
+   176→      'maxConcurrentRequests: $maxConcurrentRequests, '
+   177→      'requestTimeout: $requestTimeout, '
+   178→      'enableCompression: $enableCompression'
+   179→      ')';
+   180→}
+   181→
+   182→// ═══════════════════════════════════════════════════════════════════════════════
+   183→// IMAGE OPTIMIZER
+   184→// ═══════════════════════════════════════════════════════════════════════════════
+   185→
+   186→/// Optimises image loading based on network connection quality.
+   187→///
+   188→/// Adapts image URLs, quality factors, and caching behaviour to match the
+   189→/// current connectivity situation. On excellent connections the original
+   190→/// full-resolution image is served; on limited connections thumbnails and
+   191→/// reduced-quality variants are preferred.
+   192→class ImageOptimizer {
+   193→  ImageOptimizer({
+   194→    required this.config,
+   195→    required this.cacheManager,
+   196→  });
+   197→
+   198→  final PerformanceConfig config;
+   199→  final CacheManager cacheManager;
+   200→
+   201→  /// Returns an optimised image URL adjusted for [connectionQuality].
+   202→  ///
+   203→  /// - **Excellent / Good** (≥ 0.6): returns the original [url] unchanged.
+   204→  /// - **Limited** (0.3 – 0.59): appends `w` and `q` query parameters if the
+   205→  ///   URL appears to support them (e.g. CDN-backed URLs with existing query
+   206→  ///   params), otherwise appends a standard `?width=` & `?quality=` suffix.
+   207→  /// - **Offline / Very poor** (< 0.3): returns the original URL — the cache
+   208→  ///   layer will attempt to serve a previously cached version.
+   209→  String getOptimizedUrl(
+   210→    String url, {
+   211→    required double connectionQuality,
+   212→    int? maxWidth,
+   213→    int? maxHeight,
+   214→  }) {
+   215→    try {
+   216→      // Excellent / good — full quality
+   217→      if (connectionQuality >= 0.6) return url;
+   218→
+   219→      // Limited connection — request smaller images
+   220→      if (connectionQuality >= 0.3) {
+   221→        final width = maxWidth ?? _defaultWidthForQuality(connectionQuality);
+   222→        final height = maxHeight ?? (width * 1.5).round();
+   223→        final quality = (getImageQuality(connectionQuality) * 100).round();
+   224→
+   225→        final separator = url.contains('?') ? '&' : '?';
+   226→        return '$url${separator}w=$width&h=$height&q=$quality';
+   227→      }
+   228→
+   229→      // Offline / very poor — return original, rely on cache
+   230→      return url;
+   231→    } catch (e, st) {
+   232→      AppLogger.warning('ImageOptimizer: failed to optimize URL', error: e, stackTrace: st);
+   233→      return url;
+   234→    }
+   235→  }
+   236→
+   237→  /// Returns the appropriate image quality factor for [connectionQuality].
+   238→  ///
+   239→  /// | Quality range | Factor |
+   240→  /// |---------------|--------|
+   241→  /// | ≥ 0.8         | 1.0    |
+   242→  /// | ≥ 0.6         | 0.8    |
+   243→  /// | ≥ 0.3         | 0.5    |
+   244→  /// | < 0.3         | 0.3    |
+   245→  double getImageQuality(double connectionQuality) {
+   246→    if (connectionQuality >= 0.8) return 1.0;
+   247→    if (connectionQuality >= 0.6) return 0.8;
+   248→    if (connectionQuality >= 0.3) return 0.5;
+   249→    return 0.3;
+   250→  }
+   251→
+   252→  /// Whether a thumbnail should be loaded instead of a full image.
+   253→  ///
+   254→  /// Returns `true` for limited and offline connections.
+   255→  bool shouldLoadThumbnail(double connectionQuality) => connectionQuality < 0.6;
+   256→
+   257→  /// Returns a cached image provider for [url], optionally with a custom
+   258→  /// [quality] and [cacheKey].
+   259→  ///
+   260→  /// Uses [CachedNetworkImageProvider] when image caching is enabled in the
+   261→  /// config; otherwise falls back to [NetworkImage].
+   262→  ImageProvider getCachedImageProvider(
+   263→    String url, {
+   264→    double? quality,
+   265→    String? cacheKey,
+   266→  }) {
+   267→    if (!config.enableImageCache) {
+   268→      return NetworkImage(url);
+   269→    }
+   270→
+   271→    final effectiveQuality = quality ?? config.imageQuality;
+   272→
+   273→    return CachedNetworkImageProvider(
+   274→      url,
+   275→      cacheKey: cacheKey,
+   276→      maxWidth: (effectiveQuality < 1.0) ? _defaultWidthForQuality(effectiveQuality) : null,
+   277→      errorListener: (error) {
+   278→        AppLogger.warning(
+   279→          'ImageOptimizer: cached image load failed for $url',
+   280→          error: error,
+   281→        );
+   282→      },
+   283→    );
+   284→  }
+   285→
+   286→  /// Preloads a list of image [urls] into the cache.
+   287→  ///
+   288→  /// Images are preloaded with quality adjusted by [connectionQuality].
+   289→  /// Errors are caught per-image so that one failure does not block the rest.
+   290→  Future<void> preloadImages(
+   291→    List<String> urls, {
+   292→    double connectionQuality = 1.0,
+   293→  }) async {
+   294→    final quality = getImageQuality(connectionQuality);
+   295→
+   296→    await Future.wait(
+   297→      urls.map((url) async {
+   298→        try {
+   299→          final optimizedUrl = getOptimizedUrl(
+   300→            url,
+   301→            connectionQuality: connectionQuality,
+   302→          );
+   303→          final provider = CachedNetworkImageProvider(
+   304→            optimizedUrl,
+   305→            maxWidth: quality < 1.0 ? _defaultWidthForQuality(quality) : null,
+   306→          );
+   307→          // Precache by resolving the provider — the caching layer will store it.
+   308→          await provider.resolve(const ImageConfiguration()).completer;
+   309→        } catch (e, st) {
+   310→          AppLogger.warning(
+   311→            'ImageOptimizer: failed to preload $url',
+   312→            error: e,
+   313→            stackTrace: st,
+   314→          );
+   315→        }
+   316→      }),
+   317→    );
+   318→  }
+   319→
+   320→  /// Clears the image cache managed by [CachedNetworkImage].
+   321→  Future<void> clearImageCache() async {
+   322→    try {
+   323→      await CachedNetworkImage.evictFromCache('');
+   324→      AppLogger.info('ImageOptimizer: image cache cleared');
+   325→    } catch (e, st) {
+   326→      AppLogger.error(
+   327→        'ImageOptimizer: failed to clear image cache',
+   328→        error: e,
+   329→        stackTrace: st,
+   330→      );
+   331→    }
+   332→  }
+   333→
+   334→  /// Returns the estimated size of the image cache in bytes.
+   335→  Future<int> getImageCacheSize() async {
+   336→    try {
+   337→      final paintingBinding = PaintingBinding.instance;
+   338→      final cache = paintingBinding.instantiateImageCodec;
+   339→      // PaintingBinding doesn't expose cache size directly;
+   340→      // provide a reasonable estimate from the image cache.
+   341→      final imageCache = PaintingBinding.instance;
+   342→      return imageCache.imageCache.currentSizeBytes;
+   343→    } catch (e, st) {
+   344→      AppLogger.warning(
+   345→        'ImageOptimizer: failed to get image cache size',
+   346→        error: e,
+   347→        stackTrace: st,
+   348→      );
+   349→      return 0;
+   350→    }
+   351→  }
+   352→
+   353→  // ── Private Helpers ────────────────────────────────────────────────────
+   354→
+   355→  int _defaultWidthForQuality(double quality) {
+   356→    if (quality >= 0.8) return 1200;
+   357→    if (quality >= 0.5) return 600;
+   358→    return 300;
+   359→  }
+   360→}
+   361→
+   362→// ═══════════════════════════════════════════════════════════════════════════════
+   363→// LAZY LOAD CONTROLLER
+   364→// ═══════════════════════════════════════════════════════════════════════════════
+   365→
+   366→/// Manages lazy loading of list data driven by scroll position.
+   367→///
+   368→/// Provides a [shouldLoadMore] helper that inspects scroll notifications and
+   369→/// a [createSliverLazyLoader] factory that builds a complete paginated list
+   370→/// widget with loading, error, and empty states.
+   371→class LazyLoadController {
+   372→  LazyLoadController({required this.config});
+   373→
+   374→  final PerformanceConfig config;
+   375→
+   376→  /// Determines whether more data should be loaded based on a scroll
+   377→  /// notification and a [threshold] (0.0 – 1.0 of scroll extent).
+   378→  ///
+   379→  /// Returns `true` when the current scroll position has reached or exceeded
+   380→  /// [threshold] fraction of the maximum scroll extent. Also respects
+   381→  /// [PerformanceConfig.enableLazyLoading] — returns `false` if disabled.
+   382→  bool shouldLoadMore(
+   383→    ScrollNotification notification, {
+   384→    double threshold = 0.8,
+   385→  }) {
+   386→    if (!config.enableLazyLoading) return false;
+   387→
+   388→    if (notification is ScrollUpdateNotification) {
+   389→      final metrics = notification.metrics;
+   390→      if (metrics.maxScrollExtent <= 0) return false;
+   391→
+   392→      final scrollFraction = metrics.pixels / metrics.maxScrollExtent;
+   393→      return scrollFraction >= threshold;
+   394→    }
+   395→
+   396→    return false;
+   397→  }
+   398→
+   399→  /// Creates a widget that lazily loads paginated data.
+   400→  ///
+   401→  /// [loader] fetches a page of items given an [offset] and [limit].
+   402→  /// [builder] renders each item at the given [index].
+   403→  /// Optional [loadingIndicator], [errorWidget], and [emptyWidget] replace
+   404→  /// the default states.
+   405→  Widget createSliverLazyLoader<T>({
+   406→    required Future<List<T>> Function(int offset, int limit) loader,
+   407→    required Widget Function(BuildContext, T, int) builder,
+   408→    int pageSize = 20,
+   409→    Widget? loadingIndicator,
+   410→    Widget? errorWidget,
+   411→    Widget? emptyWidget,
+   412→  }) {
+   413→    return _LazyLoadSliver<T>(
+   414→      loader: loader,
+   415→      builder: builder,
+   416→      pageSize: pageSize,
+   417→      loadingIndicator: loadingIndicator,
+   418→      errorWidget: errorWidget,
+   419→      emptyWidget: emptyWidget,
+   420→      debounceDuration: config.debounceDuration,
+   421→    );
+   422→  }
+   423→}
+   424→
+   425→// ── Private Lazy Load Sliver Widget ──────────────────────────────────────
+   426→
+   427→/// Stateful widget that manages paginated data loading inside a [CustomScrollView].
+   428→///
+   429→/// Not meant for direct instantiation — use [LazyLoadController.createSliverLazyLoader].
+   430→class _LazyLoadSliver<T> extends StatefulWidget {
+   431→  const _LazyLoadSliver({
+   432→    required this.loader,
+   433→    required this.builder,
+   434→    this.pageSize = 20,
+   435→    this.loadingIndicator,
+   436→    this.errorWidget,
+   437→    this.emptyWidget,
+   438→    this.debounceDuration = const Duration(milliseconds: 300),
+   439→  });
+   440→
+   441→  final Future<List<T>> Function(int offset, int limit) loader;
+   442→  final Widget Function(BuildContext, T, int) builder;
+   443→  final int pageSize;
+   444→  final Widget? loadingIndicator;
+   445→  final Widget? errorWidget;
+   446→  final Widget? emptyWidget;
+   447→  final Duration debounceDuration;
+   448→
+   449→  @override
+   450→  State<_LazyLoadSliver<T>> createState() => _LazyLoadSliverState<T>();
+   451→}
+   452→
+   453→class _LazyLoadSliverState<T> extends State<_LazyLoadSliver<T>> {
+   454→  final List<T> _items = [];
+   455→  bool _isLoading = false;
+   456→  bool _hasError = false;
+   457→  bool _hasReachedEnd = false;
+   458→  String? _errorMessage;
+   459→  int _currentOffset = 0;
+   460→  Timer? _debounceTimer;
+   461→
+   462→  @override
+   463→  void initState() {
+   464→    super.initState();
+   465→    _loadMore();
+   466→  }
+   467→
+   468→  @override
+   469→  void dispose() {
+   470→    _debounceTimer?.cancel();
+   471→    super.dispose();
+   472→  }
+   473→
+   474→  Future<void> _loadMore() async {
+   475→    if (_isLoading || _hasReachedEnd) return;
+   476→
+   477→    setState(() {
+   478→      _isLoading = true;
+   479→      _hasError = false;
+   480→      _errorMessage = null;
+   481→    });
+   482→
+   483→    try {
+   484→      final newItems = await widget.loader(_currentOffset, widget.pageSize);
+   485→
+   486→      if (!mounted) return;
+   487→
+   488→      setState(() {
+   489→        _isLoading = false;
+   490→        if (newItems.isEmpty) {
+   491→          _hasReachedEnd = true;
+   492→        } else {
+   493→          _items.addAll(newItems);
+   494→          _currentOffset += newItems.length;
+   495→          if (newItems.length < widget.pageSize) {
+   496→            _hasReachedEnd = true;
+   497→          }
+   498→        }
+   499→      });
+   500→    } catch (e, st) {
+   501→      AppLogger.error('LazyLoadController: failed to load page', error: e, stackTrace: st);
+   502→      if (!mounted) return;
+   503→      setState(() {
+   504→        _isLoading = false;
+   505→        _hasError = true;
+   506→        _errorMessage = e.toString();
+   507→      });
+   508→    }
+   509→  }
+   510→
+   511→  void _onScroll(ScrollNotification notification) {
+   512→    if (_debounceTimer?.isActive ?? false) return;
+   513→
+   514→    final shouldLoad = notification.metrics.maxScrollExtent > 0 &&
+   515→        notification.metrics.pixels /
+   516→                notification.metrics.maxScrollExtent >=
+   517→            0.8;
+   518→
+   519→    if (shouldLoad && !_isLoading && !_hasReachedEnd) {
+   520→      _debounceTimer = Timer(widget.debounceDuration, _loadMore);
+   521→    }
+   522→  }
+   523→
+   524→  @override
+   525→  Widget build(BuildContext context) {
+   526→    return SliverToBoxAdapter(
+   527→      child: NotificationListener<ScrollNotification>(
+   528→        onNotification: (notification) {
+   529→          _onScroll(notification);
+   530→          return false;
+   531→        },
+   532→        child: Column(
+   533→          children: [
+   534→            if (_items.isEmpty && _isLoading)
+   535→              widget.loadingIndicator ??
+   536→                  const Padding(
+   537→                    padding: EdgeInsets.all(24),
+   538→                    child: Center(child: CircularProgressIndicator()),
+   539→                  ),
+   540→            if (_items.isEmpty && _hasError)
+   541→              widget.errorWidget ??
+   542→                  Padding(
+   543→                    padding: const EdgeInsets.all(24),
+   544→                    child: Column(
+   545→                      children: [
+   546→                        Text(
+   547→                          'Failed to load data${_errorMessage != null ? ': $_errorMessage' : ''}',
+   548→                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+   549→                                color: Theme.of(context).colorScheme.error,
+   550→                              ),
+   551→                        ),
+   552→                        const SizedBox(height: 8),
+   553→                        TextButton(
+   554→                          onPressed: _loadMore,
+   555→                          child: const Text('Retry'),
+   556→                        ),
+   557→                      ],
+   558→                    ),
+   559→                  ),
+   560→            if (_items.isEmpty && !_isLoading && !_hasError && _hasReachedEnd)
+   561→              widget.emptyWidget ??
+   562→                  Padding(
+   563→                    padding: const EdgeInsets.all(24),
+   564→                    child: Text(
+   565→                      'No data available',
+   566→                      style: Theme.of(context).textTheme.bodyMedium,
+   567→                    ),
+   568→                  ),
+   569→            ..._items.asMap().entries.map(
+   570→                  (entry) => widget.builder(context, entry.value, entry.key),
+   571→                ),
+   572→            if (_isLoading && _items.isNotEmpty)
+   573→              widget.loadingIndicator ??
+   574→                  const Padding(
+   575→                    padding: EdgeInsets.all(16),
+   576→                    child: Center(child: CircularProgressIndicator()),
+   577→                  ),
+   578→            if (_hasError && _items.isNotEmpty)
+   579→              Padding(
+   580→                padding: const EdgeInsets.all(16),
+   581→                child: TextButton(
+   582→                  onPressed: _loadMore,
+   583→                  child: const Text('Tap to retry'),
+   584→                ),
+   585→              ),
+   586→          ],
+   587→        ),
+   588→      ),
+   589→    );
+   590→  }
+   591→}
+   592→
+   593→// ═══════════════════════════════════════════════════════════════════════════════
+   594→// REQUEST BATCHER
+   595→// ═══════════════════════════════════════════════════════════════════════════════
+   596→
+   597→/// Batches concurrent requests to reduce network overhead.
+   598→///
+   599→/// When multiple widgets request the same data within a short [batchWindow],
+   600→/// only one actual request is made and its result is shared. Requests are
+   601→/// grouped by [groupKey]; requests with different keys run independently.
+   602→///
+   603→/// This is particularly useful when several widgets on the same screen need
+   604→/// overlapping API data.
+   605→class RequestBatcher {
+   606→  RequestBatcher({this.defaultBatchWindow = const Duration(milliseconds: 50)});
+   607→
+   608→  /// Default batch window for collecting requests.
+   609→  final Duration defaultBatchWindow;
+   610→
+   611→  /// Active batch groups: key → list of pending completer/request pairs.
+   612→  final Map<String, _BatchGroup<dynamic>> _batchGroups = {};
+   613→
+   614→  /// Timers for each batch group.
+   615→  final Map<String, Timer> _timers = {};
+   616→
+   617→  /// Submits [request] for batched execution.
+   618→  ///
+   619→  /// If a batch for [groupKey] is already collecting, the request is added
+   620→  /// to that batch. If no batch exists, a new one is created and a timer
+   621→  /// is started for [batchWindow]. When the timer fires, the first request
+   622→  /// in the group is executed and the result is fanned out to all waiters.
+   623→  ///
+   624→  /// If [groupKey] is `null`, the request is executed immediately without
+   625→  /// batching.
+   626→  Future<T> batch<T>({
+   627→    required Future<T> Function() request,
+   628→    String? groupKey,
+   629→    Duration batchWindow = const Duration(milliseconds: 50),
+   630→  }) async {
+   631→    // No grouping → execute immediately
+   632→    if (groupKey == null) {
+   633→      return request();
+   634→    }
+   635→
+   636→    final completer = Completer<T>();
+   637→
+   638→    final group = _batchGroups[groupKey];
+   639→    if (group != null && group.isActive) {
+   640→      // Add to existing batch
+   641→      group.add<T>(completer);
+   642→      return completer.future;
+   643→    }
+   644→
+   645→    // Start a new batch
+   646→    final newGroup = _BatchGroup<T>();
+   647→    newGroup.add<T>(completer);
+   648→    _batchGroups[groupKey] = newGroup;
+   649→
+   650→    // Set timer to flush the batch
+   651→    _timers[groupKey] = Timer(batchWindow, () => _flushBatch<T>(groupKey, request));
+   652→
+   653→    return completer.future;
+   654→  }
+   655→
+   656→  /// Flushes a batch group by executing the [request] once and distributing
+   657→  /// the result to all waiting completers.
+   658→  Future<void> _flushBatch<T>(String key, Future<T> Function() request) async {
+   659→    final group = _batchGroups.remove(key) as _BatchGroup<T>?;
+   660→    _timers.remove(key)?.cancel();
+   661→
+   662→    if (group == null || group.completers.isEmpty) return;
+   663→
+   664→    try {
+   665→      final result = await request();
+   666→      for (final completer in group.completers) {
+   667→        if (!completer.isCompleted) {
+   668→          (completer as Completer<T>).complete(result);
+   669→        }
+   670→      }
+   671→    } catch (e, st) {
+   672→      AppLogger.warning(
+   673→        'RequestBatcher: batch request failed for key=$key',
+   674→        error: e,
+   675→        stackTrace: st,
+   676→      );
+   677→      for (final completer in group.completers) {
+   678→        if (!completer.isCompleted) {
+   679→          (completer as Completer<T>).completeError(e, st);
+   680→        }
+   681→      }
+   682→    }
+   683→  }
+   684→
+   685→  /// Cancels all pending batches and completes them with errors.
+   686→  void cancelAll() {
+   687→    for (final entry in _timers.entries) {
+   688→      entry.value.cancel();
+   689→      final group = _batchGroups[entry.key];
+   690→      if (group != null) {
+   691→        for (final completer in group.completers) {
+   692→          if (!completer.isCompleted) {
+   693→            completer.completeError(
+   694→              StateError('RequestBatcher: batch cancelled for key=${entry.key}'),
+   695→            );
+   696→          }
+   697→        }
+   698→      }
+   699→    }
+   700→    _timers.clear();
+   701→    _batchGroups.clear();
+   702→  }
+   703→}
+   704→
+   705→/// Internal representation of a batch group.
+   706→class _BatchGroup<T> {
+   707→  final List<Completer<dynamic>> completers = [];
+   708→  bool isActive = true;
+   709→
+   710→  void add<R>(Completer<R> completer) {
+   711→    completers.add(completer);
+   712→  }
+   713→}
+   714→
+   715→// ═══════════════════════════════════════════════════════════════════════════════
+   716→// MEMORY MANAGER
+   717→// ═══════════════════════════════════════════════════════════════════════════════
+   718→
+   719→/// Monitors and manages application memory.
+   720→///
+   721→/// Provides methods to query current memory usage, detect memory pressure,
+   722→/// register disposable resources, and clean up caches when memory is low.
+   723→class MemoryManager {
+   724→  MemoryManager({required this.cacheManager});
+   725→
+   726→  final CacheManager cacheManager;
+   727→
+   728→  /// Callbacks registered for low-memory notifications.
+   729→  final List<VoidCallback> _lowMemoryCallbacks = [];
+   730→
+   731→  /// Disposable resources that can be freed on memory pressure.
+   732→  final List<Disposable> _disposables = [];
+   733→
+   734→  /// Whether a low-memory event has been detected.
+   735→  bool _isUnderPressure = false;
+   736→
+   737→  /// Returns the current memory usage as a map with `usedMB` and `totalMB`.
+   738→  ///
+   739→  /// On native platforms this reads from [ProcessInfo]; on web a stub is
+   740→  /// returned since `dart:io` is unavailable.
+   741→  Map<String, dynamic> getCurrentMemoryUsage() {
+   742→    try {
+   743→      if (kIsWeb) {
+   744→        return {'usedMB': 0, 'totalMB': 0, 'platform': 'web'};
+   745→      }
+   746→      // ignore: unnecessary_import
+   747→      final currentRss = ProcessInfo.currentRss;
+   748→      final maxRss = ProcessInfo.maxRss;
+   749→      return {
+   750→        'usedMB': (currentRss / (1024 * 1024)).round(),
+   751→        'totalMB': (maxRss / (1024 * 1024)).round(),
+   752→        'platform': Platform.operatingSystem,
+   753→      };
+   754→    } catch (e, st) {
+   755→      AppLogger.warning('MemoryManager: failed to query memory', error: e, stackTrace: st);
+   756→      return {'usedMB': 0, 'totalMB': 0, 'error': e.toString()};
+   757→    }
+   758→  }
+   759→
+   760→  /// Whether the app is currently under memory pressure.
+   761→  ///
+   762→  /// Uses a heuristic: if current RSS exceeds 70% of max RSS, or if the
+   763→  /// platform has signalled a memory warning, this returns `true`.
+   764→  bool isMemoryPressure() {
+   765→    try {
+   766→      if (kIsWeb) return false;
+   767→
+   768→      final usage = getCurrentMemoryUsage();
+   769→      final usedMB = usage['usedMB'] as int? ?? 0;
+   770→      final totalMB = usage['totalMB'] as int? ?? 0;
+   771→
+   772→      if (totalMB > 0 && usedMB > totalMB * 0.7) {
+   773→        _isUnderPressure = true;
+   774→      }
+   775→
+   776→      return _isUnderPressure;
+   777→    } catch (e, st) {
+   778→      AppLogger.warning('MemoryManager: pressure check failed', error: e, stackTrace: st);
+   779→      return false;
+   780→    }
+   781→  }
+   782→
+   783→  /// Clears caches and invokes low-memory callbacks.
+   784→  ///
+   785→  /// Call this when the OS signals a memory warning or when [isMemoryPressure]
+   786→  /// returns `true`.
+   787→  Future<void> clearCaches() async {
+   788→    AppLogger.info('MemoryManager: clearing caches due to memory pressure');
+   789→    _isUnderPressure = true;
+   790→
+   791→    // Notify registered callbacks
+   792→    for (final callback in _lowMemoryCallbacks) {
+   793→      try {
+   794→        callback();
+   795→      } catch (e, st) {
+   796→        AppLogger.error(
+   797→          'MemoryManager: low-memory callback threw',
+   798→          error: e,
+   799→          stackTrace: st,
+   800→        );
+   801→      }
+   802→    }
+   803→
+   804→    // Evict images from the Flutter image cache
+   805→    try {
+   806→      PaintingBinding.instance.imageCache.clear();
+   807→      PaintingBinding.instance.imageCache.clearLiveImages();
+   808→    } catch (e, st) {
+   809→      AppLogger.warning('MemoryManager: image cache clear failed', error: e, stackTrace: st);
+   810→    }
+   811→
+   812→    // Dispose registered resources
+   813→    disposeAll();
+   814→
+   815→    _isUnderPressure = false;
+   816→  }
+   817→
+   818→  /// Registers a [callback] to be invoked when a low-memory event is
+   819→  /// detected.
+   820→  void onLowMemory(VoidCallback callback) {
+   821→    _lowMemoryCallbacks.add(callback);
+   822→  }
+   823→
+   824→  /// Registers a [Disposable] resource that will be freed on memory pressure.
+   825→  void registerDisposable(Disposable disposable) {
+   826→    _disposables.add(disposable);
+   827→  }
+   828→
+   829→  /// Disposes all registered disposable resources and clears the list.
+   830→  void disposeAll() {
+   831→    for (final disposable in _disposables) {
+   832→      try {
+   833→        disposable.dispose();
+   834→      } catch (e, st) {
+   835→        AppLogger.error(
+   836→          'MemoryManager: failed to dispose ${disposable.runtimeType}',
+   837→          error: e,
+   838→          stackTrace: st,
+   839→        );
+   840→      }
+   841→    }
+   842→    _disposables.clear();
+   843→  }
+   844→}
+   845→
+   846→/// Interface for resources that can be disposed by [MemoryManager].
+   847→abstract class Disposable {
+   848→  /// Releases resources held by this object.
+   849→  void dispose();
+   850→}
+   851→
+   852→// ═══════════════════════════════════════════════════════════════════════════════
+   853→// DATA COMPRESSOR
+   854→// ═══════════════════════════════════════════════════════════════════════════════
+   855→
+   856→/// Compresses and decompresses data for efficient storage and transfer.
+   857→///
+   858→/// Uses gzip encoding via `dart:io` [GZipCodec]. On web platforms (where
+   859→/// `dart:io` is unavailable), methods return uncompressed base64 as a
+   860→/// graceful fallback.
+   861→class DataCompressor {
+   862→  /// Compresses [data] using gzip and returns a base64-encoded string.
+   863→  Future<String> compressString(String data) async {
+   864→    try {
+   865→      if (kIsWeb) {
+   866→        // No dart:io on web — return base64 of raw UTF-8 bytes.
+   867→        return base64Encode(utf8.encode(data));
+   868→      }
+   869→      final bytes = utf8.encode(data);
+   870→      final compressed = gzip.encode(bytes);
+   871→      return base64Encode(compressed);
+   872→    } catch (e, st) {
+   873→      AppLogger.error('DataCompressor: compressString failed', error: e, stackTrace: st);
+   874→      rethrow;
+   875→    }
+   876→  }
+   877→
+   878→  /// Decompresses a base64-encoded gzip string back to the original string.
+   879→  Future<String> decompressString(String compressed) async {
+   880→    try {
+   881→      final bytes = base64Decode(compressed);
+   882→      if (kIsWeb) {
+   883→        return utf8.decode(bytes);
+   884→      }
+   885→      final decompressed = gzip.decode(bytes);
+   886→      return utf8.decode(decompressed);
+   887→    } catch (e, st) {
+   888→      AppLogger.error('DataCompressor: decompressString failed', error: e, stackTrace: st);
+   889→      rethrow;
+   890→    }
+   891→  }
+   892→
+   893→  /// Compresses a JSON map and returns a base64-encoded string.
+   894→  Future<String> compressJson(Map<String, dynamic> data) async {
+   895→    return compressString(jsonEncode(data));
+   896→  }
+   897→
+   898→  /// Decompresses a base64-encoded gzip string back to a JSON map.
+   899→  Future<Map<String, dynamic>> decompressJson(String compressed) async {
+   900→    final jsonString = await decompressString(compressed);
+   901→    return jsonDecode(jsonString) as Map<String, dynamic>;
+   902→  }
+   903→
+   904→  /// Estimates the compression ratio for [data] without actually compressing.
+   905→  ///
+   906→  /// Returns a value between 0.0 and 1.0 where lower values mean better
+   907→  /// compression. Uses a quick heuristic based on character diversity.
+   908→  double estimateCompressionRatio(String data) {
+   909→    if (data.isEmpty) return 1.0;
+   910→
+   911→    // Quick heuristic: measure unique character ratio.
+   912→    // Highly repetitive strings compress well (low ratio).
+   913→    final uniqueChars = <int>{};
+   914→    for (final codeUnit in data.codeUnits) {
+   915→      uniqueChars.add(codeUnit);
+   916→      // Stop sampling after 1024 characters for speed.
+   917→      if (uniqueChars.length >= 1024) break;
+   918→    }
+   919→
+   920→    final diversityRatio = uniqueChars.length / data.length.clamp(1, 1024);
+   921→
+   922→    // JSON / structured text typically compresses to ~15-30% of original.
+   923→    // High diversity → poor compression (~80-95%), low diversity → good (~10-30%).
+   924→    final estimatedRatio = 0.1 + (diversityRatio * 0.85);
+   925→    return estimatedRatio.clamp(0.1, 1.0);
+   926→  }
+   927→}
+   928→
+   929→// ═══════════════════════════════════════════════════════════════════════════════
+   930→// CACHE STRATEGY
+   931→// ═══════════════════════════════════════════════════════════════════════════════
+   932→
+   933→/// Defines the caching strategy for a resource type.
+   934→///
+   935→/// Each strategy determines the order of preference between network and
+   936→/// cache sources when fetching data.
+   937→enum CacheStrategy {
+   938→  /// Always fetch from the network; never use cache.
+   939→  networkOnly('Network Only — Always fetch from the network, bypass cache.'),
+   940→
+   941→  /// Try the network first; fall back to cache on failure.
+   942→  networkFirst('Network First — Try network, fall back to cache on error.'),
+   943→
+   944→  /// Try the cache first; fetch from network only on cache miss.
+   945→  cacheFirst('Cache First — Serve from cache if available, else network.'),
+   946→
+   947→  /// Only use cache; never hit the network.
+   948→  cacheOnly('Cache Only — Only use cached data, never fetch from network.'),
+   949→
+   950→  /// Return stale cache immediately while refreshing in the background.
+   951→  staleWhileRevalidate(
+   952→    'Stale While Revalidate — Serve stale cache immediately, '
+   953→    'then refresh from network in the background.',
+   954→  );
+   955→
+   956→  const CacheStrategy(this.description);
+   957→
+   958→  /// Human-readable description of this strategy.
+   959→  final String description;
+   960→}
+   961→
+   962→// ═══════════════════════════════════════════════════════════════════════════════
+   963→// CACHE POLICY
+   964→// ═══════════════════════════════════════════════════════════════════════════════
+   965→
+   966→/// Defines the caching behaviour for a specific resource type.
+   967→///
+   968→/// Combines a [CacheStrategy] with time-to-live, entry limits, and stale
+   969→/// time to give fine-grained control over how each type of data is cached.
+   970→class CachePolicy {
+   971→  const CachePolicy({
+   972→    required this.strategy,
+   973→    required this.ttl,
+   974→    required this.maxEntries,
+   975→    required this.staleTime,
+   976→  });
+   977→
+   978→  /// The caching strategy to use.
+   979→  final CacheStrategy strategy;
+   980→
+   981→  /// How long cached data is considered fresh.
+   982→  final Duration ttl;
+   983→
+   984→  /// Maximum number of entries to keep in cache for this policy.
+   985→  final int maxEntries;
+   986→
+   987→  /// Duration after which cached data is considered stale (but still usable
+   988→  /// for [CacheStrategy.staleWhileRevalidate]).
+   989→  final Duration staleTime;
+   990→
+   991→  // ── Predefined Policies ────────────────────────────────────────────────
+   992→
+   993→  /// Policy for API data: network first, 5-minute TTL, 100 entries.
+   994→  static const apiData = CachePolicy(
+   995→    strategy: CacheStrategy.networkFirst,
+   996→    ttl: Duration(minutes: 5),
+   997→    maxEntries: 100,
+   998→    staleTime: Duration(minutes: 3),
+   999→  );
+  1000→
+  1001→  /// Policy for images: cache first, 7-day TTL, 500 entries.
+  1002→  static const images = CachePolicy(
+  1003→    strategy: CacheStrategy.cacheFirst,
+  1004→    ttl: Duration(days: 7),
+  1005→    maxEntries: 500,
+  1006→    staleTime: Duration(days: 5),
+  1007→  );
+  1008→
+  1009→  /// Policy for user data: network first, 1-minute TTL, 50 entries.
+  1010→  static const userData = CachePolicy(
+  1011→    strategy: CacheStrategy.networkFirst,
+  1012→    ttl: Duration(minutes: 1),
+  1013→    maxEntries: 50,
+  1014→    staleTime: Duration(seconds: 30),
+  1015→  );
+  1016→
+  1017→  /// Policy for questions: stale-while-revalidate, 1-hour TTL, 1000 entries.
+  1018→  static const questions = CachePolicy(
+  1019→    strategy: CacheStrategy.staleWhileRevalidate,
+  1020→    ttl: Duration(hours: 1),
+  1021→    maxEntries: 1000,
+  1022→    staleTime: Duration(minutes: 30),
+  1023→  );
+  1024→
+  1025→  /// Policy for resources: cache first, 24-hour TTL, 200 entries.
+  1026→  static const resources = CachePolicy(
+  1027→    strategy: CacheStrategy.cacheFirst,
+  1028→    ttl: Duration(hours: 24),
+  1029→    maxEntries: 200,
+  1030→    staleTime: Duration(hours: 12),
+  1031→  );
+  1032→
+  1033→  /// Whether a cache entry created at [cachedAt] is still fresh.
+  1034→  bool isFresh(DateTime cachedAt) {
+  1035→    return DateTime.now().difference(cachedAt) < ttl;
+  1036→  }
+  1037→
+  1038→  /// Whether a cache entry created at [cachedAt] is stale but still usable.
+  1039→  bool isStale(DateTime cachedAt) {
+  1040→    final age = DateTime.now().difference(cachedAt);
+  1041→    return age >= staleTime && age < ttl;
+  1042→  }
+  1043→
+  1044→  /// Whether a cache entry created at [cachedAt] has expired.
+  1045→  bool isExpired(DateTime cachedAt) {
+  1046→    return DateTime.now().difference(cachedAt) >= ttl;
+  1047→  }
+  1048→
+  1049→  @override
+  1050→  String toString() => 'CachePolicy('
+  1051→      'strategy: $strategy, '
+  1052→      'ttl: $ttl, '
+  1053→      'maxEntries: $maxEntries, '
+  1054→      'staleTime: $staleTime'
+  1055→      ')';
+  1056→}
+  1057→
+  1058→// ═══════════════════════════════════════════════════════════════════════════════
+  1059→// PERFORMANCE MONITOR
+  1060→// ═══════════════════════════════════════════════════════════════════════════════
+  1061→
+  1062→/// Simple performance monitoring utility.
+  1063→///
+  1064→/// Tracks operation durations and arbitrary metrics. Designed for development
+  1065→/// and production diagnostics — all timing data is logged via [AppLogger].
+  1066→class PerformanceMonitor {
+  1067→  PerformanceMonitor();
+  1068→
+  1069→  /// Active timers keyed by name.
+  1070→  final Map<String, Stopwatch> _timers = {};
+  1071→
+  1072→  /// Completed durations keyed by operation name.
+  1073→  final Map<String, Duration> _durations = {};
+  1074→
+  1075→  /// Arbitrary metric values keyed by name.
+  1076→  final Map<String, dynamic> _metrics = {};
+  1077→
+  1078→  /// Starts a named timer.
+  1079→  ///
+  1080→  /// If a timer with [key] is already running it is restarted.
+  1081→  void startTimer(String key) {
+  1082→    _timers[key] = Stopwatch()..start();
+  1083→  }
+  1084→
+  1085→  /// Stops the timer for [key] and returns the elapsed [Duration].
+  1086→  ///
+  1087→  /// The duration is stored internally for later retrieval via
+  1088→  /// [getSlowOperations] and logged via [AppLogger].
+  1089→  Duration endTimer(String key) {
+  1090→    final stopwatch = _timers.remove(key);
+  1091→    if (stopwatch == null) {
+  1092→      AppLogger.warning('PerformanceMonitor: no timer found for key=$key');
+  1093→      return Duration.zero;
+  1094→    }
+  1095→
+  1096→    stopwatch.stop();
+  1097→    final duration = stopwatch.elapsed;
+  1098→    _durations[key] = duration;
+  1099→    AppLogger.debug('PerformanceMonitor: $key completed in ${duration.inMilliseconds}ms');
+  1100→    return duration;
+  1101→  }
+  1102→
+  1103→  /// Records an arbitrary metric value under [key].
+  1104→  void recordMetric(String key, dynamic value) {
+  1105→    _metrics[key] = value;
+  1106→  }
+  1107→
+  1108→  /// Returns a snapshot of all recorded metrics and durations.
+  1109→  Map<String, dynamic> getMetrics() {
+  1110→    return {
+  1111→      'durations': Map<String, int>.fromEntries(
+  1112→        _durations.entries.map((e) => MapEntry(e.key, e.value.inMilliseconds)),
+  1113→      ),
+  1114→      'metrics': Map<String, dynamic>.from(_metrics),
+  1115→      'activeTimers': _timers.keys.toList(),
+  1116→    };
+  1117→  }
+  1118→
+  1119→  /// Returns operations that took longer than [threshold].
+  1120→  Map<String, Duration> getSlowOperations({
+  1121→    Duration threshold = const Duration(seconds: 1),
+  1122→  }) {
+  1123→    return Map.fromEntries(
+  1124→      _durations.entries.where((entry) => entry.value > threshold),
+  1125→    );
+  1126→  }
+  1127→
+  1128→  /// Clears all recorded metrics and durations.
+  1129→  void clear() {
+  1130→    _timers.clear();
+  1131→    _durations.clear();
+  1132→    _metrics.clear();
+  1133→  }
+  1134→}
+  1135→
+  1136→// ═══════════════════════════════════════════════════════════════════════════════
+  1137→// RIVERPOD PROVIDERS
+  1138→// ═══════════════════════════════════════════════════════════════════════════════
+  1139→
+  1140→/// Provides the default [PerformanceConfig].
+  1141→///
+  1142→/// Override this provider in tests or for environment-specific configuration:
+  1143→/// ```dart
+  1144→/// container.updateOverrides([
+  1145→///   performanceConfigProvider.overrideWithValue(PerformanceConfig(maxCacheSizeMB: 50)),
+  1146→/// ]);
+  1147→/// ```
+  1148→final performanceConfigProvider = Provider<PerformanceConfig>((ref) {
+  1149→  return const PerformanceConfig();
+  1150→});
+  1151→
+  1152→/// Provides the [ImageOptimizer] configured with the current performance
+  1153→/// config and cache manager.
+  1154→final imageOptimizerProvider = Provider<ImageOptimizer>((ref) {
+  1155→  final config = ref.watch(performanceConfigProvider);
+  1156→  final cacheManager = ref.watch(cacheManagerProvider);
+  1157→  return ImageOptimizer(config: config, cacheManager: cacheManager);
+  1158→});
+  1159→
+  1160→/// Provides the [LazyLoadController] configured with the current performance
+  1161→/// config.
+  1162→final lazyLoadControllerProvider = Provider<LazyLoadController>((ref) {
+  1163→  final config = ref.watch(performanceConfigProvider);
+  1164→  return LazyLoadController(config: config);
+  1165→});
+  1166→
+  1167→/// Provides the [RequestBatcher] singleton.
+  1168→final requestBatcherProvider = Provider<RequestBatcher>((ref) {
+  1169→  return RequestBatcher();
+  1170→});
+  1171→
+  1172→/// Provides the [MemoryManager] with the current cache manager.
+  1173→final memoryManagerProvider = Provider<MemoryManager>((ref) {
+  1174→  final cacheManager = ref.watch(cacheManagerProvider);
+  1175→  return MemoryManager(cacheManager: cacheManager);
+  1176→});
+  1177→
+  1178→/// Provides the [DataCompressor] singleton.
+  1179→final dataCompressorProvider = Provider<DataCompressor>((ref) {
+  1180→  return DataCompressor();
+  1181→});
+  1182→
+  1183→/// Provides the [PerformanceMonitor] singleton.
+  1184→final performanceMonitorProvider = Provider<PerformanceMonitor>((ref) {
+  1185→  // Clean up when the provider is disposed
+  1186→  ref.onDispose(() {
+  1187→    // Monitor is lightweight — no special cleanup needed beyond what
+  1188→    // the ref.dispose already handles (invalidating references).
+  1189→  });
+  1190→  return PerformanceMonitor();
+  1191→});
+  1192→

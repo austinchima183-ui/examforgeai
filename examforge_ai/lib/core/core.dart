@@ -29,6 +29,9 @@ export 'themes/app_typography.dart';
 export 'themes/spacings.dart';
 export 'themes/theme_provider.dart';
 
+// ─── Device ─────────────────────────────────────────────────────────────────
+export 'device/device_service.dart';
+
 // ─── Utils ──────────────────────────────────────────────────────────────────
 export 'utils/helpers.dart';
 export 'utils/input_validator.dart';

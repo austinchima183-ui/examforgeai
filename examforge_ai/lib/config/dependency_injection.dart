@@ -212,6 +212,38 @@ import '../features/marketplace/presentation/providers/moderation_provider.dart'
 import '../features/marketplace/presentation/providers/marketplace_notification_provider.dart';
 import '../features/marketplace/presentation/providers/commission_provider.dart';
 
+// ── Offline & Connectivity ──
+import '../features/offline/data/datasources/offline_local_datasource.dart';
+import '../features/offline/data/datasources/offline_remote_datasource.dart';
+import '../features/offline/data/repositories/offline_repository_impl.dart';
+import '../features/offline/domain/repositories/offline_repository.dart';
+import '../features/offline/domain/usecases/get_sync_status_usecase.dart';
+import '../features/offline/domain/usecases/trigger_sync_usecase.dart';
+import '../features/offline/domain/usecases/get_offline_resources_usecase.dart';
+import '../features/offline/domain/usecases/download_resource_usecase.dart';
+import '../features/offline/domain/usecases/remove_offline_resource_usecase.dart';
+import '../features/offline/domain/usecases/save_draft_usecase.dart';
+import '../features/offline/domain/usecases/get_drafts_usecase.dart';
+import '../features/offline/domain/usecases/delete_draft_usecase.dart';
+import '../features/offline/domain/usecases/save_offline_exam_attempt_usecase.dart';
+import '../features/offline/domain/usecases/sync_exam_attempt_usecase.dart';
+import '../features/offline/domain/usecases/register_device_usecase.dart';
+import '../features/offline/domain/usecases/get_connectivity_info_usecase.dart';
+import '../features/offline/domain/usecases/start_download_usecase.dart';
+import '../features/offline/domain/usecases/get_downloads_usecase.dart';
+import '../features/offline/presentation/providers/offline_provider.dart';
+
+// ── Core Infrastructure ──
+import '../core/storage/local_database.dart';
+import '../core/storage/cache_manager.dart';
+import '../core/connectivity/connectivity_engine.dart';
+import '../core/sync/sync_engine.dart';
+import '../core/device/device_service.dart';
+import '../core/responsive/responsive_framework.dart';
+import '../core/accessibility/accessibility_framework.dart';
+import '../core/performance/performance_manager.dart';
+import '../core/pwa/pwa_service.dart';
+
 // ═══════════════════════════════════════════════════════════════════════
 // INFRASTRUCTURE PROVIDERS
 // ═══════════════════════════════════════════════════════════════════════
@@ -4272,5 +4304,90 @@ final commissionProvider =
     getCommissionRatesUseCase: ref.watch(getCommissionRatesUseCaseProvider),
     upsertCommissionRateUseCase: ref.watch(upsertCommissionRateUseCaseProvider),
     getCommissionRecordsUseCase: ref.watch(getCommissionRecordsUseCaseProvider),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// OFFLINE & CONNECTIVITY MODULE
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Data Layer ──────────────────────────────────────────────────────────
+final offlineLocalDataSourceProvider = Provider<OfflineLocalDataSource>((ref) {
+  return OfflineLocalDataSourceImpl(cacheManager: ref.watch(cacheManagerProvider));
+});
+
+final offlineRemoteDataSourceProvider = Provider<OfflineRemoteDataSource>((ref) {
+  return OfflineRemoteDataSourceImpl(supabaseClient: ref.watch(supabaseClientProvider));
+});
+
+final offlineRepositoryProvider = Provider<OfflineRepository>((ref) {
+  return OfflineRepositoryImpl(
+    localDataSource: ref.watch(offlineLocalDataSourceProvider),
+    remoteDataSource: ref.watch(offlineRemoteDataSourceProvider),
+    networkInfo: ref.watch(coreNetworkInfoProvider),
+    cacheManager: ref.watch(cacheManagerProvider),
+  );
+});
+
+// ─── Use Cases ───────────────────────────────────────────────────────────
+final getSyncStatusUseCaseProvider = Provider<GetSyncStatusUseCase>((ref) {
+  return GetSyncStatusUseCase(ref.watch(offlineRepositoryProvider));
+});
+final triggerSyncUseCaseProvider = Provider<TriggerSyncUseCase>((ref) {
+  return TriggerSyncUseCase(ref.watch(offlineRepositoryProvider));
+});
+final getOfflineResourcesUseCaseProvider = Provider<GetOfflineResourcesUseCase>((ref) {
+  return GetOfflineResourcesUseCase(ref.watch(offlineRepositoryProvider));
+});
+final downloadResourceUseCaseProvider = Provider<DownloadResourceUseCase>((ref) {
+  return DownloadResourceUseCase(ref.watch(offlineRepositoryProvider));
+});
+final removeOfflineResourceUseCaseProvider = Provider<RemoveOfflineResourceUseCase>((ref) {
+  return RemoveOfflineResourceUseCase(ref.watch(offlineRepositoryProvider));
+});
+final saveDraftUseCaseProvider = Provider<SaveDraftUseCase>((ref) {
+  return SaveDraftUseCase(ref.watch(offlineRepositoryProvider));
+});
+final getDraftsUseCaseProvider = Provider<GetDraftsUseCase>((ref) {
+  return GetDraftsUseCase(ref.watch(offlineRepositoryProvider));
+});
+final deleteDraftUseCaseProvider = Provider<DeleteDraftUseCase>((ref) {
+  return DeleteDraftUseCase(ref.watch(offlineRepositoryProvider));
+});
+final saveOfflineExamAttemptUseCaseProvider = Provider<SaveOfflineExamAttemptUseCase>((ref) {
+  return SaveOfflineExamAttemptUseCase(ref.watch(offlineRepositoryProvider));
+});
+final syncExamAttemptUseCaseProvider = Provider<SyncExamAttemptUseCase>((ref) {
+  return SyncExamAttemptUseCase(ref.watch(offlineRepositoryProvider));
+});
+final registerDeviceUseCaseProvider = Provider<RegisterDeviceUseCase>((ref) {
+  return RegisterDeviceUseCase(ref.watch(offlineRepositoryProvider));
+});
+final getConnectivityInfoUseCaseProvider = Provider<GetConnectivityInfoUseCase>((ref) {
+  return GetConnectivityInfoUseCase(ref.watch(offlineRepositoryProvider));
+});
+final startDownloadUseCaseProvider = Provider<StartDownloadUseCase>((ref) {
+  return StartDownloadUseCase(ref.watch(offlineRepositoryProvider));
+});
+final getDownloadsUseCaseProvider = Provider<GetDownloadsUseCase>((ref) {
+  return GetDownloadsUseCase(ref.watch(offlineRepositoryProvider));
+});
+
+// ─── Presentation Layer ──────────────────────────────────────────────────
+final offlineProvider =
+    StateNotifierProvider<OfflineNotifier, OfflineState>((ref) {
+  return OfflineNotifier(
+    getSyncStatusUseCase: ref.watch(getSyncStatusUseCaseProvider),
+    triggerSyncUseCase: ref.watch(triggerSyncUseCaseProvider),
+    getOfflineResourcesUseCase: ref.watch(getOfflineResourcesUseCaseProvider),
+    downloadResourceUseCase: ref.watch(downloadResourceUseCaseProvider),
+    removeOfflineResourceUseCase: ref.watch(removeOfflineResourceUseCaseProvider),
+    saveDraftUseCase: ref.watch(saveDraftUseCaseProvider),
+    getDraftsUseCase: ref.watch(getDraftsUseCaseProvider),
+    deleteDraftUseCase: ref.watch(deleteDraftUseCaseProvider),
+    getConnectivityInfoUseCase: ref.watch(getConnectivityInfoUseCaseProvider),
+    registerDeviceUseCase: ref.watch(registerDeviceUseCaseProvider),
+    startDownloadUseCase: ref.watch(startDownloadUseCaseProvider),
+    getDownloadsUseCase: ref.watch(getDownloadsUseCaseProvider),
   );
 });

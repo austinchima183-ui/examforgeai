@@ -187,6 +187,11 @@ import '../features/marketplace/presentation/pages/commission_management_page.da
 import '../features/marketplace/presentation/pages/marketplace_analytics_page.dart';
 import '../features/marketplace/presentation/pages/marketplace_notifications_page.dart';
 
+// ── Offline & Connectivity ──
+import '../features/offline/presentation/pages/offline_center_page.dart';
+import '../features/offline/presentation/pages/connectivity_status_page.dart';
+import '../features/offline/presentation/pages/offline_exam_page.dart';
+
 // ── Super Admin Platform ──
 import '../features/super_admin/presentation/pages/super_admin_dashboard_page.dart';
 import '../features/super_admin/presentation/pages/school_management_page.dart';
@@ -1512,6 +1517,27 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.marketplaceNotifications,
             name: 'marketplace-notifications',
             builder: (context, state) => const MarketplaceNotificationsPage(),
+          ),
+
+          // ── Offline & Connectivity Routes ──────────────────────────
+          GoRoute(
+            path: RouteNames.offlineCenter,
+            name: 'offline-center',
+            builder: (context, state) => const OfflineCenterPage(),
+          ),
+          GoRoute(
+            path: RouteNames.connectivityStatus,
+            name: 'connectivity-status',
+            builder: (context, state) => const ConnectivityStatusPage(),
+          ),
+          GoRoute(
+            path: RouteNames.offlineExam,
+            name: 'offline-exam',
+            builder: (context, state) {
+              final examId = state.uri.queryParameters['examId'] ?? '';
+              final examTitle = state.uri.queryParameters['examTitle'] ?? 'Exam';
+              return OfflineExamPage(examId: examId, examTitle: examTitle);
+            },
           ),
 
           // ── Super Admin Platform Routes ──────────────────────────

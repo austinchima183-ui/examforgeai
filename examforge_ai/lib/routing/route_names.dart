@@ -701,6 +701,19 @@ class RouteNames {
   static const String marketplaceNotifications = '/marketplace/notifications';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // OFFLINE & CONNECTIVITY ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Offline center — manage downloads, drafts, sync status.
+  static const String offlineCenter = '/offline';
+
+  /// Connectivity status and network quality details.
+  static const String connectivityStatus = '/offline/connectivity';
+
+  /// Offline exam mode — take exams without internet.
+  static const String offlineExam = '/offline/exam';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // BILLING ROUTES
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -1114,6 +1127,9 @@ class RouteNames {
     marketplaceCommissions,
     marketplaceAnalytics,
     marketplaceNotifications,
+    offlineCenter,
+    connectivityStatus,
+    offlineExam,
   };
 
   /// All marketplace sub-routes (used for feature-level navigation).
@@ -1134,5 +1150,12 @@ class RouteNames {
     marketplaceCommissions,
     marketplaceAnalytics,
     marketplaceNotifications,
+  };
+
+  /// All offline & connectivity sub-routes.
+  static const Set<String> offlineRoutes = <String>{
+    offlineCenter,
+    connectivityStatus,
+    offlineExam,
   };
 }
