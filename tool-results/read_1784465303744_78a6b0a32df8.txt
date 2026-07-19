@@ -1,0 +1,1748 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../../core/themes/app_colors.dart';
+     5→import '../../../../../core/themes/app_typography.dart';
+     6→import '../../../../../core/themes/spacings.dart';
+     7→import '../../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../../shared/widgets/widgets.dart';
+     9→import '../../domain/entities/marketplace_entities.dart';
+    10→import '../providers/seller_provider.dart';
+    11→import '../providers/purchase_provider.dart';
+    12→import '../providers/cart_provider.dart';
+    13→import '../providers/order_provider.dart';
+    14→import '../providers/marketplace_notification_provider.dart';
+    15→import '../widgets/marketplace_widgets.dart';
+    16→
+    17→// ═══════════════════════════════════════════════════════════════════════════════
+    18→// SELLER DASHBOARD PAGE
+    19→// ═══════════════════════════════════════════════════════════════════════════════
+    20→
+    21→/// Seller's control center with tabs for Overview, Products, Analytics,
+    22→/// and Earnings.
+    23→///
+    24→/// ```dart
+    25→/// Navigator.push(context, MaterialPageRoute(builder: (_) => SellerDashboardPage()));
+    26→/// ```
+    27→class SellerDashboardPage extends ConsumerStatefulWidget {
+    28→  const SellerDashboardPage({super.key});
+    29→
+    30→  @override
+    31→  ConsumerState<SellerDashboardPage> createState() =>
+    32→      _SellerDashboardPageState();
+    33→}
+    34→
+    35→class _SellerDashboardPageState extends ConsumerState<SellerDashboardPage>
+    36→    with SingleTickerProviderStateMixin {
+    37→  late final TabController _tabController;
+    38→
+    39→  static const _tabs = [
+    40→    Tab(icon: Icon(Icons.dashboard_outlined), text: 'Overview'),
+    41→    Tab(icon: Icon(Icons.inventory_2_outlined), text: 'Products'),
+    42→    Tab(icon: Icon(Icons.analytics_outlined), text: 'Analytics'),
+    43→    Tab(icon: Icon(Icons.account_balance_wallet_outlined), text: 'Earnings'),
+    44→  ];
+    45→
+    46→  @override
+    47→  void initState() {
+    48→    super.initState();
+    49→    _tabController = TabController(length: _tabs.length, vsync: this);
+    50→    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    51→  }
+    52→
+    53→  @override
+    54→  void dispose() {
+    55→    _tabController.dispose();
+    56→    super.dispose();
+    57→  }
+    58→
+    59→  Future<void> _loadData() async {
+    60→    final sellerNotifier = ref.read(sellerProvider.notifier);
+    61→    await Future.wait([
+    62→      sellerNotifier.loadSellerProfile(userId: 'current_user'),
+    63→      sellerNotifier.loadSellerProducts(sellerId: 'current_seller'),
+    64→      sellerNotifier.loadSellerAnalytics(sellerId: 'current_seller'),
+    65→      ref
+    66→          .read(marketplaceNotificationProvider.notifier)
+    67→          .loadNotifications(userId: 'current_user'),
+    68→    ]);
+    69→  }
+    70→
+    71→  Future<void> _refresh() async {
+    72→    final sellerNotifier = ref.read(sellerProvider.notifier);
+    73→    await Future.wait([
+    74→      sellerNotifier.loadSellerProfile(userId: 'current_user'),
+    75→      sellerNotifier.loadSellerProducts(sellerId: 'current_seller'),
+    76→      sellerNotifier.loadSellerAnalytics(sellerId: 'current_seller'),
+    77→      ref
+    78→          .read(marketplaceNotificationProvider.notifier)
+    79→          .loadNotifications(userId: 'current_user'),
+    80→    ]);
+    81→  }
+    82→
+    83→  void _showSnackBar(String message, {bool isError = false}) {
+    84→    context.scaffoldMessenger.showSnackBar(
+    85→      SnackBar(
+    86→        content: Text(message),
+    87→        backgroundColor: isError ? AppColors.error : null,
+    88→        behavior: SnackBarBehavior.floating,
+    89→      ),
+    90→    );
+    91→  }
+    92→
+    93→  @override
+    94→  Widget build(BuildContext context) {
+    95→    final sellerState = ref.watch(sellerProvider);
+    96→    final notifState = ref.watch(marketplaceNotificationProvider);
+    97→
+    98→    // Listen for error/success messages
+    99→    ref.listen<SellerState>(sellerProvider, (prev, next) {
+   100→      if (next.error != null && (prev?.error != next.error)) {
+   101→        _showSnackBar(next.error!, isError: true);
+   102→        ref.read(sellerProvider.notifier).clearError();
+   103→      }
+   104→      if (next.successMessage != null &&
+   105→          (prev?.successMessage != next.successMessage)) {
+   106→        _showSnackBar(next.successMessage!);
+   107→        ref.read(sellerProvider.notifier).clearSuccess();
+   108→      }
+   109→    });
+   110→
+   111→    return Scaffold(
+   112→      appBar: AppAppBar(
+   113→        title: 'Seller Dashboard',
+   114→        actions: [
+   115→          Stack(
+   116→            alignment: Alignment.center,
+   117→            children: [
+   118→              AppIconButton(
+   119→                icon: Icons.notifications_outlined,
+   120→                onPressed: () {
+   121→                  // Navigate to notifications
+   122→                },
+   123→                tooltip: 'Notifications',
+   124→              ),
+   125→              if (notifState.hasUnread)
+   126→                Positioned(
+   127→                  top: 4,
+   128→                  right: 4,
+   129→                  child: Container(
+   130→                    padding: const EdgeInsets.all(2),
+   131→                    decoration: const BoxDecoration(
+   132→                      color: AppColors.error,
+   133→                      shape: BoxShape.circle,
+   134→                    ),
+   135→                    constraints: const BoxConstraints(
+   136→                      minWidth: 16,
+   137→                      minHeight: 16,
+   138→                    ),
+   139→                    child: Text(
+   140→                      '${notifState.unreadCount}',
+   141→                      style: const TextStyle(
+   142→                        color: Colors.white,
+   143→                        fontSize: 10,
+   144→                        fontWeight: AppTypography.wBold,
+   145→                      ),
+   146→                      textAlign: TextAlign.center,
+   147→                    ),
+   148→                  ),
+   149→                ),
+   150→            ],
+   151→          ),
+   152→        ],
+   153→        bottom: TabBar(
+   154→          controller: _tabController,
+   155→          tabs: _tabs,
+   156→          isScrollable: context.isMobile,
+   157→          labelStyle: context.textTheme.labelLarge?.copyWith(
+   158→            fontWeight: AppTypography.wSemiBold,
+   159→          ),
+   160→          unselectedLabelStyle: context.textTheme.labelMedium,
+   161→          indicatorSize: TabBarIndicatorSize.label,
+   162→        ),
+   163→      ),
+   164→      body: sellerState.isLoading && sellerState.products.isEmpty
+   165→          ? const Center(child: AppLoadingSpinner())
+   166→          : sellerState.error != null && sellerState.products.isEmpty
+   167→              ? AppErrorState.serverError(onRetry: _loadData)
+   168→              : RefreshIndicator(
+   169→                  onRefresh: _refresh,
+   170→                  child: TabBarView(
+   171→                    controller: _tabController,
+   172→                    children: [
+   173→                      _OverviewTab(state: sellerState),
+   174→                      _ProductsTab(state: sellerState),
+   175→                      _AnalyticsTab(state: sellerState),
+   176→                      _EarningsTab(state: sellerState),
+   177→                    ],
+   178→                  ),
+   179→                ),
+   180→    );
+   181→  }
+   182→}
+   183→
+   184→// ═══════════════════════════════════════════════════════════════════════════════
+   185→// OVERVIEW TAB
+   186→// ═══════════════════════════════════════════════════════════════════════════════
+   187→
+   188→class _OverviewTab extends StatelessWidget {
+   189→  const _OverviewTab({required this.state});
+   190→
+   191→  final SellerState state;
+   192→
+   193→  @override
+   194→  Widget build(BuildContext context) {
+   195→    return ListView(
+   196→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   197→      children: [
+   198→        const SizedBox(height: Spacings.lg),
+   199→
+   200→        // Seller profile section
+   201→        _SellerProfileHeader(profile: state.sellerProfile),
+   202→
+   203→        const SizedBox(height: Spacings.xl),
+   204→
+   205→        // Stats row
+   206→        _buildStatsRow(context),
+   207→
+   208→        const SizedBox(height: Spacings.xl),
+   209→
+   210→        // Revenue chart placeholder
+   211→        _buildRevenueChartPlaceholder(context),
+   212→
+   213→        const SizedBox(height: Spacings.xl),
+   214→
+   215→        // Recent orders
+   216→        _buildRecentOrdersSection(context),
+   217→
+   218→        const SizedBox(height: Spacings.xl),
+   219→
+   220→        // Recent reviews
+   221→        _buildRecentReviewsSection(context),
+   222→
+   223→        const SizedBox(height: Spacings.xl),
+   224→
+   225→        // Quick actions
+   226→        _buildQuickActionsSection(context),
+   227→
+   228→        const SizedBox(height: Spacings.xxl),
+   229→      ],
+   230→    );
+   231→  }
+   232→
+   233→  Widget _buildStatsRow(BuildContext context) {
+   234→    final isMobile = context.isMobile;
+   235→
+   236→    if (isMobile) {
+   237→      return Column(
+   238→        children: [
+   239→          Row(
+   240→            children: [
+   241→              Expanded(
+   242→                child: AppStatCard(
+   243→                  title: 'Total Revenue',
+   244→                  value: '₦${_formatNumber(state.totalRevenue)}',
+   245→                  icon: Icons.payments_rounded,
+   246→                  color: AppColors.success,
+   247→                ),
+   248→              ),
+   249→              const SizedBox(width: Spacings.sm),
+   250→              Expanded(
+   251→                child: AppStatCard(
+   252→                  title: 'Total Sales',
+   253→                  value: '${state.totalSales}',
+   254→                  icon: Icons.shopping_cart_rounded,
+   255→                  color: AppColors.info,
+   256→                ),
+   257→              ),
+   258→            ],
+   259→          ),
+   260→          const SizedBox(height: Spacings.sm),
+   261→          Row(
+   262→            children: [
+   263→              Expanded(
+   264→                child: AppStatCard(
+   265→                  title: 'Active Products',
+   266→                  value: '${state.totalProducts}',
+   267→                  icon: Icons.inventory_2_rounded,
+   268→                  color: AppColors.warning,
+   269→                ),
+   270→              ),
+   271→              const SizedBox(width: Spacings.sm),
+   272→              Expanded(
+   273→                child: AppStatCard(
+   274→                  title: 'Avg. Rating',
+   275→                  value: state.averageRating.toStringAsFixed(1),
+   276→                  icon: Icons.star_rounded,
+   277→                  color: AppColors.error,
+   278→                  trendValue: state.averageRating >= 4.0
+   279→                      ? 'Great'
+   280→                      : 'Needs work',
+   281→                  trend: state.averageRating >= 4.0
+   282→                      ? TrendDirection.up
+   283→                      : TrendDirection.neutral,
+   284→                ),
+   285→              ),
+   286→            ],
+   287→          ),
+   288→        ],
+   289→      );
+   290→    }
+   291→
+   292→    return Row(
+   293→      children: [
+   294→        Expanded(
+   295→          child: AppStatCard(
+   296→            title: 'Total Revenue',
+   297→            value: '₦${_formatNumber(state.totalRevenue)}',
+   298→            icon: Icons.payments_rounded,
+   299→            color: AppColors.success,
+   300→          ),
+   301→        ),
+   302→        const SizedBox(width: Spacings.sm),
+   303→        Expanded(
+   304→          child: AppStatCard(
+   305→            title: 'Total Sales',
+   306→            value: '${state.totalSales}',
+   307→            icon: Icons.shopping_cart_rounded,
+   308→            color: AppColors.info,
+   309→          ),
+   310→        ),
+   311→        const SizedBox(width: Spacings.sm),
+   312→        Expanded(
+   313→          child: AppStatCard(
+   314→            title: 'Active Products',
+   315→            value: '${state.totalProducts}',
+   316→            icon: Icons.inventory_2_rounded,
+   317→            color: AppColors.warning,
+   318→          ),
+   319→        ),
+   320→        const SizedBox(width: Spacings.sm),
+   321→        Expanded(
+   322→          child: AppStatCard(
+   323→            title: 'Avg. Rating',
+   324→            value: state.averageRating.toStringAsFixed(1),
+   325→            icon: Icons.star_rounded,
+   326→            color: AppColors.error,
+   327→          ),
+   328→        ),
+   329→      ],
+   330→    );
+   331→  }
+   332→
+   333→  Widget _buildRevenueChartPlaceholder(BuildContext context) {
+   334→    final cs = context.colorScheme;
+   335→    final tt = context.textTheme;
+   336→    final isDark = context.isDarkMode;
+   337→
+   338→    // Simple bar chart using containers
+   339→    final bars = [0.4, 0.7, 0.5, 0.9, 0.6, 0.8, 1.0];
+   340→    final labels = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+   341→
+   342→    return AppCard(
+   343→      padding: const EdgeInsets.all(Spacings.lg),
+   344→      child: Column(
+   345→        crossAxisAlignment: CrossAxisAlignment.start,
+   346→        children: [
+   347→          Text(
+   348→            'Revenue This Week',
+   349→            style: tt.titleMedium?.copyWith(
+   350→              fontWeight: AppTypography.wSemiBold,
+   351→              color: cs.onSurface,
+   352→            ),
+   353→          ),
+   354→          const SizedBox(height: Spacings.xl),
+   355→          SizedBox(
+   356→            height: 160,
+   357→            child: Row(
+   358→              crossAxisAlignment: CrossAxisAlignment.end,
+   359→              children: List.generate(bars.length, (index) {
+   360→                final isHighest = bars[index] == bars.reduce(
+   361→                  (a, b) => a > b ? a : b,
+   362→                );
+   363→                return Expanded(
+   364→                  child: Padding(
+   365→                    padding: const EdgeInsets.symmetric(horizontal: Spacings.xs),
+   366→                    child: Column(
+   367→                      mainAxisAlignment: MainAxisAlignment.end,
+   368→                      children: [
+   369→                        Flexible(
+   370→                          child: FractionallySizedBox(
+   371→                            heightFactor: bars[index],
+   372→                            child: Container(
+   373→                              decoration: BoxDecoration(
+   374→                                color: isHighest
+   375→                                    ? cs.primary
+   376→                                    : cs.primary.withValues(
+   377→                                        alpha: isDark ? 0.30 : 0.20,
+   378→                                      ),
+   379→                                borderRadius: const BorderRadius.vertical(
+   380→                                  top: Radius.circular(Spacings.smRadius),
+   381→                                ),
+   382→                              ),
+   383→                            ),
+   384→                          ),
+   385→                        ),
+   386→                        const SizedBox(height: Spacings.sm),
+   387→                        Text(
+   388→                          labels[index],
+   389→                          style: tt.labelSmall?.copyWith(
+   390→                            color: cs.onSurfaceVariant,
+   391→                          ),
+   392→                        ),
+   393→                      ],
+   394→                    ),
+   395→                  ),
+   396→                );
+   397→              }),
+   398→            ),
+   399→          ),
+   400→        ],
+   401→      ),
+   402→    );
+   403→  }
+   404→
+   405→  Widget _buildRecentOrdersSection(BuildContext context) {
+   406→    final cs = context.colorScheme;
+   407→    final tt = context.textTheme;
+   408→
+   409→    return Column(
+   410→      crossAxisAlignment: CrossAxisAlignment.start,
+   411→      children: [
+   412→        Row(
+   413→          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   414→          children: [
+   415→            Text(
+   416→              'Recent Orders',
+   417→              style: tt.titleMedium?.copyWith(
+   418→                fontWeight: AppTypography.wSemiBold,
+   419→                color: cs.onSurface,
+   420→              ),
+   421→            ),
+   422→            TextButton(
+   423→              onPressed: () {
+   424→                // View all orders
+   425→              },
+   426→              child: Text(
+   427→                'View All',
+   428→                style: tt.labelMedium?.copyWith(
+   429→                  color: cs.primary,
+   430→                  fontWeight: AppTypography.wSemiBold,
+   431→                ),
+   432→              ),
+   433→            ),
+   434→          ],
+   435→        ),
+   436→        const SizedBox(height: Spacings.md),
+   437→        // Placeholder for recent orders (would come from order provider)
+   438→        AppInfoCard(
+   439→          icon: Icons.receipt_long_rounded,
+   440→          title: 'No Recent Orders',
+   441→          subtitle: 'Orders will appear here when customers purchase your products.',
+   442→        ),
+   443→      ],
+   444→    );
+   445→  }
+   446→
+   447→  Widget _buildRecentReviewsSection(BuildContext context) {
+   448→    final cs = context.colorScheme;
+   449→    final tt = context.textTheme;
+   450→
+   451→    return Column(
+   452→      crossAxisAlignment: CrossAxisAlignment.start,
+   453→      children: [
+   454→        Text(
+   455→          'Recent Reviews',
+   456→          style: tt.titleMedium?.copyWith(
+   457→            fontWeight: AppTypography.wSemiBold,
+   458→            color: cs.onSurface,
+   459→          ),
+   460→        ),
+   461→        const SizedBox(height: Spacings.md),
+   462→        AppInfoCard(
+   463→          icon: Icons.rate_review_rounded,
+   464→          title: 'No Reviews Yet',
+   465→          subtitle: 'Reviews from buyers will appear here.',
+   466→        ),
+   467→      ],
+   468→    );
+   469→  }
+   470→
+   471→  Widget _buildQuickActionsSection(BuildContext context) {
+   472→    final cs = context.colorScheme;
+   473→    final tt = context.textTheme;
+   474→
+   475→    return Column(
+   476→      crossAxisAlignment: CrossAxisAlignment.start,
+   477→      children: [
+   478→        Text(
+   479→          'Quick Actions',
+   480→          style: tt.titleMedium?.copyWith(
+   481→            fontWeight: AppTypography.wSemiBold,
+   482→            color: cs.onSurface,
+   483→          ),
+   484→        ),
+   485→        const SizedBox(height: Spacings.md),
+   486→        Row(
+   487→          children: [
+   488→            Expanded(
+   489→              child: AppActionCard(
+   490→                title: 'Add New Product',
+   491→                subtitle: 'Create a new listing',
+   492→                icon: Icons.add_circle_outline_rounded,
+   493→                color: AppColors.info,
+   494→                onTap: () {
+   495→                  // Navigate to create product page
+   496→                },
+   497→              ),
+   498→            ),
+   499→          ],
+   500→        ),
+   501→        const SizedBox(height: Spacings.sm),
+   502→        Row(
+   503→          children: [
+   504→            Expanded(
+   505→              child: AppActionCard(
+   506→                title: 'View All Products',
+   507→                subtitle: 'Manage your listings',
+   508→                icon: Icons.inventory_2_outlined,
+   509→                color: AppColors.warning,
+   510→                onTap: () {
+   511→                  // Switch to products tab
+   512→                },
+   513→              ),
+   514→            ),
+   515→            const SizedBox(width: Spacings.sm),
+   516→            Expanded(
+   517→              child: AppActionCard(
+   518→                title: 'Quality Check',
+   519→                subtitle: 'Run AI quality review',
+   520→                icon: Icons.verified_outlined,
+   521→                color: AppColors.success,
+   522→                onTap: () {
+   523→                  // Navigate to quality check
+   524→                },
+   525→              ),
+   526→            ),
+   527→          ],
+   528→        ),
+   529→      ],
+   530→    );
+   531→  }
+   532→}
+   533→
+   534→// ═══════════════════════════════════════════════════════════════════════════════
+   535→// SELLER PROFILE HEADER
+   536→// ═══════════════════════════════════════════════════════════════════════════════
+   537→
+   538→class _SellerProfileHeader extends StatelessWidget {
+   539→  const _SellerProfileHeader({this.profile});
+   540→
+   541→  final SellerProfileEntity? profile;
+   542→
+   543→  @override
+   544→  Widget build(BuildContext context) {
+   545→    final cs = context.colorScheme;
+   546→    final tt = context.textTheme;
+   547→    final isDark = context.isDarkMode;
+   548→
+   549→    final displayName = profile?.displayName ?? 'Seller';
+   550→    final isVerified = profile?.isVerified ?? false;
+   551→    final avatarUrl = profile?.avatarUrl;
+   552→
+   553→    return AppCard(
+   554→      child: Row(
+   555→        children: [
+   556→          // Avatar
+   557→          CircleAvatar(
+   558→            radius: 28,
+   559→            backgroundImage:
+   560→                avatarUrl != null ? NetworkImage(avatarUrl) : null,
+   561→            backgroundColor:
+   562→                cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+   563→            child: avatarUrl == null
+   564→                ? Text(
+   565→                    displayName.substring(0, 1).toUpperCase(),
+   566→                    style: tt.headlineSmall?.copyWith(
+   567→                      color: cs.primary,
+   568→                      fontWeight: AppTypography.wBold,
+   569→                    ),
+   570→                  )
+   571→                : null,
+   572→          ),
+   573→          const SizedBox(width: Spacings.lg),
+   574→          // Name and verification
+   575→          Expanded(
+   576→            child: Column(
+   577→              crossAxisAlignment: CrossAxisAlignment.start,
+   578→              children: [
+   579→                Row(
+   580→                  children: [
+   581→                    Flexible(
+   582→                      child: Text(
+   583→                        displayName,
+   584→                        style: tt.titleMedium?.copyWith(
+   585→                          fontWeight: AppTypography.wSemiBold,
+   586→                          color: cs.onSurface,
+   587→                        ),
+   588→                        maxLines: 1,
+   589→                        overflow: TextOverflow.ellipsis,
+   590→                      ),
+   591→                    ),
+   592→                    if (isVerified) ...[
+   593→                      const SizedBox(width: Spacings.sm),
+   594→                      Icon(
+   595→                        Icons.verified_rounded,
+   596→                        size: Spacings.mdIcon,
+   597→                        color: AppColors.info,
+   598→                      ),
+   599→                    ],
+   600→                  ],
+   601→                ),
+   602→                const SizedBox(height: Spacings.xs),
+   603→                Text(
+   604→                  isVerified
+   605→                      ? 'Verified Seller'
+   606→                      : profile?.isPendingVerification == true
+   607→                          ? 'Pending Verification'
+   608→                          : 'Seller',
+   609→                  style: tt.bodySmall?.copyWith(
+   610→                    color: isVerified ? AppColors.info : cs.onSurfaceVariant,
+   611→                    fontWeight: AppTypography.wMedium,
+   612→                  ),
+   613→                ),
+   614→              ],
+   615→            ),
+   616→          ),
+   617→          // Edit Profile button
+   618→          AppButton(
+   619→            label: 'Edit Profile',
+   620→            onPressed: () {
+   621→              // Navigate to edit profile
+   622→            },
+   623→            variant: AppButtonVariant.outlined,
+   624→            size: AppButtonSize.small,
+   625→            icon: Icons.edit_rounded,
+   626→          ),
+   627→        ],
+   628→      ),
+   629→    );
+   630→  }
+   631→}
+   632→
+   633→// ═══════════════════════════════════════════════════════════════════════════════
+   634→// PRODUCTS TAB
+   635→// ═══════════════════════════════════════════════════════════════════════════════
+   636→
+   637→class _ProductsTab extends ConsumerStatefulWidget {
+   638→  const _ProductsTab({required this.state});
+   639→
+   640→  final SellerState state;
+   641→
+   642→  @override
+   643→  ConsumerState<_ProductsTab> createState() => _ProductsTabState();
+   644→}
+   645→
+   646→class _ProductsTabState extends ConsumerState<_ProductsTab> {
+   647→  /// `null` means "All" (no filter); otherwise filter by specific status.
+   648→  MarketplaceProductStatus? _filter;
+   649→
+   650→  static const _filterOptions = <(MarketplaceProductStatus?, String, IconData)>[
+   651→    (null, 'All', Icons.list_rounded),
+   652→    (MarketplaceProductStatus.draft, 'Draft', Icons.edit_note_rounded),
+   653→    (MarketplaceProductStatus.pendingReview, 'Pending', Icons.hourglass_top_rounded),
+   654→    (MarketplaceProductStatus.approved, 'Approved', Icons.check_circle_rounded),
+   655→    (MarketplaceProductStatus.rejected, 'Rejected', Icons.cancel_rounded),
+   656→  ];
+   657→
+   658→  List<MarketplaceProductEntity> get _filteredProducts {
+   659→    if (_filter == null) return widget.state.products;
+   660→    return widget.state.products
+   661→        .where((p) => p.status == _filter)
+   662→        .toList();
+   663→  }
+   664→
+   665→  @override
+   666→  Widget build(BuildContext context) {
+   667→    final cs = context.colorScheme;
+   668→    final tt = context.textTheme;
+   669→    final products = _filteredProducts;
+   670→
+   671→    return Scaffold(
+   672→      body: Column(
+   673→        children: [
+   674→          // Filter chips
+   675→          SizedBox(
+   676→            height: 48,
+   677→            child: ListView.separated(
+   678→              scrollDirection: Axis.horizontal,
+   679→              padding: const EdgeInsets.symmetric(
+   680→                horizontal: Spacings.lg,
+   681→                vertical: Spacings.sm,
+   682→              ),
+   683→              itemCount: _filterOptions.length,
+   684→              separatorBuilder: (_, __) => const SizedBox(width: Spacings.sm),
+   685→              itemBuilder: (context, index) {
+   686→                final (status, label, icon) = _filterOptions[index];
+   687→                final isSelected = _filter == status;
+   688→
+   689→                return FilterChip(
+   690→                  selected: isSelected,
+   691→                  label: Row(
+   692→                    mainAxisSize: MainAxisSize.min,
+   693→                    children: [
+   694→                      Icon(icon, size: Spacings.smIcon),
+   695→                      const SizedBox(width: Spacings.xs),
+   696→                      Text(label),
+   697→                    ],
+   698→                  ),
+   699→                  onSelected: (_) {
+   700→                    setState(() => _filter = status);
+   701→                  },
+   702→                );
+   703→              },
+   704→            ),
+   705→          ),
+   706→
+   707→          // Product list
+   708→          Expanded(
+   709→            child: products.isEmpty
+   710→                ? AppEmptyState(
+   711→                    icon: Icons.inventory_2_outlined,
+   712→                    title: 'No Products Found',
+   713→                    subtitle: 'Add your first product to start selling.',
+   714→                    actionLabel: 'Add Product',
+   715→                    onAction: () {
+   716→                      // Navigate to create product
+   717→                    },
+   718→                  )
+   719→                : ListView.separated(
+   720→                    padding: const EdgeInsets.symmetric(
+   721→                      horizontal: Spacings.lg,
+   722→                      vertical: Spacings.md,
+   723→                    ),
+   724→                    itemCount: products.length,
+   725→                    separatorBuilder: (_, __) =>
+   726→                        const SizedBox(height: Spacings.md),
+   727→                    itemBuilder: (context, index) {
+   728→                      return _SellerProductCard(product: products[index]);
+   729→                    },
+   730→                  ),
+   731→          ),
+   732→        ],
+   733→      ),
+   734→      floatingActionButton: AppFloatingActionButton(
+   735→        icon: Icons.add_rounded,
+   736→        label: 'Add Product',
+   737→        onPressed: () {
+   738→          // Navigate to create product page
+   739→        },
+   740→        extended: true,
+   741→      ),
+   742→    );
+   743→  }
+   744→
+   745→}
+   746→
+   747→// ═══════════════════════════════════════════════════════════════════════════════
+   748→// SELLER PRODUCT CARD
+   749→// ═══════════════════════════════════════════════════════════════════════════════
+   750→
+   751→class _SellerProductCard extends ConsumerWidget {
+   752→  const _SellerProductCard({required this.product});
+   753→
+   754→  final MarketplaceProductEntity product;
+   755→
+   756→  @override
+   757→  Widget build(BuildContext context, WidgetRef ref) {
+   758→    final cs = context.colorScheme;
+   759→    final tt = context.textTheme;
+   760→    final isDark = context.isDarkMode;
+   761→
+   762→    final statusColor = _statusColor;
+   763→    final typeColor = _productTypeColor(cs);
+   764→
+   765→    return AppCard(
+   766→      child: Row(
+   767→        crossAxisAlignment: CrossAxisAlignment.start,
+   768→        children: [
+   769→          // Product type icon
+   770→          Container(
+   771→            padding: const EdgeInsets.all(Spacings.md),
+   772→            decoration: BoxDecoration(
+   773→              color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+   774→              borderRadius: Spacings.borderRadiusMd,
+   775→            ),
+   776→            child: ProductTypeIcon(
+   777→              type: product.productType,
+   778→              size: Spacings.lgIcon,
+   779→              color: typeColor,
+   780→            ),
+   781→          ),
+   782→          const SizedBox(width: Spacings.md),
+   783→
+   784→          // Product details
+   785→          Expanded(
+   786→            child: Column(
+   787→              crossAxisAlignment: CrossAxisAlignment.start,
+   788→              children: [
+   789→                // Title + status badge
+   790→                Row(
+   791→                  children: [
+   792→                    Expanded(
+   793→                      child: Text(
+   794→                        product.title,
+   795→                        style: tt.titleSmall?.copyWith(
+   796→                          fontWeight: AppTypography.wSemiBold,
+   797→                          color: cs.onSurface,
+   798→                        ),
+   799→                        maxLines: 1,
+   800→                        overflow: TextOverflow.ellipsis,
+   801→                      ),
+   802→                    ),
+   803→                    const SizedBox(width: Spacings.sm),
+   804→                    Container(
+   805→                      padding: const EdgeInsets.symmetric(
+   806→                        horizontal: Spacings.sm,
+   807→                        vertical: Spacings.xs,
+   808→                      ),
+   809→                      decoration: BoxDecoration(
+   810→                        color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+   811→                        borderRadius: Spacings.borderRadiusSm,
+   812→                      ),
+   813→                      child: Text(
+   814→                        product.status.label,
+   815→                        style: tt.labelSmall?.copyWith(
+   816→                          color: statusColor,
+   817→                          fontWeight: AppTypography.wSemiBold,
+   818→                        ),
+   819→                      ),
+   820→                    ),
+   821→                  ],
+   822→                ),
+   823→                const SizedBox(height: Spacings.sm),
+   824→
+   825→                // Price, sales, rating row
+   826→                Row(
+   827→                  children: [
+   828→                    Text(
+   829→                      product.isFree
+   830→                          ? 'Free'
+   831→                          : '₦${_formatNumber(product.price)}',
+   832→                      style: tt.bodyMedium?.copyWith(
+   833→                        fontWeight: AppTypography.wSemiBold,
+   834→                        color: cs.onSurface,
+   835→                      ),
+   836→                    ),
+   837→                    const SizedBox(width: Spacings.md),
+   838→                    Icon(
+   839→                      Icons.shopping_cart_rounded,
+   840→                      size: Spacings.smIcon,
+   841→                      color: cs.onSurfaceVariant,
+   842→                    ),
+   843→                    const SizedBox(width: Spacings.xs),
+   844→                    Text(
+   845→                      '${product.totalSales}',
+   846→                      style: tt.bodySmall?.copyWith(
+   847→                        color: cs.onSurfaceVariant,
+   848→                      ),
+   849→                    ),
+   850→                    const SizedBox(width: Spacings.md),
+   851→                    Icon(
+   852→                      Icons.star_rounded,
+   853→                      size: Spacings.smIcon,
+   854→                      color: AppColors.warning,
+   855→                    ),
+   856→                    const SizedBox(width: Spacings.xs),
+   857→                    Text(
+   858→                      product.averageRating.toStringAsFixed(1),
+   859→                      style: tt.bodySmall?.copyWith(
+   860→                        color: cs.onSurfaceVariant,
+   861→                      ),
+   862→                    ),
+   863→                  ],
+   864→                ),
+   865→                const SizedBox(height: Spacings.xs),
+   866→
+   867→                // Date
+   868→                Text(
+   869→                  'Updated ${_formatDate(product.updatedAt)}',
+   870→                  style: tt.bodySmall?.copyWith(
+   871→                    color: cs.onSurfaceVariant,
+   872→                  ),
+   873→                ),
+   874→              ],
+   875→            ),
+   876→          ),
+   877→
+   878→          // Action overflow menu
+   879→          PopupMenuButton<String>(
+   880→            icon: Icon(
+   881→              Icons.more_vert_rounded,
+   882→              color: cs.onSurfaceVariant,
+   883→            ),
+   884→            shape: RoundedRectangleBorder(
+   885→              borderRadius: Spacings.borderRadiusMd,
+   886→            ),
+   887→            onSelected: (value) {
+   888→              switch (value) {
+   889→                case 'edit':
+   890→                  // Navigate to edit product
+   891→                  break;
+   892→                case 'status':
+   893→                  // Change product status
+   894→                  break;
+   895→                case 'quality':
+   896→                  // Run quality check
+   897→                  break;
+   898→                case 'delete':
+   899→                  _confirmDelete(context, ref);
+   900→                  break;
+   901→              }
+   902→            },
+   903→            itemBuilder: (context) => [
+   904→              const PopupMenuItem(
+   905→                value: 'edit',
+   906→                child: Row(
+   907→                  children: [
+   908→                    Icon(Icons.edit_rounded, size: Spacings.mdIcon),
+   909→                    SizedBox(width: Spacings.sm),
+   910→                    Text('Edit'),
+   911→                  ],
+   912→                ),
+   913→              ),
+   914→              const PopupMenuItem(
+   915→                value: 'status',
+   916→                child: Row(
+   917→                  children: [
+   918→                    Icon(Icons.swap_horiz_rounded, size: Spacings.mdIcon),
+   919→                    SizedBox(width: Spacings.sm),
+   920→                    Text('Change Status'),
+   921→                  ],
+   922→                ),
+   923→              ),
+   924→              const PopupMenuItem(
+   925→                value: 'quality',
+   926→                child: Row(
+   927→                  children: [
+   928→                    Icon(Icons.verified_outlined, size: Spacings.mdIcon),
+   929→                    SizedBox(width: Spacings.sm),
+   930→                    Text('Run Quality Check'),
+   931→                  ],
+   932→                ),
+   933→              ),
+   934→              PopupMenuItem(
+   935→                value: 'delete',
+   936→                child: Row(
+   937→                  children: [
+   938→                    Icon(
+   939→                      Icons.delete_outline_rounded,
+   940→                      size: Spacings.mdIcon,
+   941→                      color: AppColors.error,
+   942→                    ),
+   943→                    const SizedBox(width: Spacings.sm),
+   944→                    Text(
+   945→                      'Delete',
+   946→                      style: TextStyle(color: AppColors.error),
+   947→                    ),
+   948→                  ],
+   949→                ),
+   950→              ),
+   951→            ],
+   952→          ),
+   953→        ],
+   954→      ),
+   955→    );
+   956→  }
+   957→
+   958→  Future<void> _confirmDelete(BuildContext context, WidgetRef ref) async {
+   959→    final confirmed = await AppDialog.showConfirm(
+   960→      context: context,
+   961→      title: 'Delete Product',
+   962→      message:
+   963→          'Are you sure you want to delete "${product.title}"? This action cannot be undone.',
+   964→      confirmText: 'Delete',
+   965→      isDestructive: true,
+   966→    );
+   967→    if (confirmed == true && context.mounted) {
+   968→      ref
+   969→          .read(sellerProvider.notifier)
+   970→          .deleteProduct(productId: product.id);
+   971→    }
+   972→  }
+   973→
+   974→  Color get _statusColor {
+   975→    return switch (product.status) {
+   976→      MarketplaceProductStatus.draft => AppColors.onSurfaceVariant,
+   977→      MarketplaceProductStatus.pendingReview => AppColors.warning,
+   978→      MarketplaceProductStatus.approved => AppColors.success,
+   979→      MarketplaceProductStatus.rejected => AppColors.error,
+   980→      MarketplaceProductStatus.suspended => AppColors.error,
+   981→      MarketplaceProductStatus.archived => AppColors.onSurfaceVariant,
+   982→    };
+   983→  }
+   984→
+   985→  Color _productTypeColor(ColorScheme cs) {
+   986→    return switch (product.productType) {
+   987→      MarketplaceProductType.questionBank => AppColors.info,
+   988→      MarketplaceProductType.examTemplate => AppColors.warning,
+   989→      MarketplaceProductType.lessonNote => AppColors.success,
+   990→      MarketplaceProductType.schemeOfWork => cs.primary,
+   991→      MarketplaceProductType.worksheet => AppColors.info,
+   992→      MarketplaceProductType.powerpoint => AppColors.error,
+   993→      MarketplaceProductType.teachingSlides => AppColors.warning,
+   994→      MarketplaceProductType.flashcards => AppColors.success,
+   995→      MarketplaceProductType.studyGuide => cs.primary,
+   996→      MarketplaceProductType.practicalManual => AppColors.info,
+   997→      MarketplaceProductType.laboratoryGuide => AppColors.success,
+   998→      MarketplaceProductType.curriculumPack => AppColors.warning,
+   999→      MarketplaceProductType.assessmentRubric => AppColors.error,
+  1000→      MarketplaceProductType.homeworkPack => cs.primary,
+  1001→      MarketplaceProductType.classroomActivity => AppColors.info,
+  1002→      MarketplaceProductType.educationalImage => AppColors.success,
+  1003→      MarketplaceProductType.educationalVideo => AppColors.error,
+  1004→      MarketplaceProductType.educationalAudio => AppColors.warning,
+  1005→      MarketplaceProductType.printableResource => cs.primary,
+  1006→      MarketplaceProductType.other => AppColors.info,
+  1007→    };
+  1008→  }
+  1009→}
+  1010→
+  1011→// ═══════════════════════════════════════════════════════════════════════════════
+  1012→// ANALYTICS TAB
+  1013→// ═══════════════════════════════════════════════════════════════════════════════
+  1014→
+  1015→class _AnalyticsTab extends StatefulWidget {
+  1016→  const _AnalyticsTab({required this.state});
+  1017→
+  1018→  final SellerState state;
+  1019→
+  1020→  @override
+  1021→  State<_AnalyticsTab> createState() => _AnalyticsTabState();
+  1022→}
+  1023→
+  1024→class _AnalyticsTabState extends State<_AnalyticsTab> {
+  1025→  int _dateRangeIndex = 1; // 0: 7d, 1: 30d, 2: 90d, 3: 1y
+  1026→  static const _dateRangeLabels = ['7 Days', '30 Days', '90 Days', '1 Year'];
+  1027→
+  1028→  @override
+  1029→  Widget build(BuildContext context) {
+  1030→    final cs = context.colorScheme;
+  1031→    final tt = context.textTheme;
+  1032→    final isDark = context.isDarkMode;
+  1033→
+  1034→    final analytics = widget.state.analytics;
+  1035→
+  1036→    // Aggregate analytics values
+  1037→    final totalViews = analytics.fold<int>(0, (sum, a) => sum + a.views);
+  1038→    final totalSales = analytics.fold<int>(0, (sum, a) => sum + a.sales);
+  1039→    final totalRevenue = analytics.fold<double>(0, (sum, a) => sum + a.revenue);
+  1040→    final avgConversion = analytics.isEmpty
+  1041→        ? 0.0
+  1042→        : analytics.fold<double>(0, (sum, a) => sum + a.conversionRate) /
+  1043→            analytics.length;
+  1044→
+  1045→    return ListView(
+  1046→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+  1047→      children: [
+  1048→        const SizedBox(height: Spacings.lg),
+  1049→
+  1050→        // Date range selector
+  1051→        SegmentedButton<int>(
+  1052→          segments: List.generate(
+  1053→            _dateRangeLabels.length,
+  1054→            (i) => ButtonSegment(
+  1055→              value: i,
+  1056→              label: Text(_dateRangeLabels[i]),
+  1057→            ),
+  1058→          ),
+  1059→          selected: {_dateRangeIndex},
+  1060→          onSelectionChanged: (selected) {
+  1061→            setState(() => _dateRangeIndex = selected.first);
+  1062→          },
+  1063→        ),
+  1064→
+  1065→        const SizedBox(height: Spacings.xl),
+  1066→
+  1067→        // Stats cards
+  1068→        Row(
+  1069→          children: [
+  1070→            Expanded(
+  1071→              child: AppStatCard(
+  1072→                title: 'Views',
+  1073→                value: _formatNumber(totalViews.toDouble()),
+  1074→                icon: Icons.visibility_rounded,
+  1075→                color: AppColors.info,
+  1076→              ),
+  1077→            ),
+  1078→            const SizedBox(width: Spacings.sm),
+  1079→            Expanded(
+  1080→              child: AppStatCard(
+  1081→                title: 'Sales',
+  1082→                value: '$totalSales',
+  1083→                icon: Icons.shopping_cart_rounded,
+  1084→                color: AppColors.success,
+  1085→              ),
+  1086→            ),
+  1087→          ],
+  1088→        ),
+  1089→        const SizedBox(height: Spacings.sm),
+  1090→        Row(
+  1091→          children: [
+  1092→            Expanded(
+  1093→              child: AppStatCard(
+  1094→                title: 'Revenue',
+  1095→                value: '₦${_formatNumber(totalRevenue)}',
+  1096→                icon: Icons.payments_rounded,
+  1097→                color: AppColors.warning,
+  1098→              ),
+  1099→            ),
+  1100→            const SizedBox(width: Spacings.sm),
+  1101→            Expanded(
+  1102→              child: AppStatCard(
+  1103→                title: 'Conversion Rate',
+  1104→                value: '${avgConversion.toStringAsFixed(1)}%',
+  1105→                icon: Icons.trending_up_rounded,
+  1106→                color: AppColors.error,
+  1107→              ),
+  1108→            ),
+  1109→          ],
+  1110→        ),
+  1111→
+  1112→        const SizedBox(height: Spacings.xl),
+  1113→
+  1114→        // Revenue trend chart placeholder
+  1115→        AppCard(
+  1116→          padding: const EdgeInsets.all(Spacings.lg),
+  1117→          child: Column(
+  1118→            crossAxisAlignment: CrossAxisAlignment.start,
+  1119→            children: [
+  1120→              Text(
+  1121→                'Revenue Trend',
+  1122→                style: tt.titleMedium?.copyWith(
+  1123→                  fontWeight: AppTypography.wSemiBold,
+  1124→                  color: cs.onSurface,
+  1125→                ),
+  1126→              ),
+  1127→              const SizedBox(height: Spacings.xl),
+  1128→              SizedBox(
+  1129→                height: 160,
+  1130→                child: Row(
+  1131→                  crossAxisAlignment: CrossAxisAlignment.end,
+  1132→                  children: List.generate(12, (index) {
+  1133→                    final heights = [
+  1134→                      0.3, 0.5, 0.4, 0.7, 0.6, 0.8, 0.5, 0.9, 0.7, 1.0, 0.6, 0.8,
+  1135→                    ];
+  1136→                    return Expanded(
+  1137→                      child: Padding(
+  1138→                        padding: const EdgeInsets.symmetric(
+  1139→                          horizontal: Spacings.xs,
+  1140→                        ),
+  1141→                        child: FractionallySizedBox(
+  1142→                          heightFactor: heights[index],
+  1143→                          child: Container(
+  1144→                            decoration: BoxDecoration(
+  1145→                              color: heights[index] >= 0.9
+  1146→                                  ? cs.primary
+  1147→                                  : cs.primary.withValues(
+  1148→                                      alpha: isDark ? 0.30 : 0.20,
+  1149→                                    ),
+  1150→                              borderRadius: const BorderRadius.vertical(
+  1151→                                top: Radius.circular(Spacings.smRadius),
+  1152→                              ),
+  1153→                            ),
+  1154→                          ),
+  1155→                        ),
+  1156→                      ),
+  1157→                    );
+  1158→                  }),
+  1159→                ),
+  1160→              ),
+  1161→              const SizedBox(height: Spacings.sm),
+  1162→              Row(
+  1163→                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  1164→                children: List.generate(
+  1165→                  12,
+  1166→                  (i) => Text(
+  1167→                    'W${i + 1}',
+  1168→                    style: tt.labelSmall?.copyWith(
+  1169→                      color: cs.onSurfaceVariant,
+  1170→                    ),
+  1171→                  ),
+  1172→                ),
+  1173→              ),
+  1174→            ],
+  1175→          ),
+  1176→        ),
+  1177→
+  1178→        const SizedBox(height: Spacings.xl),
+  1179→
+  1180→        // Top performing products
+  1181→        Text(
+  1182→          'Top Performing Products',
+  1183→          style: tt.titleMedium?.copyWith(
+  1184→            fontWeight: AppTypography.wSemiBold,
+  1185→            color: cs.onSurface,
+  1186→          ),
+  1187→        ),
+  1188→        const SizedBox(height: Spacings.md),
+  1189→        if (widget.state.products.isEmpty)
+  1190→          AppInfoCard(
+  1191→            icon: Icons.trending_up_rounded,
+  1192→            title: 'No Data Yet',
+  1193→            subtitle: 'Analytics data will appear once you have sales.',
+  1194→          )
+  1195→        else
+  1196→          ...widget.state.products
+  1197→              .take(5)
+  1198→              .toList()
+  1199→              .asMap()
+  1200→              .entries
+  1201→              .map((entry) {
+  1202→            final index = entry.key;
+  1203→            final product = entry.value;
+  1204→            return _TopProductRow(
+  1205→              rank: index + 1,
+  1206→              product: product,
+  1207→            );
+  1208→          }),
+  1209→
+  1210→        const SizedBox(height: Spacings.xl),
+  1211→
+  1212→        // Sales by product type breakdown
+  1213→        Text(
+  1214→          'Sales by Product Type',
+  1215→          style: tt.titleMedium?.copyWith(
+  1216→            fontWeight: AppTypography.wSemiBold,
+  1217→            color: cs.onSurface,
+  1218→          ),
+  1219→        ),
+  1220→        const SizedBox(height: Spacings.md),
+  1221→        _ProductTypeBreakdown(products: widget.state.products),
+  1222→
+  1223→        const SizedBox(height: Spacings.xxl),
+  1224→      ],
+  1225→    );
+  1226→  }
+  1227→}
+  1228→
+  1229→// ═══════════════════════════════════════════════════════════════════════════════
+  1230→// TOP PRODUCT ROW
+  1231→// ═══════════════════════════════════════════════════════════════════════════════
+  1232→
+  1233→class _TopProductRow extends StatelessWidget {
+  1234→  const _TopProductRow({
+  1235→    required this.rank,
+  1236→    required this.product,
+  1237→  });
+  1238→
+  1239→  final int rank;
+  1240→  final MarketplaceProductEntity product;
+  1241→
+  1242→  @override
+  1243→  Widget build(BuildContext context) {
+  1244→    final cs = context.colorScheme;
+  1245→    final tt = context.textTheme;
+  1246→
+  1247→    return Padding(
+  1248→      padding: const EdgeInsets.only(bottom: Spacings.sm),
+  1249→      child: AppInfoCard(
+  1250→        icon: rank <= 3 ? Icons.emoji_events_rounded : Icons.inventory_2_rounded,
+  1251→        iconColor: rank == 1
+  1252→            ? AppColors.warning
+  1253→            : rank == 2
+  1254→                ? cs.onSurfaceVariant
+  1255→                : rank == 3
+  1256→                    ? AppColors.error
+  1257→                    : cs.primary,
+  1258→        title: '#$rank ${product.title}',
+  1259→        subtitle:
+  1260→            '${product.viewCount} views • ${product.totalSales} sales • ₦${_formatNumber(product.totalRevenue)}',
+  1261→        trailing: Text(
+  1262→          product.averageRating.toStringAsFixed(1),
+  1263→          style: tt.bodyMedium?.copyWith(
+  1264→            fontWeight: AppTypography.wSemiBold,
+  1265→            color: cs.onSurface,
+  1266→          ),
+  1267→        ),
+  1268→      ),
+  1269→    );
+  1270→  }
+  1271→}
+  1272→
+  1273→// ═══════════════════════════════════════════════════════════════════════════════
+  1274→// PRODUCT TYPE BREAKDOWN
+  1275→// ═══════════════════════════════════════════════════════════════════════════════
+  1276→
+  1277→class _ProductTypeBreakdown extends StatelessWidget {
+  1278→  const _ProductTypeBreakdown({required this.products});
+  1279→
+  1280→  final List<MarketplaceProductEntity> products;
+  1281→
+  1282→  @override
+  1283→  Widget build(BuildContext context) {
+  1284→    final cs = context.colorScheme;
+  1285→    final tt = context.textTheme;
+  1286→
+  1287→    if (products.isEmpty) {
+  1288→      return AppInfoCard(
+  1289→        icon: Icons.pie_chart_outline_rounded,
+  1290→        title: 'No Data',
+  1291→        subtitle: 'Product type breakdown will appear with more products.',
+  1292→      );
+  1293→    }
+  1294→
+  1295→    // Count products by type
+  1296→    final typeCounts = <MarketplaceProductType, int>{};
+  1297→    for (final p in products) {
+  1298→      typeCounts[p.productType] = (typeCounts[p.productType] ?? 0) + 1;
+  1299→    }
+  1300→
+  1301→    final sortedTypes = typeCounts.entries.toList()
+  1302→      ..sort((a, b) => b.value.compareTo(a.value));
+  1303→
+  1304→    final maxCount = sortedTypes.first.value;
+  1305→
+  1306→    return AppCard(
+  1307→      child: Column(
+  1308→        children: sortedTypes.take(6).map((entry) {
+  1309→          final percent = (entry.value / maxCount).clamp(0.0, 1.0);
+  1310→          return Padding(
+  1311→            padding: const EdgeInsets.only(bottom: Spacings.md),
+  1312→            child: Row(
+  1313→              children: [
+  1314→                SizedBox(
+  1315→                  width: 120,
+  1316→                  child: Text(
+  1317→                    entry.key.label,
+  1318→                    style: tt.bodySmall?.copyWith(
+  1319→                      color: cs.onSurface,
+  1320→                      fontWeight: AppTypography.wMedium,
+  1321→                    ),
+  1322→                    maxLines: 1,
+  1323→                    overflow: TextOverflow.ellipsis,
+  1324→                  ),
+  1325→                ),
+  1326→                const SizedBox(width: Spacings.sm),
+  1327→                Expanded(
+  1328→                  child: ClipRRect(
+  1329→                    borderRadius: Spacings.borderRadiusSm,
+  1330→                    child: LinearProgressIndicator(
+  1331→                      value: percent,
+  1332→                      minHeight: 8,
+  1333→                      backgroundColor: cs.surfaceContainerHighest,
+  1334→                      color: cs.primary,
+  1335→                    ),
+  1336→                  ),
+  1337→                ),
+  1338→                const SizedBox(width: Spacings.sm),
+  1339→                Text(
+  1340→                  '${entry.value}',
+  1341→                  style: tt.bodySmall?.copyWith(
+  1342→                    color: cs.onSurfaceVariant,
+  1343→                    fontWeight: AppTypography.wSemiBold,
+  1344→                  ),
+  1345→                ),
+  1346→              ],
+  1347→            ),
+  1348→          );
+  1349→        }).toList(),
+  1350→      ),
+  1351→    );
+  1352→  }
+  1353→}
+  1354→
+  1355→// ═══════════════════════════════════════════════════════════════════════════════
+  1356→// EARNINGS TAB
+  1357→// ═══════════════════════════════════════════════════════════════════════════════
+  1358→
+  1359→class _EarningsTab extends StatelessWidget {
+  1360→  const _EarningsTab({required this.state});
+  1361→
+  1362→  final SellerState state;
+  1363→
+  1364→  @override
+  1365→  Widget build(BuildContext context) {
+  1366→    final cs = context.colorScheme;
+  1367→    final tt = context.textTheme;
+  1368→    final isDark = context.isDarkMode;
+  1369→
+  1370→    final totalEarnings = state.totalRevenue;
+  1371→    final commissionRecords = state.commissionRecords;
+  1372→    final totalCommission = commissionRecords.fold<double>(
+  1373→      0,
+  1374→      (sum, r) => sum + r.commissionAmount,
+  1375→    );
+  1376→    final sellerRevenue = commissionRecords.fold<double>(
+  1377→      0,
+  1378→      (sum, r) => sum + r.sellerRevenue,
+  1379→    );
+  1380→
+  1381→    return ListView(
+  1382→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+  1383→      children: [
+  1384→        const SizedBox(height: Spacings.lg),
+  1385→
+  1386→        // Total earnings card
+  1387→        Container(
+  1388→          width: double.infinity,
+  1389→          padding: const EdgeInsets.all(Spacings.xl),
+  1390→          decoration: BoxDecoration(
+  1391→            gradient: AppColors.brandGradient,
+  1392→            borderRadius: Spacings.borderRadiusLg,
+  1393→          ),
+  1394→          child: Column(
+  1395→            crossAxisAlignment: CrossAxisAlignment.start,
+  1396→            children: [
+  1397→              Text(
+  1398→                'Total Earnings',
+  1399→                style: tt.titleMedium?.copyWith(
+  1400→                  color: Colors.white.withValues(alpha: 0.9),
+  1401→                ),
+  1402→              ),
+  1403→              const SizedBox(height: Spacings.sm),
+  1404→              Text(
+  1405→                '₦${_formatNumber(totalEarnings)}',
+  1406→                style: tt.headlineMedium?.copyWith(
+  1407→                  color: Colors.white,
+  1408→                  fontWeight: AppTypography.wBold,
+  1409→                ),
+  1410→              ),
+  1411→            ],
+  1412→          ),
+  1413→        ),
+  1414→
+  1415→        const SizedBox(height: Spacings.lg),
+  1416→
+  1417→        // Available for withdrawal card
+  1418→        AppCard(
+  1419→          child: Row(
+  1420→            children: [
+  1421→              Container(
+  1422→                padding: const EdgeInsets.all(Spacings.md),
+  1423→                decoration: BoxDecoration(
+  1424→                  color: AppColors.success.withValues(
+  1425→                    alpha: isDark ? 0.20 : 0.12,
+  1426→                  ),
+  1427→                  borderRadius: Spacings.borderRadiusMd,
+  1428→                ),
+  1429→                child: const Icon(
+  1430→                  Icons.account_balance_wallet_rounded,
+  1431→                  size: Spacings.lgIcon,
+  1432→                  color: AppColors.success,
+  1433→                ),
+  1434→              ),
+  1435→              const SizedBox(width: Spacings.md),
+  1436→              Expanded(
+  1437→                child: Column(
+  1438→                  crossAxisAlignment: CrossAxisAlignment.start,
+  1439→                  children: [
+  1440→                    Text(
+  1441→                      'Available for Withdrawal',
+  1442→                      style: tt.bodySmall?.copyWith(
+  1443→                        color: cs.onSurfaceVariant,
+  1444→                      ),
+  1445→                    ),
+  1446→                    const SizedBox(height: Spacings.xs),
+  1447→                    Text(
+  1448→                      '₦${_formatNumber(sellerRevenue)}',
+  1449→                      style: tt.titleMedium?.copyWith(
+  1450→                        fontWeight: AppTypography.wBold,
+  1451→                        color: cs.onSurface,
+  1452→                      ),
+  1453→                    ),
+  1454→                  ],
+  1455→                ),
+  1456→              ),
+  1457→              AppButton(
+  1458→                label: 'Withdraw',
+  1459→                onPressed: null,
+  1460→                variant: AppButtonVariant.tonal,
+  1461→                size: AppButtonSize.small,
+  1462→                icon: Icons.payment_rounded,
+  1463→                isDisabled: true,
+  1464→              ),
+  1465→            ],
+  1466→          ),
+  1467→        ),
+  1468→
+  1469→        const SizedBox(height: Spacings.xl),
+  1470→
+  1471→        // Earnings breakdown
+  1472→        Text(
+  1473→          'Earnings Breakdown',
+  1474→          style: tt.titleMedium?.copyWith(
+  1475→            fontWeight: AppTypography.wSemiBold,
+  1476→            color: cs.onSurface,
+  1477→          ),
+  1478→        ),
+  1479→        const SizedBox(height: Spacings.md),
+  1480→        Row(
+  1481→          children: [
+  1482→            Expanded(
+  1483→              child: AppCard(
+  1484→                color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceVariantLight,
+  1485→                child: Column(
+  1486→                  children: [
+  1487→                    Text(
+  1488→                      'Platform Commission',
+  1489→                      style: tt.bodySmall?.copyWith(
+  1490→                        color: cs.onSurfaceVariant,
+  1491→                      ),
+  1492→                      textAlign: TextAlign.center,
+  1493→                    ),
+  1494→                    const SizedBox(height: Spacings.sm),
+  1495→                    Text(
+  1496→                      '₦${_formatNumber(totalCommission)}',
+  1497→                      style: tt.titleMedium?.copyWith(
+  1498→                        fontWeight: AppTypography.wBold,
+  1499→                        color: AppColors.error,
+  1500→                      ),
+  1501→                    ),
+  1502→                  ],
+  1503→                ),
+  1504→              ),
+  1505→            ),
+  1506→            const SizedBox(width: Spacings.sm),
+  1507→            Expanded(
+  1508→              child: AppCard(
+  1509→                color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceVariantLight,
+  1510→                child: Column(
+  1511→                  children: [
+  1512→                    Text(
+  1513→                      'Your Revenue',
+  1514→                      style: tt.bodySmall?.copyWith(
+  1515→                        color: cs.onSurfaceVariant,
+  1516→                      ),
+  1517→                      textAlign: TextAlign.center,
+  1518→                    ),
+  1519→                    const SizedBox(height: Spacings.sm),
+  1520→                    Text(
+  1521→                      '₦${_formatNumber(sellerRevenue)}',
+  1522→                      style: tt.titleMedium?.copyWith(
+  1523→                        fontWeight: AppTypography.wBold,
+  1524→                        color: AppColors.success,
+  1525→                      ),
+  1526→                    ),
+  1527→                  ],
+  1528→                ),
+  1529→              ),
+  1530→            ),
+  1531→          ],
+  1532→        ),
+  1533→
+  1534→        const SizedBox(height: Spacings.xl),
+  1535→
+  1536→        // Commission records
+  1537→        Text(
+  1538→          'Commission Records',
+  1539→          style: tt.titleMedium?.copyWith(
+  1540→            fontWeight: AppTypography.wSemiBold,
+  1541→            color: cs.onSurface,
+  1542→          ),
+  1543→        ),
+  1544→        const SizedBox(height: Spacings.md),
+  1545→        if (commissionRecords.isEmpty)
+  1546→          AppEmptyState(
+  1547→            icon: Icons.receipt_long_outlined,
+  1548→            title: 'No Commission Records',
+  1549→            subtitle: 'Records will appear when you make sales.',
+  1550→          )
+  1551→        else
+  1552→          ...commissionRecords.map((record) => _CommissionRecordCard(
+  1553→                record: record,
+  1554→              )),
+  1555→
+  1556→        const SizedBox(height: Spacings.xl),
+  1557→
+  1558→        // Withdraw button (disabled / coming soon)
+  1559→        AppButton(
+  1560→          label: 'Withdraw Funds (Coming Soon)',
+  1561→          onPressed: null,
+  1562→          variant: AppButtonVariant.elevated,
+  1563→          fullWidth: true,
+  1564→          icon: Icons.payment_rounded,
+  1565→          isDisabled: true,
+  1566→        ),
+  1567→
+  1568→        const SizedBox(height: Spacings.xl),
+  1569→
+  1570→        // Tax summary section
+  1571→        Text(
+  1572→          'Tax Summary',
+  1573→          style: tt.titleMedium?.copyWith(
+  1574→            fontWeight: AppTypography.wSemiBold,
+  1575→            color: cs.onSurface,
+  1576→          ),
+  1577→        ),
+  1578→        const SizedBox(height: Spacings.md),
+  1579→        AppCard(
+  1580→          child: Column(
+  1581→            children: [
+  1582→              _TaxSummaryRow(
+  1583→                label: 'Year-to-Date Earnings',
+  1584→                value: '₦${_formatNumber(totalEarnings)}',
+  1585→              ),
+  1586→              const SizedBox(height: Spacings.sm),
+  1587→              _TaxSummaryRow(
+  1588→                label: 'Commission Paid',
+  1589→                value: '₦${_formatNumber(totalCommission)}',
+  1590→              ),
+  1591→              const SizedBox(height: Spacings.sm),
+  1592→              _TaxSummaryRow(
+  1593→                label: 'Net Earnings',
+  1594→                value: '₦${_formatNumber(totalEarnings - totalCommission)}',
+  1595→                isBold: true,
+  1596→              ),
+  1597→            ],
+  1598→          ),
+  1599→        ),
+  1600→
+  1601→        const SizedBox(height: Spacings.xxl),
+  1602→      ],
+  1603→    );
+  1604→  }
+  1605→}
+  1606→
+  1607→// ═══════════════════════════════════════════════════════════════════════════════
+  1608→// COMMISSION RECORD CARD
+  1609→// ═══════════════════════════════════════════════════════════════════════════════
+  1610→
+  1611→class _CommissionRecordCard extends StatelessWidget {
+  1612→  const _CommissionRecordCard({required this.record});
+  1613→
+  1614→  final CommissionRecordEntity record;
+  1615→
+  1616→  @override
+  1617→  Widget build(BuildContext context) {
+  1618→    final cs = context.colorScheme;
+  1619→    final tt = context.textTheme;
+  1620→
+  1621→    return AppCard(
+  1622→      margin: const EdgeInsets.only(bottom: Spacings.sm),
+  1623→      child: Row(
+  1624→        children: [
+  1625→          Expanded(
+  1626→            child: Column(
+  1627→              crossAxisAlignment: CrossAxisAlignment.start,
+  1628→              children: [
+  1629→                Text(
+  1630→                  _formatDate(record.createdAt),
+  1631→                  style: tt.bodySmall?.copyWith(
+  1632→                    color: cs.onSurfaceVariant,
+  1633→                  ),
+  1634→                ),
+  1635→                const SizedBox(height: Spacings.xs),
+  1636→                Text(
+  1637→                  'Order #${record.orderItemId.substring(0, 8)}...',
+  1638→                  style: tt.bodyMedium?.copyWith(
+  1639→                    fontWeight: AppTypography.wMedium,
+  1640→                    color: cs.onSurface,
+  1641→                  ),
+  1642→                ),
+  1643→              ],
+  1644→            ),
+  1645→          ),
+  1646→          Column(
+  1647→            crossAxisAlignment: CrossAxisAlignment.end,
+  1648→            children: [
+  1649→              Text(
+  1650→                '-₦${_formatNumber(record.commissionAmount)}',
+  1651→                style: tt.bodySmall?.copyWith(
+  1652→                  color: AppColors.error,
+  1653→                  fontWeight: AppTypography.wSemiBold,
+  1654→                ),
+  1655→              ),
+  1656→              const SizedBox(height: Spacings.xs),
+  1657→              Text(
+  1658→                '+₦${_formatNumber(record.sellerRevenue)}',
+  1659→                style: tt.bodyMedium?.copyWith(
+  1660→                  color: AppColors.success,
+  1661→                  fontWeight: AppTypography.wSemiBold,
+  1662→                ),
+  1663→              ),
+  1664→            ],
+  1665→          ),
+  1666→        ],
+  1667→      ),
+  1668→    );
+  1669→  }
+  1670→}
+  1671→
+  1672→// ═══════════════════════════════════════════════════════════════════════════════
+  1673→// TAX SUMMARY ROW
+  1674→// ═══════════════════════════════════════════════════════════════════════════════
+  1675→
+  1676→class _TaxSummaryRow extends StatelessWidget {
+  1677→  const _TaxSummaryRow({
+  1678→    required this.label,
+  1679→    required this.value,
+  1680→    this.isBold = false,
+  1681→  });
+  1682→
+  1683→  final String label;
+  1684→  final String value;
+  1685→  final bool isBold;
+  1686→
+  1687→  @override
+  1688→  Widget build(BuildContext context) {
+  1689→    final cs = context.colorScheme;
+  1690→    final tt = context.textTheme;
+  1691→
+  1692→    return Row(
+  1693→      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  1694→      children: [
+  1695→        Text(
+  1696→          label,
+  1697→          style: tt.bodyMedium?.copyWith(
+  1698→            color: isBold ? cs.onSurface : cs.onSurfaceVariant,
+  1699→            fontWeight: isBold ? AppTypography.wSemiBold : AppTypography.wRegular,
+  1700→          ),
+  1701→        ),
+  1702→        Text(
+  1703→          value,
+  1704→          style: tt.bodyMedium?.copyWith(
+  1705→            color: isBold ? cs.onSurface : cs.onSurface,
+  1706→            fontWeight: isBold ? AppTypography.wBold : AppTypography.wMedium,
+  1707→          ),
+  1708→        ),
+  1709→      ],
+  1710→    );
+  1711→  }
+  1712→}
+  1713→
+  1714→// ═══════════════════════════════════════════════════════════════════════════════
+  1715→// SHARED HELPERS
+  1716→// ═══════════════════════════════════════════════════════════════════════════════
+  1717→
+  1718→/// Formats a numeric value with comma separators for thousands.
+  1719→String _formatNumber(double value) {
+  1720→  if (value >= 1000000) {
+  1721→    return '${(value / 1000000).toStringAsFixed(1)}M';
+  1722→  }
+  1723→  if (value >= 1000) {
+  1724→    return '${(value / 1000).toStringAsFixed(1)}K';
+  1725→  }
+  1726→  return value.toInt().toString();
+  1727→}
+  1728→
+  1729→/// Formats a [DateTime] as a relative or short date string.
+  1730→String _formatDate(DateTime date) {
+  1731→  final now = DateTime.now();
+  1732→  final diff = now.difference(date);
+  1733→
+  1734→  if (diff.inDays == 0) {
+  1735→    if (diff.inHours == 0) {
+  1736→      if (diff.inMinutes == 0) return 'Just now';
+  1737→      return '${diff.inMinutes}m ago';
+  1738→    }
+  1739→    return '${diff.inHours}h ago';
+  1740→  }
+  1741→  if (diff.inDays < 7) return '${diff.inDays}d ago';
+  1742→  if (diff.inDays < 30) {
+  1743→    final weeks = (diff.inDays / 7).floor();
+  1744→    return '${weeks}w ago';
+  1745→  }
+  1746→  return '${date.day}/${date.month}/${date.year}';
+  1747→}
+  1748→

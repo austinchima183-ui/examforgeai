@@ -1,0 +1,28 @@
+import '../../../../../core/errors/failures.dart';
+import '../../../../../core/utils/result.dart';
+import '../../entities/marketplace_entities.dart';
+import '../../repositories/marketplace_repository.dart';
+
+class GetProductAnalyticsParams {
+  const GetProductAnalyticsParams({
+    required this.productId,
+    this.startDate,
+    this.endDate,
+  });
+  final String productId;
+  final DateTime? startDate;
+  final DateTime? endDate;
+}
+
+class GetProductAnalyticsUseCase {
+  GetProductAnalyticsUseCase(this._repository);
+  final MarketplaceRepository _repository;
+
+  Future<Result<ProductAnalyticsEntity>> call(GetProductAnalyticsParams params) async {
+    return _repository.getProductAnalytics(
+      params.productId,
+      startDate: params.startDate,
+      endDate: params.endDate,
+    );
+  }
+}

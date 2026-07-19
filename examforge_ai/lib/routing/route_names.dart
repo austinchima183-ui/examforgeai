@@ -649,6 +649,58 @@ class RouteNames {
   static const String superAdminSettings = '/super-admin/settings';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // MARKETPLACE ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// Marketplace home / browse page.
+  static const String marketplace = '/marketplace';
+
+  /// Marketplace search page.
+  static const String marketplaceSearch = '/marketplace/search';
+
+  /// Marketplace product detail page.
+  static const String marketplaceProductDetail = '/marketplace/product';
+
+  /// Marketplace category products page.
+  static const String marketplaceCategory = '/marketplace/category';
+
+  /// Buyer dashboard — purchases, wishlist, downloads.
+  static const String marketplaceBuyerDashboard = '/marketplace/buyer';
+
+  /// Seller dashboard — products, analytics, earnings.
+  static const String marketplaceSellerDashboard = '/marketplace/seller';
+
+  /// Create / edit a marketplace product.
+  static const String marketplaceCreateProduct = '/marketplace/create-product';
+
+  /// AI resource generator page.
+  static const String marketplaceAiGenerator = '/marketplace/ai-generator';
+
+  /// AI quality review page.
+  static const String marketplaceQualityReview = '/marketplace/quality-review';
+
+  /// Shopping cart page.
+  static const String marketplaceCart = '/marketplace/cart';
+
+  /// Checkout page.
+  static const String marketplaceCheckout = '/marketplace/checkout';
+
+  /// Product reviews page.
+  static const String marketplaceReviews = '/marketplace/reviews';
+
+  /// Super Admin — marketplace moderation.
+  static const String marketplaceModeration = '/marketplace/moderation';
+
+  /// Super Admin — commission management.
+  static const String marketplaceCommissions = '/marketplace/commissions';
+
+  /// Marketplace analytics page.
+  static const String marketplaceAnalytics = '/marketplace/analytics';
+
+  /// Marketplace notifications page.
+  static const String marketplaceNotifications = '/marketplace/notifications';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // BILLING ROUTES
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -1046,5 +1098,41 @@ class RouteNames {
     billingLicenses,
     billingRevenue,
     billingSchoolBilling,
+    marketplace,
+    marketplaceSearch,
+    marketplaceProductDetail,
+    marketplaceCategory,
+    marketplaceBuyerDashboard,
+    marketplaceSellerDashboard,
+    marketplaceCreateProduct,
+    marketplaceAiGenerator,
+    marketplaceQualityReview,
+    marketplaceCart,
+    marketplaceCheckout,
+    marketplaceReviews,
+    marketplaceModeration,
+    marketplaceCommissions,
+    marketplaceAnalytics,
+    marketplaceNotifications,
+  };
+
+  /// All marketplace sub-routes (used for feature-level navigation).
+  static const Set<String> marketplaceRoutes = <String>{
+    marketplace,
+    marketplaceSearch,
+    marketplaceProductDetail,
+    marketplaceCategory,
+    marketplaceBuyerDashboard,
+    marketplaceSellerDashboard,
+    marketplaceCreateProduct,
+    marketplaceAiGenerator,
+    marketplaceQualityReview,
+    marketplaceCart,
+    marketplaceCheckout,
+    marketplaceReviews,
+    marketplaceModeration,
+    marketplaceCommissions,
+    marketplaceAnalytics,
+    marketplaceNotifications,
   };
 }

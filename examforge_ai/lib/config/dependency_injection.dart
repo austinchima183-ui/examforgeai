@@ -141,6 +141,77 @@ import '../features/super_admin/data/repositories/super_admin_repository_impl.da
 import '../features/super_admin/domain/repositories/super_admin_repository.dart';
 import '../features/super_admin/domain/usecases/super_admin_usecases.dart';
 
+// ── Marketplace ──
+import '../features/marketplace/data/datasources/marketplace_remote_datasource.dart';
+import '../features/marketplace/data/repositories/marketplace_repository_impl.dart';
+import '../features/marketplace/domain/repositories/marketplace_repository.dart';
+import '../features/marketplace/domain/usecases/get_categories_usecase.dart';
+import '../features/marketplace/domain/usecases/upsert_category_usecase.dart';
+import '../features/marketplace/domain/usecases/get_seller_profile_usecase.dart';
+import '../features/marketplace/domain/usecases/upsert_seller_profile_usecase.dart';
+import '../features/marketplace/domain/usecases/update_seller_status_usecase.dart';
+import '../features/marketplace/domain/usecases/get_sellers_usecase.dart';
+import '../features/marketplace/domain/usecases/get_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_product_usecase.dart';
+import '../features/marketplace/domain/usecases/create_product_usecase.dart';
+import '../features/marketplace/domain/usecases/update_product_usecase.dart';
+import '../features/marketplace/domain/usecases/delete_product_usecase.dart';
+import '../features/marketplace/domain/usecases/update_product_status_usecase.dart';
+import '../features/marketplace/domain/usecases/feature_product_usecase.dart';
+import '../features/marketplace/domain/usecases/get_seller_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_featured_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_related_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/add_to_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/update_cart_item_usecase.dart';
+import '../features/marketplace/domain/usecases/remove_from_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/clear_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/create_order_usecase.dart';
+import '../features/marketplace/domain/usecases/get_order_usecase.dart';
+import '../features/marketplace/domain/usecases/get_user_orders_usecase.dart';
+import '../features/marketplace/domain/usecases/verify_payment_usecase.dart';
+import '../features/marketplace/domain/usecases/update_order_status_usecase.dart';
+import '../features/marketplace/domain/usecases/get_user_purchases_usecase.dart';
+import '../features/marketplace/domain/usecases/verify_purchase_usecase.dart';
+import '../features/marketplace/domain/usecases/record_download_usecase.dart';
+import '../features/marketplace/domain/usecases/get_product_reviews_usecase.dart';
+import '../features/marketplace/domain/usecases/create_review_usecase.dart';
+import '../features/marketplace/domain/usecases/respond_to_review_usecase.dart';
+import '../features/marketplace/domain/usecases/vote_review_helpful_usecase.dart';
+import '../features/marketplace/domain/usecases/report_review_usecase.dart';
+import '../features/marketplace/domain/usecases/get_wishlist_usecase.dart';
+import '../features/marketplace/domain/usecases/toggle_wishlist_usecase.dart';
+import '../features/marketplace/domain/usecases/validate_promo_code_usecase.dart';
+import '../features/marketplace/domain/usecases/get_commission_rates_usecase.dart';
+import '../features/marketplace/domain/usecases/upsert_commission_rate_usecase.dart';
+import '../features/marketplace/domain/usecases/get_commission_records_usecase.dart';
+import '../features/marketplace/domain/usecases/get_seller_analytics_usecase.dart';
+import '../features/marketplace/domain/usecases/get_product_analytics_usecase.dart';
+import '../features/marketplace/domain/usecases/run_quality_check_usecase.dart';
+import '../features/marketplace/domain/usecases/get_quality_check_usecase.dart';
+import '../features/marketplace/domain/usecases/create_dispute_usecase.dart';
+import '../features/marketplace/domain/usecases/resolve_dispute_usecase.dart';
+import '../features/marketplace/domain/usecases/get_disputes_usecase.dart';
+import '../features/marketplace/domain/usecases/get_notifications_usecase.dart';
+import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart';
+import '../features/marketplace/domain/usecases/get_recommendations_usecase.dart';
+import '../features/marketplace/domain/usecases/get_trending_products_usecase.dart';
+import '../features/marketplace/domain/usecases/approve_product_usecase.dart';
+import '../features/marketplace/domain/usecases/reject_product_usecase.dart';
+import '../features/marketplace/domain/usecases/moderate_review_usecase.dart';
+import '../features/marketplace/domain/usecases/suspend_seller_usecase.dart';
+import '../features/marketplace/domain/usecases/increment_product_view_usecase.dart';
+import '../features/marketplace/presentation/providers/marketplace_provider.dart';
+import '../features/marketplace/presentation/providers/seller_provider.dart';
+import '../features/marketplace/presentation/providers/product_detail_provider.dart';
+import '../features/marketplace/presentation/providers/cart_provider.dart';
+import '../features/marketplace/presentation/providers/order_provider.dart';
+import '../features/marketplace/presentation/providers/purchase_provider.dart';
+import '../features/marketplace/presentation/providers/quality_check_provider.dart';
+import '../features/marketplace/presentation/providers/moderation_provider.dart';
+import '../features/marketplace/presentation/providers/marketplace_notification_provider.dart';
+import '../features/marketplace/presentation/providers/commission_provider.dart';
+
 // ═══════════════════════════════════════════════════════════════════════
 // INFRASTRUCTURE PROVIDERS
 // ═══════════════════════════════════════════════════════════════════════
@@ -3902,5 +3973,304 @@ final adminNotificationProvider = StateNotifierProvider<AdminNotificationNotifie
     getNotificationsUseCase: ref.watch(getNotificationsUseCaseProvider),
     markReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
     getUnreadCountUseCase: ref.watch(getUnreadNotificationCountUseCaseProvider),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// MARKETPLACE MODULE
+// ═══════════════════════════════════════════════════════════════════════
+
+// ─── Data Layer ──────────────────────────────────────────────────────────
+final marketplaceRemoteDataSourceProvider = Provider<MarketplaceRemoteDataSource>((ref) {
+  final supabaseClient = ref.watch(supabaseClientProvider);
+  return MarketplaceRemoteDataSourceImpl(supabaseClient: supabaseClient);
+});
+
+final marketplaceRepositoryProvider = Provider<MarketplaceRepository>((ref) {
+  return MarketplaceRepositoryImpl(
+    remoteDataSource: ref.watch(marketplaceRemoteDataSourceProvider),
+  );
+});
+
+// ─── Use Cases ───────────────────────────────────────────────────────────
+final getCategoriesUseCaseProvider = Provider<GetCategoriesUseCase>((ref) {
+  return GetCategoriesUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final upsertCategoryUseCaseProvider = Provider<UpsertCategoryUseCase>((ref) {
+  return UpsertCategoryUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getSellerProfileUseCaseProvider = Provider<GetSellerProfileUseCase>((ref) {
+  return GetSellerProfileUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final upsertSellerProfileUseCaseProvider = Provider<UpsertSellerProfileUseCase>((ref) {
+  return UpsertSellerProfileUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final updateSellerStatusUseCaseProvider = Provider<UpdateSellerStatusUseCase>((ref) {
+  return UpdateSellerStatusUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getSellersUseCaseProvider = Provider<GetSellersUseCase>((ref) {
+  return GetSellersUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getProductsUseCaseProvider = Provider<GetProductsUseCase>((ref) {
+  return GetProductsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getProductUseCaseProvider = Provider<GetProductUseCase>((ref) {
+  return GetProductUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final createProductUseCaseProvider = Provider<CreateProductUseCase>((ref) {
+  return CreateProductUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final updateProductUseCaseProvider = Provider<UpdateProductUseCase>((ref) {
+  return UpdateProductUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final deleteProductUseCaseProvider = Provider<DeleteProductUseCase>((ref) {
+  return DeleteProductUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final updateProductStatusUseCaseProvider = Provider<UpdateProductStatusUseCase>((ref) {
+  return UpdateProductStatusUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final featureProductUseCaseProvider = Provider<FeatureProductUseCase>((ref) {
+  return FeatureProductUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getSellerProductsUseCaseProvider = Provider<GetSellerProductsUseCase>((ref) {
+  return GetSellerProductsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getFeaturedProductsUseCaseProvider = Provider<GetFeaturedProductsUseCase>((ref) {
+  return GetFeaturedProductsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getRelatedProductsUseCaseProvider = Provider<GetRelatedProductsUseCase>((ref) {
+  return GetRelatedProductsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getCartUseCaseProvider = Provider<GetCartUseCase>((ref) {
+  return GetCartUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final addToCartUseCaseProvider = Provider<AddToCartUseCase>((ref) {
+  return AddToCartUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final updateCartItemUseCaseProvider = Provider<UpdateCartItemUseCase>((ref) {
+  return UpdateCartItemUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final removeFromCartUseCaseProvider = Provider<RemoveFromCartUseCase>((ref) {
+  return RemoveFromCartUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final clearCartUseCaseProvider = Provider<ClearCartUseCase>((ref) {
+  return ClearCartUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final createOrderUseCaseProvider = Provider<CreateOrderUseCase>((ref) {
+  return CreateOrderUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getOrderUseCaseProvider = Provider<GetOrderUseCase>((ref) {
+  return GetOrderUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getUserOrdersUseCaseProvider = Provider<GetUserOrdersUseCase>((ref) {
+  return GetUserOrdersUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final verifyPaymentUseCaseProvider = Provider<VerifyPaymentUseCase>((ref) {
+  return VerifyPaymentUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final updateOrderStatusUseCaseProvider = Provider<UpdateOrderStatusUseCase>((ref) {
+  return UpdateOrderStatusUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getUserPurchasesUseCaseProvider = Provider<GetUserPurchasesUseCase>((ref) {
+  return GetUserPurchasesUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final verifyPurchaseUseCaseProvider = Provider<VerifyPurchaseUseCase>((ref) {
+  return VerifyPurchaseUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final recordDownloadUseCaseProvider = Provider<RecordDownloadUseCase>((ref) {
+  return RecordDownloadUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getProductReviewsUseCaseProvider = Provider<GetProductReviewsUseCase>((ref) {
+  return GetProductReviewsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final createReviewUseCaseProvider = Provider<CreateReviewUseCase>((ref) {
+  return CreateReviewUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final respondToReviewUseCaseProvider = Provider<RespondToReviewUseCase>((ref) {
+  return RespondToReviewUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final voteReviewHelpfulUseCaseProvider = Provider<VoteReviewHelpfulUseCase>((ref) {
+  return VoteReviewHelpfulUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final reportReviewUseCaseProvider = Provider<ReportReviewUseCase>((ref) {
+  return ReportReviewUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getWishlistUseCaseProvider = Provider<GetWishlistUseCase>((ref) {
+  return GetWishlistUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final toggleWishlistUseCaseProvider = Provider<ToggleWishlistUseCase>((ref) {
+  return ToggleWishlistUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final validatePromoCodeUseCaseProvider = Provider<ValidatePromoCodeUseCase>((ref) {
+  return ValidatePromoCodeUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getCommissionRatesUseCaseProvider = Provider<GetCommissionRatesUseCase>((ref) {
+  return GetCommissionRatesUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final upsertCommissionRateUseCaseProvider = Provider<UpsertCommissionRateUseCase>((ref) {
+  return UpsertCommissionRateUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getCommissionRecordsUseCaseProvider = Provider<GetCommissionRecordsUseCase>((ref) {
+  return GetCommissionRecordsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getSellerAnalyticsUseCaseProvider = Provider<GetSellerAnalyticsUseCase>((ref) {
+  return GetSellerAnalyticsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getProductAnalyticsUseCaseProvider = Provider<GetProductAnalyticsUseCase>((ref) {
+  return GetProductAnalyticsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final runQualityCheckUseCaseProvider = Provider<RunQualityCheckUseCase>((ref) {
+  return RunQualityCheckUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getQualityCheckUseCaseProvider = Provider<GetQualityCheckUseCase>((ref) {
+  return GetQualityCheckUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final createDisputeUseCaseProvider = Provider<CreateDisputeUseCase>((ref) {
+  return CreateDisputeUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final resolveDisputeUseCaseProvider = Provider<ResolveDisputeUseCase>((ref) {
+  return ResolveDisputeUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getDisputesUseCaseProvider = Provider<GetDisputesUseCase>((ref) {
+  return GetDisputesUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getNotificationsUseCaseProvider = Provider<GetNotificationsUseCase>((ref) {
+  return GetNotificationsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final markNotificationReadUseCaseProvider = Provider<MarkNotificationReadUseCase>((ref) {
+  return MarkNotificationReadUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getRecommendationsUseCaseProvider = Provider<GetRecommendationsUseCase>((ref) {
+  return GetRecommendationsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final getTrendingProductsUseCaseProvider = Provider<GetTrendingProductsUseCase>((ref) {
+  return GetTrendingProductsUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final approveProductUseCaseProvider = Provider<ApproveProductUseCase>((ref) {
+  return ApproveProductUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final rejectProductUseCaseProvider = Provider<RejectProductUseCase>((ref) {
+  return RejectProductUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final moderateReviewUseCaseProvider = Provider<ModerateReviewUseCase>((ref) {
+  return ModerateReviewUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final suspendSellerUseCaseProvider = Provider<SuspendSellerUseCase>((ref) {
+  return SuspendSellerUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+final incrementProductViewUseCaseProvider = Provider<IncrementProductViewUseCase>((ref) {
+  return IncrementProductViewUseCase(ref.watch(marketplaceRepositoryProvider));
+});
+
+// ─── Presentation Layer ──────────────────────────────────────────────────
+final marketplaceProvider =
+    StateNotifierProvider<MarketplaceNotifier, MarketplaceState>((ref) {
+  return MarketplaceNotifier(
+    getProductsUseCase: ref.watch(getProductsUseCaseProvider),
+    getFeaturedProductsUseCase: ref.watch(getFeaturedProductsUseCaseProvider),
+    getTrendingProductsUseCase: ref.watch(getTrendingProductsUseCaseProvider),
+    getRecommendationsUseCase: ref.watch(getRecommendationsUseCaseProvider),
+    getCategoriesUseCase: ref.watch(getCategoriesUseCaseProvider),
+  );
+});
+
+final sellerProvider =
+    StateNotifierProvider<SellerNotifier, SellerState>((ref) {
+  return SellerNotifier(
+    getSellerProfileUseCase: ref.watch(getSellerProfileUseCaseProvider),
+    getSellerProductsUseCase: ref.watch(getSellerProductsUseCaseProvider),
+    getSellerAnalyticsUseCase: ref.watch(getSellerAnalyticsUseCaseProvider),
+    createProductUseCase: ref.watch(createProductUseCaseProvider),
+    updateProductUseCase: ref.watch(updateProductUseCaseProvider),
+    deleteProductUseCase: ref.watch(deleteProductUseCaseProvider),
+    updateProductStatusUseCase: ref.watch(updateProductStatusUseCaseProvider),
+    upsertSellerProfileUseCase: ref.watch(upsertSellerProfileUseCaseProvider),
+    getCommissionRecordsUseCase: ref.watch(getCommissionRecordsUseCaseProvider),
+  );
+});
+
+final productDetailProvider =
+    StateNotifierProvider<ProductDetailNotifier, ProductDetailState>((ref) {
+  return ProductDetailNotifier(
+    getProductUseCase: ref.watch(getProductUseCaseProvider),
+    getProductReviewsUseCase: ref.watch(getProductReviewsUseCaseProvider),
+    getQualityCheckUseCase: ref.watch(getQualityCheckUseCaseProvider),
+    getRelatedProductsUseCase: ref.watch(getRelatedProductsUseCaseProvider),
+    toggleWishlistUseCase: ref.watch(toggleWishlistUseCaseProvider),
+    incrementProductViewUseCase: ref.watch(incrementProductViewUseCaseProvider),
+    createReviewUseCase: ref.watch(createReviewUseCaseProvider),
+    voteReviewHelpfulUseCase: ref.watch(voteReviewHelpfulUseCaseProvider),
+    verifyPurchaseUseCase: ref.watch(verifyPurchaseUseCaseProvider),
+  );
+});
+
+final cartProvider =
+    StateNotifierProvider<CartNotifier, CartState>((ref) {
+  return CartNotifier(
+    getCartUseCase: ref.watch(getCartUseCaseProvider),
+    addToCartUseCase: ref.watch(addToCartUseCaseProvider),
+    updateCartItemUseCase: ref.watch(updateCartItemUseCaseProvider),
+    removeFromCartUseCase: ref.watch(removeFromCartUseCaseProvider),
+    clearCartUseCase: ref.watch(clearCartUseCaseProvider),
+    validatePromoCodeUseCase: ref.watch(validatePromoCodeUseCaseProvider),
+  );
+});
+
+final orderProvider =
+    StateNotifierProvider<OrderNotifier, OrderState>((ref) {
+  return OrderNotifier(
+    createOrderUseCase: ref.watch(createOrderUseCaseProvider),
+    getUserOrdersUseCase: ref.watch(getUserOrdersUseCaseProvider),
+    getOrderUseCase: ref.watch(getOrderUseCaseProvider),
+    verifyPaymentUseCase: ref.watch(verifyPaymentUseCaseProvider),
+    updateOrderStatusUseCase: ref.watch(updateOrderStatusUseCaseProvider),
+  );
+});
+
+final purchaseProvider =
+    StateNotifierProvider<PurchaseNotifier, PurchaseState>((ref) {
+  return PurchaseNotifier(
+    getUserPurchasesUseCase: ref.watch(getUserPurchasesUseCaseProvider),
+    verifyPurchaseUseCase: ref.watch(verifyPurchaseUseCaseProvider),
+    recordDownloadUseCase: ref.watch(recordDownloadUseCaseProvider),
+  );
+});
+
+final qualityCheckProvider =
+    StateNotifierProvider<QualityCheckNotifier, QualityCheckState>((ref) {
+  return QualityCheckNotifier(
+    runQualityCheckUseCase: ref.watch(runQualityCheckUseCaseProvider),
+    getQualityCheckUseCase: ref.watch(getQualityCheckUseCaseProvider),
+  );
+});
+
+final moderationProvider =
+    StateNotifierProvider<ModerationNotifier, ModerationState>((ref) {
+  return ModerationNotifier(
+    approveProductUseCase: ref.watch(approveProductUseCaseProvider),
+    rejectProductUseCase: ref.watch(rejectProductUseCaseProvider),
+    moderateReviewUseCase: ref.watch(moderateReviewUseCaseProvider),
+    suspendSellerUseCase: ref.watch(suspendSellerUseCaseProvider),
+    createDisputeUseCase: ref.watch(createDisputeUseCaseProvider),
+    resolveDisputeUseCase: ref.watch(resolveDisputeUseCaseProvider),
+    getDisputesUseCase: ref.watch(getDisputesUseCaseProvider),
+    getSellersUseCase: ref.watch(getSellersUseCaseProvider),
+  );
+});
+
+final marketplaceNotificationProvider =
+    StateNotifierProvider<MarketplaceNotificationNotifier, MarketplaceNotificationState>((ref) {
+  return MarketplaceNotificationNotifier(
+    getNotificationsUseCase: ref.watch(getNotificationsUseCaseProvider),
+    markNotificationReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
+  );
+});
+
+final commissionProvider =
+    StateNotifierProvider<CommissionNotifier, CommissionState>((ref) {
+  return CommissionNotifier(
+    getCommissionRatesUseCase: ref.watch(getCommissionRatesUseCaseProvider),
+    upsertCommissionRateUseCase: ref.watch(upsertCommissionRateUseCaseProvider),
+    getCommissionRecordsUseCase: ref.watch(getCommissionRecordsUseCaseProvider),
   );
 });

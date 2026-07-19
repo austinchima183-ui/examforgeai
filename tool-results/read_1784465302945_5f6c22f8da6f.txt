@@ -1,0 +1,1423 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../../core/themes/app_colors.dart';
+     5→import '../../../../../core/themes/app_typography.dart';
+     6→import '../../../../../core/themes/spacings.dart';
+     7→import '../../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../../shared/widgets/widgets.dart';
+     9→import '../../domain/entities/marketplace_entities.dart';
+    10→import '../providers/moderation_provider.dart';
+    11→import '../widgets/marketplace_widgets.dart';
+    12→
+    13→// ═══════════════════════════════════════════════════════════════════════════════
+    14→// MARKETPLACE MODERATION PAGE
+    15→// ═══════════════════════════════════════════════════════════════════════════════
+    16→
+    17→/// Super Admin moderation page with tab-based navigation for managing
+    18→/// pending products, reported reviews, sellers, and disputes.
+    19→///
+    20→/// ```dart
+    21→/// Navigator.push(
+    22→///   context,
+    23→///   MaterialPageRoute(builder: (_) => MarketplaceModerationPage()),
+    24→/// );
+    25→/// ```
+    26→class MarketplaceModerationPage extends ConsumerStatefulWidget {
+    27→  const MarketplaceModerationPage({super.key});
+    28→
+    29→  @override
+    30→  ConsumerState<MarketplaceModerationPage> createState() =>
+    31→      _MarketplaceModerationPageState();
+    32→}
+    33→
+    34→class _MarketplaceModerationPageState
+    35→    extends ConsumerState<MarketplaceModerationPage>
+    36→    with SingleTickerProviderStateMixin {
+    37→  late final TabController _tabController;
+    38→
+    39→  @override
+    40→  void initState() {
+    41→    super.initState();
+    42→    _tabController = TabController(
+    43→      length: _ModerationTab.values.length,
+    44→      vsync: this,
+    45→    );
+    46→    WidgetsBinding.instance.addPostFrameCallback((_) => _loadAllData());
+    47→  }
+    48→
+    49→  @override
+    50→  void dispose() {
+    51→    _tabController.dispose();
+    52→    super.dispose();
+    53→  }
+    54→
+    55→  Future<void> _loadAllData() async {
+    56→    final notifier = ref.read(moderationProvider.notifier);
+    57→    await Future.wait([
+    58→      notifier.loadPendingProducts(),
+    59→      notifier.loadSellers(),
+    60→      notifier.loadDisputes(),
+    61→    ]);
+    62→  }
+    63→
+    64→  void _showSnackBar(String message, {bool isError = false}) {
+    65→    context.scaffoldMessenger.showSnackBar(
+    66→      SnackBar(
+    67→        content: Text(message),
+    68→        backgroundColor: isError ? AppColors.error : null,
+    69→        behavior: SnackBarBehavior.floating,
+    70→      ),
+    71→    );
+    72→  }
+    73→
+    74→  // ─── Stats Bar ────────────────────────────────────────────────────────
+    75→
+    76→  Widget _buildStatsBar(ModerationState state) {
+    77→    final cs = context.colorScheme;
+    78→    final tt = context.textTheme;
+    79→
+    80→    return Container(
+    81→      padding: const EdgeInsets.symmetric(
+    82→        horizontal: Spacings.lg,
+    83→        vertical: Spacings.md,
+    84→      ),
+    85→      color: cs.surfaceContainerLow,
+    86→      child: Row(
+    87→        children: [
+    88→          _StatChip(
+    89→            label: 'Pending Products',
+    90→            count: state.pendingProducts.length,
+    91→            color: AppColors.warning,
+    92→            icon: Icons.inventory_2_outlined,
+    93→          ),
+    94→          const SizedBox(width: Spacings.lg),
+    95→          _StatChip(
+    96→            label: 'Open Disputes',
+    97→            count: state.openDisputeCount,
+    98→            color: AppColors.error,
+    99→            icon: Icons.gavel_outlined,
+   100→          ),
+   101→          const SizedBox(width: Spacings.lg),
+   102→          _StatChip(
+   103→            label: 'Reported Reviews',
+   104→            count: state.reportedReviews.length,
+   105→            color: AppColors.info,
+   106→            icon: Icons.flag_outlined,
+   107→          ),
+   108→        ],
+   109→      ),
+   110→    );
+   111→  }
+   112→
+   113→  @override
+   114→  Widget build(BuildContext context) {
+   115→    final state = ref.watch(moderationProvider);
+   116→
+   117→    // Listen for error/success messages
+   118→    ref.listen<ModerationState>(moderationProvider, (prev, next) {
+   119→      if (next.error != null && prev?.error != next.error) {
+   120→        _showSnackBar(next.error!, isError: true);
+   121→        ref.read(moderationProvider.notifier).clearError();
+   122→      }
+   123→      if (next.successMessage != null &&
+   124→          prev?.successMessage != next.successMessage) {
+   125→        _showSnackBar(next.successMessage!);
+   126→        ref.read(moderationProvider.notifier).clearSuccess();
+   127→      }
+   128→    });
+   129→
+   130→    return Scaffold(
+   131→      appBar: AppAppBar(
+   132→        title: 'Moderation',
+   133→        bottom: TabBar(
+   134→          controller: _tabController,
+   135→          tabs: _ModerationTab.values
+   136→              .map((tab) => Tab(
+   137→                    text: tab.label,
+   138→                    icon: Icon(tab.icon),
+   139→                  ))
+   140→              .toList(),
+   141→        ),
+   142→      ),
+   143→      body: Column(
+   144→        children: [
+   145→          // ── Stats bar ───────────────────────────────────────────────
+   146→          _buildStatsBar(state),
+   147→
+   148→          // ── Tab content ─────────────────────────────────────────────
+   149→          Expanded(
+   150→            child: state.isLoading && state.pendingProducts.isEmpty
+   151→                ? const Center(child: AppLoadingSpinner())
+   152→                : TabBarView(
+   153→                    controller: _tabController,
+   154→                    children: [
+   155→                      // ── Pending Products ────────────────────────────
+   156→                      _PendingProductsTab(
+   157→                        products: state.pendingProducts,
+   158→                        isLoading: state.isLoading,
+   159→                      ),
+   160→
+   161→                      // ── Reported Reviews ────────────────────────────
+   162→                      _ReportedReviewsTab(
+   163→                        reviews: state.reportedReviews,
+   164→                        isLoading: state.isLoading,
+   165→                      ),
+   166→
+   167→                      // ── Sellers ─────────────────────────────────────
+   168→                      _SellersTab(
+   169→                        sellers: state.sellers,
+   170→                        isLoading: state.isLoading,
+   171→                      ),
+   172→
+   173→                      // ── Disputes ────────────────────────────────────
+   174→                      _DisputesTab(
+   175→                        disputes: state.disputes,
+   176→                        isLoading: state.isLoading,
+   177→                      ),
+   178→                    ],
+   179→                  ),
+   180→          ),
+   181→        ],
+   182→      ),
+   183→    );
+   184→  }
+   185→}
+   186→
+   187→// ═══════════════════════════════════════════════════════════════════════════════
+   188→// MODERATION TAB ENUM (internal)
+   189→// ═══════════════════════════════════════════════════════════════════════════════
+   190→
+   191→enum _ModerationTab {
+   192→  pendingProducts(label: 'Products', icon: Icons.inventory_2_outlined),
+   193→  reportedReviews(label: 'Reviews', icon: Icons.rate_review_outlined),
+   194→  sellers(label: 'Sellers', icon: Icons.storefront_outlined),
+   195→  disputes(label: 'Disputes', icon: Icons.gavel_outlined);
+   196→
+   197→  const _ModerationTab({required this.label, required this.icon});
+   198→
+   199→  final String label;
+   200→  final IconData icon;
+   201→}
+   202→
+   203→// ═══════════════════════════════════════════════════════════════════════════════
+   204→// STAT CHIP (internal)
+   205→// ═══════════════════════════════════════════════════════════════════════════════
+   206→
+   207→class _StatChip extends StatelessWidget {
+   208→  const _StatChip({
+   209→    required this.label,
+   210→    required this.count,
+   211→    required this.color,
+   212→    required this.icon,
+   213→  });
+   214→
+   215→  final String label;
+   216→  final int count;
+   217→  final Color color;
+   218→  final IconData icon;
+   219→
+   220→  @override
+   221→  Widget build(BuildContext context) {
+   222→    final tt = context.textTheme;
+   223→    final cs = context.colorScheme;
+   224→    final isDark = context.isDarkMode;
+   225→
+   226→    return Row(
+   227→      mainAxisSize: MainAxisSize.min,
+   228→      children: [
+   229→        Container(
+   230→          padding: const EdgeInsets.all(Spacings.xs),
+   231→          decoration: BoxDecoration(
+   232→            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+   233→            borderRadius: Spacings.borderRadiusSm,
+   234→          ),
+   235→          child: Icon(icon, size: Spacings.smIcon, color: color),
+   236→        ),
+   237→        const SizedBox(width: Spacings.xs),
+   238→        Text(
+   239→          '$count',
+   240→          style: tt.titleSmall?.copyWith(
+   241→            fontWeight: AppTypography.wBold,
+   242→            color: cs.onSurface,
+   243→          ),
+   244→        ),
+   245→        const SizedBox(width: Spacings.xs),
+   246→        Text(
+   247→          label,
+   248→          style: tt.bodySmall?.copyWith(
+   249→            color: cs.onSurfaceVariant,
+   250→          ),
+   251→        ),
+   252→      ],
+   253→    );
+   254→  }
+   255→}
+   256→
+   257→// ═══════════════════════════════════════════════════════════════════════════════
+   258→// PENDING PRODUCTS TAB
+   259→// ═══════════════════════════════════════════════════════════════════════════════
+   260→
+   261→class _PendingProductsTab extends ConsumerWidget {
+   262→  const _PendingProductsTab({
+   263→    required this.products,
+   264→    required this.isLoading,
+   265→  });
+   266→
+   267→  final List<MarketplaceProductEntity> products;
+   268→  final bool isLoading;
+   269→
+   270→  @override
+   271→  Widget build(BuildContext context, WidgetRef ref) {
+   272→    if (products.isEmpty && !isLoading) {
+   273→      return AppEmptyState(
+   274→        icon: Icons.check_circle_outline_rounded,
+   275→        title: 'No Pending Products',
+   276→        subtitle: 'All products have been reviewed.',
+   277→      );
+   278→    }
+   279→
+   280→    return Column(
+   281→      children: [
+   282→        // Bulk actions
+   283→        if (products.isNotEmpty)
+   284→          Padding(
+   285→            padding: const EdgeInsets.all(Spacings.lg),
+   286→            child: Row(
+   287→              children: [
+   288→                Expanded(
+   289→                  child: AppButton(
+   290→                    label: 'Approve All',
+   291→                    onPressed: () async {
+   292→                      final confirmed = await AppDialog.showConfirm(
+   293→                        context: context,
+   294→                        title: 'Approve All Products?',
+   295→                        message:
+   296→                            'This will approve ${products.length} pending products.',
+   297→                        confirmText: 'Approve All',
+   298→                      );
+   299→                      if (confirmed == true) {
+   300→                        for (final p in products) {
+   301→                          await ref
+   302→                              .read(moderationProvider.notifier)
+   303→                              .approveProduct(
+   304→                                productId: p.id,
+   305→                                moderatorId: 'admin',
+   306→                              );
+   307→                        }
+   308→                      }
+   309→                    },
+   310→                    variant: AppButtonVariant.tonal,
+   311→                    icon: Icons.check_circle_outline,
+   312→                    size: AppButtonSize.small,
+   313→                  ),
+   314→                ),
+   315→                const SizedBox(width: Spacings.md),
+   316→                Expanded(
+   317→                  child: AppButton(
+   318→                    label: 'Reject All',
+   319→                    onPressed: () async {
+   320→                      final confirmed = await AppDialog.showConfirm(
+   321→                        context: context,
+   322→                        title: 'Reject All Products?',
+   323→                        message:
+   324→                            'This will reject ${products.length} pending products.',
+   325→                        confirmText: 'Reject All',
+   326→                        isDestructive: true,
+   327→                      );
+   328→                      if (confirmed == true) {
+   329→                        for (final p in products) {
+   330→                          await ref
+   331→                              .read(moderationProvider.notifier)
+   332→                              .rejectProduct(
+   333→                                productId: p.id,
+   334→                                reason: 'Bulk rejection',
+   335→                                moderatorId: 'admin',
+   336→                              );
+   337→                        }
+   338→                      }
+   339→                    },
+   340→                    variant: AppButtonVariant.outlined,
+   341→                    icon: Icons.cancel_outlined,
+   342→                    size: AppButtonSize.small,
+   343→                  ),
+   344→                ),
+   345→              ],
+   346→            ),
+   347→          ),
+   348→
+   349→        // Product list
+   350→        Expanded(
+   351→          child: RefreshIndicator(
+   352→            onRefresh: () =>
+   353→                ref.read(moderationProvider.notifier).loadPendingProducts(),
+   354→            child: ListView.separated(
+   355→              padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   356→              itemCount: products.length,
+   357→              separatorBuilder: (_, __) =>
+   358→                  const SizedBox(height: Spacings.md),
+   359→              itemBuilder: (context, index) {
+   360→                final product = products[index];
+   361→                return _PendingProductCard(product: product);
+   362→              },
+   363→            ),
+   364→          ),
+   365→        ),
+   366→      ],
+   367→    );
+   368→  }
+   369→}
+   370→
+   371→// ═══════════════════════════════════════════════════════════════════════════════
+   372→// PENDING PRODUCT CARD (internal)
+   373→// ═══════════════════════════════════════════════════════════════════════════════
+   374→
+   375→class _PendingProductCard extends ConsumerWidget {
+   376→  const _PendingProductCard({required this.product});
+   377→
+   378→  final MarketplaceProductEntity product;
+   379→
+   380→  @override
+   381→  Widget build(BuildContext context, WidgetRef ref) {
+   382→    final cs = context.colorScheme;
+   383→    final tt = context.textTheme;
+   384→    final isDark = context.isDarkMode;
+   385→
+   386→    return AppCard(
+   387→      padding: const EdgeInsets.all(Spacings.lg),
+   388→      child: Column(
+   389→        crossAxisAlignment: CrossAxisAlignment.start,
+   390→        children: [
+   391→          // ── Top row: info ──────────────────────────────────────────
+   392→          Row(
+   393→            children: [
+   394→              Container(
+   395→                padding: const EdgeInsets.all(Spacings.sm),
+   396→                decoration: BoxDecoration(
+   397→                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+   398→                  borderRadius: Spacings.borderRadiusSm,
+   399→                ),
+   400→                child: ProductTypeIcon(
+   401→                  type: product.productType,
+   402→                  size: Spacings.mdIcon,
+   403→                  color: cs.primary,
+   404→                ),
+   405→              ),
+   406→              const SizedBox(width: Spacings.md),
+   407→              Expanded(
+   408→                child: Column(
+   409→                  crossAxisAlignment: CrossAxisAlignment.start,
+   410→                  children: [
+   411→                    Text(
+   412→                      product.title,
+   413→                      style: tt.titleSmall?.copyWith(
+   414→                        fontWeight: AppTypography.wSemiBold,
+   415→                        color: cs.onSurface,
+   416→                      ),
+   417→                      maxLines: 1,
+   418→                      overflow: TextOverflow.ellipsis,
+   419→                    ),
+   420→                    const SizedBox(height: Spacings.xs),
+   421→                    Row(
+   422→                      children: [
+   423→                        Icon(
+   424→                          Icons.person_outline_rounded,
+   425→                          size: Spacings.smIcon,
+   426→                          color: cs.onSurfaceVariant,
+   427→                        ),
+   428→                        const SizedBox(width: Spacings.xs),
+   429→                        Text(
+   430→                          product.sellerId,
+   431→                          style: tt.bodySmall?.copyWith(
+   432→                            color: cs.onSurfaceVariant,
+   433→                          ),
+   434→                        ),
+   435→                        const SizedBox(width: Spacings.md),
+   436→                        LicenseBadge(licenseType: product.licenseType),
+   437→                      ],
+   438→                    ),
+   439→                  ],
+   440→                ),
+   441→              ),
+   442→              Column(
+   443→                crossAxisAlignment: CrossAxisAlignment.end,
+   444→                children: [
+   445→                  PriceDisplay(
+   446→                    price: product.price,
+   447→                    currency: product.currency,
+   448→                    isFree: product.isFree,
+   449→                  ),
+   450→                  const SizedBox(height: Spacings.xs),
+   451→                  Text(
+   452→                    _formatDate(product.createdAt),
+   453→                    style: tt.labelSmall?.copyWith(
+   454→                      color: cs.onSurfaceVariant,
+   455→                    ),
+   456→                  ),
+   457→                ],
+   458→              ),
+   459→            ],
+   460→          ),
+   461→          const SizedBox(height: Spacings.md),
+   462→
+   463→          // ── Product type badge ─────────────────────────────────────
+   464→          Container(
+   465→            padding: const EdgeInsets.symmetric(
+   466→              horizontal: Spacings.sm,
+   467→              vertical: Spacings.xs,
+   468→            ),
+   469→            decoration: BoxDecoration(
+   470→              color: AppColors.infoLight.withValues(alpha: isDark ? 0.15 : 1.0),
+   471→              borderRadius: Spacings.borderRadiusSm,
+   472→            ),
+   473→            child: Text(
+   474→              product.productType.label,
+   475→              style: tt.labelSmall?.copyWith(
+   476→                color: AppColors.info,
+   477→                fontWeight: AppTypography.wSemiBold,
+   478→              ),
+   479→            ),
+   480→          ),
+   481→          const SizedBox(height: Spacings.lg),
+   482→
+   483→          // ── Action buttons ─────────────────────────────────────────
+   484→          Row(
+   485→            children: [
+   486→              AppIconButton(
+   487→                icon: Icons.visibility_outlined,
+   488→                onPressed: () {
+   489→                  // Open product detail preview
+   490→                },
+   491→                tooltip: 'Preview',
+   492→                variant: AppIconButtonVariant.outlined,
+   493→              ),
+   494→              const Spacer(),
+   495→              AppButton(
+   496→                label: 'Approve',
+   497→                onPressed: () async {
+   498→                  final confirmed = await AppDialog.showConfirm(
+   499→                    context: context,
+   500→                    title: 'Approve Product?',
+   501→                    message:
+   502→                        '"${product.title}" will be published to the marketplace.',
+   503→                    confirmText: 'Approve',
+   504→                  );
+   505→                  if (confirmed == true) {
+   506→                    ref.read(moderationProvider.notifier).approveProduct(
+   507→                          productId: product.id,
+   508→                          moderatorId: 'admin',
+   509→                        );
+   510→                  }
+   511→                },
+   512→                variant: AppButtonVariant.tonal,
+   513→                icon: Icons.check_rounded,
+   514→                size: AppButtonSize.small,
+   515→              ),
+   516→              const SizedBox(width: Spacings.sm),
+   517→              AppButton(
+   518→                label: 'Reject',
+   519→                onPressed: () => _showRejectDialog(context, ref),
+   520→                variant: AppButtonVariant.outlined,
+   521→                icon: Icons.close_rounded,
+   522→                size: AppButtonSize.small,
+   523→                // Red-tinted outlined button
+   524→              ),
+   525→            ],
+   526→          ),
+   527→        ],
+   528→      ),
+   529→    );
+   530→  }
+   531→
+   532→  void _showRejectDialog(BuildContext context, WidgetRef ref) {
+   533→    final reasonController = TextEditingController();
+   534→
+   535→    AppDialog.showCustom(
+   536→      context: context,
+   537→      builder: (ctx) {
+   538→        return Column(
+   539→          mainAxisSize: MainAxisSize.min,
+   540→          crossAxisAlignment: CrossAxisAlignment.start,
+   541→          children: [
+   542→            Text(
+   543→              'Reject Product',
+   544→              style: ctx.textTheme.titleLarge?.copyWith(
+   545→                fontWeight: AppTypography.wSemiBold,
+   546→                color: ctx.colorScheme.onSurface,
+   547→              ),
+   548→            ),
+   549→            const SizedBox(height: Spacings.md),
+   550→            Text(
+   551→              'Provide a reason for rejecting "${product.title}":',
+   552→              style: ctx.textTheme.bodyMedium?.copyWith(
+   553→                color: ctx.colorScheme.onSurfaceVariant,
+   554→              ),
+   555→            ),
+   556→            const SizedBox(height: Spacings.md),
+   557→            AppTextField(
+   558→              controller: reasonController,
+   559→              label: 'Reason',
+   560→              hint: 'Enter rejection reason',
+   561→              maxLines: 3,
+   562→              minLines: 2,
+   563→              isRequired: true,
+   564→            ),
+   565→            const SizedBox(height: Spacings.xl),
+   566→            Row(
+   567→              mainAxisAlignment: MainAxisAlignment.end,
+   568→              children: [
+   569→                AppButton(
+   570→                  label: 'Cancel',
+   571→                  onPressed: () => Navigator.of(ctx).pop(),
+   572→                  variant: AppButtonVariant.text,
+   573→                ),
+   574→                const SizedBox(width: Spacings.sm),
+   575→                AppButton(
+   576→                  label: 'Reject',
+   577→                  onPressed: () {
+   578→                    final reason = reasonController.text.trim();
+   579→                    if (reason.isEmpty) return;
+   580→                    Navigator.of(ctx).pop();
+   581→                    ref.read(moderationProvider.notifier).rejectProduct(
+   582→                          productId: product.id,
+   583→                          reason: reason,
+   584→                          moderatorId: 'admin',
+   585→                        );
+   586→                  },
+   587→                  variant: AppButtonVariant.elevated,
+   588→                ),
+   589→              ],
+   590→            ),
+   591→          ],
+   592→        );
+   593→      },
+   594→    );
+   595→  }
+   596→}
+   597→
+   598→// ═══════════════════════════════════════════════════════════════════════════════
+   599→// REPORTED REVIEWS TAB
+   600→// ═══════════════════════════════════════════════════════════════════════════════
+   601→
+   602→class _ReportedReviewsTab extends ConsumerWidget {
+   603→  const _ReportedReviewsTab({
+   604→    required this.reviews,
+   605→    required this.isLoading,
+   606→  });
+   607→
+   608→  final List<MarketplaceReviewEntity> reviews;
+   609→  final bool isLoading;
+   610→
+   611→  @override
+   612→  Widget build(BuildContext context, WidgetRef ref) {
+   613→    if (reviews.isEmpty && !isLoading) {
+   614→      return AppEmptyState(
+   615→        icon: Icons.check_circle_outline_rounded,
+   616→        title: 'No Reported Reviews',
+   617→        subtitle: 'All reviews are in good standing.',
+   618→      );
+   619→    }
+   620→
+   621→    return RefreshIndicator(
+   622→      onRefresh: () async {
+   623→        // Reload moderation data
+   624→      },
+   625→      child: ListView.separated(
+   626→        padding: const EdgeInsets.all(Spacings.lg),
+   627→        itemCount: reviews.length,
+   628→        separatorBuilder: (_, __) => const SizedBox(height: Spacings.md),
+   629→        itemBuilder: (context, index) {
+   630→          final review = reviews[index];
+   631→          return _ReportedReviewCard(review: review);
+   632→        },
+   633→      ),
+   634→    );
+   635→  }
+   636→}
+   637→
+   638→// ═══════════════════════════════════════════════════════════════════════════════
+   639→// REPORTED REVIEW CARD (internal)
+   640→// ═══════════════════════════════════════════════════════════════════════════════
+   641→
+   642→class _ReportedReviewCard extends ConsumerWidget {
+   643→  const _ReportedReviewCard({required this.review});
+   644→
+   645→  final MarketplaceReviewEntity review;
+   646→
+   647→  @override
+   648→  Widget build(BuildContext context, WidgetRef ref) {
+   649→    final cs = context.colorScheme;
+   650→    final tt = context.textTheme;
+   651→    final isDark = context.isDarkMode;
+   652→
+   653→    return AppCard(
+   654→      padding: const EdgeInsets.all(Spacings.lg),
+   655→      child: Column(
+   656→        crossAxisAlignment: CrossAxisAlignment.start,
+   657→        children: [
+   658→          // ── Reviewer row ───────────────────────────────────────────
+   659→          Row(
+   660→            children: [
+   661→              CircleAvatar(
+   662→                radius: 16,
+   663→                backgroundColor:
+   664→                    cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+   665→                child: Text(
+   666→                  review.buyerId.isNotEmpty
+   667→                      ? review.buyerId[0].toUpperCase()
+   668→                      : '?',
+   669→                  style: tt.labelMedium?.copyWith(
+   670→                    color: cs.primary,
+   671→                    fontWeight: AppTypography.wBold,
+   672→                  ),
+   673→                ),
+   674→              ),
+   675→              const SizedBox(width: Spacings.sm),
+   676→              Expanded(
+   677→                child: Column(
+   678→                  crossAxisAlignment: CrossAxisAlignment.start,
+   679→                  children: [
+   680→                    Text(
+   681→                      review.buyerId,
+   682→                      style: tt.labelMedium?.copyWith(
+   683→                        fontWeight: AppTypography.wSemiBold,
+   684→                        color: cs.onSurface,
+   685→                      ),
+   686→                    ),
+   687→                    StarRating(
+   688→                      rating: review.rating.toDouble(),
+   689→                      starSize: Spacings.smIcon,
+   690→                      showCount: false,
+   691→                    ),
+   692→                  ],
+   693→                ),
+   694→              ),
+   695→              // Report count badge
+   696→              Container(
+   697→                padding: const EdgeInsets.symmetric(
+   698→                  horizontal: Spacings.sm,
+   699→                  vertical: Spacings.xs,
+   700→                ),
+   701→                decoration: BoxDecoration(
+   702→                  color: AppColors.errorLight.withValues(alpha: isDark ? 0.15 : 1.0),
+   703→                  borderRadius: Spacings.borderRadiusSm,
+   704→                ),
+   705→                child: Row(
+   706→                  mainAxisSize: MainAxisSize.min,
+   707→                  children: [
+   708→                    Icon(
+   709→                      Icons.flag_rounded,
+   710→                      size: Spacings.smIcon,
+   711→                      color: AppColors.error,
+   712→                    ),
+   713→                    const SizedBox(width: Spacings.xs),
+   714→                    Text(
+   715→                      '${review.reportCount}',
+   716→                      style: tt.labelSmall?.copyWith(
+   717→                        color: AppColors.error,
+   718→                        fontWeight: AppTypography.wBold,
+   719→                      ),
+   720→                    ),
+   721→                  ],
+   722→                ),
+   723→              ),
+   724→            ],
+   725→          ),
+   726→
+   727→          // ── Review excerpt ─────────────────────────────────────────
+   728→          if (review.content != null && review.content!.isNotEmpty) ...[
+   729→            const SizedBox(height: Spacings.md),
+   730→            Text(
+   731→              review.content!,
+   732→              style: tt.bodyMedium?.copyWith(
+   733→                color: cs.onSurfaceVariant,
+   734→              ),
+   735→              maxLines: 3,
+   736→              overflow: TextOverflow.ellipsis,
+   737→            ),
+   738→          ],
+   739→
+   740→          const SizedBox(height: Spacings.lg),
+   741→
+   742→          // ── Action buttons ─────────────────────────────────────────
+   743→          Row(
+   744→            children: [
+   745→              Expanded(
+   746→                child: AppButton(
+   747→                  label: 'Keep',
+   748→                  onPressed: () {
+   749→                    ref.read(moderationProvider.notifier).moderateReview(
+   750→                          reviewId: review.id,
+   751→                          status: MarketplaceReviewStatus.published,
+   752→                        );
+   753→                  },
+   754→                  variant: AppButtonVariant.tonal,
+   755→                  icon: Icons.check_rounded,
+   756→                  size: AppButtonSize.small,
+   757→                ),
+   758→              ),
+   759→              const SizedBox(width: Spacings.sm),
+   760→              Expanded(
+   761→                child: AppButton(
+   762→                  label: 'Hide',
+   763→                  onPressed: () {
+   764→                    ref.read(moderationProvider.notifier).moderateReview(
+   765→                          reviewId: review.id,
+   766→                          status: MarketplaceReviewStatus.hidden,
+   767→                        );
+   768→                  },
+   769→                  variant: AppButtonVariant.outlined,
+   770→                  icon: Icons.visibility_off_rounded,
+   771→                  size: AppButtonSize.small,
+   772→                ),
+   773→              ),
+   774→              const SizedBox(width: Spacings.sm),
+   775→              Expanded(
+   776→                child: AppButton(
+   777→                  label: 'Remove',
+   778→                  onPressed: () async {
+   779→                    final confirmed = await AppDialog.showConfirm(
+   780→                      context: context,
+   781→                      title: 'Remove Review?',
+   782→                      message:
+   783→                          'This review will be permanently removed.',
+   784→                      confirmText: 'Remove',
+   785→                      isDestructive: true,
+   786→                    );
+   787→                    if (confirmed == true) {
+   788→                      ref.read(moderationProvider.notifier).moderateReview(
+   789→                            reviewId: review.id,
+   790→                            status: MarketplaceReviewStatus.hidden,
+   791→                          );
+   792→                    }
+   793→                  },
+   794→                  variant: AppButtonVariant.outlined,
+   795→                  icon: Icons.delete_outline_rounded,
+   796→                  size: AppButtonSize.small,
+   797→                ),
+   798→              ),
+   799→            ],
+   800→          ),
+   801→        ],
+   802→      ),
+   803→    );
+   804→  }
+   805→}
+   806→
+   807→// ═══════════════════════════════════════════════════════════════════════════════
+   808→// SELLERS TAB
+   809→// ═══════════════════════════════════════════════════════════════════════════════
+   810→
+   811→class _SellersTab extends ConsumerStatefulWidget {
+   812→  const _SellersTab({
+   813→    required this.sellers,
+   814→    required this.isLoading,
+   815→  });
+   816→
+   817→  final List<SellerProfileEntity> sellers;
+   818→  final bool isLoading;
+   819→
+   820→  @override
+   821→  ConsumerState<_SellersTab> createState() => _SellersTabState();
+   822→}
+   823→
+   824→class _SellersTabState extends ConsumerState<_SellersTab> {
+   825→  final _searchController = TextEditingController();
+   826→  _SellerFilter _filter = _SellerFilter.all;
+   827→
+   828→  @override
+   829→  void dispose() {
+   830→    _searchController.dispose();
+   831→    super.dispose();
+   832→  }
+   833→
+   834→  List<SellerProfileEntity> get _filteredSellers {
+   835→    var sellers = widget.sellers;
+   836→
+   837→    // Filter by status
+   838→    if (_filter != _SellerFilter.all) {
+   839→      sellers = sellers.where((s) => s.status == _filter.status).toList();
+   840→    }
+   841→
+   842→    // Filter by search
+   843→    final query = _searchController.text.trim().toLowerCase();
+   844→    if (query.isNotEmpty) {
+   845→      sellers = sellers
+   846→          .where((s) => s.displayName.toLowerCase().contains(query))
+   847→          .toList();
+   848→    }
+   849→
+   850→    return sellers;
+   851→  }
+   852→
+   853→  @override
+   854→  Widget build(BuildContext context) {
+   855→    final sellers = _filteredSellers;
+   856→
+   857→    return Column(
+   858→      children: [
+   859→        // ── Search bar & filters ─────────────────────────────────────
+   860→        Padding(
+   861→          padding: const EdgeInsets.all(Spacings.lg),
+   862→          child: Column(
+   863→            children: [
+   864→              AppSearchField(
+   865→                controller: _searchController,
+   866→                hint: 'Search sellers...',
+   867→                onChanged: (_) => setState(() {}),
+   868→              ),
+   869→              const SizedBox(height: Spacings.md),
+   870→              SingleChildScrollView(
+   871→                scrollDirection: Axis.horizontal,
+   872→                child: Row(
+   873→                  children: _SellerFilter.values.map((filter) {
+   874→                    final isSelected = _filter == filter;
+   875→                    return Padding(
+   876→                      padding: const EdgeInsets.only(right: Spacings.sm),
+   877→                      child: FilterChip(
+   878→                        label: Text(filter.label),
+   879→                        selected: isSelected,
+   880→                        onSelected: (_) {
+   881→                          setState(() => _filter = filter);
+   882→                        },
+   883→                      ),
+   884→                    );
+   885→                  }).toList(),
+   886→                ),
+   887→              ),
+   888→            ],
+   889→          ),
+   890→        ),
+   891→
+   892→        // ── Seller list ──────────────────────────────────────────────
+   893→        Expanded(
+   894→          child: sellers.isEmpty && !widget.isLoading
+   895→              ? AppEmptyState(
+   896→                  icon: Icons.storefront_outlined,
+   897→                  title: 'No Sellers Found',
+   898→                  subtitle: 'Try adjusting your search or filter.',
+   899→                )
+   900→              : RefreshIndicator(
+   901→                  onRefresh: () => ref
+   902→                      .read(moderationProvider.notifier)
+   903→                      .loadSellers(),
+   904→                  child: ListView.separated(
+   905→                    padding: const EdgeInsets.symmetric(
+   906→                        horizontal: Spacings.lg),
+   907→                    itemCount: sellers.length,
+   908→                    separatorBuilder: (_, __) =>
+   909→                        const SizedBox(height: Spacings.md),
+   910→                    itemBuilder: (context, index) {
+   911→                      return _SellerCard(seller: sellers[index]);
+   912→                    },
+   913→                  ),
+   914→                ),
+   915→        ),
+   916→      ],
+   917→    );
+   918→  }
+   919→}
+   920→
+   921→// ═══════════════════════════════════════════════════════════════════════════════
+   922→// SELLER FILTER ENUM (internal)
+   923→// ═══════════════════════════════════════════════════════════════════════════════
+   924→
+   925→enum _SellerFilter {
+   926→  all(label: 'All', status: null),
+   927→  active(label: 'Active', status: MarketplaceSellerStatus.active),
+   928→  suspended(label: 'Suspended', status: MarketplaceSellerStatus.suspended),
+   929→  pending(label: 'Pending', status: MarketplaceSellerStatus.pendingVerification);
+   930→
+   931→  const _SellerFilter({required this.label, required this.status});
+   932→
+   933→  final String label;
+   934→  final MarketplaceSellerStatus? status;
+   935→}
+   936→
+   937→// ═══════════════════════════════════════════════════════════════════════════════
+   938→// SELLER CARD (internal)
+   939→// ═══════════════════════════════════════════════════════════════════════════════
+   940→
+   941→class _SellerCard extends ConsumerWidget {
+   942→  const _SellerCard({required this.seller});
+   943→
+   944→  final SellerProfileEntity seller;
+   945→
+   946→  @override
+   947→  Widget build(BuildContext context, WidgetRef ref) {
+   948→    final cs = context.colorScheme;
+   949→    final tt = context.textTheme;
+   950→    final isDark = context.isDarkMode;
+   951→
+   952→    final statusColor = _statusColor(seller.status);
+   953→
+   954→    return AppCard(
+   955→      padding: const EdgeInsets.all(Spacings.lg),
+   956→      child: Row(
+   957→        children: [
+   958→          // ── Avatar ─────────────────────────────────────────────────
+   959→          CircleAvatar(
+   960→            radius: 24,
+   961→            backgroundColor:
+   962→                cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+   963→            child: seller.displayName.isNotEmpty
+   964→                ? Text(
+   965→                    seller.displayName[0].toUpperCase(),
+   966→                    style: tt.titleMedium?.copyWith(
+   967→                      color: cs.primary,
+   968→                      fontWeight: AppTypography.wBold,
+   969→                    ),
+   970→                  )
+   971→                : Icon(
+   972→                    Icons.person_rounded,
+   973→                    color: cs.primary,
+   974→                  ),
+   975→          ),
+   976→          const SizedBox(width: Spacings.md),
+   977→
+   978→          // ── Info column ────────────────────────────────────────────
+   979→          Expanded(
+   980→            child: Column(
+   981→              crossAxisAlignment: CrossAxisAlignment.start,
+   982→              children: [
+   983→                Row(
+   984→                  children: [
+   985→                    Expanded(
+   986→                      child: Text(
+   987→                        seller.displayName,
+   988→                        style: tt.titleSmall?.copyWith(
+   989→                          fontWeight: AppTypography.wSemiBold,
+   990→                          color: cs.onSurface,
+   991→                        ),
+   992→                        maxLines: 1,
+   993→                        overflow: TextOverflow.ellipsis,
+   994→                      ),
+   995→                    ),
+   996→                    const SizedBox(width: Spacings.sm),
+   997→                    _StatusBadge(status: seller.status, color: statusColor),
+   998→                  ],
+   999→                ),
+  1000→                const SizedBox(height: Spacings.xs),
+  1001→                Row(
+  1002→                  children: [
+  1003→                    _infoChip(
+  1004→                      Icons.inventory_2_outlined,
+  1005→                      '${seller.totalProducts} products',
+  1006→                      cs.onSurfaceVariant,
+  1007→                    ),
+  1008→                    const SizedBox(width: Spacings.md),
+  1009→                    _infoChip(
+  1010→                      Icons.shopping_bag_outlined,
+  1011→                      '${seller.totalSales} sales',
+  1012→                      cs.onSurfaceVariant,
+  1013→                    ),
+  1014→                    const SizedBox(width: Spacings.md),
+  1015→                    _infoChip(
+  1016→                      Icons.star_rounded,
+  1017→                      seller.averageRating.toStringAsFixed(1),
+  1018→                      AppColors.warning,
+  1019→                    ),
+  1020→                  ],
+  1021→                ),
+  1022→              ],
+  1023→            ),
+  1024→          ),
+  1025→        ],
+  1026→      ),
+  1027→    );
+  1028→  }
+  1029→
+  1030→  Widget _infoChip(IconData icon, String label, Color color) {
+  1031→    final tt = context.textTheme;
+  1032→    return Row(
+  1033→      mainAxisSize: MainAxisSize.min,
+  1034→      children: [
+  1035→        Icon(icon, size: Spacings.smIcon, color: color),
+  1036→        const SizedBox(width: Spacings.xs),
+  1037→        Text(
+  1038→          label,
+  1039→          style: tt.bodySmall?.copyWith(color: color),
+  1040→        ),
+  1041→      ],
+  1042→    );
+  1043→  }
+  1044→
+  1045→  Color _statusColor(MarketplaceSellerStatus status) {
+  1046→    switch (status) {
+  1047→      case MarketplaceSellerStatus.active:
+  1048→        return AppColors.success;
+  1049→      case MarketplaceSellerStatus.suspended:
+  1050→        return AppColors.error;
+  1051→      case MarketplaceSellerStatus.pendingVerification:
+  1052→        return AppColors.warning;
+  1053→      case MarketplaceSellerStatus.deactivated:
+  1054→        return context.colorScheme.onSurfaceVariant;
+  1055→    }
+  1056→  }
+  1057→}
+  1058→
+  1059→// ═══════════════════════════════════════════════════════════════════════════════
+  1060→// STATUS BADGE (internal)
+  1061→// ═══════════════════════════════════════════════════════════════════════════════
+  1062→
+  1063→class _StatusBadge extends StatelessWidget {
+  1064→  const _StatusBadge({
+  1065→    required this.status,
+  1066→    required this.color,
+  1067→  });
+  1068→
+  1069→  final MarketplaceSellerStatus status;
+  1070→  final Color color;
+  1071→
+  1072→  @override
+  1073→  Widget build(BuildContext context) {
+  1074→    final tt = context.textTheme;
+  1075→    final isDark = context.isDarkMode;
+  1076→
+  1077→    return Container(
+  1078→      padding: const EdgeInsets.symmetric(
+  1079→        horizontal: Spacings.sm,
+  1080→        vertical: Spacings.xs,
+  1081→      ),
+  1082→      decoration: BoxDecoration(
+  1083→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+  1084→        borderRadius: Spacings.borderRadiusSm,
+  1085→      ),
+  1086→      child: Text(
+  1087→        status.label,
+  1088→        style: tt.labelSmall?.copyWith(
+  1089→          color: color,
+  1090→          fontWeight: AppTypography.wSemiBold,
+  1091→        ),
+  1092→      ),
+  1093→    );
+  1094→  }
+  1095→}
+  1096→
+  1097→// ═══════════════════════════════════════════════════════════════════════════════
+  1098→// DISPUTES TAB
+  1099→// ═══════════════════════════════════════════════════════════════════════════════
+  1100→
+  1101→class _DisputesTab extends ConsumerWidget {
+  1102→  const _DisputesTab({
+  1103→    required this.disputes,
+  1104→    required this.isLoading,
+  1105→  });
+  1106→
+  1107→  final List<DisputeEntity> disputes;
+  1108→  final bool isLoading;
+  1109→
+  1110→  @override
+  1111→  Widget build(BuildContext context, WidgetRef ref) {
+  1112→    if (disputes.isEmpty && !isLoading) {
+  1113→      return AppEmptyState(
+  1114→        icon: Icons.check_circle_outline_rounded,
+  1115→        title: 'No Open Disputes',
+  1116→        subtitle: 'All disputes have been resolved.',
+  1117→      );
+  1118→    }
+  1119→
+  1120→    return RefreshIndicator(
+  1121→      onRefresh: () =>
+  1122→          ref.read(moderationProvider.notifier).loadDisputes(),
+  1123→      child: ListView.separated(
+  1124→        padding: const EdgeInsets.all(Spacings.lg),
+  1125→        itemCount: disputes.length,
+  1126→        separatorBuilder: (_, __) => const SizedBox(height: Spacings.md),
+  1127→        itemBuilder: (context, index) {
+  1128→          final dispute = disputes[index];
+  1129→          return _DisputeCard(dispute: dispute);
+  1130→        },
+  1131→      ),
+  1132→    );
+  1133→  }
+  1134→}
+  1135→
+  1136→// ═══════════════════════════════════════════════════════════════════════════════
+  1137→// DISPUTE CARD (internal)
+  1138→// ═══════════════════════════════════════════════════════════════════════════════
+  1139→
+  1140→class _DisputeCard extends ConsumerWidget {
+  1141→  const _DisputeCard({required this.dispute});
+  1142→
+  1143→  final DisputeEntity dispute;
+  1144→
+  1145→  @override
+  1146→  Widget build(BuildContext context, WidgetRef ref) {
+  1147→    final cs = context.colorScheme;
+  1148→    final tt = context.textTheme;
+  1149→    final isDark = context.isDarkMode;
+  1150→
+  1151→    final statusColor = _disputeStatusColor(dispute.status);
+  1152→
+  1153→    return AppCard(
+  1154→      padding: const EdgeInsets.all(Spacings.lg),
+  1155→      child: Column(
+  1156→        crossAxisAlignment: CrossAxisAlignment.start,
+  1157→        children: [
+  1158→          // ── Header row ─────────────────────────────────────────────
+  1159→          Row(
+  1160→            children: [
+  1161→              Container(
+  1162→                padding: const EdgeInsets.all(Spacings.sm),
+  1163→                decoration: BoxDecoration(
+  1164→                  color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+  1165→                  borderRadius: Spacings.borderRadiusSm,
+  1166→                ),
+  1167→                child: Icon(
+  1168→                  Icons.gavel_outlined,
+  1169→                  size: Spacings.mdIcon,
+  1170→                  color: statusColor,
+  1171→                ),
+  1172→              ),
+  1173→              const SizedBox(width: Spacings.md),
+  1174→              Expanded(
+  1175→                child: Column(
+  1176→                  crossAxisAlignment: CrossAxisAlignment.start,
+  1177→                  children: [
+  1178→                    Text(
+  1179→                      'Order #${dispute.orderId.substring(0, 8)}',
+  1180→                      style: tt.titleSmall?.copyWith(
+  1181→                        fontWeight: AppTypography.wSemiBold,
+  1182→                        color: cs.onSurface,
+  1183→                      ),
+  1184→                    ),
+  1185→                    const SizedBox(height: Spacings.xs),
+  1186→                    Text(
+  1187→                      dispute.reason,
+  1188→                      style: tt.bodySmall?.copyWith(
+  1189→                        color: cs.onSurfaceVariant,
+  1190→                      ),
+  1191→                      maxLines: 1,
+  1192→                      overflow: TextOverflow.ellipsis,
+  1193→                    ),
+  1194→                  ],
+  1195→                ),
+  1196→              ),
+  1197→              _DisputeStatusBadge(status: dispute.status, color: statusColor),
+  1198→            ],
+  1199→          ),
+  1200→
+  1201→          // ── Description ────────────────────────────────────────────
+  1202→          if (dispute.description != null &&
+  1203→              dispute.description!.isNotEmpty) ...[
+  1204→            const SizedBox(height: Spacings.md),
+  1205→            Text(
+  1206→              dispute.description!,
+  1207→              style: tt.bodyMedium?.copyWith(
+  1208→                color: cs.onSurfaceVariant,
+  1209→              ),
+  1210→              maxLines: 2,
+  1211→              overflow: TextOverflow.ellipsis,
+  1212→            ),
+  1213→          ],
+  1214→
+  1215→          // ── Buyer / Seller row ─────────────────────────────────────
+  1216→          const SizedBox(height: Spacings.md),
+  1217→          Row(
+  1218→            children: [
+  1219→              _infoChip(
+  1220→                Icons.person_outline_rounded,
+  1221→                'Buyer: ${dispute.buyerId.substring(0, 8)}',
+  1222→                cs.onSurfaceVariant,
+  1223→              ),
+  1224→              const SizedBox(width: Spacings.lg),
+  1225→              _infoChip(
+  1226→                Icons.storefront_outlined,
+  1227→                'Seller: ${dispute.sellerId.substring(0, 8)}',
+  1228→                cs.onSurfaceVariant,
+  1229→              ),
+  1230→              const Spacer(),
+  1231→              _infoChip(
+  1232→                Icons.calendar_today_outlined,
+  1233→                _formatDate(dispute.createdAt),
+  1234→                cs.onSurfaceVariant,
+  1235→              ),
+  1236→            ],
+  1237→          ),
+  1238→          const SizedBox(height: Spacings.lg),
+  1239→
+  1240→          // ── Action buttons ─────────────────────────────────────────
+  1241→          Row(
+  1242→            children: [
+  1243→              AppButton(
+  1244→                label: 'View Details',
+  1245→                onPressed: () {
+  1246→                  // Navigate to dispute detail
+  1247→                },
+  1248→                variant: AppButtonVariant.text,
+  1249→                icon: Icons.visibility_outlined,
+  1250→                size: AppButtonSize.small,
+  1251→              ),
+  1252→              const Spacer(),
+  1253→              if (dispute.isOpen)
+  1254→                AppButton(
+  1255→                  label: 'Resolve',
+  1256→                  onPressed: () =>
+  1257→                      _showResolveDialog(context, ref),
+  1258→                  variant: AppButtonVariant.tonal,
+  1259→                  icon: Icons.check_circle_outline,
+  1260→                  size: AppButtonSize.small,
+  1261→                ),
+  1262→            ],
+  1263→          ),
+  1264→        ],
+  1265→      ),
+  1266→    );
+  1267→  }
+  1268→
+  1269→  Widget _infoChip(IconData icon, String label, Color color) {
+  1270→    final tt = context.textTheme;
+  1271→    return Row(
+  1272→      mainAxisSize: MainAxisSize.min,
+  1273→      children: [
+  1274→        Icon(icon, size: Spacings.smIcon, color: color),
+  1275→        const SizedBox(width: Spacings.xs),
+  1276→        Text(
+  1277→          label,
+  1278→          style: tt.bodySmall?.copyWith(color: color),
+  1279→        ),
+  1280→      ],
+  1281→    );
+  1282→  }
+  1283→
+  1284→  Color _disputeStatusColor(DisputeStatus status) {
+  1285→    switch (status) {
+  1286→      case DisputeStatus.open:
+  1287→        return AppColors.error;
+  1288→      case DisputeStatus.underReview:
+  1289→        return AppColors.warning;
+  1290→      case DisputeStatus.resolved:
+  1291→        return AppColors.success;
+  1292→      case DisputeStatus.closed:
+  1293→        return context.colorScheme.onSurfaceVariant;
+  1294→    }
+  1295→  }
+  1296→
+  1297→  void _showResolveDialog(BuildContext context, WidgetRef ref) {
+  1298→    final resolutionController = TextEditingController();
+  1299→
+  1300→    AppDialog.showCustom(
+  1301→      context: context,
+  1302→      builder: (ctx) {
+  1303→        return Column(
+  1304→          mainAxisSize: MainAxisSize.min,
+  1305→          crossAxisAlignment: CrossAxisAlignment.start,
+  1306→          children: [
+  1307→            Text(
+  1308→              'Resolve Dispute',
+  1309→              style: ctx.textTheme.titleLarge?.copyWith(
+  1310→                fontWeight: AppTypography.wSemiBold,
+  1311→                color: ctx.colorScheme.onSurface,
+  1312→              ),
+  1313→            ),
+  1314→            const SizedBox(height: Spacings.md),
+  1315→            Text(
+  1316→              'Enter the resolution for Order #${dispute.orderId.substring(0, 8)}:',
+  1317→              style: ctx.textTheme.bodyMedium?.copyWith(
+  1318→                color: ctx.colorScheme.onSurfaceVariant,
+  1319→              ),
+  1320→            ),
+  1321→            const SizedBox(height: Spacings.md),
+  1322→            AppTextField(
+  1323→              controller: resolutionController,
+  1324→              label: 'Resolution',
+  1325→              hint: 'Describe the resolution',
+  1326→              maxLines: 4,
+  1327→              minLines: 2,
+  1328→              isRequired: true,
+  1329→            ),
+  1330→            const SizedBox(height: Spacings.xl),
+  1331→            Row(
+  1332→              mainAxisAlignment: MainAxisAlignment.end,
+  1333→              children: [
+  1334→                AppButton(
+  1335→                  label: 'Cancel',
+  1336→                  onPressed: () => Navigator.of(ctx).pop(),
+  1337→                  variant: AppButtonVariant.text,
+  1338→                ),
+  1339→                const SizedBox(width: Spacings.sm),
+  1340→                AppButton(
+  1341→                  label: 'Resolve',
+  1342→                  onPressed: () {
+  1343→                    final resolution = resolutionController.text.trim();
+  1344→                    if (resolution.isEmpty) return;
+  1345→                    Navigator.of(ctx).pop();
+  1346→                    ref.read(moderationProvider.notifier).resolveDispute(
+  1347→                          disputeId: dispute.id,
+  1348→                          resolution: resolution,
+  1349→                          resolvedBy: 'admin',
+  1350→                        );
+  1351→                  },
+  1352→                  variant: AppButtonVariant.elevated,
+  1353→                ),
+  1354→              ],
+  1355→            ),
+  1356→          ],
+  1357→        );
+  1358→      },
+  1359→    );
+  1360→  }
+  1361→}
+  1362→
+  1363→// ═══════════════════════════════════════════════════════════════════════════════
+  1364→// DISPUTE STATUS BADGE (internal)
+  1365→// ═══════════════════════════════════════════════════════════════════════════════
+  1366→
+  1367→class _DisputeStatusBadge extends StatelessWidget {
+  1368→  const _DisputeStatusBadge({
+  1369→    required this.status,
+  1370→    required this.color,
+  1371→  });
+  1372→
+  1373→  final DisputeStatus status;
+  1374→  final Color color;
+  1375→
+  1376→  @override
+  1377→  Widget build(BuildContext context) {
+  1378→    final tt = context.textTheme;
+  1379→    final isDark = context.isDarkMode;
+  1380→
+  1381→    return Container(
+  1382→      padding: const EdgeInsets.symmetric(
+  1383→        horizontal: Spacings.sm,
+  1384→        vertical: Spacings.xs,
+  1385→      ),
+  1386→      decoration: BoxDecoration(
+  1387→        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+  1388→        borderRadius: Spacings.borderRadiusSm,
+  1389→      ),
+  1390→      child: Text(
+  1391→        status.label,
+  1392→        style: tt.labelSmall?.copyWith(
+  1393→          color: color,
+  1394→          fontWeight: AppTypography.wSemiBold,
+  1395→        ),
+  1396→      ),
+  1397→    );
+  1398→  }
+  1399→}
+  1400→
+  1401→// ═══════════════════════════════════════════════════════════════════════════════
+  1402→// UTILITY HELPERS
+  1403→// ═══════════════════════════════════════════════════════════════════════════════
+  1404→
+  1405→String _formatDate(DateTime date) {
+  1406→  const months = [
+  1407→    '',
+  1408→    'Jan',
+  1409→    'Feb',
+  1410→    'Mar',
+  1411→    'Apr',
+  1412→    'May',
+  1413→    'Jun',
+  1414→    'Jul',
+  1415→    'Aug',
+  1416→    'Sep',
+  1417→    'Oct',
+  1418→    'Nov',
+  1419→    'Dec',
+  1420→  ];
+  1421→  return '${months[date.month]} ${date.day.toString().padLeft(2, '0')}, ${date.year}';
+  1422→}
+  1423→

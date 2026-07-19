@@ -169,6 +169,24 @@ import '../features/billing/presentation/pages/license_management_page.dart';
 import '../features/billing/presentation/pages/revenue_dashboard_page.dart';
 import '../features/billing/presentation/pages/school_billing_page.dart';
 
+// ── Marketplace ──
+import '../features/marketplace/presentation/pages/marketplace_home_page.dart';
+import '../features/marketplace/presentation/pages/marketplace_search_page.dart';
+import '../features/marketplace/presentation/pages/product_detail_page.dart';
+import '../features/marketplace/presentation/pages/category_products_page.dart';
+import '../features/marketplace/presentation/pages/buyer_dashboard_page.dart';
+import '../features/marketplace/presentation/pages/seller_dashboard_page.dart';
+import '../features/marketplace/presentation/pages/create_product_page.dart';
+import '../features/marketplace/presentation/pages/ai_resource_generator_page.dart';
+import '../features/marketplace/presentation/pages/quality_review_page.dart';
+import '../features/marketplace/presentation/pages/cart_page.dart';
+import '../features/marketplace/presentation/pages/checkout_page.dart' as mp;
+import '../features/marketplace/presentation/pages/product_reviews_page.dart';
+import '../features/marketplace/presentation/pages/marketplace_moderation_page.dart';
+import '../features/marketplace/presentation/pages/commission_management_page.dart';
+import '../features/marketplace/presentation/pages/marketplace_analytics_page.dart';
+import '../features/marketplace/presentation/pages/marketplace_notifications_page.dart';
+
 // ── Super Admin Platform ──
 import '../features/super_admin/presentation/pages/super_admin_dashboard_page.dart';
 import '../features/super_admin/presentation/pages/school_management_page.dart';
@@ -1393,6 +1411,107 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               return SchoolBillingPage(schoolId: schoolId);
             },
+          ),
+
+          // ── Marketplace Routes ──────────────────────────────────────
+          GoRoute(
+            path: RouteNames.marketplace,
+            name: 'marketplace',
+            builder: (context, state) => const MarketplaceHomePage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceSearch,
+            name: 'marketplace-search',
+            builder: (context, state) => const MarketplaceSearchPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceProductDetail,
+            name: 'marketplace-product-detail',
+            builder: (context, state) {
+              final productId = state.uri.queryParameters['id'] ?? '';
+              return ProductDetailPage(productId: productId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceCategory,
+            name: 'marketplace-category',
+            builder: (context, state) {
+              final categoryId = state.uri.queryParameters['id'] ?? '';
+              final categoryName = state.uri.queryParameters['name'] ?? 'Category';
+              return CategoryProductsPage(
+                categoryId: categoryId,
+                categoryName: categoryName,
+              );
+            },
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceBuyerDashboard,
+            name: 'marketplace-buyer-dashboard',
+            builder: (context, state) => const BuyerDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceSellerDashboard,
+            name: 'marketplace-seller-dashboard',
+            builder: (context, state) => const SellerDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceCreateProduct,
+            name: 'marketplace-create-product',
+            builder: (context, state) {
+              final productId = state.uri.queryParameters['id'];
+              return CreateProductPage(productId: productId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceAiGenerator,
+            name: 'marketplace-ai-generator',
+            builder: (context, state) => const AiResourceGeneratorPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceQualityReview,
+            name: 'marketplace-quality-review',
+            builder: (context, state) {
+              final productId = state.uri.queryParameters['productId'];
+              return QualityReviewPage(productId: productId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceCart,
+            name: 'marketplace-cart',
+            builder: (context, state) => const CartPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceCheckout,
+            name: 'marketplace-checkout',
+            builder: (context, state) => const mp.CheckoutPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceReviews,
+            name: 'marketplace-reviews',
+            builder: (context, state) {
+              final productId = state.uri.queryParameters['productId'] ?? '';
+              return ProductReviewsPage(productId: productId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceModeration,
+            name: 'marketplace-moderation',
+            builder: (context, state) => const MarketplaceModerationPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceCommissions,
+            name: 'marketplace-commissions',
+            builder: (context, state) => const CommissionManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceAnalytics,
+            name: 'marketplace-analytics',
+            builder: (context, state) => const MarketplaceAnalyticsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.marketplaceNotifications,
+            name: 'marketplace-notifications',
+            builder: (context, state) => const MarketplaceNotificationsPage(),
           ),
 
           // ── Super Admin Platform Routes ──────────────────────────
