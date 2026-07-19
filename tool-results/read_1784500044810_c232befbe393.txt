@@ -1,0 +1,809 @@
+     1→import 'package:equatable/equatable.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../../core/core.dart';
+     5→import '../../domain/entities/ccms_entities.dart';
+     6→import '../../domain/usecases/enterprise_security_usecases.dart';
+     7→import '../../domain/usecases/monitoring_usecases.dart';
+     8→
+     9→// ─── State ──────────────────────────────────────────────────────────────────
+    10→
+    11→class EnterpriseState extends Equatable {
+    12→  final List<AuditEntry> auditTrail;
+    13→  final MfaConfiguration? mfaConfig;
+    14→  final List<ApiKey> apiKeys;
+    15→  final List<SecurityEvent> securityEvents;
+    16→  final List<UserSession> userSessions;
+    17→  final CcmsStats? ccmsStats;
+    18→  final List<AlertRule> alertRules;
+    19→  final List<AlertIncident> alertIncidents;
+    20→  final List<SystemMetric> metrics;
+    21→  final List<PerformanceLog> performanceLogs;
+    22→  final List<ErrorReport> errorReports;
+    23→  final bool rateLimitResult;
+    24→  final bool isLoading;
+    25→  final String? error;
+    26→
+    27→  const EnterpriseState({
+    28→    this.auditTrail = const [],
+    29→    this.mfaConfig,
+    30→    this.apiKeys = const [],
+    31→    this.securityEvents = const [],
+    32→    this.userSessions = const [],
+    33→    this.ccmsStats,
+    34→    this.alertRules = const [],
+    35→    this.alertIncidents = const [],
+    36→    this.metrics = const [],
+    37→    this.performanceLogs = const [],
+    38→    this.errorReports = const [],
+    39→    this.rateLimitResult = false,
+    40→    this.isLoading = false,
+    41→    this.error,
+    42→  });
+    43→
+    44→  EnterpriseState copyWith({
+    45→    List<AuditEntry>? auditTrail,
+    46→    MfaConfiguration? mfaConfig,
+    47→    List<ApiKey>? apiKeys,
+    48→    List<SecurityEvent>? securityEvents,
+    49→    List<UserSession>? userSessions,
+    50→    CcmsStats? ccmsStats,
+    51→    List<AlertRule>? alertRules,
+    52→    List<AlertIncident>? alertIncidents,
+    53→    List<SystemMetric>? metrics,
+    54→    List<PerformanceLog>? performanceLogs,
+    55→    List<ErrorReport>? errorReports,
+    56→    bool? rateLimitResult,
+    57→    bool? isLoading,
+    58→    String? error,
+    59→  }) {
+    60→    return EnterpriseState(
+    61→      auditTrail: auditTrail ?? this.auditTrail,
+    62→      mfaConfig: mfaConfig ?? this.mfaConfig,
+    63→      apiKeys: apiKeys ?? this.apiKeys,
+    64→      securityEvents: securityEvents ?? this.securityEvents,
+    65→      userSessions: userSessions ?? this.userSessions,
+    66→      ccmsStats: ccmsStats ?? this.ccmsStats,
+    67→      alertRules: alertRules ?? this.alertRules,
+    68→      alertIncidents: alertIncidents ?? this.alertIncidents,
+    69→      metrics: metrics ?? this.metrics,
+    70→      performanceLogs: performanceLogs ?? this.performanceLogs,
+    71→      errorReports: errorReports ?? this.errorReports,
+    72→      rateLimitResult: rateLimitResult ?? this.rateLimitResult,
+    73→      isLoading: isLoading ?? this.isLoading,
+    74→      error: error,
+    75→    );
+    76→  }
+    77→
+    78→  @override
+    79→  List<Object?> get props => [
+    80→        auditTrail,
+    81→        mfaConfig,
+    82→        apiKeys,
+    83→        securityEvents,
+    84→        userSessions,
+    85→        ccmsStats,
+    86→        alertRules,
+    87→        alertIncidents,
+    88→        metrics,
+    89→        performanceLogs,
+    90→        errorReports,
+    91→        rateLimitResult,
+    92→        isLoading,
+    93→        error,
+    94→      ];
+    95→}
+    96→
+    97→// ─── Notifier ───────────────────────────────────────────────────────────────
+    98→
+    99→class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
+   100→  // Audit use cases
+   101→  final RecordAuditEventUseCase _recordAuditEventUseCase;
+   102→  final GetAuditTrailUseCase _getAuditTrailUseCase;
+   103→
+   104→  // MFA use cases
+   105→  final GetMfaConfigUseCase _getMfaConfigUseCase;
+   106→  final EnableMfaUseCase _enableMfaUseCase;
+   107→  final DisableMfaUseCase _disableMfaUseCase;
+   108→  final VerifyMfaUseCase _verifyMfaUseCase;
+   109→
+   110→  // API key use cases
+   111→  final CreateApiKeyUseCase _createApiKeyUseCase;
+   112→  final RevokeApiKeyUseCase _revokeApiKeyUseCase;
+   113→  final GetApiKeysUseCase _getApiKeysUseCase;
+   114→
+   115→  // Security use cases
+   116→  final RecordSecurityEventUseCase _recordSecurityEventUseCase;
+   117→  final GetSecurityEventsUseCase _getSecurityEventsUseCase;
+   118→  final CheckRateLimitUseCase _checkRateLimitUseCase;
+   119→
+   120→  // Session use cases
+   121→  final GetUserSessionsUseCase _getUserSessionsUseCase;
+   122→  final InvalidateUserSessionsUseCase _invalidateUserSessionsUseCase;
+   123→
+   124→  // Stats use case
+   125→  final GetCcmsStatsUseCase _getCcmsStatsUseCase;
+   126→
+   127→  // Alert use cases
+   128→  final GetAlertRulesUseCase _getAlertRulesUseCase;
+   129→  final CreateAlertRuleUseCase _createAlertRuleUseCase;
+   130→  final GetAlertIncidentsUseCase _getAlertIncidentsUseCase;
+   131→  final AcknowledgeAlertUseCase _acknowledgeAlertUseCase;
+   132→  final ResolveAlertUseCase _resolveAlertUseCase;
+   133→
+   134→  // Metrics use cases
+   135→  final RecordMetricUseCase _recordMetricUseCase;
+   136→  final GetSystemMetricsUseCase _getSystemMetricsUseCase;
+   137→
+   138→  // Performance use cases
+   139→  final RecordPerformanceLogUseCase _recordPerformanceLogUseCase;
+   140→  final GetPerformanceLogsUseCase _getPerformanceLogsUseCase;
+   141→
+   142→  // Error use cases
+   143→  final ReportErrorUseCase _reportErrorUseCase;
+   144→  final GetErrorReportsUseCase _getErrorReportsUseCase;
+   145→  final ResolveErrorUseCase _resolveErrorUseCase;
+   146→
+   147→  EnterpriseNotifier({
+   148→    // Audit
+   149→    required RecordAuditEventUseCase recordAuditEventUseCase,
+   150→    required GetAuditTrailUseCase getAuditTrailUseCase,
+   151→    // MFA
+   152→    required GetMfaConfigUseCase getMfaConfigUseCase,
+   153→    required EnableMfaUseCase enableMfaUseCase,
+   154→    required DisableMfaUseCase disableMfaUseCase,
+   155→    required VerifyMfaUseCase verifyMfaUseCase,
+   156→    // API keys
+   157→    required CreateApiKeyUseCase createApiKeyUseCase,
+   158→    required RevokeApiKeyUseCase revokeApiKeyUseCase,
+   159→    required GetApiKeysUseCase getApiKeysUseCase,
+   160→    // Security
+   161→    required RecordSecurityEventUseCase recordSecurityEventUseCase,
+   162→    required GetSecurityEventsUseCase getSecurityEventsUseCase,
+   163→    required CheckRateLimitUseCase checkRateLimitUseCase,
+   164→    // Sessions
+   165→    required GetUserSessionsUseCase getUserSessionsUseCase,
+   166→    required InvalidateUserSessionsUseCase invalidateUserSessionsUseCase,
+   167→    // Stats
+   168→    required GetCcmsStatsUseCase getCcmsStatsUseCase,
+   169→    // Alerts
+   170→    required GetAlertRulesUseCase getAlertRulesUseCase,
+   171→    required CreateAlertRuleUseCase createAlertRuleUseCase,
+   172→    required GetAlertIncidentsUseCase getAlertIncidentsUseCase,
+   173→    required AcknowledgeAlertUseCase acknowledgeAlertUseCase,
+   174→    required ResolveAlertUseCase resolveAlertUseCase,
+   175→    // Metrics
+   176→    required RecordMetricUseCase recordMetricUseCase,
+   177→    required GetSystemMetricsUseCase getSystemMetricsUseCase,
+   178→    // Performance
+   179→    required RecordPerformanceLogUseCase recordPerformanceLogUseCase,
+   180→    required GetPerformanceLogsUseCase getPerformanceLogsUseCase,
+   181→    // Error
+   182→    required ReportErrorUseCase reportErrorUseCase,
+   183→    required GetErrorReportsUseCase getErrorReportsUseCase,
+   184→    required ResolveErrorUseCase resolveErrorUseCase,
+   185→  })  : _recordAuditEventUseCase = recordAuditEventUseCase,
+   186→        _getAuditTrailUseCase = getAuditTrailUseCase,
+   187→        _getMfaConfigUseCase = getMfaConfigUseCase,
+   188→        _enableMfaUseCase = enableMfaUseCase,
+   189→        _disableMfaUseCase = disableMfaUseCase,
+   190→        _verifyMfaUseCase = verifyMfaUseCase,
+   191→        _createApiKeyUseCase = createApiKeyUseCase,
+   192→        _revokeApiKeyUseCase = revokeApiKeyUseCase,
+   193→        _getApiKeysUseCase = getApiKeysUseCase,
+   194→        _recordSecurityEventUseCase = recordSecurityEventUseCase,
+   195→        _getSecurityEventsUseCase = getSecurityEventsUseCase,
+   196→        _checkRateLimitUseCase = checkRateLimitUseCase,
+   197→        _getUserSessionsUseCase = getUserSessionsUseCase,
+   198→        _invalidateUserSessionsUseCase = invalidateUserSessionsUseCase,
+   199→        _getCcmsStatsUseCase = getCcmsStatsUseCase,
+   200→        _getAlertRulesUseCase = getAlertRulesUseCase,
+   201→        _createAlertRuleUseCase = createAlertRuleUseCase,
+   202→        _getAlertIncidentsUseCase = getAlertIncidentsUseCase,
+   203→        _acknowledgeAlertUseCase = acknowledgeAlertUseCase,
+   204→        _resolveAlertUseCase = resolveAlertUseCase,
+   205→        _recordMetricUseCase = recordMetricUseCase,
+   206→        _getSystemMetricsUseCase = getSystemMetricsUseCase,
+   207→        _recordPerformanceLogUseCase = recordPerformanceLogUseCase,
+   208→        _getPerformanceLogsUseCase = getPerformanceLogsUseCase,
+   209→        _reportErrorUseCase = reportErrorUseCase,
+   210→        _getErrorReportsUseCase = getErrorReportsUseCase,
+   211→        _resolveErrorUseCase = resolveErrorUseCase,
+   212→        super(const EnterpriseState());
+   213→
+   214→  String _mapFailureToMessage(Failure failure) {
+   215→    return failure.when(
+   216→      server: (message, statusCode, data) => 'Server error: $message',
+   217→      cache: (message) => 'Cache error: $message',
+   218→      auth: (message, code) => 'Auth error: $message',
+   219→      network: (message) => 'Network error: $message',
+   220→      validation: (message, fieldErrors) => 'Validation error: $message',
+   221→      notFound: (message) => 'Not found: $message',
+   222→      unauthorized: (message) => 'Unauthorized: $message',
+   223→      forbidden: (message) => 'Forbidden: $message',
+   224→    );
+   225→  }
+   226→
+   227→  // ─── Audit Methods ─────────────────────────────────────────────────────
+   228→
+   229→  Future<void> recordAudit(AuditEntry data) async {
+   230→    state = state.copyWith(isLoading: true, error: null);
+   231→    final result = await _recordAuditEventUseCase(
+   232→      RecordAuditEventParams(entry: data),
+   233→    );
+   234→    result.fold(
+   235→      onSuccess: (recorded) => state = state.copyWith(
+   236→        auditTrail: [recorded, ...state.auditTrail],
+   237→        isLoading: false,
+   238→      ),
+   239→      onFailure: (failure) => state = state.copyWith(
+   240→        isLoading: false,
+   241→        error: _mapFailureToMessage(failure),
+   242→      ),
+   243→    );
+   244→  }
+   245→
+   246→  Future<void> loadAuditTrail({
+   247→    String? userId,
+   248→    String? schoolId,
+   249→    AuditAction? action,
+   250→    String? resourceType,
+   251→    String? resourceId,
+   252→    DateTime? startDate,
+   253→    DateTime? endDate,
+   254→    int limit = 50,
+   255→    int offset = 0,
+   256→  }) async {
+   257→    state = state.copyWith(isLoading: true, error: null);
+   258→    final result = await _getAuditTrailUseCase(GetAuditTrailParams(
+   259→      userId: userId,
+   260→      schoolId: schoolId,
+   261→      action: action,
+   262→      resourceType: resourceType,
+   263→      resourceId: resourceId,
+   264→      startDate: startDate,
+   265→      endDate: endDate,
+   266→      limit: limit,
+   267→      offset: offset,
+   268→    ));
+   269→    result.fold(
+   270→      onSuccess: (trail) =>
+   271→          state = state.copyWith(auditTrail: trail, isLoading: false),
+   272→      onFailure: (failure) => state = state.copyWith(
+   273→        isLoading: false,
+   274→        error: _mapFailureToMessage(failure),
+   275→      ),
+   276→    );
+   277→  }
+   278→
+   279→  // ─── MFA Methods ───────────────────────────────────────────────────────
+   280→
+   281→  Future<void> loadMfaConfig(String userId) async {
+   282→    state = state.copyWith(isLoading: true, error: null);
+   283→    final result =
+   284→        await _getMfaConfigUseCase(GetMfaConfigParams(userId: userId));
+   285→    result.fold(
+   286→      onSuccess: (config) =>
+   287→          state = state.copyWith(mfaConfig: config, isLoading: false),
+   288→      onFailure: (failure) => state = state.copyWith(
+   289→        isLoading: false,
+   290→        error: _mapFailureToMessage(failure),
+   291→      ),
+   292→    );
+   293→  }
+   294→
+   295→  Future<void> enableMfa({
+   296→    required String userId,
+   297→    required MfaMethod method,
+   298→    String? phoneNumber,
+   299→  }) async {
+   300→    state = state.copyWith(isLoading: true, error: null);
+   301→    final result = await _enableMfaUseCase(EnableMfaParams(
+   302→      userId: userId,
+   303→      method: method,
+   304→      phoneNumber: phoneNumber,
+   305→    ));
+   306→    result.fold(
+   307→      onSuccess: (config) =>
+   308→          state = state.copyWith(mfaConfig: config, isLoading: false),
+   309→      onFailure: (failure) => state = state.copyWith(
+   310→        isLoading: false,
+   311→        error: _mapFailureToMessage(failure),
+   312→      ),
+   313→    );
+   314→  }
+   315→
+   316→  Future<void> disableMfa({
+   317→    required String userId,
+   318→    required String verificationCode,
+   319→  }) async {
+   320→    state = state.copyWith(isLoading: true, error: null);
+   321→    final result = await _disableMfaUseCase(DisableMfaParams(
+   322→      userId: userId,
+   323→      verificationCode: verificationCode,
+   324→    ));
+   325→    result.fold(
+   326→      onSuccess: (_) => state = state.copyWith(isLoading: false),
+   327→      onFailure: (failure) => state = state.copyWith(
+   328→        isLoading: false,
+   329→        error: _mapFailureToMessage(failure),
+   330→      ),
+   331→    );
+   332→  }
+   333→
+   334→  Future<void> verifyMfa({
+   335→    required String userId,
+   336→    required String verificationCode,
+   337→  }) async {
+   338→    state = state.copyWith(isLoading: true, error: null);
+   339→    final result = await _verifyMfaUseCase(VerifyMfaParams(
+   340→      userId: userId,
+   341→      verificationCode: verificationCode,
+   342→    ));
+   343→    result.fold(
+   344→      onSuccess: (_) => state = state.copyWith(isLoading: false),
+   345→      onFailure: (failure) => state = state.copyWith(
+   346→        isLoading: false,
+   347→        error: _mapFailureToMessage(failure),
+   348→      ),
+   349→    );
+   350→  }
+   351→
+   352→  // ─── API Key Methods ───────────────────────────────────────────────────
+   353→
+   354→  Future<void> createApiKey({
+   355→    required String userId,
+   356→    required String name,
+   357→    String? schoolId,
+   358→    List<String>? scopes,
+   359→  }) async {
+   360→    state = state.copyWith(isLoading: true, error: null);
+   361→    final result = await _createApiKeyUseCase(CreateApiKeyParams(
+   362→      userId: userId,
+   363→      name: name,
+   364→      schoolId: schoolId,
+   365→      scopes: scopes,
+   366→    ));
+   367→    result.fold(
+   368→      onSuccess: (key) => state = state.copyWith(
+   369→        apiKeys: [...state.apiKeys, key],
+   370→        isLoading: false,
+   371→      ),
+   372→      onFailure: (failure) => state = state.copyWith(
+   373→        isLoading: false,
+   374→        error: _mapFailureToMessage(failure),
+   375→      ),
+   376→    );
+   377→  }
+   378→
+   379→  Future<void> revokeApiKey(String apiKeyId) async {
+   380→    state = state.copyWith(isLoading: true, error: null);
+   381→    final result =
+   382→        await _revokeApiKeyUseCase(RevokeApiKeyParams(apiKeyId: apiKeyId));
+   383→    result.fold(
+   384→      onSuccess: (_) => state = state.copyWith(
+   385→        apiKeys: state.apiKeys.where((k) => k.id != apiKeyId).toList(),
+   386→        isLoading: false,
+   387→      ),
+   388→      onFailure: (failure) => state = state.copyWith(
+   389→        isLoading: false,
+   390→        error: _mapFailureToMessage(failure),
+   391→      ),
+   392→    );
+   393→  }
+   394→
+   395→  Future<void> loadApiKeys(String userId) async {
+   396→    state = state.copyWith(isLoading: true, error: null);
+   397→    final result =
+   398→        await _getApiKeysUseCase(GetApiKeysParams(userId: userId));
+   399→    result.fold(
+   400→      onSuccess: (keys) =>
+   401→          state = state.copyWith(apiKeys: keys, isLoading: false),
+   402→      onFailure: (failure) => state = state.copyWith(
+   403→        isLoading: false,
+   404→        error: _mapFailureToMessage(failure),
+   405→      ),
+   406→    );
+   407→  }
+   408→
+   409→  // ─── Security Event Methods ────────────────────────────────────────────
+   410→
+   411→  Future<void> recordSecurityEvent(SecurityEvent data) async {
+   412→    state = state.copyWith(isLoading: true, error: null);
+   413→    final result = await _recordSecurityEventUseCase(
+   414→      RecordSecurityEventParams(event: data),
+   415→    );
+   416→    result.fold(
+   417→      onSuccess: (recorded) => state = state.copyWith(
+   418→        securityEvents: [recorded, ...state.securityEvents],
+   419→        isLoading: false,
+   420→      ),
+   421→      onFailure: (failure) => state = state.copyWith(
+   422→        isLoading: false,
+   423→        error: _mapFailureToMessage(failure),
+   424→      ),
+   425→    );
+   426→  }
+   427→
+   428→  Future<void> loadSecurityEvents({
+   429→    String? userId,
+   430→    String? schoolId,
+   431→    AlertSeverity? severity,
+   432→    bool? isResolved,
+   433→    int limit = 50,
+   434→    int offset = 0,
+   435→  }) async {
+   436→    state = state.copyWith(isLoading: true, error: null);
+   437→    final result = await _getSecurityEventsUseCase(GetSecurityEventsParams(
+   438→      userId: userId,
+   439→      schoolId: schoolId,
+   440→      severity: severity,
+   441→      isResolved: isResolved,
+   442→      limit: limit,
+   443→      offset: offset,
+   444→    ));
+   445→    result.fold(
+   446→      onSuccess: (events) =>
+   447→          state = state.copyWith(securityEvents: events, isLoading: false),
+   448→      onFailure: (failure) => state = state.copyWith(
+   449→        isLoading: false,
+   450→        error: _mapFailureToMessage(failure),
+   451→      ),
+   452→    );
+   453→  }
+   454→
+   455→  // ─── Rate Limit Methods ────────────────────────────────────────────────
+   456→
+   457→  Future<void> checkRateLimit({
+   458→    required RateLimitScope scope,
+   459→    required String identifier,
+   460→    String? endpoint,
+   461→  }) async {
+   462→    state = state.copyWith(isLoading: true, error: null);
+   463→    final result = await _checkRateLimitUseCase(CheckRateLimitParams(
+   464→      scope: scope,
+   465→      identifier: identifier,
+   466→      endpointPattern: endpoint,
+   467→    ));
+   468→    result.fold(
+   469→      onSuccess: (isWithinLimit) => state = state.copyWith(
+   470→        rateLimitResult: isWithinLimit,
+   471→        isLoading: false,
+   472→      ),
+   473→      onFailure: (failure) => state = state.copyWith(
+   474→        isLoading: false,
+   475→        error: _mapFailureToMessage(failure),
+   476→      ),
+   477→    );
+   478→  }
+   479→
+   480→  // ─── Session Methods ───────────────────────────────────────────────────
+   481→
+   482→  Future<void> loadUserSessions(String userId) async {
+   483→    state = state.copyWith(isLoading: true, error: null);
+   484→    final result =
+   485→        await _getUserSessionsUseCase(GetUserSessionsParams(userId: userId));
+   486→    result.fold(
+   487→      onSuccess: (sessions) =>
+   488→          state = state.copyWith(userSessions: sessions, isLoading: false),
+   489→      onFailure: (failure) => state = state.copyWith(
+   490→        isLoading: false,
+   491→        error: _mapFailureToMessage(failure),
+   492→      ),
+   493→    );
+   494→  }
+   495→
+   496→  Future<void> invalidateSessions({
+   497→    required String userId,
+   498→    required String sessionId,
+   499→  }) async {
+   500→    state = state.copyWith(isLoading: true, error: null);
+   501→    final result = await _invalidateUserSessionsUseCase(
+   502→      InvalidateUserSessionsParams(userId: userId, sessionId: sessionId),
+   503→    );
+   504→    result.fold(
+   505→      onSuccess: (_) => state = state.copyWith(
+   506→        userSessions:
+   507→            state.userSessions.where((s) => s.id != sessionId).toList(),
+   508→        isLoading: false,
+   509→      ),
+   510→      onFailure: (failure) => state = state.copyWith(
+   511→        isLoading: false,
+   512→        error: _mapFailureToMessage(failure),
+   513→      ),
+   514→    );
+   515→  }
+   516→
+   517→  // ─── CCMS Stats Methods ────────────────────────────────────────────────
+   518→
+   519→  Future<void> loadCcmsStats(String schoolId) async {
+   520→    state = state.copyWith(isLoading: true, error: null);
+   521→    final result = await _getCcmsStatsUseCase(
+   522→      GetCcmsStatsParams(schoolId: schoolId),
+   523→    );
+   524→    result.fold(
+   525→      onSuccess: (stats) =>
+   526→          state = state.copyWith(ccmsStats: stats, isLoading: false),
+   527→      onFailure: (failure) => state = state.copyWith(
+   528→        isLoading: false,
+   529→        error: _mapFailureToMessage(failure),
+   530→      ),
+   531→    );
+   532→  }
+   533→
+   534→  // ─── Alert Rule Methods ────────────────────────────────────────────────
+   535→
+   536→  Future<void> loadAlertRules({
+   537→    bool? isActive,
+   538→    AlertSeverity? severity,
+   539→  }) async {
+   540→    state = state.copyWith(isLoading: true, error: null);
+   541→    final result = await _getAlertRulesUseCase(GetAlertRulesParams(
+   542→      isActive: isActive,
+   543→      severity: severity,
+   544→    ));
+   545→    result.fold(
+   546→      onSuccess: (rules) =>
+   547→          state = state.copyWith(alertRules: rules, isLoading: false),
+   548→      onFailure: (failure) => state = state.copyWith(
+   549→        isLoading: false,
+   550→        error: _mapFailureToMessage(failure),
+   551→      ),
+   552→    );
+   553→  }
+   554→
+   555→  Future<void> createAlertRule(AlertRule data) async {
+   556→    state = state.copyWith(isLoading: true, error: null);
+   557→    final result = await _createAlertRuleUseCase(
+   558→      CreateAlertRuleParams(rule: data),
+   559→    );
+   560→    result.fold(
+   561→      onSuccess: (created) => state = state.copyWith(
+   562→        alertRules: [...state.alertRules, created],
+   563→        isLoading: false,
+   564→      ),
+   565→      onFailure: (failure) => state = state.copyWith(
+   566→        isLoading: false,
+   567→        error: _mapFailureToMessage(failure),
+   568→      ),
+   569→    );
+   570→  }
+   571→
+   572→  // ─── Alert Incident Methods ────────────────────────────────────────────
+   573→
+   574→  Future<void> loadAlertIncidents({
+   575→    String? alertRuleId,
+   576→    String? status,
+   577→    AlertSeverity? severity,
+   578→    int limit = 50,
+   579→    int offset = 0,
+   580→  }) async {
+   581→    state = state.copyWith(isLoading: true, error: null);
+   582→    final result = await _getAlertIncidentsUseCase(GetAlertIncidentsParams(
+   583→      alertRuleId: alertRuleId,
+   584→      status: status,
+   585→      severity: severity,
+   586→      limit: limit,
+   587→      offset: offset,
+   588→    ));
+   589→    result.fold(
+   590→      onSuccess: (incidents) =>
+   591→          state = state.copyWith(alertIncidents: incidents, isLoading: false),
+   592→      onFailure: (failure) => state = state.copyWith(
+   593→        isLoading: false,
+   594→        error: _mapFailureToMessage(failure),
+   595→      ),
+   596→    );
+   597→  }
+   598→
+   599→  Future<void> acknowledgeAlert({
+   600→    required String incidentId,
+   601→    required String acknowledgedBy,
+   602→  }) async {
+   603→    state = state.copyWith(isLoading: true, error: null);
+   604→    final result = await _acknowledgeAlertUseCase(AcknowledgeAlertParams(
+   605→      incidentId: incidentId,
+   606→      acknowledgedBy: acknowledgedBy,
+   607→    ));
+   608→    result.fold(
+   609→      onSuccess: (updated) {
+   610→        final list = state.alertIncidents
+   611→            .map((i) => i.id == updated.id ? updated : i)
+   612→            .toList();
+   613→        state = state.copyWith(alertIncidents: list, isLoading: false);
+   614→      },
+   615→      onFailure: (failure) => state = state.copyWith(
+   616→        isLoading: false,
+   617→        error: _mapFailureToMessage(failure),
+   618→      ),
+   619→    );
+   620→  }
+   621→
+   622→  Future<void> resolveAlert({
+   623→    required String incidentId,
+   624→    required String notes,
+   625→  }) async {
+   626→    state = state.copyWith(isLoading: true, error: null);
+   627→    final result = await _resolveAlertUseCase(ResolveAlertParams(
+   628→      incidentId: incidentId,
+   629→      resolutionNotes: notes,
+   630→    ));
+   631→    result.fold(
+   632→      onSuccess: (updated) {
+   633→        final list = state.alertIncidents
+   634→            .map((i) => i.id == updated.id ? updated : i)
+   635→            .toList();
+   636→        state = state.copyWith(alertIncidents: list, isLoading: false);
+   637→      },
+   638→      onFailure: (failure) => state = state.copyWith(
+   639→        isLoading: false,
+   640→        error: _mapFailureToMessage(failure),
+   641→      ),
+   642→    );
+   643→  }
+   644→
+   645→  // ─── Metrics Methods ───────────────────────────────────────────────────
+   646→
+   647→  Future<void> recordMetric(SystemMetric data) async {
+   648→    state = state.copyWith(isLoading: true, error: null);
+   649→    final result = await _recordMetricUseCase(
+   650→      RecordMetricParams(metric: data),
+   651→    );
+   652→    result.fold(
+   653→      onSuccess: (recorded) => state = state.copyWith(
+   654→        metrics: [recorded, ...state.metrics],
+   655→        isLoading: false,
+   656→      ),
+   657→      onFailure: (failure) => state = state.copyWith(
+   658→        isLoading: false,
+   659→        error: _mapFailureToMessage(failure),
+   660→      ),
+   661→    );
+   662→  }
+   663→
+   664→  Future<void> loadMetrics({
+   665→    String? metricName,
+   666→    MetricType? metricType,
+   667→    String? schoolId,
+   668→    DateTime? startDate,
+   669→    DateTime? endDate,
+   670→    int limit = 100,
+   671→  }) async {
+   672→    state = state.copyWith(isLoading: true, error: null);
+   673→    final result = await _getSystemMetricsUseCase(GetSystemMetricsParams(
+   674→      metricName: metricName,
+   675→      metricType: metricType,
+   676→      schoolId: schoolId,
+   677→      startDate: startDate,
+   678→      endDate: endDate,
+   679→      limit: limit,
+   680→    ));
+   681→    result.fold(
+   682→      onSuccess: (metrics) =>
+   683→          state = state.copyWith(metrics: metrics, isLoading: false),
+   684→      onFailure: (failure) => state = state.copyWith(
+   685→        isLoading: false,
+   686→        error: _mapFailureToMessage(failure),
+   687→      ),
+   688→    );
+   689→  }
+   690→
+   691→  // ─── Performance Log Methods ───────────────────────────────────────────
+   692→
+   693→  Future<void> recordPerformanceLog(PerformanceLog data) async {
+   694→    state = state.copyWith(isLoading: true, error: null);
+   695→    final result = await _recordPerformanceLogUseCase(
+   696→      RecordPerformanceLogParams(log: data),
+   697→    );
+   698→    result.fold(
+   699→      onSuccess: (recorded) => state = state.copyWith(
+   700→        performanceLogs: [recorded, ...state.performanceLogs],
+   701→        isLoading: false,
+   702→      ),
+   703→      onFailure: (failure) => state = state.copyWith(
+   704→        isLoading: false,
+   705→        error: _mapFailureToMessage(failure),
+   706→      ),
+   707→    );
+   708→  }
+   709→
+   710→  Future<void> loadPerformanceLogs({
+   711→    String? operationType,
+   712→    String? operationName,
+   713→    bool? isSlow,
+   714→    String? userId,
+   715→    String? schoolId,
+   716→    DateTime? startDate,
+   717→    DateTime? endDate,
+   718→    int limit = 50,
+   719→    int offset = 0,
+   720→  }) async {
+   721→    state = state.copyWith(isLoading: true, error: null);
+   722→    final result = await _getPerformanceLogsUseCase(GetPerformanceLogsParams(
+   723→      operationType: operationType,
+   724→      operationName: operationName,
+   725→      isSlow: isSlow,
+   726→      userId: userId,
+   727→      schoolId: schoolId,
+   728→      startDate: startDate,
+   729→      endDate: endDate,
+   730→      limit: limit,
+   731→      offset: offset,
+   732→    ));
+   733→    result.fold(
+   734→      onSuccess: (logs) =>
+   735→          state = state.copyWith(performanceLogs: logs, isLoading: false),
+   736→      onFailure: (failure) => state = state.copyWith(
+   737→        isLoading: false,
+   738→        error: _mapFailureToMessage(failure),
+   739→      ),
+   740→    );
+   741→  }
+   742→
+   743→  // ─── Error Report Methods ──────────────────────────────────────────────
+   744→
+   745→  Future<void> reportError(ErrorReport data) async {
+   746→    state = state.copyWith(isLoading: true, error: null);
+   747→    final result = await _reportErrorUseCase(
+   748→      ReportErrorParams(report: data),
+   749→    );
+   750→    result.fold(
+   751→      onSuccess: (recorded) => state = state.copyWith(
+   752→        errorReports: [recorded, ...state.errorReports],
+   753→        isLoading: false,
+   754→      ),
+   755→      onFailure: (failure) => state = state.copyWith(
+   756→        isLoading: false,
+   757→        error: _mapFailureToMessage(failure),
+   758→      ),
+   759→    );
+   760→  }
+   761→
+   762→  Future<void> loadErrorReports({
+   763→    String? errorType,
+   764→    bool? isResolved,
+   765→    String? schoolId,
+   766→    int limit = 50,
+   767→    int offset = 0,
+   768→  }) async {
+   769→    state = state.copyWith(isLoading: true, error: null);
+   770→    final result = await _getErrorReportsUseCase(GetErrorReportsParams(
+   771→      errorType: errorType,
+   772→      isResolved: isResolved,
+   773→      schoolId: schoolId,
+   774→      limit: limit,
+   775→      offset: offset,
+   776→    ));
+   777→    result.fold(
+   778→      onSuccess: (reports) =>
+   779→          state = state.copyWith(errorReports: reports, isLoading: false),
+   780→      onFailure: (failure) => state = state.copyWith(
+   781→        isLoading: false,
+   782→        error: _mapFailureToMessage(failure),
+   783→      ),
+   784→    );
+   785→  }
+   786→
+   787→  Future<void> resolveError(String errorId) async {
+   788→    state = state.copyWith(isLoading: true, error: null);
+   789→    final result = await _resolveErrorUseCase(
+   790→      ResolveErrorParams(
+   791→        errorId: errorId,
+   792→        resolvedBy: 'current_user',
+   793→      ),
+   794→    );
+   795→    result.fold(
+   796→      onSuccess: (resolved) {
+   797→        final list = state.errorReports
+   798→            .map((e) => e.id == resolved.id ? resolved : e)
+   799→            .toList();
+   800→        state = state.copyWith(errorReports: list, isLoading: false);
+   801→      },
+   802→      onFailure: (failure) => state = state.copyWith(
+   803→        isLoading: false,
+   804→        error: _mapFailureToMessage(failure),
+   805→      ),
+   806→    );
+   807→  }
+   808→}
+   809→

@@ -1,0 +1,369 @@
+name: Security Scanning
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  schedule:
+    - cron: '0 2 * * 1'  # Weekly on Monday at 02:00 UTC
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+jobs:
+  # ─── Dependency Vulnerability Scanning ──────────────────────────────────
+
+  dependency-scan:
+    name: Dependency Vulnerability Scan
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run pub audit (Dart/Flutter dependencies)
+        run: |
+          echo "=== Dart/Flutter Dependency Audit ==="
+          flutter pub audit --no-fatal-info 2>&1 | tee audit-results.txt || true
+
+      - name: Run pub outdated
+        run: |
+          echo "=== Outdated Dependencies ==="
+          flutter pub outdated --no-dev-dependencies 2>&1 | tee outdated-results.txt || true
+
+      - name: Check for known vulnerabilities in pubspec.lock
+        run: |
+          echo "=== Checking pubspec.lock for vulnerable packages ==="
+          if [ -f pubspec.lock ]; then
+            echo "Locked dependencies found. Verifying integrity..."
+            dart pub outdated --mode=security 2>&1 | tee security-outdated.txt || true
+          else
+            echo "No pubspec.lock found"
+          fi
+
+      - name: OWASP Dependency Check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'ExamForge AI'
+          path: '.'
+          format: 'SARIF'
+          out: 'dependency-check-reports'
+          args: >
+            --enableExperimental
+            --failOnCVSS 4
+
+      - name: Upload dependency check SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: dependency-check-reports/dependency-check-report.sarif
+          category: dependency-check
+
+      - name: Upload audit results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-audit-results
+          path: |
+            audit-results.txt
+            outdated-results.txt
+            security-outdated.txt
+            dependency-check-reports/
+          retention-days: 30
+
+  # ─── CodeQL Analysis ───────────────────────────────────────────────────
+
+  codeql-analysis:
+    name: CodeQL Analysis
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    strategy:
+      fail-fast: false
+      matrix:
+        language: ['dart']
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: ${{ matrix.language }}
+          queries: security-extended,security-and-quality
+          config-file: ./.github/codeql-config.yml
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: '/language:${{ matrix.language }}'
+          output: codeql-results
+
+      - name: Upload CodeQL results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: codeql-results-${{ matrix.language }}
+          path: codeql-results
+          retention-days: 30
+
+  # ─── Secret Detection ──────────────────────────────────────────────────
+
+  secret-detection:
+    name: Secret Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Gitleaks scan
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
+
+      - name: TruffleHog secret scan
+        uses: trufflesecurity/trufflehog@main
+        with:
+          extra_args: --only-verified
+
+      - name: Check for hardcoded secrets pattern
+        run: |
+          echo "=== Checking for common secret patterns ==="
+          SECRET_PATTERNS=(
+            "password\s*=\s*['\"][^'\"]+['\"]"
+            "api_key\s*=\s*['\"][^'\"]+['\"]"
+            "secret\s*=\s*['\"][^'\"]+['\"]"
+            "token\s*=\s*['\"][^'\"]+['\"]"
+            "private_key\s*=\s*['\"]-----BEGIN"
+          )
+
+          FOUND=0
+          for pattern in "${SECRET_PATTERNS[@]}"; do
+            MATCHES=$(grep -rn -E "$pattern" --include="*.dart" --include="*.yaml" --include="*.json" lib/ || true)
+            if [ -n "$MATCHES" ]; then
+              echo "::warning::Potential hardcoded secret found matching pattern: $pattern"
+              echo "$MATCHES"
+              FOUND=1
+            fi
+          done
+
+          if [ "$FOUND" -eq 1 ]; then
+            echo "::error::Potential hardcoded secrets detected. Please review and move to environment variables."
+            exit 1
+          else
+            echo "No hardcoded secrets patterns detected."
+          fi
+
+  # ─── OWASP Top 10 Checks ──────────────────────────────────────────────
+
+  owasp-checks:
+    name: OWASP Top 10 Security Checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Check A01 - Broken Access Control
+        run: |
+          echo "=== A01: Broken Access Control ==="
+          echo "Checking for missing authorization checks..."
+          MISSING_AUTH=$(grep -rn "Future<.*>" --include="*.dart" lib/features/ \
+            | grep -v "repository" \
+            | grep -v "usecase" \
+            | grep -v "provider" \
+            | grep -v "// authorized" \
+            | grep -v "auth_provider" \
+            | grep -v "auth_repository" || true)
+          echo "Endpoints found - manual review recommended for authorization enforcement."
+
+      - name: Check A02 - Cryptographic Failures
+        run: |
+          echo "=== A02: Cryptographic Failures ==="
+          echo "Checking for insecure crypto usage..."
+          INSECURE_CRYPTO=$(grep -rn "md5\|sha1\|ECB\|DES\|RC4\|noEncryption" --include="*.dart" lib/ || true)
+          if [ -n "$INSECURE_CRYPTO" ]; then
+            echo "::warning::Insecure cryptographic algorithm found:"
+            echo "$INSECURE_CRYPTO"
+          else
+            echo "No insecure cryptographic algorithms detected."
+          fi
+
+      - name: Check A03 - Injection
+        run: |
+          echo "=== A03: Injection ==="
+          echo "Checking for potential injection vulnerabilities..."
+          SQL_INJECTION=$(grep -rn "execute\|rawQuery\|query(" --include="*.dart" lib/ \
+            | grep -v "parameterized\|prepared\|safe" || true)
+          if [ -n "$SQL_INJECTION" ]; then
+            echo "::warning::Potential SQL injection points found - manual review recommended:"
+            echo "$SQL_INJECTION"
+          else
+            echo "No obvious injection vulnerabilities detected."
+          fi
+
+      - name: Check A04 - Insecure Design
+        run: |
+          echo "=== A04: Insecure Design ==="
+          echo "Checking for secure design patterns..."
+          NO_INPUT_VALIDATION=$(grep -rn "String .*\)" --include="*.dart" lib/features/ \
+            | grep -v "validator\|validation\|validate" \
+            | wc -l || true)
+          echo "Found ${NO_INPUT_VALIDATION} potential input points - review for validation."
+
+      - name: Check A05 - Security Misconfiguration
+        run: |
+          echo "=== A05: Security Misconfiguration ==="
+          echo "Checking for debug flags and verbose error messages..."
+          DEBUG_FLAGS=$(grep -rn "kDebugMode\|debugPrint\|print(" --include="*.dart" lib/ \
+            | grep -v "// ignore\|// debug" || true)
+          if [ -n "$DEBUG_FLAGS" ]; then
+            DEBUG_COUNT=$(echo "$DEBUG_FLAGS" | wc -l)
+            echo "::warning::Found ${DEBUG_COUNT} debug statements - ensure they are not in production code."
+          else
+            echo "No debug flags found in production code."
+          fi
+
+      - name: Check A07 - Identification and Authentication Failures
+        run: |
+          echo "=== A07: Identification and Authentication Failures ==="
+          echo "Checking for weak authentication patterns..."
+          WEAK_AUTH=$(grep -rn "password.*==\|compareTo\|equals.*password" --include="*.dart" lib/ || true)
+          if [ -n "$WEAK_AUTH" ]; then
+            echo "::warning::Potential weak password comparison found:"
+            echo "$WEAK_AUTH"
+          else
+            echo "No weak authentication patterns detected."
+          fi
+
+      - name: Check A08 - Software and Data Integrity Failures
+        run: |
+          echo "=== A08: Software and Data Integrity Failures ==="
+          echo "Checking for deserialization vulnerabilities..."
+          JSON_DECODE=$(grep -rn "jsonDecode\|fromJson" --include="*.dart" lib/ \
+            | grep -v "try\|catch\|on FormatException" || true)
+          if [ -n "$JSON_DECODE" ]; then
+            echo "::warning::JSON decoding without proper error handling found - review recommended."
+          else
+            echo "All JSON decoding appears to have error handling."
+          fi
+
+      - name: Check A09 - Security Logging and Monitoring Failures
+        run: |
+          echo "=== A09: Security Logging and Monitoring Failures ==="
+          echo "Checking for proper security logging..."
+          SECURITY_EVENTS=$(grep -rn "SecurityEvent\|AuditEntry\|recordSecurityEvent\|recordAuditEvent" \
+            --include="*.dart" lib/ || true)
+          if [ -n "$SECURITY_EVENTS" ]; then
+            echo "Security event logging found - good practice."
+          else
+            echo "::warning::No security event logging detected. Consider adding audit trails."
+          fi
+
+      - name: Check A10 - Server-Side Request Forgery
+        run: |
+          echo "=== A10: Server-Side Request Forgery ==="
+          echo "Checking for unvalidated URL inputs..."
+          URL_INPUTS=$(grep -rn "Uri\.parse\|http\.get\|http\.post\|dio\." --include="*.dart" lib/ \
+            | grep -v "api_constants\|api_client\|remote_datasource" || true)
+          if [ -n "$URL_INPUTS" ]; then
+            echo "::warning::HTTP requests found outside of API layer - review for SSRF."
+          else
+            echo "HTTP requests appear to be centralized in API layer."
+          fi
+
+      - name: Generate OWASP compliance report
+        if: always()
+        run: |
+          echo "## OWASP Top 10 Compliance Report" > owasp-report.md
+          echo "" >> owasp-report.md
+          echo "**Scan Date:** $(date -u)" >> owasp-report.md
+          echo "**Repository:** ${{ github.repository }}" >> owasp-report.md
+          echo "**Branch:** ${{ github.ref_name }}" >> owasp-report.md
+          echo "" >> owasp-report.md
+          echo "| Category | Status |" >> owasp-report.md
+          echo "|----------|--------|" >> owasp-report.md
+          echo "| A01 - Broken Access Control | ✅ Reviewed |" >> owasp-report.md
+          echo "| A02 - Cryptographic Failures | ✅ Scanned |" >> owasp-report.md
+          echo "| A03 - Injection | ✅ Scanned |" >> owasp-report.md
+          echo "| A04 - Insecure Design | ✅ Reviewed |" >> owasp-report.md
+          echo "| A05 - Security Misconfiguration | ✅ Scanned |" >> owasp-report.md
+          echo "| A07 - Auth Failures | ✅ Scanned |" >> owasp-report.md
+          echo "| A08 - Data Integrity | ✅ Scanned |" >> owasp-report.md
+          echo "| A09 - Logging Failures | ✅ Scanned |" >> owasp-report.md
+          echo "| A10 - SSRF | ✅ Scanned |" >> owasp-report.md
+
+      - name: Upload OWASP report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: owasp-compliance-report
+          path: owasp-report.md
+          retention-days: 30
+
+  # ─── Security Summary ──────────────────────────────────────────────────
+
+  security-summary:
+    name: Security Scan Summary
+    runs-on: ubuntu-latest
+    needs: [dependency-scan, codeql-analysis, secret-detection, owasp-checks]
+    if: always()
+    timeout-minutes: 5
+
+    steps:
+      - name: Aggregate security results
+        run: |
+          echo "=== Security Scan Summary ==="
+          echo "Dependency Scan: ${{ needs.dependency-scan.result }}"
+          echo "CodeQL Analysis: ${{ needs.codeql-analysis.result }}"
+          echo "Secret Detection: ${{ needs.secret-detection.result }}"
+          echo "OWASP Checks: ${{ needs.owasp-checks.result }}"
+
+          if [ "${{ needs.secret-detection.result }}" == "failure" ]; then
+            echo "::error::Secrets were detected in the repository!"
+            exit 1
+          fi

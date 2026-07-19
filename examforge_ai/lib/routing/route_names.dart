@@ -714,6 +714,58 @@ class RouteNames {
   static const String offlineExam = '/offline/exam';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // CCMS & ENTERPRISE ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  /// CCMS dashboard — overview of curriculum management.
+  static const String ccmsDashboard = '/ccms';
+
+  /// Educational levels management.
+  static const String educationalLevels = '/ccms/levels';
+
+  /// Curricula management.
+  static const String curriculaManagement = '/ccms/curricula';
+
+  /// Subjects management.
+  static const String subjectsManagement = '/ccms/subjects';
+
+  /// Topic and subtopic management.
+  static const String topicManagement = '/ccms/topics';
+
+  /// Content library — browse and manage content items.
+  static const String contentLibrary = '/ccms/content';
+
+  /// Content editor — create or edit content.
+  static const String contentEditor = '/ccms/content/editor';
+
+  /// Content detail view.
+  static const String contentDetail = '/ccms/content/detail';
+
+  /// Content import — bulk import questions and content.
+  static const String contentImport = '/ccms/content/import';
+
+  /// Content collections — curated groups of content.
+  static const String contentCollections = '/ccms/collections';
+
+  /// AI Curriculum Engine configuration.
+  static const String aiCurriculumEngine = '/ccms/ai-engine';
+
+  /// Answer repository management.
+  static const String answerRepository = '/ccms/answers';
+
+  /// Audit trail (super admin).
+  static const String auditTrail = '/ccms/audit';
+
+  /// Security center (super admin).
+  static const String securityCenter = '/ccms/security';
+
+  /// Monitoring dashboard (super admin).
+  static const String monitoringDashboard = '/ccms/monitoring';
+
+  /// Deployment center (super admin).
+  static const String deploymentCenter = '/ccms/deployment';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // BILLING ROUTES
   // ═══════════════════════════════════════════════════════════════════════
 
@@ -1130,6 +1182,22 @@ class RouteNames {
     offlineCenter,
     connectivityStatus,
     offlineExam,
+    ccmsDashboard,
+    educationalLevels,
+    curriculaManagement,
+    subjectsManagement,
+    topicManagement,
+    contentLibrary,
+    contentEditor,
+    contentDetail,
+    contentImport,
+    contentCollections,
+    aiCurriculumEngine,
+    answerRepository,
+    auditTrail,
+    securityCenter,
+    monitoringDashboard,
+    deploymentCenter,
   };
 
   /// All marketplace sub-routes (used for feature-level navigation).
@@ -1157,5 +1225,25 @@ class RouteNames {
     offlineCenter,
     connectivityStatus,
     offlineExam,
+  };
+
+  /// All CCMS & Enterprise sub-routes.
+  static const Set<String> ccmsRoutes = <String>{
+    ccmsDashboard,
+    educationalLevels,
+    curriculaManagement,
+    subjectsManagement,
+    topicManagement,
+    contentLibrary,
+    contentEditor,
+    contentDetail,
+    contentImport,
+    contentCollections,
+    aiCurriculumEngine,
+    answerRepository,
+    auditTrail,
+    securityCenter,
+    monitoringDashboard,
+    deploymentCenter,
   };
 }

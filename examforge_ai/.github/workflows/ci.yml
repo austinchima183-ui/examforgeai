@@ -1,0 +1,401 @@
+name: ExamForge AI CI/CD Pipeline
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+  JAVA_VERSION: '17'
+  NODE_VERSION: '20'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# ─── Test Stage ───────────────────────────────────────────────────────────
+
+jobs:
+  test:
+    name: Test & Analyze
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Flutter version
+        run: flutter --version
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Verify formatting
+        run: |
+          dart format --set-exit-if-changed --line-length 80 .
+
+      - name: Analyze code
+        run: flutter analyze --no-fatal-infos
+
+      - name: Run unit tests
+        run: flutter test --coverage --reporter=expanded
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage/lcov.info
+          retention-days: 7
+
+      - name: Check test coverage threshold
+        run: |
+          dart pub global activate coverage
+          FORMAT_LCOV=$(dart pub global run coverage:format_coverage \
+            --lcov --in=coverage --out=coverage/formatted_lcov.info \
+            --packages=.dart_tool/package_config.json \
+            --report-on=lib)
+          echo "Coverage report formatted successfully"
+
+  # ─── Build Stage ────────────────────────────────────────────────────────
+
+  build-web:
+    name: Build Flutter Web
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Build Flutter Web
+        run: flutter build web --release --dart-define=ENVIRONMENT=${{ github.ref_name }}
+
+      - name: Upload web artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+          retention-days: 5
+
+  build-android:
+    name: Build Android APK
+    needs: test
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push'
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Decode keystore
+        run: |
+          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 --decode > android/app/keystore.jks
+
+      - name: Build APK
+        run: flutter build apk --release \
+          --dart-define=ENVIRONMENT=${{ github.ref_name }} \
+          --dart-define=API_KEY=${{ secrets.API_KEY }}
+        env:
+          KEY_STORE_PASSWORD: ${{ secrets.KEY_STORE_PASSWORD }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-apk
+          path: build/app/outputs/flutter-apk/*.apk
+          retention-days: 5
+
+  build-ios:
+    name: Build Flutter iOS
+    needs: test
+    runs-on: macos-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Install CocoaPods
+        run: |
+          cd ios
+          pod install --repo-update
+          cd ..
+
+      - name: Build iOS (no codesign)
+        run: flutter build ios --no-codesign --release \
+          --dart-define=ENVIRONMENT=${{ github.ref_name }}
+
+      - name: Upload iOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-build
+          path: build/ios/ipa/*.ipa
+          retention-days: 5
+
+  # ─── Security Scan ──────────────────────────────────────────────────────
+
+  security:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    needs: test
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: 'stable'
+          cache: true
+
+      - name: Install dependencies
+        run: flutter pub get
+
+      - name: Run Flutter pub audit
+        run: flutter pub audit || true
+
+      - name: Run OWASP dependency check
+        uses: dependency-check/Dependency-Check_Action@main
+        with:
+          project: 'ExamForge AI'
+          path: '.'
+          format: 'HTML'
+          out: 'reports'
+          args: >
+            --enableExperimental
+            --failOnCVSS 7
+
+      - name: Upload dependency check report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-check-report
+          path: reports/
+          retention-days: 14
+
+      - name: Secret scanning
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  # ─── Deploy Staging ─────────────────────────────────────────────────────
+
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [build-web, security]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/develop'
+    environment:
+      name: staging
+      url: https://staging.examforge.ai
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+
+      - name: Configure staging environment
+        run: |
+          echo "SUPABASE_URL=${{ secrets.STAGING_SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=${{ secrets.STAGING_SUPABASE_ANON_KEY }}" >> $GITHUB_ENV
+
+      - name: Run database migrations on staging
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh staging --migrate-only
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.STAGING_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.STAGING_SUPABASE_SERVICE_KEY }}
+
+      - name: Deploy web to staging
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh staging
+        env:
+          STAGING_HOST: ${{ secrets.STAGING_HOST }}
+          STAGING_SSH_KEY: ${{ secrets.STAGING_SSH_KEY }}
+          STAGING_USER: ${{ secrets.STAGING_USER }}
+
+      - name: Run integration tests against staging
+        run: flutter test integration_test/ --dart-define=ENVIRONMENT=staging
+        env:
+          STAGING_API_URL: https://staging-api.examforge.ai
+
+      - name: Health check
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh staging --health-check
+        env:
+          STAGING_URL: https://staging.examforge.ai
+
+      - name: Notify deployment status
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          echo "Staging deployment status: ${STATUS}"
+
+  # ─── Deploy Production ──────────────────────────────────────────────────
+
+  deploy-production:
+    name: Deploy to Production
+    needs: [build-web, build-android, build-ios, security]
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
+    environment:
+      name: production
+      url: https://examforge.ai
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Wait for manual approval
+        run: echo "Production deployment requires manual approval"
+
+      - name: Download web build artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: web-build
+          path: build/web
+
+      - name: Download APK artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: android-apk
+          path: build/android
+
+      - name: Configure production environment
+        run: |
+          echo "SUPABASE_URL=${{ secrets.PRODUCTION_SUPABASE_URL }}" >> $GITHUB_ENV
+          echo "SUPABASE_ANON_KEY=${{ secrets.PRODUCTION_SUPABASE_ANON_KEY }}" >> $GITHUB_ENV
+
+      - name: Run database migrations on production
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh production --migrate-only
+        env:
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+          SUPABASE_URL: ${{ secrets.PRODUCTION_SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.PRODUCTION_SUPABASE_SERVICE_KEY }}
+
+      - name: Deploy web to production
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh production
+        env:
+          PRODUCTION_HOST: ${{ secrets.PRODUCTION_HOST }}
+          PRODUCTION_SSH_KEY: ${{ secrets.PRODUCTION_SSH_KEY }}
+          PRODUCTION_USER: ${{ secrets.PRODUCTION_USER }}
+
+      - name: Production health check
+        run: |
+          chmod +x scripts/deploy.sh
+          ./scripts/deploy.sh production --health-check
+        env:
+          PRODUCTION_URL: https://examforge.ai
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.run_number }}-production
+          name: Production Release v${{ github.run_number }}
+          body: |
+            ## ExamForge AI Production Release v${{ github.run_number }}
+
+            **Deployment Date:** ${{ github.event.head_commit.timestamp }}
+            **Commit:** ${{ github.sha }}
+            **Commit Message:** ${{ github.event.head_commit.message }}
+
+            ### Artifacts
+            - Web build (deployed to https://examforge.ai)
+            - Android APK
+            - iOS build
+
+            ### Changes
+            ${{ github.event.head_commit.message }}
+          files: |
+            build/android/*.apk
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run production smoke tests
+        run: flutter test integration_test/ --dart-define=ENVIRONMENT=production
+        env:
+          PRODUCTION_API_URL: https://api.examforge.ai
+
+      - name: Notify production deployment
+        if: always()
+        run: |
+          STATUS="${{ job.status }}"
+          echo "Production deployment status: ${STATUS}"

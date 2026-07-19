@@ -1,0 +1,1606 @@
+     1→import '../../../../core/errors/exceptions.dart';
+     2→import '../../../../core/errors/failures.dart';
+     3→import '../../../../core/utils/logger.dart';
+     4→import '../../../../core/utils/result.dart';
+     5→import '../../domain/entities/ccms_entities.dart';
+     6→import '../../domain/repositories/ccms_repository.dart';
+     7→import '../datasources/ccms_remote_datasource.dart';
+     8→import '../models/ccms_models.dart';
+     9→
+    10→/// Concrete implementation of [CcmsRepository] that delegates
+    11→/// all operations to [CcmsRemoteDataSource].
+    12→///
+    13→/// Responsibilities:
+    14→/// - Converts domain entities to/from data models
+    15→/// - Catches data-layer exceptions and converts them to domain [Failure] types
+    16→/// - Returns [Result] to force callers to handle both success and failure
+    17→class CcmsRepositoryImpl implements CcmsRepository {
+    18→  CcmsRepositoryImpl({
+    19→    required CcmsRemoteDataSource remoteDataSource,
+    20→  }) : _remoteDataSource = remoteDataSource;
+    21→
+    22→  final CcmsRemoteDataSource _remoteDataSource;
+    23→
+    24→  // ═══════════════════════════════════════════════════════════════════════
+    25→  // HELPER: Exception → Failure mapping
+    26→  // ═══════════════════════════════════════════════════════════════════════
+    27→
+    28→  Failure _mapException(Object e) {
+    29→    if (e is AuthException) {
+    30→      return Failure.auth(message: e.message, code: e.code);
+    31→    } else if (e is ServerException) {
+    32→      return Failure.server(
+    33→        message: e.message,
+    34→        statusCode: e.statusCode,
+    35→        data: e.data,
+    36→      );
+    37→    } else if (e is NetworkException) {
+    38→      return Failure.network(message: e.message);
+    39→    } else if (e is ValidationException) {
+    40→      return Failure.validation(
+    41→        message: e.message,
+    42→        fieldErrors: e.fieldErrors,
+    43→      );
+    44→    } else if (e is NotFoundException) {
+    45→      return Failure.notFound(message: e.message);
+    46→    } else if (e is UnauthorizedException) {
+    47→      return Failure.unauthorized(message: e.message);
+    48→    } else if (e is ForbiddenException) {
+    49→      return Failure.forbidden(message: e.message);
+    50→    } else if (e is FormatException) {
+    51→      return Failure.server(
+    52→        message: 'Data format error: ${e.message}',
+    53→        statusCode: 422,
+    54→      );
+    55→    } else {
+    56→      AppLogger.error('Unexpected CCMS repository error', error: e);
+    57→      return Failure.server(
+    58→        message: e.toString(),
+    59→        statusCode: 500,
+    60→      );
+    61→    }
+    62→  }
+    63→
+    64→  // ═══════════════════════════════════════════════════════════════════════
+    65→  // Educational Levels
+    66→  // ═══════════════════════════════════════════════════════════════════════
+    67→
+    68→  @override
+    69→  Future<Result<List<EducationalLevel>>> getEducationalLevels() async {
+    70→    try {
+    71→      final data = await _remoteDataSource.getEducationalLevels();
+    72→      final entities = data
+    73→          .map((e) => EducationalLevelModel.fromJson(e).toEntity())
+    74→          .toList();
+    75→      return Success(entities);
+    76→    } catch (e) {
+    77→      return FailureResult(_mapException(e));
+    78→    }
+    79→  }
+    80→
+    81→  @override
+    82→  Future<Result<List<SchoolLevelConfiguration>>> getSchoolLevels(
+    83→    String schoolId,
+    84→  ) async {
+    85→    try {
+    86→      final data = await _remoteDataSource.getSchoolLevels(schoolId);
+    87→      final entities = data
+    88→          .map((e) => SchoolLevelConfigurationModel.fromJson(e).toEntity())
+    89→          .toList();
+    90→      return Success(entities);
+    91→    } catch (e) {
+    92→      return FailureResult(_mapException(e));
+    93→    }
+    94→  }
+    95→
+    96→  @override
+    97→  Future<Result<SchoolLevelConfiguration>> configureSchoolLevel(
+    98→    SchoolLevelConfiguration configuration,
+    99→  ) async {
+   100→    try {
+   101→      final model = SchoolLevelConfigurationModel.fromEntity(configuration);
+   102→      final data =
+   103→          await _remoteDataSource.configureSchoolLevel(model.toJson());
+   104→      return Success(SchoolLevelConfigurationModel.fromJson(data).toEntity());
+   105→    } catch (e) {
+   106→      return FailureResult(_mapException(e));
+   107→    }
+   108→  }
+   109→
+   110→  @override
+   111→  Future<Result<SchoolLevelConfiguration>> updateSchoolLevelConfiguration(
+   112→    SchoolLevelConfiguration configuration,
+   113→  ) async {
+   114→    try {
+   115→      final model = SchoolLevelConfigurationModel.fromEntity(configuration);
+   116→      final data = await _remoteDataSource.updateSchoolLevelConfiguration(
+   117→        configuration.id,
+   118→        model.toJson(),
+   119→      );
+   120→      return Success(SchoolLevelConfigurationModel.fromJson(data).toEntity());
+   121→    } catch (e) {
+   122→      return FailureResult(_mapException(e));
+   123→    }
+   124→  }
+   125→
+   126→  // ═══════════════════════════════════════════════════════════════════════
+   127→  // Curricula
+   128→  // ═══════════════════════════════════════════════════════════════════════
+   129→
+   130→  @override
+   131→  Future<Result<List<Curriculum>>> getCurricula({
+   132→    String? countryCode,
+   133→    CurriculumType? curriculumType,
+   134→    bool? isActive,
+   135→  }) async {
+   136→    try {
+   137→      final filters = <String, dynamic>{};
+   138→      if (countryCode != null) filters['country_code'] = countryCode;
+   139→      if (curriculumType != null) filters['curriculum_type'] = curriculumType.value;
+   140→      if (isActive != null) filters['is_active'] = isActive;
+   141→
+   142→      final data = await _remoteDataSource.getCurricula(filters);
+   143→      final entities =
+   144→          data.map((e) => CurriculumModel.fromJson(e).toEntity()).toList();
+   145→      return Success(entities);
+   146→    } catch (e) {
+   147→      return FailureResult(_mapException(e));
+   148→    }
+   149→  }
+   150→
+   151→  @override
+   152→  Future<Result<Curriculum>> getCurriculumById(String id) async {
+   153→    try {
+   154→      final data = await _remoteDataSource.getCurriculumById(id);
+   155→      return Success(CurriculumModel.fromJson(data).toEntity());
+   156→    } catch (e) {
+   157→      return FailureResult(_mapException(e));
+   158→    }
+   159→  }
+   160→
+   161→  @override
+   162→  Future<Result<Curriculum>> createCurriculum(Curriculum curriculum) async {
+   163→    try {
+   164→      final model = CurriculumModel.fromEntity(curriculum);
+   165→      final data = await _remoteDataSource.createCurriculum(model.toJson());
+   166→      return Success(CurriculumModel.fromJson(data).toEntity());
+   167→    } catch (e) {
+   168→      return FailureResult(_mapException(e));
+   169→    }
+   170→  }
+   171→
+   172→  @override
+   173→  Future<Result<Curriculum>> updateCurriculum(Curriculum curriculum) async {
+   174→    try {
+   175→      final model = CurriculumModel.fromEntity(curriculum);
+   176→      final data =
+   177→          await _remoteDataSource.updateCurriculum(curriculum.id, model.toJson());
+   178→      return Success(CurriculumModel.fromJson(data).toEntity());
+   179→    } catch (e) {
+   180→      return FailureResult(_mapException(e));
+   181→    }
+   182→  }
+   183→
+   184→  @override
+   185→  Future<Result<List<CurriculumVersion>>> getCurriculumVersions(
+   186→    String curriculumId,
+   187→  ) async {
+   188→    try {
+   189→      final data =
+   190→          await _remoteDataSource.getCurriculumVersions(curriculumId);
+   191→      final entities = data
+   192→          .map((e) => CurriculumVersionModel.fromJson(e).toEntity())
+   193→          .toList();
+   194→      return Success(entities);
+   195→    } catch (e) {
+   196→      return FailureResult(_mapException(e));
+   197→    }
+   198→  }
+   199→
+   200→  @override
+   201→  Future<Result<List<CurriculumLevelMapping>>> getCurriculumLevelMappings(
+   202→    String curriculumId,
+   203→  ) async {
+   204→    try {
+   205→      final data =
+   206→          await _remoteDataSource.getCurriculumLevelMappings(curriculumId);
+   207→      final entities = data
+   208→          .map((e) => CurriculumLevelMappingModel.fromJson(e).toEntity())
+   209→          .toList();
+   210→      return Success(entities);
+   211→    } catch (e) {
+   212→      return FailureResult(_mapException(e));
+   213→    }
+   214→  }
+   215→
+   216→  // ═══════════════════════════════════════════════════════════════════════
+   217→  // Subjects
+   218→  // ═══════════════════════════════════════════════════════════════════════
+   219→
+   220→  @override
+   221→  Future<Result<List<Subject>>> getSubjects({
+   222→    String? schoolId,
+   223→    String? educationalLevelId,
+   224→    String? curriculumId,
+   225→  }) async {
+   226→    try {
+   227→      final filters = <String, dynamic>{};
+   228→      if (schoolId != null) filters['school_id'] = schoolId;
+   229→      if (educationalLevelId != null) {
+   230→        filters['educational_level_id'] = educationalLevelId;
+   231→      }
+   232→      if (curriculumId != null) filters['curriculum_id'] = curriculumId;
+   233→
+   234→      final data = await _remoteDataSource.getSubjects(filters);
+   235→      final entities =
+   236→          data.map((e) => SubjectModel.fromJson(e).toEntity()).toList();
+   237→      return Success(entities);
+   238→    } catch (e) {
+   239→      return FailureResult(_mapException(e));
+   240→    }
+   241→  }
+   242→
+   243→  @override
+   244→  Future<Result<Subject>> getSubjectById(String id) async {
+   245→    try {
+   246→      final data = await _remoteDataSource.getSubjectById(id);
+   247→      return Success(SubjectModel.fromJson(data).toEntity());
+   248→    } catch (e) {
+   249→      return FailureResult(_mapException(e));
+   250→    }
+   251→  }
+   252→
+   253→  @override
+   254→  Future<Result<Subject>> createSubject(Subject subject) async {
+   255→    try {
+   256→      final model = SubjectModel.fromEntity(subject);
+   257→      final data = await _remoteDataSource.createSubject(model.toJson());
+   258→      return Success(SubjectModel.fromJson(data).toEntity());
+   259→    } catch (e) {
+   260→      return FailureResult(_mapException(e));
+   261→    }
+   262→  }
+   263→
+   264→  @override
+   265→  Future<Result<Subject>> updateSubject(Subject subject) async {
+   266→    try {
+   267→      final model = SubjectModel.fromEntity(subject);
+   268→      final data =
+   269→          await _remoteDataSource.updateSubject(subject.id, model.toJson());
+   270→      return Success(SubjectModel.fromJson(data).toEntity());
+   271→    } catch (e) {
+   272→      return FailureResult(_mapException(e));
+   273→    }
+   274→  }
+   275→
+   276→  @override
+   277→  Future<Result<bool>> deleteSubject(String id) async {
+   278→    try {
+   279→      await _remoteDataSource.deleteSubject(id);
+   280→      return const Success(true);
+   281→    } catch (e) {
+   282→      return FailureResult(_mapException(e));
+   283→    }
+   284→  }
+   285→
+   286→  @override
+   287→  Future<Result<List<Subject>>> getLevelSubjects(
+   288→    String educationalLevelId,
+   289→  ) async {
+   290→    try {
+   291→      final data =
+   292→          await _remoteDataSource.getLevelSubjects(educationalLevelId);
+   293→      final entities =
+   294→          data.map((e) => SubjectModel.fromJson(e).toEntity()).toList();
+   295→      return Success(entities);
+   296→    } catch (e) {
+   297→      return FailureResult(_mapException(e));
+   298→    }
+   299→  }
+   300→
+   301→  // ═══════════════════════════════════════════════════════════════════════
+   302→  // Topics
+   303→  // ═══════════════════════════════════════════════════════════════════════
+   304→
+   305→  @override
+   306→  Future<Result<List<Topic>>> getTopics({
+   307→    String? subjectId,
+   308→    String? educationalLevelId,
+   309→    String? curriculumId,
+   310→    String? parentTopicId,
+   311→  }) async {
+   312→    try {
+   313→      final filters = <String, dynamic>{};
+   314→      if (subjectId != null) filters['subject_id'] = subjectId;
+   315→      if (educationalLevelId != null) {
+   316→        filters['educational_level_id'] = educationalLevelId;
+   317→      }
+   318→      if (curriculumId != null) filters['curriculum_id'] = curriculumId;
+   319→      if (parentTopicId != null) filters['parent_topic_id'] = parentTopicId;
+   320→
+   321→      final data = await _remoteDataSource.getTopics(filters);
+   322→      final entities =
+   323→          data.map((e) => TopicModel.fromJson(e).toEntity()).toList();
+   324→      return Success(entities);
+   325→    } catch (e) {
+   326→      return FailureResult(_mapException(e));
+   327→    }
+   328→  }
+   329→
+   330→  @override
+   331→  Future<Result<Topic>> getTopicById(String id) async {
+   332→    try {
+   333→      final data = await _remoteDataSource.getTopicById(id);
+   334→      return Success(TopicModel.fromJson(data).toEntity());
+   335→    } catch (e) {
+   336→      return FailureResult(_mapException(e));
+   337→    }
+   338→  }
+   339→
+   340→  @override
+   341→  Future<Result<Topic>> createTopic(Topic topic) async {
+   342→    try {
+   343→      final model = TopicModel.fromEntity(topic);
+   344→      final data = await _remoteDataSource.createTopic(model.toJson());
+   345→      return Success(TopicModel.fromJson(data).toEntity());
+   346→    } catch (e) {
+   347→      return FailureResult(_mapException(e));
+   348→    }
+   349→  }
+   350→
+   351→  @override
+   352→  Future<Result<Topic>> updateTopic(Topic topic) async {
+   353→    try {
+   354→      final model = TopicModel.fromEntity(topic);
+   355→      final data =
+   356→          await _remoteDataSource.updateTopic(topic.id, model.toJson());
+   357→      return Success(TopicModel.fromJson(data).toEntity());
+   358→    } catch (e) {
+   359→      return FailureResult(_mapException(e));
+   360→    }
+   361→  }
+   362→
+   363→  @override
+   364→  Future<Result<bool>> deleteTopic(String id) async {
+   365→    try {
+   366→      await _remoteDataSource.deleteTopic(id);
+   367→      return const Success(true);
+   368→    } catch (e) {
+   369→      return FailureResult(_mapException(e));
+   370→    }
+   371→  }
+   372→
+   373→  @override
+   374→  Future<Result<List<Subtopic>>> getSubtopics(String topicId) async {
+   375→    try {
+   376→      final data = await _remoteDataSource.getSubtopics(topicId);
+   377→      final entities =
+   378→          data.map((e) => SubtopicModel.fromJson(e).toEntity()).toList();
+   379→      return Success(entities);
+   380→    } catch (e) {
+   381→      return FailureResult(_mapException(e));
+   382→    }
+   383→  }
+   384→
+   385→  @override
+   386→  Future<Result<Subtopic>> createSubtopic(Subtopic subtopic) async {
+   387→    try {
+   388→      final model = SubtopicModel.fromEntity(subtopic);
+   389→      final data = await _remoteDataSource.createSubtopic(model.toJson());
+   390→      return Success(SubtopicModel.fromJson(data).toEntity());
+   391→    } catch (e) {
+   392→      return FailureResult(_mapException(e));
+   393→    }
+   394→  }
+   395→
+   396→  @override
+   397→  Future<Result<Subtopic>> updateSubtopic(Subtopic subtopic) async {
+   398→    try {
+   399→      final model = SubtopicModel.fromEntity(subtopic);
+   400→      final data =
+   401→          await _remoteDataSource.updateSubtopic(subtopic.id, model.toJson());
+   402→      return Success(SubtopicModel.fromJson(data).toEntity());
+   403→    } catch (e) {
+   404→      return FailureResult(_mapException(e));
+   405→    }
+   406→  }
+   407→
+   408→  @override
+   409→  Future<Result<bool>> deleteSubtopic(String id) async {
+   410→    try {
+   411→      await _remoteDataSource.deleteSubtopic(id);
+   412→      return const Success(true);
+   413→    } catch (e) {
+   414→      return FailureResult(_mapException(e));
+   415→    }
+   416→  }
+   417→
+   418→  @override
+   419→  Future<Result<List<Topic>>> getCurriculumTree(String subjectId) async {
+   420→    try {
+   421→      final data = await _remoteDataSource.getCurriculumTree(subjectId);
+   422→      final entities =
+   423→          data.map((e) => TopicModel.fromJson(e).toEntity()).toList();
+   424→      return Success(entities);
+   425→    } catch (e) {
+   426→      return FailureResult(_mapException(e));
+   427→    }
+   428→  }
+   429→
+   430→  // ═══════════════════════════════════════════════════════════════════════
+   431→  // Learning Objectives
+   432→  // ═══════════════════════════════════════════════════════════════════════
+   433→
+   434→  @override
+   435→  Future<Result<List<LearningObjective>>> getLearningObjectives({
+   436→    String? topicId,
+   437→    String? subtopicId,
+   438→    String? subjectId,
+   439→    String? educationalLevelId,
+   440→  }) async {
+   441→    try {
+   442→      final filters = <String, dynamic>{};
+   443→      if (topicId != null) filters['topic_id'] = topicId;
+   444→      if (subtopicId != null) filters['subtopic_id'] = subtopicId;
+   445→      if (subjectId != null) filters['subject_id'] = subjectId;
+   446→      if (educationalLevelId != null) {
+   447→        filters['educational_level_id'] = educationalLevelId;
+   448→      }
+   449→
+   450→      final data = await _remoteDataSource.getLearningObjectives(filters);
+   451→      final entities = data
+   452→          .map((e) => LearningObjectiveModel.fromJson(e).toEntity())
+   453→          .toList();
+   454→      return Success(entities);
+   455→    } catch (e) {
+   456→      return FailureResult(_mapException(e));
+   457→    }
+   458→  }
+   459→
+   460→  @override
+   461→  Future<Result<LearningObjective>> createLearningObjective(
+   462→    LearningObjective learningObjective,
+   463→  ) async {
+   464→    try {
+   465→      final model = LearningObjectiveModel.fromEntity(learningObjective);
+   466→      final data =
+   467→          await _remoteDataSource.createLearningObjective(model.toJson());
+   468→      return Success(LearningObjectiveModel.fromJson(data).toEntity());
+   469→    } catch (e) {
+   470→      return FailureResult(_mapException(e));
+   471→    }
+   472→  }
+   473→
+   474→  @override
+   475→  Future<Result<LearningObjective>> updateLearningObjective(
+   476→    LearningObjective learningObjective,
+   477→  ) async {
+   478→    try {
+   479→      final model = LearningObjectiveModel.fromEntity(learningObjective);
+   480→      final data = await _remoteDataSource.updateLearningObjective(
+   481→        learningObjective.id,
+   482→        model.toJson(),
+   483→      );
+   484→      return Success(LearningObjectiveModel.fromJson(data).toEntity());
+   485→    } catch (e) {
+   486→      return FailureResult(_mapException(e));
+   487→    }
+   488→  }
+   489→
+   490→  @override
+   491→  Future<Result<bool>> deleteLearningObjective(String id) async {
+   492→    try {
+   493→      await _remoteDataSource.deleteLearningObjective(id);
+   494→      return const Success(true);
+   495→    } catch (e) {
+   496→      return FailureResult(_mapException(e));
+   497→    }
+   498→  }
+   499→
+   500→  // ═══════════════════════════════════════════════════════════════════════
+   501→  // Content
+   502→  // ═══════════════════════════════════════════════════════════════════════
+   503→
+   504→  @override
+   505→  Future<Result<List<ContentItem>>> getContentItems({
+   506→    String? subjectId,
+   507→    String? educationalLevelId,
+   508→    String? topicId,
+   509→    String? subtopicId,
+   510→    String? curriculumId,
+   511→    String? schoolId,
+   512→    ContentType? contentType,
+   513→    QuestionCategory? questionCategory,
+   514→    DifficultyLevel? difficultyLevel,
+   515→    BloomTaxonomy? bloomLevel,
+   516→    ContentStatus? status,
+   517→    bool? isPastQuestion,
+   518→    bool? isAiGenerated,
+   519→    String? search,
+   520→    int limit = 20,
+   521→    int offset = 0,
+   522→  }) async {
+   523→    try {
+   524→      final filters = <String, dynamic>{
+   525→        'limit': limit,
+   526→        'offset': offset,
+   527→      };
+   528→      if (subjectId != null) filters['subject_id'] = subjectId;
+   529→      if (educationalLevelId != null) {
+   530→        filters['educational_level_id'] = educationalLevelId;
+   531→      }
+   532→      if (topicId != null) filters['topic_id'] = topicId;
+   533→      if (subtopicId != null) filters['subtopic_id'] = subtopicId;
+   534→      if (curriculumId != null) filters['curriculum_id'] = curriculumId;
+   535→      if (schoolId != null) filters['school_id'] = schoolId;
+   536→      if (contentType != null) filters['content_type'] = contentType.value;
+   537→      if (questionCategory != null) {
+   538→        filters['question_category'] = questionCategory.value;
+   539→      }
+   540→      if (difficultyLevel != null) {
+   541→        filters['difficulty_level'] = difficultyLevel.value;
+   542→      }
+   543→      if (bloomLevel != null) filters['bloom_level'] = bloomLevel.value;
+   544→      if (status != null) filters['status'] = status.value;
+   545→      if (isPastQuestion != null) filters['is_past_question'] = isPastQuestion;
+   546→      if (isAiGenerated != null) filters['is_ai_generated'] = isAiGenerated;
+   547→      if (search != null) filters['search'] = search;
+   548→
+   549→      final data = await _remoteDataSource.getContentItems(filters);
+   550→      final entities =
+   551→          data.map((e) => ContentItemModel.fromJson(e).toEntity()).toList();
+   552→      return Success(entities);
+   553→    } catch (e) {
+   554→      return FailureResult(_mapException(e));
+   555→    }
+   556→  }
+   557→
+   558→  @override
+   559→  Future<Result<ContentItem>> getContentById(String id) async {
+   560→    try {
+   561→      final data = await _remoteDataSource.getContentById(id);
+   562→      return Success(ContentItemModel.fromJson(data).toEntity());
+   563→    } catch (e) {
+   564→      return FailureResult(_mapException(e));
+   565→    }
+   566→  }
+   567→
+   568→  @override
+   569→  Future<Result<ContentItem>> createContent(ContentItem content) async {
+   570→    try {
+   571→      final model = ContentItemModel.fromEntity(content);
+   572→      final data = await _remoteDataSource.createContent(model.toJson());
+   573→      return Success(ContentItemModel.fromJson(data).toEntity());
+   574→    } catch (e) {
+   575→      return FailureResult(_mapException(e));
+   576→    }
+   577→  }
+   578→
+   579→  @override
+   580→  Future<Result<ContentItem>> updateContent(ContentItem content) async {
+   581→    try {
+   582→      final model = ContentItemModel.fromEntity(content);
+   583→      final data =
+   584→          await _remoteDataSource.updateContent(content.id, model.toJson());
+   585→      return Success(ContentItemModel.fromJson(data).toEntity());
+   586→    } catch (e) {
+   587→      return FailureResult(_mapException(e));
+   588→    }
+   589→  }
+   590→
+   591→  @override
+   592→  Future<Result<bool>> deleteContent(String id) async {
+   593→    try {
+   594→      await _remoteDataSource.deleteContent(id);
+   595→      return const Success(true);
+   596→    } catch (e) {
+   597→      return FailureResult(_mapException(e));
+   598→    }
+   599→  }
+   600→
+   601→  @override
+   602→  Future<Result<ContentItem>> publishContent(String id) async {
+   603→    try {
+   604→      final data = await _remoteDataSource.publishContent(id);
+   605→      return Success(ContentItemModel.fromJson(data).toEntity());
+   606→    } catch (e) {
+   607→      return FailureResult(_mapException(e));
+   608→    }
+   609→  }
+   610→
+   611→  @override
+   612→  Future<Result<ContentItem>> archiveContent(String id) async {
+   613→    try {
+   614→      final data = await _remoteDataSource.archiveContent(id);
+   615→      return Success(ContentItemModel.fromJson(data).toEntity());
+   616→    } catch (e) {
+   617→      return FailureResult(_mapException(e));
+   618→    }
+   619→  }
+   620→
+   621→  @override
+   622→  Future<Result<List<ContentVersion>>> getContentVersions(
+   623→    String contentItemId,
+   624→  ) async {
+   625→    try {
+   626→      final data = await _remoteDataSource.getContentVersions(contentItemId);
+   627→      final entities = data
+   628→          .map((e) => ContentVersionModel.fromJson(e).toEntity())
+   629→          .toList();
+   630→      return Success(entities);
+   631→    } catch (e) {
+   632→      return FailureResult(_mapException(e));
+   633→    }
+   634→  }
+   635→
+   636→  @override
+   637→  Future<Result<ContentItem>> getContentWithDetails(String id) async {
+   638→    try {
+   639→      final data = await _remoteDataSource.getContentWithDetails(id);
+   640→      return Success(ContentItemModel.fromJson(data).toEntity());
+   641→    } catch (e) {
+   642→      return FailureResult(_mapException(e));
+   643→    }
+   644→  }
+   645→
+   646→  // ═══════════════════════════════════════════════════════════════════════
+   647→  // Reviews
+   648→  // ═══════════════════════════════════════════════════════════════════════
+   649→
+   650→  @override
+   651→  Future<Result<ContentReview>> createReview(ContentReview review) async {
+   652→    try {
+   653→      final model = ContentReviewModel.fromEntity(review);
+   654→      final data = await _remoteDataSource.createReview(model.toJson());
+   655→      return Success(ContentReviewModel.fromJson(data).toEntity());
+   656→    } catch (e) {
+   657→      return FailureResult(_mapException(e));
+   658→    }
+   659→  }
+   660→
+   661→  @override
+   662→  Future<Result<List<ContentReview>>> getContentReviews(
+   663→    String contentItemId,
+   664→  ) async {
+   665→    try {
+   666→      final data = await _remoteDataSource.getContentReviews(contentItemId);
+   667→      final entities = data
+   668→          .map((e) => ContentReviewModel.fromJson(e).toEntity())
+   669→          .toList();
+   670→      return Success(entities);
+   671→    } catch (e) {
+   672→      return FailureResult(_mapException(e));
+   673→    }
+   674→  }
+   675→
+   676→  // ═══════════════════════════════════════════════════════════════════════
+   677→  // Imports
+   678→  // ═══════════════════════════════════════════════════════════════════════
+   679→
+   680→  @override
+   681→  Future<Result<ContentImport>> createImport(ContentImport importEntry) async {
+   682→    try {
+   683→      final model = ContentImportModel.fromEntity(importEntry);
+   684→      final data = await _remoteDataSource.createImport(model.toJson());
+   685→      return Success(ContentImportModel.fromJson(data).toEntity());
+   686→    } catch (e) {
+   687→      return FailureResult(_mapException(e));
+   688→    }
+   689→  }
+   690→
+   691→  @override
+   692→  Future<Result<List<ContentImport>>> getImports({
+   693→    String? schoolId,
+   694→    ImportStatus? status,
+   695→    int limit = 20,
+   696→    int offset = 0,
+   697→  }) async {
+   698→    try {
+   699→      final filters = <String, dynamic>{
+   700→        'limit': limit,
+   701→        'offset': offset,
+   702→      };
+   703→      if (schoolId != null) filters['school_id'] = schoolId;
+   704→      if (status != null) filters['status'] = status.value;
+   705→
+   706→      final data = await _remoteDataSource.getImports(filters);
+   707→      final entities =
+   708→          data.map((e) => ContentImportModel.fromJson(e).toEntity()).toList();
+   709→      return Success(entities);
+   710→    } catch (e) {
+   711→      return FailureResult(_mapException(e));
+   712→    }
+   713→  }
+   714→
+   715→  @override
+   716→  Future<Result<ContentImport>> getImportById(String id) async {
+   717→    try {
+   718→      final data = await _remoteDataSource.getImportById(id);
+   719→      return Success(ContentImportModel.fromJson(data).toEntity());
+   720→    } catch (e) {
+   721→      return FailureResult(_mapException(e));
+   722→    }
+   723→  }
+   724→
+   725→  // ═══════════════════════════════════════════════════════════════════════
+   726→  // Collections
+   727→  // ═══════════════════════════════════════════════════════════════════════
+   728→
+   729→  @override
+   730→  Future<Result<List<ContentCollection>>> getCollections({
+   731→    String? subjectId,
+   732→    String? educationalLevelId,
+   733→    String? schoolId,
+   734→    bool? isPublic,
+   735→    int limit = 20,
+   736→    int offset = 0,
+   737→  }) async {
+   738→    try {
+   739→      final filters = <String, dynamic>{
+   740→        'limit': limit,
+   741→        'offset': offset,
+   742→      };
+   743→      if (subjectId != null) filters['subject_id'] = subjectId;
+   744→      if (educationalLevelId != null) {
+   745→        filters['educational_level_id'] = educationalLevelId;
+   746→      }
+   747→      if (schoolId != null) filters['school_id'] = schoolId;
+   748→      if (isPublic != null) filters['is_public'] = isPublic;
+   749→
+   750→      final data = await _remoteDataSource.getCollections(filters);
+   751→      final entities = data
+   752→          .map((e) => ContentCollectionModel.fromJson(e).toEntity())
+   753→          .toList();
+   754→      return Success(entities);
+   755→    } catch (e) {
+   756→      return FailureResult(_mapException(e));
+   757→    }
+   758→  }
+   759→
+   760→  @override
+   761→  Future<Result<ContentCollection>> getCollectionById(String id) async {
+   762→    try {
+   763→      final data = await _remoteDataSource.getCollectionById(id);
+   764→      return Success(ContentCollectionModel.fromJson(data).toEntity());
+   765→    } catch (e) {
+   766→      return FailureResult(_mapException(e));
+   767→    }
+   768→  }
+   769→
+   770→  @override
+   771→  Future<Result<ContentCollection>> createCollection(
+   772→    ContentCollection collection,
+   773→  ) async {
+   774→    try {
+   775→      final model = ContentCollectionModel.fromEntity(collection);
+   776→      final data = await _remoteDataSource.createCollection(model.toJson());
+   777→      return Success(ContentCollectionModel.fromJson(data).toEntity());
+   778→    } catch (e) {
+   779→      return FailureResult(_mapException(e));
+   780→    }
+   781→  }
+   782→
+   783→  @override
+   784→  Future<Result<ContentCollection>> updateCollection(
+   785→    ContentCollection collection,
+   786→  ) async {
+   787→    try {
+   788→      final model = ContentCollectionModel.fromEntity(collection);
+   789→      final data = await _remoteDataSource.updateCollection(
+   790→        collection.id,
+   791→        model.toJson(),
+   792→      );
+   793→      return Success(ContentCollectionModel.fromJson(data).toEntity());
+   794→    } catch (e) {
+   795→      return FailureResult(_mapException(e));
+   796→    }
+   797→  }
+   798→
+   799→  @override
+   800→  Future<Result<bool>> deleteCollection(String id) async {
+   801→    try {
+   802→      await _remoteDataSource.deleteCollection(id);
+   803→      return const Success(true);
+   804→    } catch (e) {
+   805→      return FailureResult(_mapException(e));
+   806→    }
+   807→  }
+   808→
+   809→  @override
+   810→  Future<Result<ContentCollectionItem>> addCollectionItem(
+   811→    ContentCollectionItem item,
+   812→  ) async {
+   813→    try {
+   814→      final model = ContentCollectionItemModel.fromEntity(item);
+   815→      final data = await _remoteDataSource.addCollectionItem(model.toJson());
+   816→      return Success(ContentCollectionItemModel.fromJson(data).toEntity());
+   817→    } catch (e) {
+   818→      return FailureResult(_mapException(e));
+   819→    }
+   820→  }
+   821→
+   822→  @override
+   823→  Future<Result<bool>> removeCollectionItem(String collectionItemId) async {
+   824→    try {
+   825→      await _remoteDataSource.removeCollectionItem(collectionItemId);
+   826→      return const Success(true);
+   827→    } catch (e) {
+   828→      return FailureResult(_mapException(e));
+   829→    }
+   830→  }
+   831→
+   832→  // ═══════════════════════════════════════════════════════════════════════
+   833→  // AI Curriculum
+   834→  // ═══════════════════════════════════════════════════════════════════════
+   835→
+   836→  @override
+   837→  Future<Result<AiCurriculumConfig>> getAiCurriculumConfig({
+   838→    required String schoolId,
+   839→    required String subjectId,
+   840→    required String educationalLevelId,
+   841→  }) async {
+   842→    try {
+   843→      final data = await _remoteDataSource.getAiCurriculumConfig({
+   844→        'school_id': schoolId,
+   845→        'subject_id': subjectId,
+   846→        'educational_level_id': educationalLevelId,
+   847→      });
+   848→      return Success(AiCurriculumConfigModel.fromJson(data).toEntity());
+   849→    } catch (e) {
+   850→      return FailureResult(_mapException(e));
+   851→    }
+   852→  }
+   853→
+   854→  @override
+   855→  Future<Result<AiCurriculumConfig>> upsertAiCurriculumConfig(
+   856→    AiCurriculumConfig config,
+   857→  ) async {
+   858→    try {
+   859→      final model = AiCurriculumConfigModel.fromEntity(config);
+   860→      final data =
+   861→          await _remoteDataSource.upsertAiCurriculumConfig(model.toJson());
+   862→      return Success(AiCurriculumConfigModel.fromJson(data).toEntity());
+   863→    } catch (e) {
+   864→      return FailureResult(_mapException(e));
+   865→    }
+   866→  }
+   867→
+   868→  @override
+   869→  Future<Result<List<AiGenerationRule>>> getAiGenerationRules({
+   870→    String? educationalLevelId,
+   871→    String? subjectId,
+   872→    bool? isActive,
+   873→  }) async {
+   874→    try {
+   875→      final filters = <String, dynamic>{};
+   876→      if (educationalLevelId != null) {
+   877→        filters['educational_level_id'] = educationalLevelId;
+   878→      }
+   879→      if (subjectId != null) filters['subject_id'] = subjectId;
+   880→      if (isActive != null) filters['is_active'] = isActive;
+   881→
+   882→      final data = await _remoteDataSource.getAiGenerationRules(filters);
+   883→      final entities = data
+   884→          .map((e) => AiGenerationRuleModel.fromJson(e).toEntity())
+   885→          .toList();
+   886→      return Success(entities);
+   887→    } catch (e) {
+   888→      return FailureResult(_mapException(e));
+   889→    }
+   890→  }
+   891→
+   892→  @override
+   893→  Future<Result<AiGenerationRule>> createAiGenerationRule(
+   894→    AiGenerationRule rule,
+   895→  ) async {
+   896→    try {
+   897→      final model = AiGenerationRuleModel.fromEntity(rule);
+   898→      final data =
+   899→          await _remoteDataSource.createAiGenerationRule(model.toJson());
+   900→      return Success(AiGenerationRuleModel.fromJson(data).toEntity());
+   901→    } catch (e) {
+   902→      return FailureResult(_mapException(e));
+   903→    }
+   904→  }
+   905→
+   906→  @override
+   907→  Future<Result<AiGenerationRule>> updateAiGenerationRule(
+   908→    AiGenerationRule rule,
+   909→  ) async {
+   910→    try {
+   911→      final model = AiGenerationRuleModel.fromEntity(rule);
+   912→      final data =
+   913→          await _remoteDataSource.updateAiGenerationRule(rule.id, model.toJson());
+   914→      return Success(AiGenerationRuleModel.fromJson(data).toEntity());
+   915→    } catch (e) {
+   916→      return FailureResult(_mapException(e));
+   917→    }
+   918→  }
+   919→
+   920→  // ═══════════════════════════════════════════════════════════════════════
+   921→  // Answer Repository
+   922→  // ═══════════════════════════════════════════════════════════════════════
+   923→
+   924→  @override
+   925→  Future<Result<AnswerRepositoryEntry>> getAnswerRepositoryEntry(
+   926→    String contentItemId,
+   927→  ) async {
+   928→    try {
+   929→      final data = await _remoteDataSource.getAnswerEntry(contentItemId);
+   930→      return Success(AnswerRepositoryEntryModel.fromJson(data).toEntity());
+   931→    } catch (e) {
+   932→      return FailureResult(_mapException(e));
+   933→    }
+   934→  }
+   935→
+   936→  @override
+   937→  Future<Result<AnswerRepositoryEntry>> createAnswerEntry(
+   938→    AnswerRepositoryEntry entry,
+   939→  ) async {
+   940→    try {
+   941→      final model = AnswerRepositoryEntryModel.fromEntity(entry);
+   942→      final data = await _remoteDataSource.createAnswerEntry(model.toJson());
+   943→      return Success(AnswerRepositoryEntryModel.fromJson(data).toEntity());
+   944→    } catch (e) {
+   945→      return FailureResult(_mapException(e));
+   946→    }
+   947→  }
+   948→
+   949→  @override
+   950→  Future<Result<AnswerRepositoryEntry>> updateAnswerEntry(
+   951→    AnswerRepositoryEntry entry,
+   952→  ) async {
+   953→    try {
+   954→      final model = AnswerRepositoryEntryModel.fromEntity(entry);
+   955→      final data =
+   956→          await _remoteDataSource.updateAnswerEntry(entry.id, model.toJson());
+   957→      return Success(AnswerRepositoryEntryModel.fromJson(data).toEntity());
+   958→    } catch (e) {
+   959→      return FailureResult(_mapException(e));
+   960→    }
+   961→  }
+   962→
+   963→  @override
+   964→  Future<Result<AnswerRepositoryEntry>> verifyAnswer({
+   965→    required String entryId,
+   966→    required String verifiedBy,
+   967→  }) async {
+   968→    try {
+   969→      final data = await _remoteDataSource.verifyAnswer({
+   970→        'entry_id': entryId,
+   971→        'verified_by': verifiedBy,
+   972→      });
+   973→      return Success(AnswerRepositoryEntryModel.fromJson(data).toEntity());
+   974→    } catch (e) {
+   975→      return FailureResult(_mapException(e));
+   976→    }
+   977→  }
+   978→
+   979→  // ═══════════════════════════════════════════════════════════════════════
+   980→  // Stats
+   981→  // ═══════════════════════════════════════════════════════════════════════
+   982→
+   983→  @override
+   984→  Future<Result<CcmsStats>> getCcmsStats({
+   985→    String? schoolId,
+   986→    String? educationalLevelId,
+   987→    String? subjectId,
+   988→  }) async {
+   989→    try {
+   990→      final params = <String, dynamic>{};
+   991→      if (schoolId != null) params['school_id'] = schoolId;
+   992→      if (educationalLevelId != null) {
+   993→        params['educational_level_id'] = educationalLevelId;
+   994→      }
+   995→      if (subjectId != null) params['subject_id'] = subjectId;
+   996→
+   997→      final data = await _remoteDataSource.getCcmsStats(params);
+   998→      return Success(CcmsStatsModel.fromJson(data).toEntity());
+   999→    } catch (e) {
+  1000→      return FailureResult(_mapException(e));
+  1001→    }
+  1002→  }
+  1003→
+  1004→  // ═══════════════════════════════════════════════════════════════════════
+  1005→  // Audit
+  1006→  // ═══════════════════════════════════════════════════════════════════════
+  1007→
+  1008→  @override
+  1009→  Future<Result<AuditEntry>> recordAuditEvent(AuditEntry entry) async {
+  1010→    try {
+  1011→      final model = AuditEntryModel.fromEntity(entry);
+  1012→      final data = await _remoteDataSource.recordAuditEvent(model.toJson());
+  1013→      return Success(AuditEntryModel.fromJson(data).toEntity());
+  1014→    } catch (e) {
+  1015→      return FailureResult(_mapException(e));
+  1016→    }
+  1017→  }
+  1018→
+  1019→  @override
+  1020→  Future<Result<List<AuditEntry>>> getAuditTrail({
+  1021→    String? userId,
+  1022→    String? schoolId,
+  1023→    AuditAction? action,
+  1024→    String? resourceType,
+  1025→    String? resourceId,
+  1026→    DateTime? startDate,
+  1027→    DateTime? endDate,
+  1028→    int limit = 50,
+  1029→    int offset = 0,
+  1030→  }) async {
+  1031→    try {
+  1032→      final filters = <String, dynamic>{
+  1033→        'limit': limit,
+  1034→        'offset': offset,
+  1035→      };
+  1036→      if (userId != null) filters['user_id'] = userId;
+  1037→      if (schoolId != null) filters['school_id'] = schoolId;
+  1038→      if (action != null) filters['action'] = action.value;
+  1039→      if (resourceType != null) filters['resource_type'] = resourceType;
+  1040→      if (resourceId != null) filters['resource_id'] = resourceId;
+  1041→
+  1042→      final data = await _remoteDataSource.getAuditTrail(filters);
+  1043→      final entities =
+  1044→          data.map((e) => AuditEntryModel.fromJson(e).toEntity()).toList();
+  1045→      return Success(entities);
+  1046→    } catch (e) {
+  1047→      return FailureResult(_mapException(e));
+  1048→    }
+  1049→  }
+  1050→
+  1051→  // ═══════════════════════════════════════════════════════════════════════
+  1052→  // MFA
+  1053→  // ═══════════════════════════════════════════════════════════════════════
+  1054→
+  1055→  @override
+  1056→  Future<Result<MfaConfiguration>> getMfaConfig(String userId) async {
+  1057→    try {
+  1058→      final data = await _remoteDataSource.getMfaConfig(userId);
+  1059→      return Success(MfaConfigurationModel.fromJson(data).toEntity());
+  1060→    } catch (e) {
+  1061→      return FailureResult(_mapException(e));
+  1062→    }
+  1063→  }
+  1064→
+  1065→  @override
+  1066→  Future<Result<MfaConfiguration>> enableMfa({
+  1067→    required String userId,
+  1068→    required MfaMethod method,
+  1069→    String? phoneNumber,
+  1070→  }) async {
+  1071→    try {
+  1072→      final data = await _remoteDataSource.enableMfa({
+  1073→        'user_id': userId,
+  1074→        'method': method.value,
+  1075→        'phone_number': phoneNumber,
+  1076→      });
+  1077→      return Success(MfaConfigurationModel.fromJson(data).toEntity());
+  1078→    } catch (e) {
+  1079→      return FailureResult(_mapException(e));
+  1080→    }
+  1081→  }
+  1082→
+  1083→  @override
+  1084→  Future<Result<bool>> disableMfa({
+  1085→    required String userId,
+  1086→    required String verificationCode,
+  1087→  }) async {
+  1088→    try {
+  1089→      await _remoteDataSource.disableMfa({
+  1090→        'user_id': userId,
+  1091→        'verification_code': verificationCode,
+  1092→      });
+  1093→      return const Success(true);
+  1094→    } catch (e) {
+  1095→      return FailureResult(_mapException(e));
+  1096→    }
+  1097→  }
+  1098→
+  1099→  @override
+  1100→  Future<Result<bool>> verifyMfa({
+  1101→    required String userId,
+  1102→    required String verificationCode,
+  1103→  }) async {
+  1104→    try {
+  1105→      final result = await _remoteDataSource.verifyMfa({
+  1106→        'user_id': userId,
+  1107→        'verification_code': verificationCode,
+  1108→      });
+  1109→      return Success(result);
+  1110→    } catch (e) {
+  1111→      return FailureResult(_mapException(e));
+  1112→    }
+  1113→  }
+  1114→
+  1115→  // ═══════════════════════════════════════════════════════════════════════
+  1116→  // API Keys
+  1117→  // ═══════════════════════════════════════════════════════════════════════
+  1118→
+  1119→  @override
+  1120→  Future<Result<ApiKey>> createApiKey({
+  1121→    required String userId,
+  1122→    required String name,
+  1123→    String? schoolId,
+  1124→    List<String>? scopes,
+  1125→    int? rateLimitOverride,
+  1126→    DateTime? expiresAt,
+  1127→  }) async {
+  1128→    try {
+  1129→      final data = await _remoteDataSource.createApiKey({
+  1130→        'user_id': userId,
+  1131→        'name': name,
+  1132→        'school_id': schoolId,
+  1133→        'scopes': scopes,
+  1134→        'rate_limit_override': rateLimitOverride,
+  1135→        'expires_at': expiresAt?.toIso8601String(),
+  1136→      });
+  1137→      return Success(ApiKeyModel.fromJson(data).toEntity());
+  1138→    } catch (e) {
+  1139→      return FailureResult(_mapException(e));
+  1140→    }
+  1141→  }
+  1142→
+  1143→  @override
+  1144→  Future<Result<bool>> revokeApiKey(String apiKeyId) async {
+  1145→    try {
+  1146→      await _remoteDataSource.revokeApiKey(apiKeyId);
+  1147→      return const Success(true);
+  1148→    } catch (e) {
+  1149→      return FailureResult(_mapException(e));
+  1150→    }
+  1151→  }
+  1152→
+  1153→  @override
+  1154→  Future<Result<List<ApiKey>>> getApiKeys(String userId) async {
+  1155→    try {
+  1156→      final data = await _remoteDataSource.getApiKeys(userId);
+  1157→      final entities =
+  1158→          data.map((e) => ApiKeyModel.fromJson(e).toEntity()).toList();
+  1159→      return Success(entities);
+  1160→    } catch (e) {
+  1161→      return FailureResult(_mapException(e));
+  1162→    }
+  1163→  }
+  1164→
+  1165→  // ═══════════════════════════════════════════════════════════════════════
+  1166→  // Security
+  1167→  // ═══════════════════════════════════════════════════════════════════════
+  1168→
+  1169→  @override
+  1170→  Future<Result<SecurityEvent>> recordSecurityEvent(SecurityEvent event) async {
+  1171→    try {
+  1172→      final model = SecurityEventModel.fromEntity(event);
+  1173→      final data = await _remoteDataSource.recordSecurityEvent(model.toJson());
+  1174→      return Success(SecurityEventModel.fromJson(data).toEntity());
+  1175→    } catch (e) {
+  1176→      return FailureResult(_mapException(e));
+  1177→    }
+  1178→  }
+  1179→
+  1180→  @override
+  1181→  Future<Result<List<SecurityEvent>>> getSecurityEvents({
+  1182→    String? userId,
+  1183→    String? schoolId,
+  1184→    AlertSeverity? severity,
+  1185→    bool? isResolved,
+  1186→    int limit = 50,
+  1187→    int offset = 0,
+  1188→  }) async {
+  1189→    try {
+  1190→      final filters = <String, dynamic>{
+  1191→        'limit': limit,
+  1192→        'offset': offset,
+  1193→      };
+  1194→      if (userId != null) filters['user_id'] = userId;
+  1195→      if (schoolId != null) filters['school_id'] = schoolId;
+  1196→      if (severity != null) filters['severity'] = severity.value;
+  1197→      if (isResolved != null) filters['is_resolved'] = isResolved;
+  1198→
+  1199→      final data = await _remoteDataSource.getSecurityEvents(filters);
+  1200→      final entities = data
+  1201→          .map((e) => SecurityEventModel.fromJson(e).toEntity())
+  1202→          .toList();
+  1203→      return Success(entities);
+  1204→    } catch (e) {
+  1205→      return FailureResult(_mapException(e));
+  1206→    }
+  1207→  }
+  1208→
+  1209→  @override
+  1210→  Future<Result<bool>> checkRateLimit({
+  1211→    required RateLimitScope scope,
+  1212→    required String identifier,
+  1213→    String? endpointPattern,
+  1214→  }) async {
+  1215→    try {
+  1216→      final result = await _remoteDataSource.checkRateLimit({
+  1217→        'scope': scope.value,
+  1218→        'identifier': identifier,
+  1219→        if (endpointPattern != null) 'endpoint_pattern': endpointPattern,
+  1220→      });
+  1221→      return Success(result);
+  1222→    } catch (e) {
+  1223→      return FailureResult(_mapException(e));
+  1224→    }
+  1225→  }
+  1226→
+  1227→  // ═══════════════════════════════════════════════════════════════════════
+  1228→  // Sessions
+  1229→  // ═══════════════════════════════════════════════════════════════════════
+  1230→
+  1231→  @override
+  1232→  Future<Result<List<UserSession>>> getUserSessions(String userId) async {
+  1233→    try {
+  1234→      final data = await _remoteDataSource.getUserSessions(userId);
+  1235→      final entities =
+  1236→          data.map((e) => UserSessionModel.fromJson(e).toEntity()).toList();
+  1237→      return Success(entities);
+  1238→    } catch (e) {
+  1239→      return FailureResult(_mapException(e));
+  1240→    }
+  1241→  }
+  1242→
+  1243→  @override
+  1244→  Future<Result<bool>> invalidateUserSessions({
+  1245→    required String userId,
+  1246→    required String sessionId,
+  1247→  }) async {
+  1248→    try {
+  1249→      await _remoteDataSource.invalidateUserSessions({
+  1250→        'user_id': userId,
+  1251→        'session_id': sessionId,
+  1252→      });
+  1253→      return const Success(true);
+  1254→    } catch (e) {
+  1255→      return FailureResult(_mapException(e));
+  1256→    }
+  1257→  }
+  1258→
+  1259→  @override
+  1260→  Future<Result<bool>> invalidateAllOtherSessions({
+  1261→    required String userId,
+  1262→    required String currentSessionId,
+  1263→  }) async {
+  1264→    try {
+  1265→      await _remoteDataSource.invalidateAllOtherSessions({
+  1266→        'user_id': userId,
+  1267→        'current_session_id': currentSessionId,
+  1268→      });
+  1269→      return const Success(true);
+  1270→    } catch (e) {
+  1271→      return FailureResult(_mapException(e));
+  1272→    }
+  1273→  }
+  1274→
+  1275→  // ═══════════════════════════════════════════════════════════════════════
+  1276→  // Monitoring
+  1277→  // ═══════════════════════════════════════════════════════════════════════
+  1278→
+  1279→  @override
+  1280→  Future<Result<SystemMetric>> recordMetric(SystemMetric metric) async {
+  1281→    try {
+  1282→      final model = SystemMetricModel.fromEntity(metric);
+  1283→      final data = await _remoteDataSource.recordMetric(model.toJson());
+  1284→      return Success(SystemMetricModel.fromJson(data).toEntity());
+  1285→    } catch (e) {
+  1286→      return FailureResult(_mapException(e));
+  1287→    }
+  1288→  }
+  1289→
+  1290→  @override
+  1291→  Future<Result<List<SystemMetric>>> getSystemMetrics({
+  1292→    String? metricName,
+  1293→    MetricType? metricType,
+  1294→    String? schoolId,
+  1295→    DateTime? startDate,
+  1296→    DateTime? endDate,
+  1297→    int limit = 100,
+  1298→  }) async {
+  1299→    try {
+  1300→      final filters = <String, dynamic>{'limit': limit};
+  1301→      if (metricName != null) filters['metric_name'] = metricName;
+  1302→      if (metricType != null) filters['metric_type'] = metricType.value;
+  1303→      if (schoolId != null) filters['school_id'] = schoolId;
+  1304→
+  1305→      final data = await _remoteDataSource.getSystemMetrics(filters);
+  1306→      final entities =
+  1307→          data.map((e) => SystemMetricModel.fromJson(e).toEntity()).toList();
+  1308→      return Success(entities);
+  1309→    } catch (e) {
+  1310→      return FailureResult(_mapException(e));
+  1311→    }
+  1312→  }
+  1313→
+  1314→  @override
+  1315→  Future<Result<List<AlertRule>>> getAlertRules({
+  1316→    bool? isActive,
+  1317→    AlertSeverity? severity,
+  1318→  }) async {
+  1319→    try {
+  1320→      final filters = <String, dynamic>{};
+  1321→      if (isActive != null) filters['is_active'] = isActive;
+  1322→      if (severity != null) filters['severity'] = severity.value;
+  1323→
+  1324→      final data = await _remoteDataSource.getAlertRules(filters);
+  1325→      final entities =
+  1326→          data.map((e) => AlertRuleModel.fromJson(e).toEntity()).toList();
+  1327→      return Success(entities);
+  1328→    } catch (e) {
+  1329→      return FailureResult(_mapException(e));
+  1330→    }
+  1331→  }
+  1332→
+  1333→  @override
+  1334→  Future<Result<AlertRule>> createAlertRule(AlertRule rule) async {
+  1335→    try {
+  1336→      final model = AlertRuleModel.fromEntity(rule);
+  1337→      final data = await _remoteDataSource.createAlertRule(model.toJson());
+  1338→      return Success(AlertRuleModel.fromJson(data).toEntity());
+  1339→    } catch (e) {
+  1340→      return FailureResult(_mapException(e));
+  1341→    }
+  1342→  }
+  1343→
+  1344→  @override
+  1345→  Future<Result<List<AlertIncident>>> getAlertIncidents({
+  1346→    String? alertRuleId,
+  1347→    String? status,
+  1348→    AlertSeverity? severity,
+  1349→    int limit = 50,
+  1350→    int offset = 0,
+  1351→  }) async {
+  1352→    try {
+  1353→      final filters = <String, dynamic>{
+  1354→        'limit': limit,
+  1355→        'offset': offset,
+  1356→      };
+  1357→      if (alertRuleId != null) filters['alert_rule_id'] = alertRuleId;
+  1358→      if (status != null) filters['status'] = status;
+  1359→      if (severity != null) filters['severity'] = severity.value;
+  1360→
+  1361→      final data = await _remoteDataSource.getAlertIncidents(filters);
+  1362→      final entities = data
+  1363→          .map((e) => AlertIncidentModel.fromJson(e).toEntity())
+  1364→          .toList();
+  1365→      return Success(entities);
+  1366→    } catch (e) {
+  1367→      return FailureResult(_mapException(e));
+  1368→    }
+  1369→  }
+  1370→
+  1371→  @override
+  1372→  Future<Result<AlertIncident>> acknowledgeAlert({
+  1373→    required String incidentId,
+  1374→    required String acknowledgedBy,
+  1375→  }) async {
+  1376→    try {
+  1377→      final data = await _remoteDataSource.acknowledgeAlert({
+  1378→        'incident_id': incidentId,
+  1379→        'acknowledged_by': acknowledgedBy,
+  1380→      });
+  1381→      return Success(AlertIncidentModel.fromJson(data).toEntity());
+  1382→    } catch (e) {
+  1383→      return FailureResult(_mapException(e));
+  1384→    }
+  1385→  }
+  1386→
+  1387→  @override
+  1388→  Future<Result<AlertIncident>> resolveAlert({
+  1389→    required String incidentId,
+  1390→    required String resolutionNotes,
+  1391→  }) async {
+  1392→    try {
+  1393→      final data = await _remoteDataSource.resolveAlert({
+  1394→        'incident_id': incidentId,
+  1395→        'resolution_notes': resolutionNotes,
+  1396→      });
+  1397→      return Success(AlertIncidentModel.fromJson(data).toEntity());
+  1398→    } catch (e) {
+  1399→      return FailureResult(_mapException(e));
+  1400→    }
+  1401→  }
+  1402→
+  1403→  // ═══════════════════════════════════════════════════════════════════════
+  1404→  // Performance
+  1405→  // ═══════════════════════════════════════════════════════════════════════
+  1406→
+  1407→  @override
+  1408→  Future<Result<PerformanceLog>> recordPerformanceLog(PerformanceLog log) async {
+  1409→    try {
+  1410→      final model = PerformanceLogModel.fromEntity(log);
+  1411→      final data = await _remoteDataSource.recordPerformanceLog(model.toJson());
+  1412→      return Success(PerformanceLogModel.fromJson(data).toEntity());
+  1413→    } catch (e) {
+  1414→      return FailureResult(_mapException(e));
+  1415→    }
+  1416→  }
+  1417→
+  1418→  @override
+  1419→  Future<Result<List<PerformanceLog>>> getPerformanceLogs({
+  1420→    String? operationType,
+  1421→    String? operationName,
+  1422→    bool? isSlow,
+  1423→    String? userId,
+  1424→    String? schoolId,
+  1425→    DateTime? startDate,
+  1426→    DateTime? endDate,
+  1427→    int limit = 50,
+  1428→    int offset = 0,
+  1429→  }) async {
+  1430→    try {
+  1431→      final filters = <String, dynamic>{
+  1432→        'limit': limit,
+  1433→        'offset': offset,
+  1434→      };
+  1435→      if (operationType != null) filters['operation_type'] = operationType;
+  1436→      if (operationName != null) filters['operation_name'] = operationName;
+  1437→      if (isSlow != null) filters['is_slow'] = isSlow;
+  1438→      if (userId != null) filters['user_id'] = userId;
+  1439→      if (schoolId != null) filters['school_id'] = schoolId;
+  1440→
+  1441→      final data = await _remoteDataSource.getPerformanceLogs(filters);
+  1442→      final entities = data
+  1443→          .map((e) => PerformanceLogModel.fromJson(e).toEntity())
+  1444→          .toList();
+  1445→      return Success(entities);
+  1446→    } catch (e) {
+  1447→      return FailureResult(_mapException(e));
+  1448→    }
+  1449→  }
+  1450→
+  1451→  // ═══════════════════════════════════════════════════════════════════════
+  1452→  // Errors
+  1453→  // ═══════════════════════════════════════════════════════════════════════
+  1454→
+  1455→  @override
+  1456→  Future<Result<ErrorReport>> reportError(ErrorReport report) async {
+  1457→    try {
+  1458→      final model = ErrorReportModel.fromEntity(report);
+  1459→      final data = await _remoteDataSource.reportError(model.toJson());
+  1460→      return Success(ErrorReportModel.fromJson(data).toEntity());
+  1461→    } catch (e) {
+  1462→      return FailureResult(_mapException(e));
+  1463→    }
+  1464→  }
+  1465→
+  1466→  @override
+  1467→  Future<Result<List<ErrorReport>>> getErrorReports({
+  1468→    String? errorType,
+  1469→    bool? isResolved,
+  1470→    String? schoolId,
+  1471→    int limit = 50,
+  1472→    int offset = 0,
+  1473→  }) async {
+  1474→    try {
+  1475→      final filters = <String, dynamic>{
+  1476→        'limit': limit,
+  1477→        'offset': offset,
+  1478→      };
+  1479→      if (errorType != null) filters['error_type'] = errorType;
+  1480→      if (isResolved != null) filters['is_resolved'] = isResolved;
+  1481→      if (schoolId != null) filters['school_id'] = schoolId;
+  1482→
+  1483→      final data = await _remoteDataSource.getErrorReports(filters);
+  1484→      final entities =
+  1485→          data.map((e) => ErrorReportModel.fromJson(e).toEntity()).toList();
+  1486→      return Success(entities);
+  1487→    } catch (e) {
+  1488→      return FailureResult(_mapException(e));
+  1489→    }
+  1490→  }
+  1491→
+  1492→  @override
+  1493→  Future<Result<ErrorReport>> resolveError({
+  1494→    required String errorId,
+  1495→    required String resolvedBy,
+  1496→  }) async {
+  1497→    try {
+  1498→      final data = await _remoteDataSource.resolveError({
+  1499→        'error_id': errorId,
+  1500→        'resolved_by': resolvedBy,
+  1501→      });
+  1502→      return Success(ErrorReportModel.fromJson(data).toEntity());
+  1503→    } catch (e) {
+  1504→      return FailureResult(_mapException(e));
+  1505→    }
+  1506→  }
+  1507→
+  1508→  // ═══════════════════════════════════════════════════════════════════════
+  1509→  // Deployments
+  1510→  // ═══════════════════════════════════════════════════════════════════════
+  1511→
+  1512→  @override
+  1513→  Future<Result<List<Deployment>>> getDeployments({
+  1514→    String? environment,
+  1515→    DeploymentStatus? status,
+  1516→    int limit = 20,
+  1517→    int offset = 0,
+  1518→  }) async {
+  1519→    try {
+  1520→      final filters = <String, dynamic>{
+  1521→        'limit': limit,
+  1522→        'offset': offset,
+  1523→      };
+  1524→      if (environment != null) filters['environment'] = environment;
+  1525→      if (status != null) filters['status'] = status.value;
+  1526→
+  1527→      final data = await _remoteDataSource.getDeployments(filters);
+  1528→      final entities =
+  1529→          data.map((e) => DeploymentModel.fromJson(e).toEntity()).toList();
+  1530→      return Success(entities);
+  1531→    } catch (e) {
+  1532→      return FailureResult(_mapException(e));
+  1533→    }
+  1534→  }
+  1535→
+  1536→  @override
+  1537→  Future<Result<Deployment>> createDeployment(Deployment deployment) async {
+  1538→    try {
+  1539→      final model = DeploymentModel.fromEntity(deployment);
+  1540→      final data = await _remoteDataSource.createDeployment(model.toJson());
+  1541→      return Success(DeploymentModel.fromJson(data).toEntity());
+  1542→    } catch (e) {
+  1543→      return FailureResult(_mapException(e));
+  1544→    }
+  1545→  }
+  1546→
+  1547→  @override
+  1548→  Future<Result<Deployment>> updateDeploymentStatus({
+  1549→    required String deploymentId,
+  1550→    required DeploymentStatus status,
+  1551→    String? notes,
+  1552→  }) async {
+  1553→    try {
+  1554→      final data = await _remoteDataSource.updateDeploymentStatus({
+  1555→        'deployment_id': deploymentId,
+  1556→        'status': status.value,
+  1557→        if (notes != null) 'notes': notes,
+  1558→      });
+  1559→      return Success(DeploymentModel.fromJson(data).toEntity());
+  1560→    } catch (e) {
+  1561→      return FailureResult(_mapException(e));
+  1562→    }
+  1563→  }
+  1564→
+  1565→  // ═══════════════════════════════════════════════════════════════════════
+  1566→  // Testing
+  1567→  // ═══════════════════════════════════════════════════════════════════════
+  1568→
+  1569→  @override
+  1570→  Future<Result<TestResult>> recordTestResult(TestResult result) async {
+  1571→    try {
+  1572→      final model = TestResultModel.fromEntity(result);
+  1573→      final data = await _remoteDataSource.recordTestResult(model.toJson());
+  1574→      return Success(TestResultModel.fromJson(data).toEntity());
+  1575→    } catch (e) {
+  1576→      return FailureResult(_mapException(e));
+  1577→    }
+  1578→  }
+  1579→
+  1580→  @override
+  1581→  Future<Result<List<TestResult>>> getTestResults({
+  1582→    TestType? testType,
+  1583→    String? deploymentId,
+  1584→    String? status,
+  1585→    int limit = 50,
+  1586→    int offset = 0,
+  1587→  }) async {
+  1588→    try {
+  1589→      final filters = <String, dynamic>{
+  1590→        'limit': limit,
+  1591→        'offset': offset,
+  1592→      };
+  1593→      if (testType != null) filters['test_type'] = testType.value;
+  1594→      if (deploymentId != null) filters['deployment_id'] = deploymentId;
+  1595→      if (status != null) filters['status'] = status;
+  1596→
+  1597→      final data = await _remoteDataSource.getTestResults(filters);
+  1598→      final entities =
+  1599→          data.map((e) => TestResultModel.fromJson(e).toEntity()).toList();
+  1600→      return Success(entities);
+  1601→    } catch (e) {
+  1602→      return FailureResult(_mapException(e));
+  1603→    }
+  1604→  }
+  1605→}
+  1606→

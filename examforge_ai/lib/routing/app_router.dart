@@ -191,6 +191,22 @@ import '../features/marketplace/presentation/pages/marketplace_notifications_pag
 import '../features/offline/presentation/pages/offline_center_page.dart';
 import '../features/offline/presentation/pages/connectivity_status_page.dart';
 import '../features/offline/presentation/pages/offline_exam_page.dart';
+import '../features/ccms/presentation/pages/ccms_dashboard_page.dart';
+import '../features/ccms/presentation/pages/educational_levels_page.dart';
+import '../features/ccms/presentation/pages/curricula_management_page.dart';
+import '../features/ccms/presentation/pages/subjects_management_page.dart';
+import '../features/ccms/presentation/pages/topic_management_page.dart';
+import '../features/ccms/presentation/pages/content_library_page.dart';
+import '../features/ccms/presentation/pages/content_editor_page.dart';
+import '../features/ccms/presentation/pages/content_detail_page.dart';
+import '../features/ccms/presentation/pages/content_import_page.dart';
+import '../features/ccms/presentation/pages/content_collections_page.dart';
+import '../features/ccms/presentation/pages/ai_curriculum_engine_page.dart';
+import '../features/ccms/presentation/pages/answer_repository_page.dart';
+import '../features/ccms/presentation/pages/audit_trail_page.dart' as ccms_audit;
+import '../features/ccms/presentation/pages/security_center_page.dart' as ccms_security;
+import '../features/ccms/presentation/pages/monitoring_dashboard_page.dart' as ccms_monitoring;
+import '../features/ccms/presentation/pages/deployment_page.dart';
 
 // ── Super Admin Platform ──
 import '../features/super_admin/presentation/pages/super_admin_dashboard_page.dart';
@@ -1538,6 +1554,94 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               final examTitle = state.uri.queryParameters['examTitle'] ?? 'Exam';
               return OfflineExamPage(examId: examId, examTitle: examTitle);
             },
+          ),
+
+          // ── CCMS & Enterprise Routes ──────────────────────────────
+          GoRoute(
+            path: RouteNames.ccmsDashboard,
+            name: 'ccms-dashboard',
+            builder: (context, state) => const CcmsDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.educationalLevels,
+            name: 'educational-levels',
+            builder: (context, state) => const EducationalLevelsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.curriculaManagement,
+            name: 'curricula-management',
+            builder: (context, state) => const CurriculaManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.subjectsManagement,
+            name: 'subjects-management',
+            builder: (context, state) => const SubjectsManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.topicManagement,
+            name: 'topic-management',
+            builder: (context, state) => const TopicManagementPage(),
+          ),
+          GoRoute(
+            path: RouteNames.contentLibrary,
+            name: 'content-library',
+            builder: (context, state) => const ContentLibraryPage(),
+          ),
+          GoRoute(
+            path: RouteNames.contentEditor,
+            name: 'content-editor',
+            builder: (context, state) {
+              final contentId = state.uri.queryParameters['id'];
+              return ContentEditorPage(contentId: contentId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.contentDetail,
+            name: 'content-detail',
+            builder: (context, state) {
+              final contentId = state.uri.queryParameters['id'] ?? '';
+              return ContentDetailPage(contentId: contentId);
+            },
+          ),
+          GoRoute(
+            path: RouteNames.contentImport,
+            name: 'content-import',
+            builder: (context, state) => const ContentImportPage(),
+          ),
+          GoRoute(
+            path: RouteNames.contentCollections,
+            name: 'content-collections',
+            builder: (context, state) => const ContentCollectionsPage(),
+          ),
+          GoRoute(
+            path: RouteNames.aiCurriculumEngine,
+            name: 'ai-curriculum-engine',
+            builder: (context, state) => const AiCurriculumEnginePage(),
+          ),
+          GoRoute(
+            path: RouteNames.answerRepository,
+            name: 'answer-repository',
+            builder: (context, state) => const AnswerRepositoryPage(),
+          ),
+          GoRoute(
+            path: RouteNames.auditTrail,
+            name: 'audit-trail',
+            builder: (context, state) => const ccms_audit.AuditTrailPage(),
+          ),
+          GoRoute(
+            path: RouteNames.securityCenter,
+            name: 'ccms-security-center',
+            builder: (context, state) => const ccms_security.SecurityCenterPage(),
+          ),
+          GoRoute(
+            path: RouteNames.monitoringDashboard,
+            name: 'monitoring-dashboard',
+            builder: (context, state) => const ccms_monitoring.MonitoringDashboardPage(),
+          ),
+          GoRoute(
+            path: RouteNames.deploymentCenter,
+            name: 'deployment-center',
+            builder: (context, state) => const DeploymentPage(),
           ),
 
           // ── Super Admin Platform Routes ──────────────────────────
