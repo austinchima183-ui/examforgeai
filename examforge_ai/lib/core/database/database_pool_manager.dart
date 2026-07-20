@@ -62,6 +62,22 @@ class SlowQueryEntry {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// LRU CACHE ENTRY — Tracks access time for proper LRU eviction
+// ═══════════════════════════════════════════════════════════════════════
+
+class _CacheEntry {
+  _CacheEntry({required this.value, required this.expiresAt});
+
+  final dynamic value;
+  final DateTime expiresAt;
+  DateTime lastAccessed = DateTime.now();
+
+  bool get isExpired => DateTime.now().isAfter(expiresAt);
+
+  void markAccessed() => lastAccessed = DateTime.now();
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // DATABASE HEALTH STATUS
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -249,10 +265,14 @@ class DatabasePoolManager {
         );
       }
 
+      // Decrement active queries on success (only once)
+      _activeQueries--;
+
       return result;
     } catch (e) {
       stopwatch.stop();
       _totalErrors++;
+      // Decrement active queries on error (only once, not again in finally)
       _activeQueries--;
 
       AppLogger.error(
@@ -262,9 +282,10 @@ class DatabasePoolManager {
         error: e,
       );
       rethrow;
-    } finally {
-      if (_activeQueries > 0) _activeQueries--;
     }
+    // NOTE: No `finally` block — we decrement _activeQueries in both
+    // success and error paths to avoid the double-decrement bug that
+    // existed when both catch and finally decremented the counter.
   }
 
   // ─── PREPARED STATEMENT EMULATION ─────────────────────────────────
@@ -281,6 +302,11 @@ class DatabasePoolManager {
   /// For queries that return the same data frequently (e.g., subscription
   /// plans, commission rates), this reduces database load by caching
   /// results for a configurable TTL.
+  ///
+  /// **Performance Fix:** Uses LRU (Least Recently Used) eviction instead
+  /// of FIFO. Previously, frequently-accessed entries could be evicted
+  /// simply because they were inserted early, defeating the purpose of
+  /// caching. Now, entries are evicted based on last access time.
   static Future<T> executeCached<T>({
     required String cacheKey,
     required Future<T> Function() query,
@@ -289,6 +315,7 @@ class DatabasePoolManager {
     // Check cache
     final cached = _queryCache[cacheKey];
     if (cached != null && !cached.isExpired && cached.value is T) {
+      cached.markAccessed(); // Track access for LRU eviction
       return cached.value as T;
     }
 
@@ -306,10 +333,19 @@ class DatabasePoolManager {
       expiresAt: DateTime.now().add(ttl),
     );
 
-    // Evict old entries if cache is too large
+    // Evict LRU entry if cache is too large (NOT FIFO)
     if (_queryCache.length > _maxCacheSize) {
-      final oldestKey = _queryCache.keys.first;
-      _queryCache.remove(oldestKey);
+      String? lruKey;
+      DateTime? oldestAccess;
+      for (final entry in _queryCache.entries) {
+        if (oldestAccess == null || entry.value.lastAccessed.isBefore(oldestAccess)) {
+          oldestAccess = entry.value.lastAccessed;
+          lruKey = entry.key;
+        }
+      }
+      if (lruKey != null) {
+        _queryCache.remove(lruKey);
+      }
     }
 
     return result;
@@ -430,17 +466,4 @@ class DatabasePoolManager {
     final sum = _recentResponseTimes.reduce((a, b) => a + b);
     return sum / _recentResponseTimes.length;
   }
-}
-
-// ═══════════════════════════════════════════════════════════════════════
-// CACHE ENTRY
-// ═══════════════════════════════════════════════════════════════════════
-
-class _CacheEntry {
-  _CacheEntry({required this.value, required this.expiresAt});
-
-  final dynamic value;
-  final DateTime expiresAt;
-
-  bool get isExpired => DateTime.now().isAfter(expiresAt);
 }

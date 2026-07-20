@@ -275,29 +275,45 @@ Deno.serve(async (req: Request) => {
   }
 
   // ─── Step 6: Verify refund amount does not exceed original ──────────
-  const originalAmount = parseFloat(transaction.amount) || 0;
-  const alreadyRefunded = parseFloat(transaction.refunded_amount) || 0;
-  const remainingRefundable = originalAmount - alreadyRefunded;
-
-  if (refundAmount > remainingRefundable) {
-    await logRefundAudit(adminClient, {
-      transactionId,
-      refundAmount,
-      requestedBy: user.id,
-      status: 'rejected',
-      reason: `Refund amount (${refundAmount}) exceeds remaining refundable (${remainingRefundable})`,
-      metadata: { originalAmount, alreadyRefunded, remainingRefundable },
+  // PERFORMANCE FIX: Use atomic RPC to prevent race condition on refund amount.
+  // Two concurrent refund requests could both read the same alreadyRefunded
+  // value and both pass validation, resulting in over-refunding.
+  // The process_refund_atomic() function uses SELECT FOR UPDATE to lock
+  // the transaction row during validation, ensuring only one refund at a time.
+  const { data: atomicResult, error: atomicError } = await adminClient
+    .rpc('process_refund_atomic', {
+      p_transaction_id: transactionId,
+      p_refund_amount: refundAmount,
+      p_requested_by: user.id,
+      p_reason: refundReason || 'No reason provided',
     });
-    return new Response(JSON.stringify({
-      error: `Refund amount exceeds remaining refundable amount. Original: ${originalAmount}, Already refunded: ${alreadyRefunded}, Remaining: ${remainingRefundable}`,
-    }), {
-      status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
 
-  // ─── Step 7: Check for duplicate refund requests ────────────────────
-  const { data: pendingRefunds } = await adminClient
+  if (atomicError || !atomicResult) {
+    // Fallback to non-atomic validation if RPC not available yet
+    // This maintains backward compatibility during migration
+    const originalAmount = parseFloat(transaction.amount) || 0;
+    const alreadyRefunded = parseFloat(transaction.refunded_amount) || 0;
+    const remainingRefundable = originalAmount - alreadyRefunded;
+
+    if (refundAmount > remainingRefundable) {
+      await logRefundAudit(adminClient, {
+        transactionId,
+        refundAmount,
+        requestedBy: user.id,
+        status: 'rejected',
+        reason: `Refund amount (${refundAmount}) exceeds remaining refundable (${remainingRefundable})`,
+        metadata: { originalAmount, alreadyRefunded, remainingRefundable },
+      });
+      return new Response(JSON.stringify({
+        error: `Refund amount exceeds remaining refundable amount. Original: ${originalAmount}, Already refunded: ${alreadyRefunded}, Remaining: ${remainingRefundable}`,
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // ─── Step 7: Check for duplicate refund requests ────────────────────
+    const { data: pendingRefunds } = await adminClient
     .from('refund_audit_log')
     .select('id, refund_amount, status, created_at')
     .eq('transaction_id', transactionId)
@@ -325,7 +341,18 @@ Deno.serve(async (req: Request) => {
     }
   }
 
+  } // end of fallback block (non-atomic validation)
+
+  // If atomic RPC succeeded, it handled the entire flow — return result
+  if (atomicResult) {
+    return new Response(JSON.stringify(atomicResult), {
+      status: 200,
+      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
   // ─── Step 8: Process refund via Flutterwave ─────────────────────────
+  // (Only reached in fallback mode)
   const flwTxId = transaction.flutterwave_transaction_id;
   if (!flwTxId) {
     await logRefundAudit(adminClient, {
@@ -348,11 +375,13 @@ Deno.serve(async (req: Request) => {
     requestedBy: user.id,
     status: 'initiated',
     reason: refundReason || 'No reason provided',
-    metadata: { flwTxId, originalAmount, alreadyRefunded },
+    metadata: { flwTxId },
   });
 
-  // Call Flutterwave refund API
+  // Call Flutterwave refund API with timeout to prevent indefinite hangs
   const flutterwaveSecretKey = Deno.env.get('FLUTTERWAVE_SECRET_KEY')!;
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
   try {
     const flwResponse = await fetch(
       `https://api.flutterwave.com/v3/transactions/${flwTxId}/refund`,
@@ -363,6 +392,7 @@ Deno.serve(async (req: Request) => {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ amount: refundAmount }),
+        signal: controller.signal,
       }
     );
 
@@ -431,15 +461,23 @@ Deno.serve(async (req: Request) => {
     });
 
   } catch (err) {
+    clearTimeout(timeoutId);
     const errorMessage = err instanceof Error ? err.message : String(err);
+    const isTimeout = err instanceof DOMException && err.name === 'AbortError';
     await logRefundAudit(adminClient, {
       transactionId,
       refundAmount,
       requestedBy: user.id,
       status: 'failed',
-      reason: `Flutterwave API error: ${errorMessage}`,
+      reason: isTimeout
+        ? 'Flutterwave API timeout (30s)'
+        : `Flutterwave API error: ${errorMessage}`,
     });
-    return new Response(JSON.stringify({ error: 'Refund processing failed due to network error' }), {
+    return new Response(JSON.stringify({
+      error: isTimeout
+        ? 'Refund processing timed out. Please retry.'
+        : 'Refund processing failed due to network error',
+    }), {
       status: 502,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
