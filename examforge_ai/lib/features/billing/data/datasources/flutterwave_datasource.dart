@@ -1,9 +1,9 @@
 import 'dart:convert';
-import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 
 import '../../../../../core/errors/exceptions.dart';
+import '../../../../../core/security/constant_time_comparison.dart';
 import '../../../../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -663,30 +663,12 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
 
   /// Constant-time string comparison that prevents timing attacks.
   ///
-  /// Standard `==` comparison short-circuits on the first mismatched
-  /// character, leaking information about how many characters matched
-  /// through response time. This method always compares ALL characters
-  /// regardless of mismatches, so the comparison time depends only on
-  /// the string length, not the content.
-  ///
-  /// Algorithm: XOR all corresponding bytes and OR the results. If any
-  /// byte differs, the accumulated result will be non-zero. We also
-  /// incorporate the length difference to prevent length-based attacks.
+  /// Delegates to [ConstantTimeComparison.equals] which uses a proven
+  /// constant-time algorithm with 0xFF padding for length-mismatch
+  /// detection. See constant_time_comparison.dart for the full
+  /// security analysis and root cause of the original bug.
   static bool _constantTimeEquals(String a, String b) {
-    final bytesA = Uint8List.fromList(utf8.encode(a));
-    final bytesB = Uint8List.fromList(utf8.encode(b));
-
-    // Length check: incorporate length difference into the comparison
-    // result without short-circuiting.
-    int result = bytesA.length ^ bytesB.length;
-
-    // Compare up to the length of the shorter string.
-    final minLen = bytesA.length < bytesB.length ? bytesA.length : bytesB.length;
-    for (int i = 0; i < minLen; i++) {
-      result |= bytesA[i] ^ bytesB[i];
-    }
-
-    return result == 0;
+    return ConstantTimeComparison.equals(a, b);
   }
 
   /// Maps a [DioException] to a domain [ServerException].

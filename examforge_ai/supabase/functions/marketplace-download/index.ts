@@ -5,23 +5,55 @@
 // All downloads MUST go through this function — never expose Storage
 // URLs directly to the client.
 //
-// Flow:
-//   1. Client requests download with a purchase ID
-//   2. Function validates the purchase (completed, belongs to user)
-//   3. Function generates a download token via SQL function
-//   4. Function creates a signed URL using the token
-//   5. Client receives the signed URL and downloads the file
-//   6. Each download is audited and counted
+// CORS FIX: Replaced wildcard (*) with environment-specific allow-list.
+// The original implementation allowed any origin to make requests, which
+// enables cross-origin attacks and credential theft.
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// ─── CORS Configuration (Hardened) ────────────────────────────────────────
+const ALLOWED_ORIGINS = (() => {
+  const env = Deno.env.get('ENVIRONMENT') || 'development';
+  switch (env) {
+    case 'production':
+      return [
+        'https://examforge.ai',
+        'https://www.examforge.ai',
+        'https://app.examforge.ai',
+      ];
+    case 'staging':
+      return [
+        'https://staging.examforge.ai',
+        'https://staging-app.examforge.ai',
+      ];
+    default: // development
+      return [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173',
+      ];
+  }
+})();
+
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    'Access-Control-Allow-Credentials': 'true',
+    'Vary': 'Origin',
+  };
+}
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
   }

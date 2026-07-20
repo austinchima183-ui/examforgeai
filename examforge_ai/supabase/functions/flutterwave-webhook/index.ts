@@ -3,7 +3,7 @@
 // ============================================================================
 // This is the ONLY entry point for Flutterwave webhook events.
 // It performs:
-//   1. Signature verification (constant-time comparison)
+//   1. Signature verification (constant-time comparison — FIXED)
 //   2. Idempotency check (using webhook_events table)
 //   3. Amount verification (checks charged_amount against expected amount)
 //   4. Currency verification
@@ -13,27 +13,84 @@
 // IMPORTANT: The Flutter app does NOT process webhooks directly.
 // All webhooks must come through this Edge Function to ensure
 // server-authoritative verification.
+//
+// FIX HISTORY:
+//   The original constantTimeEquals() had a CRITICAL bug: when a.length !== b.length,
+//   it reassigned b = a, making the comparison a-vs-a (always true) AND making the
+//   final length check a.length === b.length also always true (since b was overwritten).
+//   This allowed ANY webhook with a hash of different length than the secret to
+//   ALWAYS pass signature verification — a complete bypass.
+//
+//   The fix captures the length-match result BEFORE any processing and uses
+//   0xFF padding for out-of-bounds indices to ensure different-length inputs
+//   always produce a non-zero XOR accumulator.
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// ─── CORS Configuration (Hardened — see Phase 6) ────────────────────────────
+const ALLOWED_ORIGINS = (() => {
+  const env = Deno.env.get('ENVIRONMENT') || 'development';
+  switch (env) {
+    case 'production':
+      return [
+        'https://examforge.ai',
+        'https://www.examforge.ai',
+        'https://app.examforge.ai',
+        'https://admin.examforge.ai',
+      ];
+    case 'staging':
+      return [
+        'https://staging.examforge.ai',
+        'https://staging-app.examforge.ai',
+      ];
+    default: // development
+      return [
+        'http://localhost:3000',
+        'http://localhost:5173',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:5173',
+      ];
+  }
+})();
 
-// ─── Constant-time string comparison ────────────────────────────────────────
-// Prevents timing attacks on the webhook signature.
+function getCorsHeaders(req: Request): Record<string, string> {
+  const origin = req.headers.get('Origin') || '';
+  const allowedOrigin = ALLOWED_ORIGNS.includes(origin) ? origin : ALLOWED_ORIGNS[0];
+
+  return {
+    'Access-Control-Allow-Origin': allowedOrigin,
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+    'Access-Control-Allow-Methods': 'POST, OPTIONS',
+    'Access-Control-Max-Age': '86400',
+    'Vary': 'Origin',
+  };
+}
+
+// ─── Constant-time string comparison (FIXED) ─────────────────────────────────
+//
+// ROOT CAUSE: The original implementation reassigned b = a when lengths differed,
+// causing the comparison to always succeed for different-length inputs.
+//
+// FIX: Capture length match BEFORE processing. Iterate over max length with
+// 0xFF padding for out-of-bounds indices. Return accumulator===0 AND lengthsMatch.
 function constantTimeEquals(a: string, b: string): boolean {
-  if (a.length !== b.length) {
-    // Don't return early — do dummy comparison to maintain constant time
-    b = a;
+  // Capture length match BEFORE any processing.
+  const lengthsMatch = a.length === b.length;
+
+  // Iterate over the maximum length to ensure constant time.
+  // 0xFF padding ensures different-length inputs always produce non-zero XOR.
+  const maxLen = Math.max(a.length, b.length);
+
+  let accumulator = 0;
+  for (let i = 0; i < maxLen; i++) {
+    const aByte = i < a.length ? a.charCodeAt(i) : 0xFF;
+    const bByte = i < b.length ? b.charCodeAt(i) : 0xFF;
+    accumulator |= aByte ^ bByte;
   }
-  let result = a.length ^ b.length;
-  for (let i = 0; i < Math.min(a.length, b.length); i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0 && a.length === b.length;
+
+  // Both content AND length must match.
+  return accumulator === 0 && lengthsMatch;
 }
 
 // ─── Verify Flutterwave webhook signature ──────────────────────────────────
@@ -47,6 +104,8 @@ function verifyWebhookSignature(headers: Record<string, string>, secretHash: str
 }
 
 Deno.serve(async (req: Request) => {
+  const corsHeaders = getCorsHeaders(req);
+
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders });
@@ -180,6 +239,13 @@ Deno.serve(async (req: Request) => {
           break;
         }
 
+        // ─── NEGATIVE/ZERO AMOUNT CHECK ───────────────────────────────
+        if (chargedAmount <= 0) {
+          processingError = `INVALID AMOUNT: charged_amount=${chargedAmount} — must be positive`;
+          console.error(`FRAUD ALERT: ${processingError} for tx_ref=${txRef}`);
+          break;
+        }
+
         // ─── CURRENCY VERIFICATION ─────────────────────────────────────
         const actualCurrency = (data.currency || '').toUpperCase();
         const expectedCurrency = (localTx.currency || 'NGN').toUpperCase();
@@ -206,9 +272,8 @@ Deno.serve(async (req: Request) => {
 
         // ─── REPLAY DETECTION ──────────────────────────────────────────
         const flwTxId = data.id?.toString();
-        if (flwTxId && localTx.flutterwave_transaction_id && 
+        if (flwTxId && localTx.flutterwave_transaction_id &&
             localTx.flutterwave_transaction_id !== flwTxId) {
-          // Check if this Flutterwave transaction ID was used by another transaction
           const { data: replayCheck } = await supabase
             .from('transactions')
             .select('id')
@@ -216,7 +281,7 @@ Deno.serve(async (req: Request) => {
             .neq('id', localTx.id)
             .eq('status', 'successful')
             .maybeSingle();
-          
+
           if (replayCheck) {
             processingError = `REPLAY ATTACK: Flutterwave TX ${flwTxId} already used by transaction ${replayCheck.id}`;
             console.error(`FRAUD ALERT: ${processingError}`);
@@ -299,8 +364,6 @@ Deno.serve(async (req: Request) => {
     .eq('idempotency_key', idempotencyKey);
 
   // ─── Step 8: Return response ───────────────────────────────────────────
-  // Always return 200 to Flutterwave (they retry on non-2xx)
-  // Our idempotency layer handles retries safely.
   return new Response(JSON.stringify({
     status: processingError ? 'processed_with_error' : 'success',
     error: processingError,
