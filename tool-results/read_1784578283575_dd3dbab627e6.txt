@@ -1,0 +1,502 @@
+   601→   601→  is_late               BOOLEAN DEFAULT false,
+   602→   602→  metadata              JSONB DEFAULT '{}',
+   603→   603→  created_at            TIMESTAMPTZ DEFAULT now(),
+   604→   604→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   605→   605→  UNIQUE(homework_id, student_id)
+   606→   606→);
+   607→   607→
+   608→   608→COMMENT ON TABLE homework_submissions IS 'Student submissions for homework assignments';
+   609→   609→
+   610→   610→-- ============================================================================
+   611→   611→-- 18. ANNOUNCEMENTS TABLE
+   612→   612→-- ============================================================================
+   613→   613→
+   614→   614→CREATE TABLE IF NOT EXISTS announcements (
+   615→   615→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   616→   616→  school_id             UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   617→   617→  title                 TEXT NOT NULL,
+   618→   618→  content               TEXT NOT NULL,
+   619→   619→  announcement_type     announcement_type NOT NULL DEFAULT 'notice',
+   620→   620→  priority              announcement_priority NOT NULL DEFAULT 'normal',
+   621→   621→  target_audience       TEXT DEFAULT 'all',                  -- all, students, teachers, parents, specific_class
+   622→   622→  target_class_ids      JSONB DEFAULT '[]',                  -- Array of class UUIDs if targeted
+   623→   623→  attachment_urls       JSONB DEFAULT '[]',
+   624→   624→  is_pinned             BOOLEAN DEFAULT false,
+   625→   625→  is_published          BOOLEAN DEFAULT false,
+   626→   626→  published_at          TIMESTAMPTZ,
+   627→   627→  expires_at            TIMESTAMPTZ,
+   628→   628→  created_by            UUID NOT NULL REFERENCES users(id) ON DELETE SET NULL,
+   629→   629→  created_at            TIMESTAMPTZ DEFAULT now(),
+   630→   630→  updated_at            TIMESTAMPTZ DEFAULT now()
+   631→   631→);
+   632→   632→
+   633→   633→COMMENT ON TABLE announcements IS 'School-wide announcements, notices, and circulars';
+   634→   634→
+   635→   635→-- ============================================================================
+   636→   636→-- 19. DOCUMENTS TABLE
+   637→   637→-- ============================================================================
+   638→   638→
+   639→   639→CREATE TABLE IF NOT EXISTS documents (
+   640→   640→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   641→   641→  school_id             UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   642→   642→  title                 TEXT NOT NULL,
+   643→   643→  description           TEXT,
+   644→   644→  document_type         document_type NOT NULL DEFAULT 'general',
+   645→   645→  file_url              TEXT NOT NULL,
+   646→   646→  file_name             TEXT NOT NULL,
+   647→   647→  file_size             BIGINT,                              -- bytes
+   648→   648→  mime_type             TEXT,
+   649→   649→  category              TEXT,                                -- User-defined category
+   650→   650→  tags                  JSONB DEFAULT '[]',
+   651→   651→  is_public             BOOLEAN DEFAULT false,
+   652→   652→  downloadable          BOOLEAN DEFAULT true,
+   653→   653→  target_audience       TEXT DEFAULT 'all',
+   654→   654→  uploaded_by           UUID REFERENCES users(id) ON DELETE SET NULL,
+   655→   655→  student_id            UUID REFERENCES users(id) ON DELETE SET NULL, -- If student-specific doc
+   656→   656→  download_count        INTEGER DEFAULT 0,
+   657→   657→  version               INTEGER DEFAULT 1,
+   658→   658→  parent_document_id    UUID REFERENCES documents(id) ON DELETE SET NULL, -- Versioning
+   659→   659→  created_at            TIMESTAMPTZ DEFAULT now(),
+   660→   660→  updated_at            TIMESTAMPTZ DEFAULT now()
+   661→   661→);
+   662→   662→
+   663→   663→COMMENT ON TABLE documents IS 'Centralized document management for school files';
+   664→   664→
+   665→   665→-- ============================================================================
+   666→   666→-- 20. PROMOTION HISTORY TABLE
+   667→   667→-- ============================================================================
+   668→   668→
+   669→   669→CREATE TABLE IF NOT EXISTS promotion_history (
+   670→   670→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   671→   671→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   672→   672→  school_id             UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   673→   673→  from_class_id         UUID REFERENCES classes(id) ON DELETE SET NULL,
+   674→   674→  to_class_id           UUID REFERENCES classes(id) ON DELETE SET NULL,
+   675→   675→  academic_session_id   UUID REFERENCES academic_sessions(id) ON DELETE SET NULL,
+   676→   676→  term_id               UUID REFERENCES terms(id) ON DELETE SET NULL,
+   677→   677→  promotion_status      promotion_status NOT NULL,
+   678→   678→  average_score         NUMERIC(6,2),
+   679→   679→  class_teacher_comment TEXT,
+   680→   680→  principal_comment     TEXT,
+   681→   681→  promoted_by           UUID REFERENCES users(id) ON DELETE SET NULL,
+   682→   682→  promoted_at           TIMESTAMPTZ DEFAULT now(),
+   683→   683→  created_at            TIMESTAMPTZ DEFAULT now()
+   684→   684→);
+   685→   685→
+   686→   686→COMMENT ON TABLE promotion_history IS 'Student promotion/demotion history across academic sessions';
+   687→   687→
+   688→   688→-- ============================================================================
+   689→   689→-- 21. SUBJECT TEACHER ASSIGNMENTS (enhanced class_subjects)
+   690→   690→-- ============================================================================
+   691→   691→
+   692→   692→-- Extend existing class_subjects with more metadata via alter
+   693→   693→DO $$
+   694→   694→BEGIN
+   695→   695→  IF NOT EXISTS (
+   696→   696→    SELECT 1 FROM information_schema.columns
+   697→   697→    WHERE table_name = 'class_subjects' AND column_name = 'is_compulsory'
+   698→   698→  ) THEN
+   699→   699→    ALTER TABLE class_subjects ADD COLUMN is_compulsory BOOLEAN DEFAULT true;
+   700→   700→  END IF;
+   701→   701→
+   702→   702→  IF NOT EXISTS (
+   703→   703→    SELECT 1 FROM information_schema.columns
+   704→   704→    WHERE table_name = 'class_subjects' AND column_name = 'is_elective'
+   705→   705→  ) THEN
+   706→   706→    ALTER TABLE class_subjects ADD COLUMN is_elective BOOLEAN DEFAULT false;
+   707→   707→  END IF;
+   708→   708→
+   709→   709→  IF NOT EXISTS (
+   710→   710→    SELECT 1 FROM information_schema.columns
+   711→   711→    WHERE table_name = 'class_subjects' AND column_name = 'term_id'
+   712→   712→  ) THEN
+   713→   713→    ALTER TABLE class_subjects ADD COLUMN term_id UUID REFERENCES terms(id) ON DELETE SET NULL;
+   714→   714→  END IF;
+   715→   715→END
+   716→   716→$$;
+   717→   717→
+   718→   718→-- ============================================================================
+   719→   719→-- 22. INDEXES
+   720→   720→-- ============================================================================
+   721→   721→
+   722→   722→-- school_branches
+   723→   723→CREATE INDEX IF NOT EXISTS idx_school_branches_school_id ON school_branches(school_id);
+   724→   724→CREATE INDEX IF NOT EXISTS idx_school_branches_is_active ON school_branches(is_active);
+   725→   725→
+   726→   726→-- departments
+   727→   727→CREATE INDEX IF NOT EXISTS idx_departments_school_id ON departments(school_id);
+   728→   728→CREATE INDEX IF NOT EXISTS idx_departments_head_teacher_id ON departments(head_teacher_id);
+   729→   729→CREATE INDEX IF NOT EXISTS idx_departments_is_active ON departments(is_active);
+   730→   730→
+   731→   731→-- student_profiles
+   732→   732→CREATE INDEX IF NOT EXISTS idx_student_profiles_user_id ON student_profiles(user_id);
+   733→   733→CREATE INDEX IF NOT EXISTS idx_student_profiles_school_id ON student_profiles(school_id);
+   734→   734→CREATE INDEX IF NOT EXISTS idx_student_profiles_admission_number ON student_profiles(admission_number);
+   735→   735→CREATE INDEX IF NOT EXISTS idx_student_profiles_current_class_id ON student_profiles(current_class_id);
+   736→   736→CREATE INDEX IF NOT EXISTS idx_student_profiles_is_active ON student_profiles(is_active);
+   737→   737→CREATE INDEX IF NOT EXISTS idx_student_profiles_is_graduated ON student_profiles(is_graduated);
+   738→   738→
+   739→   739→-- teacher_profiles
+   740→   740→CREATE INDEX IF NOT EXISTS idx_teacher_profiles_user_id ON teacher_profiles(user_id);
+   741→   741→CREATE INDEX IF NOT EXISTS idx_teacher_profiles_school_id ON teacher_profiles(school_id);
+   742→   742→CREATE INDEX IF NOT EXISTS idx_teacher_profiles_department_id ON teacher_profiles(department_id);
+   743→   743→CREATE INDEX IF NOT EXISTS idx_teacher_profiles_employee_id ON teacher_profiles(employee_id);
+   744→   744→CREATE INDEX IF NOT EXISTS idx_teacher_profiles_is_active ON teacher_profiles(is_active);
+   745→   745→
+   746→   746→-- parent_profiles
+   747→   747→CREATE INDEX IF NOT EXISTS idx_parent_profiles_user_id ON parent_profiles(user_id);
+   748→   748→CREATE INDEX IF NOT EXISTS idx_parent_profiles_school_id ON parent_profiles(school_id);
+   749→   749→
+   750→   750→-- parent_students
+   751→   751→CREATE INDEX IF NOT EXISTS idx_parent_students_parent_id ON parent_students(parent_id);
+   752→   752→CREATE INDEX IF NOT EXISTS idx_parent_students_student_id ON parent_students(student_id);
+   753→   753→
+   754→   754→-- academic_sessions
+   755→   755→CREATE INDEX IF NOT EXISTS idx_academic_sessions_school_id ON academic_sessions(school_id);
+   756→   756→CREATE INDEX IF NOT EXISTS idx_academic_sessions_is_current ON academic_sessions(is_current);
+   757→   757→
+   758→   758→-- terms
+   759→   759→CREATE INDEX IF NOT EXISTS idx_terms_academic_session_id ON terms(academic_session_id);
+   760→   760→CREATE INDEX IF NOT EXISTS idx_terms_school_id ON terms(school_id);
+   761→   761→CREATE INDEX IF NOT EXISTS idx_terms_is_current ON terms(is_current);
+   762→   762→CREATE INDEX IF NOT EXISTS idx_terms_status ON terms(status);
+   763→   763→
+   764→   764→-- school_calendar_events
+   765→   765→CREATE INDEX IF NOT EXISTS idx_school_calendar_events_school_id ON school_calendar_events(school_id);
+   766→   766→CREATE INDEX IF NOT EXISTS idx_school_calendar_events_term_id ON school_calendar_events(term_id);
+   767→   767→CREATE INDEX IF NOT EXISTS idx_school_calendar_events_event_type ON school_calendar_events(event_type);
+   768→   768→CREATE INDEX IF NOT EXISTS idx_school_calendar_events_start_date ON school_calendar_events(start_date);
+   769→   769→CREATE INDEX IF NOT EXISTS idx_school_calendar_events_is_active ON school_calendar_events(is_active);
+   770→   770→
+   771→   771→-- timetables
+   772→   772→CREATE INDEX IF NOT EXISTS idx_timetables_school_id ON timetables(school_id);
+   773→   773→CREATE INDEX IF NOT EXISTS idx_timetables_term_id ON timetables(term_id);
+   774→   774→CREATE INDEX IF NOT EXISTS idx_timetables_class_id ON timetables(class_id);
+   775→   775→CREATE INDEX IF NOT EXISTS idx_timetables_is_active ON timetables(is_active);
+   776→   776→
+   777→   777→-- timetable_slots
+   778→   778→CREATE INDEX IF NOT EXISTS idx_timetable_slots_timetable_id ON timetable_slots(timetable_id);
+   779→   779→CREATE INDEX IF NOT EXISTS idx_timetable_slots_day_of_week ON timetable_slots(day_of_week);
+   780→   780→CREATE INDEX IF NOT EXISTS idx_timetable_slots_teacher_id ON timetable_slots(teacher_id);
+   781→   781→CREATE INDEX IF NOT EXISTS idx_timetable_slots_subject_id ON timetable_slots(subject_id);
+   782→   782→CREATE INDEX IF NOT EXISTS idx_timetable_slots_class_id ON timetable_slots(class_id);
+   783→   783→-- Composite index for conflict detection queries
+   784→   784→CREATE INDEX IF NOT EXISTS idx_timetable_slots_teacher_day_period ON timetable_slots(teacher_id, day_of_week, period_number);
+   785→   785→CREATE INDEX IF NOT EXISTS idx_timetable_slots_class_day_period ON timetable_slots(class_id, day_of_week, period_number);
+   786→   786→
+   787→   787→-- attendance_records
+   788→   788→CREATE INDEX IF NOT EXISTS idx_attendance_records_school_id ON attendance_records(school_id);
+   789→   789→CREATE INDEX IF NOT EXISTS idx_attendance_records_term_id ON attendance_records(term_id);
+   790→   790→CREATE INDEX IF NOT EXISTS idx_attendance_records_class_id ON attendance_records(class_id);
+   791→   791→CREATE INDEX IF NOT EXISTS idx_attendance_records_date ON attendance_records(date);
+   792→   792→CREATE INDEX IF NOT EXISTS idx_attendance_records_attendance_type ON attendance_records(attendance_type);
+   793→   793→-- Composite for daily lookups
+   794→   794→CREATE INDEX IF NOT EXISTS idx_attendance_records_class_date ON attendance_records(class_id, date);
+   795→   795→
+   796→   796→-- attendance_entries
+   797→   797→CREATE INDEX IF NOT EXISTS idx_attendance_entries_attendance_record_id ON attendance_entries(attendance_record_id);
+   798→   798→CREATE INDEX IF NOT EXISTS idx_attendance_entries_user_id ON attendance_entries(user_id);
+   799→   799→CREATE INDEX IF NOT EXISTS idx_attendance_entries_status ON attendance_entries(status);
+   800→   800→
+   801→   801→-- homework
+   802→   802→CREATE INDEX IF NOT EXISTS idx_homework_school_id ON homework(school_id);
+   803→   803→CREATE INDEX IF NOT EXISTS idx_homework_term_id ON homework(term_id);
+   804→   804→CREATE INDEX IF NOT EXISTS idx_homework_class_id ON homework(class_id);
+   805→   805→CREATE INDEX IF NOT EXISTS idx_homework_subject_id ON homework(subject_id);
+   806→   806→CREATE INDEX IF NOT EXISTS idx_homework_teacher_id ON homework(teacher_id);
+   807→   807→CREATE INDEX IF NOT EXISTS idx_homework_status ON homework(status);
+   808→   808→CREATE INDEX IF NOT EXISTS idx_homework_deadline ON homework(deadline);
+   809→   809→
+   810→   810→-- homework_submissions
+   811→   811→CREATE INDEX IF NOT EXISTS idx_homework_submissions_homework_id ON homework_submissions(homework_id);
+   812→   812→CREATE INDEX IF NOT EXISTS idx_homework_submissions_student_id ON homework_submissions(student_id);
+   813→   813→CREATE INDEX IF NOT EXISTS idx_homework_submissions_status ON homework_submissions(status);
+   814→   814→
+   815→   815→-- announcements
+   816→   816→CREATE INDEX IF NOT EXISTS idx_announcements_school_id ON announcements(school_id);
+   817→   817→CREATE INDEX IF NOT EXISTS idx_announcements_type ON announcements(announcement_type);
+   818→   818→CREATE INDEX IF NOT EXISTS idx_announcements_priority ON announcements(priority);
+   819→   819→CREATE INDEX IF NOT EXISTS idx_announcements_is_published ON announcements(is_published);
+   820→   820→CREATE INDEX IF NOT EXISTS idx_announcements_published_at ON announcements(published_at);
+   821→   821→CREATE INDEX IF NOT EXISTS idx_announcements_created_by ON announcements(created_by);
+   822→   822→
+   823→   823→-- documents
+   824→   824→CREATE INDEX IF NOT EXISTS idx_documents_school_id ON documents(school_id);
+   825→   825→CREATE INDEX IF NOT EXISTS idx_documents_document_type ON documents(document_type);
+   826→   826→CREATE INDEX IF NOT EXISTS idx_documents_student_id ON documents(student_id);
+   827→   827→CREATE INDEX IF NOT EXISTS idx_documents_uploaded_by ON documents(uploaded_by);
+   828→   828→CREATE INDEX IF NOT EXISTS idx_documents_category ON documents(category);
+   829→   829→CREATE INDEX IF NOT EXISTS idx_documents_is_public ON documents(is_public);
+   830→   830→
+   831→   831→-- promotion_history
+   832→   832→CREATE INDEX IF NOT EXISTS idx_promotion_history_student_id ON promotion_history(student_id);
+   833→   833→CREATE INDEX IF NOT EXISTS idx_promotion_history_school_id ON promotion_history(school_id);
+   834→   834→CREATE INDEX IF NOT EXISTS idx_promotion_history_academic_session_id ON promotion_history(academic_session_id);
+   835→   835→CREATE INDEX IF NOT EXISTS idx_promotion_history_promotion_status ON promotion_history(promotion_status);
+   836→   836→
+   837→   837→-- ============================================================================
+   838→   838→-- 23. TRIGGERS
+   839→   839→-- ============================================================================
+   840→   840→
+   841→   841→-- Auto-update updated_at on all new tables
+   842→   842→DROP TRIGGER IF EXISTS set_school_branches_updated_at ON school_branches;
+   843→   843→CREATE TRIGGER set_school_branches_updated_at
+   844→   844→  BEFORE UPDATE ON school_branches FOR EACH ROW
+   845→   845→  EXECUTE FUNCTION update_updated_at_column();
+   846→   846→
+   847→   847→DROP TRIGGER IF EXISTS set_departments_updated_at ON departments;
+   848→   848→CREATE TRIGGER set_departments_updated_at
+   849→   849→  BEFORE UPDATE ON departments FOR EACH ROW
+   850→   850→  EXECUTE FUNCTION update_updated_at_column();
+   851→   851→
+   852→   852→DROP TRIGGER IF EXISTS set_student_profiles_updated_at ON student_profiles;
+   853→   853→CREATE TRIGGER set_student_profiles_updated_at
+   854→   854→  BEFORE UPDATE ON student_profiles FOR EACH ROW
+   855→   855→  EXECUTE FUNCTION update_updated_at_column();
+   856→   856→
+   857→   857→DROP TRIGGER IF EXISTS set_teacher_profiles_updated_at ON teacher_profiles;
+   858→   858→CREATE TRIGGER set_teacher_profiles_updated_at
+   859→   859→  BEFORE UPDATE ON teacher_profiles FOR EACH ROW
+   860→   860→  EXECUTE FUNCTION update_updated_at_column();
+   861→   861→
+   862→   862→DROP TRIGGER IF EXISTS set_parent_profiles_updated_at ON parent_profiles;
+   863→   863→CREATE TRIGGER set_parent_profiles_updated_at
+   864→   864→  BEFORE UPDATE ON parent_profiles FOR EACH ROW
+   865→   865→  EXECUTE FUNCTION update_updated_at_column();
+   866→   866→
+   867→   867→DROP TRIGGER IF EXISTS set_academic_sessions_updated_at ON academic_sessions;
+   868→   868→CREATE TRIGGER set_academic_sessions_updated_at
+   869→   869→  BEFORE UPDATE ON academic_sessions FOR EACH ROW
+   870→   870→  EXECUTE FUNCTION update_updated_at_column();
+   871→   871→
+   872→   872→DROP TRIGGER IF EXISTS set_terms_updated_at ON terms;
+   873→   873→CREATE TRIGGER set_terms_updated_at
+   874→   874→  BEFORE UPDATE ON terms FOR EACH ROW
+   875→   875→  EXECUTE FUNCTION update_updated_at_column();
+   876→   876→
+   877→   877→DROP TRIGGER IF EXISTS set_school_calendar_events_updated_at ON school_calendar_events;
+   878→   878→CREATE TRIGGER set_school_calendar_events_updated_at
+   879→   879→  BEFORE UPDATE ON school_calendar_events FOR EACH ROW
+   880→   880→  EXECUTE FUNCTION update_updated_at_column();
+   881→   881→
+   882→   882→DROP TRIGGER IF EXISTS set_timetables_updated_at ON timetables;
+   883→   883→CREATE TRIGGER set_timetables_updated_at
+   884→   884→  BEFORE UPDATE ON timetables FOR EACH ROW
+   885→   885→  EXECUTE FUNCTION update_updated_at_column();
+   886→   886→
+   887→   887→DROP TRIGGER IF EXISTS set_timetable_slots_updated_at ON timetable_slots;
+   888→   888→CREATE TRIGGER set_timetable_slots_updated_at
+   889→   889→  BEFORE UPDATE ON timetable_slots FOR EACH ROW
+   890→   890→  EXECUTE FUNCTION update_updated_at_column();
+   891→   891→
+   892→   892→DROP TRIGGER IF EXISTS set_attendance_records_updated_at ON attendance_records;
+   893→   893→CREATE TRIGGER set_attendance_records_updated_at
+   894→   894→  BEFORE UPDATE ON attendance_records FOR EACH ROW
+   895→   895→  EXECUTE FUNCTION update_updated_at_column();
+   896→   896→
+   897→   897→DROP TRIGGER IF EXISTS set_attendance_entries_updated_at ON attendance_entries;
+   898→   898→CREATE TRIGGER set_attendance_entries_updated_at
+   899→   899→  BEFORE UPDATE ON attendance_entries FOR EACH ROW
+   900→   900→  EXECUTE FUNCTION update_updated_at_column();
+   901→   901→
+   902→   902→DROP TRIGGER IF EXISTS set_homework_updated_at ON homework;
+   903→   903→CREATE TRIGGER set_homework_updated_at
+   904→   904→  BEFORE UPDATE ON homework FOR EACH ROW
+   905→   905→  EXECUTE FUNCTION update_updated_at_column();
+   906→   906→
+   907→   907→DROP TRIGGER IF EXISTS set_homework_submissions_updated_at ON homework_submissions;
+   908→   908→CREATE TRIGGER set_homework_submissions_updated_at
+   909→   909→  BEFORE UPDATE ON homework_submissions FOR EACH ROW
+   910→   910→  EXECUTE FUNCTION update_updated_at_column();
+   911→   911→
+   912→   912→DROP TRIGGER IF EXISTS set_announcements_updated_at ON announcements;
+   913→   913→CREATE TRIGGER set_announcements_updated_at
+   914→   914→  BEFORE UPDATE ON announcements FOR EACH ROW
+   915→   915→  EXECUTE FUNCTION update_updated_at_column();
+   916→   916→
+   917→   917→DROP TRIGGER IF EXISTS set_documents_updated_at ON documents;
+   918→   918→CREATE TRIGGER set_documents_updated_at
+   919→   919→  BEFORE UPDATE ON documents FOR EACH ROW
+   920→   920→  EXECUTE FUNCTION update_updated_at_column();
+   921→   921→
+   922→   922→-- ============================================================================
+   923→   923→-- 24. HELPER FUNCTIONS
+   924→   924→-- ============================================================================
+   925→   925→
+   926→   926→-- ---------------------------------------------------------------------------
+   927→   927→-- ensure_single_current_session()
+   928→   928→-- Ensures only one session per school is marked as current.
+   929→   929→-- ---------------------------------------------------------------------------
+   930→   930→CREATE OR REPLACE FUNCTION ensure_single_current_session()
+   931→   931→RETURNS TRIGGER AS $$
+   932→   932→BEGIN
+   933→   933→  IF NEW.is_current = true THEN
+   934→   934→    UPDATE academic_sessions
+   935→   935→    SET is_current = false
+   936→   936→    WHERE school_id = NEW.school_id
+   937→   937→      AND id != NEW.id
+   938→   938→      AND is_current = true;
+   939→   939→  END IF;
+   940→   940→  RETURN NEW;
+   941→   941→END;
+   942→   942→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   943→   943→
+   944→   944→DROP TRIGGER IF EXISTS trg_ensure_single_current_session ON academic_sessions;
+   945→   945→CREATE TRIGGER trg_ensure_single_current_session
+   946→   946→  BEFORE INSERT OR UPDATE OF is_current ON academic_sessions
+   947→   947→  FOR EACH ROW
+   948→   948→  WHEN (NEW.is_current = true)
+   949→   949→  EXECUTE FUNCTION ensure_single_current_session();
+   950→   950→
+   951→   951→-- ---------------------------------------------------------------------------
+   952→   952→-- ensure_single_current_term()
+   953→   953→-- Ensures only one term per school is marked as current.
+   954→   954→-- ---------------------------------------------------------------------------
+   955→   955→CREATE OR REPLACE FUNCTION ensure_single_current_term()
+   956→   956→RETURNS TRIGGER AS $$
+   957→   957→BEGIN
+   958→   958→  IF NEW.is_current = true THEN
+   959→   959→    UPDATE terms
+   960→   960→    SET is_current = false
+   961→   961→    WHERE school_id = NEW.school_id
+   962→   962→      AND id != NEW.id
+   963→   963→      AND is_current = true;
+   964→   964→  END IF;
+   965→   965→  RETURN NEW;
+   966→   966→END;
+   967→   967→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   968→   968→
+   969→   969→DROP TRIGGER IF EXISTS trg_ensure_single_current_term ON terms;
+   970→   970→CREATE TRIGGER trg_ensure_single_current_term
+   971→   971→  BEFORE INSERT OR UPDATE OF is_current ON terms
+   972→   972→  FOR EACH ROW
+   973→   973→  WHEN (NEW.is_current = true)
+   974→   974→  EXECUTE FUNCTION ensure_single_current_term();
+   975→   975→
+   976→   976→-- ---------------------------------------------------------------------------
+   977→   977→-- detect_timetable_conflicts()
+   978→   978→-- Raises an exception if a teacher or class is double-booked.
+   979→   979→-- ---------------------------------------------------------------------------
+   980→   980→CREATE OR REPLACE FUNCTION detect_timetable_conflicts()
+   981→   981→RETURNS TRIGGER AS $$
+   982→   982→BEGIN
+   983→   983→  -- Check teacher conflict (same teacher, same day, same period, different slot)
+   984→   984→  IF NEW.teacher_id IS NOT NULL THEN
+   985→   985→    IF EXISTS (
+   986→   986→      SELECT 1 FROM timetable_slots ts
+   987→   987→      JOIN timetables t ON t.id = ts.timetable_id
+   988→   988→      WHERE ts.teacher_id = NEW.teacher_id
+   989→   989→        AND ts.day_of_week = NEW.day_of_week
+   990→   990→        AND ts.period_number = NEW.period_number
+   991→   991→        AND ts.id != NEW.id
+   992→   992→        AND t.is_active = true
+   993→   993→    ) THEN
+   994→   994→      RAISE EXCEPTION 'Teacher is already assigned to another class at % period % on %',
+   995→   995→        NEW.teacher_id, NEW.period_number, NEW.day_of_week;
+   996→   996→    END IF;
+   997→   997→  END IF;
+   998→   998→
+   999→   999→  -- Check class conflict (same class, same day, same period, different slot)
+  1000→  1000→  IF NEW.class_id IS NOT NULL THEN
+  1001→  1001→    IF EXISTS (
+  1002→  1002→      SELECT 1 FROM timetable_slots ts
+  1003→  1003→      JOIN timetables t ON t.id = ts.timetable_id
+  1004→  1004→      WHERE ts.class_id = NEW.class_id
+  1005→  1005→        AND ts.day_of_week = NEW.day_of_week
+  1006→  1006→        AND ts.period_number = NEW.period_number
+  1007→  1007→        AND ts.id != NEW.id
+  1008→  1008→        AND t.is_active = true
+  1009→  1009→    ) THEN
+  1010→  1010→      RAISE EXCEPTION 'Class is already occupied at period % on %',
+  1011→  1011→        NEW.period_number, NEW.day_of_week;
+  1012→  1012→    END IF;
+  1013→  1013→  END IF;
+  1014→  1014→
+  1015→  1015→  RETURN NEW;
+  1016→  1016→END;
+  1017→  1017→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1018→  1018→
+  1019→  1019→DROP TRIGGER IF EXISTS trg_detect_timetable_conflicts ON timetable_slots;
+  1020→  1020→CREATE TRIGGER trg_detect_timetable_conflicts
+  1021→  1021→  BEFORE INSERT OR UPDATE ON timetable_slots
+  1022→  1022→  FOR EACH ROW
+  1023→  1023→  EXECUTE FUNCTION detect_timetable_conflicts();
+  1024→  1024→
+  1025→  1025→-- ---------------------------------------------------------------------------
+  1026→  1026→-- notify_announcement_published()
+  1027→  1027→-- Creates notifications when an announcement is published.
+  1028→  1028→-- ---------------------------------------------------------------------------
+  1029→  1029→CREATE OR REPLACE FUNCTION notify_announcement_published()
+  1030→  1030→RETURNS TRIGGER AS $$
+  1031→  1031→DECLARE
+  1032→  1032→  target_user RECORD;
+  1033→  1033→  notification_message TEXT;
+  1034→  1034→BEGIN
+  1035→  1035→  IF NEW.is_published = true AND (OLD.is_published = false OR OLD.is_published IS NULL) THEN
+  1036→  1036→    notification_message := CASE NEW.priority
+  1037→  1037→      WHEN 'urgent' THEN 'URGENT: ' || NEW.title
+  1038→  1038→      WHEN 'high' THEN 'IMPORTANT: ' || NEW.title
+  1039→  1039→      ELSE NEW.title
+  1040→  1040→    END;
+  1041→  1041→
+  1042→  1042→    -- Notify all users in the school based on target audience
+  1043→  1043→    FOR target_user IN
+  1044→  1044→      SELECT id FROM users
+  1045→  1045→      WHERE school_id = NEW.school_id
+  1046→  1046→        AND is_active = true
+  1047→  1047→        AND CASE NEW.target_audience
+  1048→  1048→          WHEN 'students' THEN role = 'student'
+  1049→  1049→          WHEN 'teachers' THEN role = 'teacher'
+  1050→  1050→          WHEN 'parents' THEN role = 'parent'
+  1051→  1051→          ELSE true
+  1052→  1052→        END
+  1053→  1053→    LOOP
+  1054→  1054→      INSERT INTO notifications (user_id, type, title, message, data)
+  1055→  1055→      VALUES (
+  1056→  1056→        target_user.id,
+  1057→  1057→        'system',
+  1058→  1058→        'New Announcement',
+  1059→  1059→        notification_message,
+  1060→  1060→        jsonb_build_object('announcement_id', NEW.id, 'type', 'announcement')
+  1061→  1061→      );
+  1062→  1062→    END LOOP;
+  1063→  1063→  END IF;
+  1064→  1064→
+  1065→  1065→  RETURN NEW;
+  1066→  1066→END;
+  1067→  1067→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1068→  1068→
+  1069→  1069→DROP TRIGGER IF EXISTS trg_notify_announcement_published ON announcements;
+  1070→  1070→CREATE TRIGGER trg_notify_announcement_published
+  1071→  1071→  AFTER INSERT OR UPDATE OF is_published ON announcements
+  1072→  1072→  FOR EACH ROW
+  1073→  1073→  WHEN (NEW.is_published = true)
+  1074→  1074→  EXECUTE FUNCTION notify_announcement_published();
+  1075→  1075→
+  1076→  1076→-- ============================================================================
+  1077→  1077→-- 25. ROW LEVEL SECURITY (RLS)
+  1078→  1078→-- ============================================================================
+  1079→  1079→
+  1080→  1080→-- Enable RLS on all new tables
+  1081→  1081→ALTER TABLE school_branches ENABLE ROW LEVEL SECURITY;
+  1082→  1082→ALTER TABLE departments ENABLE ROW LEVEL SECURITY;
+  1083→  1083→ALTER TABLE student_profiles ENABLE ROW LEVEL SECURITY;
+  1084→  1084→ALTER TABLE teacher_profiles ENABLE ROW LEVEL SECURITY;
+  1085→  1085→ALTER TABLE parent_profiles ENABLE ROW LEVEL SECURITY;
+  1086→  1086→ALTER TABLE parent_students ENABLE ROW LEVEL SECURITY;
+  1087→  1087→ALTER TABLE academic_sessions ENABLE ROW LEVEL SECURITY;
+  1088→  1088→ALTER TABLE terms ENABLE ROW LEVEL SECURITY;
+  1089→  1089→ALTER TABLE school_calendar_events ENABLE ROW LEVEL SECURITY;
+  1090→  1090→ALTER TABLE timetables ENABLE ROW LEVEL SECURITY;
+  1091→  1091→ALTER TABLE timetable_slots ENABLE ROW LEVEL SECURITY;
+  1092→  1092→ALTER TABLE attendance_records ENABLE ROW LEVEL SECURITY;
+  1093→  1093→ALTER TABLE attendance_entries ENABLE ROW LEVEL SECURITY;
+  1094→  1094→ALTER TABLE homework ENABLE ROW LEVEL SECURITY;
+  1095→  1095→ALTER TABLE homework_submissions ENABLE ROW LEVEL SECURITY;
+  1096→  1096→ALTER TABLE announcements ENABLE ROW LEVEL SECURITY;
+  1097→  1097→ALTER TABLE documents ENABLE ROW LEVEL SECURITY;
+  1098→  1098→ALTER TABLE promotion_history ENABLE ROW LEVEL SECURITY;
+  1099→  1099→
+  1100→  1100→-- ===========================================================================
+
+[showing lines 601-1100 of 1656; use offset=1101 with limit to continue reading]

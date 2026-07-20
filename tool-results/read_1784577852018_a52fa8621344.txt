@@ -1,0 +1,1478 @@
+     1→/// Analytics Engine — pure computation service for results analytics.
+     2→///
+     3→/// This service provides powerful insights for teachers, schools, and students
+     4→/// by operating on raw result data and producing computed analytics. It is a
+     5→/// computation-only module with zero database access and no external
+     6→/// dependencies beyond the entity types defined in the results and CBT domains.
+     7→///
+     8→/// ## Design Principles
+     9→///
+    10→/// - **Pure functions**: Every public method is deterministic — same inputs
+    11→///   always produce the same outputs. No hidden state, no I/O.
+    12→/// - **Static helpers**: Core statistical primitives are exposed as `static`
+    13→///   methods for maximum testability and reusability.
+    14→/// - **Null-safe**: All methods handle empty input lists gracefully, returning
+    15→///   sensible defaults rather than throwing.
+    16→/// - **Self-contained DTOs**: Output types are defined in this file to avoid
+    17→///   coupling to persistence-layer entities.
+    18→///
+    19→/// ## Usage
+    20→///
+    21→/// ```dart
+    22→/// final engine = AnalyticsEngine();
+    23→/// final summary = engine.computeClassPerformance(overallResults,
+    24→///     subjectResults: subjectResults);
+    25→/// print('Class average: ${summary.averageScore}');
+    26→/// print('Pass rate: ${summary.passRate}%');
+    27→/// ```
+    28→library;
+    29→
+    30→import 'package:examforge_ai/features/results/domain/entities/results_entities.dart';
+    31→
+    32→// ═══════════════════════════════════════════════════════════════════════
+    33→// OUTPUT DTOs
+    34→// ═══════════════════════════════════════════════════════════════════════
+    35→
+    36→/// Computed performance summary for a single class.
+    37→///
+    38→/// Aggregates individual student results into class-level statistics
+    39→/// including central tendency measures, pass/distinction rates, grade and
+    40→/// score distributions, topic-level performance, and improvement metrics.
+    41→class ClassPerformanceSummary {
+    42→  const ClassPerformanceSummary({
+    43→    required this.classId,
+    44→    required this.totalStudents,
+    45→    required this.averageScore,
+    46→    required this.highestScore,
+    47→    required this.lowestScore,
+    48→    required this.medianScore,
+    49→    required this.passRate,
+    50→    required this.distinctionRate,
+    51→    required this.gradeDistribution,
+    52→    required this.scoreDistribution,
+    53→    required this.topicPerformance,
+    54→    required this.improvementRate,
+    55→    this.subjectId,
+    56→    this.subjectBreakdown = const {},
+    57→  });
+    58→
+    59→  /// The class identifier.
+    60→  final String classId;
+    61→
+    62→  /// Optional subject filter — when set, metrics are scoped to this subject.
+    63→  final String? subjectId;
+    64→
+    65→  /// Number of students included in the computation.
+    66→  final int totalStudents;
+    67→
+    68→  /// Arithmetic mean of all student percentages.
+    69→  final double averageScore;
+    70→
+    71→  /// Highest individual percentage in the class.
+    72→  final double highestScore;
+    73→
+    74→  /// Lowest individual percentage in the class.
+    75→  final double lowestScore;
+    76→
+    77→  /// Median percentage (50th percentile).
+    78→  final double medianScore;
+    79→
+    80→  /// Percentage of students who passed (0–100).
+    81→  final double passRate;
+    82→
+    83→  /// Percentage of students who achieved distinction (≥ 75% or as defined).
+    84→  final double distinctionRate;
+    85→
+    86→  /// Map of grade label → count of students receiving that grade.
+    87→  final Map<String, int> gradeDistribution;
+    88→
+    89→  /// Histogram buckets for score ranges.
+    90→  final List<ScoreBucket> scoreDistribution;
+    91→
+    92→  /// Map of topic ID → [TopicPerformanceData] with aggregated accuracy.
+    93→  final Map<String, TopicPerformanceData> topicPerformance;
+    94→
+    95→  /// Improvement rate compared to the previous period (−100 to +100).
+    96→  ///
+    97→  /// Positive values indicate class-wide improvement; negative values indicate
+    98→  /// decline. Computed as the average delta between current and previous
+    99→  /// percentages.
+   100→  final double improvementRate;
+   101→
+   102→  /// Per-subroid breakdown when [subjectResults] are supplied.
+   103→  /// Key: subject ID, value: subject-specific summary.
+   104→  final Map<String, ClassPerformanceSummary> subjectBreakdown;
+   105→}
+   106→
+   107→/// Computed performance summary for an entire school.
+   108→///
+   109→/// Aggregates class-level summaries into school-wide metrics with
+   110→/// cross-class rankings, trend data, and identification of best/most
+   111→/// difficult areas.
+   112→class SchoolPerformanceSummary {
+   113→  const SchoolPerformanceSummary({
+   114→    required this.schoolId,
+   115→    required this.academicSessionId,
+   116→    required this.totalStudents,
+   117→    required this.totalClasses,
+   118→    required this.averageScore,
+   119→    required this.passRate,
+   120→    required this.distinctionRate,
+   121→    required this.bestClassId,
+   122→    required this.bestSubjectId,
+   123→    required this.mostDifficultTopicId,
+   124→    required this.classRankings,
+   125→    required this.subjectRankings,
+   126→    required this.gradeDistribution,
+   127→    required this.trendData,
+   128→    this.totalExams = 0,
+   129→  });
+   130→
+   131→  final String schoolId;
+   132→  final String academicSessionId;
+   133→
+   134→  final int totalStudents;
+   135→  final int totalClasses;
+   136→  final int totalExams;
+   137→
+   138→  final double averageScore;
+   139→  final double passRate;
+   140→  final double distinctionRate;
+   141→
+   142→  /// Class with the highest average score.
+   143→  final String? bestClassId;
+   144→
+   145→  /// Subject with the highest average score across the school.
+   146→  final String? bestSubjectId;
+   147→
+   148→  /// Topic with the lowest average accuracy across the school.
+   149→  final String? mostDifficultTopicId;
+   150→
+   151→  /// Classes ranked by average score (descending).
+   152→  final List<RankedEntity> classRankings;
+   153→
+   154→  /// Subjects ranked by average score (descending).
+   155→  final List<RankedEntity> subjectRankings;
+   156→
+   157→  /// School-wide grade distribution (grade label → count).
+   158→  final Map<String, int> gradeDistribution;
+   159→
+   160→  /// Performance trend over multiple periods.
+   161→  final List<TrendData> trendData;
+   162→}
+   163→
+   164→/// A ranked entity (class or subject) with its score.
+   165→class RankedEntity {
+   166→  const RankedEntity({
+   167→    required this.entityId,
+   168→    required this.rank,
+   169→    required this.score,
+   170→    this.label,
+   171→  });
+   172→
+   173→  final String entityId;
+   174→  final int rank;
+   175→  final double score;
+   176→  final String? label;
+   177→}
+   178→
+   179→/// A student with their computed rank.
+   180→class RankedStudent {
+   181→  const RankedStudent({
+   182→    required this.studentId,
+   183→    required this.rank,
+   184→    required this.score,
+   185→    this.classId,
+   186→  });
+   187→
+   188→  /// The student identifier.
+   189→  final String studentId;
+   190→
+   191→  /// 1-based rank. Students with identical scores share the same rank, and
+   192→  /// the next rank is skipped (standard competition ranking).
+   193→  final int rank;
+   194→
+   195→  /// The student's overall percentage.
+   196→  final double score;
+   197→
+   198→  /// Optional class ID for cross-class ranking context.
+   199→  final String? classId;
+   200→}
+   201→
+   202→/// A single bucket in a score histogram.
+   203→class ScoreBucket {
+   204→  const ScoreBucket({
+   205→    required this.rangeLabel,
+   206→    required this.min,
+   207→    required this.max,
+   208→    required this.count,
+   209→    required this.percentage,
+   210→  });
+   211→
+   212→  /// Human-readable label like "0–10" or "90–100".
+   213→  final String rangeLabel;
+   214→
+   215→  /// Inclusive lower bound of the bucket.
+   216→  final double min;
+   217→
+   218→  /// Inclusive upper bound of the bucket.
+   219→  final double max;
+   220→
+   221→  /// Number of scores falling within this range.
+   222→  final int count;
+   223→
+   224→  /// Proportion of total scores in this bucket (0–100).
+   225→  final double percentage;
+   226→}
+   227→
+   228→/// Aggregated performance data for a single topic.
+   229→class TopicPerformanceData {
+   230→  const TopicPerformanceData({
+   231→    required this.topicId,
+   232→    required this.averageAccuracy,
+   233→    required this.studentCount,
+   234→    required this.masteryLevel,
+   235→    this.averageTimePerQuestion,
+   236→    this.improvementStreak = 0,
+   237→  });
+   238→
+   239→  /// The topic identifier.
+   240→  final String topicId;
+   241→
+   242→  /// Average accuracy percentage across all students (0–100).
+   243→  final double averageAccuracy;
+   244→
+   245→  /// Number of students who attempted questions in this topic.
+   246→  final int studentCount;
+   247→
+   248→  /// Derived mastery level from [averageAccuracy].
+   249→  final MasteryLevel masteryLevel;
+   250→
+   251→  /// Average seconds per question (null if no data).
+   252→  final double? averageTimePerQuestion;
+   253→
+   254→  /// Longest consecutive improvement streak observed.
+   255→  final int improvementStreak;
+   256→}
+   257→
+   258→/// An identified difficult topic with its metrics.
+   259→class IdentifiedTopic {
+   260→  const IdentifiedTopic({
+   261→    required this.topicId,
+   262→    required this.averageAccuracy,
+   263→    required this.studentCount,
+   264→    required this.masteryLevel,
+   265→    this.subjectId,
+   266→  });
+   267→
+   268→  final String topicId;
+   269→  final double averageAccuracy;
+   270→  final int studentCount;
+   271→  final MasteryLevel masteryLevel;
+   272→  final String? subjectId;
+   273→}
+   274→
+   275→/// A single data point in a performance trend series.
+   276→class TrendData {
+   277→  const TrendData({
+   278→    required this.periodLabel,
+   279→    required this.averageScore,
+   280→    required this.studentCount,
+   281→    this.periodStart,
+   282→    this.periodEnd,
+   283→  });
+   284→
+   285→  /// Label for the period (e.g., "Term 1", "2024-Q2").
+   286→  final String periodLabel;
+   287→
+   288→  /// Average score during this period.
+   289→  final double averageScore;
+   290→
+   291→  /// Number of students included.
+   292→  final int studentCount;
+   293→
+   294→  /// Optional start of the period.
+   295→  final DateTime? periodStart;
+   296→
+   297→  /// Optional end of the period.
+   298→  final DateTime? periodEnd;
+   299→}
+   300→
+   301→/// Computed student trend analysis.
+   302→class StudentTrendAnalysis {
+   303→  const StudentTrendAnalysis({
+   304→    required this.studentId,
+   305→    required this.trend,
+   306→    required this.slope,
+   307→    required this.confidence,
+   308→    required this.strengths,
+   309→    required this.weaknesses,
+   310→    required this.recommendations,
+   311→  });
+   312→
+   313→  /// The student identifier.
+   314→  final String studentId;
+   315→
+   316→  /// Overall performance trend direction.
+   317→  final PerformanceTrend trend;
+   318→
+   319→  /// Slope of the linear regression line (points per period).
+   320→  /// Positive → improving, near-zero → stable, negative → declining.
+   321→  final double slope;
+   322→
+   323→  /// R² confidence value of the regression (0–1). Higher values indicate
+   324→  /// a more reliable trend.
+   325→  final double confidence;
+   326→
+   327→  /// Subject IDs or topic IDs where the student performs well.
+   328→  final List<String> strengths;
+   329→
+   330→  /// Subject IDs or topic IDs where the student struggles.
+   331→  final List<String> weaknesses;
+   332→
+   333→  /// AI-style study recommendations based on the analysis.
+   334→  final List<String> recommendations;
+   335→}
+   336→
+   337→/// Result of an attendance-performance correlation computation.
+   338→class AttendanceCorrelation {
+   339→  const AttendanceCorrelation({
+   340→    required this.correlationCoefficient,
+   341→    required this.sampleSize,
+   342→    required this.interpretation,
+   343→    this.highAttendanceAvgScore,
+   344→    this.lowAttendanceAvgScore,
+   345→  });
+   346→
+   347→  /// Pearson correlation coefficient (−1 to +1).
+   348→  final double correlationCoefficient;
+   349→
+   350→  /// Number of data points used.
+   351→  final int sampleSize;
+   352→
+   353→  /// Human-readable interpretation.
+   354→  final String interpretation;
+   355→
+   356→  /// Average score of students with ≥ 80% attendance (null if unavailable).
+   357→  final double? highAttendanceAvgScore;
+   358→
+   359→  /// Average score of students with < 80% attendance (null if unavailable).
+   360→  final double? lowAttendanceAvgScore;
+   361→}
+   362→
+   363→/// Computed topic mastery for a student.
+   364→class ComputedTopicMastery {
+   365→  const ComputedTopicMastery({
+   366→    required this.topicId,
+   367→    required this.masteryLevel,
+   368→    required this.accuracy,
+   369→    required this.avgTimePerQuestion,
+   370→    required this.improvementStreak,
+   371→    required this.questionsAttempted,
+   372→    required this.questionsCorrect,
+   373→  });
+   374→
+   375→  final String topicId;
+   376→  final MasteryLevel masteryLevel;
+   377→  final double accuracy;
+   378→  final int avgTimePerQuestion;
+   379→  final int improvementStreak;
+   380→  final int questionsAttempted;
+   381→  final int questionsCorrect;
+   382→}
+   383→
+   384→// ═══════════════════════════════════════════════════════════════════════
+   385→// ANALYTICS ENGINE
+   386→// ═══════════════════════════════════════════════════════════════════════
+   387→
+   388→/// Pure-computation analytics engine for exam result data.
+   389→///
+   390→/// All methods are side-effect-free and operate solely on the data passed
+   391→/// to them. No database access, no network calls, no mutable state.
+   392→///
+   393→/// The engine is designed to be instantiated once and reused across the
+   394→/// application lifecycle, though it carries no state of its own.
+   395→///
+   396→/// ### Threading
+   397→///
+   398→/// Because all operations are pure and synchronous, this class is safe to
+   399→/// use from any isolate. For large datasets, consider running computations
+   400→/// in a background isolate via `Isolate.run`.
+   401→///
+   402→/// ### Distinction Threshold
+   403→///
+   404→/// The default distinction threshold is **75%**. This can be overridden via
+   405→/// the [distinctionThreshold] parameter on relevant methods.
+   406→class AnalyticsEngine {
+   407→  // ── Constants ──────────────────────────────────────────────────────
+   408→
+   409→  /// Default distinction threshold (percentage).
+   410→  static const double defaultDistinctionThreshold = 75.0;
+   411→
+   412→  /// Default pass mark (percentage).
+   413→  static const double defaultPassMark = 50.0;
+   414→
+   415→  /// Number of standard histogram buckets (0–10, 10–20, …, 90–100).
+   416→  static const int defaultBucketCount = 10;
+   417→
+   418→  /// Minimum data points required for a reliable trend calculation.
+   419→  static const int minTrendDataPoints = 3;
+   420→
+   421→  /// Attendance threshold for the "high attendance" group.
+   422→  static const double highAttendanceThreshold = 80.0;
+   423→
+   424→  // ── 1. Class Performance ──────────────────────────────────────────
+   425→
+   426→  /// Computes a comprehensive performance summary for a class.
+   427→  ///
+   428→  /// Given a list of [results] (overall results for each student in the
+   429→  /// class), this method calculates central tendency, pass/distinction
+   430→  /// rates, grade and score distributions, and topic-level aggregations.
+   431→  ///
+   432→  /// When [subjectResults] are provided, a per-subject breakdown is
+   433→  /// included in [ClassPerformanceSummary.subjectBreakdown] and topic
+   434→  /// performance is aggregated from those results' metadata.
+   435→  ///
+   436→  /// Set [previousResults] to compute the [ClassPerformanceSummary.improvementRate]
+   437→  /// by comparing the current period's average to the previous period's.
+   438→  ///
+   439→  /// [distinctionThreshold] defaults to [defaultDistinctionThreshold] (75%).
+   440→  /// [passMark] defaults to [defaultPassMark] (50%).
+   441→  ClassPerformanceSummary computeClassPerformance(
+   442→    List<StudentOverallResultEntity> results, {
+   443→    List<StudentSubjectResultEntity>? subjectResults,
+   444→    List<StudentOverallResultEntity>? previousResults,
+   445→    double distinctionThreshold = defaultDistinctionThreshold,
+   446→    double passMark = defaultPassMark,
+   447→  }) {
+   448→    if (results.isEmpty) {
+   449→      return ClassPerformanceSummary(
+   450→        classId: '',
+   451→        totalStudents: 0,
+   452→        averageScore: 0,
+   453→        highestScore: 0,
+   454→        lowestScore: 0,
+   455→        medianScore: 0,
+   456→        passRate: 0,
+   457→        distinctionRate: 0,
+   458→        gradeDistribution: {},
+   459→        scoreDistribution: _buildEmptyBuckets(),
+   460→        topicPerformance: {},
+   461→        improvementRate: 0,
+   462→      );
+   463→    }
+   464→
+   465→    final scores = results.map((r) => r.overallPercentage).toList();
+   466→    final classId = results.first.classId;
+   467→
+   468→    // Central tendency
+   469→    final average = _mean(scores);
+   470→    final highest = _max(scores);
+   471→    final lowest = _min(scores);
+   472→    final median = _median(scores);
+   473→
+   474→    // Pass & distinction rates
+   475→    final passCount = scores.where((s) => s >= passMark).length;
+   476→    final distinctionCount = scores.where((s) => s >= distinctionThreshold).length;
+   477→    final passRate = (passCount / scores.length) * 100;
+   478→    final distinctionRate = (distinctionCount / scores.length) * 100;
+   479→
+   480→    // Grade distribution
+   481→    final gradeDistribution = <String, int>{};
+   482→    for (final r in results) {
+   483→      final grade = r.overallGrade ?? _gradeFromPercentage(r.overallPercentage);
+   484→      gradeDistribution[grade] = (gradeDistribution[grade] ?? 0) + 1;
+   485→    }
+   486→
+   487→    // Score distribution
+   488→    final scoreDistribution = computeScoreDistribution(scores);
+   489→
+   490→    // Topic performance from subject results metadata
+   491→    final topicPerformance = _computeTopicPerformanceFromResults(
+   492→      subjectResults ?? [],
+   493→    );
+   494→
+   495→    // Subject breakdown
+   496→    final subjectBreakdown = <String, ClassPerformanceSummary>{};
+   497→    if (subjectResults != null && subjectResults.isNotEmpty) {
+   498→      final bySubject = _groupBy<String, StudentSubjectResultEntity>(
+   499→        subjectResults,
+   500→        (r) => r.subjectId,
+   501→      );
+   502→      for (final entry in bySubject.entries) {
+   503→        subjectBreakdown[entry.key] = _computeSubjectSummary(
+   504→          entry.value,
+   505→          distinctionThreshold: distinctionThreshold,
+   506→          passMark: passMark,
+   507→        );
+   508→      }
+   509→    }
+   510→
+   511→    // Improvement rate
+   512→    final improvementRate = _computeImprovementRate(results, previousResults);
+   513→
+   514→    return ClassPerformanceSummary(
+   515→      classId: classId,
+   516→      totalStudents: results.length,
+   517→      averageScore: _round2(average),
+   518→      highestScore: _round2(highest),
+   519→      lowestScore: _round2(lowest),
+   520→      medianScore: _round2(median),
+   521→      passRate: _round2(passRate),
+   522→      distinctionRate: _round2(distinctionRate),
+   523→      gradeDistribution: gradeDistribution,
+   524→      scoreDistribution: scoreDistribution,
+   525→      topicPerformance: topicPerformance,
+   526→      improvementRate: _round2(improvementRate),
+   527→      subjectBreakdown: subjectBreakdown,
+   528→    );
+   529→  }
+   530→
+   531→  // ── 2. School Performance ──────────────────────────────────────────
+   532→
+   533→  /// Aggregates multiple [ClassPerformanceSummary] instances into a
+   534→  /// school-level summary with cross-class and cross-subject rankings.
+   535→  ///
+   536→  /// [topicMasteryData] is used to identify the most difficult topic
+   537→  /// across the entire school.
+   538→  ///
+   539→  /// [trendData] provides historical performance data for trend
+   540→  /// visualization on dashboards.
+   541→  SchoolPerformanceSummary computeSchoolPerformance(
+   542→    List<ClassPerformanceSummary> classPerformances, {
+   543→    required String schoolId,
+   544→    required String academicSessionId,
+   545→    List<TopicMasteryEntity>? topicMasteryData,
+   546→    List<TrendData>? trendData,
+   547→    int totalExams = 0,
+   548→  }) {
+   549→    if (classPerformances.isEmpty) {
+   550→      return SchoolPerformanceSummary(
+   551→        schoolId: schoolId,
+   552→        academicSessionId: academicSessionId,
+   553→        totalStudents: 0,
+   554→        totalClasses: 0,
+   555→        averageScore: 0,
+   556→        passRate: 0,
+   557→        distinctionRate: 0,
+   558→        bestClassId: null,
+   559→        bestSubjectId: null,
+   560→        mostDifficultTopicId: null,
+   561→        classRankings: [],
+   562→        subjectRankings: [],
+   563→        gradeDistribution: {},
+   564→        trendData: trendData ?? [],
+   565→        totalExams: totalExams,
+   566→      );
+   567→    }
+   568→
+   569→    final totalStudents = classPerformances.fold<int>(
+   570→      0,
+   571→      (sum, c) => sum + c.totalStudents,
+   572→    );
+   573→
+   574→    // Weighted average: weight each class by its student count.
+   575→    final weightedSum = classPerformances.fold<double>(
+   576→      0,
+   577→      (sum, c) => sum + (c.averageScore * c.totalStudents),
+   578→    );
+   579→    final averageScore = totalStudents > 0 ? weightedSum / totalStudents : 0.0;
+   580→
+   581→    // Weighted pass rate
+   582→    final passWeightedSum = classPerformances.fold<double>(
+   583→      0,
+   584→      (sum, c) => sum + (c.passRate * c.totalStudents),
+   585→    );
+   586→    final passRate = totalStudents > 0 ? passWeightedSum / totalStudents : 0.0;
+   587→
+   588→    // Weighted distinction rate
+   589→    final distinctionWeightedSum = classPerformances.fold<double>(
+   590→      0,
+   591→      (sum, c) => sum + (c.distinctionRate * c.totalStudents),
+   592→    );
+   593→    final distinctionRate =
+   594→        totalStudents > 0 ? distinctionWeightedSum / totalStudents : 0.0;
+   595→
+   596→    // Class rankings
+   597→    final classRankings = _rankEntities(
+   598→      classPerformances.map((c) => MapEntry(c.classId, c.averageScore)).toList(),
+   599→    );
+   600→
+   601→    // Subject rankings from breakdowns
+   602→    final subjectScores = <String, List<double>>{};
+   603→    for (final cp in classPerformances) {
+   604→      for (final sb in cp.subjectBreakdown.entries) {
+   605→        subjectScores.putIfAbsent(sb.key, () => []).add(sb.value.averageScore);
+   606→      }
+   607→    }
+   608→    final subjectAverages = subjectScores.map(
+   609→      (k, v) => MapEntry(k, _mean(v)),
+   610→    );
+   611→    final subjectRankings = _rankEntities(
+   612→      subjectAverages.entries.map((e) => MapEntry(e.key, e.value)).toList(),
+   613→    );
+   614→
+   615→    // Best class & subject
+   616→    final bestClassId = classRankings.isNotEmpty ? classRankings.first.entityId : null;
+   617→    final bestSubjectId = subjectRankings.isNotEmpty ? subjectRankings.first.entityId : null;
+   618→
+   619→    // Most difficult topic
+   620→    String? mostDifficultTopicId;
+   621→    if (topicMasteryData != null && topicMasteryData.isNotEmpty) {
+   622→      final difficultTopics = identifyDifficultTopics(topicMasteryData);
+   623→      if (difficultTopics.isNotEmpty) {
+   624→        mostDifficultTopicId = difficultTopics.first.topicId;
+   625→      }
+   626→    } else {
+   627→      // Fallback: look at topic performance from class summaries
+   628→      final allTopics = <String, List<TopicPerformanceData>>{};
+   629→      for (final cp in classPerformances) {
+   630→        for (final tp in cp.topicPerformance.entries) {
+   631→          allTopics.putIfAbsent(tp.key, () => []).add(tp.value);
+   632→        }
+   633→      }
+   634→      if (allTopics.isNotEmpty) {
+   635→        String? worstTopic;
+   636→        double worstAccuracy = 101;
+   637→        for (final entry in allTopics.entries) {
+   638→          final avg = _mean(entry.value.map((t) => t.averageAccuracy).toList());
+   639→          if (avg < worstAccuracy) {
+   640→            worstAccuracy = avg;
+   641→            worstTopic = entry.key;
+   642→          }
+   643→        }
+   644→        mostDifficultTopicId = worstTopic;
+   645→      }
+   646→    }
+   647→
+   648→    // Grade distribution: merge all class distributions
+   649→    final gradeDistribution = <String, int>{};
+   650→    for (final cp in classPerformances) {
+   651→      for (final entry in cp.gradeDistribution.entries) {
+   652→        gradeDistribution[entry.key] =
+   653→            (gradeDistribution[entry.key] ?? 0) + entry.value;
+   654→      }
+   655→    }
+   656→
+   657→    return SchoolPerformanceSummary(
+   658→      schoolId: schoolId,
+   659→      academicSessionId: academicSessionId,
+   660→      totalStudents: totalStudents,
+   661→      totalClasses: classPerformances.length,
+   662→      averageScore: _round2(averageScore),
+   663→      passRate: _round2(passRate),
+   664→      distinctionRate: _round2(distinctionRate),
+   665→      bestClassId: bestClassId,
+   666→      bestSubjectId: bestSubjectId,
+   667→      mostDifficultTopicId: mostDifficultTopicId,
+   668→      classRankings: classRankings,
+   669→      subjectRankings: subjectRankings,
+   670→      gradeDistribution: gradeDistribution,
+   671→      trendData: trendData ?? [],
+   672→      totalExams: totalExams,
+   673→    );
+   674→  }
+   675→
+   676→  // ── 3. Student Trends ─────────────────────────────────────────────
+   677→
+   678→  /// Computes a student's performance trend from historical scores using
+   679→  /// simple linear regression.
+   680→  ///
+   681→  /// [historicalScores] should be ordered chronologically (oldest first).
+   682→  /// At least [minTrendDataPoints] data points are needed for a reliable
+   683→  /// result; fewer will still produce a trend but with low confidence.
+   684→  ///
+   685→  /// [strengths] and [weaknesses] are subject/topic IDs where the student
+   686→  /// consistently scores above or below their own average.
+   687→  StudentTrendAnalysis computeStudentTrends({
+   688→    required String studentId,
+   689→    required List<double> historicalScores,
+   690→    List<String> strengths = const [],
+   691→    List<String> weaknesses = const [],
+   692→  }) {
+   693→    if (historicalScores.length < 2) {
+   694→      return StudentTrendAnalysis(
+   695→        studentId: studentId,
+   696→        trend: PerformanceTrend.stable,
+   697→        slope: 0,
+   698→        confidence: 0,
+   699→        strengths: strengths,
+   700→        weaknesses: weaknesses,
+   701→        recommendations: _generateRecommendations(
+   702→          PerformanceTrend.stable,
+   703→          0,
+   704→          strengths,
+   705→          weaknesses,
+   706→        ),
+   707→      );
+   708→    }
+   709→
+   710→    final regression = _linearRegression(historicalScores);
+   711→    final slope = regression.slope;
+   712→    final confidence = regression.rSquared;
+   713→
+   714→    // Determine trend from slope
+   715→    PerformanceTrend trend;
+   716→    if (slope > 1.5) {
+   717→      trend = PerformanceTrend.improving;
+   718→    } else if (slope < -1.5) {
+   719→      trend = PerformanceTrend.declining;
+   720→    } else {
+   721→      trend = PerformanceTrend.stable;
+   722→    }
+   723→
+   724→    final recommendations = _generateRecommendations(
+   725→      trend,
+   726→      slope,
+   727→      strengths,
+   728→      weaknesses,
+   729→    );
+   730→
+   731→    return StudentTrendAnalysis(
+   732→      studentId: studentId,
+   733→      trend: trend,
+   734→      slope: _round2(slope),
+   735→      confidence: _round4(confidence),
+   736→      strengths: strengths,
+   737→      weaknesses: weaknesses,
+   738→      recommendations: recommendations,
+   739→    );
+   740→  }
+   741→
+   742→  // ── 4. Topic Mastery ──────────────────────────────────────────────
+   743→
+   744→  /// Computes mastery information from a list of [TopicMasteryEntity].
+   745→  ///
+   746→  /// Each entity is mapped to a [ComputedTopicMastery] with the mastery
+   747→  /// level derived from its accuracy percentage. This is useful when you
+   748→  /// need to re-evaluate mastery levels based on updated accuracy data.
+   749→  List<ComputedTopicMastery> computeTopicMastery(
+   750→    List<TopicMasteryEntity> masteryData,
+   751→  ) {
+   752→    return masteryData.map((m) {
+   753→      final derivedLevel = MasteryLevel.fromAccuracy(m.accuracyPercentage);
+   754→      return ComputedTopicMastery(
+   755→        topicId: m.topicId,
+   756→        masteryLevel: derivedLevel,
+   757→        accuracy: m.accuracyPercentage,
+   758→        avgTimePerQuestion: m.avgTimePerQuestion,
+   759→        improvementStreak: m.improvementStreak,
+   760→        questionsAttempted: m.questionsAttempted,
+   761→        questionsCorrect: m.questionsCorrect,
+   762→      );
+   763→    }).toList();
+   764→  }
+   765→
+   766→  // ── 5. Rankings ───────────────────────────────────────────────────
+   767→
+   768→  /// Generates a ranked list of students from their overall results.
+   769→  ///
+   770→  /// Uses standard competition ranking (also known as "1224" ranking):
+   771→  /// students with identical scores share the same rank, and the next
+   772→  /// rank is skipped. For example: 1st, 2nd, 2nd, 4th.
+   773→  ///
+   774→  /// Results are sorted by [StudentOverallResultEntity.overallPercentage]
+   775→  /// in descending order.
+   776→  List<RankedStudent> generateRankings(
+   777→    List<StudentOverallResultEntity> results,
+   778→  ) {
+   779→    if (results.isEmpty) return [];
+   780→
+   781→    // Sort descending by percentage
+   782→    final sorted = List<StudentOverallResultEntity>.from(results)
+   783→      ..sort((a, b) => b.overallPercentage.compareTo(a.overallPercentage));
+   784→
+   785→    final rankings = <RankedStudent>[];
+   786→    int? lastRank;
+   787→    double? lastScore;
+   788→
+   789→    for (int i = 0; i < sorted.length; i++) {
+   790→      final result = sorted[i];
+   791→      final position = i + 1;
+   792→
+   793→      // Same score → same rank; otherwise rank = position
+   794→      final rank = (lastScore != null &&
+   795→              _round2(result.overallPercentage) == _round2(lastScore))
+   796→          ? lastRank!
+   797→          : position;
+   798→
+   799→      rankings.add(RankedStudent(
+   800→        studentId: result.studentId,
+   801→        rank: rank,
+   802→        score: _round2(result.overallPercentage),
+   803→        classId: result.classId,
+   804→      ));
+   805→
+   806→      lastRank = rank;
+   807→      lastScore = _round2(result.overallPercentage);
+   808→    }
+   809→
+   810→    return rankings;
+   811→  }
+   812→
+   813→  // ── 6. Score Distribution ─────────────────────────────────────────
+   814→
+   815→  /// Creates histogram buckets for score visualization.
+   816→  ///
+   817→  /// By default, creates [defaultBucketCount] buckets of equal width
+   818→  /// (0–10, 10–20, …, 90–100). Each bucket is inclusive of its lower
+   819→  /// bound and inclusive of its upper bound, except the last bucket
+   820→  /// which includes 100.
+   821→  ///
+   822→  /// Returns a map of range label → midpoint for quick chart integration.
+   823→  Map<String, double> computeScoreDistributionMap(List<double> scores) {
+   824→    final buckets = computeScoreDistribution(scores);
+   825→    return {for (final b in buckets) b.rangeLabel: (b.min + b.max) / 2};
+   826→  }
+   827→
+   828→  /// Creates histogram buckets for score visualization.
+   829→  ///
+   830→  /// Returns a list of [ScoreBucket] instances with count and percentage
+   831→  /// for each range.
+   832→  List<ScoreBucket> computeScoreDistribution(
+   833→    List<double> scores, {
+   834→    int bucketCount = defaultBucketCount,
+   835→  }) {
+   836→    if (scores.isEmpty) return _buildEmptyBuckets(bucketCount: bucketCount);
+   837→
+   838→    final bucketWidth = 100.0 / bucketCount;
+   839→    final buckets = <ScoreBucket>[];
+   840→
+   841→    for (int i = 0; i < bucketCount; i++) {
+   842→      final min = i * bucketWidth;
+   843→      final max = (i + 1) * bucketWidth;
+   844→
+   845→      // For the last bucket, include 100. For others, use strict upper bound.
+   846→      final count = scores.where((s) {
+   847→        if (i == bucketCount - 1) {
+   848→          return s >= min && s <= max;
+   849→        }
+   850→        return s >= min && s < max;
+   851→      }).length;
+   852→
+   853→      final percentage = (count / scores.length) * 100;
+   854→
+   855→      buckets.add(ScoreBucket(
+   856→        rangeLabel: '${min.round()}–${max.round()}',
+   857→        min: min,
+   858→        max: max,
+   859→        count: count,
+   860→        percentage: _round2(percentage),
+   861→      ));
+   862→    }
+   863→
+   864→    return buckets;
+   865→  }
+   866→
+   867→  // ── 7. Identify Difficult Topics ──────────────────────────────────
+   868→
+   869→  /// Identifies topics with the lowest accuracy across a class or school.
+   870→  ///
+   871→  /// Topics are sorted by ascending accuracy (worst first). Use
+   872→  /// [maxResults] to limit the number of topics returned.
+   873→  List<IdentifiedTopic> identifyDifficultTopics(
+   874→    List<TopicMasteryEntity> masteryData, {
+   875→    int? maxResults,
+   876→  }) {
+   877→    if (masteryData.isEmpty) return [];
+   878→
+   879→    // Aggregate by topic ID
+   880→    final topicAggregation = <String, _TopicAggregation>{};
+   881→    for (final m in masteryData) {
+   882→      final agg = topicAggregation.putIfAbsent(
+   883→        m.topicId,
+   884→        () => _TopicAggregation(topicId: m.topicId, subjectId: m.subjectId),
+   885→      );
+   886→      agg.addAccuracy(m.accuracyPercentage);
+   887→    }
+   888→
+   889→    // Convert and sort by accuracy ascending
+   890→    var topics = topicAggregation.values.map((agg) {
+   891→      final avgAccuracy = agg.averageAccuracy;
+   892→      return IdentifiedTopic(
+   893→        topicId: agg.topicId,
+   894→        averageAccuracy: _round2(avgAccuracy),
+   895→        studentCount: agg.studentCount,
+   896→        masteryLevel: MasteryLevel.fromAccuracy(avgAccuracy),
+   897→        subjectId: agg.subjectId,
+   898→      );
+   899→    }).toList()
+   900→      ..sort((a, b) => a.averageAccuracy.compareTo(b.averageAccuracy));
+   901→
+   902→    if (maxResults != null && maxResults > 0) {
+   903→      topics = topics.take(maxResults).toList();
+   904→    }
+   905→
+   906→    return topics;
+   907→  }
+   908→
+   909→  // ── 8. Attendance Correlation ─────────────────────────────────────
+   910→
+   911→  /// Computes the Pearson correlation coefficient between attendance
+   912→  /// percentage and performance score.
+   913→  ///
+   914→  /// [attendancePerformancePairs] is a list of (attendance%, score%)
+   915→  /// pairs for each student.
+   916→  ///
+   917→  /// Returns an [AttendanceCorrelation] with the coefficient, sample
+   918→  /// size, and a human-readable interpretation.
+   919→  AttendanceCorrelation computeAttendanceCorrelation(
+   920→    List<({double attendance, double performance})> attendancePerformancePairs,
+   921→  ) {
+   922→    if (attendancePerformancePairs.length < 3) {
+   923→      return AttendanceCorrelation(
+   924→        correlationCoefficient: 0,
+   925→        sampleSize: attendancePerformancePairs.length,
+   926→        interpretation: 'Insufficient data for correlation analysis '
+   927→            '(need at least 3 data points)',
+   928→      );
+   929→    }
+   930→
+   931→    final n = attendancePerformancePairs.length;
+   932→    final attendanceValues =
+   933→        attendancePerformancePairs.map((p) => p.attendance).toList();
+   934→    final performanceValues =
+   935→        attendancePerformancePairs.map((p) => p.performance).toList();
+   936→
+   937→    final coefficient =
+   938→        _pearsonCorrelation(attendanceValues, performanceValues);
+   939→
+   940→    // Compute average scores for high/low attendance groups
+   941→    final highAttendance = attendancePerformancePairs
+   942→        .where((p) => p.attendance >= highAttendanceThreshold)
+   943→        .map((p) => p.performance)
+   944→        .toList();
+   945→    final lowAttendance = attendancePerformancePairs
+   946→        .where((p) => p.attendance < highAttendanceThreshold)
+   947→        .map((p) => p.performance)
+   948→        .toList();
+   949→
+   950→    final highAvg = highAttendance.isNotEmpty ? _mean(highAttendance) : null;
+   951→    final lowAvg = lowAttendance.isNotEmpty ? _mean(lowAttendance) : null;
+   952→
+   953→    final interpretation = _interpretCorrelation(coefficient);
+   954→
+   955→    return AttendanceCorrelation(
+   956→      correlationCoefficient: _round4(coefficient),
+   957→      sampleSize: n,
+   958→      interpretation: interpretation,
+   959→      highAttendanceAvgScore: highAvg != null ? _round2(highAvg) : null,
+   960→      lowAttendanceAvgScore: lowAvg != null ? _round2(lowAvg) : null,
+   961→    );
+   962→  }
+   963→
+   964→  // ── Trend Helper ──────────────────────────────────────────────────
+   965→
+   966→  /// Computes the performance trend from a list of historical scores
+   967→  /// using simple linear regression.
+   968→  ///
+   969→  /// Returns the slope of the best-fit line. A positive slope indicates
+   970→  /// improvement, negative indicates decline, and near-zero indicates
+   971→  /// stability.
+   972→  ///
+   973→  /// Requires at least 2 data points; returns 0 otherwise.
+   974→  double computeTrend(List<double> historicalScores) {
+   975→    if (historicalScores.length < 2) return 0;
+   976→    return _round2(_linearRegression(historicalScores).slope);
+   977→  }
+   978→
+   979→  // ═══════════════════════════════════════════════════════════════════
+   980→  // PRIVATE HELPERS
+   981→  // ═══════════════════════════════════════════════════════════════════
+   982→
+   983→  // ── Statistics ─────────────────────────────────────────────────────
+   984→
+   985→  /// Arithmetic mean of a list of numbers.
+   986→  static double _mean(List<double> values) {
+   987→    if (values.isEmpty) return 0;
+   988→    return values.reduce((a, b) => a + b) / values.length;
+   989→  }
+   990→
+   991→  /// Maximum value in a list, or 0 if empty.
+   992→  static double _max(List<double> values) {
+   993→    if (values.isEmpty) return 0;
+   994→    return values.reduce((a, b) => a > b ? a : b);
+   995→  }
+   996→
+   997→  /// Minimum value in a list, or 0 if empty.
+   998→  static double _min(List<double> values) {
+   999→    if (values.isEmpty) return 0;
+  1000→    return values.reduce((a, b) => a < b ? a : b);
+  1001→  }
+  1002→
+  1003→  /// Median (50th percentile) of a sorted copy of [values].
+  1004→  static double _median(List<double> values) {
+  1005→    if (values.isEmpty) return 0;
+  1006→    final sorted = List<double>.from(values)..sort();
+  1007→    final mid = sorted.length ~/ 2;
+  1008→    if (sorted.length.isEven) {
+  1009→      return (sorted[mid - 1] + sorted[mid]) / 2;
+  1010→    }
+  1011→    return sorted[mid];
+  1012→  }
+  1013→
+  1014→  /// Standard deviation (population) of a list.
+  1015→  static double _standardDeviation(List<double> values) {
+  1016→    if (values.length < 2) return 0;
+  1017→    final mean = _mean(values);
+  1018→    final sumSquaredDiff = values.fold<double>(
+  1019→      0,
+  1020→      (sum, v) => sum + (v - mean) * (v - mean),
+  1021→    );
+  1022→    return _sqrt(sumSquaredDiff / values.length);
+  1023→  }
+  1024→
+  1025→  /// Integer square root approximation for standard deviation.
+  1026→  /// Uses Newton's method for reasonable precision.
+  1027→  static double _sqrt(double value) {
+  1028→    if (value < 0) return 0;
+  1029→    if (value == 0) return 0;
+  1030→    double x = value;
+  1031→    double prev = 0;
+  1032→    for (int i = 0; i < 20; i++) {
+  1033→      prev = x;
+  1034→      x = 0.5 * (x + value / x);
+  1035→      if ((x - prev).abs() < 0.000001) break;
+  1036→    }
+  1037→    return x;
+  1038→  }
+  1039→
+  1040→  // ── Linear Regression ──────────────────────────────────────────────
+  1041→
+  1042→  /// Simple linear regression (OLS) on [y] values with implicit
+  1043→  /// x = 0, 1, 2, …, n−1.
+  1044→  ///
+  1045→  /// Returns the slope, intercept, and R² value.
+  1046→  static _LinearRegressionResult _linearRegression(List<double> y) {
+  1047→    final n = y.length;
+  1048→    if (n < 2) {
+  1049→      return _LinearRegressionResult(slope: 0, intercept: _mean(y), rSquared: 0);
+  1050→    }
+  1051→
+  1052→    // x values: 0, 1, 2, ..., n-1
+  1053→    final xMean = (n - 1) / 2.0;
+  1054→    final yMean = _mean(y);
+  1055→
+  1056→    double sumXY = 0;
+  1057→    double sumX2 = 0;
+  1058→    for (int i = 0; i < n; i++) {
+  1059→      final xDiff = i - xMean;
+  1060→      final yDiff = y[i] - yMean;
+  1061→      sumXY += xDiff * yDiff;
+  1062→      sumX2 += xDiff * xDiff;
+  1063→    }
+  1064→
+  1065→    final slope = sumX2 != 0 ? sumXY / sumX2 : 0.0;
+  1066→    final intercept = yMean - slope * xMean;
+  1067→
+  1068→    // R² calculation
+  1069→    final ssTotal = y.fold<double>(0, (sum, v) => sum + (v - yMean) * (v - yMean));
+  1070→    double ssResidual = 0;
+  1071→    for (int i = 0; i < n; i++) {
+  1072→      final predicted = intercept + slope * i;
+  1073→      ssResidual += (y[i] - predicted) * (y[i] - predicted);
+  1074→    }
+  1075→    final rSquared = ssTotal != 0 ? 1 - (ssResidual / ssTotal) : 0.0;
+  1076→
+  1077→    return _LinearRegressionResult(
+  1078→      slope: slope,
+  1079→      intercept: intercept,
+  1080→      rSquared: rSquared.clamp(0, 1),
+  1081→    );
+  1082→  }
+  1083→
+  1084→  // ── Pearson Correlation ────────────────────────────────────────────
+  1085→
+  1086→  /// Computes the Pearson correlation coefficient between [x] and [y].
+  1087→  static double _pearsonCorrelation(List<double> x, List<double> y) {
+  1088→    assert(x.length == y.length);
+  1089→    final n = x.length;
+  1090→    if (n < 2) return 0;
+  1091→
+  1092→    final xMean = _mean(x);
+  1093→    final yMean = _mean(y);
+  1094→
+  1095→    double sumXY = 0;
+  1096→    double sumX2 = 0;
+  1097→    double sumY2 = 0;
+  1098→
+  1099→    for (int i = 0; i < n; i++) {
+  1100→      final dx = x[i] - xMean;
+  1101→      final dy = y[i] - yMean;
+  1102→      sumXY += dx * dy;
+  1103→      sumX2 += dx * dx;
+  1104→      sumY2 += dy * dy;
+  1105→    }
+  1106→
+  1107→    final denominator = _sqrt(sumX2) * _sqrt(sumY2);
+  1108→    if (denominator == 0) return 0;
+  1109→    return (sumXY / denominator).clamp(-1.0, 1.0);
+  1110→  }
+  1111→
+  1112→  // ── Grouping & Ranking ────────────────────────────────────────────
+  1113→
+  1114→  /// Groups [items] by a key extracted via [keyExtractor].
+  1115→  static Map<K, List<T>> _groupBy<K, T>(
+  1116→    List<T> items,
+  1117→    K Function(T) keyExtractor,
+  1118→  ) {
+  1119→    final map = <K, List<T>>{};
+  1120→    for (final item in items) {
+  1121→      final key = keyExtractor(item);
+  1122→      map.putIfAbsent(key, () => []).add(item);
+  1123→    }
+  1124→    return map;
+  1125→  }
+  1126→
+  1127→  /// Ranks entities by score (descending) using competition ranking.
+  1128→  static List<RankedEntity> _rankEntities(
+  1129→    List<MapEntry<String, double>> entries,
+  1130→  ) {
+  1131→    if (entries.isEmpty) return [];
+  1132→
+  1133→    // Sort descending by score
+  1134→    entries.sort((a, b) => b.value.compareTo(a.value));
+  1135→
+  1136→    final rankings = <RankedEntity>[];
+  1137→    int? lastRank;
+  1138→    double? lastScore;
+  1139→
+  1140→    for (int i = 0; i < entries.length; i++) {
+  1141→      final position = i + 1;
+  1142→      final score = _round2(entries[i].value);
+  1143→
+  1144→      final rank = (lastScore != null && score == lastScore)
+  1145→          ? lastRank!
+  1146→          : position;
+  1147→
+  1148→      rankings.add(RankedEntity(
+  1149→        entityId: entries[i].key,
+  1150→        rank: rank,
+  1151→        score: score,
+  1152→      ));
+  1153→
+  1154→      lastRank = rank;
+  1155→      lastScore = score;
+  1156→    }
+  1157→
+  1158→    return rankings;
+  1159→  }
+  1160→
+  1161→  // ── Grade Mapping ──────────────────────────────────────────────────
+  1162→
+  1163→  /// Maps a percentage to a letter grade using standard Nigerian/WAEC
+  1164→  /// scale. This is a fallback when [overallGrade] is null.
+  1165→  static String _gradeFromPercentage(double percentage) {
+  1166→    if (percentage >= 75) return 'A';
+  1167→    if (percentage >= 70) return 'B';
+  1168→    if (percentage >= 65) return 'C';
+  1169→    if (percentage >= 60) return 'D';
+  1170→    if (percentage >= 55) return 'E';
+  1171→    if (percentage >= 50) return 'P';
+  1172→    return 'F';
+  1173→  }
+  1174→
+  1175→  // ── Topic Performance ──────────────────────────────────────────────
+  1176→
+  1177→  /// Computes topic-level performance from subject results' metadata.
+  1178→  ///
+  1179→  /// Subject results may contain topic-level data in their [metadata]
+  1180→  /// under a `'topic_results'` key, structured as:
+  1181→  /// ```json
+  1182→  /// {
+  1183→  ///   "topicId": { "accuracy": 75.0, "questionsAttempted": 10 },
+  1184→  ///   ...
+  1185→  /// }
+  1186→  /// ```
+  1187→  Map<String, TopicPerformanceData> _computeTopicPerformanceFromResults(
+  1188→    List<StudentSubjectResultEntity> subjectResults,
+  1189→  ) {
+  1190→    final topicAccuracies = <String, _TopicAggregation>{};
+  1191→
+  1192→    for (final r in subjectResults) {
+  1193→      final topicResults = r.metadata['topic_results'];
+  1194→      if (topicResults is Map<String, dynamic>) {
+  1195→        for (final entry in topicResults.entries) {
+  1196→          final topicId = entry.key;
+  1197→          final data = entry.value;
+  1198→          if (data is Map<String, dynamic>) {
+  1199→            final accuracy = (data['accuracy'] as num?)?.toDouble() ?? 0.0;
+  1200→            final timePerQ = (data['avgTimePerQuestion'] as num?)?.toDouble();
+  1201→            final agg = topicAccuracies.putIfAbsent(
+  1202→              topicId,
+  1203→              () => _TopicAggregation(topicId: topicId),
+  1204→            );
+  1205→            agg.addAccuracy(accuracy);
+  1206→            if (timePerQ != null) {
+  1207→              agg.addTimePerQuestion(timePerQ);
+  1208→            }
+  1209→          }
+  1210→        }
+  1211→      }
+  1212→    }
+  1213→
+  1214→    return topicAccuracies.map((topicId, agg) {
+  1215→      final avg = agg.averageAccuracy;
+  1216→      return MapEntry(
+  1217→        topicId,
+  1218→        TopicPerformanceData(
+  1219→          topicId: topicId,
+  1220→          averageAccuracy: _round2(avg),
+  1221→          studentCount: agg.studentCount,
+  1222→          masteryLevel: MasteryLevel.fromAccuracy(avg),
+  1223→          averageTimePerQuestion: agg.avgTimePerQuestion != null
+  1224→              ? _round2(agg.avgTimePerQuestion!)
+  1225→              : null,
+  1226→        ),
+  1227→      );
+  1228→    });
+  1229→  }
+  1230→
+  1231→  // ── Subject Summary ────────────────────────────────────────────────
+  1232→
+  1233→  /// Computes a [ClassPerformanceSummary] scoped to a single subject.
+  1234→  ClassPerformanceSummary _computeSubjectSummary(
+  1235→    List<StudentSubjectResultEntity> results, {
+  1236→    double distinctionThreshold = defaultDistinctionThreshold,
+  1237→    double passMark = defaultPassMark,
+  1238→  }) {
+  1239→    if (results.isEmpty) {
+  1240→      return ClassPerformanceSummary(
+  1241→        classId: '',
+  1242→        totalStudents: 0,
+  1243→        averageScore: 0,
+  1244→        highestScore: 0,
+  1245→        lowestScore: 0,
+  1246→        medianScore: 0,
+  1247→        passRate: 0,
+  1248→        distinctionRate: 0,
+  1249→        gradeDistribution: {},
+  1250→        scoreDistribution: _buildEmptyBuckets(),
+  1251→        topicPerformance: {},
+  1252→        improvementRate: 0,
+  1253→      );
+  1254→    }
+  1255→
+  1256→    final scores = results.map((r) => r.percentage).toList();
+  1257→    final subjectId = results.first.subjectId;
+  1258→    final classId = results.first.classId;
+  1259→
+  1260→    final gradeDistribution = <String, int>{};
+  1261→    for (final r in results) {
+  1262→      final grade = r.grade ?? _gradeFromPercentage(r.percentage);
+  1263→      gradeDistribution[grade] = (gradeDistribution[grade] ?? 0) + 1;
+  1264→    }
+  1265→
+  1266→    return ClassPerformanceSummary(
+  1267→      classId: classId,
+  1268→      subjectId: subjectId,
+  1269→      totalStudents: results.length,
+  1270→      averageScore: _round2(_mean(scores)),
+  1271→      highestScore: _round2(_max(scores)),
+  1272→      lowestScore: _round2(_min(scores)),
+  1273→      medianScore: _round2(_median(scores)),
+  1274→      passRate: _round2(
+  1275→        (scores.where((s) => s >= passMark).length / scores.length) * 100,
+  1276→      ),
+  1277→      distinctionRate: _round2(
+  1278→        (scores.where((s) => s >= distinctionThreshold).length / scores.length) *
+  1279→            100,
+  1280→      ),
+  1281→      gradeDistribution: gradeDistribution,
+  1282→      scoreDistribution: computeScoreDistribution(scores),
+  1283→      topicPerformance: _computeTopicPerformanceFromResults(results),
+  1284→      improvementRate: 0,
+  1285→    );
+  1286→  }
+  1287→
+  1288→  // ── Improvement Rate ───────────────────────────────────────────────
+  1289→
+  1290→  /// Computes the improvement rate between current and previous results.
+  1291→  ///
+  1292→  /// Returns the average delta in percentage points (positive = improvement).
+  1293→  /// Matches students by ID. Students not in both lists are excluded.
+  1294→  static double _computeImprovementRate(
+  1295→    List<StudentOverallResultEntity> current,
+  1296→    List<StudentOverallResultEntity>? previous,
+  1297→  ) {
+  1298→    if (previous == null || previous.isEmpty) return 0;
+  1299→
+  1300→    final previousMap = <String, double>{};
+  1301→    for (final r in previous) {
+  1302→      previousMap[r.studentId] = r.overallPercentage;
+  1303→    }
+  1304→
+  1305→    double totalDelta = 0;
+  1306→    int matchedCount = 0;
+  1307→    for (final r in current) {
+  1308→      final prevScore = previousMap[r.studentId];
+  1309→      if (prevScore != null) {
+  1310→        totalDelta += r.overallPercentage - prevScore;
+  1311→        matchedCount++;
+  1312→      }
+  1313→    }
+  1314→
+  1315→    return matchedCount > 0 ? totalDelta / matchedCount : 0;
+  1316→  }
+  1317→
+  1318→  // ── Recommendation Generation ──────────────────────────────────────
+  1319→
+  1320→  /// Generates AI-style study recommendations based on trend analysis.
+  1321→  static List<String> _generateRecommendations(
+  1322→    PerformanceTrend trend,
+  1323→    double slope,
+  1324→    List<String> strengths,
+  1325→    List<String> weaknesses,
+  1326→  ) {
+  1327→    final recommendations = <String>[];
+  1328→
+  1329→    switch (trend) {
+  1330→      case PerformanceTrend.improving:
+  1331→        recommendations.add(
+  1332→          'Your performance is improving! Keep up the consistent effort.',
+  1333→        );
+  1334→        if (slope > 5) {
+  1335→          recommendations.add(
+  1336→            'Your rate of improvement is impressive. Consider challenging '
+  1337→            'yourself with more advanced material.',
+  1338→          );
+  1339→        }
+  1340→      case PerformanceTrend.stable:
+  1341→        recommendations.add(
+  1342→          'Your performance has been stable. To break through to the next '
+  1343→          'level, try changing your study approach.',
+  1344→        );
+  1345→      case PerformanceTrend.declining:
+  1346→        recommendations.add(
+  1347→          'Your performance is trending downward. Consider reviewing '
+  1348→          'fundamentals and seeking additional help.',
+  1349→        );
+  1350→        if (slope < -5) {
+  1351→          recommendations.add(
+  1352→            'The decline is significant. It may help to speak with a teacher '
+  1353→            'or counselor about potential challenges.',
+  1354→          );
+  1355→        }
+  1356→    }
+  1357→
+  1358→    if (weaknesses.isNotEmpty) {
+  1359→      recommendations.add(
+  1360→        'Focus extra study time on your weak areas: '
+  1361→        '${weaknesses.take(3).join(', ')}.',
+  1362→      );
+  1363→    }
+  1364→
+  1365→    if (strengths.isNotEmpty) {
+  1366→      recommendations.add(
+  1367→        'Continue building on your strengths: '
+  1368→        '${strengths.take(3).join(', ')}.',
+  1369→      );
+  1370→    }
+  1371→
+  1372→    // General study tips based on performance level
+  1373→    recommendations.add(
+  1374→      'Practice with past exam questions to identify recurring patterns '
+  1375→      'and improve time management.',
+  1376→    );
+  1377→
+  1378→    return recommendations;
+  1379→  }
+  1380→
+  1381→  // ── Correlation Interpretation ─────────────────────────────────────
+  1382→
+  1383→  /// Returns a human-readable interpretation of a correlation coefficient.
+  1384→  static String _interpretCorrelation(double r) {
+  1385→    final absR = r.abs();
+  1386→    final direction = r >= 0 ? 'positive' : 'negative';
+  1387→
+  1388→    String strength;
+  1389→    if (absR >= 0.8) {
+  1390→      strength = 'very strong';
+  1391→    } else if (absR >= 0.6) {
+  1392→      strength = 'strong';
+  1393→    } else if (absR >= 0.4) {
+  1394→      strength = 'moderate';
+  1395→    } else if (absR >= 0.2) {
+  1396→      strength = 'weak';
+  1397→    } else {
+  1398→      strength = 'very weak';
+  1399→    }
+  1400→
+  1401→    return 'There is a $strength $direction correlation between attendance '
+  1402→        'and performance (r = ${r.toStringAsFixed(3)}).';
+  1403→  }
+  1404→
+  1405→  // ── Empty Buckets ──────────────────────────────────────────────────
+  1406→
+  1407→  /// Builds empty histogram buckets for the no-data case.
+  1408→  static List<ScoreBucket> _buildEmptyBuckets({
+  1409→    int bucketCount = defaultBucketCount,
+  1410→  }) {
+  1411→    final bucketWidth = 100.0 / bucketCount;
+  1412→    return List.generate(bucketCount, (i) {
+  1413→      final min = i * bucketWidth;
+  1414→      final max = (i + 1) * bucketWidth;
+  1415→      return ScoreBucket(
+  1416→        rangeLabel: '${min.round()}–${max.round()}',
+  1417→        min: min,
+  1418→        max: max,
+  1419→        count: 0,
+  1420→        percentage: 0,
+  1421→      );
+  1422→    });
+  1423→  }
+  1424→
+  1425→  // ── Rounding ──────────────────────────────────────────────────────
+  1426→
+  1427→  /// Rounds to 2 decimal places.
+  1428→  static double _round2(double value) {
+  1429→    return (value * 100).roundToDouble() / 100;
+  1430→  }
+  1431→
+  1432→  /// Rounds to 4 decimal places.
+  1433→  static double _round4(double value) {
+  1434→    return (value * 10000).roundToDouble() / 10000;
+  1435→  }
+  1436→}
+  1437→
+  1438→// ═══════════════════════════════════════════════════════════════════════
+  1439→// INTERNAL HELPERS
+  1440→// ═══════════════════════════════════════════════════════════════════════
+  1441→
+  1442→/// Result of a simple linear regression.
+  1443→class _LinearRegressionResult {
+  1444→  const _LinearRegressionResult({
+  1445→    required this.slope,
+  1446→    required this.intercept,
+  1447→    required this.rSquared,
+  1448→  });
+  1449→
+  1450→  final double slope;
+  1451→  final double intercept;
+  1452→  final double rSquared;
+  1453→}
+  1454→
+  1455→/// Mutable accumulator for topic-level aggregation.
+  1456→class _TopicAggregation {
+  1457→  _TopicAggregation({required this.topicId, this.subjectId});
+  1458→
+  1459→  final String topicId;
+  1460→  final String? subjectId;
+  1461→
+  1462→  final List<double> _accuracies = [];
+  1463→  final List<double> _timesPerQuestion = [];
+  1464→
+  1465→  void addAccuracy(double accuracy) => _accuracies.add(accuracy);
+  1466→  void addTimePerQuestion(double seconds) => _timesPerQuestion.add(seconds);
+  1467→
+  1468→  int get studentCount => _accuracies.length;
+  1469→
+  1470→  double get averageAccuracy =>
+  1471→      _accuracies.isNotEmpty ? _accuracies.reduce((a, b) => a + b) / _accuracies.length : 0;
+  1472→
+  1473→  double? get avgTimePerQuestion =>
+  1474→      _timesPerQuestion.isNotEmpty
+  1475→          ? _timesPerQuestion.reduce((a, b) => a + b) / _timesPerQuestion.length
+  1476→          : null;
+  1477→}
+  1478→

@@ -1,0 +1,852 @@
+     1→import '../../../../core/errors/exceptions.dart';
+     2→import '../../../../core/errors/failures.dart';
+     3→import '../../../../core/utils/logger.dart';
+     4→import '../../../../core/utils/result.dart';
+     5→import '../../../ai_generator/domain/entities/ai_entities.dart';
+     6→import '../../domain/repositories/ai_generator_repository.dart';
+     7→import '../datasources/ai_generator_remote_datasource.dart';
+     8→import '../models/ai_models.dart';
+     9→
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→// AI GENERATOR REPOSITORY IMPLEMENTATION
+    12→// ═══════════════════════════════════════════════════════════════════════
+    13→
+    14→/// Concrete implementation of [AiGeneratorRepository] that delegates
+    15→/// all operations to [AiGeneratorRemoteDataSource].
+    16→///
+    17→/// Responsibilities:
+    18→/// - Converts domain entities to/from data models
+    19→/// - Catches data-layer exceptions and converts them to domain [Failure] types
+    20→/// - Returns [Result] to force callers to handle both success and failure
+    21→class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
+    22→  AiGeneratorRepositoryImpl({
+    23→    required AiGeneratorRemoteDataSource remoteDataSource,
+    24→  }) : _remoteDataSource = remoteDataSource;
+    25→
+    26→  final AiGeneratorRemoteDataSource _remoteDataSource;
+    27→
+    28→  // ═══════════════════════════════════════════════════════════════════════
+    29→  // QUESTION GENERATION
+    30→  // ═══════════════════════════════════════════════════════════════════════
+    31→
+    32→  @override
+    33→  Future<Result<List<GeneratedQuestionEntity>>> generateQuestions(
+    34→    GenerationInputEntity input,
+    35→  ) async {
+    36→    try {
+    37→      // Create the generation request
+    38→      final inputModel = GenerationInputModel.fromEntity(input);
+    39→      final requestData = {
+    40→        'school_id': '', // Will be set by the caller
+    41→        'requested_by': '', // Will be set by the caller
+    42→        'provider': input.provider?.value ?? 'openai',
+    43→        'model_name': input.provider?.defaultModel ?? 'gpt-4o',
+    44→        'prompt_template_id': input.promptTemplateId,
+    45→        'generation_type': 'question_generation',
+    46→        'status': 'pending',
+    47→        'input_params': inputModel.toJson(),
+    48→        'system_prompt': '',
+    49→        'user_prompt': '',
+    50→      };
+    51→
+    52→      final requestModel =
+    53→          await _remoteDataSource.createGenerationRequest(requestData);
+    54→
+    55→      // Update with processing status
+    56→      await _remoteDataSource.updateGenerationRequest(
+    57→        requestModel.id,
+    58→        {'status': 'processing', 'started_at': DateTime.now().toIso8601String()},
+    59→      );
+    60→
+    61→      // Fetch prompt templates for generation
+    62→      final templatesData =
+    63→          await _remoteDataSource.getPromptTemplates({
+    64→        'prompt_type': 'question_generation',
+    65→        if (input.subjectId.isNotEmpty) 'subject_id': input.subjectId,
+    66→      });
+    67→
+    68→      // Note: The actual AI generation happens in the AiService layer.
+    69→      // This repository method creates the request and returns the
+    70→      // generated questions after the AI service processes them.
+    71→      // For now, we return the generated questions associated with
+    72→      // the request after marking it as completed.
+    73→
+    74→      final questions = await _remoteDataSource.getGeneratedQuestions({
+    75→        'generation_request_id': requestModel.id,
+    76→      });
+    77→
+    78→      // Update request as completed
+    79→      await _remoteDataSource.updateGenerationRequest(
+    80→        requestModel.id,
+    81→        {
+    82→          'status': 'completed',
+    83→          'completed_at': DateTime.now().toIso8601String(),
+    84→        },
+    85→      );
+    86→
+    87→      return Success(questions.map((m) => m.toEntity()).toList());
+    88→    } on AuthException catch (e) {
+    89→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    90→    } on ServerException catch (e) {
+    91→      return FailureResult(Failure.server(
+    92→        message: e.message,
+    93→        statusCode: e.statusCode,
+    94→        data: e.data,
+    95→      ));
+    96→    } on NetworkException catch (e) {
+    97→      return FailureResult(Failure.network(message: e.message));
+    98→    } on NotFoundException catch (e) {
+    99→      return FailureResult(Failure.notFound(message: e.message));
+   100→    } catch (e) {
+   101→      AppLogger.error('Unexpected generateQuestions error', error: e);
+   102→      return FailureResult(Failure.server(
+   103→        message: 'An unexpected error occurred during generation.',
+   104→        statusCode: 500,
+   105→      ));
+   106→    }
+   107→  }
+   108→
+   109→  @override
+   110→  Future<Result<List<GeneratedQuestionEntity>>> getGeneratedQuestions({
+   111→    String? schoolId,
+   112→    ReviewStatus? reviewStatus,
+   113→    int page = 1,
+   114→    int perPage = 20,
+   115→  }) async {
+   116→    try {
+   117→      final filters = <String, dynamic>{
+   118→        'page': page,
+   119→        'per_page': perPage,
+   120→      };
+   121→      if (schoolId != null) filters['school_id'] = schoolId;
+   122→      if (reviewStatus != null) filters['review_status'] = reviewStatus.value;
+   123→
+   124→      final models = await _remoteDataSource.getGeneratedQuestions(filters);
+   125→      return Success(models.map((m) => m.toEntity()).toList());
+   126→    } on AuthException catch (e) {
+   127→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   128→    } on ServerException catch (e) {
+   129→      return FailureResult(Failure.server(
+   130→        message: e.message,
+   131→        statusCode: e.statusCode,
+   132→        data: e.data,
+   133→      ));
+   134→    } on NetworkException catch (e) {
+   135→      return FailureResult(Failure.network(message: e.message));
+   136→    } catch (e) {
+   137→      AppLogger.error('Unexpected getGeneratedQuestions error', error: e);
+   138→      return FailureResult(Failure.server(
+   139→        message: 'Failed to retrieve generated questions.',
+   140→        statusCode: 500,
+   141→      ));
+   142→    }
+   143→  }
+   144→
+   145→  @override
+   146→  Future<Result<GeneratedQuestionEntity>> getGeneratedQuestion(
+   147→    String id,
+   148→  ) async {
+   149→    try {
+   150→      final model = await _remoteDataSource.getGeneratedQuestion(id);
+   151→      return Success(model.toEntity());
+   152→    } on AuthException catch (e) {
+   153→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   154→    } on ServerException catch (e) {
+   155→      return FailureResult(Failure.server(
+   156→        message: e.message,
+   157→        statusCode: e.statusCode,
+   158→        data: e.data,
+   159→      ));
+   160→    } on NotFoundException catch (e) {
+   161→      return FailureResult(Failure.notFound(message: e.message));
+   162→    } catch (e) {
+   163→      AppLogger.error('Unexpected getGeneratedQuestion error', error: e);
+   164→      return FailureResult(Failure.server(
+   165→        message: 'Failed to retrieve generated question.',
+   166→        statusCode: 500,
+   167→      ));
+   168→    }
+   169→  }
+   170→
+   171→  // ═══════════════════════════════════════════════════════════════════════
+   172→  // REVIEW
+   173→  // ═══════════════════════════════════════════════════════════════════════
+   174→
+   175→  @override
+   176→  Future<Result<GeneratedQuestionEntity>> approveQuestion(
+   177→    String id, {
+   178→    String? reviewNotes,
+   179→  }) async {
+   180→    try {
+   181→      final model = await _remoteDataSource.approveQuestion(
+   182→        id,
+   183→        reviewNotes: reviewNotes,
+   184→      );
+   185→      return Success(model.toEntity());
+   186→    } on AuthException catch (e) {
+   187→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   188→    } on ServerException catch (e) {
+   189→      return FailureResult(Failure.server(
+   190→        message: e.message,
+   191→        statusCode: e.statusCode,
+   192→        data: e.data,
+   193→      ));
+   194→    } on NotFoundException catch (e) {
+   195→      return FailureResult(Failure.notFound(message: e.message));
+   196→    } catch (e) {
+   197→      AppLogger.error('Unexpected approveQuestion error', error: e);
+   198→      return FailureResult(Failure.server(
+   199→        message: 'Failed to approve question.',
+   200→        statusCode: 500,
+   201→      ));
+   202→    }
+   203→  }
+   204→
+   205→  @override
+   206→  Future<Result<GeneratedQuestionEntity>> rejectQuestion(
+   207→    String id,
+   208→    String reason,
+   209→  ) async {
+   210→    try {
+   211→      final model = await _remoteDataSource.rejectQuestion(id, reason);
+   212→      return Success(model.toEntity());
+   213→    } on AuthException catch (e) {
+   214→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   215→    } on ServerException catch (e) {
+   216→      return FailureResult(Failure.server(
+   217→        message: e.message,
+   218→        statusCode: e.statusCode,
+   219→        data: e.data,
+   220→      ));
+   221→    } on NotFoundException catch (e) {
+   222→      return FailureResult(Failure.notFound(message: e.message));
+   223→    } catch (e) {
+   224→      AppLogger.error('Unexpected rejectQuestion error', error: e);
+   225→      return FailureResult(Failure.server(
+   226→        message: 'Failed to reject question.',
+   227→        statusCode: 500,
+   228→      ));
+   229→    }
+   230→  }
+   231→
+   232→  @override
+   233→  Future<Result<GeneratedQuestionEntity>> requestRevision(
+   234→    String id,
+   235→    String notes,
+   236→  ) async {
+   237→    try {
+   238→      final model = await _remoteDataSource.requestRevision(id, notes);
+   239→      return Success(model.toEntity());
+   240→    } on AuthException catch (e) {
+   241→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   242→    } on ServerException catch (e) {
+   243→      return FailureResult(Failure.server(
+   244→        message: e.message,
+   245→        statusCode: e.statusCode,
+   246→        data: e.data,
+   247→      ));
+   248→    } on NotFoundException catch (e) {
+   249→      return FailureResult(Failure.notFound(message: e.message));
+   250→    } catch (e) {
+   251→      AppLogger.error('Unexpected requestRevision error', error: e);
+   252→      return FailureResult(Failure.server(
+   253→        message: 'Failed to request revision.',
+   254→        statusCode: 500,
+   255→      ));
+   256→    }
+   257→  }
+   258→
+   259→  // ═══════════════════════════════════════════════════════════════════════
+   260→  // QUESTION IMPROVEMENT
+   261→  // ═══════════════════════════════════════════════════════════════════════
+   262→
+   263→  @override
+   264→  Future<Result<QuestionImprovementEntity>> improveQuestion(
+   265→    String id,
+   266→    String improvementType, {
+   267→    String? customInstructions,
+   268→  }) async {
+   269→    try {
+   270→      // Get the original question
+   271→      final questionModel = await _remoteDataSource.getGeneratedQuestion(id);
+   272→      final question = questionModel.toEntity();
+   273→
+   274→      // Create improvement record
+   275→      final improvementData = {
+   276→        'generated_question_id': id,
+   277→        'improvement_type': improvementType,
+   278→        'provider': 'openai', // Default provider
+   279→        'original_content': question.content,
+   280→        'improved_content': question.content, // Will be updated after AI processing
+   281→        'original_answer_options': question.answerOptions.isNotEmpty
+   282→            ? question.answerOptions
+   283→            : null,
+   284→        'custom_instructions': customInstructions,
+   285→      };
+   286→
+   287→      final model =
+   288→          await _remoteDataSource.createImprovement(improvementData);
+   289→      return Success(model.toEntity());
+   290→    } on AuthException catch (e) {
+   291→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   292→    } on ServerException catch (e) {
+   293→      return FailureResult(Failure.server(
+   294→        message: e.message,
+   295→        statusCode: e.statusCode,
+   296→        data: e.data,
+   297→      ));
+   298→    } on NotFoundException catch (e) {
+   299→      return FailureResult(Failure.notFound(message: e.message));
+   300→    } catch (e) {
+   301→      AppLogger.error('Unexpected improveQuestion error', error: e);
+   302→      return FailureResult(Failure.server(
+   303→        message: 'Failed to improve question.',
+   304→        statusCode: 500,
+   305→      ));
+   306→    }
+   307→  }
+   308→
+   309→  @override
+   310→  Future<Result<GeneratedQuestionEntity>> acceptImprovement(
+   311→    String improvementId,
+   312→  ) async {
+   313→    try {
+   314→      // Get the improvement
+   315→      final improvementModel =
+   316→          await _remoteDataSource.getImprovement(improvementId);
+   317→      final improvement = improvementModel.toEntity();
+   318→
+   319→      // Mark improvement as accepted
+   320→      await _remoteDataSource.updateImprovement(
+   321→        improvementId,
+   322→        {'is_accepted': true},
+   323→      );
+   324→
+   325→      // Update the generated question with improved content
+   326→      final updateData = <String, dynamic>{
+   327→        'content': improvement.improvedContent,
+   328→        'is_edited': true,
+   329→        'updated_at': DateTime.now().toIso8601String(),
+   330→      };
+   331→
+   332→      if (improvement.improvedAnswerOptions != null) {
+   333→        updateData['answer_options'] = improvement.improvedAnswerOptions;
+   334→      }
+   335→
+   336→      final updatedQuestion = await _remoteDataSource.updateGeneratedQuestion(
+   337→        improvement.generatedQuestionId,
+   338→        updateData,
+   339→      );
+   340→
+   341→      return Success(updatedQuestion.toEntity());
+   342→    } on AuthException catch (e) {
+   343→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   344→    } on ServerException catch (e) {
+   345→      return FailureResult(Failure.server(
+   346→        message: e.message,
+   347→        statusCode: e.statusCode,
+   348→        data: e.data,
+   349→      ));
+   350→    } on NotFoundException catch (e) {
+   351→      return FailureResult(Failure.notFound(message: e.message));
+   352→    } catch (e) {
+   353→      AppLogger.error('Unexpected acceptImprovement error', error: e);
+   354→      return FailureResult(Failure.server(
+   355→        message: 'Failed to accept improvement.',
+   356→        statusCode: 500,
+   357→      ));
+   358→    }
+   359→  }
+   360→
+   361→  // ═══════════════════════════════════════════════════════════════════════
+   362→  // VALIDATION
+   363→  // ═══════════════════════════════════════════════════════════════════════
+   364→
+   365→  @override
+   366→  Future<Result<List<ValidationResultEntity>>> validateQuestion(
+   367→    String id,
+   368→  ) async {
+   369→    try {
+   370→      // Get existing validation results
+   371→      final models =
+   372→          await _remoteDataSource.getValidationResults(id);
+   373→      return Success(models.map((m) => m.toEntity()).toList());
+   374→    } on AuthException catch (e) {
+   375→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   376→    } on ServerException catch (e) {
+   377→      return FailureResult(Failure.server(
+   378→        message: e.message,
+   379→        statusCode: e.statusCode,
+   380→        data: e.data,
+   381→      ));
+   382→    } on NotFoundException catch (e) {
+   383→      return FailureResult(Failure.notFound(message: e.message));
+   384→    } catch (e) {
+   385→      AppLogger.error('Unexpected validateQuestion error', error: e);
+   386→      return FailureResult(Failure.server(
+   387→        message: 'Failed to validate question.',
+   388→        statusCode: 500,
+   389→      ));
+   390→    }
+   391→  }
+   392→
+   393→  // ═══════════════════════════════════════════════════════════════════════
+   394→  // DOCUMENT UPLOAD & PROCESSING
+   395→  // ═══════════════════════════════════════════════════════════════════════
+   396→
+   397→  @override
+   398→  Future<Result<DocumentUploadEntity>> uploadDocument(
+   399→    DocumentUploadEntity document,
+   400→  ) async {
+   401→    try {
+   402→      final model = DocumentUploadModel.fromEntity(document);
+   403→      final created = await _remoteDataSource.createDocumentUpload(model.toJson());
+   404→      return Success(created.toEntity());
+   405→    } on AuthException catch (e) {
+   406→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   407→    } on ServerException catch (e) {
+   408→      return FailureResult(Failure.server(
+   409→        message: e.message,
+   410→        statusCode: e.statusCode,
+   411→        data: e.data,
+   412→      ));
+   413→    } catch (e) {
+   414→      AppLogger.error('Unexpected uploadDocument error', error: e);
+   415→      return FailureResult(Failure.server(
+   416→        message: 'Failed to upload document.',
+   417→        statusCode: 500,
+   418→      ));
+   419→    }
+   420→  }
+   421→
+   422→  @override
+   423→  Future<Result<DocumentUploadEntity>> processDocument(
+   424→    String documentId,
+   425→  ) async {
+   426→    try {
+   427→      // Update status to processing
+   428→      final updated = await _remoteDataSource.updateDocumentUpload(
+   429→        documentId,
+   430→        {
+   431→          'status': 'processing',
+   432→        },
+   433→      );
+   434→
+   435→      // The actual AI processing happens in the AiService layer.
+   436→      // Here we just update the status.
+   437→
+   438→      return Success(updated.toEntity());
+   439→    } on AuthException catch (e) {
+   440→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   441→    } on ServerException catch (e) {
+   442→      return FailureResult(Failure.server(
+   443→        message: e.message,
+   444→        statusCode: e.statusCode,
+   445→        data: e.data,
+   446→      ));
+   447→    } on NotFoundException catch (e) {
+   448→      return FailureResult(Failure.notFound(message: e.message));
+   449→    } catch (e) {
+   450→      AppLogger.error('Unexpected processDocument error', error: e);
+   451→      return FailureResult(Failure.server(
+   452→        message: 'Failed to process document.',
+   453→        statusCode: 500,
+   454→      ));
+   455→    }
+   456→  }
+   457→
+   458→  // ═══════════════════════════════════════════════════════════════════════
+   459→  // QUESTION BANK INTEGRATION
+   460→  // ═══════════════════════════════════════════════════════════════════════
+   461→
+   462→  @override
+   463→  Future<Result<String>> saveToQuestionBank(
+   464→    String generatedQuestionId,
+   465→  ) async {
+   466→    try {
+   467→      // Generate a new question bank ID (would be created in the
+   468→      // question_bank table via the question bank repository)
+   469→      final questionBankId = 'qb_${DateTime.now().millisecondsSinceEpoch}';
+   470→
+   471→      final updated = await _remoteDataSource.saveToQuestionBank(
+   472→        generatedQuestionId,
+   473→        questionBankId,
+   474→      );
+   475→
+   476→      return Success(updated.questionBankId ?? questionBankId);
+   477→    } on AuthException catch (e) {
+   478→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   479→    } on ServerException catch (e) {
+   480→      return FailureResult(Failure.server(
+   481→        message: e.message,
+   482→        statusCode: e.statusCode,
+   483→        data: e.data,
+   484→      ));
+   485→    } on NotFoundException catch (e) {
+   486→      return FailureResult(Failure.notFound(message: e.message));
+   487→    } catch (e) {
+   488→      AppLogger.error('Unexpected saveToQuestionBank error', error: e);
+   489→      return FailureResult(Failure.server(
+   490→        message: 'Failed to save question to bank.',
+   491→        statusCode: 500,
+   492→      ));
+   493→    }
+   494→  }
+   495→
+   496→  // ═══════════════════════════════════════════════════════════════════════
+   497→  // PROMPT TEMPLATES
+   498→  // ═══════════════════════════════════════════════════════════════════════
+   499→
+   500→  @override
+   501→  Future<Result<List<PromptTemplateEntity>>> getPromptTemplates({
+   502→    PromptType? type,
+   503→    String? subjectId,
+   504→    String? curriculum,
+   505→  }) async {
+   506→    try {
+   507→      final filters = <String, dynamic>{};
+   508→      if (type != null) filters['prompt_type'] = type.value;
+   509→      if (subjectId != null) filters['subject_id'] = subjectId;
+   510→      if (curriculum != null) filters['curriculum'] = curriculum;
+   511→
+   512→      final models = await _remoteDataSource.getPromptTemplates(filters);
+   513→      return Success(models.map((m) => m.toEntity()).toList());
+   514→    } on AuthException catch (e) {
+   515→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   516→    } on ServerException catch (e) {
+   517→      return FailureResult(Failure.server(
+   518→        message: e.message,
+   519→        statusCode: e.statusCode,
+   520→        data: e.data,
+   521→      ));
+   522→    } catch (e) {
+   523→      AppLogger.error('Unexpected getPromptTemplates error', error: e);
+   524→      return FailureResult(Failure.server(
+   525→        message: 'Failed to retrieve prompt templates.',
+   526→        statusCode: 500,
+   527→      ));
+   528→    }
+   529→  }
+   530→
+   531→  @override
+   532→  Future<Result<PromptTemplateEntity>> getPromptTemplate(String id) async {
+   533→    try {
+   534→      final model = await _remoteDataSource.getPromptTemplate(id);
+   535→      return Success(model.toEntity());
+   536→    } on AuthException catch (e) {
+   537→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   538→    } on ServerException catch (e) {
+   539→      return FailureResult(Failure.server(
+   540→        message: e.message,
+   541→        statusCode: e.statusCode,
+   542→        data: e.data,
+   543→      ));
+   544→    } on NotFoundException catch (e) {
+   545→      return FailureResult(Failure.notFound(message: e.message));
+   546→    } catch (e) {
+   547→      AppLogger.error('Unexpected getPromptTemplate error', error: e);
+   548→      return FailureResult(Failure.server(
+   549→        message: 'Failed to retrieve prompt template.',
+   550→        statusCode: 500,
+   551→      ));
+   552→    }
+   553→  }
+   554→
+   555→  @override
+   556→  Future<Result<PromptTemplateEntity>> createPromptTemplate(
+   557→    PromptTemplateEntity template,
+   558→  ) async {
+   559→    try {
+   560→      final model = PromptTemplateModel.fromEntity(template);
+   561→      final created =
+   562→          await _remoteDataSource.createPromptTemplate(model.toJson());
+   563→      return Success(created.toEntity());
+   564→    } on AuthException catch (e) {
+   565→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   566→    } on ServerException catch (e) {
+   567→      return FailureResult(Failure.server(
+   568→        message: e.message,
+   569→        statusCode: e.statusCode,
+   570→        data: e.data,
+   571→      ));
+   572→    } catch (e) {
+   573→      AppLogger.error('Unexpected createPromptTemplate error', error: e);
+   574→      return FailureResult(Failure.server(
+   575→        message: 'Failed to create prompt template.',
+   576→        statusCode: 500,
+   577→      ));
+   578→    }
+   579→  }
+   580→
+   581→  @override
+   582→  Future<Result<PromptTemplateEntity>> updatePromptTemplate(
+   583→    PromptTemplateEntity template,
+   584→  ) async {
+   585→    try {
+   586→      final model = PromptTemplateModel.fromEntity(template);
+   587→      final updated =
+   588→          await _remoteDataSource.updatePromptTemplate(
+   589→        template.id,
+   590→        model.toJson(),
+   591→      );
+   592→      return Success(updated.toEntity());
+   593→    } on AuthException catch (e) {
+   594→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   595→    } on ServerException catch (e) {
+   596→      return FailureResult(Failure.server(
+   597→        message: e.message,
+   598→        statusCode: e.statusCode,
+   599→        data: e.data,
+   600→      ));
+   601→    } on NotFoundException catch (e) {
+   602→      return FailureResult(Failure.notFound(message: e.message));
+   603→    } catch (e) {
+   604→      AppLogger.error('Unexpected updatePromptTemplate error', error: e);
+   605→      return FailureResult(Failure.server(
+   606→        message: 'Failed to update prompt template.',
+   607→        statusCode: 500,
+   608→      ));
+   609→    }
+   610→  }
+   611→
+   612→  // ═══════════════════════════════════════════════════════════════════════
+   613→  // PROVIDER CONFIGURATION
+   614→  // ═══════════════════════════════════════════════════════════════════════
+   615→
+   616→  @override
+   617→  Future<Result<List<AiProviderConfigEntity>>> getProviderConfigs() async {
+   618→    try {
+   619→      final models = await _remoteDataSource.getProviderConfigs();
+   620→      return Success(models.map((m) => m.toEntity()).toList());
+   621→    } on AuthException catch (e) {
+   622→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   623→    } on ServerException catch (e) {
+   624→      return FailureResult(Failure.server(
+   625→        message: e.message,
+   626→        statusCode: e.statusCode,
+   627→        data: e.data,
+   628→      ));
+   629→    } catch (e) {
+   630→      AppLogger.error('Unexpected getProviderConfigs error', error: e);
+   631→      return FailureResult(Failure.server(
+   632→        message: 'Failed to retrieve provider configs.',
+   633→        statusCode: 500,
+   634→      ));
+   635→    }
+   636→  }
+   637→
+   638→  @override
+   639→  Future<Result<AiProviderConfigEntity>> getProviderConfig(String id) async {
+   640→    try {
+   641→      final model = await _remoteDataSource.getProviderConfig(id);
+   642→      return Success(model.toEntity());
+   643→    } on AuthException catch (e) {
+   644→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   645→    } on ServerException catch (e) {
+   646→      return FailureResult(Failure.server(
+   647→        message: e.message,
+   648→        statusCode: e.statusCode,
+   649→        data: e.data,
+   650→      ));
+   651→    } on NotFoundException catch (e) {
+   652→      return FailureResult(Failure.notFound(message: e.message));
+   653→    } catch (e) {
+   654→      AppLogger.error('Unexpected getProviderConfig error', error: e);
+   655→      return FailureResult(Failure.server(
+   656→        message: 'Failed to retrieve provider config.',
+   657→        statusCode: 500,
+   658→      ));
+   659→    }
+   660→  }
+   661→
+   662→  // ═══════════════════════════════════════════════════════════════════════
+   663→  // GENERATION HISTORY
+   664→  // ═══════════════════════════════════════════════════════════════════════
+   665→
+   666→  @override
+   667→  Future<Result<List<GenerationRequestEntity>>> getGenerationHistory({
+   668→    String? schoolId,
+   669→    int page = 1,
+   670→    int perPage = 20,
+   671→  }) async {
+   672→    try {
+   673→      final filters = <String, dynamic>{
+   674→        'page': page,
+   675→        'per_page': perPage,
+   676→      };
+   677→      if (schoolId != null) filters['school_id'] = schoolId;
+   678→
+   679→      final models =
+   680→          await _remoteDataSource.getGenerationRequests(filters);
+   681→      return Success(models.map((m) => m.toEntity()).toList());
+   682→    } on AuthException catch (e) {
+   683→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   684→    } on ServerException catch (e) {
+   685→      return FailureResult(Failure.server(
+   686→        message: e.message,
+   687→        statusCode: e.statusCode,
+   688→        data: e.data,
+   689→      ));
+   690→    } catch (e) {
+   691→      AppLogger.error('Unexpected getGenerationHistory error', error: e);
+   692→      return FailureResult(Failure.server(
+   693→        message: 'Failed to retrieve generation history.',
+   694→        statusCode: 500,
+   695→      ));
+   696→    }
+   697→  }
+   698→
+   699→  @override
+   700→  Future<Result<GenerationRequestEntity>> getGenerationRequest(
+   701→    String id,
+   702→  ) async {
+   703→    try {
+   704→      final model = await _remoteDataSource.getGenerationRequest(id);
+   705→      return Success(model.toEntity());
+   706→    } on AuthException catch (e) {
+   707→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   708→    } on ServerException catch (e) {
+   709→      return FailureResult(Failure.server(
+   710→        message: e.message,
+   711→        statusCode: e.statusCode,
+   712→        data: e.data,
+   713→      ));
+   714→    } on NotFoundException catch (e) {
+   715→      return FailureResult(Failure.notFound(message: e.message));
+   716→    } catch (e) {
+   717→      AppLogger.error('Unexpected getGenerationRequest error', error: e);
+   718→      return FailureResult(Failure.server(
+   719→        message: 'Failed to retrieve generation request.',
+   720→        statusCode: 500,
+   721→      ));
+   722→    }
+   723→  }
+   724→
+   725→  // ═══════════════════════════════════════════════════════════════════════
+   726→  // USAGE STATISTICS
+   727→  // ═══════════════════════════════════════════════════════════════════════
+   728→
+   729→  @override
+   730→  Future<Result<List<AiUsageStatsEntity>>> getUsageStats({
+   731→    String? schoolId,
+   732→    DateTime? startDate,
+   733→    DateTime? endDate,
+   734→  }) async {
+   735→    try {
+   736→      final filters = <String, dynamic>{};
+   737→      if (schoolId != null) filters['school_id'] = schoolId;
+   738→      if (startDate != null) {
+   739→        filters['start_date'] = startDate.toIso8601String().substring(0, 10);
+   740→      }
+   741→      if (endDate != null) {
+   742→        filters['end_date'] = endDate.toIso8601String().substring(0, 10);
+   743→      }
+   744→
+   745→      final models = await _remoteDataSource.getUsageStats(filters);
+   746→      return Success(models.map((m) => m.toEntity()).toList());
+   747→    } on AuthException catch (e) {
+   748→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   749→    } on ServerException catch (e) {
+   750→      return FailureResult(Failure.server(
+   751→        message: e.message,
+   752→        statusCode: e.statusCode,
+   753→        data: e.data,
+   754→      ));
+   755→    } catch (e) {
+   756→      AppLogger.error('Unexpected getUsageStats error', error: e);
+   757→      return FailureResult(Failure.server(
+   758→        message: 'Failed to retrieve usage stats.',
+   759→        statusCode: 500,
+   760→      ));
+   761→    }
+   762→  }
+   763→
+   764→  @override
+   765→  Future<Result<AiDashboardStatsEntity>> getDashboardStats({
+   766→    String? schoolId,
+   767→  }) async {
+   768→    try {
+   769→      final statsMap =
+   770→          await _remoteDataSource.getDashboardStats(schoolId);
+   771→      final model = AiDashboardStatsModel.fromJson(statsMap);
+   772→      return Success(model.toEntity());
+   773→    } on AuthException catch (e) {
+   774→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   775→    } on ServerException catch (e) {
+   776→      return FailureResult(Failure.server(
+   777→        message: e.message,
+   778→        statusCode: e.statusCode,
+   779→        data: e.data,
+   780→      ));
+   781→    } catch (e) {
+   782→      AppLogger.error('Unexpected getDashboardStats error', error: e);
+   783→      return FailureResult(Failure.server(
+   784→        message: 'Failed to retrieve dashboard stats.',
+   785→        statusCode: 500,
+   786→      ));
+   787→    }
+   788→  }
+   789→
+   790→  // ═══════════════════════════════════════════════════════════════════════
+   791→  // CURRICULUM MAPPINGS
+   792→  // ═══════════════════════════════════════════════════════════════════════
+   793→
+   794→  @override
+   795→  Future<Result<List<CurriculumMappingEntity>>> getCurriculumMappings({
+   796→    CurriculumType? curriculum,
+   797→    String? subjectId,
+   798→  }) async {
+   799→    try {
+   800→      final filters = <String, dynamic>{};
+   801→      if (curriculum != null) filters['curriculum'] = curriculum.value;
+   802→      if (subjectId != null) filters['subject_id'] = subjectId;
+   803→
+   804→      final models =
+   805→          await _remoteDataSource.getCurriculumMappings(filters);
+   806→      return Success(models.map((m) => m.toEntity()).toList());
+   807→    } on AuthException catch (e) {
+   808→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   809→    } on ServerException catch (e) {
+   810→      return FailureResult(Failure.server(
+   811→        message: e.message,
+   812→        statusCode: e.statusCode,
+   813→        data: e.data,
+   814→      ));
+   815→    } catch (e) {
+   816→      AppLogger.error('Unexpected getCurriculumMappings error', error: e);
+   817→      return FailureResult(Failure.server(
+   818→        message: 'Failed to retrieve curriculum mappings.',
+   819→        statusCode: 500,
+   820→      ));
+   821→    }
+   822→  }
+   823→
+   824→  // ═══════════════════════════════════════════════════════════════════════
+   825→  // GENERATION CONTROL
+   826→  // ═══════════════════════════════════════════════════════════════════════
+   827→
+   828→  @override
+   829→  Future<Result<void>> cancelGeneration(String requestId) async {
+   830→    try {
+   831→      await _remoteDataSource.cancelGenerationRequest(requestId);
+   832→      return const Success(null);
+   833→    } on AuthException catch (e) {
+   834→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   835→    } on ServerException catch (e) {
+   836→      return FailureResult(Failure.server(
+   837→        message: e.message,
+   838→        statusCode: e.statusCode,
+   839→        data: e.data,
+   840→      ));
+   841→    } on NotFoundException catch (e) {
+   842→      return FailureResult(Failure.notFound(message: e.message));
+   843→    } catch (e) {
+   844→      AppLogger.error('Unexpected cancelGeneration error', error: e);
+   845→      return FailureResult(Failure.server(
+   846→        message: 'Failed to cancel generation.',
+   847→        statusCode: 500,
+   848→      ));
+   849→    }
+   850→  }
+   851→}
+   852→

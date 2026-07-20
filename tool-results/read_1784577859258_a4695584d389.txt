@@ -1,0 +1,502 @@
+     1→import 'package:connectivity_plus/connectivity_plus.dart';
+     2→import 'package:dio/dio.dart';
+     3→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     4→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     5→
+     6→import '../config/app_config.dart';
+     7→import '../config/env_config.dart';
+     8→import '../config/supabase_config.dart';
+     9→import '../core/constants/api_constants.dart';
+    10→import '../core/network/api_client.dart';
+    11→import '../core/network/network_info.dart';
+    12→import '../core/utils/logger.dart';
+    13→import '../features/ai_generator/data/datasources/ai_generator_remote_datasource.dart';
+    14→import '../features/ai_generator/data/repositories/ai_generator_repository_impl.dart';
+    15→import '../features/ai_generator/domain/repositories/ai_generator_repository.dart';
+    16→import '../features/ai_generator/domain/usecases/generate_questions_usecase.dart';
+    17→import '../features/ai_generator/domain/usecases/get_ai_dashboard_stats_usecase.dart';
+    18→import '../features/ai_generator/domain/usecases/get_generation_history_usecase.dart';
+    19→import '../features/ai_generator/domain/usecases/improve_question_usecase.dart';
+    20→import '../features/ai_generator/domain/usecases/manage_prompt_templates_usecase.dart';
+    21→import '../features/ai_generator/domain/usecases/review_generated_question_usecase.dart';
+    22→import '../features/ai_generator/domain/usecases/save_to_question_bank_usecase.dart';
+    23→import '../features/ai_generator/domain/usecases/upload_document_usecase.dart';
+    24→import '../features/ai_generator/domain/usecases/validate_question_usecase.dart';
+    25→import '../features/ai_generator/presentation/providers/ai_document_provider.dart';
+    26→import '../features/ai_generator/presentation/providers/ai_generator_provider.dart';
+    27→import '../features/ai_generator/presentation/providers/ai_review_provider.dart';
+    28→import '../features/ai_generator/presentation/providers/ai_stats_provider.dart';
+    29→import '../features/ai_generator/presentation/providers/prompt_template_provider.dart';
+    30→import '../features/auth/data/datasources/auth_remote_datasource.dart';
+    31→import '../features/auth/data/repositories/auth_repository_impl.dart';
+    32→import '../features/auth/domain/repositories/auth_repository.dart';
+    33→import '../features/auth/domain/usecases/forgot_password_usecase.dart';
+    34→import '../features/auth/domain/usecases/get_current_user_usecase.dart';
+    35→import '../features/auth/domain/usecases/login_usecase.dart';
+    36→import '../features/auth/domain/usecases/logout_usecase.dart';
+    37→import '../features/auth/domain/usecases/signup_usecase.dart';
+    38→import '../features/auth/presentation/providers/auth_form_provider.dart';
+    39→import '../features/auth/presentation/providers/auth_provider.dart';
+    40→import '../features/cbt_engine/data/datasources/cbt_remote_datasource.dart';
+    41→import '../features/cbt_engine/data/datasources/exam_template_remote_datasource.dart';
+    42→import '../features/cbt_engine/data/repositories/cbt_repository_impl.dart';
+    43→import '../features/cbt_engine/data/repositories/exam_template_repository_impl.dart';
+    44→import '../features/cbt_engine/domain/repositories/cbt_repository.dart';
+    45→import '../features/cbt_engine/domain/repositories/exam_template_repository.dart';
+    46→import '../features/cbt_engine/domain/usecases/create_exam_usecase.dart';
+    47→import '../features/cbt_engine/domain/usecases/get_exam_results_usecase.dart';
+    48→import '../features/cbt_engine/domain/usecases/get_exam_statistics_usecase.dart';
+    49→import '../features/cbt_engine/domain/usecases/get_live_exam_stats_usecase.dart';
+    50→import '../features/cbt_engine/domain/usecases/get_submission_receipt_usecase.dart';
+    51→import '../features/cbt_engine/domain/usecases/grade_exam_usecase.dart';
+    52→import '../features/cbt_engine/domain/usecases/manage_exam_status_usecase.dart';
+    53→import '../features/cbt_engine/domain/usecases/manage_exam_templates_usecase.dart';
+    54→import '../features/cbt_engine/domain/usecases/save_answer_usecase.dart';
+    55→import '../features/cbt_engine/domain/usecases/start_exam_attempt_usecase.dart';
+    56→import '../features/cbt_engine/domain/usecases/submit_exam_attempt_usecase.dart';
+    57→import '../features/cbt_engine/domain/usecases/update_exam_usecase.dart';
+    58→import '../features/cbt_engine/presentation/providers/exam_builder_provider.dart';
+    59→import '../features/cbt_engine/presentation/providers/exam_list_provider.dart';
+    60→import '../features/cbt_engine/presentation/providers/exam_monitor_provider.dart';
+    61→import '../features/cbt_engine/presentation/providers/exam_notification_provider.dart';
+    62→import '../features/cbt_engine/presentation/providers/exam_results_provider.dart';
+    63→import '../features/cbt_engine/presentation/providers/exam_template_provider.dart';
+    64→import '../features/cbt_engine/presentation/providers/exam_taker_provider.dart';
+    65→import '../features/cbt_engine/presentation/providers/student_exams_provider.dart';
+    66→import '../features/cbt_engine/presentation/providers/submission_receipt_provider.dart';
+    67→import '../features/question_bank/data/datasources/question_bank_remote_datasource.dart';
+    68→import '../features/question_bank/data/repositories/question_bank_repository_impl.dart';
+    69→import '../features/question_bank/domain/repositories/question_bank_repository.dart';
+    70→import '../features/question_bank/domain/usecases/create_question_usecase.dart';
+    71→import '../features/question_bank/domain/usecases/delete_question_usecase.dart';
+    72→import '../features/question_bank/domain/usecases/export_questions_usecase.dart';
+    73→import '../features/question_bank/domain/usecases/get_question_detail_usecase.dart';
+    74→import '../features/question_bank/domain/usecases/get_question_stats_usecase.dart';
+    75→import '../features/question_bank/domain/usecases/get_questions_usecase.dart';
+    76→import '../features/question_bank/domain/usecases/import_questions_usecase.dart';
+    77→import '../features/question_bank/domain/usecases/manage_collections_usecase.dart';
+    78→import '../features/question_bank/domain/usecases/manage_question_status_usecase.dart';
+    79→import '../features/question_bank/domain/usecases/search_questions_usecase.dart';
+    80→import '../features/question_bank/domain/usecases/update_question_usecase.dart';
+    81→import '../features/question_bank/presentation/providers/collection_provider.dart';
+    82→import '../features/question_bank/presentation/providers/import_export_provider.dart';
+    83→import '../features/question_bank/presentation/providers/question_bank_stats_provider.dart';
+    84→import '../features/question_bank/presentation/providers/question_editor_provider.dart';
+    85→import '../features/question_bank/presentation/providers/question_filter_provider.dart';
+    86→import '../features/question_bank/presentation/providers/question_provider.dart';
+    87→import '../services/ai/ai_providers_registry.dart';
+    88→import '../services/ai/ai_service.dart';
+    89→import '../services/ai/prompt_engine.dart';
+    90→import '../services/ai/providers/gemini_provider.dart';
+    91→import '../services/ai/providers/openai_provider.dart';
+    92→import '../services/ai/validation_engine.dart';
+    93→import '../services/auth_service.dart';
+    94→import '../services/cbt/anti_cheat_service.dart';
+    95→import '../services/cbt/auto_save_service.dart';
+    96→import '../services/cbt/exam_notification_service.dart';
+    97→import '../services/cbt/exam_timer_service.dart';
+    98→import '../services/cbt/rate_limiting_service.dart';
+    99→import '../services/cbt/realtime_service.dart';
+   100→import '../services/cbt/result_processor.dart';
+   101→import '../services/cbt/session_recovery_service.dart';
+   102→import '../services/notification_service.dart';
+   103→import '../services/storage_service.dart';
+   104→import '../services/results/ai_grading_service.dart';
+   105→import '../services/results/analytics_engine.dart';
+   106→import '../services/results/report_generator.dart';
+   107→import '../features/results/data/datasources/results_remote_datasource.dart';
+   108→import '../features/results/data/repositories/results_repository_impl.dart';
+   109→import '../features/results/domain/repositories/results_repository.dart';
+   110→import '../features/results/domain/usecases/results_usecases.dart';
+   111→import '../features/results/presentation/providers/results_providers.dart';
+   112→import '../features/student_portal/data/datasources/student_portal_remote_datasource.dart';
+   113→import '../features/student_portal/data/repositories/student_portal_repository_impl.dart';
+   114→import '../features/student_portal/domain/repositories/student_portal_repository.dart';
+   115→import '../features/student_portal/domain/usecases/student_portal_usecases.dart' hide GenerateQuestionsFromContentUseCase;
+   116→import '../features/student_portal/presentation/providers/ai_tutor_provider.dart';
+   117→import '../features/student_portal/presentation/providers/assignment_provider.dart';
+   118→import '../features/student_portal/presentation/providers/document_chat_provider.dart';
+   119→import '../features/student_portal/presentation/providers/flashcard_provider.dart';
+   120→import '../features/student_portal/presentation/providers/goals_provider.dart';
+   121→import '../features/student_portal/presentation/providers/practice_provider.dart';
+   122→import '../features/student_portal/presentation/providers/progress_provider.dart';
+   123→import '../features/student_portal/presentation/providers/resource_provider.dart';
+   124→import '../features/student_portal/presentation/providers/student_dashboard_provider.dart';
+   125→import '../features/student_portal/presentation/providers/student_notification_provider.dart';
+   126→import '../features/student_portal/presentation/providers/study_planner_provider.dart';
+   127→import '../features/parent_portal/presentation/providers/parent_dashboard_provider.dart';
+   128→import '../features/parent_portal/presentation/providers/child_profile_provider.dart';
+   129→import '../features/parent_portal/presentation/providers/child_performance_provider.dart';
+   130→import '../features/parent_portal/presentation/providers/child_attendance_provider.dart';
+   131→import '../features/parent_portal/presentation/providers/child_assignments_provider.dart';
+   132→import '../features/parent_portal/presentation/providers/parent_messaging_provider.dart';
+   133→import '../features/parent_portal/presentation/providers/parent_notification_provider.dart';
+   134→import '../features/parent_portal/presentation/providers/parent_calendar_provider.dart';
+   135→import '../features/parent_portal/presentation/providers/parent_assistant_provider.dart';
+   136→import '../features/parent_portal/presentation/providers/parent_insights_provider.dart';
+   137→import '../features/parent_portal/presentation/providers/parent_reports_provider.dart';
+   138→import '../features/parent_portal/presentation/providers/parent_engagement_provider.dart';
+   139→import '../features/super_admin/data/datasources/super_admin_remote_datasource.dart';
+   140→import '../features/super_admin/data/repositories/super_admin_repository_impl.dart';
+   141→import '../features/super_admin/domain/repositories/super_admin_repository.dart';
+   142→import '../features/super_admin/domain/usecases/super_admin_usecases.dart';
+   143→
+   144→// ── Marketplace ──
+   145→import '../features/marketplace/data/datasources/marketplace_remote_datasource.dart';
+   146→import '../features/marketplace/data/repositories/marketplace_repository_impl.dart';
+   147→import '../features/marketplace/domain/repositories/marketplace_repository.dart';
+   148→import '../features/marketplace/domain/usecases/get_categories_usecase.dart';
+   149→import '../features/marketplace/domain/usecases/upsert_category_usecase.dart';
+   150→import '../features/marketplace/domain/usecases/get_seller_profile_usecase.dart';
+   151→import '../features/marketplace/domain/usecases/upsert_seller_profile_usecase.dart';
+   152→import '../features/marketplace/domain/usecases/update_seller_status_usecase.dart';
+   153→import '../features/marketplace/domain/usecases/get_sellers_usecase.dart';
+   154→import '../features/marketplace/domain/usecases/get_products_usecase.dart';
+   155→import '../features/marketplace/domain/usecases/get_product_usecase.dart';
+   156→import '../features/marketplace/domain/usecases/create_product_usecase.dart';
+   157→import '../features/marketplace/domain/usecases/update_product_usecase.dart';
+   158→import '../features/marketplace/domain/usecases/delete_product_usecase.dart';
+   159→import '../features/marketplace/domain/usecases/update_product_status_usecase.dart';
+   160→import '../features/marketplace/domain/usecases/feature_product_usecase.dart';
+   161→import '../features/marketplace/domain/usecases/get_seller_products_usecase.dart';
+   162→import '../features/marketplace/domain/usecases/get_featured_products_usecase.dart';
+   163→import '../features/marketplace/domain/usecases/get_related_products_usecase.dart';
+   164→import '../features/marketplace/domain/usecases/get_cart_usecase.dart';
+   165→import '../features/marketplace/domain/usecases/add_to_cart_usecase.dart';
+   166→import '../features/marketplace/domain/usecases/update_cart_item_usecase.dart';
+   167→import '../features/marketplace/domain/usecases/remove_from_cart_usecase.dart';
+   168→import '../features/marketplace/domain/usecases/clear_cart_usecase.dart';
+   169→import '../features/marketplace/domain/usecases/create_order_usecase.dart';
+   170→import '../features/marketplace/domain/usecases/get_order_usecase.dart';
+   171→import '../features/marketplace/domain/usecases/get_user_orders_usecase.dart';
+   172→import '../features/marketplace/domain/usecases/verify_payment_usecase.dart';
+   173→import '../features/marketplace/domain/usecases/update_order_status_usecase.dart';
+   174→import '../features/marketplace/domain/usecases/get_user_purchases_usecase.dart';
+   175→import '../features/marketplace/domain/usecases/verify_purchase_usecase.dart';
+   176→import '../features/marketplace/domain/usecases/record_download_usecase.dart';
+   177→import '../features/marketplace/domain/usecases/get_product_reviews_usecase.dart';
+   178→import '../features/marketplace/domain/usecases/create_review_usecase.dart';
+   179→import '../features/marketplace/domain/usecases/respond_to_review_usecase.dart';
+   180→import '../features/marketplace/domain/usecases/vote_review_helpful_usecase.dart';
+   181→import '../features/marketplace/domain/usecases/report_review_usecase.dart';
+   182→import '../features/marketplace/domain/usecases/get_wishlist_usecase.dart';
+   183→import '../features/marketplace/domain/usecases/toggle_wishlist_usecase.dart';
+   184→import '../features/marketplace/domain/usecases/validate_promo_code_usecase.dart';
+   185→import '../features/marketplace/domain/usecases/get_commission_rates_usecase.dart';
+   186→import '../features/marketplace/domain/usecases/upsert_commission_rate_usecase.dart';
+   187→import '../features/marketplace/domain/usecases/get_commission_records_usecase.dart';
+   188→import '../features/marketplace/domain/usecases/get_seller_analytics_usecase.dart';
+   189→import '../features/marketplace/domain/usecases/get_product_analytics_usecase.dart';
+   190→import '../features/marketplace/domain/usecases/run_quality_check_usecase.dart';
+   191→import '../features/marketplace/domain/usecases/get_quality_check_usecase.dart';
+   192→import '../features/marketplace/domain/usecases/create_dispute_usecase.dart';
+   193→import '../features/marketplace/domain/usecases/resolve_dispute_usecase.dart';
+   194→import '../features/marketplace/domain/usecases/get_disputes_usecase.dart';
+   195→import '../features/marketplace/domain/usecases/get_notifications_usecase.dart';
+   196→import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart';
+   197→import '../features/marketplace/domain/usecases/get_recommendations_usecase.dart';
+   198→import '../features/marketplace/domain/usecases/get_trending_products_usecase.dart';
+   199→import '../features/marketplace/domain/usecases/approve_product_usecase.dart';
+   200→import '../features/marketplace/domain/usecases/reject_product_usecase.dart';
+   201→import '../features/marketplace/domain/usecases/moderate_review_usecase.dart';
+   202→import '../features/marketplace/domain/usecases/suspend_seller_usecase.dart';
+   203→import '../features/marketplace/domain/usecases/increment_product_view_usecase.dart';
+   204→import '../features/marketplace/presentation/providers/marketplace_provider.dart';
+   205→import '../features/marketplace/presentation/providers/seller_provider.dart';
+   206→import '../features/marketplace/presentation/providers/product_detail_provider.dart';
+   207→import '../features/marketplace/presentation/providers/cart_provider.dart';
+   208→import '../features/marketplace/presentation/providers/order_provider.dart';
+   209→import '../features/marketplace/presentation/providers/purchase_provider.dart';
+   210→import '../features/marketplace/presentation/providers/quality_check_provider.dart';
+   211→import '../features/marketplace/presentation/providers/moderation_provider.dart';
+   212→import '../features/marketplace/presentation/providers/marketplace_notification_provider.dart';
+   213→import '../features/marketplace/presentation/providers/commission_provider.dart';
+   214→
+   215→// ── Offline & Connectivity ──
+   216→import '../features/offline/data/datasources/offline_local_datasource.dart';
+   217→import '../features/offline/data/datasources/offline_remote_datasource.dart';
+   218→import '../features/offline/data/repositories/offline_repository_impl.dart';
+   219→import '../features/offline/domain/repositories/offline_repository.dart';
+   220→import '../features/offline/domain/usecases/get_sync_status_usecase.dart';
+   221→import '../features/offline/domain/usecases/trigger_sync_usecase.dart';
+   222→import '../features/offline/domain/usecases/get_offline_resources_usecase.dart';
+   223→import '../features/offline/domain/usecases/download_resource_usecase.dart';
+   224→import '../features/offline/domain/usecases/remove_offline_resource_usecase.dart';
+   225→import '../features/offline/domain/usecases/save_draft_usecase.dart';
+   226→import '../features/offline/domain/usecases/get_drafts_usecase.dart';
+   227→import '../features/offline/domain/usecases/delete_draft_usecase.dart';
+   228→import '../features/offline/domain/usecases/save_offline_exam_attempt_usecase.dart';
+   229→import '../features/offline/domain/usecases/sync_exam_attempt_usecase.dart';
+   230→import '../features/offline/domain/usecases/register_device_usecase.dart';
+   231→import '../features/offline/domain/usecases/get_connectivity_info_usecase.dart';
+   232→import '../features/offline/domain/usecases/start_download_usecase.dart';
+   233→import '../features/offline/domain/usecases/get_downloads_usecase.dart';
+   234→import '../features/offline/presentation/providers/offline_provider.dart';
+   235→
+   236→// ── Core Infrastructure ──
+   237→import '../core/storage/local_database.dart';
+   238→import '../core/storage/cache_manager.dart';
+   239→import '../core/connectivity/connectivity_engine.dart';
+   240→import '../core/sync/sync_engine.dart';
+   241→import '../core/device/device_service.dart';
+   242→import '../core/responsive/responsive_framework.dart';
+   243→import '../core/accessibility/accessibility_framework.dart';
+   244→import '../core/performance/performance_manager.dart';
+   245→import '../core/pwa/pwa_service.dart';
+   246→
+   247→// ═══════════════════════════════════════════════════════════════════════
+   248→// INFRASTRUCTURE PROVIDERS
+   249→// ═══════════════════════════════════════════════════════════════════════
+   250→
+   251→/// Provides the Supabase client singleton.
+   252→///
+   253→/// Depends on [SupabaseConfig.initialize] having been called in `main()`.
+   254→final supabaseClientProvider = Provider<sb.SupabaseClient>((ref) {
+   255→  try {
+   256→    return SupabaseConfig.client;
+   257→  } catch (e) {
+   258→    AppLogger.error('Failed to resolve Supabase client', error: e);
+   259→    rethrow;
+   260→  }
+   261→});
+   262→
+   263→/// Provides a configured [Dio] instance with base options pulled from
+   264→/// [AppConfig] and [ApiConstants].
+   265→final dioProvider = Provider<Dio>((ref) {
+   266→  final dio = Dio(
+   267→    BaseOptions(
+   268→      baseUrl: AppConfig.baseUrl,
+   269→      connectTimeout: AppConfig.connectTimeoutDuration,
+   270→      receiveTimeout: AppConfig.receiveTimeoutDuration,
+   271→      sendTimeout: AppConfig.sendTimeoutDuration,
+   272→      headers: ApiConstants.baseHeaders(),
+   273→      responseType: ResponseType.json,
+   274→      validateStatus: (status) => status != null && status < 500,
+   275→    ),
+   276→  );
+   277→  return dio;
+   278→});
+   279→
+   280→/// Provides the [ApiClient] wrapper around [Dio].
+   281→final apiClientProvider = Provider<ApiClient>((ref) {
+   282→  final dio = ref.watch(dioProvider);
+   283→  return ApiClient(dio);
+   284→});
+   285→
+   286→/// Re-exports the [NetworkInfo] provider from the core layer so that
+   287→/// it is accessible through the DI container alongside other services.
+   288→final networkInfoProvider = Provider<NetworkInfo>((ref) {
+   289→  // Delegate to the core-layer provider.
+   290→  return ref.watch(coreNetworkInfoProvider);
+   291→});
+   292→
+   293→// ═══════════════════════════════════════════════════════════════════════
+   294→// SERVICE PROVIDERS
+   295→// ═══════════════════════════════════════════════════════════════════════
+   296→
+   297→/// Provides the [StorageService] singleton.
+   298→///
+   299→/// Lazily initialized on first access.
+   300→final storageServiceProvider = Provider<StorageService>((ref) {
+   301→  final service = StorageService();
+   302→  ref.onDispose(() {
+   303→    // StorageService wraps singletons; no explicit dispose needed.
+   304→  });
+   305→  return service;
+   306→});
+   307→
+   308→/// Provides the [AuthService] instance, injecting the Supabase client
+   309→/// and the storage service.
+   310→final authServiceProvider = Provider<AuthService>((ref) {
+   311→  final supabaseClient = ref.watch(supabaseClientProvider);
+   312→  final storageService = ref.watch(storageServiceProvider);
+   313→  return AuthService(
+   314→    supabaseClient: supabaseClient,
+   315→    storageService: storageService,
+   316→  );
+   317→});
+   318→
+   319→/// Provides the [NotificationService] instance, injecting the Supabase
+   320→/// client and the storage service.
+   321→final notificationServiceProvider = Provider<NotificationService>((ref) {
+   322→  final supabaseClient = ref.watch(supabaseClientProvider);
+   323→  final storageService = ref.watch(storageServiceProvider);
+   324→  return NotificationService(
+   325→    supabaseClient: supabaseClient,
+   326→    storageService: storageService,
+   327→  );
+   328→});
+   329→
+   330→// ═══════════════════════════════════════════════════════════════════════
+   331→// AUTH STATE PROVIDERS
+   332→// ═══════════════════════════════════════════════════════════════════════
+   333→
+   334→/// Stream provider that emits the current Supabase [sb.AuthState].
+   335→///
+   336→/// Automatically reconnects on transient failures and emits the latest
+   337→/// state to any listener.
+   338→final authStateProvider = StreamProvider<sb.AuthState>((ref) {
+   339→  final supabaseClient = ref.watch(supabaseClientProvider);
+   340→  return supabaseClient.auth.onAuthStateChange;
+   341→});
+   342→
+   343→/// Convenience provider that yields the currently authenticated [sb.User],
+   344→/// or `null` if not signed in.
+   345→final currentUserProvider = Provider<sb.User?>((ref) {
+   346→  final authState = ref.watch(authStateProvider);
+   347→  return authState.when(
+   348→    data: (state) => state.session?.user,
+   349→    loading: () => SupabaseConfig.currentUser,
+   350→    error: (_, __) => null,
+   351→  );
+   352→});
+   353→
+   354→/// Convenience provider that yields `true` when the user is authenticated.
+   355→final isAuthenticatedProvider = Provider<bool>((ref) {
+   356→  final user = ref.watch(currentUserProvider);
+   357→  return user != null;
+   358→});
+   359→
+   360→/// Provides the current user's role from secure storage, or a default.
+   361→///
+   362→/// This is a future provider since it reads from secure storage.
+   363→final userRoleProvider = FutureProvider<String>((ref) async {
+   364→  final storageService = ref.watch(storageServiceProvider);
+   365→  return storageService.getUserRole() ?? 'student';
+   366→});
+   367→
+   368→// ═══════════════════════════════════════════════════════════════════════
+   369→// CONNECTIVITY PROVIDERS (re-exported from core)
+   370→// ═══════════════════════════════════════════════════════════════════════
+   371→
+   372→/// Re-exports the connectivity stream from the core network layer.
+   373→final connectivityStreamProvider = StreamProvider<List<ConnectivityResult>>(
+   374→  (ref) {
+   375→    final networkInfo = ref.watch(networkInfoProvider);
+   376→    return networkInfo.onConnectivityChanged;
+   377→  },
+   378→);
+   379→
+   380→/// Re-exports the simple "is connected" boolean from the core layer.
+   381→final isConnectedProvider = Provider<bool>((ref) {
+   382→  final asyncResult = ref.watch(connectivityStreamProvider);
+   383→  return asyncResult.when(
+   384→    data: (results) =>
+   385→        results.any((r) => r != ConnectivityResult.none),
+   386→    loading: () => true,
+   387→    error: (_, __) => false,
+   388→  );
+   389→});
+   390→
+   391→// ═══════════════════════════════════════════════════════════════════════
+   392→// AUTH FEATURE — CLEAN ARCHITECTURE PROVIDERS
+   393→// ═══════════════════════════════════════════════════════════════════════
+   394→
+   395→/// Provides the [AuthRemoteDataSource] implementation.
+   396→final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
+   397→  final supabaseClient = ref.watch(supabaseClientProvider);
+   398→  return AuthRemoteDataSourceImpl(supabaseClient: supabaseClient);
+   399→});
+   400→
+   401→/// Provides the [AuthRepository] implementation.
+   402→final authRepositoryProvider = Provider<AuthRepository>((ref) {
+   403→  final remoteDataSource = ref.watch(authRemoteDataSourceProvider);
+   404→  final storageService = ref.watch(storageServiceProvider);
+   405→  return AuthRepositoryImpl(
+   406→    remoteDataSource: remoteDataSource,
+   407→    storageService: storageService,
+   408→  );
+   409→});
+   410→
+   411→/// Provides the [LoginUseCase].
+   412→final loginUseCaseProvider = Provider<LoginUseCase>((ref) {
+   413→  final repository = ref.watch(authRepositoryProvider);
+   414→  return LoginUseCase(repository);
+   415→});
+   416→
+   417→/// Provides the [SignUpUseCase].
+   418→final signUpUseCaseProvider = Provider<SignUpUseCase>((ref) {
+   419→  final repository = ref.watch(authRepositoryProvider);
+   420→  return SignUpUseCase(repository);
+   421→});
+   422→
+   423→/// Provides the [ForgotPasswordUseCase].
+   424→final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
+   425→  final repository = ref.watch(authRepositoryProvider);
+   426→  return ForgotPasswordUseCase(repository);
+   427→});
+   428→
+   429→/// Provides the [LogoutUseCase].
+   430→final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
+   431→  final repository = ref.watch(authRepositoryProvider);
+   432→  return LogoutUseCase(repository);
+   433→});
+   434→
+   435→/// Provides the [GetCurrentUserUseCase].
+   436→final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
+   437→  final repository = ref.watch(authRepositoryProvider);
+   438→  return GetCurrentUserUseCase(repository);
+   439→});
+   440→
+   441→/// Provides the [AuthNotifier] with all required use cases.
+   442→final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+   443→  return AuthNotifier(
+   444→    loginUseCase: ref.watch(loginUseCaseProvider),
+   445→    signUpUseCase: ref.watch(signUpUseCaseProvider),
+   446→    forgotPasswordUseCase: ref.watch(forgotPasswordUseCaseProvider),
+   447→    logoutUseCase: ref.watch(logoutUseCaseProvider),
+   448→    getCurrentUserUseCase: ref.watch(getCurrentUserUseCaseProvider),
+   449→    authRepository: ref.watch(authRepositoryProvider),
+   450→  );
+   451→});
+   452→
+   453→/// Provides the [AuthFormNotifier] for form validation state.
+   454→final authFormProvider =
+   455→    StateNotifierProvider<AuthFormNotifier, AuthFormState>((ref) {
+   456→  return AuthFormNotifier();
+   457→});
+   458→
+   459→// ═══════════════════════════════════════════════════════════════════════
+   460→// QUESTION BANK FEATURE — CLEAN ARCHITECTURE PROVIDERS
+   461→// ═══════════════════════════════════════════════════════════════════════
+   462→
+   463→/// Provides the [QuestionBankRemoteDataSource] implementation.
+   464→final questionBankRemoteDataSourceProvider =
+   465→    Provider<QuestionBankRemoteDataSource>((ref) {
+   466→  final supabaseClient = ref.watch(supabaseClientProvider);
+   467→  return QuestionBankRemoteDataSourceImpl(supabaseClient: supabaseClient);
+   468→});
+   469→
+   470→/// Provides the [QuestionBankRepository] implementation.
+   471→final questionBankRepositoryProvider = Provider<QuestionBankRepository>((ref) {
+   472→  final remoteDataSource = ref.watch(questionBankRemoteDataSourceProvider);
+   473→  return QuestionBankRepositoryImpl(remoteDataSource: remoteDataSource);
+   474→});
+   475→
+   476→/// Provides the [GetQuestionsUseCase].
+   477→final getQuestionsUseCaseProvider = Provider<GetQuestionsUseCase>((ref) {
+   478→  final repository = ref.watch(questionBankRepositoryProvider);
+   479→  return GetQuestionsUseCase(repository);
+   480→});
+   481→
+   482→/// Provides the [CreateQuestionUseCase].
+   483→final createQuestionUseCaseProvider = Provider<CreateQuestionUseCase>((ref) {
+   484→  final repository = ref.watch(questionBankRepositoryProvider);
+   485→  return CreateQuestionUseCase(repository);
+   486→});
+   487→
+   488→/// Provides the [UpdateQuestionUseCase].
+   489→final updateQuestionUseCaseProvider = Provider<UpdateQuestionUseCase>((ref) {
+   490→  final repository = ref.watch(questionBankRepositoryProvider);
+   491→  return UpdateQuestionUseCase(repository);
+   492→});
+   493→
+   494→/// Provides the [DeleteQuestionUseCase].
+   495→final deleteQuestionUseCaseProvider = Provider<DeleteQuestionUseCase>((ref) {
+   496→  final repository = ref.watch(questionBankRepositoryProvider);
+   497→  return DeleteQuestionUseCase(repository);
+   498→});
+   499→
+   500→/// Provides the [GetQuestionDetailUseCase].
+
+[showing lines 1-500 of 4394; use offset=501 with limit to continue reading]

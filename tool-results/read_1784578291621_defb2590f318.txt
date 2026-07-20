@@ -1,0 +1,674 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../../core/core.dart';
+     5→import '../../../../../shared/widgets/widgets.dart';
+     6→import '../../domain/entities/ccms_entities.dart';
+     7→import '../providers/ccms_providers.dart';
+     8→
+     9→class SecurityCenterPage extends ConsumerStatefulWidget {
+    10→  const SecurityCenterPage({super.key});
+    11→
+    12→  @override
+    13→  ConsumerState<SecurityCenterPage> createState() =>
+    14→      _SecurityCenterPageState();
+    15→}
+    16→
+    17→class _SecurityCenterPageState
+    18→    extends ConsumerState<SecurityCenterPage>
+    19→    with SingleTickerProviderStateMixin {
+    20→  late TabController _tabController;
+    21→
+    22→  @override
+    23→  void initState() {
+    24→    super.initState();
+    25→    _tabController = TabController(length: 5, vsync: this);
+    26→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    27→      ref.read(enterpriseProvider.notifier).loadMfaConfig('current_user');
+    28→      ref.read(enterpriseProvider.notifier).loadApiKeys('current_user');
+    29→      ref.read(enterpriseProvider.notifier).loadSecurityEvents();
+    30→      ref.read(enterpriseProvider.notifier).loadUserSessions('current_user');
+    31→    });
+    32→  }
+    33→
+    34→  @override
+    35→  void dispose() {
+    36→    _tabController.dispose();
+    37→    super.dispose();
+    38→  }
+    39→
+    40→  @override
+    41→  Widget build(BuildContext context) {
+    42→    final state = ref.watch(enterpriseProvider);
+    43→    final cs = context.colorScheme;
+    44→    final tt = context.textTheme;
+    45→
+    46→    return Scaffold(
+    47→      appBar: AppAppBar(
+    48→        title: 'Security Center',
+    49→        bottom: TabBar(
+    50→          controller: _tabController,
+    51→          isScrollable: true,
+    52→          tabAlignment: TabAlignment.start,
+    53→          labelColor: cs.primary,
+    54→          unselectedLabelColor: cs.onSurfaceVariant,
+    55→          indicatorColor: cs.primary,
+    56→          tabs: const [
+    57→            Tab(text: 'MFA', icon: Icon(Icons.shield_rounded, size: 18)),
+    58→            Tab(text: 'API Keys', icon: Icon(Icons.key_rounded, size: 18)),
+    59→            Tab(text: 'Events', icon: Icon(Icons.warning_amber_rounded, size: 18)),
+    60→            Tab(text: 'Rate Limits', icon: Icon(Icons.speed_rounded, size: 18)),
+    61→            Tab(text: 'Sessions', icon: Icon(Icons.devices_rounded, size: 18)),
+    62→          ],
+    63→        ),
+    64→      ),
+    65→      body: state.isLoading
+    66→          ? const Center(child: AppLoadingSpinner())
+    67→          : TabBarView(
+    68→              controller: _tabController,
+    69→              children: [
+    70→                _buildMfaTab(state, cs, tt),
+    71→                _buildApiKeysTab(state, cs, tt),
+    72→                _buildSecurityEventsTab(state, cs, tt),
+    73→                _buildRateLimitingTab(state, cs, tt),
+    74→                _buildActiveSessionsTab(state, cs, tt),
+    75→              ],
+    76→            ),
+    77→    );
+    78→  }
+    79→
+    80→  // ── MFA Tab ────────────────────────────────────────────────────────
+    81→
+    82→  Widget _buildMfaTab(EnterpriseState state, ColorScheme cs, TextTheme tt) {
+    83→    return SingleChildScrollView(
+    84→      padding: Spacings.paddingScreen,
+    85→      child: Column(
+    86→        crossAxisAlignment: CrossAxisAlignment.start,
+    87→        children: [
+    88→          Text('MFA Configuration',
+    89→              style: tt.titleLarge?.copyWith(
+    90→                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+    91→          const SizedBox(height: Spacings.md),
+    92→          AppCard(
+    93→            child: Column(
+    94→              children: [
+    95→                SwitchListTile(
+    96→                  value: state.mfaConfig?.isEnabled ?? false,
+    97→                  onChanged: (v) {
+    98→                    if (v) {
+    99→                      ref.read(enterpriseProvider.notifier).enableMfa(
+   100→                          userId: 'current_user',
+   101→                          method: MfaMethod.authenticatorApp);
+   102→                    } else {
+   103→                      _showDisableMfaDialog();
+   104→                    }
+   105→                  },
+   106→                  title: const Text('Enable MFA'),
+   107→                  subtitle: Text(
+   108→                      state.mfaConfig?.method.label ?? 'Not configured'),
+   109→                  activeColor: cs.primary,
+   110→                ),
+   111→                if (state.mfaConfig?.isEnabled ?? false) ...[
+   112→                  const Divider(),
+   113→                  ListTile(
+   114→                    leading: const Icon(Icons.phone_android_rounded),
+   115→                    title: const Text('SMS'),
+   116→                    trailing: Radio<MfaMethod>(
+   117→                      value: MfaMethod.sms,
+   118→                      groupValue: state.mfaConfig?.method,
+   119→                      onChanged: (v) {
+   120→                        if (v != null) {
+   121→                          ref
+   122→                              .read(enterpriseProvider.notifier)
+   123→                              .enableMfa(userId: 'current_user', method: v);
+   124→                        }
+   125→                      },
+   126→                    ),
+   127→                  ),
+   128→                  ListTile(
+   129→                    leading: const Icon(Icons.email_rounded),
+   130→                    title: const Text('Email'),
+   131→                    trailing: Radio<MfaMethod>(
+   132→                      value: MfaMethod.email,
+   133→                      groupValue: state.mfaConfig?.method,
+   134→                      onChanged: (v) {
+   135→                        if (v != null) {
+   136→                          ref
+   137→                              .read(enterpriseProvider.notifier)
+   138→                              .enableMfa(userId: 'current_user', method: v);
+   139→                        }
+   140→                      },
+   141→                    ),
+   142→                  ),
+   143→                  ListTile(
+   144→                    leading: const Icon(Icons.qr_code_rounded),
+   145→                    title: const Text('Authenticator App'),
+   146→                    trailing: Radio<MfaMethod>(
+   147→                      value: MfaMethod.authenticatorApp,
+   148→                      groupValue: state.mfaConfig?.method,
+   149→                      onChanged: (v) {
+   150→                        if (v != null) {
+   151→                          ref
+   152→                              .read(enterpriseProvider.notifier)
+   153→                              .enableMfa(userId: 'current_user', method: v);
+   154→                        }
+   155→                      },
+   156→                    ),
+   157→                  ),
+   158→                  ListTile(
+   159→                    leading: const Icon(Icons.usb_rounded),
+   160→                    title: const Text('Hardware Key'),
+   161→                    trailing: Radio<MfaMethod>(
+   162→                      value: MfaMethod.hardwareKey,
+   163→                      groupValue: state.mfaConfig?.method,
+   164→                      onChanged: (v) {
+   165→                        if (v != null) {
+   166→                          ref
+   167→                              .read(enterpriseProvider.notifier)
+   168→                              .enableMfa(userId: 'current_user', method: v);
+   169→                        }
+   170→                      },
+   171→                    ),
+   172→                  ),
+   173→                ],
+   174→              ],
+   175→            ),
+   176→          ),
+   177→          const SizedBox(height: Spacings.lg),
+   178→          // Backup codes
+   179→          Text('Backup Codes',
+   180→              style: tt.titleMedium?.copyWith(
+   181→                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+   182→          const SizedBox(height: Spacings.sm),
+   183→          AppCard(
+   184→            child: Column(
+   185→              crossAxisAlignment: CrossAxisAlignment.start,
+   186→              children: [
+   187→                Text(
+   188→                  'Backup codes can be used to access your account if you lose your MFA device. '
+   189→                  'Each code can only be used once.',
+   190→                  style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   191→                ),
+   192→                const SizedBox(height: Spacings.md),
+   193→                AppButton(
+   194→                  label: 'Generate New Backup Codes',
+   195→                  onPressed: () {
+   196→                    ScaffoldMessenger.of(context).showSnackBar(
+   197→                      const SnackBar(
+   198→                          content: Text('New backup codes generated')),
+   199→                    );
+   200→                  },
+   201→                  icon: Icons.refresh_rounded,
+   202→                  variant: AppButtonVariant.outlined,
+   203→                  size: AppButtonSize.small,
+   204→                ),
+   205→              ],
+   206→            ),
+   207→          ),
+   208→        ],
+   209→      ),
+   210→    );
+   211→  }
+   212→
+   213→  // ── API Keys Tab ──────────────────────────────────────────────────
+   214→
+   215→  Widget _buildApiKeysTab(EnterpriseState state, ColorScheme cs, TextTheme tt) {
+   216→    return SingleChildScrollView(
+   217→      padding: Spacings.paddingScreen,
+   218→      child: Column(
+   219→        crossAxisAlignment: CrossAxisAlignment.start,
+   220→        children: [
+   221→          Row(
+   222→            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   223→            children: [
+   224→              Text('API Keys',
+   225→                  style: tt.titleLarge?.copyWith(
+   226→                      fontWeight: AppTypography.wSemiBold,
+   227→                      color: cs.onSurface)),
+   228→              AppButton(
+   229→                label: 'Create API Key',
+   230→                onPressed: _showCreateApiKeyDialog,
+   231→                icon: Icons.add_rounded,
+   232→                size: AppButtonSize.small,
+   233→              ),
+   234→            ],
+   235→          ),
+   236→          const SizedBox(height: Spacings.md),
+   237→          if (state.apiKeys.isEmpty)
+   238→            AppEmptyState.noData(subtitle: 'No API keys configured')
+   239→          else
+   240→            ...state.apiKeys.map((key) => Padding(
+   241→                  padding: const EdgeInsets.only(bottom: Spacings.md),
+   242→                  child: AppCard(
+   243→                    child: Column(
+   244→                      crossAxisAlignment: CrossAxisAlignment.start,
+   245→                      children: [
+   246→                        Row(
+   247→                          children: [
+   248→                            Expanded(
+   249→                              child: Text(key.name,
+   250→                                  style: tt.titleSmall?.copyWith(
+   251→                                      fontWeight:
+   252→                                          AppTypography.wSemiBold)),
+   253→                            ),
+   254→                            AppIconButton(
+   255→                              icon: Icons.delete_outline_rounded,
+   256→                              onPressed: () => ref
+   257→                                  .read(enterpriseProvider.notifier)
+   258→                                  .revokeApiKey(key.id),
+   259→                              variant: AppIconButtonVariant.standard,
+   260→                              tooltip: 'Revoke Key',
+   261→                            ),
+   262→                          ],
+   263→                        ),
+   264→                        const SizedBox(height: Spacings.sm),
+   265→                        // Scopes display
+   266→                        Text('Scopes',
+   267→                            style: tt.labelMedium?.copyWith(
+   268→                                fontWeight: AppTypography.wSemiBold,
+   269→                                color: cs.primary)),
+   270→                        const SizedBox(height: Spacings.xs),
+   271→                        Wrap(
+   272→                          spacing: Spacings.xs,
+   273→                          runSpacing: Spacings.xs,
+   274→                          children: key.scopes
+   275→                              .map((s) => Container(
+   276→                                    padding: const EdgeInsets.symmetric(
+   277→                                        horizontal: Spacings.sm,
+   278→                                        vertical: 2),
+   279→                                    decoration: BoxDecoration(
+   280→                                      color:
+   281→                                          cs.primaryContainer.withValues(alpha: 0.3),
+   282→                                      borderRadius:
+   283→                                          Spacings.borderRadiusSm,
+   284→                                    ),
+   285→                                    child: Text(s,
+   286→                                        style: tt.bodySmall?.copyWith(
+   287→                                            color: cs.primary)),
+   288→                                  ))
+   289→                              .toList(),
+   290→                        ),
+   291→                        const SizedBox(height: Spacings.sm),
+   292→                        Text(
+   293→                            'Created ${_formatDate(key.createdAt)}',
+   294→                            style: tt.bodySmall?.copyWith(
+   295→                                color: cs.onSurfaceVariant)),
+   296→                      ],
+   297→                    ),
+   298→                  ),
+   299→                )),
+   300→        ],
+   301→      ),
+   302→    );
+   303→  }
+   304→
+   305→  // ── Security Events Tab ──────────────────────────────────────────
+   306→
+   307→  Widget _buildSecurityEventsTab(
+   308→      EnterpriseState state, ColorScheme cs, TextTheme tt) {
+   309→    return state.securityEvents.isEmpty
+   310→        ? AppEmptyState.noData(subtitle: 'No security events')
+   311→        : ListView.builder(
+   312→            padding: Spacings.paddingScreen,
+   313→            itemCount: state.securityEvents.length,
+   314→            itemBuilder: (context, index) {
+   315→              final event = state.securityEvents[index];
+   316→              return Padding(
+   317→                padding: const EdgeInsets.only(bottom: Spacings.md),
+   318→                child: AppCard(
+   319→                  child: Column(
+   320→                    crossAxisAlignment: CrossAxisAlignment.start,
+   321→                    children: [
+   322→                      Row(
+   323→                        children: [
+   324→                          Container(
+   325→                            padding: const EdgeInsets.symmetric(
+   326→                                horizontal: Spacings.sm, vertical: 2),
+   327→                            decoration: BoxDecoration(
+   328→                              color: _severityColor(event.severity)
+   329→                                  .withValues(alpha: 0.15),
+   330→                              borderRadius: Spacings.borderRadiusSm,
+   331→                            ),
+   332→                            child: Text(event.severity.label,
+   333→                                style: AppTypography.labelSmall.copyWith(
+   334→                                    color: _severityColor(event.severity),
+   335→                                    fontWeight: AppTypography.wSemiBold)),
+   336→                          ),
+   337→                          const SizedBox(width: Spacings.sm),
+   338→                          Expanded(
+   339→                            child: Text(event.description,
+   340→                                style: tt.bodyMedium,
+   341→                                maxLines: 2,
+   342→                                overflow: TextOverflow.ellipsis),
+   343→                          ),
+   344→                        ],
+   345→                      ),
+   346→                      const SizedBox(height: Spacings.sm),
+   347→                      Row(
+   348→                        children: [
+   349→                          Text('${event.eventType}',
+   350→                              style: tt.bodySmall?.copyWith(
+   351→                                  color: cs.onSurfaceVariant)),
+   352→                          const Spacer(),
+   353→                          Text(_formatDate(event.timestamp),
+   354→                              style: tt.bodySmall?.copyWith(
+   355→                                  color: cs.onSurfaceVariant)),
+   356→                        ],
+   357→                      ),
+   358→                      if (!event.isResolved) ...[
+   359→                        const SizedBox(height: Spacings.sm),
+   360→                        AppButton(
+   361→                          label: 'Resolve',
+   362→                          onPressed: () {},
+   363→                          variant: AppButtonVariant.outlined,
+   364→                          size: AppButtonSize.small,
+   365→                          icon: Icons.check_rounded,
+   366→                        ),
+   367→                      ],
+   368→                    ],
+   369→                  ),
+   370→                ),
+   371→              );
+   372→            },
+   373→          );
+   374→  }
+   375→
+   376→  // ── Rate Limiting Tab ────────────────────────────────────────────
+   377→
+   378→  Widget _buildRateLimitingTab(
+   379→      EnterpriseState state, ColorScheme cs, TextTheme tt) {
+   380→    final configs = [
+   381→      ('Global', RateLimitScope.global, 1000, 60),
+   382→      ('Per User', RateLimitScope.perUser, 100, 60),
+   383→      ('Per IP', RateLimitScope.perIp, 200, 60),
+   384→      ('Per API Key', RateLimitScope.perApiKey, 500, 60),
+   385→      ('Per Endpoint', RateLimitScope.perEndpoint, 300, 60),
+   386→    ];
+   387→
+   388→    return SingleChildScrollView(
+   389→      padding: Spacings.paddingScreen,
+   390→      child: Column(
+   391→        crossAxisAlignment: CrossAxisAlignment.start,
+   392→        children: [
+   393→          Text('Rate Limiting Configuration',
+   394→              style: tt.titleLarge?.copyWith(
+   395→                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+   396→          const SizedBox(height: Spacings.md),
+   397→          ...configs.map((config) => Padding(
+   398→                padding: const EdgeInsets.only(bottom: Spacings.md),
+   399→                child: AppCard(
+   400→                  child: Column(
+   401→                    crossAxisAlignment: CrossAxisAlignment.start,
+   402→                    children: [
+   403→                      Row(
+   404→                        children: [
+   405→                          Icon(Icons.speed_rounded,
+   406→                              color: cs.primary, size: Spacings.mdIcon),
+   407→                          const SizedBox(width: Spacings.sm),
+   408→                          Expanded(
+   409→                            child: Text(config.$1,
+   410→                                style: tt.titleSmall?.copyWith(
+   411→                                    fontWeight: AppTypography.wSemiBold)),
+   412→                          ),
+   413→                          Container(
+   414→                            padding: const EdgeInsets.symmetric(
+   415→                                horizontal: Spacings.sm, vertical: 2),
+   416→                            decoration: BoxDecoration(
+   417→                              color: cs.primaryContainer.withValues(alpha: 0.3),
+   418→                              borderRadius: Spacings.borderRadiusSm,
+   419→                            ),
+   420→                            child: Text(config.$2.label,
+   421→                                style: tt.bodySmall?.copyWith(
+   422→                                    color: cs.primary)),
+   423→                          ),
+   424→                        ],
+   425→                      ),
+   426→                      const SizedBox(height: Spacings.sm),
+   427→                      Text(
+   428→                          '${config.$3} requests per ${config.$4} seconds',
+   429→                          style: tt.bodyMedium?.copyWith(
+   430→                              color: cs.onSurfaceVariant)),
+   431→                      const SizedBox(height: Spacings.sm),
+   432→                      AppButton(
+   433→                        label: 'Edit Limits',
+   434→                        onPressed: () {
+   435→                          _showEditRateLimitDialog(config.$1, config.$3, config.$4);
+   436→                        },
+   437→                        variant: AppButtonVariant.outlined,
+   438→                        size: AppButtonSize.small,
+   439→                        icon: Icons.edit_rounded,
+   440→                      ),
+   441→                    ],
+   442→                  ),
+   443→                ),
+   444→              )),
+   445→        ],
+   446→      ),
+   447→    );
+   448→  }
+   449→
+   450→  // ── Active Sessions Tab ──────────────────────────────────────────
+   451→
+   452→  Widget _buildActiveSessionsTab(
+   453→      EnterpriseState state, ColorScheme cs, TextTheme tt) {
+   454→    if (state.userSessions.isEmpty) {
+   455→      return AppEmptyState.noData(subtitle: 'No active sessions');
+   456→    }
+   457→    return ListView.builder(
+   458→      padding: Spacings.paddingScreen,
+   459→      itemCount: state.userSessions.length,
+   460→      itemBuilder: (context, index) {
+   461→        final session = state.userSessions[index];
+   462→        return Padding(
+   463→          padding: const EdgeInsets.only(bottom: Spacings.md),
+   464→          child: AppCard(
+   465→            child: Row(
+   466→              children: [
+   467→                Icon(_deviceIcon(session.deviceInfo),
+   468→                    color: cs.onSurfaceVariant, size: Spacings.lgIcon),
+   469→                const SizedBox(width: Spacings.md),
+   470→                Expanded(
+   471→                  child: Column(
+   472→                    crossAxisAlignment: CrossAxisAlignment.start,
+   473→                    children: [
+   474→                      Text(session.deviceInfo,
+   475→                          style: tt.bodyMedium?.copyWith(
+   476→                              fontWeight: AppTypography.wSemiBold)),
+   477→                      const SizedBox(height: Spacings.xs),
+   478→                      Text(
+   479→                          'IP: ${session.ipAddress} · ${_formatDate(session.lastActivity)}',
+   480→                          style: tt.bodySmall?.copyWith(
+   481→                              color: cs.onSurfaceVariant)),
+   482→                    ],
+   483→                  ),
+   484→                ),
+   485→                AppButton(
+   486→                  label: 'Invalidate',
+   487→                  onPressed: () => ref
+   488→                      .read(enterpriseProvider.notifier)
+   489→                      .invalidateSessions(
+   490→                          userId: 'current_user',
+   491→                          sessionId: session.id),
+   492→                  variant: AppButtonVariant.text,
+   493→                  size: AppButtonSize.small,
+   494→                ),
+   495→              ],
+   496→            ),
+   497→          ),
+   498→        );
+   499→      },
+   500→    );
+   501→  }
+   502→
+   503→  // ── Dialogs ──────────────────────────────────────────────────────
+   504→
+   505→  void _showDisableMfaDialog() {
+   506→    final codeCtrl = TextEditingController();
+   507→    showDialog(
+   508→      context: context,
+   509→      builder: (context) => AlertDialog(
+   510→        title: const Text('Disable MFA'),
+   511→        content: Column(
+   512→          mainAxisSize: MainAxisSize.min,
+   513→          children: [
+   514→            Text(
+   515→              'Enter your verification code to disable MFA. '
+   516→              'This will make your account less secure.',
+   517→              style: AppTypography.bodyMedium.copyWith(
+   518→                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+   519→            ),
+   520→            const SizedBox(height: Spacings.md),
+   521→            TextField(
+   522→                controller: codeCtrl,
+   523→                decoration: const InputDecoration(
+   524→                    labelText: 'Verification Code',
+   525→                    border: OutlineInputBorder())),
+   526→          ],
+   527→        ),
+   528→        actions: [
+   529→          TextButton(
+   530→              onPressed: () => Navigator.pop(context),
+   531→              child: const Text('Cancel')),
+   532→          AppButton(
+   533→            label: 'Disable',
+   534→            onPressed: () {
+   535→              ref.read(enterpriseProvider.notifier).disableMfa(
+   536→                  userId: 'current_user',
+   537→                  verificationCode: codeCtrl.text);
+   538→              Navigator.pop(context);
+   539→            },
+   540→          ),
+   541→        ],
+   542→      ),
+   543→    );
+   544→  }
+   545→
+   546→  void _showCreateApiKeyDialog() {
+   547→    final nameCtrl = TextEditingController();
+   548→    final scopes = <String>['read', 'write'];
+   549→
+   550→    showDialog(
+   551→      context: context,
+   552→      builder: (context) => StatefulBuilder(
+   553→        builder: (context, setDialogState) => AlertDialog(
+   554→          title: const Text('Create API Key'),
+   555→          content: SingleChildScrollView(
+   556→            child: Column(
+   557→              mainAxisSize: MainAxisSize.min,
+   558→              children: [
+   559→                TextField(
+   560→                    controller: nameCtrl,
+   561→                    decoration: const InputDecoration(
+   562→                        labelText: 'Key Name *',
+   563→                        border: OutlineInputBorder())),
+   564→                const SizedBox(height: Spacings.md),
+   565→                Text('Scopes',
+   566→                    style: AppTypography.labelMedium.copyWith(
+   567→                        fontWeight: AppTypography.wSemiBold)),
+   568→                const SizedBox(height: Spacings.sm),
+   569→                Wrap(
+   570→                  spacing: Spacings.sm,
+   571→                  children: ['read', 'write', 'admin', 'delete']
+   572→                      .map((scope) => FilterChip(
+   573→                            label: Text(scope),
+   574→                            selected: scopes.contains(scope),
+   575→                            onSelected: (selected) {
+   576→                              setDialogState(() {
+   577→                                if (selected) {
+   578→                                  scopes.add(scope);
+   579→                                } else {
+   580→                                  scopes.remove(scope);
+   581→                                }
+   582→                              });
+   583→                            },
+   584→                          ))
+   585→                      .toList(),
+   586→                ),
+   587→              ],
+   588→            ),
+   589→          ),
+   590→          actions: [
+   591→            TextButton(
+   592→                onPressed: () => Navigator.pop(context),
+   593→                child: const Text('Cancel')),
+   594→            AppButton(
+   595→              label: 'Create',
+   596→              onPressed: () {
+   597→                ref.read(enterpriseProvider.notifier).createApiKey(
+   598→                      userId: 'current_user',
+   599→                      name: nameCtrl.text,
+   600→                    );
+   601→                Navigator.pop(context);
+   602→              },
+   603→            ),
+   604→          ],
+   605→        ),
+   606→      ),
+   607→    );
+   608→  }
+   609→
+   610→  void _showEditRateLimitDialog(
+   611→      String name, int currentLimit, int currentWindow) {
+   612→    final limitCtrl = TextEditingController(text: '$currentLimit');
+   613→    final windowCtrl = TextEditingController(text: '$currentWindow');
+   614→
+   615→    showDialog(
+   616→      context: context,
+   617→      builder: (context) => AlertDialog(
+   618→        title: Text('Edit Rate Limit - $name'),
+   619→        content: Column(
+   620→          mainAxisSize: MainAxisSize.min,
+   621→          children: [
+   622→            TextField(
+   623→                controller: limitCtrl,
+   624→                decoration: const InputDecoration(
+   625→                    labelText: 'Max Requests',
+   626→                    border: OutlineInputBorder()),
+   627→                keyboardType: TextInputType.number),
+   628→            const SizedBox(height: Spacings.md),
+   629→            TextField(
+   630→                controller: windowCtrl,
+   631→                decoration: const InputDecoration(
+   632→                    labelText: 'Window (seconds)',
+   633→                    border: OutlineInputBorder()),
+   634→                keyboardType: TextInputType.number),
+   635→          ],
+   636→        ),
+   637→        actions: [
+   638→          TextButton(
+   639→              onPressed: () => Navigator.pop(context),
+   640→              child: const Text('Cancel')),
+   641→          AppButton(
+   642→            label: 'Save',
+   643→            onPressed: () => Navigator.pop(context),
+   644→          ),
+   645→        ],
+   646→      ),
+   647→    );
+   648→  }
+   649→
+   650→  // ── Helpers ──────────────────────────────────────────────────────
+   651→
+   652→  Color _severityColor(AlertSeverity severity) {
+   653→    return switch (severity) {
+   654→      AlertSeverity.info => AppColors.info,
+   655→      AlertSeverity.warning => AppColors.warning,
+   656→      AlertSeverity.critical => AppColors.error,
+   657→      AlertSeverity.emergency => const Color(0xFF7F1D1D),
+   658→    };
+   659→  }
+   660→
+   661→  IconData _deviceIcon(String deviceInfo) {
+   662→    if (deviceInfo.toLowerCase().contains('mobile')) {
+   663→      return Icons.phone_android_rounded;
+   664→    }
+   665→    if (deviceInfo.toLowerCase().contains('tablet')) {
+   666→      return Icons.tablet_rounded;
+   667→    }
+   668→    return Icons.computer_rounded;
+   669→  }
+   670→
+   671→  String _formatDate(DateTime date) =>
+   672→      '${date.day}/${date.month}/${date.year} ${date.hour}:${date.minute.toString().padLeft(2, '0')}';
+   673→}
+   674→

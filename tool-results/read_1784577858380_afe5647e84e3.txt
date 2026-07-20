@@ -1,0 +1,971 @@
+     1→-- ═══════════════════════════════════════════════════════════════════════
+     2→-- EXAMFORGE AI — RESULTS, GRADING & ANALYTICS ENGINE
+     3→-- ═══════════════════════════════════════════════════════════════════════
+     4→-- Extends the existing CBT Engine schema with:
+     5→--   • Configurable grade scales (percentage, letter, GPA, custom)
+     6→--   • AI-assisted essay/subjective grading
+     7→--   • Teacher feedback and manual grading workflow
+     8→--   • Student subject results and overall results
+     9→--   • Analytics snapshots and configurable dashboards
+    10→--   • Report export tracking
+    11→--   • Performance trend tracking
+    12→--   • Topic mastery tracking
+    13→--   • Result notifications
+    14→--   • Comprehensive RLS policies and optimized indexes
+    15→-- ═══════════════════════════════════════════════════════════════════════
+    16→
+    17→-- ─── EXTEND EXISTING ENUMS ────────────────────────────────────────────
+    18→
+    19→ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'result_published';
+    20→ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'grade_updated';
+    21→ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'teacher_comment_added';
+    22→ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'ai_grading_complete';
+    23→ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'manual_grading_pending';
+    24→ALTER TYPE public.notification_type ADD VALUE IF NOT EXISTS 'report_generated';
+    25→
+    26→-- ─── NEW ENUMS ────────────────────────────────────────────────────────
+    27→
+    28→CREATE TYPE public.grade_type AS ENUM (
+    29→  'percentage',
+    30→  'letter',
+    31→  'gpa',
+    32→  'custom'
+    33→);
+    34→
+    35→CREATE TYPE public.ai_grading_status AS ENUM (
+    36→  'pending',
+    37→  'processing',
+    38→  'completed',
+    39→  'failed',
+    40→  'overridden'
+    41→);
+    42→
+    43→CREATE TYPE public.report_format AS ENUM (
+    44→  'pdf',
+    45→  'excel',
+    46→  'csv'
+    47→);
+    48→
+    49→CREATE TYPE public.report_type AS ENUM (
+    50→  'student',
+    51→  'class',
+    52→  'school',
+    53→  'subject',
+    54→  'exam_summary'
+    55→);
+    56→
+    57→CREATE TYPE public.report_status AS ENUM (
+    58→  'pending',
+    59→  'processing',
+    60→  'completed',
+    61→  'failed'
+    62→);
+    63→
+    64→CREATE TYPE public.dashboard_widget_type AS ENUM (
+    65→  'pass_rate',
+    66→  'score_distribution',
+    67→  'subject_comparison',
+    68→  'top_performers',
+    69→  'difficult_topics',
+    70→  'grade_distribution',
+    71→  'attendance_vs_performance',
+    72→  'historical_trend',
+    73→  'class_ranking',
+    74→  'exam_participation',
+    75→  'gpa_distribution',
+    76→  'improvement_tracking'
+    77→);
+    78→
+    79→CREATE TYPE public.result_access_level AS ENUM (
+    80→  'full',
+    81→  'limited',
+    82→  'restricted'
+    83→);
+    84→
+    85→CREATE TYPE public.performance_trend AS ENUM (
+    86→  'improving',
+    87→  'stable',
+    88→  'declining'
+    89→);
+    90→
+    91→CREATE TYPE public.mastery_level AS ENUM (
+    92→  'not_started',
+    93→  'beginner',
+    94→  'developing',
+    95→  'proficient',
+    96→  'advanced',
+    97→  'expert'
+    98→);
+    99→
+   100→-- ═══════════════════════════════════════════════════════════════════════
+   101→-- GRADE SCALES
+   102→-- ═══════════════════════════════════════════════════════════════════════
+   103→
+   104→CREATE TABLE public.grade_scales (
+   105→  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   106→  school_id   UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   107→  name        TEXT NOT NULL,
+   108→  grade_type  public.grade_type NOT NULL DEFAULT 'letter',
+   109→  is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+   110→  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+   111→  created_by  UUID REFERENCES public.profiles(id),
+   112→  settings    JSONB NOT NULL DEFAULT '{}'::JSONB,
+   113→  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+   114→  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+   115→
+   116→  CONSTRAINT uq_grade_scales_school_name UNIQUE (school_id, name)
+   117→);
+   118→
+   119→CREATE TABLE public.grade_scale_entries (
+   120→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   121→  grade_scale_id  UUID NOT NULL REFERENCES public.grade_scales(id) ON DELETE CASCADE,
+   122→  min_percentage  DOUBLE PRECISION NOT NULL,
+   123→  max_percentage  DOUBLE PRECISION NOT NULL,
+   124→  grade           TEXT NOT NULL,
+   125→  gpa_value       DOUBLE PRECISION,
+   126→  description     TEXT,
+   127→  is_passing      BOOLEAN NOT NULL DEFAULT TRUE,
+   128→  color           TEXT,
+   129→  sort_order      INT NOT NULL DEFAULT 0,
+   130→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   131→
+   132→  CONSTRAINT uq_grade_scale_entries_scale_grade UNIQUE (grade_scale_id, grade),
+   133→  CONSTRAINT chk_min_lt_max CHECK (min_percentage < max_percentage),
+   134→  CONSTRAINT chk_percentage_range CHECK (min_percentage >= 0 AND max_percentage <= 100)
+   135→);
+   136→
+   137→-- ═══════════════════════════════════════════════════════════════════════
+   138→-- AI GRADING RESULTS
+   139→-- ═══════════════════════════════════════════════════════════════════════
+   140→
+   141→CREATE TABLE public.ai_grading_results (
+   142→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   143→  answer_id         UUID NOT NULL REFERENCES public.student_answers(id) ON DELETE CASCADE,
+   144→  exam_id           UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+   145→  student_id        UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   146→  ai_provider       TEXT NOT NULL,
+   147→  suggested_score   DOUBLE PRECISION NOT NULL,
+   148→  max_possible      DOUBLE PRECISION NOT NULL,
+   149→  confidence_score  DOUBLE PRECISION,
+   150→  grading_rubric    JSONB NOT NULL DEFAULT '{}'::JSONB,
+   151→  explanation       TEXT,
+   152→  strengths         JSONB NOT NULL DEFAULT '[]'::JSONB,
+   153→  weaknesses        JSONB NOT NULL DEFAULT '[]'::JSONB,
+   154→  suggestions       JSONB NOT NULL DEFAULT '[]'::JSONB,
+   155→  status            public.ai_grading_status NOT NULL DEFAULT 'pending',
+   156→  input_tokens      INT,
+   157→  output_tokens     INT,
+   158→  processing_time_ms INT,
+   159→  error_message     TEXT,
+   160→  reviewed_by       UUID REFERENCES public.profiles(id),
+   161→  reviewed_at       TIMESTAMPTZ,
+   162→  final_score       DOUBLE PRECISION,
+   163→  review_comment    TEXT,
+   164→  is_accepted       BOOLEAN DEFAULT FALSE,
+   165→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   166→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   167→
+   168→  CONSTRAINT uq_ai_grading_answer UNIQUE (answer_id)
+   169→);
+   170→
+   171→-- ═══════════════════════════════════════════════════════════════════════
+   172→-- TEACHER FEEDBACK
+   173→-- ═══════════════════════════════════════════════════════════════════════
+   174→
+   175→CREATE TABLE public.teacher_feedback (
+   176→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   177→  answer_id       UUID NOT NULL REFERENCES public.student_answers(id) ON DELETE CASCADE,
+   178→  exam_id         UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+   179→  student_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   180→  teacher_id      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   181→  marks_awarded   DOUBLE PRECISION NOT NULL DEFAULT 0,
+   182→  max_marks       DOUBLE PRECISION NOT NULL,
+   183→  comment         TEXT,
+   184→  ai_grading_id   UUID REFERENCES public.ai_grading_results(id) ON DELETE SET NULL,
+   185→  overrode_ai     BOOLEAN NOT NULL DEFAULT FALSE,
+   186→  is_private      BOOLEAN NOT NULL DEFAULT FALSE,
+   187→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   188→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   189→
+   190→  CONSTRAINT uq_teacher_feedback_answer_teacher UNIQUE (answer_id, teacher_id)
+   191→);
+   192→
+   193→-- ═══════════════════════════════════════════════════════════════════════
+   194→-- STUDENT SUBJECT RESULTS (aggregated per subject per term)
+   195→-- ═══════════════════════════════════════════════════════════════════════
+   196→
+   197→CREATE TABLE public.student_subject_results (
+   198→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   199→  student_id            UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   200→  school_id             UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   201→  subject_id            UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+   202→  class_id              UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+   203→  academic_session_id   UUID NOT NULL REFERENCES public.academic_sessions(id) ON DELETE CASCADE,
+   204→  exam_count            INT NOT NULL DEFAULT 0,
+   205→  total_marks_obtained  DOUBLE PRECISION NOT NULL DEFAULT 0,
+   206→  total_marks_possible  DOUBLE PRECISION NOT NULL DEFAULT 0,
+   207→  percentage            DOUBLE PRECISION NOT NULL DEFAULT 0,
+   208→  grade                 TEXT,
+   209→  gpa_value             DOUBLE PRECISION,
+   210→  class_average         DOUBLE PRECISION,
+   211→  class_position        INT,
+   212→  class_size            INT,
+   213→  subject_average       DOUBLE PRECISION,
+   214→  is_passed             BOOLEAN NOT NULL DEFAULT FALSE,
+   215→  performance_trend     public.performance_trend DEFAULT 'stable',
+   216→  strengths             JSONB NOT NULL DEFAULT '[]'::JSONB,
+   217→  weaknesses            JSONB NOT NULL DEFAULT '[]'::JSONB,
+   218→  ai_recommendations    JSONB NOT NULL DEFAULT '[]'::JSONB,
+   219→  metadata              JSONB NOT NULL DEFAULT '{}'::JSONB,
+   220→  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   221→  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   222→
+   223→  CONSTRAINT uq_student_subject_result UNIQUE (student_id, subject_id, class_id, academic_session_id)
+   224→);
+   225→
+   226→-- ═══════════════════════════════════════════════════════════════════════
+   227→-- STUDENT OVERALL RESULTS (aggregated across subjects per term)
+   228→-- ═══════════════════════════════════════════════════════════════════════
+   229→
+   230→CREATE TABLE public.student_overall_results (
+   231→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   232→  student_id              UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   233→  school_id               UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   234→  class_id                UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+   235→  academic_session_id     UUID NOT NULL REFERENCES public.academic_sessions(id) ON DELETE CASCADE,
+   236→  total_subjects          INT NOT NULL DEFAULT 0,
+   237→  total_marks_obtained    DOUBLE PRECISION NOT NULL DEFAULT 0,
+   238→  total_marks_possible    DOUBLE PRECISION NOT NULL DEFAULT 0,
+   239→  overall_percentage      DOUBLE PRECISION NOT NULL DEFAULT 0,
+   240→  overall_grade           TEXT,
+   241→  overall_gpa             DOUBLE PRECISION,
+   242→  class_average           DOUBLE PRECISION,
+   243→  class_position          INT,
+   244→  class_size              INT,
+   245→  subjects_passed         INT NOT NULL DEFAULT 0,
+   246→  subjects_failed         INT NOT NULL DEFAULT 0,
+   247→  is_promoted             BOOLEAN,
+   248→  performance_trend       public.performance_trend DEFAULT 'stable',
+   249→  best_subject_id         UUID REFERENCES public.subjects(id),
+   250→  worst_subject_id        UUID REFERENCES public.subjects(id),
+   251→  ai_study_recommendations JSONB NOT NULL DEFAULT '[]'::JSONB,
+   252→  teacher_comment         TEXT,
+   253→  metadata                JSONB NOT NULL DEFAULT '{}'::JSONB,
+   254→  created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+   255→  updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+   256→
+   257→  CONSTRAINT uq_student_overall_result UNIQUE (student_id, class_id, academic_session_id)
+   258→);
+   259→
+   260→-- ═══════════════════════════════════════════════════════════════════════
+   261→-- TOPIC MASTERY (per student per topic)
+   262→-- ═══════════════════════════════════════════════════════════════════════
+   263→
+   264→CREATE TABLE public.topic_mastery (
+   265→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   266→  student_id            UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   267→  school_id             UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   268→  topic_id              UUID NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
+   269→  subject_id            UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+   270→  mastery_level         public.mastery_level NOT NULL DEFAULT 'not_started',
+   271→  questions_attempted   INT NOT NULL DEFAULT 0,
+   272→  questions_correct     INT NOT NULL DEFAULT 0,
+   273→  accuracy_percentage   DOUBLE PRECISION NOT NULL DEFAULT 0,
+   274→  avg_time_per_question INT NOT NULL DEFAULT 0,
+   275→  last_practiced_at     TIMESTAMPTZ,
+   276→  improvement_streak    INT NOT NULL DEFAULT 0,
+   277→  metadata              JSONB NOT NULL DEFAULT '{}'::JSONB,
+   278→  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   279→  updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   280→
+   281→  CONSTRAINT uq_topic_mastery UNIQUE (student_id, topic_id)
+   282→);
+   283→
+   284→-- ═══════════════════════════════════════════════════════════════════════
+   285→-- ANALYTICS SNAPSHOTS (pre-computed for fast dashboard loading)
+   286→-- ═══════════════════════════════════════════════════════════════════════
+   287→
+   288→CREATE TABLE public.analytics_snapshots (
+   289→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   290→  school_id       UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   291→  snapshot_type   TEXT NOT NULL,
+   292→  entity_id       UUID,
+   293→  academic_session_id UUID REFERENCES public.academic_sessions(id) ON DELETE CASCADE,
+   294→  period_start    DATE NOT NULL,
+   295→  period_end      DATE NOT NULL,
+   296→  data            JSONB NOT NULL DEFAULT '{}'::JSONB,
+   297→  computed_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+   298→  expires_at      TIMESTAMPTZ,
+   299→
+   300→  CONSTRAINT chk_snapshot_dates CHECK (period_start <= period_end)
+   301→);
+   302→
+   303→-- ═══════════════════════════════════════════════════════════════════════
+   304→-- CONFIGURABLE DASHBOARDS
+   305→-- ═══════════════════════════════════════════════════════════════════════
+   306→
+   307→CREATE TABLE public.dashboard_configurations (
+   308→  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   309→  school_id   UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   310→  role        TEXT NOT NULL DEFAULT 'school_admin',
+   311→  name        TEXT NOT NULL,
+   312→  is_default  BOOLEAN NOT NULL DEFAULT FALSE,
+   313→  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+   314→  layout      JSONB NOT NULL DEFAULT '{}'::JSONB,
+   315→  created_by  UUID REFERENCES public.profiles(id),
+   316→  created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+   317→  updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+   318→
+   319→  CONSTRAINT uq_dashboard_config UNIQUE (school_id, role, name)
+   320→);
+   321→
+   322→CREATE TABLE public.dashboard_widget_configs (
+   323→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   324→  dashboard_id      UUID NOT NULL REFERENCES public.dashboard_configurations(id) ON DELETE CASCADE,
+   325→  widget_type       public.dashboard_widget_type NOT NULL,
+   326→  title             TEXT NOT NULL,
+   327→  position_row      INT NOT NULL DEFAULT 0,
+   328→  position_col      INT NOT NULL DEFAULT 0,
+   329→  width             INT NOT NULL DEFAULT 1,
+   330→  height            INT NOT NULL DEFAULT 1,
+   331→  is_visible        BOOLEAN NOT NULL DEFAULT TRUE,
+   332→  config            JSONB NOT NULL DEFAULT '{}'::JSONB,
+   333→  data_source       JSONB NOT NULL DEFAULT '{}'::JSONB,
+   334→  refresh_interval  INT NOT NULL DEFAULT 300,
+   335→  sort_order        INT NOT NULL DEFAULT 0,
+   336→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   337→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   338→);
+   339→
+   340→-- ═══════════════════════════════════════════════════════════════════════
+   341→-- REPORT EXPORTS
+   342→-- ═══════════════════════════════════════════════════════════════════════
+   343→
+   344→CREATE TABLE public.report_exports (
+   345→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   346→  school_id         UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   347→  requested_by      UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   348→  report_type       public.report_type NOT NULL,
+   349→  report_format     public.report_format NOT NULL,
+   350→  status            public.report_status NOT NULL DEFAULT 'pending',
+   351→  title             TEXT NOT NULL,
+   352→  parameters        JSONB NOT NULL DEFAULT '{}'::JSONB,
+   353→  filters           JSONB NOT NULL DEFAULT '{}'::JSONB,
+   354→  file_url          TEXT,
+   355→  file_size_bytes   BIGINT,
+   356→  row_count         INT,
+   357→  error_message     TEXT,
+   358→  processing_time_ms INT,
+   359→  expires_at        TIMESTAMPTZ,
+   360→  downloaded_at     TIMESTAMPTZ,
+   361→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   362→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   363→);
+   364→
+   365→-- ═══════════════════════════════════════════════════════════════════════
+   366→-- RESULT ACCESS LOG (audit trail)
+   367→-- ═══════════════════════════════════════════════════════════════════════
+   368→
+   369→CREATE TABLE public.result_access_log (
+   370→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   371→  user_id       UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+   372→  school_id     UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   373→  action        TEXT NOT NULL,
+   374→  entity_type   TEXT NOT NULL,
+   375→  entity_id     UUID NOT NULL,
+   376→  access_level  public.result_access_level NOT NULL DEFAULT 'limited',
+   377→  ip_address    INET,
+   378→  user_agent    TEXT,
+   379→  details       JSONB NOT NULL DEFAULT '{}'::JSONB,
+   380→  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+   381→);
+   382→
+   383→-- ═══════════════════════════════════════════════════════════════════════
+   384→-- RESULT LOCKING (prevents modifications after publication)
+   385→-- ═══════════════════════════════════════════════════════════════════════
+   386→
+   387→CREATE TABLE public.result_locks (
+   388→  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   389→  exam_id       UUID NOT NULL REFERENCES public.exams(id) ON DELETE CASCADE,
+   390→  school_id     UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   391→  locked_by     UUID NOT NULL REFERENCES public.profiles(id),
+   392→  locked_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+   393→  reason        TEXT,
+   394→  is_locked     BOOLEAN NOT NULL DEFAULT TRUE,
+   395→  unlocked_by   UUID REFERENCES public.profiles(id),
+   396→  unlocked_at   TIMESTAMPTZ,
+   397→  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+   398→
+   399→  CONSTRAINT uq_result_lock_exam UNIQUE (exam_id)
+   400→);
+   401→
+   402→-- ═══════════════════════════════════════════════════════════════════════
+   403→-- CLASS PERFORMANCE SUMMARY (aggregated class-level analytics)
+   404→-- ═══════════════════════════════════════════════════════════════════════
+   405→
+   406→CREATE TABLE public.class_performance_summaries (
+   407→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   408→  class_id                UUID NOT NULL REFERENCES public.classes(id) ON DELETE CASCADE,
+   409→  school_id               UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   410→  subject_id              UUID REFERENCES public.subjects(id) ON DELETE CASCADE,
+   411→  academic_session_id     UUID NOT NULL REFERENCES public.academic_sessions(id) ON DELETE CASCADE,
+   412→  total_students          INT NOT NULL DEFAULT 0,
+   413→  average_score           DOUBLE PRECISION NOT NULL DEFAULT 0,
+   414→  highest_score           DOUBLE PRECISION NOT NULL DEFAULT 0,
+   415→  lowest_score            DOUBLE PRECISION NOT NULL DEFAULT 0,
+   416→  median_score            DOUBLE PRECISION NOT NULL DEFAULT 0,
+   417→  pass_rate               DOUBLE PRECISION NOT NULL DEFAULT 0,
+   418→  distinction_rate        DOUBLE PRECISION NOT NULL DEFAULT 0,
+   419→  grade_distribution      JSONB NOT NULL DEFAULT '{}'::JSONB,
+   420→  score_distribution      JSONB NOT NULL DEFAULT '[]'::JSONB,
+   421→  topic_performance       JSONB NOT NULL DEFAULT '{}'::JSONB,
+   422→  improvement_rate        DOUBLE PRECISION NOT NULL DEFAULT 0,
+   423→  metadata                JSONB NOT NULL DEFAULT '{}'::JSONB,
+   424→  created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+   425→  updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+   426→
+   427→  CONSTRAINT uq_class_performance UNIQUE (class_id, subject_id, academic_session_id)
+   428→);
+   429→
+   430→-- ═══════════════════════════════════════════════════════════════════════
+   431→-- SCHOOL PERFORMANCE SUMMARY (aggregated school-level analytics)
+   432→-- ═══════════════════════════════════════════════════════════════════════
+   433→
+   434→CREATE TABLE public.school_performance_summaries (
+   435→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   436→  school_id               UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   437→  academic_session_id     UUID NOT NULL REFERENCES public.academic_sessions(id) ON DELETE CASCADE,
+   438→  total_students          INT NOT NULL DEFAULT 0,
+   439→  total_classes           INT NOT NULL DEFAULT 0,
+   440→  total_exams             INT NOT NULL DEFAULT 0,
+   441→  average_score           DOUBLE PRECISION NOT NULL DEFAULT 0,
+   442→  pass_rate               DOUBLE PRECISION NOT NULL DEFAULT 0,
+   443→  distinction_rate        DOUBLE PRECISION NOT NULL DEFAULT 0,
+   444→  best_class_id           UUID REFERENCES public.classes(id),
+   445→  best_subject_id         UUID REFERENCES public.subjects(id),
+   446→  most_difficult_topic_id UUID REFERENCES public.topics(id),
+   447→  class_rankings          JSONB NOT NULL DEFAULT '[]'::JSONB,
+   448→  subject_rankings        JSONB NOT NULL DEFAULT '[]'::JSONB,
+   449→  grade_distribution      JSONB NOT NULL DEFAULT '{}'::JSONB,
+   450→  trend_data              JSONB NOT NULL DEFAULT '[]'::JSONB,
+   451→  metadata                JSONB NOT NULL DEFAULT '{}'::JSONB,
+   452→  created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+   453→  updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+   454→
+   455→  CONSTRAINT uq_school_performance UNIQUE (school_id, academic_session_id)
+   456→);
+   457→
+   458→-- ═══════════════════════════════════════════════════════════════════════
+   459→-- INDEXES
+   460→-- ═══════════════════════════════════════════════════════════════════════
+   461→
+   462→-- Grade scales
+   463→CREATE INDEX idx_grade_scales_school ON public.grade_scales(school_id);
+   464→CREATE INDEX idx_grade_scales_active ON public.grade_scales(school_id, is_active);
+   465→CREATE INDEX idx_grade_scale_entries_scale ON public.grade_scale_entries(grade_scale_id);
+   466→
+   467→-- AI grading
+   468→CREATE INDEX idx_ai_grading_answer ON public.ai_grading_results(answer_id);
+   469→CREATE INDEX idx_ai_grading_exam ON public.ai_grading_results(exam_id);
+   470→CREATE INDEX idx_ai_grading_student ON public.ai_grading_results(student_id);
+   471→CREATE INDEX idx_ai_grading_status ON public.ai_grading_results(status);
+   472→CREATE INDEX idx_ai_grading_reviewed ON public.ai_grading_results(reviewed_by) WHERE reviewed_by IS NOT NULL;
+   473→
+   474→-- Teacher feedback
+   475→CREATE INDEX idx_teacher_feedback_answer ON public.teacher_feedback(answer_id);
+   476→CREATE INDEX idx_teacher_feedback_student ON public.teacher_feedback(student_id);
+   477→CREATE INDEX idx_teacher_feedback_teacher ON public.teacher_feedback(teacher_id);
+   478→CREATE INDEX idx_teacher_feedback_exam ON public.teacher_feedback(exam_id);
+   479→
+   480→-- Student subject results
+   481→CREATE INDEX idx_student_subject_student ON public.student_subject_results(student_id);
+   482→CREATE INDEX idx_student_subject_school ON public.student_subject_results(school_id);
+   483→CREATE INDEX idx_student_subject_subject ON public.student_subject_results(subject_id);
+   484→CREATE INDEX idx_student_subject_class ON public.student_subject_results(class_id);
+   485→CREATE INDEX idx_student_subject_session ON public.student_subject_results(academic_session_id);
+   486→CREATE INDEX idx_student_subject_pct ON public.student_subject_results(percentage DESC);
+   487→CREATE INDEX idx_student_subject_trend ON public.student_subject_results(performance_trend);
+   488→
+   489→-- Student overall results
+   490→CREATE INDEX idx_student_overall_student ON public.student_overall_results(student_id);
+   491→CREATE INDEX idx_student_overall_school ON public.student_overall_results(school_id);
+   492→CREATE INDEX idx_student_overall_class ON public.student_overall_results(class_id);
+   493→CREATE INDEX idx_student_overall_session ON public.student_overall_results(academic_session_id);
+   494→CREATE INDEX idx_student_overall_pct ON public.student_overall_results(overall_percentage DESC);
+   495→CREATE INDEX idx_student_overall_position ON public.student_overall_results(class_position) WHERE class_position IS NOT NULL;
+   496→
+   497→-- Topic mastery
+   498→CREATE INDEX idx_topic_mastery_student ON public.topic_mastery(student_id);
+   499→CREATE INDEX idx_topic_mastery_topic ON public.topic_mastery(topic_id);
+   500→CREATE INDEX idx_topic_mastery_subject ON public.topic_mastery(subject_id);
+   501→CREATE INDEX idx_topic_mastery_level ON public.topic_mastery(mastery_level);
+   502→CREATE INDEX idx_topic_mastery_accuracy ON public.topic_mastery(accuracy_percentage DESC);
+   503→
+   504→-- Analytics snapshots
+   505→CREATE INDEX idx_analytics_snapshots_school ON public.analytics_snapshots(school_id);
+   506→CREATE INDEX idx_analytics_snapshots_type ON public.analytics_snapshots(snapshot_type);
+   507→CREATE INDEX idx_analytics_snapshots_period ON public.analytics_snapshots(period_start, period_end);
+   508→CREATE INDEX idx_analytics_snapshots_session ON public.analytics_snapshots(academic_session_id);
+   509→
+   510→-- Dashboard configs
+   511→CREATE INDEX idx_dashboard_configs_school ON public.dashboard_configurations(school_id);
+   512→CREATE INDEX idx_dashboard_configs_role ON public.dashboard_configurations(school_id, role);
+   513→CREATE INDEX idx_dashboard_widget_configs_dashboard ON public.dashboard_widget_configs(dashboard_id);
+   514→
+   515→-- Report exports
+   516→CREATE INDEX idx_report_exports_school ON public.report_exports(school_id);
+   517→CREATE INDEX idx_report_exports_requested_by ON public.report_exports(requested_by);
+   518→CREATE INDEX idx_report_exports_status ON public.report_exports(status);
+   519→CREATE INDEX idx_report_exports_type ON public.report_exports(report_type);
+   520→CREATE INDEX idx_report_exports_created ON public.report_exports(created_at DESC);
+   521→
+   522→-- Result access log
+   523→CREATE INDEX idx_result_access_user ON public.result_access_log(user_id);
+   524→CREATE INDEX idx_result_access_school ON public.result_access_log(school_id);
+   525→CREATE INDEX idx_result_access_entity ON public.result_access_log(entity_type, entity_id);
+   526→CREATE INDEX idx_result_access_created ON public.result_access_log(created_at DESC);
+   527→
+   528→-- Result locks
+   529→CREATE INDEX idx_result_locks_exam ON public.result_locks(exam_id);
+   530→CREATE INDEX idx_result_locks_school ON public.result_locks(school_id);
+   531→
+   532→-- Class performance
+   533→CREATE INDEX idx_class_perf_class ON public.class_performance_summaries(class_id);
+   534→CREATE INDEX idx_class_perf_school ON public.class_performance_summaries(school_id);
+   535→CREATE INDEX idx_class_perf_subject ON public.class_performance_summaries(subject_id);
+   536→CREATE INDEX idx_class_perf_session ON public.class_performance_summaries(academic_session_id);
+   537→
+   538→-- School performance
+   539→CREATE INDEX idx_school_perf_school ON public.school_performance_summaries(school_id);
+   540→CREATE INDEX idx_school_perf_session ON public.school_performance_summaries(academic_session_id);
+   541→
+   542→-- ═══════════════════════════════════════════════════════════════════════
+   543→-- ROW-LEVEL SECURITY
+   544→-- ═══════════════════════════════════════════════════════════════════════
+   545→
+   546→ALTER TABLE public.grade_scales ENABLE ROW LEVEL SECURITY;
+   547→ALTER TABLE public.grade_scale_entries ENABLE ROW LEVEL SECURITY;
+   548→ALTER TABLE public.ai_grading_results ENABLE ROW LEVEL SECURITY;
+   549→ALTER TABLE public.teacher_feedback ENABLE ROW LEVEL SECURITY;
+   550→ALTER TABLE public.student_subject_results ENABLE ROW LEVEL SECURITY;
+   551→ALTER TABLE public.student_overall_results ENABLE ROW LEVEL SECURITY;
+   552→ALTER TABLE public.topic_mastery ENABLE ROW LEVEL SECURITY;
+   553→ALTER TABLE public.analytics_snapshots ENABLE ROW LEVEL SECURITY;
+   554→ALTER TABLE public.dashboard_configurations ENABLE ROW LEVEL SECURITY;
+   555→ALTER TABLE public.dashboard_widget_configs ENABLE ROW LEVEL SECURITY;
+   556→ALTER TABLE public.report_exports ENABLE ROW LEVEL SECURITY;
+   557→ALTER TABLE public.result_access_log ENABLE ROW LEVEL SECURITY;
+   558→ALTER TABLE public.result_locks ENABLE ROW LEVEL SECURITY;
+   559→ALTER TABLE public.class_performance_summaries ENABLE ROW LEVEL SECURITY;
+   560→ALTER TABLE public.school_performance_summaries ENABLE ROW LEVEL SECURITY;
+   561→
+   562→-- ─── GRADE SCALES RLS ────────────────────────────────────────────────
+   563→
+   564→CREATE POLICY "Super admins can manage grade scales"
+   565→  ON public.grade_scales FOR ALL
+   566→  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role = 'super_admin'));
+   567→
+   568→CREATE POLICY "School admins can manage their school grade scales"
+   569→  ON public.grade_scales FOR ALL
+   570→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   571→
+   572→CREATE POLICY "Teachers can view their school grade scales"
+   573→  ON public.grade_scales FOR SELECT
+   574→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+   575→
+   576→CREATE POLICY "Students can view active grade scales"
+   577→  ON public.grade_scales FOR SELECT
+   578→  USING (is_active = true AND school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+   579→
+   580→-- ─── GRADE SCALE ENTRIES RLS ─────────────────────────────────────────
+   581→
+   582→CREATE POLICY "Grade scale entries follow grade scale access"
+   583→  ON public.grade_scale_entries FOR SELECT
+   584→  USING (grade_scale_id IN (SELECT id FROM public.grade_scales));
+   585→
+   586→CREATE POLICY "Grade scale entries managed with grade scale"
+   587→  ON public.grade_scale_entries FOR ALL
+   588→  USING (grade_scale_id IN (SELECT id FROM public.grade_scales));
+   589→
+   590→-- ─── AI GRADING RESULTS RLS ──────────────────────────────────────────
+   591→
+   592→CREATE POLICY "Teachers can view AI grading for their exams"
+   593→  ON public.ai_grading_results FOR SELECT
+   594→  USING (exam_id IN (
+   595→    SELECT e.id FROM public.exams e
+   596→    WHERE e.school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid())
+   597→    AND auth.uid() IN (SELECT id FROM public.profiles WHERE role IN ('teacher', 'school_admin', 'super_admin'))
+   598→  ));
+   599→
+   600→CREATE POLICY "Students can view their own AI grading"
+   601→  ON public.ai_grading_results FOR SELECT
+   602→  USING (student_id = auth.uid());
+   603→
+   604→CREATE POLICY "Teachers can update AI grading results"
+   605→  ON public.ai_grading_results FOR UPDATE
+   606→  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'school_admin', 'super_admin')));
+   607→
+   608→-- ─── TEACHER FEEDBACK RLS ────────────────────────────────────────────
+   609→
+   610→CREATE POLICY "Teachers can manage their feedback"
+   611→  ON public.teacher_feedback FOR ALL
+   612→  USING (teacher_id = auth.uid());
+   613→
+   614→CREATE POLICY "Students can view their own feedback"
+   615→  ON public.teacher_feedback FOR SELECT
+   616→  USING (student_id = auth.uid());
+   617→
+   618→CREATE POLICY "School admins can view school feedback"
+   619→  ON public.teacher_feedback FOR SELECT
+   620→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   621→
+   622→-- ─── STUDENT SUBJECT RESULTS RLS ─────────────────────────────────────
+   623→
+   624→CREATE POLICY "Students can view their own subject results"
+   625→  ON public.student_subject_results FOR SELECT
+   626→  USING (student_id = auth.uid());
+   627→
+   628→CREATE POLICY "Teachers can view subject results for their classes"
+   629→  ON public.student_subject_results FOR SELECT
+   630→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'school_admin', 'super_admin')));
+   631→
+   632→-- ─── STUDENT OVERALL RESULTS RLS ─────────────────────────────────────
+   633→
+   634→CREATE POLICY "Students can view their own overall results"
+   635→  ON public.student_overall_results FOR SELECT
+   636→  USING (student_id = auth.uid());
+   637→
+   638→CREATE POLICY "Teachers and admins can view school overall results"
+   639→  ON public.student_overall_results FOR SELECT
+   640→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'school_admin', 'super_admin')));
+   641→
+   642→-- ─── TOPIC MASTERY RLS ───────────────────────────────────────────────
+   643→
+   644→CREATE POLICY "Students can view their own topic mastery"
+   645→  ON public.topic_mastery FOR SELECT
+   646→  USING (student_id = auth.uid());
+   647→
+   648→CREATE POLICY "Teachers can view topic mastery for their students"
+   649→  ON public.topic_mastery FOR SELECT
+   650→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('teacher', 'school_admin', 'super_admin')));
+   651→
+   652→-- ─── ANALYTICS SNAPSHOTS RLS ─────────────────────────────────────────
+   653→
+   654→CREATE POLICY "School members can view their analytics snapshots"
+   655→  ON public.analytics_snapshots FOR SELECT
+   656→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+   657→
+   658→CREATE POLICY "Admins can manage analytics snapshots"
+   659→  ON public.analytics_snapshots FOR INSERT
+   660→  USING (EXISTS (SELECT 1 FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   661→
+   662→-- ─── DASHBOARD CONFIGURATIONS RLS ────────────────────────────────────
+   663→
+   664→CREATE POLICY "School members can view their dashboard configs"
+   665→  ON public.dashboard_configurations FOR SELECT
+   666→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+   667→
+   668→CREATE POLICY "Admins can manage dashboard configurations"
+   669→  ON public.dashboard_configurations FOR ALL
+   670→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   671→
+   672→CREATE POLICY "Dashboard widget configs follow dashboard access"
+   673→  ON public.dashboard_widget_configs FOR SELECT
+   674→  USING (dashboard_id IN (SELECT id FROM public.dashboard_configurations));
+   675→
+   676→CREATE POLICY "Dashboard widget configs managed with dashboard"
+   677→  ON public.dashboard_widget_configs FOR ALL
+   678→  USING (dashboard_id IN (SELECT id FROM public.dashboard_configurations));
+   679→
+   680→-- ─── REPORT EXPORTS RLS ──────────────────────────────────────────────
+   681→
+   682→CREATE POLICY "Users can view their own report exports"
+   683→  ON public.report_exports FOR SELECT
+   684→  USING (requested_by = auth.uid() OR school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   685→
+   686→CREATE POLICY "Users can create report exports"
+   687→  ON public.report_exports FOR INSERT
+   688→  USING (auth.uid() = requested_by);
+   689→
+   690→-- ─── RESULT ACCESS LOG RLS ───────────────────────────────────────────
+   691→
+   692→CREATE POLICY "Admins can view result access logs"
+   693→  ON public.result_access_log FOR SELECT
+   694→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   695→
+   696→CREATE POLICY "System can insert access logs"
+   697→  ON public.result_access_log FOR INSERT
+   698→  USING (auth.uid() = user_id);
+   699→
+   700→-- ─── RESULT LOCKS RLS ────────────────────────────────────────────────
+   701→
+   702→CREATE POLICY "School members can view result locks"
+   703→  ON public.result_locks FOR SELECT
+   704→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+   705→
+   706→CREATE POLICY "Admins can manage result locks"
+   707→  ON public.result_locks FOR ALL
+   708→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   709→
+   710→-- ─── CLASS PERFORMANCE RLS ───────────────────────────────────────────
+   711→
+   712→CREATE POLICY "School members can view class performance"
+   713→  ON public.class_performance_summaries FOR SELECT
+   714→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+   715→
+   716→CREATE POLICY "Admins can manage class performance"
+   717→  ON public.class_performance_summaries FOR ALL
+   718→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   719→
+   720→-- ─── SCHOOL PERFORMANCE RLS ──────────────────────────────────────────
+   721→
+   722→CREATE POLICY "School members can view school performance"
+   723→  ON public.school_performance_summaries FOR SELECT
+   724→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid()));
+   725→
+   726→CREATE POLICY "Admins can manage school performance"
+   727→  ON public.school_performance_summaries FOR ALL
+   728→  USING (school_id IN (SELECT school_id FROM public.profiles WHERE id = auth.uid() AND role IN ('school_admin', 'super_admin')));
+   729→
+   730→-- ═══════════════════════════════════════════════════════════════════════
+   731→-- FUNCTIONS & TRIGGERS
+   732→-- ═══════════════════════════════════════════════════════════════════════
+   733→
+   734→-- Auto-update updated_at
+   735→CREATE OR REPLACE FUNCTION public.update_updated_at_column()
+   736→RETURNS TRIGGER AS $$
+   737→BEGIN
+   738→  NEW.updated_at = now();
+   739→  RETURN NEW;
+   740→END;
+   741→$$ LANGUAGE plpgsql;
+   742→
+   743→CREATE TRIGGER trg_grade_scales_updated
+   744→  BEFORE UPDATE ON public.grade_scales
+   745→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   746→
+   747→CREATE TRIGGER trg_ai_grading_results_updated
+   748→  BEFORE UPDATE ON public.ai_grading_results
+   749→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   750→
+   751→CREATE TRIGGER trg_teacher_feedback_updated
+   752→  BEFORE UPDATE ON public.teacher_feedback
+   753→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   754→
+   755→CREATE TRIGGER trg_student_subject_results_updated
+   756→  BEFORE UPDATE ON public.student_subject_results
+   757→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   758→
+   759→CREATE TRIGGER trg_student_overall_results_updated
+   760→  BEFORE UPDATE ON public.student_overall_results
+   761→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   762→
+   763→CREATE TRIGGER trg_topic_mastery_updated
+   764→  BEFORE UPDATE ON public.topic_mastery
+   765→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   766→
+   767→CREATE TRIGGER trg_dashboard_configs_updated
+   768→  BEFORE UPDATE ON public.dashboard_configurations
+   769→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   770→
+   771→CREATE TRIGGER trg_dashboard_widgets_updated
+   772→  BEFORE UPDATE ON public.dashboard_widget_configs
+   773→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   774→
+   775→CREATE TRIGGER trg_report_exports_updated
+   776→  BEFORE UPDATE ON public.report_exports
+   777→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   778→
+   779→CREATE TRIGGER trg_class_performance_updated
+   780→  BEFORE UPDATE ON public.class_performance_summaries
+   781→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   782→
+   783→CREATE TRIGGER trg_school_performance_updated
+   784→  BEFORE UPDATE ON public.school_performance_summaries
+   785→  FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+   786→
+   787→-- ─── FUNCTION: Apply grade scale to a percentage ─────────────────────
+   788→
+   789→CREATE OR REPLACE FUNCTION public.apply_grade_scale(
+   790→  p_percentage DOUBLE PRECISION,
+   791→  p_grade_scale_id UUID
+   792→)
+   793→RETURNS TABLE(grade TEXT, gpa_value DOUBLE PRECISION, is_passing BOOLEAN, description TEXT) AS $$
+   794→DECLARE
+   795→  v_school_id UUID;
+   796→BEGIN
+   797→  SELECT school_id INTO v_school_id FROM public.grade_scales WHERE id = p_grade_scale_id;
+   798→  
+   799→  RETURN QUERY
+   800→  SELECT gse.grade, gse.gpa_value, gse.is_passing, gse.description
+   801→  FROM public.grade_scale_entries gse
+   802→  WHERE gse.grade_scale_id = p_grade_scale_id
+   803→    AND p_percentage >= gse.min_percentage
+   804→    AND p_percentage <= gse.max_percentage
+   805→  ORDER BY gse.sort_order
+   806→  LIMIT 1;
+   807→END;
+   808→$$ LANGUAGE plpgsql STABLE;
+   809→
+   810→-- ─── FUNCTION: Compute student subject result ────────────────────────
+   811→
+   812→CREATE OR REPLACE FUNCTION public.compute_student_subject_result(
+   813→  p_student_id UUID,
+   814→  p_subject_id UUID,
+   815→  p_class_id UUID,
+   816→  p_academic_session_id UUID
+   817→)
+   818→RETURNS public.student_subject_results AS $$
+   819→DECLARE
+   820→  v_result public.student_subject_results;
+   821→  v_total_obtained DOUBLE PRECISION;
+   822→  v_total_possible DOUBLE PRECISION;
+   823→  v_exam_count INT;
+   824→  v_percentage DOUBLE PRECISION;
+   825→  v_grade TEXT;
+   826→  v_class_avg DOUBLE PRECISION;
+   827→  v_school_id UUID;
+   828→BEGIN
+   829→  -- Get school_id from class
+   830→  SELECT school_id INTO v_school_id FROM public.classes WHERE id = p_class_id;
+   831→  
+   832→  -- Aggregate exam results
+   833→  SELECT 
+   834→    COALESCE(SUM(er.total_marks), 0),
+   835→    COALESCE(SUM(er.total_possible), 0),
+   836→    COUNT(*)
+   837→  INTO v_total_obtained, v_total_possible, v_exam_count
+   838→  FROM public.exam_results er
+   839→  JOIN public.exams e ON e.id = er.exam_id
+   840→  WHERE er.student_id = p_student_id
+   841→    AND e.subject_id = p_subject_id
+   842→    AND e.class_id = p_class_id
+   843→    AND e.academic_session_id = p_academic_session_id
+   844→    AND er.is_released = true;
+   845→  
+   846→  v_percentage := CASE WHEN v_total_possible > 0 THEN (v_total_obtained / v_total_possible) * 100 ELSE 0 END;
+   847→  
+   848→  -- Get class average
+   849→  SELECT COALESCE(AVG(ssr.percentage), 0) INTO v_class_avg
+   850→  FROM public.student_subject_results ssr
+   851→  WHERE ssr.subject_id = p_subject_id
+   852→    AND ssr.class_id = p_class_id
+   853→    AND ssr.academic_session_id = p_academic_session_id;
+   854→  
+   855→  -- Upsert
+   856→  INSERT INTO public.student_subject_results (
+   857→    student_id, school_id, subject_id, class_id, academic_session_id,
+   858→    exam_count, total_marks_obtained, total_marks_possible, percentage,
+   859→    class_average, is_passed
+   860→  ) VALUES (
+   861→    p_student_id, v_school_id, p_subject_id, p_class_id, p_academic_session_id,
+   862→    v_exam_count, v_total_obtained, v_total_possible, v_percentage,
+   863→    v_class_avg, v_percentage >= 50
+   864→  )
+   865→  ON CONFLICT (student_id, subject_id, class_id, academic_session_id)
+   866→  DO UPDATE SET
+   867→    exam_count = EXCLUDED.exam_count,
+   868→    total_marks_obtained = EXCLUDED.total_marks_obtained,
+   869→    total_marks_possible = EXCLUDED.total_marks_possible,
+   870→    percentage = EXCLUDED.percentage,
+   871→    class_average = EXCLUDED.class_average,
+   872→    is_passed = EXCLUDED.is_passed,
+   873→    updated_at = now()
+   874→  RETURNING * INTO v_result;
+   875→  
+   876→  RETURN v_result;
+   877→END;
+   878→$$ LANGUAGE plpgsql;
+   879→
+   880→-- ─── FUNCTION: Log result access ─────────────────────────────────────
+   881→
+   882→CREATE OR REPLACE FUNCTION public.log_result_access(
+   883→  p_user_id UUID,
+   884→  p_school_id UUID,
+   885→  p_action TEXT,
+   886→  p_entity_type TEXT,
+   887→  p_entity_id UUID,
+   888→  p_access_level public.result_access_level DEFAULT 'limited',
+   889→  p_ip_address INET DEFAULT NULL,
+   890→  p_user_agent TEXT DEFAULT NULL,
+   891→  p_details JSONB DEFAULT '{}'::JSONB
+   892→)
+   893→RETURNS UUID AS $$
+   894→DECLARE
+   895→  v_id UUID;
+   896→BEGIN
+   897→  INSERT INTO public.result_access_log (
+   898→    user_id, school_id, action, entity_type, entity_id,
+   899→    access_level, ip_address, user_agent, details
+   900→  ) VALUES (
+   901→    p_user_id, p_school_id, p_action, p_entity_type, p_entity_id,
+   902→    p_access_level, p_ip_address, p_user_agent, p_details
+   903→  ) RETURNING id INTO v_id;
+   904→  
+   905→  RETURN v_id;
+   906→END;
+   907→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   908→
+   909→-- ─── FUNCTION: Check result lock ─────────────────────────────────────
+   910→
+   911→CREATE OR REPLACE FUNCTION public.is_result_locked(p_exam_id UUID)
+   912→RETURNS BOOLEAN AS $$
+   913→SELECT COALESCE(is_locked, false) FROM public.result_locks WHERE exam_id = p_exam_id;
+   914→$$ LANGUAGE sql STABLE;
+   915→
+   916→-- ═══════════════════════════════════════════════════════════════════════
+   917→-- SEED DATA: Default grade scales
+   918→-- ═══════════════════════════════════════════════════════════════════════
+   919→
+   920→-- Note: School-specific grade scales are created when a school is onboarded.
+   921→-- The following inserts a global default template that can be cloned.
+   922→
+   923→INSERT INTO public.grade_scales (id, school_id, name, grade_type, is_default, is_active, settings)
+   924→VALUES (
+   925→  '00000000-0000-0000-0000-000000000001',
+   926→  '00000000-0000-0000-0000-000000000000',
+   927→  'Default WAEC/NECO Grading Scale',
+   928→  'letter',
+   929→  true,
+   930→  false,
+   931→  '{"curriculum": "WAEC", "country": "Nigeria"}'::JSONB
+   932→) ON CONFLICT DO NOTHING;
+   933→
+   934→INSERT INTO public.grade_scale_entries (grade_scale_id, min_percentage, max_percentage, grade, gpa_value, description, is_passing, color, sort_order) VALUES
+   935→  ('00000000-0000-0000-0000-000000000001', 75, 100, 'A1', 4.0, 'Excellent', true, '#22C55E', 1),
+   936→  ('00000000-0000-0000-0000-000000000001', 70, 74.99, 'B2', 3.6, 'Very Good', true, '#84CC16', 2),
+   937→  ('00000000-0000-0000-0000-000000000001', 65, 69.99, 'B3', 3.2, 'Good', true, '#A3E635', 3),
+   938→  ('00000000-0000-0000-0000-000000000001', 60, 64.99, 'C4', 2.8, 'Credit', true, '#FACC15', 4),
+   939→  ('00000000-0000-0000-0000-000000000001', 55, 59.99, 'C5', 2.4, 'Credit', true, '#FDE047', 5),
+   940→  ('00000000-0000-0000-0000-000000000001', 50, 54.99, 'C6', 2.0, 'Credit', true, '#FCD34D', 6),
+   941→  ('00000000-0000-0000-0000-000000000001', 45, 49.99, 'D7', 1.6, 'Pass', true, '#FB923C', 7),
+   942→  ('00000000-0000-0000-0000-000000000001', 40, 44.99, 'E8', 1.2, 'Pass', true, '#F97316', 8),
+   943→  ('00000000-0000-0000-0000-000000000001', 0, 39.99, 'F9', 0.0, 'Fail', false, '#EF4444', 9)
+   944→ON CONFLICT DO NOTHING;
+   945→
+   946→-- GPA Scale (US-style for Cambridge/International schools)
+   947→INSERT INTO public.grade_scales (id, school_id, name, grade_type, is_default, is_active, settings)
+   948→VALUES (
+   949→  '00000000-0000-0000-0000-000000000002',
+   950→  '00000000-0000-0000-0000-000000000000',
+   951→  'Default GPA Grading Scale',
+   952→  'gpa',
+   953→  false,
+   954→  false,
+   955→  '{"curriculum": "International", "scale": "4.0"}'::JSONB
+   956→) ON CONFLICT DO NOTHING;
+   957→
+   958→INSERT INTO public.grade_scale_entries (grade_scale_id, min_percentage, max_percentage, grade, gpa_value, description, is_passing, color, sort_order) VALUES
+   959→  ('00000000-0000-0000-0000-000000000002', 93, 100, 'A', 4.0, 'Excellent', true, '#22C55E', 1),
+   960→  ('00000000-0000-0000-0000-000000000002', 90, 92.99, 'A-', 3.7, 'Excellent', true, '#4ADE80', 2),
+   961→  ('00000000-0000-0000-0000-000000000002', 87, 89.99, 'B+', 3.3, 'Good', true, '#84CC16', 3),
+   962→  ('00000000-0000-0000-0000-000000000002', 83, 86.99, 'B', 3.0, 'Good', true, '#A3E635', 4),
+   963→  ('00000000-0000-0000-0000-000000000002', 80, 82.99, 'B-', 2.7, 'Good', true, '#BEF264', 5),
+   964→  ('00000000-0000-0000-0000-000000000002', 77, 79.99, 'C+', 2.3, 'Satisfactory', true, '#FACC15', 6),
+   965→  ('00000000-0000-0000-0000-000000000002', 73, 76.99, 'C', 2.0, 'Satisfactory', true, '#FDE047', 7),
+   966→  ('00000000-0000-0000-0000-000000000002', 70, 72.99, 'C-', 1.7, 'Satisfactory', true, '#FCD34D', 8),
+   967→  ('00000000-0000-0000-0000-000000000002', 67, 69.99, 'D+', 1.3, 'Below Average', true, '#FB923C', 9),
+   968→  ('00000000-0000-0000-0000-000000000002', 60, 66.99, 'D', 1.0, 'Poor', true, '#F97316', 10),
+   969→  ('00000000-0000-0000-0000-000000000002', 0, 59.99, 'F', 0.0, 'Fail', false, '#EF4444', 11)
+   970→ON CONFLICT DO NOTHING;
+   971→
