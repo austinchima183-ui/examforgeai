@@ -1,3 +1,6 @@
+import 'dart:convert';
+import 'dart:typed_data';
+
 import 'package:dio/dio.dart';
 
 import '../../../../../core/errors/exceptions.dart';
@@ -24,9 +27,15 @@ abstract class FlutterwaveDataSource {
   });
 
   /// Verify a payment by transaction reference.
-  Future<Map<String, dynamic>> verifyTransaction(String txRef);
+  /// [expectedAmount] and [expectedCurrency] are server-authoritative
+  /// values used to confirm the payment matches what was initiated.
+  Future<Map<String, dynamic>> verifyTransaction(
+    String txRef, {
+    double? expectedAmount,
+    String? expectedCurrency,
+  });
 
-  /// Verify webhook signature.
+  /// Verify webhook signature using constant-time comparison.
   bool verifyWebhookSignature(Map<String, dynamic> headers, String body);
 
   /// Process a refund.
@@ -58,6 +67,45 @@ abstract class FlutterwaveDataSource {
 }
 
 // ═══════════════════════════════════════════════════════════════════════
+// WEBHOOK IDEMPOTENCY TRACKER
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Tracks processed webhook event IDs to prevent duplicate processing.
+///
+/// In production, this should be backed by a persistent store (e.g. the
+/// `webhook_events` table in Supabase). This in-memory implementation
+/// serves as a first layer of defence and handles the common case where
+/// Flutterwave retries a webhook within the same app session.
+class WebhookIdempotencyTracker {
+  WebhookIdempotencyTracker({this.maxCacheSize = 10000});
+
+  final int maxCacheSize;
+
+  /// Maps event idempotency keys to the timestamp they were processed.
+  final Map<String, DateTime> _processedEvents = {};
+
+  /// Checks whether an event with the given [idempotencyKey] has already
+  /// been processed. Returns `true` if the event is a duplicate.
+  bool isProcessed(String idempotencyKey) {
+    _evictOldEntries();
+    return _processedEvents.containsKey(idempotencyKey);
+  }
+
+  /// Marks an event as processed.
+  void markProcessed(String idempotencyKey) {
+    _processedEvents[idempotencyKey] = DateTime.now();
+  }
+
+  /// Removes entries older than 72 hours to prevent unbounded growth.
+  void _evictOldEntries() {
+    if (_processedEvents.length < maxCacheSize) return;
+
+    final cutoff = DateTime.now().subtract(const Duration(hours: 72));
+    _processedEvents.removeWhere((_, processedAt) => processedAt.isBefore(cutoff));
+  }
+}
+
+// ═══════════════════════════════════════════════════════════════════════
 // DIO IMPLEMENTATION
 // ═══════════════════════════════════════════════════════════════════════
 
@@ -66,21 +114,32 @@ abstract class FlutterwaveDataSource {
 /// Communicates with the Flutterwave v3 REST API for payment
 /// processing. All HTTP errors are mapped to domain-specific
 /// [ServerException] instances.
+///
+/// **Security improvements over the original implementation:**
+/// - Constant-time HMAC comparison for webhook signatures (prevents
+///   timing attacks).
+/// - Server-side amount verification during `verifyTransaction`
+///   (prevents payment spoofing where an attacker pays a different
+///   amount than expected).
+/// - Webhook idempotency tracking to prevent duplicate event processing.
 class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
   FlutterwaveDataSourceImpl({
     required String secretKey,
     required String publicKey,
     required String webhookSecretHash,
     Dio? dio,
+    WebhookIdempotencyTracker? idempotencyTracker,
   })  : _secretKey = secretKey,
         _publicKey = publicKey,
         _webhookSecretHash = webhookSecretHash,
-        _dio = dio ?? _createDio(secretKey);
+        _dio = dio ?? _createDio(secretKey),
+        _idempotencyTracker = idempotencyTracker ?? WebhookIdempotencyTracker();
 
   final String _secretKey;
   final String _publicKey;
   final String _webhookSecretHash;
   final Dio _dio;
+  final WebhookIdempotencyTracker _idempotencyTracker;
 
   // ─── Base URL ─────────────────────────────────────────────────────
   static const _baseUrl = 'https://api.flutterwave.com/v3';
@@ -191,11 +250,25 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // VERIFY TRANSACTION
+  // VERIFY TRANSACTION (WITH AMOUNT VERIFICATION)
   // ═══════════════════════════════════════════════════════════════════
+  //
+  // FIX: Added [expectedAmount] and [expectedCurrency] parameters that
+  // must be supplied from the server-authoritative transaction record
+  // (the `transactions` table in our database). This prevents payment
+  // spoofing where an attacker initiates a checkout for N5,000 but
+  // only pays N500 and then claims the payment is successful.
+  //
+  // The caller (BillingRepositoryImpl) reads the expected amount from
+  // our DB before calling this method, so the verification is
+  // server-authoritative, not client-supplied.
 
   @override
-  Future<Map<String, dynamic>> verifyTransaction(String txRef) async {
+  Future<Map<String, dynamic>> verifyTransaction(
+    String txRef, {
+    double? expectedAmount,
+    String? expectedCurrency,
+  }) async {
     try {
       final response = await _dio.get(
         '/transactions/verify_by_reference',
@@ -214,6 +287,58 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
       }
 
       final txData = data['data'] as Map<String, dynamic>? ?? {};
+
+      // ─── AMOUNT VERIFICATION (CRITICAL SECURITY FIX) ───────────────
+      // Compare the actual charged amount against the expected amount
+      // from our database. The Flutterwave `charged_amount` is what was
+      // actually debited from the customer's account. An attacker who
+      // pays a different amount should NOT get credit for the full amount.
+      if (expectedAmount != null) {
+        final chargedAmount = (txData['charged_amount'] as num?)?.toDouble() ?? 0.0;
+        // Allow a small tolerance (1.0) to account for rounding and
+        // currency conversion differences. For NGN, this is less than
+        // N1 difference which is acceptable.
+        const tolerance = 1.0;
+        if ((chargedAmount - expectedAmount).abs() > tolerance) {
+          AppLogger.error(
+            'PAYMENT AMOUNT MISMATCH: expected=$expectedAmount, '
+            'charged=$chargedAmount, txRef=$txRef. '
+            'Possible payment spoofing attempt!',
+          );
+          throw ServerException(
+            message: 'Payment amount verification failed. '
+                'Expected $expectedAmount but received $chargedAmount.',
+            statusCode: 400,
+            data: {
+              'expected_amount': expectedAmount,
+              'charged_amount': chargedAmount,
+              'tx_ref': txRef,
+            },
+          );
+        }
+      }
+
+      // ─── CURRENCY VERIFICATION ─────────────────────────────────────
+      if (expectedCurrency != null) {
+        final actualCurrency = txData['currency'] as String? ?? '';
+        if (actualCurrency.toUpperCase() != expectedCurrency.toUpperCase()) {
+          AppLogger.error(
+            'PAYMENT CURRENCY MISMATCH: expected=$expectedCurrency, '
+            'actual=$actualCurrency, txRef=$txRef',
+          );
+          throw ServerException(
+            message: 'Payment currency verification failed. '
+                'Expected $expectedCurrency but received $actualCurrency.',
+            statusCode: 400,
+            data: {
+              'expected_currency': expectedCurrency,
+              'actual_currency': actualCurrency,
+              'tx_ref': txRef,
+            },
+          );
+        }
+      }
+
       AppLogger.info(
         'Flutterwave transaction verified: $txRef — status: ${txData['status']}',
       );
@@ -245,8 +370,15 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
   }
 
   // ═══════════════════════════════════════════════════════════════════
-  // VERIFY WEBHOOK SIGNATURE
+  // VERIFY WEBHOOK SIGNATURE (CONSTANT-TIME COMPARISON)
   // ═══════════════════════════════════════════════════════════════════
+  //
+  // FIX: The original implementation used `==` to compare the webhook
+  // hash, which is vulnerable to timing attacks. An attacker can
+  // measure response times to progressively guess the correct hash
+  // character by character. This replacement uses constant-time byte
+  // comparison so that comparison time does not leak information about
+  // the hash contents.
 
   @override
   bool verifyWebhookSignature(Map<String, dynamic> headers, String body) {
@@ -263,10 +395,19 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
         return false;
       }
 
-      final isValid = incomingHash == _webhookSecretHash;
+      // ─── CONSTANT-TIME COMPARISON ──────────────────────────────────
+      // Convert both strings to UTF-8 bytes and compare every byte,
+      // accumulating the XOR of all byte pairs. The result is true
+      // only if ALL bytes match (accumulated XOR == 0) AND the lengths
+      // match. This eliminates timing side-channels.
+      final isValid = _constantTimeEquals(incomingHash, _webhookSecretHash);
+
       if (!isValid) {
+        // WARNING: Do NOT log the actual hash values in production.
+        // Only log a generic mismatch message.
         AppLogger.warning(
-          'Webhook signature mismatch: expected=$_webhookSecretHash, got=$incomingHash',
+          'Webhook signature mismatch for incoming hash (length: '
+          '${incomingHash.length})',
         );
       }
       return isValid;
@@ -274,6 +415,25 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
       AppLogger.error('Webhook signature verification error', error: e);
       return false;
     }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════
+  // WEBHOOK IDEMPOTENCY CHECK
+  // ═══════════════════════════════════════════════════════════════════
+  //
+  // FIX: Prevents duplicate webhook processing. Flutterwave may retry
+  // webhooks, and without idempotency checking, the same payment could
+  // be credited multiple times.
+
+  /// Checks whether a webhook event has already been processed.
+  /// Returns `true` if the event is a DUPLICATE (already processed).
+  bool isWebhookEventProcessed(String idempotencyKey) {
+    return _idempotencyTracker.isProcessed(idempotencyKey);
+  }
+
+  /// Marks a webhook event as successfully processed.
+  void markWebhookEventProcessed(String idempotencyKey) {
+    _idempotencyTracker.markProcessed(idempotencyKey);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -500,6 +660,34 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
   // ═══════════════════════════════════════════════════════════════════
   // PRIVATE HELPERS
   // ═══════════════════════════════════════════════════════════════════
+
+  /// Constant-time string comparison that prevents timing attacks.
+  ///
+  /// Standard `==` comparison short-circuits on the first mismatched
+  /// character, leaking information about how many characters matched
+  /// through response time. This method always compares ALL characters
+  /// regardless of mismatches, so the comparison time depends only on
+  /// the string length, not the content.
+  ///
+  /// Algorithm: XOR all corresponding bytes and OR the results. If any
+  /// byte differs, the accumulated result will be non-zero. We also
+  /// incorporate the length difference to prevent length-based attacks.
+  static bool _constantTimeEquals(String a, String b) {
+    final bytesA = Uint8List.fromList(utf8.encode(a));
+    final bytesB = Uint8List.fromList(utf8.encode(b));
+
+    // Length check: incorporate length difference into the comparison
+    // result without short-circuiting.
+    int result = bytesA.length ^ bytesB.length;
+
+    // Compare up to the length of the shorter string.
+    final minLen = bytesA.length < bytesB.length ? bytesA.length : bytesB.length;
+    for (int i = 0; i < minLen; i++) {
+      result |= bytesA[i] ^ bytesB[i];
+    }
+
+    return result == 0;
+  }
 
   /// Maps a [DioException] to a domain [ServerException].
   ServerException _mapDioException(DioException e) {

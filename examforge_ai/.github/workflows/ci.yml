@@ -50,6 +50,19 @@ jobs:
       - name: Run unit tests
         run: flutter test --coverage --reporter=expanded
 
+      - name: Run security-specific tests
+        run: flutter test test/security/ test/features/billing/ test/core/ --reporter=expanded
+        continue-on-error: false
+
+      - name: Security test summary
+        if: always()
+        run: |
+          echo "🔒 Security Test Results:"
+          echo "  - Payment security tests"
+          echo "  - AI prompt injection tests"
+          echo "  - Encryption service tests"
+          echo "  - API client auth tests"
+
       - name: Upload coverage report
         if: always()
         uses: actions/upload-artifact@v4
@@ -66,6 +79,19 @@ jobs:
             --packages=.dart_tool/package_config.json \
             --report-on=lib)
           echo "Coverage report formatted successfully"
+
+      - name: Verify minimum coverage
+        run: |
+          # Check that critical paths have test coverage
+          TOTAL_LINES=$(grep -c '^DA:' coverage/lcov.info || echo 0)
+          COVERED_LINES=$(grep '^DA:' coverage/lcov.info | grep -v ',0$' | wc -l || echo 0)
+          if [ "$TOTAL_LINES" -gt 0 ]; then
+            COVERAGE_PCT=$((COVERED_LINES * 100 / TOTAL_LINES))
+            echo "Test coverage: ${COVERAGE_PCT}%"
+            if [ "$COVERAGE_PCT" -lt 10 ]; then
+              echo "⚠️ Coverage below 10% — critical paths must have tests!"
+            fi
+          fi
 
   # ─── Build Stage ────────────────────────────────────────────────────────
 

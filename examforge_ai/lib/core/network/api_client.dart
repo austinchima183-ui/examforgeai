@@ -5,21 +5,30 @@ import '../constants/api_constants.dart';
 import '../constants/app_constants.dart';
 import '../errors/exceptions.dart';
 import '../utils/logger.dart';
+import '../../services/storage_service.dart';
 
 /// A Dio-based HTTP client that wraps common HTTP verbs and automatically
 /// converts Dio-specific errors into domain [Exception]s.
 ///
+/// **Security Fix:** The original implementation had stub methods for
+/// `_getStoredAccessToken()` and `_getStoredRefreshToken()` that always
+/// returned `null`, meaning no auth tokens were ever injected into API
+/// requests. This has been fixed by wiring the ApiClient to the
+/// [StorageService] which reads tokens from flutter_secure_storage.
+///
 /// Usage:
 /// ```dart
-/// final client = ApiClient(dio);
+/// final client = ApiClient(dio, storageService: storageService);
 /// final response = await client.get('/user/profile');
 /// ```
 class ApiClient {
-  ApiClient(this._dio) {
+  ApiClient(this._dio, {StorageService? storageService})
+      : _storageService = storageService {
     _setupInterceptors();
   }
 
   final Dio _dio;
+  final StorageService? _storageService;
 
   // ─── Public HTTP Methods ───────────────────────────────────────────
 
@@ -225,9 +234,16 @@ class ApiClient {
               options.path.endsWith('/auth/reset-password');
 
           if (!isAuthEndpoint) {
+            // FIX: Actually read the token from secure storage instead
+            // of returning null. This was the root cause of auth always
+            // returning null — the stub methods were never wired up.
             final accessToken = await _getStoredAccessToken();
-            if (accessToken != null) {
+            if (accessToken != null && accessToken.isNotEmpty) {
               options.headers['Authorization'] = 'Bearer $accessToken';
+            } else {
+              AppLogger.warning(
+                'No access token available for request: ${options.path}',
+              );
             }
           }
           handler.next(options);
@@ -259,14 +275,30 @@ class ApiClient {
 
   // ─── Token Refresh Logic ───────────────────────────────────────────
   //
-  // In a production app, the token is stored securely (flutter_secure_storage).
-  // This class only coordinates the refresh; the actual storage read / write
-  // is delegated so that the ApiClient stays testable.
+  // FIX: The original stub methods always returned null. Now they are
+  // wired to the [StorageService] which reads from flutter_secure_storage.
+  // The StorageService is injected via the constructor, making this
+  // class testable while also functional in production.
 
-  /// Override this getter or inject a storage adapter in production.
+  /// Reads the stored access token from secure storage.
+  ///
+  /// Returns `null` if the StorageService hasn't been injected (should
+  /// not happen in production) or if no token is stored.
   Future<String?> _getStoredAccessToken() async {
-    // Will be wired to secure storage in the auth layer.
-    return null;
+    if (_storageService == null) {
+      AppLogger.error(
+        'ApiClient: StorageService not injected. '
+        'Auth tokens will not be available. '
+        'Ensure ApiClient is created with storageService parameter.',
+      );
+      return null;
+    }
+    try {
+      return await _storageService.getToken();
+    } catch (e) {
+      AppLogger.error('Failed to read access token', error: e);
+      return null;
+    }
   }
 
   /// Attempts to refresh the access token. Returns the new access token
@@ -274,7 +306,10 @@ class ApiClient {
   Future<String?> _attemptTokenRefresh() async {
     try {
       final refreshTokenValue = await _getStoredRefreshToken();
-      if (refreshTokenValue == null) return null;
+      if (refreshTokenValue == null) {
+        AppLogger.info('No refresh token available for token refresh');
+        return null;
+      }
 
       final response = await _dio.post(
         ApiConstants.refreshToken,
@@ -296,17 +331,30 @@ class ApiClient {
     }
   }
 
-  /// Reads the stored refresh token.
+  /// Reads the stored refresh token from secure storage.
   Future<String?> _getStoredRefreshToken() async {
-    // Will be wired to secure storage in the auth layer.
-    return null;
+    if (_storageService == null) return null;
+    try {
+      return await _storageService.getRefreshToken();
+    } catch (e) {
+      AppLogger.error('Failed to read refresh token', error: e);
+      return null;
+    }
   }
 
-  /// Persists the new token pair.
+  /// Persists the new token pair to secure storage.
   Future<void> _persistTokens(
     String accessToken,
     String? refreshToken,
   ) async {
-    // Will be wired to secure storage in the auth layer.
+    if (_storageService == null) return;
+    try {
+      await _storageService.saveTokenPair(
+        accessToken: accessToken,
+        refreshToken: refreshToken,
+      );
+    } catch (e) {
+      AppLogger.error('Failed to persist refreshed tokens', error: e);
+    }
   }
 }

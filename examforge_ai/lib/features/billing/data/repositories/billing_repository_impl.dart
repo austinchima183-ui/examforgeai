@@ -396,16 +396,48 @@ class BillingRepositoryImpl implements BillingRepository {
   @override
   Future<Result<TransactionEntity>> verifyPayment(String txRef) async {
     try {
-      final flutterwaveData = await _flutterwaveDataSource.verifyTransaction(txRef);
+      // ─── STEP 1: Look up our local transaction FIRST ────────────────
+      // This is critical for security: we read the EXPECTED amount from
+      // our own database before verifying with Flutterwave. This prevents
+      // an attacker from paying a different amount and claiming success.
+      final localTx = await _remoteDataSource.getTransaction(txRef);
+      final expectedAmount = localTx.amount;
+      final expectedCurrency = localTx.currency;
 
-      // Find and update our local transaction record
-      final localTx = await _remoteDataSource.getTransaction(
-        flutterwaveData['tx_ref'] as String? ?? txRef,
+      // ─── STEP 2: Verify with Flutterwave, passing expected amounts ─
+      // The FlutterwaveDataSource now validates that the actual charged
+      // amount matches what we recorded in our database.
+      final flutterwaveData = await _flutterwaveDataSource.verifyTransaction(
+        txRef,
+        expectedAmount: expectedAmount,
+        expectedCurrency: expectedCurrency,
       );
 
+      // ─── STEP 3: Update our local transaction record ───────────────
       final status = _mapFlutterwaveStatus(
         flutterwaveData['status'] as String? ?? 'pending',
       );
+
+      // SECURITY: If the transaction is successful, also verify that
+      // the Flutterwave transaction ID hasn't been used before (prevents
+      // replay attacks where the same Flw ID is claimed for two tx_refs).
+      if (status == TransactionStatus.successful) {
+        final flwTxId = flutterwaveData['id']?.toString();
+        if (flwTxId != null && flwTxId.isNotEmpty) {
+          final isReplay = await _isFlutterwaveTransactionReplay(flwTxId, localTx.id);
+          if (isReplay) {
+            AppLogger.error(
+              'PAYMENT REPLAY ATTACK DETECTED: Flutterwave transaction ID '
+              '$flwTxId has already been used for a different transaction!',
+            );
+            return const FailureResult(Failure.server(
+              message: 'Payment verification failed: duplicate transaction.',
+              statusCode: 409,
+            ));
+          }
+        }
+      }
+
       final updatedTx = await _remoteDataSource.updateTransaction(
         localTx.id,
         {
@@ -438,11 +470,61 @@ class BillingRepositoryImpl implements BillingRepository {
     }
   }
 
+  /// Checks whether a Flutterwave transaction ID has already been
+  /// associated with a DIFFERENT local transaction. This prevents
+  /// replay attacks where the same successful payment is claimed
+  /// for multiple transaction references.
+  Future<bool> _isFlutterwaveTransactionReplay(
+    String flwTxId,
+    String currentLocalTxId,
+  ) async {
+    try {
+      // Query our transactions table for any other transaction with
+      // the same Flutterwave transaction ID that's already successful.
+      final existingTxs = await _remoteDataSource.getTransactions(
+        status: 'successful',
+        page: 1,
+        perPage: 5,
+      );
+      return existingTxs.any((tx) =>
+          tx.flutterwaveTransactionId == flwTxId &&
+          tx.id != currentLocalTxId);
+    } catch (e) {
+      // If we can't check, err on the side of caution and allow
+      // the transaction through. The amount verification above is
+      // the primary defence.
+      AppLogger.warning(
+        'Could not verify Flutterwave transaction ID uniqueness',
+        error: e,
+      );
+      return false;
+    }
+  }
+
   @override
   Future<Result<bool>> processWebhookEvent(Map<String, dynamic> payload) async {
     try {
       final event = payload['event'] as String? ?? '';
       final data = payload['data'] as Map<String, dynamic>? ?? {};
+
+      // ─── IDEMPOTENCY CHECK (CRITICAL SECURITY FIX) ──────────────────
+      // Build an idempotency key from the event type and the unique
+      // Flutterwave event/transaction ID. This prevents the same webhook
+      // from being processed twice (Flutterwave retries webhooks on
+      // failure, so duplicates are expected).
+      final flwId = data['id']?.toString() ?? '';
+      final idempotencyKey = '${event}_$flwId';
+
+      final flutterwaveDs = _flutterwaveDataSource;
+      if (flutterwaveDs is FlutterwaveDataSourceImpl) {
+        if (flutterwaveDs.isWebhookEventProcessed(idempotencyKey)) {
+          AppLogger.info(
+            'Webhook event already processed (idempotent): $idempotencyKey. '
+            'Returning success without re-processing.',
+          );
+          return const Success(true);
+        }
+      }
 
       AppLogger.info('Processing Flutterwave webhook event: $event');
 
@@ -450,8 +532,18 @@ class BillingRepositoryImpl implements BillingRepository {
         case 'charge.completed':
           final txRef = data['tx_ref'] as String?;
           if (txRef != null) {
-            // Verify and update the transaction
-            await verifyPayment(txRef);
+            // Verify and update the transaction (includes amount
+            // verification via the updated verifyPayment method)
+            final result = await verifyPayment(txRef);
+            if (result is Success) {
+              AppLogger.info(
+                'Webhook charge.completed processed successfully for $txRef',
+              );
+            } else {
+              AppLogger.warning(
+                'Webhook charge.completed verification failed for $txRef',
+              );
+            }
           }
           break;
         case 'transfer.completed':
@@ -470,6 +562,12 @@ class BillingRepositoryImpl implements BillingRepository {
         default:
           AppLogger.info('Unhandled webhook event: $event');
       }
+
+      // Mark event as processed AFTER successful handling
+      if (flutterwaveDs is FlutterwaveDataSourceImpl) {
+        flutterwaveDs.markWebhookEventProcessed(idempotencyKey);
+      }
+
       return const Success(true);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));

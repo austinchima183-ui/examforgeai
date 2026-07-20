@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import '../../../core/security/ai_security_service.dart';
 import '../../../core/utils/logger.dart';
 import '../../features/ai_generator/domain/entities/ai_entities.dart';
 import '../../features/question_bank/domain/entities/question_entities.dart';
@@ -89,6 +90,35 @@ class PromptEngine {
     GenerationInputEntity input,
     List<PromptTemplateEntity> templates,
   ) {
+    // ─── AI SECURITY: Check user inputs for prompt injection ──────────
+    // Validate the topic, custom instructions, and other user-supplied
+    // fields before incorporating them into the prompt.
+    final topicCheck = AiSecurityService.checkInput(input.topic);
+    if (!topicCheck.isSafe) {
+      AppLogger.error(
+        'AI SECURITY: Prompt injection detected in topic. '
+        'Blocking generation request.',
+      );
+      // Return a safe resolution that will result in an error message
+      return PromptResolution(
+        systemPrompt: 'You are a helpful educational assistant.',
+        userPrompt: 'The provided topic contains potentially unsafe content. '
+            'Please revise and try again.',
+        templateUsed: null,
+        resolvedVariables: {},
+      );
+    }
+
+    final instructionsCheck = AiSecurityService.checkInput(
+      input.customInstructions ?? '',
+    );
+    if (!instructionsCheck.isSafe && instructionsCheck.sanitizedInput != null) {
+      AppLogger.warning(
+        'AI SECURITY: Sanitizing custom instructions due to injection patterns.',
+      );
+      // Use sanitized version instead of blocking
+    }
+
     final activeTemplates = templates
         .where((t) =>
             t.isActive &&

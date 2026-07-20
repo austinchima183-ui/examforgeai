@@ -358,7 +358,14 @@ class LocalExamAttemptsTable extends Table {
   TextColumn get attemptData => text()();
 
   /// JSON-encoded answers.
+  /// SECURITY: When isEncrypted is true, this contains AES-encrypted
+  /// ciphertext (base64). When false, it contains plaintext JSON (legacy).
   TextColumn get answers => text()();
+
+  /// Whether the answers column is encrypted.
+  /// All new records are encrypted. Legacy records may be plaintext.
+  BoolColumn get isEncrypted =>
+      boolean().withDefault(const Constant(true))();
 
   /// When the attempt was started.
   DateTimeColumn get startedAt => dateTime()();

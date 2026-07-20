@@ -278,9 +278,14 @@ final dioProvider = Provider<Dio>((ref) {
 });
 
 /// Provides the [ApiClient] wrapper around [Dio].
+///
+/// FIX: Now injects [StorageService] so that auth tokens are actually
+/// read from secure storage instead of returning null (the root cause
+/// of the "ApiClient auth always returning null" bug).
 final apiClientProvider = Provider<ApiClient>((ref) {
   final dio = ref.watch(dioProvider);
-  return ApiClient(dio);
+  final storageService = ref.watch(storageServiceProvider);
+  return ApiClient(dio, storageService: storageService);
 });
 
 /// Re-exports the [NetworkInfo] provider from the core layer so that
