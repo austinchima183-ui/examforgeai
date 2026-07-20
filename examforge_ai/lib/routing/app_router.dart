@@ -207,6 +207,36 @@ import '../features/ccms/presentation/pages/audit_trail_page.dart' as ccms_audit
 import '../features/ccms/presentation/pages/security_center_page.dart' as ccms_security;
 import '../features/ccms/presentation/pages/monitoring_dashboard_page.dart' as ccms_monitoring;
 import '../features/ccms/presentation/pages/deployment_page.dart';
+import '../features/exam_ecosystem/presentation/pages/exam_ecosystem_dashboard_page.dart';
+import '../features/exam_ecosystem/presentation/pages/mock_exam_list_page.dart';
+import '../features/exam_ecosystem/presentation/pages/mock_exam_take_page.dart';
+import '../features/exam_ecosystem/presentation/pages/readiness_dashboard_page.dart';
+import '../features/exam_ecosystem/presentation/pages/study_planner_page.dart';
+import '../features/exam_ecosystem/presentation/pages/jamb_preparation_page.dart';
+import '../features/admission_hub/presentation/pages/admission_hub_dashboard_page.dart';
+import '../features/admission_hub/presentation/pages/university_search_page.dart';
+import '../features/admission_hub/presentation/pages/post_utme_center_page.dart';
+import '../features/admission_hub/presentation/pages/admission_checker_page.dart';
+import '../features/admission_hub/presentation/pages/admission_checklist_page.dart';
+import '../features/ai_coach/presentation/pages/ai_coach_dashboard_page.dart';
+import '../features/ai_coach/presentation/pages/coach_chat_page.dart';
+import '../features/ai_coach/presentation/pages/weak_topics_page.dart';
+import '../features/customer_success/presentation/pages/customer_success_dashboard_page.dart';
+import '../features/customer_success/presentation/pages/onboarding_wizard_page.dart';
+import '../features/customer_success/presentation/pages/help_center_page.dart';
+import '../features/customer_success/presentation/pages/feedback_page.dart';
+import '../features/customer_success/presentation/pages/feature_requests_page.dart';
+import '../features/marketing/presentation/pages/marketing_dashboard_page.dart';
+import '../features/marketing/presentation/pages/blog_management_page.dart';
+import '../features/marketing/presentation/pages/referral_program_page.dart';
+import '../features/marketing/presentation/pages/affiliate_program_page.dart';
+import '../features/edu_os/presentation/pages/edu_os_dashboard_page.dart';
+import '../features/edu_os/presentation/pages/module_detail_page.dart';
+import '../features/edu_os/presentation/pages/school_modules_page.dart';
+import '../features/analytics_dashboard/presentation/pages/analytics_dashboard_home_page.dart';
+import '../features/analytics_dashboard/presentation/pages/user_acquisition_page.dart';
+import '../features/analytics_dashboard/presentation/pages/revenue_analytics_page.dart';
+import '../features/analytics_dashboard/presentation/pages/release_notes_page.dart';
 
 // ── Super Admin Platform ──
 import '../features/super_admin/presentation/pages/super_admin_dashboard_page.dart';
@@ -1643,6 +1673,50 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             name: 'deployment-center',
             builder: (context, state) => const DeploymentPage(),
           ),
+
+          // ── Exam Ecosystem Routes ──────────────────────────────
+          GoRoute(path: RouteNames.examEcosystemDashboard, name: 'exam-ecosystem', builder: (context, state) => const ExamEcosystemDashboardPage()),
+          GoRoute(path: RouteNames.mockExamList, name: 'mock-exam-list', builder: (context, state) => const MockExamListPage()),
+          GoRoute(path: RouteNames.mockExamTake, name: 'mock-exam-take', builder: (context, state) { final examId = state.uri.queryParameters['id'] ?? ''; return MockExamTakePage(examId: examId); }),
+          GoRoute(path: RouteNames.readinessDashboard, name: 'readiness-dashboard', builder: (context, state) => const ReadinessDashboardPage()),
+          GoRoute(path: RouteNames.studyPlanner, name: 'study-planner', builder: (context, state) => const StudyPlannerPage()),
+          GoRoute(path: RouteNames.jambPreparation, name: 'jamb-preparation', builder: (context, state) => const JambPreparationPage()),
+
+          // ── Admission Hub Routes ──────────────────────────────
+          GoRoute(path: RouteNames.admissionHubDashboard, name: 'admission-hub', builder: (context, state) => const AdmissionHubDashboardPage()),
+          GoRoute(path: RouteNames.universitySearch, name: 'university-search', builder: (context, state) => const UniversitySearchPage()),
+          GoRoute(path: RouteNames.postUtmeCenter, name: 'post-utme-center', builder: (context, state) => const PostUtmeCenterPage()),
+          GoRoute(path: RouteNames.admissionChecker, name: 'admission-checker', builder: (context, state) => const AdmissionCheckerPage()),
+          GoRoute(path: RouteNames.admissionChecklist, name: 'admission-checklist', builder: (context, state) => const AdmissionChecklistPage()),
+
+          // ── AI Coach Routes ──────────────────────────────
+          GoRoute(path: RouteNames.aiCoachDashboard, name: 'ai-coach', builder: (context, state) => const AiCoachDashboardPage()),
+          GoRoute(path: RouteNames.coachChat, name: 'coach-chat', builder: (context, state) => const CoachChatPage()),
+          GoRoute(path: RouteNames.weakTopics, name: 'weak-topics', builder: (context, state) => const WeakTopicsPage()),
+
+          // ── Customer Success Routes ──────────────────────────────
+          GoRoute(path: RouteNames.customerSuccessDashboard, name: 'customer-success', builder: (context, state) => const CustomerSuccessDashboardPage()),
+          GoRoute(path: RouteNames.onboardingWizard, name: 'onboarding-wizard', builder: (context, state) => const OnboardingWizardPage()),
+          GoRoute(path: RouteNames.helpCenter, name: 'help-center', builder: (context, state) => const HelpCenterPage()),
+          GoRoute(path: RouteNames.feedbackPage, name: 'feedback', builder: (context, state) => const FeedbackPage()),
+          GoRoute(path: RouteNames.featureRequestsPage, name: 'feature-requests', builder: (context, state) => const FeatureRequestsPage()),
+
+          // ── Marketing Routes ──────────────────────────────
+          GoRoute(path: RouteNames.marketingDashboard, name: 'marketing', builder: (context, state) => const MarketingDashboardPage()),
+          GoRoute(path: RouteNames.blogManagement, name: 'blog-management', builder: (context, state) => const BlogManagementPage()),
+          GoRoute(path: RouteNames.referralProgram, name: 'referral-program', builder: (context, state) => const ReferralProgramPage()),
+          GoRoute(path: RouteNames.affiliateProgram, name: 'affiliate-program', builder: (context, state) => const AffiliateProgramPage()),
+
+          // ── EduOS Routes ──────────────────────────────
+          GoRoute(path: RouteNames.eduOsDashboard, name: 'edu-os', builder: (context, state) => const EduOsDashboardPage()),
+          GoRoute(path: RouteNames.moduleDetail, name: 'module-detail', builder: (context, state) { final code = state.uri.queryParameters['code'] ?? ''; return ModuleDetailPage(moduleCode: code); }),
+          GoRoute(path: RouteNames.schoolModules, name: 'school-modules', builder: (context, state) => const SchoolModulesPage()),
+
+          // ── Analytics Dashboard Routes ──────────────────────────────
+          GoRoute(path: RouteNames.analyticsDashboardHome, name: 'analytics', builder: (context, state) => const AnalyticsDashboardHomePage()),
+          GoRoute(path: RouteNames.userAcquisition, name: 'user-acquisition', builder: (context, state) => const UserAcquisitionPage()),
+          GoRoute(path: RouteNames.revenueAnalytics, name: 'revenue-analytics', builder: (context, state) => const RevenueAnalyticsPage()),
+          GoRoute(path: RouteNames.releaseNotes, name: 'release-notes', builder: (context, state) => const ReleaseNotesPage()),
 
           // ── Super Admin Platform Routes ──────────────────────────
           GoRoute(

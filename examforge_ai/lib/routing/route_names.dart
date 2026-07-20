@@ -766,6 +766,71 @@ class RouteNames {
   static const String deploymentCenter = '/ccms/deployment';
 
   // ═══════════════════════════════════════════════════════════════════════
+  // EXAM ECOSYSTEM ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static const String examEcosystemDashboard = '/exams/ecosystem';
+  static const String mockExamList = '/exams/mock';
+  static const String mockExamTake = '/exams/mock/take';
+  static const String readinessDashboard = '/exams/readiness';
+  static const String studyPlanner = '/exams/study-planner';
+  static const String jambPreparation = '/exams/jamb';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ADMISSION HUB ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static const String admissionHubDashboard = '/admissions';
+  static const String universitySearch = '/admissions/universities';
+  static const String postUtmeCenter = '/admissions/post-utme';
+  static const String admissionChecker = '/admissions/checker';
+  static const String admissionChecklist = '/admissions/checklist';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // AI COACH ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static const String aiCoachDashboard = '/ai-coach';
+  static const String coachChat = '/ai-coach/chat';
+  static const String weakTopics = '/ai-coach/weak-topics';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // CUSTOMER SUCCESS ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static const String customerSuccessDashboard = '/help';
+  static const String onboardingWizard = '/help/onboarding';
+  static const String helpCenter = '/help/articles';
+  static const String feedbackPage = '/help/feedback';
+  static const String featureRequestsPage = '/help/features';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // MARKETING ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static const String marketingDashboard = '/marketing';
+  static const String blogManagement = '/marketing/blog';
+  static const String referralProgram = '/marketing/referrals';
+  static const String affiliateProgram = '/marketing/affiliates';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // EDUOS ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static const String eduOsDashboard = '/edu-os';
+  static const String moduleDetail = '/edu-os/module';
+  static const String schoolModules = '/edu-os/school-modules';
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ANALYTICS DASHBOARD ROUTES
+  // ═══════════════════════════════════════════════════════════════════════
+
+  static const String analyticsDashboardHome = '/analytics';
+  static const String userAcquisition = '/analytics/users';
+  static const String revenueAnalytics = '/analytics/revenue';
+  static const String releaseNotes = '/analytics/releases';
+
+  // ═══════════════════════════════════════════════════════════════════════
   // BILLING ROUTES
   // ═══════════════════════════════════════════════════════════════════════
 
