@@ -423,7 +423,8 @@ final _getTestResultsUseCaseProvider = Provider<GetTestResultsUseCase>((ref) {
 // State Notifier Providers
 // ═══════════════════════════════════════════════════════════════════════════
 
-final educationalLevelProvider = StateNotifierProvider<EducationalLevelNotifier, EducationalLevelState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final educationalLevelProvider = StateNotifierProvider.autoDispose<EducationalLevelNotifier, EducationalLevelState>((ref) {
   return EducationalLevelNotifier(
     getEducationalLevelsUseCase: ref.watch(_getEducationalLevelsUseCaseProvider),
     getSchoolLevelsUseCase: ref.watch(_getSchoolLevelsUseCaseProvider),
@@ -432,7 +433,8 @@ final educationalLevelProvider = StateNotifierProvider<EducationalLevelNotifier,
   );
 });
 
-final curriculumProvider = StateNotifierProvider<CurriculumNotifier, CurriculumState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final curriculumProvider = StateNotifierProvider.autoDispose<CurriculumNotifier, CurriculumState>((ref) {
   return CurriculumNotifier(
     getCurriculaUseCase: ref.watch(_getCurriculaUseCaseProvider),
     getCurriculumByIdUseCase: ref.watch(_getCurriculumByIdUseCaseProvider),
@@ -443,7 +445,8 @@ final curriculumProvider = StateNotifierProvider<CurriculumNotifier, CurriculumS
   );
 });
 
-final subjectProvider = StateNotifierProvider<SubjectNotifier, SubjectState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final subjectProvider = StateNotifierProvider.autoDispose<SubjectNotifier, SubjectState>((ref) {
   return SubjectNotifier(
     getSubjectsUseCase: ref.watch(_getSubjectsUseCaseProvider),
     getSubjectByIdUseCase: ref.watch(_getSubjectByIdUseCaseProvider),
@@ -454,7 +457,8 @@ final subjectProvider = StateNotifierProvider<SubjectNotifier, SubjectState>((re
   );
 });
 
-final topicProvider = StateNotifierProvider<TopicNotifier, TopicState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final topicProvider = StateNotifierProvider.autoDispose<TopicNotifier, TopicState>((ref) {
   return TopicNotifier(
     getTopicsUseCase: ref.watch(_getTopicsUseCaseProvider),
     createTopicUseCase: ref.watch(_createTopicUseCaseProvider),
@@ -468,7 +472,8 @@ final topicProvider = StateNotifierProvider<TopicNotifier, TopicState>((ref) {
   );
 });
 
-final contentProvider = StateNotifierProvider<ContentNotifier, ContentState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final contentProvider = StateNotifierProvider.autoDispose<ContentNotifier, ContentState>((ref) {
   return ContentNotifier(
     getContentItemsUseCase: ref.watch(_getContentItemsUseCaseProvider),
     getContentByIdUseCase: ref.watch(_getContentByIdUseCaseProvider),
@@ -482,14 +487,16 @@ final contentProvider = StateNotifierProvider<ContentNotifier, ContentState>((re
   );
 });
 
-final contentReviewProvider = StateNotifierProvider<ContentReviewNotifier, ContentReviewState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final contentReviewProvider = StateNotifierProvider.autoDispose<ContentReviewNotifier, ContentReviewState>((ref) {
   return ContentReviewNotifier(
     createReviewUseCase: ref.watch(_createReviewUseCaseProvider),
     getContentReviewsUseCase: ref.watch(_getContentReviewsUseCaseProvider),
   );
 });
 
-final contentImportProvider = StateNotifierProvider<ContentImportNotifier, ContentImportState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final contentImportProvider = StateNotifierProvider.autoDispose<ContentImportNotifier, ContentImportState>((ref) {
   return ContentImportNotifier(
     createImportUseCase: ref.watch(_createImportUseCaseProvider),
     getImportsUseCase: ref.watch(_getImportsUseCaseProvider),
@@ -497,7 +504,8 @@ final contentImportProvider = StateNotifierProvider<ContentImportNotifier, Conte
   );
 });
 
-final contentCollectionProvider = StateNotifierProvider<ContentCollectionNotifier, ContentCollectionState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final contentCollectionProvider = StateNotifierProvider.autoDispose<ContentCollectionNotifier, ContentCollectionState>((ref) {
   return ContentCollectionNotifier(
     getCollectionsUseCase: ref.watch(_getCollectionsUseCaseProvider),
     createCollectionUseCase: ref.watch(_createCollectionUseCaseProvider),
@@ -508,7 +516,8 @@ final contentCollectionProvider = StateNotifierProvider<ContentCollectionNotifie
   );
 });
 
-final aiCurriculumProvider = StateNotifierProvider<AiCurriculumNotifier, AiCurriculumState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final aiCurriculumProvider = StateNotifierProvider.autoDispose<AiCurriculumNotifier, AiCurriculumState>((ref) {
   return AiCurriculumNotifier(
     getConfigUseCase: ref.watch(_getAiCurriculumConfigUseCaseProvider),
     upsertConfigUseCase: ref.watch(_upsertAiCurriculumConfigUseCaseProvider),
@@ -518,7 +527,8 @@ final aiCurriculumProvider = StateNotifierProvider<AiCurriculumNotifier, AiCurri
   );
 });
 
-final answerRepositoryProvider = StateNotifierProvider<AnswerRepositoryNotifier, AnswerRepositoryState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final answerRepositoryProvider = StateNotifierProvider.autoDispose<AnswerRepositoryNotifier, AnswerRepositoryState>((ref) {
   return AnswerRepositoryNotifier(
     getAnswerEntryUseCase: ref.watch(_getAnswerEntryUseCaseProvider),
     createAnswerEntryUseCase: ref.watch(_createAnswerEntryUseCaseProvider),
@@ -527,7 +537,8 @@ final answerRepositoryProvider = StateNotifierProvider<AnswerRepositoryNotifier,
   );
 });
 
-final enterpriseProvider = StateNotifierProvider<EnterpriseNotifier, EnterpriseState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final enterpriseProvider = StateNotifierProvider.autoDispose<EnterpriseNotifier, EnterpriseState>((ref) {
   return EnterpriseNotifier(
     recordAuditEventUseCase: ref.watch(_recordAuditEventUseCaseProvider),
     getAuditTrailUseCase: ref.watch(_getAuditTrailUseCaseProvider),
@@ -559,7 +570,8 @@ final enterpriseProvider = StateNotifierProvider<EnterpriseNotifier, EnterpriseS
   );
 });
 
-final monitoringProvider = StateNotifierProvider<MonitoringNotifier, MonitoringState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final monitoringProvider = StateNotifierProvider.autoDispose<MonitoringNotifier, MonitoringState>((ref) {
   return MonitoringNotifier(
     recordMetricUseCase: ref.watch(_recordMetricUseCaseProvider),
     getMetricsUseCase: ref.watch(_getSystemMetricsUseCaseProvider),
@@ -577,7 +589,8 @@ final monitoringProvider = StateNotifierProvider<MonitoringNotifier, MonitoringS
   );
 });
 
-final deploymentProvider = StateNotifierProvider<DeploymentNotifier, DeploymentState>((ref) {
+// PERF: autoDispose — releases memory when user navigates away from this feature
+final deploymentProvider = StateNotifierProvider.autoDispose<DeploymentNotifier, DeploymentState>((ref) {
   return DeploymentNotifier(
     getDeploymentsUseCase: ref.watch(_getDeploymentsUseCaseProvider),
     createDeploymentUseCase: ref.watch(_createDeploymentUseCaseProvider),

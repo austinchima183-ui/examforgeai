@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/results_models.dart';
 
@@ -25,6 +26,8 @@ abstract class ResultsRemoteDataSource {
     String schoolId, {
     bool? isActive,
     String? gradeType,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   });
 
   // ─── AI Grading ────────────────────────────────────────────────────
@@ -36,7 +39,10 @@ abstract class ResultsRemoteDataSource {
     AiGradingResultModel result,
   );
   Future<AiGradingResultModel?> getAiGradingByAnswer(String answerId);
-  Future<List<AiGradingResultModel>> getPendingAiGradings(String examId);
+  Future<List<AiGradingResultModel>> getPendingAiGradings(
+    String examId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
 
   // ─── Teacher Feedback ──────────────────────────────────────────────
 
@@ -46,8 +52,9 @@ abstract class ResultsRemoteDataSource {
   Future<TeacherFeedbackModel?> getTeacherFeedbackByAnswer(String answerId);
   Future<List<TeacherFeedbackModel>> getTeacherFeedbackByExam(
     String examId,
-    String teacherId,
-  );
+    String teacherId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
 
   // ─── Student Results ───────────────────────────────────────────────
 
@@ -56,13 +63,15 @@ abstract class ResultsRemoteDataSource {
   );
   Future<List<StudentSubjectResultModel>> getStudentSubjectResults(
     String studentId,
-    String academicSessionId,
-  );
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<List<StudentSubjectResultModel>> getClassSubjectResults(
     String classId,
     String subjectId,
-    String academicSessionId,
-  );
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<StudentOverallResultModel> upsertStudentOverallResult(
     StudentOverallResultModel result,
   );
@@ -73,8 +82,9 @@ abstract class ResultsRemoteDataSource {
   );
   Future<List<StudentOverallResultModel>> getClassOverallResults(
     String classId,
-    String academicSessionId,
-  );
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
 
   // ─── Topic Mastery ────────────────────────────────────────────────
 
@@ -85,12 +95,14 @@ abstract class ResultsRemoteDataSource {
   );
   Future<List<TopicMasteryModel>> getStudentTopicMastery(
     String studentId,
-    String subjectId,
-  );
+    String subjectId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<List<TopicMasteryModel>> getClassTopicMastery(
     String classId,
-    String subjectId,
-  );
+    String subjectId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
 
   // ─── Class / School Performance ───────────────────────────────────
 
@@ -104,8 +116,9 @@ abstract class ResultsRemoteDataSource {
   );
   Future<List<ClassPerformanceModel>> getSchoolClassPerformances(
     String schoolId,
-    String academicSessionId,
-  );
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<SchoolPerformanceModel> upsertSchoolPerformance(
     SchoolPerformanceModel performance,
   );
@@ -369,8 +382,11 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     String schoolId, {
     bool? isActive,
     String? gradeType,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
+      // PERF: Added pagination params + limit to grade scales list query
       var query = _supabaseClient
           .from(_gradeScalesTable)
           .select('*, grade_scale_entries(*)');
@@ -384,7 +400,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
         query = query.eq('grade_type', gradeType);
       }
 
-      query = query.order('created_at', ascending: false);
+      query = query.order('created_at', ascending: false).range(offset, offset + limit - 1);
 
       final response = await query;
 
@@ -490,9 +506,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<AiGradingResultModel?> getAiGradingByAnswer(String answerId) async {
     try {
+      // PERF: Added explicit columns — single lookup, avoids fetching all columns
       final response = await _supabaseClient
           .from(_aiGradingResultsTable)
-          .select()
+          .select('id, exam_id, answer_id, status, score, feedback, created_at')
           .eq('answer_id', answerId)
           .order('created_at', ascending: false)
           .limit(1);
@@ -520,15 +537,18 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
 
   @override
   Future<List<AiGradingResultModel>> getPendingAiGradings(
-    String examId,
-  ) async {
+    String examId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — pending gradings were unbounded
       final response = await _supabaseClient
           .from(_aiGradingResultsTable)
-          .select()
+          .select('id, exam_id, answer_id, status, score, feedback, created_at')
           .eq('exam_id', examId)
           .eq('status', 'pending')
-          .order('created_at');
+          .order('created_at')
+          .limit(limit);
 
       return response
           .map<AiGradingResultModel>(
@@ -591,9 +611,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     String answerId,
   ) async {
     try {
+      // PERF: Added explicit columns — single lookup, avoids fetching all columns
       final response = await _supabaseClient
           .from(_teacherFeedbackTable)
-          .select()
+          .select('id, answer_id, exam_id, teacher_id, content, created_at, updated_at')
           .eq('answer_id', answerId)
           .limit(1);
 
@@ -624,15 +645,18 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<List<TeacherFeedbackModel>> getTeacherFeedbackByExam(
     String examId,
-    String teacherId,
-  ) async {
+    String teacherId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — feedback list was unbounded
       final response = await _supabaseClient
           .from(_teacherFeedbackTable)
-          .select()
+          .select('id, answer_id, exam_id, teacher_id, content, created_at, updated_at')
           .eq('exam_id', examId)
           .eq('teacher_id', teacherId)
-          .order('created_at');
+          .order('created_at')
+          .limit(limit);
 
       return response
           .map<TeacherFeedbackModel>(
@@ -699,15 +723,18 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<List<StudentSubjectResultModel>> getStudentSubjectResults(
     String studentId,
-    String academicSessionId,
-  ) async {
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — student results were unbounded
       final response = await _supabaseClient
           .from(_studentSubjectResultsTable)
-          .select()
+          .select('id, student_id, subject_id, class_id, academic_session_id, percentage, grade, created_at')
           .eq('student_id', studentId)
           .eq('academic_session_id', academicSessionId)
-          .order('created_at');
+          .order('created_at')
+          .limit(limit);
 
       return response
           .map<StudentSubjectResultModel>(
@@ -737,16 +764,19 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   Future<List<StudentSubjectResultModel>> getClassSubjectResults(
     String classId,
     String subjectId,
-    String academicSessionId,
-  ) async {
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — class subject results were unbounded
       final response = await _supabaseClient
           .from(_studentSubjectResultsTable)
-          .select()
+          .select('id, student_id, subject_id, class_id, academic_session_id, percentage, grade, created_at')
           .eq('class_id', classId)
           .eq('subject_id', subjectId)
           .eq('academic_session_id', academicSessionId)
-          .order('percentage', ascending: false);
+          .order('percentage', ascending: false)
+          .limit(limit);
 
       return response
           .map<StudentSubjectResultModel>(
@@ -810,9 +840,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     String academicSessionId,
   ) async {
     try {
+      // PERF: Added explicit columns — single lookup, avoids fetching all columns
       final response = await _supabaseClient
           .from(_studentOverallResultsTable)
-          .select()
+          .select('id, student_id, class_id, academic_session_id, overall_percentage, overall_grade, rank, created_at')
           .eq('student_id', studentId)
           .eq('class_id', classId)
           .eq('academic_session_id', academicSessionId)
@@ -845,15 +876,18 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<List<StudentOverallResultModel>> getClassOverallResults(
     String classId,
-    String academicSessionId,
-  ) async {
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — class overall results were unbounded
       final response = await _supabaseClient
           .from(_studentOverallResultsTable)
-          .select()
+          .select('id, student_id, class_id, academic_session_id, overall_percentage, overall_grade, rank, created_at')
           .eq('class_id', classId)
           .eq('academic_session_id', academicSessionId)
-          .order('overall_percentage', ascending: false);
+          .order('overall_percentage', ascending: false)
+          .limit(limit);
 
       return response
           .map<StudentOverallResultModel>(
@@ -917,9 +951,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     String topicId,
   ) async {
     try {
+      // PERF: Added explicit columns — single lookup, avoids fetching all columns
       final response = await _supabaseClient
           .from(_topicMasteryTable)
-          .select()
+          .select('id, student_id, subject_id, topic_id, mastery_level, accuracy_percentage, attempts, updated_at')
           .eq('student_id', studentId)
           .eq('topic_id', topicId)
           .limit(1);
@@ -948,15 +983,18 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<List<TopicMasteryModel>> getStudentTopicMastery(
     String studentId,
-    String subjectId,
-  ) async {
+    String subjectId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — topic mastery queries were unbounded
       final response = await _supabaseClient
           .from(_topicMasteryTable)
-          .select()
+          .select('id, student_id, subject_id, topic_id, mastery_level, accuracy_percentage, attempts, updated_at')
           .eq('student_id', studentId)
           .eq('subject_id', subjectId)
-          .order('updated_at', ascending: false);
+          .order('updated_at', ascending: false)
+          .limit(limit);
 
       return response
           .map<TopicMasteryModel>(
@@ -982,17 +1020,20 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<List<TopicMasteryModel>> getClassTopicMastery(
     String classId,
-    String subjectId,
-  ) async {
+    String subjectId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — class topic mastery queries were unbounded
       // topic_mastery rows don't have class_id directly; filter by
       // school_id + subject_id and let the caller narrow by class
       // enrollment. For now, query by subject_id across the school.
       final response = await _supabaseClient
           .from(_topicMasteryTable)
-          .select()
+          .select('id, student_id, subject_id, topic_id, mastery_level, accuracy_percentage, attempts, updated_at')
           .eq('subject_id', subjectId)
-          .order('accuracy_percentage', ascending: false);
+          .order('accuracy_percentage', ascending: false)
+          .limit(limit);
 
       return response
           .map<TopicMasteryModel>(
@@ -1062,9 +1103,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     String academicSessionId,
   ) async {
     try {
+      // PERF: Added explicit columns — class performance single was using bare .select()
       var query = _supabaseClient
           .from(_classPerformanceTable)
-          .select()
+          .select('id, class_id, school_id, subject_id, academic_session_id, average_score, highest_score, lowest_score, created_at')
           .eq('class_id', classId)
           .eq('academic_session_id', academicSessionId);
 
@@ -1100,15 +1142,18 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<List<ClassPerformanceModel>> getSchoolClassPerformances(
     String schoolId,
-    String academicSessionId,
-  ) async {
+    String academicSessionId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — school class performances were unbounded
       final response = await _supabaseClient
           .from(_classPerformanceTable)
-          .select()
+          .select('id, class_id, school_id, subject_id, academic_session_id, average_score, highest_score, lowest_score, created_at')
           .eq('school_id', schoolId)
           .eq('academic_session_id', academicSessionId)
-          .order('average_score', ascending: false);
+          .order('average_score', ascending: false)
+          .limit(limit);
 
       return response
           .map<ClassPerformanceModel>(
@@ -1171,9 +1216,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     String academicSessionId,
   ) async {
     try {
+      // PERF: Added explicit columns — school performance single was using bare .select()
       final response = await _supabaseClient
           .from(_schoolPerformanceTable)
-          .select()
+          .select('id, school_id, academic_session_id, average_score, total_students, created_at')
           .eq('school_id', schoolId)
           .eq('academic_session_id', academicSessionId)
           .limit(1);
@@ -1239,9 +1285,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     String? academicSessionId,
   }) async {
     try {
+      // PERF: Added explicit columns — analytics snapshot was using bare .select()
       var query = _supabaseClient
           .from(_analyticsSnapshotsTable)
-          .select()
+          .select('id, school_id, snapshot_type, entity_id, academic_session_id, data, computed_at')
           .eq('school_id', schoolId)
           .eq('snapshot_type', snapshotType);
 
@@ -1501,9 +1548,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<ReportExportModel?> getReportExport(String exportId) async {
     try {
+      // PERF: Added explicit columns — report export single was using bare .select()
       final response = await _supabaseClient
           .from(_reportExportsTable)
-          .select()
+          .select('id, school_id, requested_by, report_type, status, file_url, created_at, updated_at')
           .eq('id', exportId)
           .single();
 
@@ -1534,7 +1582,8 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     int perPage = 20,
   }) async {
     try {
-      var query = _supabaseClient.from(_reportExportsTable).select();
+      // PERF: Added explicit columns — report exports list was using bare .select()
+      var query = _supabaseClient.from(_reportExportsTable).select('id, school_id, requested_by, report_type, status, file_url, created_at, updated_at');
 
       if (schoolId != null) {
         query = query.eq('school_id', schoolId);
@@ -1636,9 +1685,10 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   @override
   Future<ResultLockModel?> getResultLock(String examId) async {
     try {
+      // PERF: Added explicit columns — result lock was using bare .select()
       final response = await _supabaseClient
           .from(_resultLocksTable)
-          .select()
+          .select('id, exam_id, is_locked, locked_by, locked_at, created_at')
           .eq('exam_id', examId)
           .limit(1);
 

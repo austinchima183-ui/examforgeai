@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -16,7 +17,9 @@ import '../../../../core/utils/logger.dart';
 abstract class CcmsRemoteDataSource {
   // ─── Educational Levels ────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getEducationalLevels();
+  Future<List<Map<String, dynamic>>> getEducationalLevels({
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<List<Map<String, dynamic>>> getSchoolLevels(String schoolId);
   Future<Map<String, dynamic>> configureSchoolLevel(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateSchoolLevelConfiguration(
@@ -26,16 +29,30 @@ abstract class CcmsRemoteDataSource {
 
   // ─── Curricula ─────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getCurricula(Map<String, dynamic> filters);
+  Future<List<Map<String, dynamic>>> getCurricula(
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> getCurriculumById(String id);
   Future<Map<String, dynamic>> createCurriculum(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateCurriculum(String id, Map<String, dynamic> data);
-  Future<List<Map<String, dynamic>>> getCurriculumVersions(String curriculumId);
-  Future<List<Map<String, dynamic>>> getCurriculumLevelMappings(String curriculumId);
+  Future<List<Map<String, dynamic>>> getCurriculumVersions(
+    String curriculumId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
+  Future<List<Map<String, dynamic>>> getCurriculumLevelMappings(
+    String curriculumId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
 
   // ─── Subjects ──────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getSubjects(Map<String, dynamic> filters);
+  Future<List<Map<String, dynamic>>> getSubjects(
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> getSubjectById(String id);
   Future<Map<String, dynamic>> createSubject(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateSubject(String id, Map<String, dynamic> data);
@@ -44,12 +61,19 @@ abstract class CcmsRemoteDataSource {
 
   // ─── Topics ────────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getTopics(Map<String, dynamic> filters);
+  Future<List<Map<String, dynamic>>> getTopics(
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> getTopicById(String id);
   Future<Map<String, dynamic>> createTopic(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateTopic(String id, Map<String, dynamic> data);
   Future<void> deleteTopic(String id);
-  Future<List<Map<String, dynamic>>> getSubtopics(String topicId);
+  Future<List<Map<String, dynamic>>> getSubtopics(
+    String topicId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<Map<String, dynamic>> createSubtopic(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateSubtopic(String id, Map<String, dynamic> data);
   Future<void> deleteSubtopic(String id);
@@ -58,8 +82,10 @@ abstract class CcmsRemoteDataSource {
   // ─── Learning Objectives ───────────────────────────────────────────
 
   Future<List<Map<String, dynamic>>> getLearningObjectives(
-    Map<String, dynamic> filters,
-  );
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> createLearningObjective(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateLearningObjective(
     String id,
@@ -76,13 +102,19 @@ abstract class CcmsRemoteDataSource {
   Future<void> deleteContent(String id);
   Future<Map<String, dynamic>> publishContent(String id);
   Future<Map<String, dynamic>> archiveContent(String id);
-  Future<List<Map<String, dynamic>>> getContentVersions(String contentItemId);
+  Future<List<Map<String, dynamic>>> getContentVersions(
+    String contentItemId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<Map<String, dynamic>> getContentWithDetails(String id);
 
   // ─── Reviews ───────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> createReview(Map<String, dynamic> data);
-  Future<List<Map<String, dynamic>>> getContentReviews(String contentItemId);
+  Future<List<Map<String, dynamic>>> getContentReviews(
+    String contentItemId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
 
   // ─── Imports ───────────────────────────────────────────────────────
 
@@ -105,8 +137,10 @@ abstract class CcmsRemoteDataSource {
   Future<Map<String, dynamic>> getAiCurriculumConfig(Map<String, dynamic> params);
   Future<Map<String, dynamic>> upsertAiCurriculumConfig(Map<String, dynamic> data);
   Future<List<Map<String, dynamic>>> getAiGenerationRules(
-    Map<String, dynamic> filters,
-  );
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> createAiGenerationRule(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateAiGenerationRule(
     String id,
@@ -140,7 +174,10 @@ abstract class CcmsRemoteDataSource {
 
   Future<Map<String, dynamic>> createApiKey(Map<String, dynamic> data);
   Future<void> revokeApiKey(String apiKeyId);
-  Future<List<Map<String, dynamic>>> getApiKeys(String userId);
+  Future<List<Map<String, dynamic>>> getApiKeys(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
 
   // ─── Security ──────────────────────────────────────────────────────
 
@@ -152,7 +189,10 @@ abstract class CcmsRemoteDataSource {
 
   // ─── Sessions ──────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getUserSessions(String userId);
+  Future<List<Map<String, dynamic>>> getUserSessions(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<void> invalidateUserSessions(Map<String, dynamic> params);
   Future<void> invalidateAllOtherSessions(Map<String, dynamic> params);
 
@@ -162,7 +202,11 @@ abstract class CcmsRemoteDataSource {
   Future<List<Map<String, dynamic>>> getSystemMetrics(
     Map<String, dynamic> filters,
   );
-  Future<List<Map<String, dynamic>>> getAlertRules(Map<String, dynamic> filters);
+  Future<List<Map<String, dynamic>>> getAlertRules(
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> createAlertRule(Map<String, dynamic> data);
   Future<List<Map<String, dynamic>>> getAlertIncidents(
     Map<String, dynamic> filters,
@@ -228,13 +272,17 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
   // ─── Educational Levels ────────────────────────────────────────────
 
   @override
-  Future<List<Map<String, dynamic>>> getEducationalLevels() async {
+  Future<List<Map<String, dynamic>>> getEducationalLevels({
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on educational_levels
       final response = await _supabase
           .from('educational_levels')
           .select()
           .eq('is_active', true)
-          .order('level_order');
+          .order('level_order')
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -292,8 +340,10 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getCurricula(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
       var query = _supabase.from('curricula').select();
 
@@ -308,7 +358,8 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
         query = query.eq('is_active', filters['is_active'] as bool);
       }
 
-      final response = await query.order('name');
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('name').range(offset, offset + limit - 1);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -363,14 +414,17 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getCurriculumVersions(
-    String curriculumId,
-  ) async {
+    String curriculumId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on curriculum_versions
       final response = await _supabase
           .from('curriculum_versions')
           .select()
           .eq('curriculum_id', curriculumId)
-          .order('version_number', ascending: false);
+          .order('version_number', ascending: false)
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -379,13 +433,16 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getCurriculumLevelMappings(
-    String curriculumId,
-  ) async {
+    String curriculumId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on curriculum_level_mappings
       final response = await _supabase
           .from('curriculum_level_mappings')
           .select()
-          .eq('curriculum_id', curriculumId);
+          .eq('curriculum_id', curriculumId)
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -396,8 +453,10 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getSubjects(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
       var query = _supabase.from('subjects').select();
 
@@ -415,7 +474,8 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
             query.eq('curriculum_id', filters['curriculum_id'] as String);
       }
 
-      final response = await query.order('sort_order');
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('sort_order').range(offset, offset + limit - 1);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -490,8 +550,10 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getTopics(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
       var query = _supabase.from('topics').select();
 
@@ -517,7 +579,8 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
         }
       }
 
-      final response = await query.order('sort_order');
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('sort_order').range(offset, offset + limit - 1);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -574,13 +637,18 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getSubtopics(String topicId) async {
+  Future<List<Map<String, dynamic>>> getSubtopics(
+    String topicId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on subtopics
       final response = await _supabase
           .from('subtopics')
           .select()
           .eq('topic_id', topicId)
-          .order('sort_order');
+          .order('sort_order')
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -642,8 +710,10 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getLearningObjectives(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
       var query = _supabase.from('learning_objectives').select();
 
@@ -668,7 +738,8 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
         );
       }
 
-      final response = await query.order('sort_order');
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('sort_order').range(offset, offset + limit - 1);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -887,14 +958,17 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getContentVersions(
-    String contentItemId,
-  ) async {
+    String contentItemId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on content_versions
       final response = await _supabase
           .from('content_versions')
           .select()
           .eq('content_item_id', contentItemId)
-          .order('version_number', ascending: false);
+          .order('version_number', ascending: false)
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -932,14 +1006,17 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getContentReviews(
-    String contentItemId,
-  ) async {
+    String contentItemId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on content_reviews
       final response = await _supabase
           .from('content_reviews')
           .select()
           .eq('content_item_id', contentItemId)
-          .order('reviewed_at', ascending: false);
+          .order('reviewed_at', ascending: false)
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -1162,8 +1239,10 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getAiGenerationRules(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
       var query = _supabase.from('ai_generation_rules').select();
 
@@ -1180,7 +1259,8 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
         query = query.eq('is_active', filters['is_active'] as bool);
       }
 
-      final response = await query.order('priority');
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('priority').range(offset, offset + limit - 1);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -1457,14 +1537,19 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getApiKeys(String userId) async {
+  Future<List<Map<String, dynamic>>> getApiKeys(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on api_keys
       final response = await _supabase
           .from('api_keys')
           .select()
           .eq('user_id', userId)
           .eq('is_active', true)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -1541,14 +1626,19 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
   // ─── Sessions ──────────────────────────────────────────────────────
 
   @override
-  Future<List<Map<String, dynamic>>> getUserSessions(String userId) async {
+  Future<List<Map<String, dynamic>>> getUserSessions(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on user_sessions
       final response = await _supabase
           .from('user_sessions')
           .select()
           .eq('user_id', userId)
           .eq('is_active', true)
-          .order('last_activity_at', ascending: false);
+          .order('last_activity_at', ascending: false)
+          .limit(limit);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);
@@ -1629,8 +1719,10 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
 
   @override
   Future<List<Map<String, dynamic>>> getAlertRules(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
       var query = _supabase.from('alert_rules').select();
 
@@ -1641,7 +1733,8 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
         query = query.eq('severity', filters['severity'] as String);
       }
 
-      final response = await query.order('created_at', ascending: false);
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
       return List<Map<String, dynamic>>.from(response);
     } on sb.PostgrestException catch (e) {
       _handlePostgrestError(e);

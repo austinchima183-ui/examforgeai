@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/question_models.dart';
 
@@ -655,7 +656,8 @@ class QuestionBankRemoteDataSourceImpl
         query = query.ilike('name', '%$searchQuery%');
       }
 
-      query = query.order('usage_count', ascending: false).limit(100);
+      // PERF: Use PaginatedQueryMixin constant instead of magic number
+      query = query.order('usage_count', ascending: false).limit(PaginatedQueryMixin.dropdownPageSize);
 
       final response = await query;
       return response
@@ -980,7 +982,8 @@ class QuestionBankRemoteDataSourceImpl
 
       query = query.eq('is_active', true).order('sort_order');
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on question_collections
+      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => QuestionCollectionModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1143,7 +1146,8 @@ class QuestionBankRemoteDataSourceImpl
 
       query = query.order('created_at', ascending: false);
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on question_shares
+      final response = await query.limit(PaginatedQueryMixin.defaultPageSize);
       return response
           .map((json) => QuestionShareModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1510,7 +1514,8 @@ class QuestionBankRemoteDataSourceImpl
 
       query = query.eq('is_active', true).order('sort_order');
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on question_categories
+      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => QuestionCategoryModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1540,7 +1545,8 @@ class QuestionBankRemoteDataSourceImpl
 
       query = query.eq('is_active', true).order('start_date');
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on academic_sessions
+      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => AcademicSessionModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1566,11 +1572,13 @@ class QuestionBankRemoteDataSourceImpl
     String questionId,
   ) async {
     try {
+      // PERF: Added limit to prevent unbounded query on question_version_history
       final response = await _supabase
           .from(_versionHistoryTable)
           .select()
           .eq('question_id', questionId)
-          .order('version', ascending: false);
+          .order('version', ascending: false)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       return response
           .map((json) => QuestionVersionModel.fromJson(

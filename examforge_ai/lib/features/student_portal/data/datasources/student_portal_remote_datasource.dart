@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/student_portal_models.dart';
 
@@ -177,11 +178,13 @@ class StudentPortalRemoteDatasource {
           .single();
 
       // Fetch all messages for this conversation
+      // PERF: Added limit to prevent unbounded query on ai_tutor_messages
       final messagesResponse = await _supabase
           .from(_aiTutorMessagesTable)
           .select()
           .eq('conversation_id', conversationId)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       final messages = messagesResponse
           .map((json) => AiTutorMessageModel.fromJson(json))
@@ -466,11 +469,13 @@ class StudentPortalRemoteDatasource {
           .single();
 
       // Fetch answers for this session
+      // PERF: Added limit to prevent unbounded query on practice_answers
       final answersResponse = await _supabase
           .from(_practiceAnswersTable)
           .select()
           .eq('session_id', sessionId)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       final subjectData = sessionResponse['subjects'] as Map<String, dynamic>?;
 
@@ -1071,11 +1076,13 @@ class StudentPortalRemoteDatasource {
           .single();
 
       // Fetch chat messages for this document
+      // PERF: Added limit to prevent unbounded query on document_chat_messages
       final messagesResponse = await _supabase
           .from(_documentChatMessagesTable)
           .select()
           .eq('document_id', documentId)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       return DocumentChatModel.fromJson({
         ...docResponse,
@@ -1366,7 +1373,8 @@ class StudentPortalRemoteDatasource {
         query = query.lte('next_review', DateTime.now().toUtc().toIso8601String());
       }
 
-      final response = await query.order('created_at', ascending: true);
+      // PERF: Added limit to prevent unbounded query on flashcards
+      final response = await query.order('created_at', ascending: true).limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => FlashcardModel.fromJson(json))
           .toList();
@@ -1683,8 +1691,10 @@ class StudentPortalRemoteDatasource {
         query = query.eq('is_active', isActive);
       }
 
+      // PERF: Added limit to prevent unbounded query on study_plans
       final response = await query
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       return response.map((json) {
         final tasks = (json['study_tasks'] as List<dynamic>?)
@@ -2006,8 +2016,10 @@ class StudentPortalRemoteDatasource {
         query = query.eq('subject_id', subjectId);
       }
 
+      // PERF: Added limit to prevent unbounded query on student_goals
       final response = await query
-          .order('deadline', ascending: true, nullsFirst: true);
+          .order('deadline', ascending: true, nullsFirst: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       return response
           .map((json) => StudentGoalModel.fromJson(json))
@@ -2209,13 +2221,15 @@ class StudentPortalRemoteDatasource {
         'from ${startDate.toIso8601String()} to ${endDate.toIso8601String()}',
       );
 
+      // PERF: Added limit to prevent unbounded query on student_daily_activity
       final response = await _supabase
           .from(_studentDailyActivityTable)
           .select()
           .eq('student_id', studentId)
           .gte('activity_date', startDate.toUtc().toIso8601String().substring(0, 10))
           .lte('activity_date', endDate.toUtc().toIso8601String().substring(0, 10))
-          .order('activity_date', ascending: true);
+          .order('activity_date', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       return response
           .map((json) => StudentDailyActivityModel.fromJson(json))

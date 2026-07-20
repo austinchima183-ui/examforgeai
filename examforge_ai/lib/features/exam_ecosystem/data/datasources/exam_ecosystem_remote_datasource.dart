@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -16,20 +17,34 @@ import '../../../../core/utils/logger.dart';
 abstract class ExamEcosystemRemoteDataSource {
   // ─── Examination Bodies ────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getExaminationBodies({bool? isActive});
+  Future<List<Map<String, dynamic>>> getExaminationBodies({
+    bool? isActive,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<Map<String, dynamic>> getExaminationBodyById(String id);
-  Future<List<Map<String, dynamic>>> getExaminationBodiesByType(String examBodyType);
+  Future<List<Map<String, dynamic>>> getExaminationBodiesByType(
+    String examBodyType, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
 
   // ─── Examination Products ──────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getExaminationProducts(Map<String, dynamic> filters);
+  Future<List<Map<String, dynamic>>> getExaminationProducts(
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> getExaminationProductById(String id);
   Future<Map<String, dynamic>> createExaminationProduct(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateExaminationProduct(String id, Map<String, dynamic> data);
 
   // ─── Mock Exams ────────────────────────────────────────────────────
 
-  Future<List<Map<String, dynamic>>> getMockExams(Map<String, dynamic> filters);
+  Future<List<Map<String, dynamic>>> getMockExams(
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<Map<String, dynamic>> getMockExamById(String id);
   Future<Map<String, dynamic>> createMockExam(Map<String, dynamic> data);
   Future<Map<String, dynamic>> updateMockExam(String id, Map<String, dynamic> data);
@@ -43,8 +58,15 @@ abstract class ExamEcosystemRemoteDataSource {
   Future<Map<String, dynamic>> startMockExamAttempt(Map<String, dynamic> data);
   Future<Map<String, dynamic>> submitMockExamAttempt(String attemptId, Map<String, dynamic> data);
   Future<Map<String, dynamic>> getMockExamAttempt(String attemptId);
-  Future<List<Map<String, dynamic>>> getUserMockExamAttempts(Map<String, dynamic> filters);
-  Future<List<Map<String, dynamic>>> getMockExamResults(String mockExamId);
+  Future<List<Map<String, dynamic>>> getUserMockExamAttempts(
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
+  Future<List<Map<String, dynamic>>> getMockExamResults(
+    String mockExamId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
 
   // ─── Readiness ─────────────────────────────────────────────────────
 
@@ -126,13 +148,15 @@ class ExamEcosystemRemoteDataSourceImpl
   @override
   Future<List<Map<String, dynamic>>> getExaminationBodies({
     bool? isActive,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     return _safeCall(() async {
       var query = _client.from('examination_bodies').select();
       if (isActive != null) {
         query = query.eq('is_active', isActive);
       }
-      final response = await query.order('name');
+      // PERF: Added limit to prevent unbounded query on examination_bodies
+      final response = await query.order('name').limit(limit);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
@@ -151,14 +175,17 @@ class ExamEcosystemRemoteDataSourceImpl
 
   @override
   Future<List<Map<String, dynamic>>> getExaminationBodiesByType(
-    String examBodyType,
-  ) async {
+    String examBodyType, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     return _safeCall(() async {
+      // PERF: Added limit to prevent unbounded query on examination_bodies
       final response = await _client
           .from('examination_bodies')
           .select()
           .eq('exam_body_type', examBodyType)
-          .order('name');
+          .order('name')
+          .limit(limit);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
@@ -169,8 +196,10 @@ class ExamEcosystemRemoteDataSourceImpl
 
   @override
   Future<List<Map<String, dynamic>>> getExaminationProducts(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     return _safeCall(() async {
       var query = _client.from('examination_products').select();
       filters.forEach((key, value) {
@@ -178,7 +207,8 @@ class ExamEcosystemRemoteDataSourceImpl
           query = query.eq(key, value);
         }
       });
-      final response = await query.order('name');
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('name').range(offset, offset + limit - 1);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
@@ -231,8 +261,10 @@ class ExamEcosystemRemoteDataSourceImpl
 
   @override
   Future<List<Map<String, dynamic>>> getMockExams(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     return _safeCall(() async {
       var query = _client.from('mock_exams').select();
       filters.forEach((key, value) {
@@ -240,7 +272,8 @@ class ExamEcosystemRemoteDataSourceImpl
           query = query.eq(key, value);
         }
       });
-      final response = await query.order('created_at', ascending: false);
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
@@ -377,8 +410,10 @@ class ExamEcosystemRemoteDataSourceImpl
 
   @override
   Future<List<Map<String, dynamic>>> getUserMockExamAttempts(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     return _safeCall(() async {
       var query = _client.from('mock_exam_attempts').select();
       filters.forEach((key, value) {
@@ -386,20 +421,26 @@ class ExamEcosystemRemoteDataSourceImpl
           query = query.eq(key, value);
         }
       });
-      final response = await query.order('started_at', ascending: false);
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('started_at', ascending: false).range(offset, offset + limit - 1);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
 
   @override
-  Future<List<Map<String, dynamic>>> getMockExamResults(String mockExamId) async {
+  Future<List<Map<String, dynamic>>> getMockExamResults(
+    String mockExamId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     return _safeCall(() async {
+      // PERF: Added limit to prevent unbounded query on mock_exam_attempts
       final response = await _client
           .from('mock_exam_attempts')
           .select()
           .eq('mock_exam_id', mockExamId)
           .eq('is_completed', true)
-          .order('total_score', ascending: false);
+          .order('total_score', ascending: false)
+          .limit(limit);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
@@ -422,8 +463,10 @@ class ExamEcosystemRemoteDataSourceImpl
 
   @override
   Future<List<Map<String, dynamic>>> getUserReadiness(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     return _safeCall(() async {
       var query = _client.from('readiness_assessments').select();
       filters.forEach((key, value) {
@@ -431,7 +474,8 @@ class ExamEcosystemRemoteDataSourceImpl
           query = query.eq(key, value);
         }
       });
-      final response = await query.order('assessed_at', ascending: false);
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('assessed_at', ascending: false).range(offset, offset + limit - 1);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
@@ -476,8 +520,10 @@ class ExamEcosystemRemoteDataSourceImpl
 
   @override
   Future<List<Map<String, dynamic>>> getStudyPlans(
-    Map<String, dynamic> filters,
-  ) async {
+    Map<String, dynamic> filters, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     return _safeCall(() async {
       var query = _client.from('study_plans').select();
       filters.forEach((key, value) {
@@ -485,7 +531,8 @@ class ExamEcosystemRemoteDataSourceImpl
           query = query.eq(key, value);
         }
       });
-      final response = await query.order('created_at', ascending: false);
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }
@@ -561,6 +608,7 @@ class ExamEcosystemRemoteDataSourceImpl
   Future<List<Map<String, dynamic>>> getStudyPlanActivities(
     String studyPlanId, {
     Map<String, dynamic>? filters,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     return _safeCall(() async {
       var query = _client
@@ -572,7 +620,8 @@ class ExamEcosystemRemoteDataSourceImpl
           query = query.eq(key, value);
         }
       });
-      final response = await query.order('scheduled_date');
+      // PERF: Added limit to prevent unbounded query on study_plan_activities
+      final response = await query.order('scheduled_date').limit(limit);
       return response.map((e) => Map<String, dynamic>.from(e)).toList();
     });
   }

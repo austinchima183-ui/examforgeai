@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../../core/errors/exceptions.dart';
+import '../../../../../core/network/paginated_query_mixin.dart';
 import '../../../../../core/utils/logger.dart';
 import '../models/super_admin_models.dart';
 
@@ -21,14 +22,22 @@ abstract class SuperAdminRemoteDataSource {
 
   // ─── Platform Settings ─────────────────────────────────────────────
 
-  Future<List<PlatformSettingModel>> getPlatformSettings({String? scope});
+  Future<List<PlatformSettingModel>> getPlatformSettings({
+    String? scope,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<PlatformSettingModel> getPlatformSetting(String key, {String? scope});
   Future<PlatformSettingModel> updatePlatformSetting(Map<String, dynamic> settingData);
   Future<List<PlatformSettingModel>> bulkUpdateSettings(List<Map<String, dynamic>> settingsData);
 
   // ─── Feature Flags ─────────────────────────────────────────────────
 
-  Future<List<FeatureFlagModel>> getFeatureFlags({bool? isActive});
+  Future<List<FeatureFlagModel>> getFeatureFlags({
+    bool? isActive,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<FeatureFlagModel> getFeatureFlag(String key);
   Future<FeatureFlagModel> createFeatureFlag(Map<String, dynamic> flagData);
   Future<FeatureFlagModel> updateFeatureFlag(String flagId, Map<String, dynamic> data);
@@ -46,7 +55,7 @@ abstract class SuperAdminRemoteDataSource {
     String? schoolId,
     DateTime? startDate,
     DateTime? endDate,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<AuditLogModel> createAuditLog(Map<String, dynamic> logData);
@@ -59,7 +68,7 @@ abstract class SuperAdminRemoteDataSource {
     bool? isVerified,
     String? search,
     String? subscriptionStatus,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<SchoolManagementDetailModel> getSchool(String schoolId);
@@ -78,7 +87,7 @@ abstract class SuperAdminRemoteDataSource {
     String? schoolId,
     bool? isActive,
     String? search,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<UserManagementDetailModel> getUser(String userId);
@@ -93,7 +102,11 @@ abstract class SuperAdminRemoteDataSource {
 
   // ─── AI Management ─────────────────────────────────────────────────
 
-  Future<List<AIProviderModel>> getAIProviders({bool? isActive});
+  Future<List<AIProviderModel>> getAIProviders({
+    bool? isActive,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<AIProviderModel> getAIProvider(String providerId);
   Future<AIProviderModel> createAIProvider(Map<String, dynamic> providerData);
   Future<AIProviderModel> updateAIProvider(String providerId, Map<String, dynamic> data);
@@ -107,7 +120,7 @@ abstract class SuperAdminRemoteDataSource {
     bool? isSuccess,
     DateTime? startDate,
     DateTime? endDate,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<Map<String, dynamic>> getAIUsageAnalytics({
@@ -117,7 +130,11 @@ abstract class SuperAdminRemoteDataSource {
 
   // ─── Infrastructure ────────────────────────────────────────────────
 
-  Future<List<InfrastructureServiceModel>> getInfrastructureServices({String? status});
+  Future<List<InfrastructureServiceModel>> getInfrastructureServices({
+    String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<InfrastructureServiceModel> getInfrastructureService(String serviceId);
   Future<InfrastructureServiceModel> updateInfrastructureService(String serviceId, Map<String, dynamic> data);
   Future<void> runHealthCheck(String serviceId);
@@ -132,7 +149,7 @@ abstract class SuperAdminRemoteDataSource {
     String? assignedTo,
     String? schoolId,
     String? search,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<SupportTicketModel> getSupportTicket(String ticketId);
@@ -141,7 +158,10 @@ abstract class SuperAdminRemoteDataSource {
   Future<SupportTicketModel> escalateTicket(String ticketId, String escalateToUserId, String reason);
   Future<SupportTicketModel> resolveTicket(String ticketId, String resolutionNotes);
   Future<TicketCommentModel> addTicketComment(Map<String, dynamic> commentData);
-  Future<List<TicketCommentModel>> getTicketComments(String ticketId);
+  Future<List<TicketCommentModel>> getTicketComments(
+    String ticketId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<int> getTicketCount({String? status});
 
   // ─── Marketplace ───────────────────────────────────────────────────
@@ -150,7 +170,7 @@ abstract class SuperAdminRemoteDataSource {
     String? status,
     String? contentType,
     String? search,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<MarketplaceContentModel> getMarketplaceItem(String contentId);
@@ -168,7 +188,7 @@ abstract class SuperAdminRemoteDataSource {
     String? category,
     String? priority,
     bool? unreadOnly,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<PlatformNotificationModel> markNotificationRead(String notificationId);
@@ -185,7 +205,7 @@ abstract class SuperAdminRemoteDataSource {
     bool? unacknowledgedOnly,
     bool? unresolvedOnly,
     String? schoolId,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
   Future<IntelligenceAlertModel> getIntelligenceAlert(String alertId);
@@ -209,10 +229,13 @@ abstract class SuperAdminRemoteDataSource {
     String? ipAddress,
     DateTime? startDate,
     DateTime? endDate,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   });
-  Future<List<ActiveSessionModel>> getActiveSessions({String? userId});
+  Future<List<ActiveSessionModel>> getActiveSessions({
+    String? userId,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<void> terminateSession(String sessionId);
   Future<List<Map<String, dynamic>>> detectSuspiciousActivity({int lookbackHours = 24});
   Future<void> lockUserAccount(String userId, String reason);
@@ -220,26 +243,41 @@ abstract class SuperAdminRemoteDataSource {
 
   // ─── System Reports ────────────────────────────────────────────────
 
-  Future<List<SystemReportModel>> getSystemReports({String? type, String? status});
+  Future<List<SystemReportModel>> getSystemReports({
+    String? type,
+    String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<SystemReportModel> generateReport(Map<String, dynamic> params);
   Future<SystemReportModel> getSystemReport(String reportId);
 
   // ─── Maintenance Windows ───────────────────────────────────────────
 
-  Future<List<MaintenanceWindowModel>> getMaintenanceWindows({String? status});
+  Future<List<MaintenanceWindowModel>> getMaintenanceWindows({
+    String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
   Future<MaintenanceWindowModel> createMaintenanceWindow(Map<String, dynamic> windowData);
   Future<MaintenanceWindowModel> updateMaintenanceWindow(String windowId, Map<String, dynamic> data);
   Future<void> cancelMaintenanceWindow(String windowId);
 
   // ─── Platform Policies ─────────────────────────────────────────────
 
-  Future<List<PlatformPolicyModel>> getPlatformPolicies({bool? isActive});
+  Future<List<PlatformPolicyModel>> getPlatformPolicies({
+    bool? isActive,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<PlatformPolicyModel> getPlatformPolicy(String policyKey);
   Future<PlatformPolicyModel> upsertPlatformPolicy(Map<String, dynamic> policyData);
 
   // ─── Email Templates ───────────────────────────────────────────────
 
-  Future<List<EmailTemplateModel>> getEmailTemplates({String? category});
+  Future<List<EmailTemplateModel>> getEmailTemplates({
+    String? category,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  });
   Future<EmailTemplateModel> getEmailTemplate(String templateKey);
   Future<EmailTemplateModel> upsertEmailTemplate(Map<String, dynamic> templateData);
 
@@ -325,15 +363,18 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<List<PlatformSettingModel>> getPlatformSettings({
     String? scope,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_platformSettingsTable).select();
+      // PERF: Replaced bare .select() with explicit columns + pagination to avoid unbounded result sets
+      var query = _supabase.from(_platformSettingsTable).select('id, key, value, scope, description, is_active, updated_at, created_at');
 
       if (scope != null) {
         query = query.eq('scope', scope);
       }
 
-      final list = await query.order('key', ascending: true);
+      final list = await query.order('key', ascending: true).range(offset, offset + limit - 1);
       AppLogger.info('Fetched ${list.length} platform settings');
       return list
           .map<PlatformSettingModel>(
@@ -457,15 +498,20 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   // ═══════════════════════════════════════════════════════════════════
 
   @override
-  Future<List<FeatureFlagModel>> getFeatureFlags({bool? isActive}) async {
+  Future<List<FeatureFlagModel>> getFeatureFlags({
+    bool? isActive,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
-      var query = _supabase.from(_featureFlagsTable).select();
+      // PERF: Replaced bare .select() with explicit columns + pagination to avoid unbounded result sets
+      var query = _supabase.from(_featureFlagsTable).select('id, key, name, description, is_active, default_value, updated_at, created_at');
 
       if (isActive != null) {
         query = query.eq('is_active', isActive);
       }
 
-      final list = await query.order('key', ascending: true);
+      final list = await query.order('key', ascending: true).range(offset, offset + limit - 1);
       AppLogger.info('Fetched ${list.length} feature flags');
       return list
           .map<FeatureFlagModel>(
@@ -643,11 +689,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     String? schoolId,
     DateTime? startDate,
     DateTime? endDate,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_auditLogsTable).select();
+      // PERF: Replaced bare .select() with explicit columns — audit_logs can grow unbounded
+      var query = _supabase.from(_auditLogsTable).select('id, action, category, severity, actor_id, resource_type, resource_id, school_id, metadata, created_at');
 
       if (category != null) {
         query = query.eq('category', category);
@@ -732,9 +779,11 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     DateTime? endDate,
   }) async {
     try {
+      // PERF: Added safety limit to count query to prevent unbounded result sets
       var query = _supabase
           .from(_auditLogsTable)
-          .select('id');
+          .select('id')
+          .limit(PaginatedQueryMixin.maxPageSize);
 
       if (category != null) {
         query = query.eq('category', category);
@@ -770,11 +819,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     bool? isVerified,
     String? search,
     String? subscriptionStatus,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_schoolsTable).select();
+      // PERF: Replaced bare .select() with explicit columns for school list views
+      var query = _supabase.from(_schoolsTable).select('id, name, address, country, is_active, is_verified, subscription_status, student_count, teacher_count, created_at');
 
       if (isActive != null) {
         query = query.eq('is_active', isActive);
@@ -999,7 +1049,8 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<int> getSchoolCount({bool? isActive}) async {
     try {
-      var query = _supabase.from(_schoolsTable).select('id');
+      // PERF: Added safety limit to count query to prevent unbounded result sets
+      var query = _supabase.from(_schoolsTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
 
       if (isActive != null) {
         query = query.eq('is_active', isActive);
@@ -1029,11 +1080,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     String? schoolId,
     bool? isActive,
     String? search,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_userProfilesTable).select();
+      // PERF: Replaced bare .select() with explicit columns — user_profiles can be very large
+      var query = _supabase.from(_userProfilesTable).select(PaginatedQueryMixin.userColumnsList);
 
       if (role != null) {
         query = query.eq('role', role);
@@ -1268,12 +1320,13 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<List<ImpersonationSessionModel>> getImpersonationSessions({
     String? status,
-    int limit = 20,
+    int limit = PaginatedQueryMixin.defaultPageSize,
   }) async {
     try {
+      // PERF: Replaced bare .select() with explicit columns + bounded limit
       var query = _supabase
           .from(_impersonationSessionsTable)
-          .select();
+          .select('id, admin_id, target_user_id, reason, status, started_at, ended_at, created_at');
 
       if (status != null) {
         query = query.eq('status', status);
@@ -1303,7 +1356,8 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<int> getUserCount({String? role, bool? isActive}) async {
     try {
-      var query = _supabase.from(_userProfilesTable).select('id');
+      // PERF: Added safety limit to count query to prevent unbounded result sets
+      var query = _supabase.from(_userProfilesTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
 
       if (role != null) {
         query = query.eq('role', role);
@@ -1331,15 +1385,20 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   // ═══════════════════════════════════════════════════════════════════
 
   @override
-  Future<List<AIProviderModel>> getAIProviders({bool? isActive}) async {
+  Future<List<AIProviderModel>> getAIProviders({
+    bool? isActive,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
-      var query = _supabase.from(_aiProvidersTable).select();
+      // PERF: Replaced bare .select() with explicit columns + pagination — no previous limit/range
+      var query = _supabase.from(_aiProvidersTable).select('id, name, provider_type, is_active, is_default, priority, created_at');
 
       if (isActive != null) {
         query = query.eq('is_active', isActive);
       }
 
-      final list = await query.order('priority', ascending: true);
+      final list = await query.order('priority', ascending: true).range(offset, offset + limit - 1);
       AppLogger.info('Fetched ${list.length} AI providers');
       return list
           .map<AIProviderModel>(
@@ -1552,11 +1611,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     bool? isSuccess,
     DateTime? startDate,
     DateTime? endDate,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_aiRequestLogsTable).select();
+      // PERF: Replaced bare .select() with explicit columns — ai_request_logs grows rapidly
+      var query = _supabase.from(_aiRequestLogsTable).select('id, provider_id, user_id, school_id, endpoint, is_success, latency_ms, token_count, error_message, created_at');
 
       if (providerId != null) {
         query = query.eq('provider_id', providerId);
@@ -1632,15 +1692,18 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<List<InfrastructureServiceModel>> getInfrastructureServices({
     String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_infrastructureServicesTable).select();
+      // PERF: Replaced bare .select() with explicit columns + pagination — no previous limit/range
+      var query = _supabase.from(_infrastructureServicesTable).select('id, service_name, service_type, health_status, last_check_at, uptime_percentage, created_at');
 
       if (status != null) {
         query = query.eq('health_status', status);
       }
 
-      final list = await query.order('service_name', ascending: true);
+      final list = await query.order('service_name', ascending: true).range(offset, offset + limit - 1);
       AppLogger.info('Fetched ${list.length} infrastructure services');
       return list
           .map<InfrastructureServiceModel>(
@@ -1771,11 +1834,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     String? assignedTo,
     String? schoolId,
     String? search,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_supportTicketsTable).select();
+      // PERF: Replaced bare .select() with explicit columns for support ticket list views
+      var query = _supabase.from(_supportTicketsTable).select('id, ticket_number, subject, category, priority, status, assigned_to, school_id, created_at, updated_at');
 
       if (status != null) {
         query = query.eq('status', status);
@@ -2031,14 +2095,17 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
 
   @override
   Future<List<TicketCommentModel>> getTicketComments(
-    String ticketId,
-  ) async {
+    String ticketId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Added explicit columns + limit — comments for a ticket were unbounded
       final list = await _supabase
           .from(_ticketCommentsTable)
-          .select()
+          .select('id, ticket_id, author_id, content, created_at, updated_at')
           .eq('ticket_id', ticketId)
-          .order('created_at', ascending: true);
+          .order('created_at', ascending: true)
+          .limit(limit);
 
       AppLogger.info('Fetched ${list.length} ticket comments for ticket $ticketId');
       return list
@@ -2060,7 +2127,8 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<int> getTicketCount({String? status}) async {
     try {
-      var query = _supabase.from(_supportTicketsTable).select('id');
+      // PERF: Added safety limit to count query to prevent unbounded result sets
+      var query = _supabase.from(_supportTicketsTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
 
       if (status != null) {
         query = query.eq('status', status);
@@ -2089,11 +2157,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     String? status,
     String? contentType,
     String? search,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_marketplaceContentTable).select();
+      // PERF: Replaced bare .select() with explicit columns for marketplace content list views
+      var query = _supabase.from(_marketplaceContentTable).select('id, title, content_type, status, seller_id, price, is_flagged, created_at, updated_at');
 
       if (status != null) {
         query = query.eq('status', status);
@@ -2342,7 +2411,8 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<int> getMarketplaceContentCount({String? status}) async {
     try {
-      var query = _supabase.from(_marketplaceContentTable).select('id');
+      // PERF: Added safety limit to count query to prevent unbounded result sets
+      var query = _supabase.from(_marketplaceContentTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
 
       if (status != null) {
         query = query.eq('status', status);
@@ -2372,11 +2442,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     String? category,
     String? priority,
     bool? unreadOnly,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_platformNotificationsTable).select();
+      // PERF: Replaced bare .select() with explicit columns for notification list views
+      var query = _supabase.from(_platformNotificationsTable).select('id, recipient_id, title, message, category, priority, is_read, created_at');
 
       if (recipientId != null) {
         query = query.eq('recipient_id', recipientId);
@@ -2549,7 +2620,8 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .from(_platformNotificationsTable)
           .select('id')
           .eq('recipient_id', targetRecipient)
-          .eq('is_read', false);
+          .eq('is_read', false)
+          .limit(PaginatedQueryMixin.maxPageSize);
 
       AppLogger.info('Unread notification count: ${response.length}');
       return response.length;
@@ -2577,11 +2649,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     bool? unacknowledgedOnly,
     bool? unresolvedOnly,
     String? schoolId,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_intelligenceAlertsTable).select();
+      // PERF: Replaced bare .select() with explicit columns for intelligence alerts list views
+      var query = _supabase.from(_intelligenceAlertsTable).select('id, alert_type, severity, affected_school_id, is_acknowledged, is_resolved, created_at, updated_at');
 
       if (alertType != null) {
         query = query.eq('alert_type', alertType);
@@ -2870,11 +2943,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
     String? ipAddress,
     DateTime? startDate,
     DateTime? endDate,
-    int limit = 50,
+    int limit = PaginatedQueryMixin.defaultPageSize,
     int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_loginMonitoringTable).select();
+      // PERF: Replaced bare .select() with explicit columns for login monitoring list views
+      var query = _supabase.from(_loginMonitoringTable).select('id, user_id, ip_address, user_agent, is_success, created_at');
 
       if (userId != null) {
         query = query.eq('user_id', userId);
@@ -2914,18 +2988,22 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   }
 
   @override
-  Future<List<ActiveSessionModel>> getActiveSessions({String? userId}) async {
+  Future<List<ActiveSessionModel>> getActiveSessions({
+    String? userId,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
+      // PERF: Replaced bare .select() with explicit columns + limit — was unbounded
       var query = _supabase
           .from(_activeSessionsTable)
-          .select()
+          .select('id, user_id, ip_address, device_info, last_activity_at, expires_at')
           .gt('expires_at', DateTime.now().toIso8601String());
 
       if (userId != null) {
         query = query.eq('user_id', userId);
       }
 
-      final list = await query.order('last_activity_at', ascending: false);
+      final list = await query.order('last_activity_at', ascending: false).limit(limit);
       AppLogger.info('Fetched ${list.length} active sessions');
       return list
           .map<ActiveSessionModel>(
@@ -3048,9 +3126,12 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   Future<List<SystemReportModel>> getSystemReports({
     String? type,
     String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_systemReportsTable).select();
+      // PERF: Replaced bare .select() with explicit columns + pagination — was unbounded
+      var query = _supabase.from(_systemReportsTable).select('id, report_type, status, generated_by, created_at, updated_at');
 
       if (type != null) {
         query = query.eq('report_type', type);
@@ -3059,7 +3140,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
         query = query.eq('status', status);
       }
 
-      final list = await query.order('created_at', ascending: false);
+      final list = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
       AppLogger.info('Fetched ${list.length} system reports');
       return list
           .map<SystemReportModel>(
@@ -3132,15 +3213,18 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   @override
   Future<List<MaintenanceWindowModel>> getMaintenanceWindows({
     String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
-      var query = _supabase.from(_maintenanceWindowsTable).select();
+      // PERF: Replaced bare .select() with explicit columns + pagination — was unbounded
+      var query = _supabase.from(_maintenanceWindowsTable).select('id, title, status, start_at, end_at, created_at');
 
       if (status != null) {
         query = query.eq('status', status);
       }
 
-      final list = await query.order('start_at', ascending: true);
+      final list = await query.order('start_at', ascending: true).range(offset, offset + limit - 1);
       AppLogger.info('Fetched ${list.length} maintenance windows');
       return list
           .map<MaintenanceWindowModel>(
@@ -3253,15 +3337,19 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   // ═══════════════════════════════════════════════════════════════════
 
   @override
-  Future<List<PlatformPolicyModel>> getPlatformPolicies({bool? isActive}) async {
+  Future<List<PlatformPolicyModel>> getPlatformPolicies({
+    bool? isActive,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
-      var query = _supabase.from(_platformPoliciesTable).select();
+      // PERF: Replaced bare .select() with explicit columns + limit — was unbounded
+      var query = _supabase.from(_platformPoliciesTable).select('id, policy_key, title, is_active, updated_at, created_at');
 
       if (isActive != null) {
         query = query.eq('is_active', isActive);
       }
 
-      final list = await query.order('policy_key', ascending: true);
+      final list = await query.order('policy_key', ascending: true).limit(limit);
       AppLogger.info('Fetched ${list.length} platform policies');
       return list
           .map<PlatformPolicyModel>(
@@ -3345,15 +3433,19 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   // ═══════════════════════════════════════════════════════════════════
 
   @override
-  Future<List<EmailTemplateModel>> getEmailTemplates({String? category}) async {
+  Future<List<EmailTemplateModel>> getEmailTemplates({
+    String? category,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+  }) async {
     try {
-      var query = _supabase.from(_emailTemplatesTable).select();
+      // PERF: Replaced bare .select() with explicit columns + limit — was unbounded
+      var query = _supabase.from(_emailTemplatesTable).select('id, template_key, name, category, subject, updated_at, created_at');
 
       if (category != null) {
         query = query.eq('category', category);
       }
 
-      final list = await query.order('template_key', ascending: true);
+      final list = await query.order('template_key', ascending: true).limit(limit);
       AppLogger.info('Fetched ${list.length} email templates');
       return list
           .map<EmailTemplateModel>(

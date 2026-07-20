@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/ai_coach_models.dart';
 
@@ -24,6 +25,7 @@ abstract class AiCoachRemoteDatasource {
   Future<List<AiCoachRecommendationModel>> getRecommendations({
     required String userId,
     bool? activeOnly,
+    int limit = PaginatedQueryMixin.defaultPageSize,
   });
 
   Future<AiCoachRecommendationModel> dismissRecommendation({
@@ -220,6 +222,7 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
   Future<List<AiCoachRecommendationModel>> getRecommendations({
     required String userId,
     bool? activeOnly,
+    int limit = PaginatedQueryMixin.defaultPageSize,
   }) async {
     try {
       var query = _supabase
@@ -232,7 +235,8 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
         query = query.eq('is_dismissed', false);
       }
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on ai_coach_recommendations
+      final response = await query.limit(limit);
 
       return response
           .map<AiCoachRecommendationModel>((json) =>

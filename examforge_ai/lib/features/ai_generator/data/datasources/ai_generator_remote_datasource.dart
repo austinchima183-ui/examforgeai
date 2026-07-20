@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/ai_models.dart';
 
@@ -754,11 +755,13 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
     String generatedQuestionId,
   ) async {
     try {
+      // PERF: Added limit to prevent unbounded query on improvements
       final response = await _supabase
           .from(_improvementsTable)
           .select()
           .eq('generated_question_id', generatedQuestionId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       return response
           .map<QuestionImprovementModel>(
@@ -1004,6 +1007,12 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
         query = query.eq('uploaded_by', filters['uploaded_by'] as String);
       }
 
+      // PERF: Added default pagination to prevent unbounded query
+      final page = filters['page'] as int? ?? 1;
+      final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? PaginatedQueryMixin.defaultPageSize;
+      final from = (page - 1) * perPage;
+      query = query.range(from, from + perPage - 1);
+
       final response = await query;
       return response
           .map<DocumentUploadModel>(
@@ -1180,7 +1189,8 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
         query = query.eq('curriculum', filters['curriculum'] as String);
       }
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on prompt_templates
+      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<PromptTemplateModel>(
               (json) => PromptTemplateModel.fromJson(json))
@@ -1331,10 +1341,12 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
   @override
   Future<List<AiProviderConfigModel>> getProviderConfigs() async {
     try {
+      // PERF: Added limit to prevent unbounded query on provider_configs
       final response = await _supabase
           .from(_providerConfigsTable)
           .select()
-          .order('provider', ascending: true);
+          .order('provider', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       return response
           .map<AiProviderConfigModel>(
@@ -1502,7 +1514,9 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select()
           .eq('status', 'pending')
           .order('priority', ascending: false)
-          .order('created_at', ascending: true);
+          // PERF: Added limit to prevent unbounded query on generation_queue
+          .order('created_at', ascending: true)
+          .limit(PaginatedQueryMixin.defaultPageSize);
 
       return response
           .map<GenerationQueueModel>(
@@ -1577,7 +1591,8 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
         query = query.lte('date', filters['end_date'] as String);
       }
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on ai_usage_stats
+      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<AiUsageStatsModel>(
               (json) => AiUsageStatsModel.fromJson(json))
@@ -1736,7 +1751,8 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
         query = query.eq('subject_id', filters['subject_id'] as String);
       }
 
-      final response = await query;
+      // PERF: Added limit to prevent unbounded query on curriculum_mappings
+      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<CurriculumMappingModel>(
               (json) => CurriculumMappingModel.fromJson(json))

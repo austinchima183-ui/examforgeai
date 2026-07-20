@@ -1,0 +1,997 @@
+     1→import 'dart:async';
+     2→import 'dart:convert';
+     3→
+     4→import '../../../core/utils/logger.dart';
+     5→import '../../features/ai_generator/domain/entities/ai_entities.dart';
+     6→import '../../features/question_bank/domain/entities/question_entities.dart';
+     7→import 'ai_provider_interface.dart';
+     8→import 'ai_providers_registry.dart';
+     9→import 'prompt_engine.dart';
+    10→import 'validation_engine.dart';
+    11→
+    12→// ═══════════════════════════════════════════════════════════════════════
+    13→// RESULT TYPES
+    14→// ═══════════════════════════════════════════════════════════════════════
+    15→
+    16→/// Result of a question generation operation.
+    17→class GenerationResult {
+    18→  const GenerationResult({
+    19→    required this.questions,
+    20→    required this.request,
+    21→    this.validationResults = const {},
+    22→    this.totalInputTokens = 0,
+    23→    this.totalOutputTokens = 0,
+    24→    this.totalCost = 0.0,
+    25→    required this.generationTime,
+    26→    this.providerUsed,
+    27→    this.error,
+    28→  });
+    29→
+    30→  /// The generated questions (may be empty if generation failed).
+    31→  final List<GeneratedQuestionEntity> questions;
+    32→
+    33→  /// The generation request that was created.
+    34→  final GenerationRequestEntity request;
+    35→
+    36→  /// Per-question validation results, keyed by question index.
+    37→  final Map<int, List<ValidationResultEntity>> validationResults;
+    38→
+    39→  /// Total input tokens consumed.
+    40→  final int totalInputTokens;
+    41→
+    42→  /// Total output tokens consumed.
+    43→  final int totalOutputTokens;
+    44→
+    45→  /// Estimated total cost in USD.
+    46→  final double totalCost;
+    47→
+    48→  /// Total wall-clock time for generation.
+    49→  final Duration generationTime;
+    50→
+    51→  /// The AI provider that handled the request.
+    52→  final AiProvider? providerUsed;
+    53→
+    54→  /// Error message if generation partially or fully failed.
+    55→  final String? error;
+    56→
+    57→  /// Whether the generation was successful.
+    58→  bool get isSuccess => error == null && questions.isNotEmpty;
+    59→
+    60→  GenerationResult copyWith({
+    61→    List<GeneratedQuestionEntity>? questions,
+    62→    GenerationRequestEntity? request,
+    63→    Map<int, List<ValidationResultEntity>>? validationResults,
+    64→    int? totalInputTokens,
+    65→    int? totalOutputTokens,
+    66→    double? totalCost,
+    67→    Duration? generationTime,
+    68→    AiProvider? providerUsed,
+    69→    String? error,
+    70→  }) {
+    71→    return GenerationResult(
+    72→      questions: questions ?? this.questions,
+    73→      request: request ?? this.request,
+    74→      validationResults: validationResults ?? this.validationResults,
+    75→      totalInputTokens: totalInputTokens ?? this.totalInputTokens,
+    76→      totalOutputTokens: totalOutputTokens ?? this.totalOutputTokens,
+    77→      totalCost: totalCost ?? this.totalCost,
+    78→      generationTime: generationTime ?? this.generationTime,
+    79→      providerUsed: providerUsed ?? this.providerUsed,
+    80→      error: error ?? this.error,
+    81→    );
+    82→  }
+    83→}
+    84→
+    85→/// Result of a question improvement operation.
+    86→class ImprovementResult {
+    87→  const ImprovementResult({
+    88→    required this.improvement,
+    89→    required this.original,
+    90→    required this.generationTime,
+    91→    this.inputTokens = 0,
+    92→    this.outputTokens = 0,
+    93→    this.cost = 0.0,
+    94→    this.error,
+    95→  });
+    96→
+    97→  /// The improvement suggestion.
+    98→  final QuestionImprovementEntity improvement;
+    99→
+   100→  /// The original question that was improved.
+   101→  final GeneratedQuestionEntity original;
+   102→
+   103→  /// Time taken for the improvement.
+   104→  final Duration generationTime;
+   105→
+   106→  /// Input tokens consumed.
+   107→  final int inputTokens;
+   108→
+   109→  /// Output tokens consumed.
+   110→  final int outputTokens;
+   111→
+   112→  /// Estimated cost.
+   113→  final double cost;
+   114→
+   115→  /// Error message if improvement failed.
+   116→  final String? error;
+   117→
+   118→  bool get isSuccess => error == null;
+   119→}
+   120→
+   121→/// Result of a document processing operation.
+   122→class DocumentProcessingResult {
+   123→  const DocumentProcessingResult({
+   124→    required this.document,
+   125→    this.generationResult,
+   126→    this.extractionTime = Duration.zero,
+   127→    this.generationTime = Duration.zero,
+   128→    this.totalInputTokens = 0,
+   129→    this.totalOutputTokens = 0,
+   130→    this.error,
+   131→  });
+   132→
+   133→  /// The processed document with extracted data.
+   134→  final DocumentUploadEntity document;
+   135→
+   136→  /// Result of question generation from the document (if requested).
+   137→  final GenerationResult? generationResult;
+   138→
+   139→  /// Time taken for document extraction.
+   140→  final Duration extractionTime;
+   141→
+   142→  /// Time taken for question generation.
+   143→  final Duration generationTime;
+   144→
+   145→  /// Total input tokens consumed.
+   146→  final int totalInputTokens;
+   147→
+   148→  /// Total output tokens consumed.
+   149→  final int totalOutputTokens;
+   150→
+   151→  /// Error message if processing failed.
+   152→  final String? error;
+   153→
+   154→  bool get isSuccess => error == null;
+   155→}
+   156→
+   157→/// Real-time progress update during streaming generation.
+   158→class GenerationProgress {
+   159→  const GenerationProgress({
+   160→    required this.requestId,
+   161→    this.status = GenerationProgressStatus.initializing,
+   162→    this.questionsCompleted = 0,
+   163→    this.questionsTotal = 0,
+   164→    this.currentChunk,
+   165→    this.partialContent,
+   166→    this.validationResults = const [],
+   167→    this.error,
+   168→  });
+   169→
+   170→  /// The generation request ID.
+   171→  final String requestId;
+   172→
+   173→  /// Current status of the generation.
+   174→  final GenerationProgressStatus status;
+   175→
+   176→  /// Number of questions completed so far.
+   177→  final int questionsCompleted;
+   178→
+   179→  /// Total number of questions requested.
+   180→  final int questionsTotal;
+   181→
+   182→  /// The latest streaming chunk (if streaming).
+   183→  final AiCompletionChunk? currentChunk;
+   184→
+   185→  /// Partial content accumulated so far.
+   186→  final String? partialContent;
+   187→
+   188→  /// Validation results for completed questions.
+   189→  final List<ValidationResultEntity> validationResults;
+   190→
+   191→  /// Error message if a step failed.
+   192→  final String? error;
+   193→
+   194→  /// Progress as a fraction (0.0 – 1.0).
+   195→  double get progress {
+   196→    if (questionsTotal == 0) return 0.0;
+   197→    return (questionsCompleted / questionsTotal).clamp(0.0, 1.0);
+   198→  }
+   199→
+   200→  GenerationProgress copyWith({
+   201→    String? requestId,
+   202→    GenerationProgressStatus? status,
+   203→    int? questionsCompleted,
+   204→    int? questionsTotal,
+   205→    AiCompletionChunk? currentChunk,
+   206→    String? partialContent,
+   207→    List<ValidationResultEntity>? validationResults,
+   208→    String? error,
+   209→  }) {
+   210→    return GenerationProgress(
+   211→      requestId: requestId ?? this.requestId,
+   212→      status: status ?? this.status,
+   213→      questionsCompleted: questionsCompleted ?? this.questionsCompleted,
+   214→      questionsTotal: questionsTotal ?? this.questionsTotal,
+   215→      currentChunk: currentChunk ?? this.currentChunk,
+   216→      partialContent: partialContent ?? this.partialContent,
+   217→      validationResults: validationResults ?? this.validationResults,
+   218→      error: error ?? this.error,
+   219→    );
+   220→  }
+   221→}
+   222→
+   223→/// Status of a streaming generation progress.
+   224→enum GenerationProgressStatus {
+   225→  initializing,
+   226→  resolvingPrompt,
+   227→  callingProvider,
+   228→  streamingContent,
+   229→  parsingResponse,
+   230→  validating,
+   231→  completed,
+   232→  failed,
+   233→  cancelled,
+   234→}
+   235→
+   236→// ═══════════════════════════════════════════════════════════════════════
+   237→// AI SERVICE
+   238→// ═══════════════════════════════════════════════════════════════════════
+   239→
+   240→/// Main AI service that orchestrates question generation, improvement,
+   241→/// validation, and document processing.
+   242→///
+   243→/// This is the primary entry point for all AI operations in ExamForge.
+   244→/// It coordinates between:
+   245→/// - [AiProvidersRegistry] for provider selection and management
+   246→/// - [PromptEngine] for prompt construction and response parsing
+   247→/// - [ValidationEngine] for automated quality checks
+   248→class AiService {
+   249→  AiService({
+   250→    required AiProvidersRegistry providersRegistry,
+   251→    PromptEngine? promptEngine,
+   252→    ValidationEngine? validationEngine,
+   253→    this.defaultProvider = AiProvider.openai,
+   254→    this.defaultTemperature = 0.7,
+   255→    this.defaultMaxTokens = 4096,
+   256→    this.validateOnGenerate = true,
+   257→  })  : _providersRegistry = providersRegistry,
+   258→        _promptEngine = promptEngine ?? PromptEngine(),
+   259→        _validationEngine = validationEngine ?? ValidationEngine();
+   260→
+   261→  final AiProvidersRegistry _providersRegistry;
+   262→  final PromptEngine _promptEngine;
+   263→  final ValidationEngine _validationEngine;
+   264→
+   265→  /// The default AI provider to use when none is specified.
+   266→  final AiProvider defaultProvider;
+   267→
+   268→  /// Default sampling temperature.
+   269→  final double defaultTemperature;
+   270→
+   271→  /// Default maximum output tokens.
+   272→  final int defaultMaxTokens;
+   273→
+   274→  /// Whether to automatically validate questions after generation.
+   275→  final bool validateOnGenerate;
+   276→
+   277→  // ─── Question Generation ──────────────────────────────────────────
+   278→
+   279→  /// Generate questions from teacher input.
+   280→  ///
+   281→  /// 1. Resolves the prompt using the best matching template
+   282→  /// 2. Selects an AI provider
+   283→  /// 3. Calls the provider for completion
+   284→  /// 4. Parses the response into structured question entities
+   285→  /// 5. Optionally validates the generated questions
+   286→  /// 6. Returns the complete [GenerationResult]
+   287→  Future<GenerationResult> generateQuestions(
+   288→    GenerationInputEntity input,
+   289→    List<PromptTemplateEntity> templates,
+   290→  ) async {
+   291→    final stopwatch = Stopwatch()..start();
+   292→    final requestId = _generateId();
+   293→
+   294→    try {
+   295→      // 1. Resolve prompt
+   296→      AppLogger.info('Starting question generation for request $requestId');
+   297→      final resolution =
+   298→          _promptEngine.resolveGenerationPrompt(input, templates);
+   299→
+   300→      // 2. Select provider
+   301→      final providerType = input.provider ?? defaultProvider;
+   302→      final provider = _getProvider(providerType);
+   303→
+   304→      if (provider == null) {
+   305→        stopwatch.stop();
+   306→        return GenerationResult(
+   307→          questions: [],
+   308→          request: _buildRequest(
+   309→            id: requestId,
+   310→            input: input,
+   311→            resolution: resolution,
+   312→            provider: providerType,
+   313→            status: GenerationStatus.failed,
+   314→            errorMessage: 'Provider $providerType is not available',
+   315→          ),
+   316→          generationTime: stopwatch.elapsed,
+   317→          error: 'Provider $providerType is not available',
+   318→        );
+   319→      }
+   320→
+   321→      // 3. Build completion request
+   322→      final completionRequest = AiCompletionRequest(
+   323→        systemPrompt: resolution.systemPrompt,
+   324→        userPrompt: resolution.userPrompt,
+   325→        temperature: defaultTemperature,
+   326→        maxTokens: defaultMaxTokens,
+   327→        jsonMode: true,
+   328→      );
+   329→
+   330→      // 4. Call provider
+   331→      final result = await provider.complete(completionRequest);
+   332→
+   333→      // 5. Parse response
+   334→      final parsedJson = result.parsedJson ??
+   335→          _tryParseContent(result.content);
+   336→
+   337→      if (parsedJson == null) {
+   338→        stopwatch.stop();
+   339→        return GenerationResult(
+   340→          questions: [],
+   341→          request: _buildRequest(
+   342→            id: requestId,
+   343→            input: input,
+   344→            resolution: resolution,
+   345→            provider: providerType,
+   346→            status: GenerationStatus.failed,
+   347→            rawResponse: {'raw_content': result.content},
+   348→            inputTokens: result.inputTokens,
+   349→            outputTokens: result.outputTokens,
+   350→            generationTimeMs: stopwatch.elapsed.inMilliseconds,
+   351→            errorMessage: 'Failed to parse AI response as JSON',
+   352→          ),
+   353→          totalInputTokens: result.inputTokens,
+   354→          totalOutputTokens: result.outputTokens,
+   355→          generationTime: stopwatch.elapsed,
+   356→          providerUsed: providerType,
+   357→          error: 'Failed to parse AI response as JSON',
+   358→        );
+   359→      }
+   360→
+   361→      // Build a temporary request entity for parsing
+   362→      final request = _buildRequest(
+   363→        id: requestId,
+   364→        input: input,
+   365→        resolution: resolution,
+   366→        provider: providerType,
+   367→        rawResponse: parsedJson,
+   368→        inputTokens: result.inputTokens,
+   369→        outputTokens: result.outputTokens,
+   370→        generationTimeMs: stopwatch.elapsed.inMilliseconds,
+   371→      );
+   372→
+   373→      final questions =
+   374→          _promptEngine.parseGeneratedQuestions(parsedJson, request);
+   375→
+   376→      // 6. Validate questions (optional)
+   377→      Map<int, List<ValidationResultEntity>> validationResults = {};
+   378→      if (validateOnGenerate) {
+   379→        for (int i = 0; i < questions.length; i++) {
+   380→          final validations =
+   381→              await _validationEngine.validate(questions[i]);
+   382→          if (validations.isNotEmpty) {
+   383→            validationResults[i] = validations;
+   384→          }
+   385→        }
+   386→      }
+   387→
+   388→      stopwatch.stop();
+   389→
+   390→      // Calculate estimated cost
+   391→      final cost = _estimateCost(
+   392→        providerType,
+   393→        result.inputTokens,
+   394→        result.outputTokens,
+   395→      );
+   396→
+   397→      // Update request with completed status
+   398→      final completedRequest = request.copyWith(
+   399→        status: GenerationStatus.completed,
+   400→        completedAt: DateTime.now(),
+   401→        totalCost: cost,
+   402→        processedResponse: {
+   403→          'question_count': questions.length,
+   404→          'validation_issue_count':
+   405→              validationResults.values.fold(0, (sum, v) => sum + v.length),
+   406→        },
+   407→      );
+   408→
+   409→      AppLogger.info('Generation complete: ${questions.length} questions '
+   410→          'generated in ${stopwatch.elapsed.inMilliseconds}ms');
+   411→
+   412→      return GenerationResult(
+   413→        questions: questions,
+   414→        request: completedRequest,
+   415→        validationResults: validationResults,
+   416→        totalInputTokens: result.inputTokens,
+   417→        totalOutputTokens: result.outputTokens,
+   418→        totalCost: cost,
+   419→        generationTime: stopwatch.elapsed,
+   420→        providerUsed: providerType,
+   421→      );
+   422→    } catch (e) {
+   423→      stopwatch.stop();
+   424→      AppLogger.error('Question generation failed for request $requestId',
+   425→          error: e);
+   426→
+   427→      return GenerationResult(
+   428→        questions: [],
+   429→        request: GenerationRequestEntity(
+   430→          id: requestId,
+   431→          schoolId: '',
+   432→          requestedBy: '',
+   433→          provider: input.provider ?? defaultProvider,
+   434→          modelName: '',
+   435→          generationType: PromptType.questionGeneration,
+   436→          status: GenerationStatus.failed,
+   437→          inputParams: {},
+   438→          systemPrompt: '',
+   439→          userPrompt: '',
+   440→          errorMessage: e.toString(),
+   441→          generationTimeMs: stopwatch.elapsed.inMilliseconds,
+   442→          createdAt: DateTime.now(),
+   443→        ),
+   444→        generationTime: stopwatch.elapsed,
+   445→        error: e.toString(),
+   446→      );
+   447→    }
+   448→  }
+   449→
+   450→  // ─── Streaming Generation ─────────────────────────────────────────
+   451→
+   452→  /// Stream generation progress for real-time UI updates.
+   453→  ///
+   454→  /// Emits [GenerationProgress] updates as the generation proceeds
+   455→  /// through its lifecycle stages.
+   456→  Stream<GenerationProgress> generateQuestionsStream(
+   457→    GenerationInputEntity input,
+   458→    List<PromptTemplateEntity> templates,
+   459→  ) async* {
+   460→    final requestId = _generateId();
+   461→    var progress = GenerationProgress(
+   462→      requestId: requestId,
+   463→      questionsTotal: input.numQuestions,
+   464→    );
+   465→
+   466→    try {
+   467→      // 1. Resolving prompt
+   468→      yield progress = progress.copyWith(
+   469→        status: GenerationProgressStatus.resolvingPrompt,
+   470→      );
+   471→
+   472→      final resolution =
+   473→          _promptEngine.resolveGenerationPrompt(input, templates);
+   474→
+   475→      // 2. Select provider
+   476→      final providerType = input.provider ?? defaultProvider;
+   477→      final provider = _getProvider(providerType);
+   478→
+   479→      if (provider == null) {
+   480→        yield progress = progress.copyWith(
+   481→          status: GenerationProgressStatus.failed,
+   482→          error: 'Provider $providerType is not available',
+   483→        );
+   484→        return;
+   485→      }
+   486→
+   487→      // 3. Build and send streaming request
+   488→      yield progress = progress.copyWith(
+   489→        status: GenerationProgressStatus.callingProvider,
+   490→      );
+   491→
+   492→      final completionRequest = AiCompletionRequest(
+   493→        systemPrompt: resolution.systemPrompt,
+   494→        userPrompt: resolution.userPrompt,
+   495→        temperature: defaultTemperature,
+   496→        maxTokens: defaultMaxTokens,
+   497→        jsonMode: true,
+   498→      );
+   499→
+   500→      // 4. Stream content
+   501→      yield progress = progress.copyWith(
+   502→        status: GenerationProgressStatus.streamingContent,
+   503→      );
+   504→
+   505→      final contentBuffer = StringBuffer();
+   506→
+   507→      await for (final chunk
+   508→          in provider.completeStream(completionRequest)) {
+   509→        if (chunk.delta.isNotEmpty) {
+   510→          contentBuffer.write(chunk.delta);
+   511→          yield progress = progress.copyWith(
+   512→            status: GenerationProgressStatus.streamingContent,
+   513→            currentChunk: chunk,
+   514→            partialContent: contentBuffer.toString(),
+   515→          );
+   516→        }
+   517→
+   518→        if (chunk.isDone) {
+   519→          break;
+   520→        }
+   521→      }
+   522→
+   523→      // 5. Parse response
+   524→      yield progress = progress.copyWith(
+   525→        status: GenerationProgressStatus.parsingResponse,
+   526→      );
+   527→
+   528→      final parsedJson = _tryParseContent(contentBuffer.toString());
+   529→      if (parsedJson == null) {
+   530→        yield progress = progress.copyWith(
+   531→          status: GenerationProgressStatus.failed,
+   532→          error: 'Failed to parse AI response as JSON',
+   533→        );
+   534→        return;
+   535→      }
+   536→
+   537→      final request = _buildRequest(
+   538→        id: requestId,
+   539→        input: input,
+   540→        resolution: resolution,
+   541→        provider: providerType,
+   542→        rawResponse: parsedJson,
+   543→      );
+   544→
+   545→      final questions =
+   546→          _promptEngine.parseGeneratedQuestions(parsedJson, request);
+   547→
+   548→      // 6. Validate
+   549→      if (validateOnGenerate) {
+   550→        yield progress = progress.copyWith(
+   551→          status: GenerationProgressStatus.validating,
+   552→        );
+   553→
+   554→        final allValidationResults = <ValidationResultEntity>[];
+   555→        for (int i = 0; i < questions.length; i++) {
+   556→          final validations =
+   557→              await _validationEngine.validate(questions[i]);
+   558→          allValidationResults.addAll(validations);
+   559→          yield progress = progress.copyWith(
+   560→            questionsCompleted: i + 1,
+   561→            validationResults: allValidationResults,
+   562→          );
+   563→        }
+   564→      }
+   565→
+   566→      // 7. Done
+   567→      yield progress = progress.copyWith(
+   568→        status: GenerationProgressStatus.completed,
+   569→        questionsCompleted: questions.length,
+   570→      );
+   571→    } catch (e) {
+   572→      AppLogger.error('Streaming generation failed for request $requestId',
+   573→          error: e);
+   574→      yield progress = progress.copyWith(
+   575→        status: GenerationProgressStatus.failed,
+   576→        error: e.toString(),
+   577→      );
+   578→    }
+   579→  }
+   580→
+   581→  // ─── Question Improvement ─────────────────────────────────────────
+   582→
+   583→  /// Improve a generated question using AI.
+   584→  ///
+   585→  /// [improvementType] can be: "clarity", "distractors", "difficulty",
+   586→  /// "explanation", "curriculum_alignment", "grammar", "general".
+   587→  Future<ImprovementResult> improveQuestion(
+   588→    GeneratedQuestionEntity question,
+   589→    String improvementType, {
+   590→    AiProvider? providerOverride,
+   591→    String? customInstructions,
+   592→  }) async {
+   593→    final stopwatch = Stopwatch()..start();
+   594→
+   595→    try {
+   596→      final providerType = providerOverride ?? defaultProvider;
+   597→      final provider = _getProvider(providerType);
+   598→
+   599→      if (provider == null) {
+   600→        return ImprovementResult(
+   601→          improvement: QuestionImprovementEntity(
+   602→            id: '',
+   603→            generatedQuestionId: question.id,
+   604→            improvementType: improvementType,
+   605→            provider: providerType,
+   606→            originalContent: question.content,
+   607→            improvedContent: question.content,
+   608→            createdAt: DateTime.now(),
+   609→          ),
+   610→          original: question,
+   611→          generationTime: stopwatch.elapsed,
+   612→          error: 'Provider $providerType is not available',
+   613→        );
+   614→      }
+   615→
+   616→      // Build improvement prompt
+   617→      final improvementPrompt = _promptEngine.buildImprovementPrompt(
+   618→        improvementType,
+   619→        question,
+   620→        customInstructions: customInstructions,
+   621→      );
+   622→
+   623→      // Build completion request
+   624→      final completionRequest = AiCompletionRequest(
+   625→        systemPrompt: 'You are an expert educational content improver. '
+   626→            'Improve the provided question according to the specified '
+   627→            'improvement type. Always return valid JSON.',
+   628→        userPrompt: improvementPrompt,
+   629→        temperature: 0.5, // Lower temperature for more focused improvements
+   630→        maxTokens: defaultMaxTokens,
+   631→        jsonMode: true,
+   632→      );
+   633→
+   634→      // Call provider
+   635→      final result = await provider.complete(completionRequest);
+   636→
+   637→      // Parse response
+   638→      final parsedJson =
+   639→          result.parsedJson ?? _tryParseContent(result.content);
+   640→
+   641→      if (parsedJson == null) {
+   642→        stopwatch.stop();
+   643→        return ImprovementResult(
+   644→          improvement: QuestionImprovementEntity(
+   645→            id: '',
+   646→            generatedQuestionId: question.id,
+   647→            improvementType: improvementType,
+   648→            provider: providerType,
+   649→            originalContent: question.content,
+   650→            improvedContent: question.content,
+   651→            createdAt: DateTime.now(),
+   652→          ),
+   653→          original: question,
+   654→          generationTime: stopwatch.elapsed,
+   655→          error: 'Failed to parse improvement response',
+   656→        );
+   657→      }
+   658→
+   659→      final improvement = _promptEngine.parseImprovementResponse(
+   660→        parsedJson,
+   661→        question,
+   662→        improvementType,
+   663→      );
+   664→
+   665→      stopwatch.stop();
+   666→
+   667→      // Return improvement with provider info filled in
+   668→      return ImprovementResult(
+   669→        improvement: improvement.copyWith(
+   670→          provider: providerType,
+   671→          improvementPrompt: improvementPrompt,
+   672→          inputTokens: result.inputTokens,
+   673→          outputTokens: result.outputTokens,
+   674→          cost: _estimateCost(
+   675→              providerType, result.inputTokens, result.outputTokens),
+   676→        ),
+   677→        original: question,
+   678→        generationTime: stopwatch.elapsed,
+   679→        inputTokens: result.inputTokens,
+   680→        outputTokens: result.outputTokens,
+   681→        cost: _estimateCost(
+   682→            providerType, result.inputTokens, result.outputTokens),
+   683→      );
+   684→    } catch (e) {
+   685→      stopwatch.stop();
+   686→      AppLogger.error('Question improvement failed', error: e);
+   687→      return ImprovementResult(
+   688→        improvement: QuestionImprovementEntity(
+   689→          id: '',
+   690→          generatedQuestionId: question.id,
+   691→          improvementType: improvementType,
+   692→          provider: providerOverride ?? defaultProvider,
+   693→          originalContent: question.content,
+   694→          improvedContent: question.content,
+   695→          createdAt: DateTime.now(),
+   696→        ),
+   697→        original: question,
+   698→        generationTime: stopwatch.elapsed,
+   699→        error: e.toString(),
+   700→      );
+   701→    }
+   702→  }
+   703→
+   704→  // ─── Question Validation ──────────────────────────────────────────
+   705→
+   706→  /// Validate a generated question using the validation engine.
+   707→  ///
+   708→  /// Optionally also checks for duplicates against [existingQuestions]
+   709→  /// and curriculum alignment against [curriculumMapping].
+   710→  Future<List<ValidationResultEntity>> validateQuestion(
+   711→    GeneratedQuestionEntity question, {
+   712→    List<QuestionEntity>? existingQuestions,
+   713→    CurriculumMappingEntity? curriculumMapping,
+   714→  }) async {
+   715→    if (existingQuestions != null && curriculumMapping != null) {
+   716→      final results =
+   717→          await _validationEngine.validateWithDuplicates(
+   718→        question,
+   719→        existingQuestions,
+   720→      );
+   721→      final alignmentResult =
+   722→          _validationEngine.checkCurriculumAlignment(question, curriculumMapping);
+   723→      if (alignmentResult != null) {
+   724→        results.add(alignmentResult);
+   725→      }
+   726→      return results;
+   727→    } else if (existingQuestions != null) {
+   728→      return _validationEngine.validateWithDuplicates(
+   729→        question,
+   730→        existingQuestions,
+   731→      );
+   732→    } else if (curriculumMapping != null) {
+   733→      return _validationEngine.validateWithCurriculum(
+   734→        question,
+   735→        curriculumMapping,
+   736→      );
+   737→    }
+   738→
+   739→    return _validationEngine.validate(question);
+   740→  }
+   741→
+   742→  // ─── Document Processing ──────────────────────────────────────────
+   743→
+   744→  /// Process a document and generate questions from its content.
+   745→  ///
+   746→  /// 1. Extracts text from the document (if not already extracted)
+   747→  /// 2. Uses AI to identify topics and learning objectives
+   748→  /// 3. Generates questions based on the extracted content
+   749→  Future<DocumentProcessingResult> processDocument(
+   750→    DocumentUploadEntity document,
+   751→    GenerationInputEntity input, {
+   752→    AiProvider? providerOverride,
+   753→  }) async {
+   754→    final totalStopwatch = Stopwatch()..start();
+   755→    var extractionStopwatch = Duration.zero;
+   756→
+   757→    try {
+   758→      final providerType = providerOverride ?? defaultProvider;
+   759→      final provider = _getProvider(providerType);
+   760→
+   761→      if (provider == null) {
+   762→        return DocumentProcessingResult(
+   763→          document: document,
+   764→          error: 'Provider $providerType is not available',
+   765→        );
+   766→      }
+   767→
+   768→      // Step 1: Document extraction (if text not yet extracted)
+   769→      String extractedText = document.extractedText ?? '';
+   770→
+   771→      if (extractedText.isEmpty) {
+   772→        // In production, this would call a document parsing service
+   773→        // (PDF, DOCX, etc.). For now, we assume text is pre-extracted.
+   774→        AppLogger.warning(
+   775→            'Document ${document.id} has no extracted text; '
+   776→            'skipping extraction step');
+   777→      }
+   778→
+   779→      // Step 2: AI-based topic and objective extraction
+   780→      extractionStopwatch = Duration(
+   781→          milliseconds: totalStopwatch.elapsed.inMilliseconds);
+   782→
+   783→      final extractionPrompt = _promptEngine.buildDocumentExtractionPrompt(
+   784→        extractedText,
+   785→        input,
+   786→      );
+   787→
+   788→      final extractionRequest = AiCompletionRequest(
+   789→        systemPrompt: 'You are an expert educational content analyst. '
+   790→            'Analyze the provided document and extract topics, learning '
+   791→            'objectives, and key concepts. Always return valid JSON.',
+   792→        userPrompt: extractionPrompt,
+   793→        temperature: 0.3,
+   794→        maxTokens: defaultMaxTokens,
+   795→        jsonMode: true,
+   796→      );
+   797→
+   798→      final extractionResult = await provider.complete(extractionRequest);
+   799→      final extractionJson = extractionResult.parsedJson ??
+   800→          _tryParseContent(extractionResult.content);
+   801→
+   802→      // Update document with extracted data
+   803→      DocumentUploadEntity updatedDoc = document;
+   804→      if (extractionJson != null) {
+   805→        updatedDoc = document.copyWith(
+   806→          extractedText: extractedText,
+   807→          identifiedTopics: extractionJson['identified_topics'] != null
+   808→              ? List<Map<String, dynamic>>.from(
+   809→                  extractionJson['identified_topics'] as List)
+   810→              : document.identifiedTopics,
+   811→          suggestedObjectives:
+   812→              extractionJson['suggested_objectives'] != null
+   813→                  ? List<Map<String, dynamic>>.from(
+   814→                      extractionJson['suggested_objectives'] as List)
+   815→                  : document.suggestedObjectives,
+   816→          status: DocumentStatus.completed,
+   817→          processedAt: DateTime.now(),
+   818→        );
+   819→      }
+   820→
+   821→      // Step 3: Generate questions from extracted content
+   822→      final generationInput = input.copyWith(
+   823→        customInstructions: (input.customInstructions ?? '') +
+   824→            '\n\nBased on the following document content:\n'
+   825→            '${extractedText.substring(0, extractedText.length > 8000 ? 8000 : extractedText.length)}',
+   826→      );
+   827→
+   828→      // Use a built-in template list (empty = will use defaults)
+   829→      final generationResult =
+   830→          await generateQuestions(generationInput, []);
+   831→
+   832→      totalStopwatch.stop();
+   833→
+   834→      return DocumentProcessingResult(
+   835→        document: updatedDoc,
+   836→        generationResult: generationResult,
+   837→        extractionTime: extractionStopwatch,
+   838→        generationTime: totalStopwatch.elapsed - extractionStopwatch,
+   839→        totalInputTokens:
+   840→            extractionResult.inputTokens + generationResult.totalInputTokens,
+   841→        totalOutputTokens:
+   842→            extractionResult.outputTokens + generationResult.totalOutputTokens,
+   843→      );
+   844→    } catch (e) {
+   845→      totalStopwatch.stop();
+   846→      AppLogger.error('Document processing failed', error: e);
+   847→
+   848→      return DocumentProcessingResult(
+   849→        document: document,
+   850→        extractionTime: extractionStopwatch,
+   851→        generationTime: totalStopwatch.elapsed - extractionStopwatch,
+   852→        error: e.toString(),
+   853→      );
+   854→    }
+   855→  }
+   856→
+   857→  // ─── Provider Access ──────────────────────────────────────────────
+   858→
+   859→  /// Get a provider instance by type.
+   860→  AiProviderInterface? _getProvider(AiProvider providerType) {
+   861→    return _providersRegistry.get(providerType);
+   862→  }
+   863→
+   864→  /// Get all registered providers.
+   865→  List<AiProviderInterface> get providers => _providersRegistry.all;
+   866→
+   867→  /// Get all active (available) providers.
+   868→  Future<List<AiProviderInterface>> get activeProviders async {
+   869→    final active = <AiProviderInterface>[];
+   870→    for (final provider in _providersRegistry.all) {
+   871→      if (await provider.isAvailable()) {
+   872→        active.add(provider);
+   873→      }
+   874→    }
+   875→    return active;
+   876→  }
+   877→
+   878→  // ─── Private Helpers ──────────────────────────────────────────────
+   879→
+   880→  /// Generate a unique request ID.
+   881→  String _generateId() {
+   882→    return 'gen_${DateTime.now().millisecondsSinceEpoch}_${_counter++}';
+   883→  }
+   884→
+   885→  static int _counter = 0;
+   886→
+   887→  /// Build a [GenerationRequestEntity] from generation parameters.
+   888→  GenerationRequestEntity _buildRequest({
+   889→    required String id,
+   890→    required GenerationInputEntity input,
+   891→    required PromptResolution resolution,
+   892→    required AiProvider provider,
+   893→    GenerationStatus status = GenerationStatus.processing,
+   894→    Map<String, dynamic>? rawResponse,
+   895→    int? inputTokens,
+   896→    int? outputTokens,
+   897→    int? generationTimeMs,
+   898→    double? totalCost,
+   899→    String? errorMessage,
+   900→  }) {
+   901→    return GenerationRequestEntity(
+   902→      id: id,
+   903→      schoolId: '',
+   904→      requestedBy: '',
+   905→      provider: provider,
+   906→      modelName: provider.defaultModel,
+   907→      promptTemplateId: resolution.templateUsed?.id,
+   908→      generationType: PromptType.questionGeneration,
+   909→      status: status,
+   910→      inputParams: {
+   911→        'subject_id': input.subjectId,
+   912→        'topic_id': input.topicId,
+   913→        'difficulty': input.difficulty.value,
+   914→        'question_type': input.questionType?.value,
+   915→        'num_questions': input.numQuestions,
+   916→        'language': input.language,
+   917→      },
+   918→      systemPrompt: resolution.systemPrompt,
+   919→      userPrompt: resolution.userPrompt,
+   920→      rawResponse: rawResponse,
+   921→      inputTokens: inputTokens,
+   922→      outputTokens: outputTokens,
+   923→      generationTimeMs: generationTimeMs,
+   924→      totalCost: totalCost,
+   925→      errorMessage: errorMessage,
+   926→      startedAt: DateTime.now(),
+   927→      createdAt: DateTime.now(),
+   928→    );
+   929→  }
+   930→
+   931→  /// Attempt to parse a content string as JSON.
+   932→  Map<String, dynamic>? _tryParseContent(String content) {
+   933→    try {
+   934→      final decoded = jsonDecode(content);
+   935→      if (decoded is Map<String, dynamic>) return decoded;
+   936→      if (decoded is Map) return Map<String, dynamic>.from(decoded);
+   937→      return null;
+   938→    } on FormatException {
+   939→      // Try extracting JSON from markdown code blocks
+   940→      final jsonBlockRegex = RegExp(r'```(?:json)?\s*([\s\S]*?)```');
+   941→      final match = jsonBlockRegex.firstMatch(content);
+   942→      if (match != null) {
+   943→        try {
+   944→          final decoded = jsonDecode(match.group(1)!.trim());
+   945→          if (decoded is Map<String, dynamic>) return decoded;
+   946→          if (decoded is Map) return Map<String, dynamic>.from(decoded);
+   947→        } on FormatException {
+   948→          // retry failed
+   949→        }
+   950→      }
+   951→
+   952→      // Try finding first { ... } block
+   953→      final braceStart = content.indexOf('{');
+   954→      final braceEnd = content.lastIndexOf('}');
+   955→      if (braceStart != -1 && braceEnd > braceStart) {
+   956→        try {
+   957→          final decoded =
+   958→              jsonDecode(content.substring(braceStart, braceEnd + 1));
+   959→          if (decoded is Map<String, dynamic>) return decoded;
+   960→          if (decoded is Map) return Map<String, dynamic>.from(decoded);
+   961→        } on FormatException {
+   962→          // retry failed
+   963→        }
+   964→      }
+   965→      return null;
+   966→    }
+   967→  }
+   968→
+   969→  /// Estimate cost based on provider and token usage.
+   970→  double _estimateCost(AiProvider provider, int inputTokens, int outputTokens) {
+   971→    // Cost per 1K tokens (approximate, as of 2024)
+   972→    const costPer1kInput = {
+   973→      'openai': 0.005,    // GPT-4o
+   974→      'gemini': 0.00325,  // Gemini 1.5 Pro
+   975→      'claude': 0.003,    // Claude 3.5 Sonnet
+   976→      'deepseek': 0.001,
+   977→      'grok': 0.005,
+   978→      'local_llm': 0.0,
+   979→    };
+   980→    const costPer1kOutput = {
+   981→      'openai': 0.015,
+   982→      'gemini': 0.00975,
+   983→      'claude': 0.015,
+   984→      'deepseek': 0.002,
+   985→      'grok': 0.015,
+   986→      'local_llm': 0.0,
+   987→    };
+   988→
+   989→    final inputCost = (costPer1kInput[provider.value] ?? 0.005) *
+   990→        (inputTokens / 1000);
+   991→    final outputCost = (costPer1kOutput[provider.value] ?? 0.015) *
+   992→        (outputTokens / 1000);
+   993→
+   994→    return inputCost + outputCost;
+   995→  }
+   996→}
+   997→

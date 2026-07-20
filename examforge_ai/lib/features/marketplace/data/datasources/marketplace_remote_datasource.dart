@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/marketplace_models.dart';
 
@@ -19,6 +20,7 @@ abstract class MarketplaceRemoteDataSource {
 
   Future<List<MarketplaceCategoryModel>> getCategories({
     bool activeOnly = true,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   });
   Future<MarketplaceCategoryModel> getCategory(String categoryId);
   Future<MarketplaceCategoryModel> upsertCategory(
@@ -91,7 +93,10 @@ abstract class MarketplaceRemoteDataSource {
 
   // ─── Product Versions ─────────────────────────────────────────────
 
-  Future<List<ProductVersionModel>> getProductVersions(String productId);
+  Future<List<ProductVersionModel>> getProductVersions(
+    String productId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<ProductVersionModel> createProductVersion(
     ProductVersionModel version,
   );
@@ -150,7 +155,10 @@ abstract class MarketplaceRemoteDataSource {
 
   // ─── Wishlist ─────────────────────────────────────────────────────
 
-  Future<List<WishlistModel>> getUserWishlist(String userId);
+  Future<List<WishlistModel>> getUserWishlist(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<WishlistModel> addToWishlist(String userId, String productId);
   Future<bool> removeFromWishlist(String wishlistId);
   Future<bool> isInWishlist(String userId, String productId);
@@ -163,7 +171,10 @@ abstract class MarketplaceRemoteDataSource {
     List<String>? productTypes,
   });
   Future<bool> applyPromoCode(String promoCodeId);
-  Future<List<PromoCodeModel>> getPromoCodes({bool activeOnly = true});
+  Future<List<PromoCodeModel>> getPromoCodes({
+    bool activeOnly = true,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<PromoCodeModel> createPromoCode(PromoCodeModel promoCode);
   Future<PromoCodeModel> updatePromoCode(PromoCodeModel promoCode);
 
@@ -172,6 +183,7 @@ abstract class MarketplaceRemoteDataSource {
   Future<List<CommissionRateModel>> getCommissionRates({
     String? productType,
     String? licenseType,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   });
   Future<CommissionRateModel> upsertCommissionRate(
     CommissionRateModel rate,
@@ -188,11 +200,13 @@ abstract class MarketplaceRemoteDataSource {
     String sellerId, {
     DateTime? startDate,
     DateTime? endDate,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   });
   Future<List<ProductAnalyticsModel>> getProductAnalytics(
     String productId, {
     DateTime? startDate,
     DateTime? endDate,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   });
   Future<bool> recordSearchEvent(MarketplaceSearchLogModel searchLog);
   Future<bool> recordAIRecommendation(AIRecommendationModel recommendation);
@@ -201,7 +215,10 @@ abstract class MarketplaceRemoteDataSource {
 
   Future<QualityCheckModel> runQualityCheck(String productId);
   Future<QualityCheckModel> getQualityCheck(String productId);
-  Future<List<QualityCheckModel>> getProductQualityHistory(String productId);
+  Future<List<QualityCheckModel>> getProductQualityHistory(
+    String productId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
 
   // ─── Disputes ─────────────────────────────────────────────────────
 
@@ -212,6 +229,8 @@ abstract class MarketplaceRemoteDataSource {
     String? buyerId,
     String? sellerId,
     String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   });
   Future<DisputeModel> resolveDispute(
     String disputeId,
@@ -234,7 +253,10 @@ abstract class MarketplaceRemoteDataSource {
 
   // ─── Saved Searches ───────────────────────────────────────────────
 
-  Future<List<SavedSearchModel>> getSavedSearches(String userId);
+  Future<List<SavedSearchModel>> getSavedSearches(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
   Future<SavedSearchModel> createSavedSearch(SavedSearchModel savedSearch);
   Future<bool> deleteSavedSearch(String savedSearchId);
 
@@ -321,6 +343,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
   @override
   Future<List<MarketplaceCategoryModel>> getCategories({
     bool activeOnly = true,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     try {
       var query = _supabase.from(_categoriesTable).select();
@@ -329,7 +352,8 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
         query = query.eq('is_active', true);
       }
 
-      final response = await query.order('sort_order', ascending: true);
+      // PERF: Added limit to prevent unbounded query on marketplace_categories
+      final response = await query.order('sort_order', ascending: true).limit(limit);
 
       AppLogger.info('Fetched ${response.length} marketplace categories');
       return response
@@ -1055,13 +1079,18 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
   // ═══════════════════════════════════════════════════════════════════
 
   @override
-  Future<List<ProductVersionModel>> getProductVersions(String productId) async {
+  Future<List<ProductVersionModel>> getProductVersions(
+    String productId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on product_versions
       final response = await _supabase
           .from(_productVersionsTable)
           .select()
           .eq('product_id', productId)
-          .order('version_number', ascending: false);
+          .order('version_number', ascending: false)
+          .limit(limit);
 
       AppLogger.info(
         'Fetched ${response.length} versions for product $productId',
@@ -1804,13 +1833,18 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
   // ═══════════════════════════════════════════════════════════════════
 
   @override
-  Future<List<WishlistModel>> getUserWishlist(String userId) async {
+  Future<List<WishlistModel>> getUserWishlist(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on wishlist
       final response = await _supabase
           .from(_wishlistTable)
           .select()
           .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(limit);
 
       AppLogger.info('Fetched ${response.length} wishlist items for user $userId');
       return response
@@ -1964,7 +1998,10 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
   }
 
   @override
-  Future<List<PromoCodeModel>> getPromoCodes({bool activeOnly = true}) async {
+  Future<List<PromoCodeModel>> getPromoCodes({
+    bool activeOnly = true,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
       var query = _supabase.from(_promoCodesTable).select();
 
@@ -1972,7 +2009,8 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
         query = query.eq('is_active', true);
       }
 
-      final response = await query.order('created_at', ascending: false);
+      // PERF: Added limit to prevent unbounded query on promo_codes
+      final response = await query.order('created_at', ascending: false).limit(limit);
 
       AppLogger.info('Fetched ${response.length} promo codes');
       return response
@@ -2065,6 +2103,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
   Future<List<CommissionRateModel>> getCommissionRates({
     String? productType,
     String? licenseType,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     try {
       var query = _supabase.from(_commissionRatesTable).select();
@@ -2076,7 +2115,8 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
         query = query.eq('license_type', licenseType);
       }
 
-      final response = await query.order('created_at', ascending: false);
+      // PERF: Added limit to prevent unbounded query on commission_rates
+      final response = await query.order('created_at', ascending: false).limit(limit);
 
       AppLogger.info('Fetched ${response.length} commission rates');
       return response
@@ -2172,6 +2212,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
     String sellerId, {
     DateTime? startDate,
     DateTime? endDate,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     try {
       var query = _supabase
@@ -2186,7 +2227,8 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
         query = query.lte('date', endDate.toIso8601String());
       }
 
-      final response = await query.order('date', ascending: false);
+      // PERF: Added limit to prevent unbounded query on seller_analytics
+      final response = await query.order('date', ascending: false).limit(limit);
 
       AppLogger.info(
         'Fetched ${response.length} seller analytics for $sellerId',
@@ -2212,6 +2254,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
     String productId, {
     DateTime? startDate,
     DateTime? endDate,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     try {
       var query = _supabase
@@ -2226,7 +2269,8 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
         query = query.lte('date', endDate.toIso8601String());
       }
 
-      final response = await query.order('date', ascending: false);
+      // PERF: Added limit to prevent unbounded query on product_analytics
+      final response = await query.order('date', ascending: false).limit(limit);
 
       AppLogger.info(
         'Fetched ${response.length} product analytics for $productId',
@@ -2349,14 +2393,17 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
 
   @override
   Future<List<QualityCheckModel>> getProductQualityHistory(
-    String productId,
-  ) async {
+    String productId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on quality_checks
       final response = await _supabase
           .from(_qualityChecksTable)
           .select()
           .eq('product_id', productId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(limit);
 
       AppLogger.info(
         'Fetched ${response.length} quality checks for product $productId',
@@ -2448,6 +2495,8 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
     String? buyerId,
     String? sellerId,
     String? status,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
       var query = _supabase.from(_disputesTable).select();
@@ -2465,7 +2514,8 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
         query = query.eq('status', status);
       }
 
-      final response = await query.order('created_at', ascending: false);
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
 
       AppLogger.info('Fetched ${response.length} disputes');
       return response
@@ -2655,13 +2705,18 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
   // ═══════════════════════════════════════════════════════════════════
 
   @override
-  Future<List<SavedSearchModel>> getSavedSearches(String userId) async {
+  Future<List<SavedSearchModel>> getSavedSearches(
+    String userId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on saved_searches
       final response = await _supabase
           .from(_savedSearchesTable)
           .select()
           .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(limit);
 
       AppLogger.info(
         'Fetched ${response.length} saved searches for user $userId',

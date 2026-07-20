@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/school_management_models.dart';
 
@@ -30,14 +31,14 @@ abstract class SchoolManagementRemoteDataSource {
   Future<SchoolBranchModel> createBranch(Map<String, dynamic> branchData);
   Future<SchoolBranchModel> updateBranch(String branchId, Map<String, dynamic> branchData);
   Future<void> deleteBranch(String branchId);
-  Future<List<SchoolBranchModel>> getBranches(String schoolId);
+  Future<List<SchoolBranchModel>> getBranches(String schoolId, {int limit, int offset});
 
   // ─── Departments ──────────────────────────────────────────────────────
 
   Future<DepartmentModel> createDepartment(Map<String, dynamic> departmentData);
   Future<DepartmentModel> updateDepartment(String departmentId, Map<String, dynamic> departmentData);
   Future<void> deleteDepartment(String departmentId);
-  Future<List<DepartmentModel>> getDepartments(String schoolId);
+  Future<List<DepartmentModel>> getDepartments(String schoolId, {int limit, int offset});
 
   // ─── Student Profiles ─────────────────────────────────────────────────
 
@@ -55,7 +56,7 @@ abstract class SchoolManagementRemoteDataSource {
   });
   Future<PromotionHistoryModel> promoteStudent(Map<String, dynamic> data);
   Future<StudentProfileModel> graduateStudent(String studentId, String schoolId);
-  Future<List<PromotionHistoryModel>> getPromotionHistory(String studentId);
+  Future<List<PromotionHistoryModel>> getPromotionHistory(String studentId, {int limit, int offset});
 
   // ─── Teacher Profiles ─────────────────────────────────────────────────
 
@@ -84,7 +85,7 @@ abstract class SchoolManagementRemoteDataSource {
   });
   Future<ParentStudentLinkModel> linkParentToStudent(Map<String, dynamic> data);
   Future<void> unlinkParentFromStudent(String linkId);
-  Future<List<ParentStudentLinkModel>> getParentStudentLinks(String studentId);
+  Future<List<ParentStudentLinkModel>> getParentStudentLinks(String studentId, {int limit, int offset});
 
   // ─── Academic Sessions ────────────────────────────────────────────────
 
@@ -92,7 +93,7 @@ abstract class SchoolManagementRemoteDataSource {
   Future<AcademicSessionModel> updateSession(String sessionId, Map<String, dynamic> sessionData);
   Future<void> deleteSession(String sessionId);
   Future<AcademicSessionModel> getSession(String sessionId);
-  Future<List<AcademicSessionModel>> getSessions(String schoolId);
+  Future<List<AcademicSessionModel>> getSessions(String schoolId, {int limit, int offset});
   Future<AcademicSessionModel> getCurrentSession(String schoolId);
   Future<AcademicSessionModel> setCurrentSession(String sessionId);
 
@@ -101,7 +102,7 @@ abstract class SchoolManagementRemoteDataSource {
   Future<TermModel> createTerm(Map<String, dynamic> termData);
   Future<TermModel> updateTerm(String termId, Map<String, dynamic> termData);
   Future<void> deleteTerm(String termId);
-  Future<List<TermModel>> getTerms(String sessionId);
+  Future<List<TermModel>> getTerms(String sessionId, {int limit, int offset});
   Future<TermModel> getCurrentTerm(String schoolId);
   Future<TermModel> setCurrentTerm(String termId);
 
@@ -116,6 +117,8 @@ abstract class SchoolManagementRemoteDataSource {
     String? startDate,
     String? endDate,
     String? eventType,
+    int limit,
+    int offset,
   });
 
   // ─── Timetables ───────────────────────────────────────────────────────
@@ -128,6 +131,8 @@ abstract class SchoolManagementRemoteDataSource {
     required String schoolId,
     String? termId,
     String? classId,
+    int limit,
+    int offset,
   });
   Future<TimetableSlotModel> addTimetableSlot(Map<String, dynamic> slotData);
   Future<TimetableSlotModel> updateTimetableSlot(String slotId, Map<String, dynamic> slotData);
@@ -181,7 +186,7 @@ abstract class SchoolManagementRemoteDataSource {
   Future<HomeworkModel> publishHomework(String homeworkId);
   Future<HomeworkSubmissionModel> submitHomework(Map<String, dynamic> submissionData);
   Future<HomeworkSubmissionModel> gradeSubmission(Map<String, dynamic> gradeData);
-  Future<List<HomeworkSubmissionModel>> getHomeworkSubmissions(String homeworkId);
+  Future<List<HomeworkSubmissionModel>> getHomeworkSubmissions(String homeworkId, {int limit, int offset});
 
   // ─── Announcements ────────────────────────────────────────────────────
 
@@ -235,6 +240,8 @@ abstract class SchoolManagementRemoteDataSource {
     required String schoolId,
     String? category,
     bool? isActive,
+    int limit,
+    int offset,
   });
   Future<SubjectModel> createSubject(Map<String, dynamic> subjectData);
   Future<SubjectModel> updateSubject(String subjectId, Map<String, dynamic> subjectData);
@@ -243,8 +250,8 @@ abstract class SchoolManagementRemoteDataSource {
   // ─── Reports ──────────────────────────────────────────────────────────
 
   Future<Map<String, dynamic>> getSchoolOverview(String schoolId);
-  Future<List<StudentProfileModel>> getStudentListReport(String schoolId, String? classId);
-  Future<List<TeacherProfileModel>> getTeacherListReport(String schoolId);
+  Future<List<StudentProfileModel>> getStudentListReport(String schoolId, String? classId, {int limit, int offset});
+  Future<List<TeacherProfileModel>> getTeacherListReport(String schoolId, {int limit, int offset});
   Future<Map<String, dynamic>> getAttendanceReport({
     required String schoolId,
     required String termId,
@@ -410,7 +417,8 @@ class SchoolManagementRemoteDataSourceImpl
   @override
   Future<List<SchoolModel>> getSchools(Map<String, dynamic> filters) async {
     try {
-      var query = _supabaseClient.from(_schoolsTable).select();
+      // PERF: Explicit columns avoid fetching all school fields for list view
+      var query = _supabaseClient.from(_schoolsTable).select('id, name, address, is_active, created_at');
 
       if (filters['is_active'] != null) {
         query = query.eq('is_active', filters['is_active'] as bool);
@@ -544,13 +552,19 @@ class SchoolManagementRemoteDataSourceImpl
   }
 
   @override
-  Future<List<SchoolBranchModel>> getBranches(String schoolId) async {
+  Future<List<SchoolBranchModel>> getBranches(
+    String schoolId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit prevent unbounded result sets
       final response = await _supabaseClient
           .from(_schoolBranchesTable)
-          .select()
+          .select('id, school_id, name, address, is_active, created_at')
           .eq('school_id', schoolId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<SchoolBranchModel>((json) => SchoolBranchModel.fromJson(json))
@@ -658,13 +672,19 @@ class SchoolManagementRemoteDataSourceImpl
   }
 
   @override
-  Future<List<DepartmentModel>> getDepartments(String schoolId) async {
+  Future<List<DepartmentModel>> getDepartments(
+    String schoolId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit prevent unbounded result sets
       final response = await _supabaseClient
           .from(_departmentsTable)
-          .select()
+          .select('id, school_id, name, head_teacher_id, is_active, created_at')
           .eq('school_id', schoolId)
-          .order('name', ascending: true);
+          .order('name', ascending: true)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<DepartmentModel>((json) => DepartmentModel.fromJson(json))
@@ -790,9 +810,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns instead of * to reduce payload on list views
       var query = _supabaseClient
           .from(_studentProfilesTable)
-          .select('*, users!student_profiles_user_id_fkey(full_name, email, phone, avatar_url)');
+          .select('id, user_id, school_id, class_id, admission_number, is_active, is_graduated, users!student_profiles_user_id_fkey(id, full_name, email)');
 
       query = query.eq('school_id', schoolId);
 
@@ -919,14 +940,18 @@ class SchoolManagementRemoteDataSourceImpl
 
   @override
   Future<List<PromotionHistoryModel>> getPromotionHistory(
-    String studentId,
-  ) async {
+    String studentId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit prevent unbounded result sets
       final response = await _supabaseClient
           .from(_promotionHistoryTable)
-          .select()
+          .select('id, student_id, from_class_id, to_class_id, promoted_at, promoted_by')
           .eq('student_id', studentId)
-          .order('promoted_at', ascending: false);
+          .order('promoted_at', ascending: false)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<PromotionHistoryModel>(
@@ -1053,9 +1078,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns instead of * to reduce payload on list views
       var query = _supabaseClient
           .from(_teacherProfilesTable)
-          .select('*, users!teacher_profiles_user_id_fkey(full_name, email, phone, avatar_url)');
+          .select('id, user_id, school_id, department, employee_id, is_active, users!teacher_profiles_user_id_fkey(id, full_name, email)');
 
       query = query.eq('school_id', schoolId);
 
@@ -1199,9 +1225,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns instead of * to reduce payload on list views
       var query = _supabaseClient
           .from(_parentProfilesTable)
-          .select('*, users!parent_profiles_user_id_fkey(full_name, email, phone, avatar_url)');
+          .select('id, user_id, school_id, is_active, users!parent_profiles_user_id_fkey(id, full_name, email)');
 
       query = query.eq('school_id', schoolId);
 
@@ -1290,8 +1317,10 @@ class SchoolManagementRemoteDataSourceImpl
 
   @override
   Future<List<ParentStudentLinkModel>> getParentStudentLinks(
-    String studentId,
-  ) async {
+    String studentId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+    int offset = 0,
+  }) async {
     try {
       // Look up the student profile first to get the profile ID
       final studentProfile = await _supabaseClient
@@ -1302,11 +1331,13 @@ class SchoolManagementRemoteDataSourceImpl
 
       final profileId = studentProfile['id'] as String;
 
+      // PERF: Explicit columns + limit prevent unbounded result sets
       final response = await _supabaseClient
           .from(_parentStudentsTable)
-          .select('*, parent_profiles(*, users!parent_profiles_user_id_fkey(full_name, email, phone, avatar_url))')
+          .select('id, student_id, parent_id, relationship, parent_profiles(id, user_id, school_id, is_active, users!parent_profiles_user_id_fkey(id, full_name, email))')
           .eq('student_id', profileId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<ParentStudentLinkModel>(
@@ -1447,13 +1478,19 @@ class SchoolManagementRemoteDataSourceImpl
   }
 
   @override
-  Future<List<AcademicSessionModel>> getSessions(String schoolId) async {
+  Future<List<AcademicSessionModel>> getSessions(
+    String schoolId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit; sessions are typically used in dropdowns
       final response = await _supabaseClient
           .from(_academicSessionsTable)
-          .select()
+          .select('id, school_id, name, start_date, end_date, is_current, is_active')
           .eq('school_id', schoolId)
-          .order('start_date', ascending: false);
+          .order('start_date', ascending: false)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<AcademicSessionModel>(
@@ -1620,13 +1657,19 @@ class SchoolManagementRemoteDataSourceImpl
   }
 
   @override
-  Future<List<TermModel>> getTerms(String sessionId) async {
+  Future<List<TermModel>> getTerms(
+    String sessionId, {
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit; terms are typically used in dropdowns
       final response = await _supabaseClient
           .from(_termsTable)
-          .select()
+          .select('id, academic_session_id, term_number, name, start_date, end_date, is_current, is_active')
           .eq('academic_session_id', sessionId)
-          .order('term_number', ascending: true);
+          .order('term_number', ascending: true)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<TermModel>((json) => TermModel.fromJson(json))
@@ -1799,11 +1842,14 @@ class SchoolManagementRemoteDataSourceImpl
     String? startDate,
     String? endDate,
     String? eventType,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
+      // PERF: Explicit columns + limit prevent unbounded result sets
       var query = _supabaseClient
           .from(_calendarEventsTable)
-          .select()
+          .select('id, school_id, term_id, title, event_type, start_date, end_date, is_active')
           .eq('school_id', schoolId)
           .eq('is_active', true);
 
@@ -1821,6 +1867,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       query = query.order('start_date', ascending: true);
+      query = query.range(offset, offset + limit - 1);
 
       final response = await query;
 
@@ -1965,11 +2012,14 @@ class SchoolManagementRemoteDataSourceImpl
     required String schoolId,
     String? termId,
     String? classId,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
+      // PERF: Explicit columns + limit prevent unbounded result sets
       var query = _supabaseClient
           .from(_timetablesTable)
-          .select()
+          .select('id, school_id, term_id, class_id, name, is_active, is_published, created_at')
           .eq('school_id', schoolId)
           .eq('is_active', true);
 
@@ -1981,6 +2031,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       query = query.order('created_at', ascending: false);
+      query = query.range(offset, offset + limit - 1);
 
       final response = await query;
 
@@ -2128,12 +2179,14 @@ class SchoolManagementRemoteDataSourceImpl
       final conflicts = <Map<String, dynamic>>[];
 
       // Check teacher conflicts
+      // PERF: Safety limit prevents unbounded conflict results
       var teacherQuery = _supabaseClient
           .from(_timetableSlotsTable)
-          .select('*, timetables!timetable_slots_timetable_id_fkey(id, name, is_active)')
+          .select('id, teacher_id, class_id, day_of_week, period_number, timetables!timetable_slots_timetable_id_fkey(id, name, is_active)')
           .eq('teacher_id', teacherId)
           .eq('day_of_week', dayOfWeek)
-          .eq('period_number', periodNumber);
+          .eq('period_number', periodNumber)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       if (excludeSlotId != null) {
         teacherQuery = teacherQuery.neq('id', excludeSlotId);
@@ -2154,12 +2207,14 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       // Check class conflicts
+      // PERF: Safety limit prevents unbounded conflict results
       var classQuery = _supabaseClient
           .from(_timetableSlotsTable)
-          .select('*, timetables!timetable_slots_timetable_id_fkey(id, name, is_active)')
+          .select('id, teacher_id, class_id, day_of_week, period_number, timetables!timetable_slots_timetable_id_fkey(id, name, is_active)')
           .eq('class_id', classId)
           .eq('day_of_week', dayOfWeek)
-          .eq('period_number', periodNumber);
+          .eq('period_number', periodNumber)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       if (excludeSlotId != null) {
         classQuery = classQuery.neq('id', excludeSlotId);
@@ -2307,9 +2362,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns instead of * for attendance records with entries
       var query = _supabaseClient
           .from(_attendanceRecordsTable)
-          .select('*, attendance_entries(*)')
+          .select('id, school_id, class_id, term_id, date, attendance_type, created_at, attendance_entries(id, user_id, status)')
           .eq('school_id', schoolId)
           .eq('term_id', termId);
 
@@ -2389,12 +2445,13 @@ class SchoolManagementRemoteDataSourceImpl
     String termId,
   ) async {
     try {
-      // Fetch all attendance records for the class in the term
+      // PERF: Safety limit on count queries to prevent unbounded result sets
       final records = await _supabaseClient
           .from(_attendanceRecordsTable)
           .select('id')
           .eq('class_id', classId)
-          .eq('term_id', termId);
+          .eq('term_id', termId)
+          .limit(PaginatedQueryMixin.statsPageSize);
 
       final recordIds = records.map<String>((r) => r['id'] as String).toList();
 
@@ -2409,11 +2466,12 @@ class SchoolManagementRemoteDataSourceImpl
         };
       }
 
-      // Fetch all entries for those records
+      // PERF: Safety limit on entries query to prevent unbounded result sets
       final entries = await _supabaseClient
           .from(_attendanceEntriesTable)
           .select('status')
-          .inFilter('attendance_record_id', recordIds);
+          .inFilter('attendance_record_id', recordIds)
+          .limit(PaginatedQueryMixin.statsPageSize);
 
       final totalEntries = entries.length;
       final presentCount = entries
@@ -2582,9 +2640,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns avoid fetching all homework fields for list view
       var query = _supabaseClient
           .from(_homeworkTable)
-          .select()
+          .select('id, school_id, class_id, subject_id, teacher_id, title, status, due_date, is_published, created_at')
           .eq('school_id', schoolId);
 
       if (classId != null) {
@@ -2723,14 +2782,18 @@ class SchoolManagementRemoteDataSourceImpl
 
   @override
   Future<List<HomeworkSubmissionModel>> getHomeworkSubmissions(
-    String homeworkId,
-  ) async {
+    String homeworkId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit prevent unbounded result sets
       final response = await _supabaseClient
           .from(_homeworkSubmissionsTable)
-          .select()
+          .select('id, homework_id, student_id, status, submitted_at, graded_at, score')
           .eq('homework_id', homeworkId)
-          .order('submitted_at', ascending: false);
+          .order('submitted_at', ascending: false)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<HomeworkSubmissionModel>(
@@ -2850,9 +2913,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns avoid fetching all announcement fields for list view
       var query = _supabaseClient
           .from(_announcementsTable)
-          .select()
+          .select('id, school_id, title, announcement_type, is_published, published_at, created_at')
           .eq('school_id', schoolId);
 
       if (type != null) {
@@ -3016,9 +3080,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns avoid fetching all document fields for list view
       var query = _supabaseClient
           .from(_documentsTable)
-          .select()
+          .select('id, school_id, title, document_type, category, is_public, download_count, created_at')
           .eq('school_id', schoolId);
 
       if (documentType != null) {
@@ -3139,9 +3204,10 @@ class SchoolManagementRemoteDataSourceImpl
     int perPage = 20,
   }) async {
     try {
+      // PERF: Explicit columns avoid fetching all class fields for list view
       var query = _supabaseClient
           .from(_classesTable)
-          .select()
+          .select('id, name, school_id, academic_year, is_active, created_at')
           .eq('school_id', schoolId);
 
       if (academicYear != null) {
@@ -3328,11 +3394,14 @@ class SchoolManagementRemoteDataSourceImpl
     required String schoolId,
     String? category,
     bool? isActive,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+    int offset = 0,
   }) async {
     try {
+      // PERF: Explicit columns + limit; subjects are typically used in dropdowns
       var query = _supabaseClient
           .from(_subjectsTable)
-          .select()
+          .select('id, school_id, name, code, category, is_active, created_at')
           .eq('school_id', schoolId);
 
       if (category != null) {
@@ -3343,6 +3412,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       query = query.order('name', ascending: true);
+      query = query.range(offset, offset + limit - 1);
 
       final response = await query;
 
@@ -3455,33 +3525,40 @@ class SchoolManagementRemoteDataSourceImpl
     try {
       // Aggregate counts from various tables in parallel
       final results = await Future.wait([
+        // PERF: Explicit columns for count queries + safety limit
         _supabaseClient
             .from(_studentProfilesTable)
             .select('id')
             .eq('school_id', schoolId)
-            .eq('is_active', true),
+            .eq('is_active', true)
+            .limit(PaginatedQueryMixin.statsPageSize),
         _supabaseClient
             .from(_teacherProfilesTable)
             .select('id')
             .eq('school_id', schoolId)
-            .eq('is_active', true),
+            .eq('is_active', true)
+            .limit(PaginatedQueryMixin.statsPageSize),
         _supabaseClient
             .from(_classesTable)
             .select('id')
             .eq('school_id', schoolId)
-            .eq('is_active', true),
+            .eq('is_active', true)
+            .limit(PaginatedQueryMixin.statsPageSize),
         _supabaseClient
             .from(_subjectsTable)
             .select('id')
-            .eq('school_id', schoolId),
+            .eq('school_id', schoolId)
+            .limit(PaginatedQueryMixin.statsPageSize),
         _supabaseClient
             .from(_parentProfilesTable)
             .select('id')
             .eq('school_id', schoolId)
-            .eq('is_active', true),
+            .eq('is_active', true)
+            .limit(PaginatedQueryMixin.statsPageSize),
+        // PERF: Explicit columns instead of * for single record
         _supabaseClient
             .from(_academicSessionsTable)
-            .select()
+            .select('id, school_id, name, start_date, end_date, is_current')
             .eq('school_id', schoolId)
             .eq('is_current', true)
             .maybeSingle(),
@@ -3514,12 +3591,15 @@ class SchoolManagementRemoteDataSourceImpl
   @override
   Future<List<StudentProfileModel>> getStudentListReport(
     String schoolId,
-    String? classId,
-  ) async {
+    String? classId, {
+    int limit = PaginatedQueryMixin.statsPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit; report queries still need bounding
       var query = _supabaseClient
           .from(_studentProfilesTable)
-          .select('*, users!student_profiles_user_id_fkey(full_name, email, phone, avatar_url)')
+          .select('id, user_id, school_id, class_id, admission_number, is_active, is_graduated, users!student_profiles_user_id_fkey(id, full_name, email)')
           .eq('school_id', schoolId);
 
       if (classId != null) {
@@ -3527,6 +3607,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       query = query.order('admission_number', ascending: true);
+      query = query.range(offset, offset + limit - 1);
 
       final response = await query;
 
@@ -3551,15 +3632,19 @@ class SchoolManagementRemoteDataSourceImpl
 
   @override
   Future<List<TeacherProfileModel>> getTeacherListReport(
-    String schoolId,
-  ) async {
+    String schoolId, {
+    int limit = PaginatedQueryMixin.statsPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Explicit columns + limit; report queries still need bounding
       final response = await _supabaseClient
           .from(_teacherProfilesTable)
-          .select('*, users!teacher_profiles_user_id_fkey(full_name, email, phone, avatar_url)')
+          .select('id, user_id, school_id, department, employee_id, is_active, users!teacher_profiles_user_id_fkey(id, full_name, email)')
           .eq('school_id', schoolId)
           .eq('is_active', true)
-          .order('employee_id', ascending: true);
+          .order('employee_id', ascending: true)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<TeacherProfileModel>((json) => TeacherProfileModel.fromJson(json))
@@ -3589,11 +3674,13 @@ class SchoolManagementRemoteDataSourceImpl
     String? endDate,
   }) async {
     try {
+      // PERF: Explicit columns + limit; attendance reports can be large
       var query = _supabaseClient
           .from(_attendanceRecordsTable)
           .select('id, date, attendance_type, attendance_entries(status)')
           .eq('school_id', schoolId)
-          .eq('term_id', termId);
+          .eq('term_id', termId)
+          .limit(PaginatedQueryMixin.statsPageSize);
 
       if (classId != null) {
         query = query.eq('class_id', classId);

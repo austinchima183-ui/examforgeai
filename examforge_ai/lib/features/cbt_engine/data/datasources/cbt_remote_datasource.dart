@@ -2,7 +2,9 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import '../../../../core/database/database_pool_manager.dart';
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/cbt_models.dart';
 
@@ -738,10 +740,12 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
 
       final attempt = ExamAttemptModel.fromJson(attemptResponse);
 
-      // Fetch all answers for this attempt
+      // PERF: Select only needed columns instead of all columns
+      // Note: Answer fetching for a single attempt is bounded by exam question count
+      // (typically 20-100 questions), so no pagination needed.
       final answersResponse = await _supabaseClient
           .from(_studentAnswersTable)
-          .select()
+          .select('id, attempt_id, question_id, answer_data, is_correct, marks_awarded, marks_deducted, is_flagged, answered_at, graded_at, graded_by, teacher_comment')
           .eq('attempt_id', attemptId);
 
       final answers = answersResponse
@@ -933,15 +937,20 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
   @override
   Future<List<ExamAttemptModel>> getStudentAttempts(
     String examId,
-    String studentId,
-  ) async {
+    String studentId, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
+      // PERF: Added pagination and column selection to prevent unbounded results
       final response = await _supabaseClient
           .from(_examAttemptsTable)
-          .select()
+          .select('id, exam_id, student_id, attempt_number, status, started_at, submitted_at, score_percentage, total_marks, time_spent_seconds, grading_status, created_at')
           .eq('exam_id', examId)
           .eq('student_id', studentId)
-          .order('created_at', ascending: false);
+          .order('created_at', ascending: false)
+          .limit(limit)
+          .range(offset, offset + limit - 1);
 
       return response
           .map<ExamAttemptModel>((a) => ExamAttemptModel.fromJson(a))
@@ -1167,16 +1176,17 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     String? studentId,
   }) async {
     try {
+      // PERF: Added pagination and column selection for monitoring logs
       var query = _supabaseClient
           .from(_monitoringLogsTable)
-          .select()
+          .select('id, exam_id, student_id, event_type, severity, details, created_at')
           .eq('exam_id', examId);
 
       if (studentId != null) {
         query = query.eq('student_id', studentId);
       }
 
-      query = query.order('created_at', ascending: false);
+      query = query.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
 
       final response = await query;
 
@@ -1209,18 +1219,22 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
   Future<List<ExamResultModel>> getExamResults(
     String examId, {
     bool? isReleased,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
+      // PERF: Added pagination and column selection to prevent unbounded results
+      // For large exams (500+ students), fetching all results at once is expensive
       var query = _supabaseClient
           .from(_examResultsTable)
-          .select()
+          .select('id, exam_id, student_id, attempt_id, total_marks, total_possible, score_percentage, is_passed, time_spent_seconds, grading_status, is_released, released_at, created_at')
           .eq('exam_id', examId);
 
       if (isReleased != null) {
         query = query.eq('is_released', isReleased);
       }
 
-      query = query.order('score_percentage', ascending: false);
+      query = query.order('score_percentage', ascending: false).limit(limit).range(offset, offset + limit - 1);
 
       final response = await query;
 
@@ -1353,23 +1367,31 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
   @override
   Future<ExamStatisticsModel> getExamStatistics(String examId) async {
     try {
-      // Fetch all results for this exam
-      final results = await _supabaseClient
-          .from(_examResultsTable)
-          .select()
-          .eq('exam_id', examId);
+      // PERF: Use DatabasePoolManager.executeMonitored for performance tracking
+      // on the most expensive CBT queries
+      final results = await DatabasePoolManager.executeMonitored(
+        queryType: 'select',
+        table: _examResultsTable,
+        operation: 'get_exam_statistics',
+        query: () => _supabaseClient
+            .from(_examResultsTable)
+            .select('score_percentage, is_passed, grading_status')
+            .eq('exam_id', examId),
+      );
 
-      // Fetch exam students count
+      // PERF: Only count IDs, don't fetch full rows
       final students = await _supabaseClient
           .from(_examStudentsTable)
           .select('id')
-          .eq('exam_id', examId);
+          .eq('exam_id', examId)
+          .limit(PaginatedQueryMixin.maxPageSize); // Safety cap
 
-      // Fetch attempts
+      // PERF: Select only columns needed for statistics calculation
       final attempts = await _supabaseClient
           .from(_examAttemptsTable)
-          .select()
-          .eq('exam_id', examId);
+          .select('status, time_spent_seconds')
+          .eq('exam_id', examId)
+          .limit(PaginatedQueryMixin.maxPageSize); // Safety cap
 
       final totalStudents = students.length;
       final startedStudents = attempts
@@ -1468,23 +1490,31 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
   @override
   Future<LiveExamStatsModel> getLiveExamStats(String examId) async {
     try {
-      // Get active sessions
-      final activeSessions = await _supabaseClient
-          .from(_examSessionsTable)
-          .select()
-          .eq('exam_id', examId)
-          .eq('is_active', true);
+      // PERF: Use DatabasePoolManager monitoring for the live stats query
+      // which is polled every 5-10 seconds during active exams
+      final activeSessions = await DatabasePoolManager.executeMonitored(
+        queryType: 'select',
+        table: _examSessionsTable,
+        operation: 'get_live_stats_sessions',
+        query: () => _supabaseClient
+            .from(_examSessionsTable)
+            .select('id, questions_answered, questions_flagged')
+            .eq('exam_id', examId)
+            .eq('is_active', true)
+            .limit(PaginatedQueryMixin.maxPageSize),
+      );
 
-      // Get all assigned students
+      // Count students (bounded by exam size)
       final students = await _supabaseClient
           .from(_examStudentsTable)
           .select('id')
-          .eq('exam_id', examId);
+          .eq('exam_id', examId)
+          .limit(PaginatedQueryMixin.maxPageSize);
 
-      // Get submitted attempts
+      // PERF: Only select columns needed for counting
       final submittedAttempts = await _supabaseClient
           .from(_examAttemptsTable)
-          .select()
+          .select('id, status')
           .eq('exam_id', examId)
           .inFilter('status', ['submitted', 'auto_submitted', 'timed_out']);
 

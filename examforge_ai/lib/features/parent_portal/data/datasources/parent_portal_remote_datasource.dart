@@ -1,5 +1,6 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../../../core/errors/exceptions.dart';
+import '../../../../core/network/paginated_query_mixin.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/parent_portal_models.dart';
 
@@ -26,8 +27,10 @@ abstract class ParentPortalRemoteDataSource {
   // ── Child Assignments ──────────────────────────────────────────────────
   Future<List<Map<String, dynamic>>> getChildAssignments(
     String studentId,
-    String? status,
-  );
+    String? status, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  });
 
   // ── Messages ───────────────────────────────────────────────────────────
   Future<ParentMessageModel> sendMessage(Map<String, dynamic> data);
@@ -272,8 +275,10 @@ class ParentPortalRemoteDataSourceImpl
   @override
   Future<List<Map<String, dynamic>>> getChildAssignments(
     String studentId,
-    String? status,
-  ) async {
+    String? status, {
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
+  }) async {
     try {
       AppLogger.info('Fetching child assignments for student: $studentId');
       var query = _supabase
@@ -301,7 +306,8 @@ class ParentPortalRemoteDataSourceImpl
         query = query.eq('status', status);
       }
 
-      final response = await query;
+      // PERF: Added range-based pagination to prevent unbounded query
+      final response = await query.range(offset, offset + limit - 1);
       AppLogger.info(
         'Child assignments fetched: ${response.length} records',
       );
@@ -368,6 +374,9 @@ class ParentPortalRemoteDataSourceImpl
         final page = params['page'] as int;
         final perPage = params['per_page'] as int;
         query = query.range((page - 1) * perPage, page * perPage - 1);
+      } else {
+        // PERF: Default pagination to prevent unbounded query on parent_messages
+        query = query.limit(PaginatedQueryMixin.defaultPageSize);
       }
 
       final response = await query;
@@ -463,6 +472,9 @@ class ParentPortalRemoteDataSourceImpl
         final page = params['page'] as int;
         final perPage = params['per_page'] as int;
         query = query.range((page - 1) * perPage, page * perPage - 1);
+      } else {
+        // PERF: Default pagination to prevent unbounded query on parent_notifications
+        query = query.limit(PaginatedQueryMixin.defaultPageSize);
       }
 
       final response = await query;
@@ -556,10 +568,8 @@ class ParentPortalRemoteDataSourceImpl
         query = query.eq('event_type', params['event_type'] as String);
       }
 
-      final response = await query;
-      AppLogger.info(
-        'Parent calendar events fetched: ${response.length} records',
-      );
+      // PERF: Added limit to prevent unbounded query on parent_calendar_events
+      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((e) => ParentCalendarEventModel.fromJson(e))
           .toList();
@@ -637,10 +647,8 @@ class ParentPortalRemoteDataSourceImpl
         query = query.eq('severity', params['severity'] as String);
       }
 
-      final response = await query;
-      AppLogger.info(
-        'Parent AI insights fetched: ${response.length} records',
-      );
+      // PERF: Added limit to prevent unbounded query on parent_ai_insights
+      final response = await query.limit(PaginatedQueryMixin.defaultPageSize);
       return response
           .map((e) => ParentAiInsightModel.fromJson(e))
           .toList();
@@ -740,12 +748,14 @@ class ParentPortalRemoteDataSourceImpl
         'Fetching download history for student: $studentId',
       );
       final parentId = _supabase.auth.currentUser?.id ?? '';
+      // PERF: Added limit to prevent unbounded query on parent_report_downloads
       final response = await _supabase
           .from(_downloadsTable)
           .select()
           .eq('parent_id', parentId)
           .eq('student_id', studentId)
-          .order('downloaded_at', ascending: false);
+          .order('downloaded_at', ascending: false)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
       AppLogger.info(
         'Download history fetched: ${response.length} records',
       );

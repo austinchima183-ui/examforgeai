@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../../core/errors/exceptions.dart';
+import '../../../../../core/network/paginated_query_mixin.dart';
 import '../../../../../core/utils/logger.dart';
 import '../models/billing_models.dart';
 
@@ -20,6 +21,7 @@ abstract class BillingRemoteDataSource {
   Future<List<SubscriptionPlanModel>> getSubscriptionPlans({
     String? billingModel,
     bool activeOnly = true,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   });
   Future<SubscriptionPlanModel> getSubscriptionPlan(String planId);
   Future<SubscriptionPlanModel> upsertSubscriptionPlan(
@@ -109,7 +111,10 @@ abstract class BillingRemoteDataSource {
     double estimatedCostUsd = 0,
   });
   Future<AiCreditBalanceModel> purchaseCredits(Map<String, dynamic> data);
-  Future<List<AiCreditPackModel>> getCreditPacks({String? billingModel});
+  Future<List<AiCreditPackModel>> getCreditPacks({
+    String? billingModel,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
+  });
 
   // ─── Coupons ───────────────────────────────────────────────────────
 
@@ -160,6 +165,8 @@ abstract class BillingRemoteDataSource {
     String? userId,
     String? type,
     bool activeOnly = true,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   });
   Future<LicenseModel> revokeLicense({
     required String licenseId,
@@ -242,6 +249,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
   Future<List<SubscriptionPlanModel>> getSubscriptionPlans({
     String? billingModel,
     bool activeOnly = true,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     try {
       var query = _supabase.from(_plansTable).select();
@@ -253,7 +261,8 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
         query = query.eq('is_active', true);
       }
 
-      final response = query.order('sort_order', ascending: true);
+      // PERF: Added limit to prevent unbounded query on subscription_plans
+      final response = query.order('sort_order', ascending: true).limit(limit);
 
       final list = await response;
       AppLogger.info('Fetched ${list.length} subscription plans');
@@ -1023,6 +1032,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
   @override
   Future<List<AiCreditPackModel>> getCreditPacks({
     String? billingModel,
+    int limit = PaginatedQueryMixin.dropdownPageSize,
   }) async {
     try {
       var query = _supabase
@@ -1034,7 +1044,8 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
         query = query.eq('billing_model', billingModel);
       }
 
-      final list = await query.order('sort_order', ascending: true);
+      // PERF: Added limit to prevent unbounded query on credit_packs
+      final list = await query.order('sort_order', ascending: true).limit(limit);
       AppLogger.info('Fetched ${list.length} credit packs');
       return list
           .map<AiCreditPackModel>(
@@ -1472,6 +1483,8 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
     String? userId,
     String? type,
     bool activeOnly = true,
+    int limit = PaginatedQueryMixin.defaultPageSize,
+    int offset = 0,
   }) async {
     try {
       var query = _supabase.from(_licensesTable).select() as sb.PostgrestFilterBuilder<dynamic>;
@@ -1489,7 +1502,8 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
         query = query.eq('is_active', true);
       }
 
-      final list = await query.order('created_at', ascending: false);
+      // PERF: Added range-based pagination to prevent unbounded query
+      final list = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
       AppLogger.info('Fetched ${list.length} licenses');
       return list
           .map<LicenseModel>((row) => LicenseModel.fromJson(row))
@@ -1622,13 +1636,15 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
     required String endDate,
   }) async {
     try {
+      // PERF: Added limit to prevent unbounded query on revenue data
       final response = await _supabase
           .from(_revenueTable)
           .select()
           .eq('period_type', periodType)
           .gte('period_start', startDate)
           .lte('period_end', endDate)
-          .order('period_start', ascending: true);
+          .order('period_start', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
 
       AppLogger.info('Fetched ${response.length} revenue data points');
       return response
