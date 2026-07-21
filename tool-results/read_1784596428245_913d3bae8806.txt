@@ -1,0 +1,1238 @@
+     1→     1→import 'package:flutter/material.dart';
+     2→     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→     3→import 'package:go_router/go_router.dart';
+     4→     4→
+     5→     5→import '../../../../../core/themes/app_colors.dart';
+     6→     6→import '../../../../../core/themes/spacings.dart';
+     7→     7→import '../../../../../core/themes/app_typography.dart';
+     8→     8→import '../../../../../core/extensions/context_extensions.dart';
+     9→     9→import '../../../../../routing/route_names.dart';
+    10→    10→import '../../../../../shared/widgets/app_app_bar.dart';
+    11→    11→import '../../../../../shared/widgets/app_loading.dart';
+    12→    12→import '../../../../../shared/widgets/app_error_state.dart';
+    13→    13→import '../../../../../shared/widgets/app_empty_state.dart';
+    14→    14→import '../../../../../shared/providers/auth_state_provider.dart';
+    15→    15→import '../../domain/entities/billing_entities.dart';
+    16→    16→import '../providers/subscription_provider.dart';
+    17→    17→import '../providers/ai_credits_provider.dart';
+    18→    18→import '../providers/payment_provider.dart';
+    19→    19→import '../providers/billing_notification_provider.dart';
+    20→    20→import '../widgets/billing_widgets.dart';
+    21→    21→
+    22→    22→// ═══════════════════════════════════════════════════════════════════════
+    23→    23→// BILLING DASHBOARD PAGE
+    24→    24→// ═══════════════════════════════════════════════════════════════════════
+    25→    25→
+    26→    26→/// The main Billing Dashboard page.
+    27→    27→///
+    28→    28→/// This is the entry point for the billing feature, presenting a modern
+    29→    29→/// SaaS-style billing dashboard with:
+    30→    30→/// - Current subscription overview (plan name, status, period end)
+    31→    31→/// - AI credit balance card
+    32→    32→/// - Quick actions (Upgrade, Manage, View Invoices, Buy Credits)
+    33→    33→/// - Recent transactions list
+    34→    34→/// - Billing alerts/notifications
+    35→    35→///
+    36→    36→/// Uses [ConsumerStatefulWidget] with a private [_State] class pattern,
+    37→    37→/// loads data in [initState] via [WidgetsBinding.instance.addPostFrameCallback],
+    38→    38→/// and renders a responsive layout using [SingleChildScrollView] with
+    39→    39→/// vertically arranged Card sections.
+    40→    40→class BillingDashboardPage extends ConsumerStatefulWidget {
+    41→    41→  const BillingDashboardPage({super.key});
+    42→    42→
+    43→    43→  @override
+    44→    44→  ConsumerState<BillingDashboardPage> createState() => _State();
+    45→    45→}
+    46→    46→
+    47→    47→class _State extends ConsumerState<BillingDashboardPage> {
+    48→    48→  // ─── Lifecycle ──────────────────────────────────────────────────────
+    49→    49→
+    50→    50→  @override
+    51→    51→  void initState() {
+    52→    52→    super.initState();
+    53→    53→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    54→    54→      _loadData();
+    55→    55→    });
+    56→    56→  }
+    57→    57→
+    58→    58→  /// Loads all billing data in parallel.
+    59→    59→  void _loadData() {
+    60→    60→    final userId = ref.read(userIdProvider);
+    61→    61→    if (userId == null) return;
+    62→    62→
+    63→    63→    final subscriberType = BillingModel.teacherSaas;
+    64→    64→
+    65→    65→    ref.read(subscriptionProvider.notifier).loadCurrentSubscription(
+    66→    66→          subscriberId: userId,
+    67→    67→          subscriberType: subscriberType,
+    68→    68→        );
+    69→    69→
+    70→    70→    ref.read(aiCreditsProvider.notifier).loadCreditBalance(
+    71→    71→          ownerId: userId,
+    72→    72→          ownerType: subscriberType,
+    73→    73→        );
+    74→    74→
+    75→    75→    ref.read(paymentProvider.notifier).loadTransactions(
+    76→    76→          userId: userId,
+    77→    77→          page: 1,
+    78→    78→          perPage: 5,
+    79→    79→        );
+    80→    80→
+    81→    81→    ref.read(billingNotificationProvider.notifier).loadNotifications(
+    82→    82→          userId: userId,
+    83→    83→          unreadOnly: false,
+    84→    84→          page: 1,
+    85→    85→          perPage: 10,
+    86→    86→        );
+    87→    87→  }
+    88→    88→
+    89→    89→  // ─── Build ──────────────────────────────────────────────────────────
+    90→    90→
+    91→    91→  @override
+    92→    92→  Widget build(BuildContext context) {
+    93→    93→    final subscriptionState = ref.watch(subscriptionProvider);
+    94→    94→    final creditsState = ref.watch(aiCreditsProvider);
+    95→    95→    final paymentState = ref.watch(paymentProvider);
+    96→    96→    final notificationState = ref.watch(billingNotificationProvider);
+    97→    97→
+    98→    98→    final isLoading = subscriptionState.isLoading ||
+    99→    99→        creditsState.isLoading ||
+   100→   100→        (paymentState.isLoading && paymentState.transactions.isEmpty) ||
+   101→   101→        (notificationState.isLoading && notificationState.notifications.isEmpty);
+   102→   102→
+   103→   103→    final hasError = subscriptionState.error != null &&
+   104→   104→        subscriptionState.subscription == null;
+   105→   105→
+   106→   106→    return Scaffold(
+   107→   107→      appBar: AppAppBar(
+   108→   108→        title: 'Billing',
+   109→   109→        actions: [
+   110→   110→          if (notificationState.hasUnread)
+   111→   111→            IconButton(
+   112→   112→              icon: Badge(
+   113→   113→                label: Text('${notificationState.unreadCount}'),
+   114→   114→                child: const Icon(Icons.notifications_outlined),
+   115→   115→              ),
+   116→   116→              onPressed: () => context.go(RouteNames.billingNotifications),
+   117→   117→              tooltip: 'Notifications',
+   118→   118→            )
+   119→   119→          else
+   120→   120→            IconButton(
+   121→   121→              icon: const Icon(Icons.notifications_outlined),
+   122→   122→              onPressed: () => context.go(RouteNames.billingNotifications),
+   123→   123→              tooltip: 'Notifications',
+   124→   124→            ),
+   125→   125→        ],
+   126→   126→      ),
+   127→   127→      body: _buildBody(
+   128→   128→        context,
+   129→   129→        isLoading: isLoading,
+   130→   130→        hasError: hasError,
+   131→   131→        subscriptionState: subscriptionState,
+   132→   132→        creditsState: creditsState,
+   133→   133→        paymentState: paymentState,
+   134→   134→        notificationState: notificationState,
+   135→   135→      ),
+   136→   136→    );
+   137→   137→  }
+   138→   138→
+   139→   139→  // ─── Body Router ────────────────────────────────────────────────────
+   140→   140→
+   141→   141→  Widget _buildBody(
+   142→   142→    BuildContext context, {
+   143→   143→    required bool isLoading,
+   144→   144→    required bool hasError,
+   145→   145→    required SubscriptionState subscriptionState,
+   146→   146→    required AiCreditsState creditsState,
+   147→   147→    required PaymentState paymentState,
+   148→   148→    required BillingNotificationState notificationState,
+   149→   149→  }) {
+   150→   150→    // Loading state — initial load with no data
+   151→   151→    if (isLoading &&
+   152→   152→        subscriptionState.subscription == null &&
+   153→   153→        creditsState.creditBalance == null &&
+   154→   154→        paymentState.transactions.isEmpty) {
+   155→   155→      return const Center(child: AppLoadingSpinner());
+   156→   156→    }
+   157→   157→
+   158→   158→    // Error state — no subscription data available
+   159→   159→    if (hasError) {
+   160→   160→      return AppErrorState.genericError(
+   161→   161→        message: subscriptionState.error,
+   162→   162→        onRetry: _loadData,
+   163→   163→      );
+   164→   164→    }
+   165→   165→
+   166→   166→    // Success — render dashboard
+   167→   167→    return RefreshIndicator(
+   168→   168→      onRefresh: () async => _loadData(),
+   169→   169→      child: SingleChildScrollView(
+   170→   170→        physics: const AlwaysScrollableScrollPhysics(),
+   171→   171→        padding: const EdgeInsets.symmetric(
+   172→   172→          horizontal: Spacings.lg,
+   173→   173→          vertical: Spacings.md,
+   174→   174→        ),
+   175→   175→        child: Column(
+   176→   176→          crossAxisAlignment: CrossAxisAlignment.start,
+   177→   177→          children: [
+   178→   178→            // ─── Subscription Overview ────────────────────────────
+   179→   179→            _buildSubscriptionOverview(context, subscriptionState),
+   180→   180→
+   181→   181→            const SizedBox(height: Spacings.lg),
+   182→   182→
+   183→   183→            // ─── AI Credit Balance Card ───────────────────────────
+   184→   184→            _buildCreditBalanceCard(context, creditsState),
+   185→   185→
+   186→   186→            const SizedBox(height: Spacings.lg),
+   187→   187→
+   188→   188→            // ─── Quick Actions ────────────────────────────────────
+   189→   189→            _buildQuickActions(context),
+   190→   190→
+   191→   191→            const SizedBox(height: Spacings.lg),
+   192→   192→
+   193→   193→            // ─── Billing Alerts / Notifications ───────────────────
+   194→   194→            _buildBillingAlerts(context, notificationState),
+   195→   195→
+   196→   196→            const SizedBox(height: Spacings.lg),
+   197→   197→
+   198→   198→            // ─── Recent Transactions ──────────────────────────────
+   199→   199→            _buildRecentTransactions(context, paymentState),
+   200→   200→
+   201→   201→            // Bottom padding
+   202→   202→            const SizedBox(height: Spacings.xxl),
+   203→   203→          ],
+   204→   204→        ),
+   205→   205→      ),
+   206→   206→    );
+   207→   207→  }
+   208→   208→
+   209→   209→  // ═══════════════════════════════════════════════════════════════════════
+   210→   210→  // SUBSCRIPTION OVERVIEW
+   211→   211→  // ═══════════════════════════════════════════════════════════════════════
+   212→   212→
+   213→   213→  Widget _buildSubscriptionOverview(
+   214→   214→    BuildContext context,
+   215→   215→    SubscriptionState state,
+   216→   216→  ) {
+   217→   217→    final cs = context.colorScheme;
+   218→   218→    final tt = context.textTheme;
+   219→   219→    final subscription = state.subscription;
+   220→   220→
+   221→   221→    return Card(
+   222→   222→      elevation: Spacings.elevationSm,
+   223→   223→      shadowColor: cs.shadow.withValues(alpha: 0.08),
+   224→   224→      shape: RoundedRectangleBorder(
+   225→   225→        borderRadius: Spacings.borderRadiusLg,
+   226→   226→        side: BorderSide(
+   227→   227→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   228→   228→        ),
+   229→   229→      ),
+   230→   230→      clipBehavior: Clip.antiAlias,
+   231→   231→      child: Padding(
+   232→   232→        padding: const EdgeInsets.all(Spacings.lg),
+   233→   233→        child: Column(
+   234→   234→          crossAxisAlignment: CrossAxisAlignment.start,
+   235→   235→          children: [
+   236→   236→            // Section header
+   237→   237→            Row(
+   238→   238→              children: [
+   239→   239→                Icon(
+   240→   240→                  Icons.card_membership_outlined,
+   241→   241→                  size: Spacings.lgIcon,
+   242→   242→                  color: cs.primary,
+   243→   243→                ),
+   244→   244→                const SizedBox(width: Spacings.sm),
+   245→   245→                Expanded(
+   246→   246→                  child: Text(
+   247→   247→                    'Current Subscription',
+   248→   248→                    style: tt.titleMedium?.copyWith(
+   249→   249→                      fontWeight: AppTypography.wSemiBold,
+   250→   250→                      color: cs.onSurface,
+   251→   251→                    ),
+   252→   252→                  ),
+   253→   253→                ),
+   254→   254→                if (subscription != null)
+   255→   255→                  _SubscriptionStatusBadge(status: subscription.status),
+   256→   256→              ],
+   257→   257→            ),
+   258→   258→
+   259→   259→            const SizedBox(height: Spacings.lg),
+   260→   260→
+   261→   261→            if (subscription != null) ...[
+   262→   262→              // Plan name
+   263→   263→              Text(
+   264→   264→                subscription.plan?.name ?? 'Unknown Plan',
+   265→   265→                style: tt.headlineSmall?.copyWith(
+   266→   266→                  fontWeight: AppTypography.wBold,
+   267→   267→                  color: cs.onSurface,
+   268→   268→                ),
+   269→   269→              ),
+   270→   270→              const SizedBox(height: Spacings.xs),
+   271→   271→
+   272→   272→              // Billing cycle
+   273→   273→              Text(
+   274→   274→                '${_capitalize(subscription.billingCycle)} billing',
+   275→   275→                style: tt.bodyMedium?.copyWith(
+   276→   276→                  color: cs.onSurfaceVariant,
+   277→   277→                ),
+   278→   278→              ),
+   279→   279→              const SizedBox(height: Spacings.md),
+   280→   280→
+   281→   281→              // Period info
+   282→   282→              Row(
+   283→   283→                children: [
+   284→   284→                  Icon(
+   285→   285→                    Icons.calendar_today_outlined,
+   286→   286→                    size: Spacings.smIcon + 2,
+   287→   287→                    color: cs.onSurfaceVariant,
+   288→   288→                  ),
+   289→   289→                  const SizedBox(width: Spacings.xs),
+   290→   290→                  Text(
+   291→   291→                    'Renews ${_formatDate(subscription.currentPeriodEnd)}',
+   292→   292→                    style: tt.bodySmall?.copyWith(
+   293→   293→                      color: cs.onSurfaceVariant,
+   294→   294→                    ),
+   295→   295→                  ),
+   296→   296→                  const SizedBox(width: Spacings.md),
+   297→   297→                  Icon(
+   298→   298→                    Icons.timer_outlined,
+   299→   299→                    size: Spacings.smIcon + 2,
+   300→   300→                    color: subscription.daysRemaining <= 7
+   301→   301→                        ? AppColors.warningOf(cs.brightness)
+   302→   302→                        : cs.onSurfaceVariant,
+   303→   303→                  ),
+   304→   304→                  const SizedBox(width: Spacings.xs),
+   305→   305→                  Text(
+   306→   306→                    '${subscription.daysRemaining} days remaining',
+   307→   307→                    style: tt.bodySmall?.copyWith(
+   308→   308→                      color: subscription.daysRemaining <= 7
+   309→   309→                          ? AppColors.warningOf(cs.brightness)
+   310→   310→                          : cs.onSurfaceVariant,
+   311→   311→                    ),
+   312→   312→                  ),
+   313→   313→                ],
+   314→   314→              ),
+   315→   315→
+   316→   316→              const SizedBox(height: Spacings.md),
+   317→   317→
+   318→   318→              // Price info
+   319→   319→              if (subscription.priceAtSubscription > 0)
+   320→   320→                Row(
+   321→   321→                  children: [
+   322→   322→                    Text(
+   323→   323→                      '${subscription.currency} ${subscription.priceAtSubscription.toStringAsFixed(2)}',
+   324→   324→                      style: tt.titleMedium?.copyWith(
+   325→   325→                        fontWeight: AppTypography.wSemiBold,
+   326→   326→                        color: cs.primary,
+   327→   327→                      ),
+   328→   328→                    ),
+   329→   329→                    const SizedBox(width: Spacings.xs),
+   330→   330→                    Text(
+   331→   331→                      '/ ${subscription.billingCycle == 'annual' ? 'year' : 'month'}',
+   332→   332→                      style: tt.bodySmall?.copyWith(
+   333→   333→                        color: cs.onSurfaceVariant,
+   334→   334→                      ),
+   335→   335→                    ),
+   336→   336→                  ],
+   337→   337→                ),
+   338→   338→            ] else ...[
+   339→   339→              // No active subscription
+   340→   340→              Center(
+   341→   341→                child: Column(
+   342→   342→                  children: [
+   343→   343→                    Icon(
+   344→   344→                      Icons.info_outline_rounded,
+   345→   345→                      size: Spacings.xlIcon,
+   346→   346→                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+   347→   347→                    ),
+   348→   348→                    const SizedBox(height: Spacings.sm),
+   349→   349→                    Text(
+   350→   350→                      'No Active Subscription',
+   351→   351→                      style: tt.titleMedium?.copyWith(
+   352→   352→                        fontWeight: AppTypography.wSemiBold,
+   353→   353→                        color: cs.onSurface,
+   354→   354→                      ),
+   355→   355→                    ),
+   356→   356→                    const SizedBox(height: Spacings.xs),
+   357→   357→                    Text(
+   358→   358→                      'Subscribe to a plan to unlock all features',
+   359→   359→                      style: tt.bodySmall?.copyWith(
+   360→   360→                        color: cs.onSurfaceVariant,
+   361→   361→                      ),
+   362→   362→                      textAlign: TextAlign.center,
+   363→   363→                    ),
+   364→   364→                  ],
+   365→   365→                ),
+   366→   366→              ),
+   367→   367→            ],
+   368→   368→          ],
+   369→   369→        ),
+   370→   370→      ),
+   371→   371→    );
+   372→   372→  }
+   373→   373→
+   374→   374→  // ═══════════════════════════════════════════════════════════════════════
+   375→   375→  // AI CREDIT BALANCE CARD
+   376→   376→  // ═══════════════════════════════════════════════════════════════════════
+   377→   377→
+   378→   378→  Widget _buildCreditBalanceCard(
+   379→   379→    BuildContext context,
+   380→   380→    AiCreditsState state,
+   381→   381→  ) {
+   382→   382→    final cs = context.colorScheme;
+   383→   383→    final tt = context.textTheme;
+   384→   384→    final balance = state.creditBalance;
+   385→   385→
+   386→   386→    final isLow = state.isLowOnCredits;
+   387→   387→    final isExhausted = state.isExhausted;
+   388→   388→
+   389→   389→    // Determine the accent colour based on credit status
+   390→   390→    Color accentColor;
+   391→   391→    if (isExhausted) {
+   392→   392→      accentColor = AppColors.errorOf(cs.brightness);
+   393→   393→    } else if (isLow) {
+   394→   394→      accentColor = AppColors.warningOf(cs.brightness);
+   395→   395→    } else {
+   396→   396→      accentColor = AppColors.successOf(cs.brightness);
+   397→   397→    }
+   398→   398→
+   399→   399→    return Card(
+   400→   400→      elevation: Spacings.elevationSm,
+   401→   401→      shadowColor: cs.shadow.withValues(alpha: 0.08),
+   402→   402→      shape: RoundedRectangleBorder(
+   403→   403→        borderRadius: Spacings.borderRadiusLg,
+   404→   404→        side: BorderSide(
+   405→   405→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   406→   406→        ),
+   407→   407→      ),
+   408→   408→      clipBehavior: Clip.antiAlias,
+   409→   409→      child: Padding(
+   410→   410→        padding: const EdgeInsets.all(Spacings.lg),
+   411→   411→        child: Column(
+   412→   412→          crossAxisAlignment: CrossAxisAlignment.start,
+   413→   413→          children: [
+   414→   414→            // Section header
+   415→   415→            Row(
+   416→   416→              children: [
+   417→   417→                Icon(
+   418→   418→                  Icons.auto_awesome_outlined,
+   419→   419→                  size: Spacings.lgIcon,
+   420→   420→                  color: cs.primary,
+   421→   421→                ),
+   422→   422→                const SizedBox(width: Spacings.sm),
+   423→   423→                Expanded(
+   424→   424→                  child: Text(
+   425→   425→                    'AI Credits',
+   426→   426→                    style: tt.titleMedium?.copyWith(
+   427→   427→                      fontWeight: AppTypography.wSemiBold,
+   428→   428→                      color: cs.onSurface,
+   429→   429→                    ),
+   430→   430→                  ),
+   431→   431→                ),
+   432→   432→                if (isExhausted || isLow)
+   433→   433→                  Container(
+   434→   434→                    padding: const EdgeInsets.symmetric(
+   435→   435→                      horizontal: Spacings.sm,
+   436→   436→                      vertical: Spacings.xs,
+   437→   437→                    ),
+   438→   438→                    decoration: BoxDecoration(
+   439→   439→                      color: accentColor.withValues(
+   440→   440→                        alpha: context.isDarkMode ? 0.20 : 0.10,
+   441→   441→                      ),
+   442→   442→                      borderRadius: Spacings.borderRadiusSm,
+   443→   443→                    ),
+   444→   444→                    child: Text(
+   445→   445→                      isExhausted ? 'EXHAUSTED' : 'LOW',
+   446→   446→                      style: tt.labelSmall?.copyWith(
+   447→   447→                        fontWeight: AppTypography.wBold,
+   448→   448→                        color: accentColor,
+   449→   449→                      ),
+   450→   450→                    ),
+   451→   451→                  ),
+   452→   452→              ],
+   453→   453→            ),
+   454→   454→
+   455→   455→            const SizedBox(height: Spacings.lg),
+   456→   456→
+   457→   457→            if (balance != null) ...[
+   458→   458→              // Credit count
+   459→   459→              Row(
+   460→   460→                crossAxisAlignment: CrossAxisAlignment.baseline,
+   461→   461→                textBaseline: TextBaseline.alphabetic,
+   462→   462→                children: [
+   463→   463→                  Text(
+   464→   464→                    '${balance.remainingCredits}',
+   465→   465→                    style: tt.displaySmall?.copyWith(
+   466→   466→                      fontWeight: AppTypography.wBold,
+   467→   467→                      color: accentColor,
+   468→   468→                    ),
+   469→   469→                  ),
+   470→   470→                  const SizedBox(width: Spacings.xs),
+   471→   471→                  Text(
+   472→   472→                    '/ ${balance.totalCredits} credits',
+   473→   473→                    style: tt.bodyMedium?.copyWith(
+   474→   474→                      color: cs.onSurfaceVariant,
+   475→   475→                    ),
+   476→   476→                  ),
+   477→   477→                ],
+   478→   478→              ),
+   479→   479→
+   480→   480→              const SizedBox(height: Spacings.md),
+   481→   481→
+   482→   482→              // Usage progress bar
+   483→   483→              Column(
+   484→   484→                crossAxisAlignment: CrossAxisAlignment.start,
+   485→   485→                children: [
+   486→   486→                  Row(
+   487→   487→                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   488→   488→                    children: [
+   489→   489→                      Text(
+   490→   490→                        'Used: ${balance.usedCredits}',
+   491→   491→                        style: tt.bodySmall?.copyWith(
+   492→   492→                          color: cs.onSurfaceVariant,
+   493→   493→                        ),
+   494→   494→                      ),
+   495→   495→                      Text(
+   496→   496→                        '${balance.usagePercent.toStringAsFixed(0)}%',
+   497→   497→                        style: tt.bodySmall?.copyWith(
+   498→   498→                          fontWeight: AppTypography.wSemiBold,
+   499→   499→                          color: accentColor,
+   500→   500→                        ),
+   501→   501→                      ),
+   502→   502→                    ],
+   503→   503→                  ),
+   504→   504→                  const SizedBox(height: Spacings.xs),
+   505→   505→                  ClipRRect(
+   506→   506→                    borderRadius: Spacings.borderRadiusSm,
+   507→   507→                    child: LinearProgressIndicator(
+   508→   508→                      value: balance.usagePercent / 100,
+   509→   509→                      minHeight: 8,
+   510→   510→                      backgroundColor:
+   511→   511→                          cs.surfaceContainerHighest,
+   512→   512→                      color: accentColor,
+   513→   513→                    ),
+   514→   514→                  ),
+   515→   515→                ],
+   516→   516→              ),
+   517→   517→
+   518→   518→              const SizedBox(height: Spacings.sm),
+   519→   519→
+   520→   520→              // Cycle end date
+   521→   521→              Text(
+   522→   522→                'Resets on ${_formatDate(balance.currentCycleEnd)}',
+   523→   523→                style: tt.bodySmall?.copyWith(
+   524→   524→                  color: cs.onSurfaceVariant,
+   525→   525→                ),
+   526→   526→              ),
+   527→   527→            ] else ...[
+   528→   528→              // No credit balance loaded
+   529→   529→              Center(
+   530→   530→                child: Column(
+   531→   531→                  children: [
+   532→   532→                    Icon(
+   533→   533→                      Icons.bolt_outlined,
+   534→   534→                      size: Spacings.xlIcon,
+   535→   535→                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+   536→   536→                    ),
+   537→   537→                    const SizedBox(height: Spacings.sm),
+   538→   538→                    Text(
+   539→   539→                      'Credit Balance Unavailable',
+   540→   540→                      style: tt.bodyMedium?.copyWith(
+   541→   541→                        color: cs.onSurfaceVariant,
+   542→   542→                      ),
+   543→   543→                    ),
+   544→   544→                  ],
+   545→   545→                ),
+   546→   546→              ),
+   547→   547→            ],
+   548→   548→          ],
+   549→   549→        ),
+   550→   550→      ),
+   551→   551→    );
+   552→   552→  }
+   553→   553→
+   554→   554→  // ═══════════════════════════════════════════════════════════════════════
+   555→   555→  // QUICK ACTIONS
+   556→   556→  // ═══════════════════════════════════════════════════════════════════════
+   557→   557→
+   558→   558→  Widget _buildQuickActions(BuildContext context) {
+   559→   559→    final cs = context.colorScheme;
+   560→   560→    final tt = context.textTheme;
+   561→   561→    final isDesktop = context.isDesktop;
+   562→   562→    final crossAxisCount = isDesktop ? 4 : 2;
+   563→   563→
+   564→   564→    final actions = [
+   565→   565→      _QuickAction(
+   566→   566→        icon: Icons.arrow_upward_outlined,
+   567→   567→        label: 'Upgrade',
+   568→   568→        color: cs.primary,
+   569→   569→        onTap: () => context.go(RouteNames.billingUpgrade),
+   570→   570→      ),
+   571→   571→      _QuickAction(
+   572→   572→        icon: Icons.settings_outlined,
+   573→   573→        label: 'Manage',
+   574→   574→        color: AppColors.infoOf(cs.brightness),
+   575→   575→        onTap: () => context.go(RouteNames.billingManage),
+   576→   576→      ),
+   577→   577→      _QuickAction(
+   578→   578→        icon: Icons.receipt_long_outlined,
+   579→   579→        label: 'Invoices',
+   580→   580→        color: AppColors.successOf(cs.brightness),
+   581→   581→        onTap: () => context.go(RouteNames.billingInvoices),
+   582→   582→      ),
+   583→   583→      _QuickAction(
+   584→   584→        icon: Icons.add_shopping_cart_outlined,
+   585→   585→        label: 'Buy Credits',
+   586→   586→        color: AppColors.warningOf(cs.brightness),
+   587→   587→        onTap: () => context.go(RouteNames.billingBuyCredits),
+   588→   588→      ),
+   589→   589→    ];
+   590→   590→
+   591→   591→    return Card(
+   592→   592→      elevation: Spacings.elevationSm,
+   593→   593→      shadowColor: cs.shadow.withValues(alpha: 0.08),
+   594→   594→      shape: RoundedRectangleBorder(
+   595→   595→        borderRadius: Spacings.borderRadiusLg,
+   596→   596→        side: BorderSide(
+   597→   597→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   598→   598→        ),
+   599→   599→      ),
+   600→   600→      clipBehavior: Clip.antiAlias,
+   601→   601→      child: Padding(
+   602→   602→        padding: const EdgeInsets.all(Spacings.lg),
+   603→   603→        child: Column(
+   604→   604→          crossAxisAlignment: CrossAxisAlignment.start,
+   605→   605→          children: [
+   606→   606→            // Section header
+   607→   607→            Row(
+   608→   608→              children: [
+   609→   609→                Icon(
+   610→   610→                  Icons.flash_on_outlined,
+   611→   611→                  size: Spacings.lgIcon,
+   612→   612→                  color: cs.primary,
+   613→   613→                ),
+   614→   614→                const SizedBox(width: Spacings.sm),
+   615→   615→                Text(
+   616→   616→                  'Quick Actions',
+   617→   617→                  style: tt.titleMedium?.copyWith(
+   618→   618→                    fontWeight: AppTypography.wSemiBold,
+   619→   619→                    color: cs.onSurface,
+   620→   620→                  ),
+   621→   621→                ),
+   622→   622→              ],
+   623→   623→            ),
+   624→   624→            const SizedBox(height: Spacings.md),
+   625→   625→
+   626→   626→            // Action grid
+   627→   627→            GridView.builder(
+   628→   628→              shrinkWrap: true,
+   629→   629→              physics: const NeverScrollableScrollPhysics(),
+   630→   630→              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+   631→   631→                crossAxisCount: crossAxisCount,
+   632→   632→                childAspectRatio: isDesktop ? 2.2 : 1.5,
+   633→   633→                mainAxisSpacing: Spacings.md,
+   634→   634→                crossAxisSpacing: Spacings.md,
+   635→   635→              ),
+   636→   636→              itemCount: actions.length,
+   637→   637→              itemBuilder: (context, index) {
+   638→   638→                final action = actions[index];
+   639→   639→                return _QuickActionTile(action: action);
+   640→   640→              },
+   641→   641→            ),
+   642→   642→          ],
+   643→   643→        ),
+   644→   644→      ),
+   645→   645→    );
+   646→   646→  }
+   647→   647→
+   648→   648→  // ═══════════════════════════════════════════════════════════════════════
+   649→   649→  // BILLING ALERTS / NOTIFICATIONS
+   650→   650→  // ═══════════════════════════════════════════════════════════════════════
+   651→   651→
+   652→   652→  Widget _buildBillingAlerts(
+   653→   653→    BuildContext context,
+   654→   654→    BillingNotificationState state,
+   655→   655→  ) {
+   656→   656→    final cs = context.colorScheme;
+   657→   657→    final tt = context.textTheme;
+   658→   658→    final notifications = state.notifications;
+   659→   659→    final unreadNotifications =
+   660→   660→        notifications.where((n) => !n.isRead).toList();
+   661→   661→
+   662→   662→    return Card(
+   663→   663→      elevation: Spacings.elevationSm,
+   664→   664→      shadowColor: cs.shadow.withValues(alpha: 0.08),
+   665→   665→      shape: RoundedRectangleBorder(
+   666→   666→        borderRadius: Spacings.borderRadiusLg,
+   667→   667→        side: BorderSide(
+   668→   668→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   669→   669→        ),
+   670→   670→      ),
+   671→   671→      clipBehavior: Clip.antiAlias,
+   672→   672→      child: Padding(
+   673→   673→        padding: const EdgeInsets.all(Spacings.lg),
+   674→   674→        child: Column(
+   675→   675→          crossAxisAlignment: CrossAxisAlignment.start,
+   676→   676→          children: [
+   677→   677→            // Section header
+   678→   678→            Row(
+   679→   679→              children: [
+   680→   680→                Icon(
+   681→   681→                  Icons.notification_important_outlined,
+   682→   682→                  size: Spacings.lgIcon,
+   683→   683→                  color: cs.primary,
+   684→   684→                ),
+   685→   685→                const SizedBox(width: Spacings.sm),
+   686→   686→                Expanded(
+   687→   687→                  child: Text(
+   688→   688→                    'Billing Alerts',
+   689→   689→                    style: tt.titleMedium?.copyWith(
+   690→   690→                      fontWeight: AppTypography.wSemiBold,
+   691→   691→                      color: cs.onSurface,
+   692→   692→                    ),
+   693→   693→                  ),
+   694→   694→                ),
+   695→   695→                if (unreadNotifications.isNotEmpty)
+   696→   696→                  Container(
+   697→   697→                    padding: const EdgeInsets.symmetric(
+   698→   698→                      horizontal: Spacings.sm,
+   699→   699→                      vertical: Spacings.xs,
+   700→   700→                    ),
+   701→   701→                    decoration: BoxDecoration(
+   702→   702→                      color: AppColors.warningOf(cs.brightness).withValues(
+   703→   703→                        alpha: context.isDarkMode ? 0.20 : 0.10,
+   704→   704→                      ),
+   705→   705→                      borderRadius: Spacings.borderRadiusSm,
+   706→   706→                    ),
+   707→   707→                    child: Text(
+   708→   708→                      '${unreadNotifications.length} new',
+   709→   709→                      style: tt.labelSmall?.copyWith(
+   710→   710→                        fontWeight: AppTypography.wBold,
+   711→   711→                        color: AppColors.warningOf(cs.brightness),
+   712→   712→                      ),
+   713→   713→                    ),
+   714→   714→                  ),
+   715→   715→              ],
+   716→   716→            ),
+   717→   717→
+   718→   718→            const SizedBox(height: Spacings.md),
+   719→   719→
+   720→   720→            if (unreadNotifications.isEmpty) ...[
+   721→   721→              AppEmptyState.noNotifications(
+   722→   722→                title: 'No Alerts',
+   723→   723→                subtitle: 'You\'re all caught up! No billing alerts right now.',
+   724→   724→              ),
+   725→   725→            ] else ...[
+   726→   726→              ConstrainedBox(
+   727→   727→                constraints: const BoxConstraints(maxHeight: 300),
+   728→   728→                child: ListView.separated(
+   729→   729→                  shrinkWrap: true,
+   730→   730→                  physics: const NeverScrollableScrollPhysics(),
+   731→   731→                  itemCount: unreadNotifications.length > 5
+   732→   732→                      ? 5
+   733→   733→                      : unreadNotifications.length,
+   734→   734→                  separatorBuilder: (_, __) => const Divider(
+   735→   735→                    height: Spacings.sm,
+   736→   736→                  ),
+   737→   737→                  itemBuilder: (context, index) {
+   738→   738→                    final notification = unreadNotifications[index];
+   739→   739→                    return _BillingAlertTile(
+   740→   740→                      notification: notification,
+   741→   741→                      onDismiss: () {
+   742→   742→                        ref
+   743→   743→                            .read(billingNotificationProvider.notifier)
+   744→   744→                            .markAsRead(notificationId: notification.id);
+   745→   745→                      },
+   746→   746→                    );
+   747→   747→                  },
+   748→   748→                ),
+   749→   749→              ),
+   750→   750→
+   751→   751→              if (unreadNotifications.length > 5) ...[
+   752→   752→                const SizedBox(height: Spacings.sm),
+   753→   753→                Center(
+   754→   754→                  child: TextButton(
+   755→   755→                    onPressed: () =>
+   756→   756→                        context.go(RouteNames.billingNotifications),
+   757→   757→                    child: Text(
+   758→   758→                      'View All Alerts (${unreadNotifications.length})',
+   759→   759→                      style: tt.labelLarge?.copyWith(
+   760→   760→                        color: cs.primary,
+   761→   761→                      ),
+   762→   762→                    ),
+   763→   763→                  ),
+   764→   764→                ),
+   765→   765→              ],
+   766→   766→            ],
+   767→   767→          ],
+   768→   768→        ),
+   769→   769→      ),
+   770→   770→    );
+   771→   771→  }
+   772→   772→
+   773→   773→  // ═══════════════════════════════════════════════════════════════════════
+   774→   774→  // RECENT TRANSACTIONS
+   775→   775→  // ═══════════════════════════════════════════════════════════════════════
+   776→   776→
+   777→   777→  Widget _buildRecentTransactions(
+   778→   778→    BuildContext context,
+   779→   779→    PaymentState state,
+   780→   780→  ) {
+   781→   781→    final cs = context.colorScheme;
+   782→   782→    final tt = context.textTheme;
+   783→   783→    final transactions = state.transactions;
+   784→   784→
+   785→   785→    return Card(
+   786→   786→      elevation: Spacings.elevationSm,
+   787→   787→      shadowColor: cs.shadow.withValues(alpha: 0.08),
+   788→   788→      shape: RoundedRectangleBorder(
+   789→   789→        borderRadius: Spacings.borderRadiusLg,
+   790→   790→        side: BorderSide(
+   791→   791→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   792→   792→        ),
+   793→   793→      ),
+   794→   794→      clipBehavior: Clip.antiAlias,
+   795→   795→      child: Padding(
+   796→   796→        padding: const EdgeInsets.all(Spacings.lg),
+   797→   797→        child: Column(
+   798→   798→          crossAxisAlignment: CrossAxisAlignment.start,
+   799→   799→          children: [
+   800→   800→            // Section header
+   801→   801→            Row(
+   802→   802→              children: [
+   803→   803→                Icon(
+   804→   804→                  Icons.history_outlined,
+   805→   805→                  size: Spacings.lgIcon,
+   806→   806→                  color: cs.primary,
+   807→   807→                ),
+   808→   808→                const SizedBox(width: Spacings.sm),
+   809→   809→                Expanded(
+   810→   810→                  child: Text(
+   811→   811→                    'Recent Transactions',
+   812→   812→                    style: tt.titleMedium?.copyWith(
+   813→   813→                      fontWeight: AppTypography.wSemiBold,
+   814→   814→                      color: cs.onSurface,
+   815→   815→                    ),
+   816→   816→                  ),
+   817→   817→                ),
+   818→   818→                TextButton(
+   819→   819→                  onPressed: () =>
+   820→   820→                      context.go(RouteNames.billingInvoices),
+   821→   821→                  child: Text(
+   822→   822→                    'View All',
+   823→   823→                    style: tt.labelLarge?.copyWith(
+   824→   824→                      color: cs.primary,
+   825→   825→                    ),
+   826→   826→                  ),
+   827→   827→                ),
+   828→   828→              ],
+   829→   829→            ),
+   830→   830→
+   831→   831→            const SizedBox(height: Spacings.md),
+   832→   832→
+   833→   833→            if (transactions.isEmpty) ...[
+   834→   834→              AppEmptyState.noData(
+   835→   835→                title: 'No Transactions',
+   836→   836→                subtitle: 'Your transaction history will appear here.',
+   837→   837→              ),
+   838→   838→            ] else ...[
+   839→   839→              ConstrainedBox(
+   840→   840→                constraints: const BoxConstraints(maxHeight: 400),
+   841→   841→                child: ListView.separated(
+   842→   842→                  shrinkWrap: true,
+   843→   843→                  physics: const NeverScrollableScrollPhysics(),
+   844→   844→                  itemCount: transactions.length,
+   845→   845→                  separatorBuilder: (_, __) => const Divider(
+   846→   846→                    height: Spacings.sm,
+   847→   847→                  ),
+   848→   848→                  itemBuilder: (context, index) {
+   849→   849→                    final tx = transactions[index];
+   850→   850→                    return _TransactionTile(transaction: tx);
+   851→   851→                  },
+   852→   852→                ),
+   853→   853→              ),
+   854→   854→            ],
+   855→   855→          ],
+   856→   856→        ),
+   857→   857→      ),
+   858→   858→    );
+   859→   859→  }
+   860→   860→
+   861→   861→  // ═══════════════════════════════════════════════════════════════════════
+   862→   862→  // HELPERS
+   863→   863→  // ═══════════════════════════════════════════════════════════════════════
+   864→   864→
+   865→   865→  /// Formats a [DateTime] to a short readable date string.
+   866→   866→  String _formatDate(DateTime date) {
+   867→   867→    return '${_monthName(date.month)} ${date.day}, ${date.year}';
+   868→   868→  }
+   869→   869→
+   870→   870→  /// Returns the month name for the given [month] number (1-12).
+   871→   871→  String _monthName(int month) {
+   872→   872→    const names = [
+   873→   873→      '',
+   874→   874→      'Jan',
+   875→   875→      'Feb',
+   876→   876→      'Mar',
+   877→   877→      'Apr',
+   878→   878→      'May',
+   879→   879→      'Jun',
+   880→   880→      'Jul',
+   881→   881→      'Aug',
+   882→   882→      'Sep',
+   883→   883→      'Oct',
+   884→   884→      'Nov',
+   885→   885→      'Dec',
+   886→   886→    ];
+   887→   887→    return names[month];
+   888→   888→  }
+   889→   889→
+   890→   890→  /// Capitalizes the first letter of [text].
+   891→   891→  String _capitalize(String text) {
+   892→   892→    if (text.isEmpty) return text;
+   893→   893→    return text[0].toUpperCase() + text.substring(1);
+   894→   894→  }
+   895→   895→}
+   896→   896→
+   897→   897→// ═══════════════════════════════════════════════════════════════════════
+   898→   898→// PRIVATE WIDGETS
+   899→   899→// ═══════════════════════════════════════════════════════════════════════
+   900→   900→
+   901→   901→/// Badge displaying the current subscription status with a coloured chip.
+   902→   902→class _SubscriptionStatusBadge extends StatelessWidget {
+   903→   903→  const _SubscriptionStatusBadge({required this.status});
+   904→   904→
+   905→   905→  final SubscriptionStatus status;
+   906→   906→
+   907→   907→  @override
+   908→   908→  Widget build(BuildContext context) {
+   909→   909→    final cs = context.colorScheme;
+   910→   910→    final tt = context.textTheme;
+   911→   911→    final isDark = context.isDarkMode;
+   912→   912→
+   913→   913→    Color badgeColor;
+   914→   914→    switch (status) {
+   915→   915→      case SubscriptionStatus.active:
+   916→   916→        badgeColor = AppColors.successOf(cs.brightness);
+   917→   917→      case SubscriptionStatus.trial:
+   918→   918→        badgeColor = AppColors.infoOf(cs.brightness);
+   919→   919→      case SubscriptionStatus.pastDue:
+   920→   920→        badgeColor = AppColors.errorOf(cs.brightness);
+   921→   921→      case SubscriptionStatus.paused:
+   922→   922→        badgeColor = AppColors.warningOf(cs.brightness);
+   923→   923→      case SubscriptionStatus.cancelled:
+   924→   924→      case SubscriptionStatus.expired:
+   925→   925→        badgeColor = cs.onSurfaceVariant;
+   926→   926→      case SubscriptionStatus.pendingActivation:
+   927→   927→        badgeColor = cs.outline;
+   928→   928→    }
+   929→   929→
+   930→   930→    return Container(
+   931→   931→      padding: const EdgeInsets.symmetric(
+   932→   932→        horizontal: Spacings.sm,
+   933→   933→        vertical: Spacings.xs,
+   934→   934→      ),
+   935→   935→      decoration: BoxDecoration(
+   936→   936→        color: badgeColor.withValues(alpha: isDark ? 0.20 : 0.10),
+   937→   937→        borderRadius: Spacings.borderRadiusSm,
+   938→   938→      ),
+   939→   939→      child: Text(
+   940→   940→        status.label,
+   941→   941→        style: tt.labelSmall?.copyWith(
+   942→   942→          fontWeight: AppTypography.wBold,
+   943→   943→          color: badgeColor,
+   944→   944→        ),
+   945→   945→      ),
+   946→   946→    );
+   947→   947→  }
+   948→   948→}
+   949→   949→
+   950→   950→/// Data class for a quick action tile.
+   951→   951→class _QuickAction {
+   952→   952→  const _QuickAction({
+   953→   953→    required this.icon,
+   954→   954→    required this.label,
+   955→   955→    required this.color,
+   956→   956→    required this.onTap,
+   957→   957→  });
+   958→   958→
+   959→   959→  final IconData icon;
+   960→   960→  final String label;
+   961→   961→  final Color color;
+   962→   962→  final VoidCallback onTap;
+   963→   963→}
+   964→   964→
+   965→   965→/// Tile for a single quick action.
+   966→   966→class _QuickActionTile extends StatelessWidget {
+   967→   967→  const _QuickActionTile({required this.action});
+   968→   968→
+   969→   969→  final _QuickAction action;
+   970→   970→
+   971→   971→  @override
+   972→   972→  Widget build(BuildContext context) {
+   973→   973→    final cs = context.colorScheme;
+   974→   974→    final tt = context.textTheme;
+   975→   975→    final isDark = context.isDarkMode;
+   976→   976→
+   977→   977→    return InkWell(
+   978→   978→      onTap: action.onTap,
+   979→   979→      borderRadius: Spacings.borderRadiusMd,
+   980→   980→      child: Container(
+   981→   981→        decoration: BoxDecoration(
+   982→   982→          color: action.color.withValues(alpha: isDark ? 0.10 : 0.06),
+   983→   983→          borderRadius: Spacings.borderRadiusMd,
+   984→   984→          border: Border.all(
+   985→   985→            color: action.color.withValues(alpha: 0.2),
+   986→   986→          ),
+   987→   987→        ),
+   988→   988→        child: Column(
+   989→   989→          mainAxisAlignment: MainAxisAlignment.center,
+   990→   990→          children: [
+   991→   991→            Icon(
+   992→   992→              action.icon,
+   993→   993→              size: Spacings.lgIcon,
+   994→   994→              color: action.color,
+   995→   995→            ),
+   996→   996→            const SizedBox(height: Spacings.xs),
+   997→   997→            Text(
+   998→   998→              action.label,
+   999→   999→              style: tt.labelMedium?.copyWith(
+  1000→  1000→                fontWeight: AppTypography.wSemiBold,
+  1001→  1001→                color: action.color,
+  1002→  1002→              ),
+  1003→  1003→              textAlign: TextAlign.center,
+  1004→  1004→            ),
+  1005→  1005→          ],
+  1006→  1006→        ),
+  1007→  1007→      ),
+  1008→  1008→    );
+  1009→  1009→  }
+  1010→  1010→}
+  1011→  1011→
+  1012→  1012→/// Tile for a single billing alert/notification.
+  1013→  1013→class _BillingAlertTile extends StatelessWidget {
+  1014→  1014→  const _BillingAlertTile({
+  1015→  1015→    required this.notification,
+  1016→  1016→    required this.onDismiss,
+  1017→  1017→  });
+  1018→  1018→
+  1019→  1019→  final BillingNotificationEntity notification;
+  1020→  1020→  final VoidCallback onDismiss;
+  1021→  1021→
+  1022→  1022→  @override
+  1023→  1023→  Widget build(BuildContext context) {
+  1024→  1024→    final cs = context.colorScheme;
+  1025→  1025→    final tt = context.textTheme;
+  1026→  1026→
+  1027→  1027→    // Determine icon and colour based on notification type
+  1028→  1028→    IconData icon;
+  1029→  1029→    Color iconColor;
+  1030→  1030→    switch (notification.notificationType) {
+  1031→  1031→      case BillingNotificationType.paymentSuccess:
+  1032→  1032→        icon = Icons.check_circle_outline;
+  1033→  1033→        iconColor = AppColors.successOf(cs.brightness);
+  1034→  1034→      case BillingNotificationType.paymentFailed:
+  1035→  1035→        icon = Icons.error_outline;
+  1036→  1036→        iconColor = AppColors.errorOf(cs.brightness);
+  1037→  1037→      case BillingNotificationType.trialEnding:
+  1038→  1038→      case BillingNotificationType.planExpiring:
+  1039→  1039→        icon = Icons.timer_outlined;
+  1040→  1040→        iconColor = AppColors.warningOf(cs.brightness);
+  1041→  1041→      case BillingNotificationType.lowAiCredits:
+  1042→  1042→        icon = Icons.bolt_outlined;
+  1043→  1043→        iconColor = AppColors.warningOf(cs.brightness);
+  1044→  1044→      case BillingNotificationType.subscriptionRenewal:
+  1045→  1045→        icon = Icons.autorenew_outlined;
+  1046→  1046→        iconColor = AppColors.infoOf(cs.brightness);
+  1047→  1047→      case BillingNotificationType.invoiceGenerated:
+  1048→  1048→        icon = Icons.receipt_outlined;
+  1049→  1049→        iconColor = AppColors.infoOf(cs.brightness);
+  1050→  1050→      case BillingNotificationType.refundStatus:
+  1051→  1051→        icon = Icons.assignment_return_outlined;
+  1052→  1052→        iconColor = AppColors.infoOf(cs.brightness);
+  1053→  1053→      case BillingNotificationType.cardExpiring:
+  1054→  1054→        icon = Icons.credit_card_outlined;
+  1055→  1055→        iconColor = AppColors.warningOf(cs.brightness);
+  1056→  1056→      case BillingNotificationType.subscriptionCancelled:
+  1057→  1057→        icon = Icons.cancel_outlined;
+  1058→  1058→        iconColor = AppColors.errorOf(cs.brightness);
+  1059→  1059→      case BillingNotificationType.upgradeAvailable:
+  1060→  1060→        icon = Icons.trending_up_outlined;
+  1061→  1061→        iconColor = AppColors.successOf(cs.brightness);
+  1062→  1062→    }
+  1063→  1063→
+  1064→  1064→    return ListTile(
+  1065→  1065→      contentPadding: const EdgeInsets.symmetric(
+  1066→  1066→        horizontal: Spacings.xs,
+  1067→  1067→        vertical: Spacings.xs,
+  1068→  1068→      ),
+  1069→  1069→      leading: Icon(icon, color: iconColor, size: Spacings.mdIcon + 4),
+  1070→  1070→      title: Text(
+  1071→  1071→        notification.title,
+  1072→  1072→        style: tt.bodyMedium?.copyWith(
+  1073→  1073→          fontWeight: AppTypography.wSemiBold,
+  1074→  1074→          color: cs.onSurface,
+  1075→  1075→        ),
+  1076→  1076→        maxLines: 1,
+  1077→  1077→        overflow: TextOverflow.ellipsis,
+  1078→  1078→      ),
+  1079→  1079→      subtitle: Text(
+  1080→  1080→        notification.message,
+  1081→  1081→        style: tt.bodySmall?.copyWith(
+  1082→  1082→          color: cs.onSurfaceVariant,
+  1083→  1083→        ),
+  1084→  1084→        maxLines: 2,
+  1085→  1085→        overflow: TextOverflow.ellipsis,
+  1086→  1086→      ),
+  1087→  1087→      trailing: IconButton(
+  1088→  1088→        icon: Icon(
+  1089→  1089→          Icons.close_outlined,
+  1090→  1090→          size: Spacings.mdIcon - 4,
+  1091→  1091→          color: cs.onSurfaceVariant,
+  1092→  1092→        ),
+  1093→  1093→        onPressed: onDismiss,
+  1094→  1094→        tooltip: 'Dismiss',
+  1095→  1095→      ),
+  1096→  1096→    );
+  1097→  1097→  }
+  1098→  1098→}
+  1099→  1099→
+  1100→  1100→/// Tile for a single recent transaction.
+  1101→  1101→class _TransactionTile extends StatelessWidget {
+  1102→  1102→  const _TransactionTile({required this.transaction});
+  1103→  1103→
+  1104→  1104→  final TransactionEntity transaction;
+  1105→  1105→
+  1106→  1106→  @override
+  1107→  1107→  Widget build(BuildContext context) {
+  1108→  1108→    final cs = context.colorScheme;
+  1109→  1109→    final tt = context.textTheme;
+  1110→  1110→    final isDark = context.isDarkMode;
+  1111→  1111→
+  1112→  1112→    // Determine icon and colour based on status
+  1113→  1113→    Color statusColor;
+  1114→  1114→    IconData statusIcon;
+  1115→  1115→    switch (transaction.status) {
+  1116→  1116→      case TransactionStatus.successful:
+  1117→  1117→        statusColor = AppColors.successOf(cs.brightness);
+  1118→  1118→        statusIcon = Icons.check_circle_outline;
+  1119→  1119→      case TransactionStatus.pending:
+  1120→  1120→      case TransactionStatus.processing:
+  1121→  1121→        statusColor = AppColors.warningOf(cs.brightness);
+  1122→  1122→        statusIcon = Icons.schedule_outlined;
+  1123→  1123→      case TransactionStatus.failed:
+  1124→  1124→        statusColor = AppColors.errorOf(cs.brightness);
+  1125→  1125→        statusIcon = Icons.error_outline;
+  1126→  1126→      case TransactionStatus.refunded:
+  1127→  1127→      case TransactionStatus.partiallyRefunded:
+  1128→  1128→        statusColor = const Color(0xFF8B5CF6); // Violet
+  1129→  1129→        statusIcon = Icons.assignment_return_outlined;
+  1130→  1130→      case TransactionStatus.disputed:
+  1131→  1131→        statusColor = AppColors.errorOf(cs.brightness);
+  1132→  1132→        statusIcon = Icons.gavel_outlined;
+  1133→  1133→      case TransactionStatus.voided:
+  1134→  1134→        statusColor = cs.onSurfaceVariant;
+  1135→  1135→        statusIcon = Icons.block_outlined;
+  1136→  1136→    }
+  1137→  1137→
+  1138→  1138→    final isDebit = transaction.amount > 0;
+  1139→  1139→
+  1140→  1140→    return ListTile(
+  1141→  1141→      contentPadding: const EdgeInsets.symmetric(
+  1142→  1142→        horizontal: Spacings.xs,
+  1143→  1143→        vertical: Spacings.xs,
+  1144→  1144→      ),
+  1145→  1145→      leading: Container(
+  1146→  1146→        padding: const EdgeInsets.all(Spacings.sm),
+  1147→  1147→        decoration: BoxDecoration(
+  1148→  1148→          color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
+  1149→  1149→          shape: BoxShape.circle,
+  1150→  1150→        ),
+  1151→  1151→        child: Icon(statusIcon, color: statusColor, size: Spacings.mdIcon),
+  1152→  1152→      ),
+  1153→  1153→      title: Text(
+  1154→  1154→        transaction.description ?? transaction.channel.label,
+  1155→  1155→        style: tt.bodyMedium?.copyWith(
+  1156→  1156→          fontWeight: AppTypography.wMedium,
+  1157→  1157→          color: cs.onSurface,
+  1158→  1158→        ),
+  1159→  1159→        maxLines: 1,
+  1160→  1160→        overflow: TextOverflow.ellipsis,
+  1161→  1161→      ),
+  1162→  1162→      subtitle: Text(
+  1163→  1163→        _formatTransactionDate(transaction.initiatedAt),
+  1164→  1164→        style: tt.bodySmall?.copyWith(
+  1165→  1165→          color: cs.onSurfaceVariant,
+  1166→  1166→        ),
+  1167→  1167→      ),
+  1168→  1168→      trailing: Column(
+  1169→  1169→        mainAxisAlignment: MainAxisAlignment.center,
+  1170→  1170→        crossAxisAlignment: CrossAxisAlignment.end,
+  1171→  1171→        children: [
+  1172→  1172→          Text(
+  1173→  1173→            '${isDebit ? '-' : '+'}${transaction.currency} ${transaction.amount.toStringAsFixed(2)}',
+  1174→  1174→            style: tt.bodyMedium?.copyWith(
+  1175→  1175→              fontWeight: AppTypography.wSemiBold,
+  1176→  1176→              color: isDebit ? cs.onSurface : AppColors.successOf(cs.brightness),
+  1177→  1177→            ),
+  1178→  1178→          ),
+  1179→  1179→          const SizedBox(height: Spacings.xs),
+  1180→  1180→          Container(
+  1181→  1181→            padding: const EdgeInsets.symmetric(
+  1182→  1182→              horizontal: Spacings.xs,
+  1183→  1183→              vertical: 2,
+  1184→  1184→            ),
+  1185→  1185→            decoration: BoxDecoration(
+  1186→  1186→              color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
+  1187→  1187→              borderRadius: Spacings.borderRadiusSm,
+  1188→  1188→            ),
+  1189→  1189→            child: Text(
+  1190→  1190→              transaction.status.label,
+  1191→  1191→              style: tt.labelSmall?.copyWith(
+  1192→  1192→                fontWeight: AppTypography.wSemiBold,
+  1193→  1193→                color: statusColor,
+  1194→  1194→                fontSize: 10,
+  1195→  1195→              ),
+  1196→  1196→            ),
+  1197→  1197→          ),
+  1198→  1198→        ],
+  1199→  1199→      ),
+  1200→  1200→    );
+  1201→  1201→  }
+  1202→  1202→
+  1203→  1203→  /// Formats a [DateTime] for display in the transaction list.
+  1204→  1204→  String _formatTransactionDate(DateTime date) {
+  1205→  1205→    final now = DateTime.now();
+  1206→  1206→    final diff = now.difference(date);
+  1207→  1207→
+  1208→  1208→    if (diff.inDays == 0) {
+  1209→  1209→      if (diff.inHours == 0) {
+  1210→  1210→        if (diff.inMinutes == 0) return 'Just now';
+  1211→  1211→        return '${diff.inMinutes}m ago';
+  1212→  1212→      }
+  1213→  1213→      return '${diff.inHours}h ago';
+  1214→  1214→    } else if (diff.inDays == 1) {
+  1215→  1215→      return 'Yesterday';
+  1216→  1216→    } else if (diff.inDays < 7) {
+  1217→  1217→      return '${diff.inDays}d ago';
+  1218→  1218→    } else {
+  1219→  1219→      const months = [
+  1220→  1220→        '',
+  1221→  1221→        'Jan',
+  1222→  1222→        'Feb',
+  1223→  1223→        'Mar',
+  1224→  1224→        'Apr',
+  1225→  1225→        'May',
+  1226→  1226→        'Jun',
+  1227→  1227→        'Jul',
+  1228→  1228→        'Aug',
+  1229→  1229→        'Sep',
+  1230→  1230→        'Oct',
+  1231→  1231→        'Nov',
+  1232→  1232→        'Dec',
+  1233→  1233→      ];
+  1234→  1234→      return '${months[date.month]} ${date.day}, ${date.year}';
+  1235→  1235→    }
+  1236→  1236→  }
+  1237→  1237→}
+  1238→  1238→

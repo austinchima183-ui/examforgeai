@@ -1,0 +1,980 @@
+     1→     1→# ExamForge AI — API Documentation
+     2→     2→
+     3→     3→> **Curriculum Content Management System (CCMS) & Enterprise API Reference**
+     4→     4→> Complete reference for all Supabase RPC functions, CRUD endpoints, authentication, and security.
+     5→     5→
+     6→     6→---
+     7→     7→
+     8→     8→## Table of Contents
+     9→     9→
+    10→    10→1. [Overview](#overview)
+    11→    11→2. [Authentication](#authentication)
+    12→    12→3. [Rate Limiting](#rate-limiting)
+    13→    13→4. [RPC Functions](#rpc-functions)
+    14→    14→5. [Table CRUD Endpoints](#table-crud-endpoints)
+    15→    15→6. [Request/Response Formats](#requestresponse-formats)
+    16→    16→7. [Error Codes](#error-codes)
+    17→    17→8. [Webhook Patterns](#webhook-patterns)
+    18→    18→
+    19→    19→---
+    20→    20→
+    21→    21→## Overview
+    22→    22→
+    23→    23→The ExamForge AI backend is powered by **Supabase**, which provides:
+    24→    24→
+    25→    25→- **PostgreSQL database** with Row Level Security (RLS)
+    26→    26→- **Auto-generated REST API** for all tables (PostgREST)
+    27→    27→- **RPC (Remote Procedure Call)** endpoints for custom SQL functions
+    28→    28→- **Real-time subscriptions** via WebSocket
+    29→    29→- **Authentication** via Supabase Auth (email/password, OAuth, MFA)
+    30→    30→- **Storage** for file uploads (documents, images, media)
+    31→    31→
+    32→    32→### Base URL
+    33→    33→
+    34→    34→```
+    35→    35→https://<project-ref>.supabase.co/rest/v1
+    36→    36→```
+    37→    37→
+    38→    38→### Common Headers
+    39→    39→
+    40→    40→```http
+    41→    41→apikey: <your-anon-key-or-service-key>
+    42→    42→Authorization: Bearer <user-access-token>
+    43→    43→Content-Type: application/json
+    44→    44→Prefer: return=representation
+    45→    45→```
+    46→    46→
+    47→    47→---
+    48→    48→
+    49→    49→## Authentication
+    50→    50→
+    51→    51→### Authentication Methods
+    52→    52→
+    53→    53→| Method | Description |
+    54→    54→|--------|-------------|
+    55→    55→| Email/Password | Standard email and password login via Supabase Auth |
+    56→    56→| OAuth | Google, Apple, Microsoft providers |
+    57→    57→| MFA | SMS, email, authenticator app, hardware key |
+    58→    58→| API Keys | Scoped API keys with rate limit overrides |
+    59→    59→
+    60→    60→### Role-Based Access
+    61→    61→
+    62→    62→The system uses a `role` field in `auth.users.raw_user_meta_data` to determine access levels:
+    63→    63→
+    64→    64→| Role | Access Level |
+    65→    65→|------|-------------|
+    66→    66→| `superAdmin` | Full platform access, all schools, security, monitoring |
+    67→    67→| `schoolAdmin` | School-scoped admin, curriculum management, user management |
+    68→    68→| `teacher` | Content creation, review, AI generation |
+    69→    69→| `student` | Read-only access to published content, practice mode |
+    70→    70→| `parent` | Read-only access to child's curriculum and progress |
+    71→    71→
+    72→    72→### Row Level Security (RLS)
+    73→    73→
+    74→    74→All tables have RLS enabled. Access policies are summarized below:
+    75→    75→
+    76→    76→| Table | Read Access | Write Access |
+    77→    77→|-------|-----------|-------------|
+    78→    78→| `educational_levels` | All authenticated users | Super admins only |
+    79→    79→| `school_level_configurations` | School members | School admins |
+    80→    80→| `curricula` | All authenticated users | Admins |
+    81→    81→| `subjects` | School members | Admins |
+    82→    82→| `topics` | School members | Teachers and admins |
+    83→    83→| `content_items` | Published content or school members | Creators and admins |
+    84→    84→| `content_reviews` | Via content access | Reviewers (teachers+) |
+    85→    85→| `content_collections` | Public or school members | Creators and admins |
+    86→    86→| `ai_curriculum_configs` | School members | Admins |
+    87→    87→| `audit_trail` | Super admins only | System (insert only) |
+    88→    88→| `security_events` | Super admins only | System (insert only) |
+    89→    89→| `user_sessions` | Own sessions only | Owner or super admin |
+    90→    90→| `system_metrics` | Admins | System |
+    91→    91→| `performance_logs` | Super admins only | System |
+    92→    92→
+    93→    93→### Obtaining an Access Token
+    94→    94→
+    95→    95→```bash
+    96→    96→# Sign in with email/password
+    97→    97→curl -X POST 'https://<project-ref>.supabase.co/auth/v1/token?grant_type=password' \
+    98→    98→  -H 'apikey: <anon-key>' \
+    99→    99→  -H 'Content-Type: application/json' \
+   100→   100→  -d '{"email": "teacher@school.edu.ng", "password": "securepassword"}'
+   101→   101→```
+   102→   102→
+   103→   103→Response:
+   104→   104→
+   105→   105→```json
+   106→   106→{
+   107→   107→  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+   108→   108→  "token_type": "bearer",
+   109→   109→  "expires_in": 3600,
+   110→   110→  "refresh_token": "...",
+   111→   111→  "user": {
+   112→   112→    "id": "uuid",
+   113→   113→    "email": "teacher@school.edu.ng",
+   114→   114→    "role": "teacher",
+   115→   115→    "raw_user_meta_data": {
+   116→   116→      "role": "teacher",
+   117→   117→      "school_id": "uuid"
+   118→   118→    }
+   119→   119→  }
+   120→   120→}
+   121→   121→```
+   122→   122→
+   123→   123→---
+   124→   124→
+   125→   125→## Rate Limiting
+   126→   126→
+   127→   127→Rate limiting is enforced at the database level via the `check_rate_limit` RPC function and at the API gateway level.
+   128→   128→
+   129→   129→### Rate Limit Scopes
+   130→   130→
+   131→   131→| Scope | Description |
+   132→   132→|-------|-------------|
+   133→   133→| `global` | Platform-wide limits |
+   134→   134→| `per_user` | Per authenticated user |
+   135→   135→| `per_ip` | Per IP address |
+   136→   136→| `per_api_key` | Per API key |
+   137→   137→| `per_endpoint` | Per specific API endpoint |
+   138→   138→
+   139→   139→### Default Limits
+   140→   140→
+   141→   141→| Scope | Limit | Window |
+   142→   142→|-------|-------|--------|
+   143→   143→| `global` | 10,000 req/min | 60 seconds |
+   144→   144→| `per_user` | 1,000 req/min | 60 seconds |
+   145→   145→| `per_ip` | 500 req/min | 60 seconds |
+   146→   146→| `per_api_key` | Configurable | Configurable |
+   147→   147→
+   148→   148→### Rate Limit Headers
+   149→   149→
+   150→   150→```http
+   151→   151→X-RateLimit-Limit: 1000
+   152→   152→X-RateLimit-Remaining: 942
+   153→   153→X-RateLimit-Reset: 1677654321
+   154→   154→```
+   155→   155→
+   156→   156→When rate-limited, the API returns:
+   157→   157→
+   158→   158→```json
+   159→   159→{
+   160→   160→  "code": 429,
+   161→   161→  "message": "Rate limit exceeded",
+   162→   162→  "retry_after": 45
+   163→   163→}
+   164→   164→```
+   165→   165→
+   166→   166→---
+   167→   167→
+   168→   168→## RPC Functions
+   169→   169→
+   170→   170→### `get_school_levels`
+   171→   171→
+   172→   172→Retrieves all educational levels with their enablement status for a specific school.
+   173→   173→
+   174→   174→**Parameters:**
+   175→   175→
+   176→   176→| Name | Type | Required | Description |
+   177→   177→|------|------|----------|-------------|
+   178→   178→| `p_school_id` | UUID | Yes | The school ID |
+   179→   179→
+   180→   180→**Returns:** Table of levels with enablement info
+   181→   181→
+   182→   182→| Column | Type | Description |
+   183→   183→|--------|------|-------------|
+   184→   184→| `id` | UUID | Level ID |
+   185→   185→| `code` | TEXT | Level code (e.g., `primary_1`) |
+   186→   186→| `name` | TEXT | Display name (e.g., "Primary 1") |
+   187→   187→| `level_category` | level_category_type | Category enum |
+   188→   188→| `level_order` | INT | Sort order |
+   189→   189→| `min_age` | INT | Minimum age |
+   190→   190→| `max_age` | INT | Maximum age |
+   191→   191→| `description` | TEXT | Level description |
+   192→   192→| `is_enabled` | BOOLEAN | Whether enabled for this school |
+   193→   193→| `custom_name` | TEXT | School-specific name override |
+   194→   194→
+   195→   195→**Example:**
+   196→   196→
+   197→   197→```bash
+   198→   198→curl -X POST 'https://<project-ref>.supabase.co/rest/v1/rpc/get_school_levels' \
+   199→   199→  -H 'apikey: <anon-key>' \
+   200→   200→  -H 'Authorization: Bearer <token>' \
+   201→   201→  -H 'Content-Type: application/json' \
+   202→   202→  -d '{"p_school_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"}'
+   203→   203→```
+   204→   204→
+   205→   205→**Response:**
+   206→   206→
+   207→   207→```json
+   208→   208→[
+   209→   209→  {
+   210→   210→    "id": "uuid-1",
+   211→   211→    "code": "nursery",
+   212→   212→    "name": "Nursery",
+   213→   213→    "level_category": "early_childhood",
+   214→   214→    "level_order": 1,
+   215→   215→    "min_age": 2,
+   216→   216→    "max_age": 4,
+   217→   217→    "description": "Pre-primary nursery education",
+   218→   218→    "is_enabled": true,
+   219→   219→    "custom_name": "Pre-School"
+   220→   220→  },
+   221→   221→  {
+   222→   222→    "id": "uuid-2",
+   223→   223→    "code": "primary_1",
+   224→   224→    "name": "Primary 1",
+   225→   225→    "level_category": "primary",
+   226→   226→    "level_order": 3,
+   227→   227→    "min_age": 5,
+   228→   228→    "max_age": 7,
+   229→   229→    "description": "First year of primary education",
+   230→   230→    "is_enabled": true,
+   231→   231→    "custom_name": null
+   232→   232→  }
+   233→   233→]
+   234→   234→```
+   235→   235→
+   236→   236→---
+   237→   237→
+   238→   238→### `get_level_subjects`
+   239→   239→
+   240→   240→Retrieves all subjects available for a school at a specific educational level.
+   241→   241→
+   242→   242→**Parameters:**
+   243→   243→
+   244→   244→| Name | Type | Required | Description |
+   245→   245→|------|------|----------|-------------|
+   246→   246→| `p_school_id` | UUID | Yes | The school ID |
+   247→   247→| `p_educational_level_id` | UUID | Yes | The educational level ID |
+   248→   248→
+   249→   249→**Returns:** Table of subjects
+   250→   250→
+   251→   251→| Column | Type | Description |
+   252→   252→|--------|------|-------------|
+   253→   253→| `id` | UUID | Subject ID |
+   254→   254→| `name` | TEXT | Subject name |
+   255→   255→| `code` | TEXT | Subject code |
+   256→   256→| `subject_group` | TEXT | Group (language, science, etc.) |
+   257→   257→| `is_core` | BOOLEAN | Whether it is a core subject |
+   258→   258→| `is_elective` | BOOLEAN | Whether it is elective |
+   259→   259→| `is_vocational` | BOOLEAN | Whether it is vocational |
+   260→   260→| `description` | TEXT | Subject description |
+   261→   261→| `icon_url` | TEXT | Icon URL |
+   262→   262→| `color_code` | TEXT | Display color |
+   263→   263→| `is_custom` | BOOLEAN | Whether school-created |
+   264→   264→
+   265→   265→**Example:**
+   266→   266→
+   267→   267→```bash
+   268→   268→curl -X POST 'https://<project-ref>.supabase.co/rest/v1/rpc/get_level_subjects' \
+   269→   269→  -H 'apikey: <anon-key>' \
+   270→   270→  -H 'Authorization: Bearer <token>' \
+   271→   271→  -H 'Content-Type: application/json' \
+   272→   272→  -d '{
+   273→   273→    "p_school_id": "school-uuid",
+   274→   274→    "p_educational_level_id": "level-uuid"
+   275→   275→  }'
+   276→   276→```
+   277→   277→
+   278→   278→---
+   279→   279→
+   280→   280→### `get_curriculum_tree`
+   281→   281→
+   282→   282→Returns the full hierarchical curriculum tree for a subject: topics → subtopics → learning objectives.
+   283→   283→
+   284→   284→**Parameters:**
+   285→   285→
+   286→   286→| Name | Type | Required | Description |
+   287→   287→|------|------|----------|-------------|
+   288→   288→| `p_subject_id` | UUID | Yes | Subject ID |
+   289→   289→| `p_educational_level_id` | UUID | No | Optional level filter |
+   290→   290→
+   291→   291→**Returns:** JSONB array of nested objects
+   292→   292→
+   293→   293→```json
+   294→   294→[
+   295→   295→  {
+   296→   296→    "topic": {
+   297→   297→      "id": "uuid",
+   298→   298→      "title": "Number and Numeration",
+   299→   299→      "code": "MATH-01",
+   300→   300→      "sort_order": 1,
+   301→   301→      "estimated_duration_minutes": 90
+   302→   302→    },
+   303→   303→    "subtopics": [
+   304→   304→      {
+   305→   305→        "subtopic": {
+   306→   306→          "id": "uuid",
+   307→   307→          "title": "Place Value",
+   308→   308→          "sort_order": 1
+   309→   309→        },
+   310→   310→        "learning_objectives": [
+   311→   311→          {
+   312→   312→            "id": "uuid",
+   313→   313→            "code": "MATH-LO-01",
+   314→   314→            "description": "Students can identify place values up to billions",
+   315→   315→            "bloom_level": "remember",
+   316→   316→            "is_assessable": true
+   317→   317→          }
+   318→   318→        ]
+   319→   319→      }
+   320→   320→    ],
+   321→   321→    "learning_objectives": [
+   322→   322→      {
+   323→   323→        "id": "uuid",
+   324→   324→        "code": "MATH-LO-00",
+   325→   325→        "description": "Students understand the decimal number system",
+   326→   326→        "bloom_level": "understand"
+   327→   327→      }
+   328→   328→    ]
+   329→   329→  }
+   330→   330→]
+   331→   331→```
+   332→   332→
+   333→   333→---
+   334→   334→
+   335→   335→### `get_content_with_details`
+   336→   336→
+   337→   337→Retrieves content items with joined subject, level, and topic names.
+   338→   338→
+   339→   339→**Parameters:**
+   340→   340→
+   341→   341→| Name | Type | Required | Default | Description |
+   342→   342→|------|------|----------|---------|-------------|
+   343→   343→| `p_subject_id` | UUID | No | NULL | Filter by subject |
+   344→   344→| `p_educational_level_id` | UUID | No | NULL | Filter by level |
+   345→   345→| `p_topic_id` | UUID | No | NULL | Filter by topic |
+   346→   346→| `p_content_type` | content_type_enum | No | NULL | Filter by type |
+   347→   347→| `p_difficulty_level` | difficulty_level_type | No | NULL | Filter by difficulty |
+   348→   348→| `p_status` | content_status_type | No | NULL | Filter by status |
+   349→   349→| `p_limit` | INT | No | 50 | Max results |
+   350→   350→| `p_offset` | INT | No | 0 | Pagination offset |
+   351→   351→
+   352→   352→**Returns:** Table with enriched content data
+   353→   353→
+   354→   354→| Column | Type | Description |
+   355→   355→|--------|------|-------------|
+   356→   356→| `id` | UUID | Content item ID |
+   357→   357→| `title` | TEXT | Content title |
+   358→   358→| `content_type` | content_type_enum | Type of content |
+   359→   359→| `subject_name` | TEXT | Joined subject name |
+   360→   360→| `level_name` | TEXT | Joined level name |
+   361→   361→| `topic_title` | TEXT | Joined topic title |
+   362→   362→| `difficulty_level` | difficulty_level_type | Difficulty |
+   363→   363→| `bloom_level` | bloom_taxonomy_type | Bloom's taxonomy level |
+   364→   364→| `status` | content_status_type | Publication status |
+   365→   365→| `version` | INT | Current version number |
+   366→   366→| `usage_count` | INT | Times used |
+   367→   367→| `average_quality_score` | DECIMAL | Quality score (1-5) |
+   368→   368→| `created_at` | TIMESTAMPTZ | Creation timestamp |
+   369→   369→
+   370→   370→---
+   371→   371→
+   372→   372→### `get_ccms_stats`
+   373→   373→
+   374→   374→Returns aggregate statistics for the CCMS module, optionally filtered by school.
+   375→   375→
+   376→   376→**Parameters:**
+   377→   377→
+   378→   378→| Name | Type | Required | Description |
+   379→   379→|------|------|----------|-------------|
+   380→   380→| `p_school_id` | UUID | No | School ID for scoped stats |
+   381→   381→
+   382→   382→**Returns:** JSONB object
+   383→   383→
+   384→   384→```json
+   385→   385→{
+   386→   386→  "total_subjects": 45,
+   387→   387→  "total_topics": 320,
+   388→   388→  "total_content": 12500,
+   389→   389→  "published_content": 8200,
+   390→   390→  "draft_content": 3100,
+   391→   391→  "ai_generated_content": 2800,
+   392→   392→  "past_questions": 1500,
+   393→   393→  "avg_quality_score": 3.85,
+   394→   394→  "total_imports": 28,
+   395→   395→  "total_collections": 65,
+   396→   396→  "pending_reviews": 142,
+   397→   397→  "content_by_type": {
+   398→   398→    "question": 7500,
+   399→   399→    "explanation": 2500,
+   400→   400→    "marking_scheme": 1500,
+   401→   401→    "teacher_note": 500,
+   402→   402→    "lesson_note": 300,
+   403→   403→    "worksheet": 200
+   404→   404→  },
+   405→   405→  "content_by_difficulty": {
+   406→   406→    "beginner": 2200,
+   407→   407→    "elementary": 3100,
+   408→   408→    "intermediate": 3800,
+   409→   409→    "advanced": 2400,
+   410→   410→    "expert": 1000
+   411→   411→  }
+   412→   412→}
+   413→   413→```
+   414→   414→
+   415→   415→---
+   416→   416→
+   417→   417→### `record_audit_event`
+   418→   418→
+   419→   419→Records an audit trail entry. Called internally by the system for all significant actions.
+   420→   420→
+   421→   421→**Parameters:**
+   422→   422→
+   423→   423→| Name | Type | Required | Description |
+   424→   424→|------|------|----------|-------------|
+   425→   425→| `p_user_id` | UUID | No | Acting user |
+   426→   426→| `p_school_id` | UUID | No | Affected school |
+   427→   427→| `p_action` | audit_action_type | Yes | Action performed |
+   428→   428→| `p_resource_type` | TEXT | Yes | Resource type |
+   429→   429→| `p_resource_id` | UUID | No | Resource ID |
+   430→   430→| `p_old_values` | JSONB | No | Before-state snapshot |
+   431→   431→| `p_new_values` | JSONB | No | After-state snapshot |
+   432→   432→| `p_ip_address` | INET | No | Client IP |
+   433→   433→| `p_user_agent` | TEXT | No | Client user agent |
+   434→   434→| `p_device_id` | TEXT | No | Device identifier |
+   435→   435→| `p_session_id` | TEXT | No | Session identifier |
+   436→   436→| `p_metadata` | JSONB | No | Additional metadata |
+   437→   437→
+   438→   438→**Returns:** UUID of the created audit entry
+   439→   439→
+   440→   440→**Security:** This function is `SECURITY DEFINER`, meaning it runs with elevated privileges to allow audit inserts regardless of RLS.
+   441→   441→
+   442→   442→---
+   443→   443→
+   444→   444→### `record_security_event`
+   445→   445→
+   446→   446→Records a security incident for monitoring and response.
+   447→   447→
+   448→   448→**Parameters:**
+   449→   449→
+   450→   450→| Name | Type | Required | Description |
+   451→   451→|------|------|----------|-------------|
+   452→   452→| `p_event_type` | TEXT | Yes | Event type (e.g., `brute_force`, `suspicious_login`) |
+   453→   453→| `p_severity` | TEXT | No | `info`, `warning`, `critical`, `emergency` (default: `medium`) |
+   454→   454→| `p_user_id` | UUID | No | Associated user |
+   455→   455→| `p_school_id` | UUID | No | Associated school |
+   456→   456→| `p_ip_address` | INET | No | Client IP |
+   457→   457→| `p_user_agent` | TEXT | No | Client user agent |
+   458→   458→| `p_details` | JSONB | No | Additional details |
+   459→   459→
+   460→   460→**Returns:** UUID of the created security event
+   461→   461→
+   462→   462→---
+   463→   463→
+   464→   464→### `check_rate_limit`
+   465→   465→
+   466→   466→Checks whether a request is within rate limits before processing.
+   467→   467→
+   468→   468→**Parameters:**
+   469→   469→
+   470→   470→| Name | Type | Required | Description |
+   471→   471→|------|------|----------|-------------|
+   472→   472→| `p_scope` | rate_limit_scope_type | Yes | Scope (global, per_user, per_ip, per_api_key, per_endpoint) |
+   473→   473→| `p_identifier` | TEXT | Yes | Identifier within scope |
+   474→   474→| `p_endpoint` | TEXT | No | Specific endpoint (default: `*`) |
+   475→   475→
+   476→   476→**Returns:** Table with three columns
+   477→   477→
+   478→   478→| Column | Type | Description |
+   479→   479→|--------|------|-------------|
+   480→   480→| `allowed` | BOOLEAN | Whether the request is allowed |
+   481→   481→| `remaining` | INT | Remaining requests in window |
+   482→   482→| `reset_at` | TIMESTAMPTZ | When the window resets |
+   483→   483→
+   484→   484→**Example:**
+   485→   485→
+   486→   486→```bash
+   487→   487→curl -X POST 'https://<project-ref>.supabase.co/rest/v1/rpc/check_rate_limit' \
+   488→   488→  -H 'apikey: <anon-key>' \
+   489→   489→  -H 'Authorization: Bearer <token>' \
+   490→   490→  -d '{"p_scope": "per_user", "p_identifier": "user-uuid", "p_endpoint": "/rest/v1/content_items"}'
+   491→   491→```
+   492→   492→
+   493→   493→**Response:**
+   494→   494→
+   495→   495→```json
+   496→   496→[{"allowed": true, "remaining": 942, "reset_at": "2024-01-15T10:31:00Z"}]
+   497→   497→```
+   498→   498→
+   499→   499→---
+   500→   500→
+   501→   501→### `invalidate_user_sessions`
+   502→   502→
+   503→   503→Invalidates active user sessions for security operations (password change, MFA enable, etc.).
+   504→   504→
+   505→   505→**Parameters:**
+   506→   506→
+   507→   507→| Name | Type | Required | Description |
+   508→   508→|------|------|----------|-------------|
+   509→   509→| `p_user_id` | UUID | Yes | User whose sessions to invalidate |
+   510→   510→| `p_except_session_id` | UUID | No | Session to keep active (current session) |
+   511→   511→| `p_invalidated_by` | UUID | No | Admin who triggered invalidation |
+   512→   512→
+   513→   513→**Returns:** INT — number of sessions invalidated
+   514→   514→
+   515→   515→---
+   516→   516→
+   517→   517→### `increment_content_usage`
+   518→   518→
+   519→   519→Increments the usage counter for a content item. Called when content is used in an exam, practice session, or export.
+   520→   520→
+   521→   521→**Parameters:**
+   522→   522→
+   523→   523→| Name | Type | Required | Description |
+   524→   524→|------|------|----------|-------------|
+   525→   525→| `p_content_id` | UUID | Yes | Content item ID |
+   526→   526→
+   527→   527→**Returns:** VOID
+   528→   528→
+   529→   529→---
+   530→   530→
+   531→   531→### `create_audit_partition_if_not_exists`
+   532→   532→
+   533→   533→Creates a monthly partition for the `audit_trail` table if it does not already exist. Called by scheduled maintenance jobs.
+   534→   534→
+   535→   535→**Parameters:**
+   536→   536→
+   537→   537→| Name | Type | Required | Description |
+   538→   538→|------|------|----------|-------------|
+   539→   539→| `p_year` | INT | Yes | Year (e.g., 2024) |
+   540→   540→| `p_month` | INT | Yes | Month (1-12) |
+   541→   541→
+   542→   542→**Returns:** VOID
+   543→   543→
+   544→   544→---
+   545→   545→
+   546→   546→### `clean_old_metrics`
+   547→   547→
+   548→   548→Deletes system metrics older than the retention period.
+   549→   549→
+   550→   550→**Parameters:**
+   551→   551→
+   552→   552→| Name | Type | Required | Default | Description |
+   553→   553→|------|------|----------|---------|-------------|
+   554→   554→| `p_days_to_retain` | INT | No | 90 | Days to retain |
+   555→   555→
+   556→   556→**Returns:** INT — number of rows deleted
+   557→   557→
+   558→   558→---
+   559→   559→
+   560→   560→### `clean_old_audit_trail`
+   561→   561→
+   562→   562→Deletes audit trail entries older than the retention period.
+   563→   563→
+   564→   564→**Parameters:**
+   565→   565→
+   566→   566→| Name | Type | Required | Default | Description |
+   567→   567→|------|------|----------|---------|-------------|
+   568→   568→| `p_days_to_retain` | INT | No | 365 | Days to retain |
+   569→   569→
+   570→   570→**Returns:** INT — number of rows deleted
+   571→   571→
+   572→   572→---
+   573→   573→
+   574→   574→### `clean_old_performance_logs`
+   575→   575→
+   576→   576→Deletes performance log entries older than the retention period.
+   577→   577→
+   578→   578→**Parameters:**
+   579→   579→
+   580→   580→| Name | Type | Required | Default | Description |
+   581→   581→|------|------|----------|---------|-------------|
+   582→   582→| `p_days_to_retain` | INT | No | 30 | Days to retain |
+   583→   583→
+   584→   584→**Returns:** INT — number of rows deleted
+   585→   585→
+   586→   586→---
+   587→   587→
+   588→   588→## Table CRUD Endpoints
+   589→   589→
+   590→   590→All tables support standard Supabase/PostgREST CRUD operations. The following tables are available:
+   591→   591→
+   592→   592→### Core CCMS Tables
+   593→   593→
+   594→   594→| Table | Endpoint | Description |
+   595→   595→|-------|----------|-------------|
+   596→   596→| `educational_levels` | `/rest/v1/educational_levels` | Nigerian educational levels |
+   597→   597→| `school_level_configurations` | `/rest/v1/school_level_configurations` | Per-school level settings |
+   598→   598→| `curricula` | `/rest/v1/curricula` | Curriculum definitions |
+   599→   599→| `curriculum_versions` | `/rest/v1/curriculum_versions` | Curriculum version history |
+   600→   600→| `curriculum_level_mappings` | `/rest/v1/curriculum_level_mappings` | Curriculum-level associations |
+   601→   601→| `subjects` | `/rest/v1/subjects` | Subject definitions |
+   602→   602→| `topics` | `/rest/v1/topics` | Topic hierarchy |
+   603→   603→| `subtopics` | `/rest/v1/subtopics` | Subtopics |
+   604→   604→| `learning_objectives` | `/rest/v1/learning_objectives` | Learning objectives |
+   605→   605→| `content_items` | `/rest/v1/content_items` | Central content table |
+   606→   606→| `content_versions` | `/rest/v1/content_versions` | Content version history |
+   607→   607→| `content_reviews` | `/rest/v1/content_reviews` | Quality reviews |
+   608→   608→| `content_imports` | `/rest/v1/content_imports` | Bulk import tracking |
+   609→   609→| `content_collections` | `/rest/v1/content_collections` | Content collections |
+   610→   610→| `content_collection_items` | `/rest/v1/content_collection_items` | Collection-item links |
+   611→   611→| `ai_curriculum_configs` | `/rest/v1/ai_curriculum_configs` | AI engine configuration |
+   612→   612→| `ai_generation_rules` | `/rest/v1/ai_generation_rules` | AI generation rules |
+   613→   613→| `answer_repository` | `/rest/v1/answer_repository` | Answer data with explanations |
+   614→   614→
+   615→   615→### Enterprise Tables
+   616→   616→
+   617→   617→| Table | Endpoint | Description |
+   618→   618→|-------|----------|-------------|
+   619→   619→| `audit_trail` | `/rest/v1/audit_trail` | Comprehensive audit log |
+   620→   620→| `mfa_configurations` | `/rest/v1/mfa_configurations` | MFA settings |
+   621→   621→| `api_keys` | `/rest/v1/api_keys` | API key management |
+   622→   622→| `rate_limit_configs` | `/rest/v1/rate_limit_configs` | Rate limit settings |
+   623→   623→| `rate_limit_counters` | `/rest/v1/rate_limit_counters` | Rate limit counters |
+   624→   624→| `security_events` | `/rest/v1/security_events` | Security incidents |
+   625→   625→| `user_sessions` | `/rest/v1/user_sessions` | Active sessions |
+   626→   626→| `encryption_key_metadata` | `/rest/v1/encryption_key_metadata` | Encryption key info |
+   627→   627→| `system_metrics` | `/rest/v1/system_metrics` | Platform metrics |
+   628→   628→| `alert_rules` | `/rest/v1/alert_rules` | Alert configurations |
+   629→   629→| `alert_incidents` | `/rest/v1/alert_incidents` | Fired alerts |
+   630→   630→| `performance_logs` | `/rest/v1/performance_logs` | Performance tracking |
+   631→   631→| `error_reports` | `/rest/v1/error_reports` | Error tracking |
+   632→   632→| `deployments` | `/rest/v1/deployments` | CI/CD tracking |
+   633→   633→| `deployment_steps` | `/rest/v1/deployment_steps` | Deployment step detail |
+   634→   634→| `test_results` | `/rest/v1/test_results` | Test execution results |
+   635→   635→| `test_suites` | `/rest/v1/test_suites` | Test suite summaries |
+   636→   636→| `database_migrations` | `/rest/v1/database_migrations` | Migration tracking |
+   637→   637→| `backup_records` | `/rest/v1/backup_records` | Backup tracking |
+   638→   638→
+   639→   639→### CRUD Operations
+   640→   640→
+   641→   641→#### SELECT (Read)
+   642→   642→
+   643→   643→```bash
+   644→   644→# Get all published content for a subject
+   645→   645→curl 'https://<project-ref>.supabase.co/rest/v1/content_items?subject_id=eq.uuid&status=eq.published&select=id,title,difficulty_level,bloom_level' \
+   646→   646→  -H 'apikey: <anon-key>' \
+   647→   647→  -H 'Authorization: Bearer <token>'
+   648→   648→```
+   649→   649→
+   650→   650→**Query Operators:**
+   651→   651→
+   652→   652→| Operator | Meaning | Example |
+   653→   653→|----------|---------|---------|
+   654→   654→| `eq` | Equals | `status=eq.published` |
+   655→   655→| `neq` | Not equals | `status=neq.archived` |
+   656→   656→| `gt` | Greater than | `usage_count=gt.100` |
+   657→   657→| `gte` | Greater than or equal | `quality_score=gte.3.5` |
+   658→   658→| `lt` | Less than | `created_at=lt.2024-01-01` |
+   659→   659→| `like` | Pattern match | `title=like.*algebra*` |
+   660→   660→| `ilike` | Case-insensitive pattern | `title=ilike.*Algebra*` |
+   661→   661→| `in` | In list | `difficulty_level=in.(beginner,elementary)` |
+   662→   662→| `is` | Is null / true | `reviewed_by=is.null` |
+   663→   663→| `cs` | Contains (array) | `tags=cs.{mathematics}` |
+   664→   664→| `cd` | Contained by | `tags=cd.{mathematics,algebra}` |
+   665→   665→
+   666→   666→#### INSERT (Create)
+   667→   667→
+   668→   668→```bash
+   669→   669→curl -X POST 'https://<project-ref>.supabase.co/rest/v1/content_items' \
+   670→   670→  -H 'apikey: <anon-key>' \
+   671→   671→  -H 'Authorization: Bearer <token>' \
+   672→   672→  -H 'Content-Type: application/json' \
+   673→   673→  -H 'Prefer: return=representation' \
+   674→   674→  -d '{
+   675→   675→    "title": "Solve for x: 2x + 5 = 15",
+   676→   676→    "content_type": "question",
+   677→   677→    "subject_id": "subject-uuid",
+   678→   678→    "educational_level_id": "level-uuid",
+   679→   679→    "difficulty_level": "elementary",
+   680→   680→    "bloom_level": "apply",
+   681→   681→    "body": "Solve for x: 2x + 5 = 15",
+   682→   682→    "options": [
+   683→   683→      {"label": "A", "text": "x = 3"},
+   684→   684→      {"label": "B", "text": "x = 5"},
+   685→   685→      {"label": "C", "text": "x = 7"},
+   686→   686→      {"label": "D", "text": "x = 10"}
+   687→   687→    ],
+   688→   688→    "correct_answer": {"label": "B", "text": "x = 5"},
+   689→   689→    "step_by_step_explanation": "Step 1: Subtract 5 from both sides: 2x = 10\nStep 2: Divide both sides by 2: x = 5",
+   690→   690→    "marks_allocated": 2,
+   691→   691→    "status": "draft",
+   692→   692→    "source_type": "school_created",
+   693→   693→    "school_id": "school-uuid"
+   694→   694→  }'
+   695→   695→```
+   696→   696→
+   697→   697→#### UPDATE
+   698→   698→
+   699→   699→```bash
+   700→   700→curl -X PATCH 'https://<project-ref>.supabase.co/rest/v1/content_items?id=eq.uuid' \
+   701→   701→  -H 'apikey: <anon-key>' \
+   702→   702→  -H 'Authorization: Bearer <token>' \
+   703→   703→  -H 'Content-Type: application/json' \
+   704→   704→  -H 'Prefer: return=representation' \
+   705→   705→  -d '{"status": "published", "published_at": "now()"}'
+   706→   706→```
+   707→   707→
+   708→   708→#### DELETE
+   709→   709→
+   710→   710→```bash
+   711→   711→curl -X DELETE 'https://<project-ref>.supabase.co/rest/v1/content_items?id=eq.uuid' \
+   712→   712→  -H 'apikey: <anon-key>' \
+   713→   713→  -H 'Authorization: Bearer <token>'
+   714→   714→```
+   715→   715→
+   716→   716→---
+   717→   717→
+   718→   718→## Request/Response Formats
+   719→   719→
+   720→   720→### Content Item (Full)
+   721→   721→
+   722→   722→```json
+   723→   723→{
+   724→   724→  "id": "550e8400-e29b-41d4-a716-446655440000",
+   725→   725→  "title": "Solve for x: 2x + 5 = 15",
+   726→   726→  "content_type": "question",
+   727→   727→  "subject_id": "subject-uuid",
+   728→   728→  "educational_level_id": "level-uuid",
+   729→   729→  "topic_id": "topic-uuid",
+   730→   730→  "subtopic_id": null,
+   731→   731→  "curriculum_id": "curriculum-uuid",
+   732→   732→  "school_id": "school-uuid",
+   733→   733→  "question_category": "objective",
+   734→   734→  "difficulty_level": "elementary",
+   735→   735→  "bloom_level": "apply",
+   736→   736→  "body": "Solve for x: 2x + 5 = 15",
+   737→   737→  "body_rich": {"blocks": [{"type": "paragraph", "data": "Solve for x: 2x + 5 = 15"}]},
+   738→   738→  "options": [
+   739→   739→    {"label": "A", "text": "x = 3"},
+   740→   740→    {"label": "B", "text": "x = 5"},
+   741→   741→    {"label": "C", "text": "x = 7"},
+   742→   742→    {"label": "D", "text": "x = 10"}
+   743→   743→  ],
+   744→   744→  "correct_answer": {"label": "B", "text": "x = 5"},
+   745→   745→  "step_by_step_explanation": "Step 1: Subtract 5 from both sides...",
+   746→   746→  "marking_scheme": {"method": "exact_match", "marks": {"B": 2}},
+   747→   747→  "teacher_notes": "Common mistake: students add 5 instead of subtracting",
+   748→   748→  "learning_objective_ids": ["lo-uuid-1"],
+   749→   749→  "curriculum_references": [{"body": "NERDC", "year": 2022, "section": "MATH-SS1-02"}],
+   750→   750→  "marks_allocated": 2,
+   751→   751→  "time_allocated_seconds": 120,
+   752→   752→  "source_type": "school_created",
+   753→   753→  "source_reference": null,
+   754→   754→  "is_past_question": false,
+   755→   755→  "past_exam_year": null,
+   756→   756→  "past_exam_body": null,
+   757→   757→  "has_licensing_rights": false,
+   758→   758→  "license_details": {},
+   759→   759→  "tags": ["algebra", "linear-equations"],
+   760→   760→  "media_urls": [],
+   761→   761→  "status": "published",
+   762→   762→  "version": 1,
+   763→   763→  "parent_content_id": null,
+   764→   764→  "review_count": 2,
+   765→   765→  "average_quality_score": 4.25,
+   766→   766→  "usage_count": 156,
+   767→   767→  "is_ai_generated": false,
+   768→   768→  "ai_generation_metadata": {},
+   769→   769→  "metadata": {},
+   770→   770→  "created_by": "user-uuid",
+   771→   771→  "reviewed_by": "reviewer-uuid",
+   772→   772→  "published_at": "2024-01-10T08:30:00Z",
+   773→   773→  "created_at": "2024-01-08T14:00:00Z",
+   774→   774→  "updated_at": "2024-01-10T08:30:00Z"
+   775→   775→}
+   776→   776→```
+   777→   777→
+   778→   778→### Pagination
+   779→   779→
+   780→   780→Use `Range` header for pagination:
+   781→   781→
+   782→   782→```bash
+   783→   783→# Get items 21-40 (page 2 with page size 20)
+   784→   784→curl 'https://<project-ref>.supabase.co/rest/v1/content_items?select=*&order=created_at.desc' \
+   785→   785→  -H 'apikey: <anon-key>' \
+   786→   786→  -H 'Authorization: Bearer <token>' \
+   787→   787→  -H 'Range: 20-39'
+   788→   788→```
+   789→   789→
+   790→   790→Response includes `Content-Range` header:
+   791→   791→
+   792→   792→```
+   793→   793→Content-Range: 20-39/12500
+   794→   794→```
+   795→   795→
+   796→   796→---
+   797→   797→
+   798→   798→## Error Codes
+   799→   799→
+   800→   800→### HTTP Status Codes
+   801→   801→
+   802→   802→| Code | Meaning | Common Cause |
+   803→   803→|------|---------|-------------|
+   804→   804→| 200 | OK | Successful GET or PATCH |
+   805→   805→| 201 | Created | Successful POST |
+   806→   806→| 204 | No Content | Successful DELETE |
+   807→   807→| 400 | Bad Request | Invalid JSON, missing required fields |
+   808→   808→| 401 | Unauthorized | Missing or invalid token |
+   809→   809→| 403 | Forbidden | Insufficient role/permissions (RLS) |
+   810→   810→| 404 | Not Found | Resource does not exist |
+   811→   811→| 409 | Conflict | Unique constraint violation |
+   812→   812→| 429 | Too Many Requests | Rate limit exceeded |
+   813→   813→| 500 | Internal Server Error | Unexpected server error |
+   814→   814→
+   815→   815→### Supabase Error Format
+   816→   816→
+   817→   817→```json
+   818→   818→{
+   819→   819→  "code": "42501",
+   820→   820→  "message": "new row violates row-level security policy for table \"content_items\"",
+   821→   821→  "details": null,
+   822→   822→  "hint": null
+   823→   823→}
+   824→   824→```
+   825→   825→
+   826→   826→### Common Database Error Codes
+   827→   827→
+   828→   828→| Code | Description |
+   829→   829→|------|-------------|
+   830→   830→| `23505` | Unique constraint violation (duplicate entry) |
+   831→   831→| `23503` | Foreign key constraint violation (referenced record not found) |
+   832→   832→| `23514` | Check constraint violation (value out of range) |
+   833→   833→| `42501` | RLS policy violation (insufficient permissions) |
+   834→   834→| `P0001` | Raise exception from PL/pgSQL function |
+   835→   835→| `PGRST116` | Resource not found (single row expected, none returned) |
+   836→   836→
+   837→   837→### Application-Level Error Codes
+   838→   838→
+   839→   839→| Code | Description |
+   840→   840→|------|-------------|
+   841→   841→| `AUTH_INVALID_CREDENTIALS` | Email or password is incorrect |
+   842→   842→| `AUTH_SESSION_EXPIRED` | Session token has expired |
+   843→   843→| `AUTH_MFA_REQUIRED` | MFA verification is required |
+   844→   844→| `CONTENT_NOT_FOUND` | Content item does not exist |
+   845→   845→| `CONTENT_ALREADY_PUBLISHED` | Content is already in published state |
+   846→   846→| `CONTENT_REVIEW_PENDING` | Content has pending reviews |
+   847→   847→| `IMPORT_IN_PROGRESS` | Import operation is already running |
+   848→   848→| `RATE_LIMIT_EXCEEDED` | Too many requests |
+   849→   849→| `INSUFFICIENT_PERMISSIONS` | User lacks required role |
+   850→   850→| `SCHOOL_NOT_CONFIGURED` | School has no levels configured |
+   851→   851→| `AI_GENERATION_FAILED` | AI content generation failed |
+   852→   852→| `VALIDATION_ERROR` | Input validation failed |
+   853→   853→
+   854→   854→---
+   855→   855→
+   856→   856→## Webhook Patterns
+   857→   857→
+   858→   858→### Available Webhooks
+   859→   859→
+   860→   860→| Event | Trigger | Payload |
+   861→   861→|-------|---------|---------|
+   862→   862→| `content.published` | Content item status changes to `published` | Content item object |
+   863→   863→| `content.review_requested` | Content submitted for review | Content item + reviewer info |
+   864→   864→| `import.completed` | Bulk import finishes | Import stats |
+   865→   865→| `security.alert` | Security event with severity ≥ `critical` | Security event object |
+   866→   866→| `alert.fired` | Monitoring alert triggers | Alert incident object |
+   867→   867→| `deployment.completed` | Deployment finishes | Deployment object |
+   868→   868→
+   869→   869→### Webhook Registration
+   870→   870→
+   871→   871→Webhooks are registered via the Supabase Edge Functions or the `alert_rules.notification_channels` field:
+   872→   872→
+   873→   873→```json
+   874→   874→{
+   875→   875→  "notification_channels": ["email:admin@school.edu.ng", "webhook:https://your-server.com/hook"]
+   876→   876→}
+   877→   877→```
+   878→   878→
+   879→   879→### Webhook Payload Example
+   880→   880→
+   881→   881→```json
+   882→   882→{
+   883→   883→  "event": "content.published",
+   884→   884→  "timestamp": "2024-01-15T10:30:00Z",
+   885→   885→  "data": {
+   886→   886→    "id": "content-uuid",
+   887→   887→    "title": "Solve for x: 2x + 5 = 15",
+   888→   888→    "content_type": "question",
+   889→   889→    "subject_name": "Mathematics",
+   890→   890→    "level_name": "Primary 5",
+   891→   891→    "published_by": "teacher-uuid",
+   892→   892→    "school_id": "school-uuid"
+   893→   893→  },
+   894→   894→  "signature": "sha256=abcdef1234567890..."
+   895→   895→}
+   896→   896→```
+   897→   897→
+   898→   898→### Webhook Verification
+   899→   899→
+   900→   900→Always verify webhook signatures:
+   901→   901→
+   902→   902→```dart
+   903→   903→import 'package:crypto/crypto.dart';
+   904→   904→
+   905→   905→bool verifyWebhookSignature(String payload, String signature, String secret) {
+   906→   906→  final key = utf8.encode(secret);
+   907→   907→  final bytes = utf8.encode(payload);
+   908→   908→  final hmacSha256 = Hmac(sha256, key);
+   909→   909→  final digest = hmacSha256.convert(bytes);
+   910→   910→  final expected = 'sha256=${digest.toString()}';
+   911→   911→  return signature == expected;
+   912→   912→}
+   913→   913→```
+   914→   914→
+   915→   915→### Retry Policy
+   916→   916→
+   917→   917→Failed webhook deliveries are retried with exponential backoff:
+   918→   918→
+   919→   919→| Attempt | Delay |
+   920→   920→|---------|-------|
+   921→   921→| 1 | Immediate |
+   922→   922→| 2 | 1 minute |
+   923→   923→| 3 | 5 minutes |
+   924→   924→| 4 | 30 minutes |
+   925→   925→| 5 | 2 hours |
+   926→   926→
+   927→   927→After 5 failed attempts, the webhook is marked as failed and an alert is generated.
+   928→   928→
+   929→   929→---
+   930→   930→
+   931→   931→## Appendix: Enum Reference
+   932→   932→
+   933→   933→### `educational_level_type`
+   934→   934→
+   935→   935→`nursery`, `kindergarten`, `primary_1` through `primary_6`, `jss_1` through `jss_3`, `ss_1` through `ss_3`, `technical_1` through `technical_3`, `college_of_education_1` through `college_of_education_3`, `university_100` through `university_600`
+   936→   936→
+   937→   937→### `level_category_type`
+   938→   938→
+   939→   939→`early_childhood`, `primary`, `junior_secondary`, `senior_secondary`, `technical`, `tertiary_college`, `tertiary_university`
+   940→   940→
+   941→   941→### `curriculum_type`
+   942→   942→
+   943→   943→`nerdc`, `waec`, `neco`, `nabteb`, `custom`, `international`
+   944→   944→
+   945→   945→### `content_status_type`
+   946→   946→
+   947→   947→`draft`, `review`, `published`, `archived`, `deprecated`
+   948→   948→
+   949→   949→### `content_type_enum`
+   950→   950→
+   951→   951→`question`, `explanation`, `marking_scheme`, `teacher_note`, `lesson_note`, `worksheet`, `practical_guide`, `reading_material`, `video_script`, `assessment_rubric`
+   952→   952→
+   953→   953→### `question_category_type`
+   954→   954→
+   955→   955→`objective`, `theory`, `practical`, `oral`, `project`, `essay`, `fill_in_blank`, `true_false`, `matching`, `ordering`, `multiple_choice`
+   956→   956→
+   957→   957→### `difficulty_level_type`
+   958→   958→
+   959→   959→`beginner`, `elementary`, `intermediate`, `advanced`, `expert`
+   960→   960→
+   961→   961→### `bloom_taxonomy_type`
+   962→   962→
+   963→   963→`remember`, `understand`, `apply`, `analyze`, `evaluate`, `create`
+   964→   964→
+   965→   965→### `audit_action_type`
+   966→   966→
+   967→   967→`create`, `read`, `update`, `delete`, `login`, `logout`, `export`, `import`, `approve`, `reject`, `archive`, `restore`, `permission_change`, `role_change`, `password_change`, `mfa_enable`, `mfa_disable`, `session_invalidate`, `api_key_create`, `api_key_revoke`
+   968→   968→
+   969→   969→### `mfa_method_type`
+   970→   970→
+   971→   971→`sms`, `email`, `authenticator_app`, `hardware_key`
+   972→   972→
+   973→   973→### `rate_limit_scope_type`
+   974→   974→
+   975→   975→`global`, `per_user`, `per_ip`, `per_api_key`, `per_endpoint`
+   976→   976→
+   977→   977→### `alert_severity_type`
+   978→   978→
+   979→   979→`info`, `warning`, `critical`, `emergency`
+   980→   980→

@@ -1,0 +1,803 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/app_typography.dart';
+     6→import '../../../../core/themes/spacings.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_button.dart';
+     9→import '../../../../shared/widgets/app_card.dart';
+    10→import '../../../../shared/widgets/app_dialog.dart';
+    11→import '../../domain/entities/cbt_entities.dart';
+    12→import '../providers/exam_taker_provider.dart';
+    13→import '../widgets/exam_timer_widget.dart';
+    14→import '../widgets/question_navigator.dart';
+    15→import '../widgets/question_display_widget.dart';
+    16→
+    17→// ═══════════════════════════════════════════════════════════════════════
+    18→// EXAM TAKE PAGE (Student) - THE CRITICAL EXAM-TAKING INTERFACE
+    19→// ═══════════════════════════════════════════════════════════════════════
+    20→
+    21→/// Full-screen focused exam-taking interface for students.
+    22→///
+    23→/// Features:
+    24→/// - Top bar: Exam title, Timer, Connection status
+    25→/// - Left sidebar (desktop): QuestionNavigator
+    26→/// - Center: QuestionDisplayWidget
+    27→/// - Bottom bar: Previous, Next, Flag, Submit
+    28→/// - Mobile: Question navigator as bottom sheet
+    29→/// - Auto-save indicator
+    30→/// - Submit confirmation dialog
+    31→/// - Warning when time is running low
+    32→/// - Resume after disconnect dialog
+    33→/// - Anti-cheat event handlers
+    34→class ExamTakePage extends ConsumerStatefulWidget {
+    35→  const ExamTakePage({super.key, required this.examId});
+    36→
+    37→  final String examId;
+    38→
+    39→  @override
+    40→  ConsumerState<ExamTakePage> createState() => _ExamTakePageState();
+    41→}
+    42→
+    43→class _ExamTakePageState extends ConsumerState<ExamTakePage>
+    44→    with WidgetsBindingObserver {
+    45→  bool _showNavigatorSheet = false;
+    46→  bool _hasShownTimeWarning = false;
+    47→  bool _hasShownCriticalWarning = false;
+    48→
+    49→  @override
+    50→  void initState() {
+    51→    super.initState();
+    52→    WidgetsBinding.instance.addObserver(this);
+    53→
+    54→    // Start the exam
+    55→    Future.microtask(() {
+    56→      ref.read(examTakerProvider.notifier).startExam(widget.examId);
+    57→    });
+    58→  }
+    59→
+    60→  @override
+    61→  void dispose() {
+    62→    WidgetsBinding.instance.removeObserver(this);
+    63→    super.dispose();
+    64→  }
+    65→
+    66→  @override
+    67→  void didChangeAppLifecycleState(AppLifecycleState state) {
+    68→    // Anti-cheat: detect when app goes to background
+    69→    if (state == AppLifecycleState.paused) {
+    70→      final takerState = ref.read(examTakerProvider);
+    71→      if (takerState.isExamActive) {
+    72→        ref.read(examTakerProvider.notifier).handleViolation(
+    73→          MonitoringLogEntity(
+    74→            id: '',
+    75→            attemptId: takerState.attemptId ?? '',
+    76→            examId: takerState.examId ?? '',
+    77→            studentId: '',
+    78→            eventType: MonitoringEventType.tabSwitch,
+    79→            severity: 'warning',
+    80→            createdAt: DateTime.now(),
+    81→          ),
+    82→        );
+    83→      }
+    84→    }
+    85→  }
+    86→
+    87→  @override
+    88→  Widget build(BuildContext context) {
+    89→    final cs = context.colorScheme;
+    90→    final tt = context.textTheme;
+    91→    final state = ref.watch(examTakerProvider);
+    92→    final exam = state.exam;
+    93→    final currentQuestion = state.currentQuestion;
+    94→
+    95→    // Show time warning dialogs
+    96→    _checkTimeWarnings(state);
+    97→
+    98→    // Handle exam completion
+    99→    if (state.isExamCompleted) {
+   100→      return _buildExamCompletedScreen(context, state);
+   101→    }
+   102→
+   103→    // Handle disqualification
+   104→    if (state.isDisqualified) {
+   105→      return _buildDisqualifiedScreen(context, state);
+   106→    }
+   107→
+   108→    // Loading state
+   109→    if (exam == null) {
+   110→      return Scaffold(
+   111→        backgroundColor: cs.surface,
+   112→        body: Center(
+   113→          child: Column(
+   114→            mainAxisSize: MainAxisSize.min,
+   115→            children: [
+   116→              const CircularProgressIndicator(),
+   117→              const SizedBox(height: Spacings.lg),
+   118→              Text(
+   119→                'Loading exam…',
+   120→                style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+   121→              ),
+   122→              if (state.error != null) ...[
+   123→                const SizedBox(height: Spacings.md),
+   124→                Text(
+   125→                  state.error!,
+   126→                  style: tt.bodySmall?.copyWith(
+   127→                    color: AppColors.errorOf(cs.brightness),
+   128→                  ),
+   129→                  textAlign: TextAlign.center,
+   130→                ),
+   131→              ],
+   132→            ],
+   133→          ),
+   134→        ),
+   135→      );
+   136→    }
+   137→
+   138→    return Scaffold(
+   139→      backgroundColor: cs.surface,
+   140→      body: SafeArea(
+   141→        child: Column(
+   142→          children: [
+   143→            // ── Top Bar ────────────────────────────────────────────────
+   144→            _buildTopBar(context, state, exam),
+   145→
+   146→            // ── Main Content Area ──────────────────────────────────────
+   147→            Expanded(
+   148→              child: Row(
+   149→                crossAxisAlignment: CrossAxisAlignment.start,
+   150→                children: [
+   151→                  // Left sidebar: Question Navigator (desktop only)
+   152→                  if (context.isDesktop)
+   153→                    Padding(
+   154→                      padding: const EdgeInsets.all(Spacings.md),
+   155→                      child: QuestionNavigator(
+   156→                        totalQuestions: state.totalQuestions,
+   157→                        currentIndex: state.currentQuestionIndex,
+   158→                        answeredIndices: state.answers.entries
+   159→                            .where((e) => e.value.isNotEmpty)
+   160→                            .map((e) {
+   161→                          final idx = exam.questions
+   162→                              .indexWhere((q) => q.questionId == e.key);
+   163→                          return idx;
+   164→                        }).where((i) => i >= 0).toSet(),
+   165→                        flaggedIndices: state.flaggedQuestions.entries
+   166→                            .where((e) => e.value)
+   167→                            .map((e) {
+   168→                          final idx = exam.questions
+   169→                              .indexWhere((q) => q.questionId == e.key);
+   170→                          return idx;
+   171→                        }).where((i) => i >= 0).toSet(),
+   172→                        onQuestionTap: (index) {
+   173→                          ref.read(examTakerProvider.notifier).goToQuestion(index);
+   174→                        },
+   175→                        isDesktop: true,
+   176→                      ),
+   177→                    ),
+   178→
+   179→                  // Center: Current question display
+   180→                  Expanded(
+   181→                    child: currentQuestion != null
+   182→                        ? QuestionDisplayWidget(
+   183→                            examQuestion: currentQuestion,
+   184→                            questionIndex: state.currentQuestionIndex,
+   185→                            totalQuestions: state.totalQuestions,
+   186→                            currentAnswer: state.currentAnswer,
+   187→                            isFlagged: state.isCurrentFlagged,
+   188→                            isEnabled: state.isExamActive,
+   189→                            onAnswerChanged: (data) {
+   190→                              ref.read(examTakerProvider.notifier).saveCurrentAnswer(data);
+   191→                            },
+   192→                            onFlagToggle: (isFlagged) {
+   193→                              ref.read(examTakerProvider.notifier).flagCurrentQuestion(isFlagged);
+   194→                            },
+   195→                            onClearAnswer: () {
+   196→                              final questionId = currentQuestion.questionId;
+   197→                              final updatedAnswers =
+   198→                                  Map<String, Map<String, dynamic>>.from(state.answers);
+   199→                              updatedAnswers.remove(questionId);
+   200→                              // Force rebuild with empty answer
+   201→                              ref.read(examTakerProvider.notifier).saveCurrentAnswer({});
+   202→                            },
+   203→                            onPrevious: () {
+   204→                              ref.read(examTakerProvider.notifier).previousQuestion();
+   205→                            },
+   206→                            onNext: () {
+   207→                              ref.read(examTakerProvider.notifier).nextQuestion();
+   208→                            },
+   209→                            isFirst: state.isFirstQuestion,
+   210→                            isLast: state.isLastQuestion,
+   211→                          )
+   212→                        : Center(
+   213→                            child: Text(
+   214→                              'No question to display',
+   215→                              style: tt.bodyLarge?.copyWith(
+   216→                                  color: cs.onSurfaceVariant),
+   217→                            ),
+   218→                          ),
+   219→                  ),
+   220→                ],
+   221→              ),
+   222→            ),
+   223→
+   224→            // ── Bottom Bar ─────────────────────────────────────────────
+   225→            _buildBottomBar(context, state, exam),
+   226→          ],
+   227→        ),
+   228→      ),
+   229→
+   230→      // ── Mobile: Question Navigator Bottom Sheet ─────────────────────
+   231→      bottomSheet: _showNavigatorSheet && context.isMobile
+   232→          ? QuestionNavigator(
+   233→              totalQuestions: state.totalQuestions,
+   234→              currentIndex: state.currentQuestionIndex,
+   235→              answeredIndices: state.answers.entries
+   236→                  .where((e) => e.value.isNotEmpty)
+   237→                  .map((e) {
+   238→                final idx = exam?.questions
+   239→                        .indexWhere((q) => q.questionId == e.key) ??
+   240→                    -1;
+   241→                return idx;
+   242→              }).where((i) => i >= 0).toSet(),
+   243→              flaggedIndices: state.flaggedQuestions.entries
+   244→                  .where((e) => e.value)
+   245→                  .map((e) {
+   246→                final idx = exam?.questions
+   247→                        .indexWhere((q) => q.questionId == e.key) ??
+   248→                    -1;
+   249→                return idx;
+   250→              }).where((i) => i >= 0).toSet(),
+   251→              onQuestionTap: (index) {
+   252→                ref.read(examTakerProvider.notifier).goToQuestion(index);
+   253→                setState(() => _showNavigatorSheet = false);
+   254→              },
+   255→              isDesktop: false,
+   256→            )
+   257→          : null,
+   258→    );
+   259→  }
+   260→
+   261→  // ── Top Bar ───────────────────────────────────────────────────────────
+   262→
+   263→  Widget _buildTopBar(BuildContext context, ExamTakerState state, ExamEntity exam) {
+   264→    final cs = context.colorScheme;
+   265→    final tt = context.textTheme;
+   266→
+   267→    return Container(
+   268→      padding: const EdgeInsets.symmetric(
+   269→        horizontal: Spacings.md,
+   270→        vertical: Spacings.sm,
+   271→      ),
+   272→      decoration: BoxDecoration(
+   273→        color: cs.surfaceContainerLow,
+   274→        border: Border(
+   275→          bottom: BorderSide(
+   276→            color: cs.outlineVariant.withValues(alpha: 0.5),
+   277→          ),
+   278→        ),
+   279→      ),
+   280→      child: Row(
+   281→        children: [
+   282→          // Exam title (truncated on mobile)
+   283→          Expanded(
+   284→            child: Text(
+   285→              exam.title,
+   286→              style: tt.titleSmall?.copyWith(
+   287→                fontWeight: AppTypography.wSemiBold,
+   288→                color: cs.onSurface,
+   289→              ),
+   290→              maxLines: 1,
+   291→              overflow: TextOverflow.ellipsis,
+   292→            ),
+   293→          ),
+   294→
+   295→          // Auto-save indicator
+   296→          if (state.isAutoSaving)
+   297→            Padding(
+   298→              padding: const EdgeInsets.only(right: Spacings.sm),
+   299→              child: Row(
+   300→                mainAxisSize: MainAxisSize.min,
+   301→                children: [
+   302→                  SizedBox(
+   303→                    width: 12,
+   304→                    height: 12,
+   305→                    child: CircularProgressIndicator(
+   306→                      strokeWidth: 2,
+   307→                      color: cs.onSurfaceVariant,
+   308→                    ),
+   309→                  ),
+   310→                  const SizedBox(width: Spacings.xs),
+   311→                  Text(
+   312→                    'Saving…',
+   313→                    style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   314→                  ),
+   315→                ],
+   316→              ),
+   317→            )
+   318→          else if (state.lastAutoSaveTime != null)
+   319→            Padding(
+   320→              padding: const EdgeInsets.only(right: Spacings.sm),
+   321→              child: Text(
+   322→                'Saved',
+   323→                style: tt.bodySmall?.copyWith(
+   324→                  color: AppColors.successOf(cs.brightness),
+   325→                ),
+   326→              ),
+   327→            ),
+   328→
+   329→          // Timer
+   330→          ExamTimerWidget(
+   331→            timeRemaining: state.timeRemaining,
+   332→            totalDuration: Duration(minutes: exam.timeLimitMinutes),
+   333→            isPaused: state.isPaused,
+   334→            compact: true,
+   335→          ),
+   336→
+   337→          const SizedBox(width: Spacings.sm),
+   338→
+   339→          // Connection status
+   340→          _buildConnectionIndicator(context, state.connectionStatus),
+   341→
+   342→          // Mobile: Navigator toggle button
+   343→          if (context.isMobile) ...[
+   344→            const SizedBox(width: Spacings.sm),
+   345→            IconButton(
+   346→              onPressed: () {
+   347→                setState(() => _showNavigatorSheet = !_showNavigatorSheet);
+   348→              },
+   349→              icon: Icon(
+   350→                Icons.grid_view_rounded,
+   351→                color: cs.onSurfaceVariant,
+   352→              ),
+   353→              tooltip: 'Question Navigator',
+   354→              style: IconButton.styleFrom(
+   355→                backgroundColor: _showNavigatorSheet
+   356→                    ? cs.primary.withValues(alpha: 0.1)
+   357→                    : null,
+   358→              ),
+   359→            ),
+   360→          ],
+   361→        ],
+   362→      ),
+   363→    );
+   364→  }
+   365→
+   366→  Widget _buildConnectionIndicator(BuildContext context, String status) {
+   367→    final cs = context.colorScheme;
+   368→    final color = switch (status) {
+   369→      'connected' => AppColors.successOf(cs.brightness),
+   370→      'disconnected' => AppColors.errorOf(cs.brightness),
+   371→      'reconnecting' => AppColors.warningOf(cs.brightness),
+   372→      _ => cs.onSurfaceVariant,
+   373→    };
+   374→
+   375→    final label = switch (status) {
+   376→      'connected' => 'Connected',
+   377→      'disconnected' => 'Offline',
+   378→      'reconnecting' => 'Reconnecting…',
+   379→      _ => status,
+   380→    };
+   381→
+   382→    return Tooltip(
+   383→      message: label,
+   384→      child: Container(
+   385→        padding: const EdgeInsets.symmetric(
+   386→          horizontal: Spacings.sm,
+   387→          vertical: Spacings.xs,
+   388→        ),
+   389→        decoration: BoxDecoration(
+   390→          color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+   391→          borderRadius: BorderRadius.circular(Spacings.smRadius),
+   392→        ),
+   393→        child: Row(
+   394→          mainAxisSize: MainAxisSize.min,
+   395→          children: [
+   396→            Container(
+   397→              width: 8,
+   398→              height: 8,
+   399→              decoration: BoxDecoration(
+   400→                color: color,
+   401→                shape: BoxShape.circle,
+   402→              ),
+   403→            ),
+   404→            if (!context.isMobile) ...[
+   405→              const SizedBox(width: Spacings.xs),
+   406→              Text(
+   407→                label,
+   408→                style: context.textTheme.labelSmall?.copyWith(
+   409→                  fontWeight: AppTypography.wSemiBold,
+   410→                  color: color,
+   411→                ),
+   412→              ),
+   413→            ],
+   414→          ],
+   415→        ),
+   416→      ),
+   417→    );
+   418→  }
+   419→
+   420→  // ── Bottom Bar ────────────────────────────────────────────────────────
+   421→
+   422→  Widget _buildBottomBar(BuildContext context, ExamTakerState state, ExamEntity exam) {
+   423→    final cs = context.colorScheme;
+   424→    final tt = context.textTheme;
+   425→
+   426→    return Container(
+   427→      padding: const EdgeInsets.symmetric(
+   428→        horizontal: Spacings.lg,
+   429→        vertical: Spacings.md,
+   430→      ),
+   431→      decoration: BoxDecoration(
+   432→        color: cs.surfaceContainerLow,
+   433→        border: Border(
+   434→          top: BorderSide(
+   435→            color: cs.outlineVariant.withValues(alpha: 0.5),
+   436→          ),
+   437→        ),
+   438→      ),
+   439→      child: Row(
+   440→        children: [
+   441→          // Previous
+   442→          OutlinedButton.icon(
+   443→            onPressed: state.isFirstQuestion ? null : () {
+   444→              ref.read(examTakerProvider.notifier).previousQuestion();
+   445→            },
+   446→            icon: const Icon(Icons.arrow_back_rounded, size: 18),
+   447→            label: const Text('Previous'),
+   448→            style: OutlinedButton.styleFrom(
+   449→              padding: const EdgeInsets.symmetric(
+   450→                horizontal: Spacings.md,
+   451→                vertical: Spacings.sm,
+   452→              ),
+   453→            ),
+   454→          ),
+   455→
+   456→          const SizedBox(width: Spacings.sm),
+   457→
+   458→          // Flag toggle
+   459→          IconButton.outlined(
+   460→            onPressed: () {
+   461→              ref.read(examTakerProvider.notifier).flagCurrentQuestion(!state.isCurrentFlagged);
+   462→            },
+   463→            icon: Icon(
+   464→              state.isCurrentFlagged
+   465→                  ? Icons.flag_rounded
+   466→                  : Icons.flag_outlined,
+   467→              color: state.isCurrentFlagged
+   468→                  ? AppColors.warningOf(cs.brightness)
+   469→                  : cs.onSurfaceVariant,
+   470→            ),
+   471→            tooltip: state.isCurrentFlagged ? 'Unflag' : 'Flag for Review',
+   472→          ),
+   473→
+   474→          const Spacer(),
+   475→
+   476→          // Question counter
+   477→          Text(
+   478→            '${state.currentQuestionIndex + 1} / ${state.totalQuestions}',
+   479→            style: tt.bodyMedium?.copyWith(
+   480→              fontWeight: AppTypography.wSemiBold,
+   481→              color: cs.onSurface,
+   482→            ),
+   483→          ),
+   484→
+   485→          const Spacer(),
+   486→
+   487→          // Next
+   488→          FilledButton.icon(
+   489→            onPressed: state.isLastQuestion ? null : () {
+   490→              ref.read(examTakerProvider.notifier).nextQuestion();
+   491→            },
+   492→            icon: const Icon(Icons.arrow_forward_rounded, size: 18),
+   493→            label: const Text('Next'),
+   494→            style: FilledButton.styleFrom(
+   495→              backgroundColor: cs.primary,
+   496→              foregroundColor: cs.onPrimary,
+   497→              padding: const EdgeInsets.symmetric(
+   498→                horizontal: Spacings.md,
+   499→                vertical: Spacings.sm,
+   500→              ),
+   501→            ),
+   502→          ),
+   503→
+   504→          const SizedBox(width: Spacings.sm),
+   505→
+   506→          // Submit button
+   507→          AppButton(
+   508→            label: 'Submit',
+   509→            onPressed: () => _showSubmitConfirmation(context, state),
+   510→            variant: AppButtonVariant.elevated,
+   511→            size: AppButtonSize.small,
+   512→            icon: Icons.send_rounded,
+   513→          ),
+   514→        ],
+   515→      ),
+   516→    );
+   517→  }
+   518→
+   519→  // ── Submit Confirmation ───────────────────────────────────────────────
+   520→
+   521→  Future<void> _showSubmitConfirmation(
+   522→    BuildContext context,
+   523→    ExamTakerState state,
+   524→  ) async {
+   525→    final unansweredCount =
+   526→        state.totalQuestions - state.answeredCount;
+   527→    final flaggedCount = state.flaggedCount;
+   528→
+   529→    final confirmed = await AppDialog.showCustom<bool>(
+   530→      context: context,
+   531→      builder: (ctx) => Column(
+   532→        mainAxisSize: MainAxisSize.min,
+   533→        children: [
+   534→          Icon(
+   535→            Icons.send_rounded,
+   536→            size: Spacings.xlIcon,
+   537→            color: ctx.colorScheme.primary,
+   538→          ),
+   539→          const SizedBox(height: Spacings.lg),
+   540→          Text(
+   541→            'Submit Exam?',
+   542→            style: ctx.textTheme.titleLarge?.copyWith(
+   543→              fontWeight: AppTypography.wSemiBold,
+   544→              color: ctx.colorScheme.onSurface,
+   545→            ),
+   546→            textAlign: TextAlign.center,
+   547→          ),
+   548→          const SizedBox(height: Spacings.sm),
+   549→          Text(
+   550→            'Are you sure you want to submit your exam? This action cannot be undone.',
+   551→            style: ctx.textTheme.bodyMedium?.copyWith(
+   552→              color: ctx.colorScheme.onSurfaceVariant,
+   553→            ),
+   554→            textAlign: TextAlign.center,
+   555→          ),
+   556→          const SizedBox(height: Spacings.md),
+   557→          // Warnings
+   558→          if (unansweredCount > 0)
+   559→            Container(
+   560→              width: double.infinity,
+   561→              padding: const EdgeInsets.all(Spacings.sm),
+   562→              decoration: BoxDecoration(
+   563→                color: AppColors.warningOf(ctx.colorScheme.brightness)
+   564→                    .withValues(alpha: ctx.isDarkMode ? 0.15 : 0.08),
+   565→                borderRadius: BorderRadius.circular(Spacings.smRadius),
+   566→              ),
+   567→              child: Row(
+   568→                children: [
+   569→                  Icon(Icons.warning_amber_rounded,
+   570→                      size: 18,
+   571→                      color: AppColors.warningOf(ctx.colorScheme.brightness)),
+   572→                  const SizedBox(width: Spacings.xs),
+   573→                  Text(
+   574→                    '$unansweredCount question${unansweredCount > 1 ? 's' : ''} unanswered',
+   575→                    style: ctx.textTheme.bodySmall?.copyWith(
+   576→                      fontWeight: AppTypography.wSemiBold,
+   577→                      color: AppColors.warningOf(ctx.colorScheme.brightness),
+   578→                    ),
+   579→                  ),
+   580→                ],
+   581→              ),
+   582→            ),
+   583→          if (flaggedCount > 0) ...[
+   584→            const SizedBox(height: Spacings.sm),
+   585→            Container(
+   586→              width: double.infinity,
+   587→              padding: const EdgeInsets.all(Spacings.sm),
+   588→              decoration: BoxDecoration(
+   589→                color: AppColors.warningOf(ctx.colorScheme.brightness)
+   590→                    .withValues(alpha: ctx.isDarkMode ? 0.15 : 0.08),
+   591→                borderRadius: BorderRadius.circular(Spacings.smRadius),
+   592→              ),
+   593→              child: Row(
+   594→                children: [
+   595→                  Icon(Icons.flag_rounded,
+   596→                      size: 18,
+   597→                      color: AppColors.warningOf(ctx.colorScheme.brightness)),
+   598→                  const SizedBox(width: Spacings.xs),
+   599→                  Text(
+   600→                    '$flaggedCount question${flaggedCount > 1 ? 's' : ''} flagged for review',
+   601→                    style: ctx.textTheme.bodySmall?.copyWith(
+   602→                      fontWeight: AppTypography.wSemiBold,
+   603→                      color: AppColors.warningOf(ctx.colorScheme.brightness),
+   604→                    ),
+   605→                  ),
+   606→                ],
+   607→              ),
+   608→            ),
+   609→          ],
+   610→          const SizedBox(height: Spacings.xl),
+   611→          Row(
+   612→            mainAxisAlignment: MainAxisAlignment.end,
+   613→            children: [
+   614→              AppButton(
+   615→                label: 'Cancel',
+   616→                onPressed: () => Navigator.of(ctx).pop(false),
+   617→                variant: AppButtonVariant.text,
+   618→              ),
+   619→              const SizedBox(width: Spacings.sm),
+   620→              AppButton(
+   621→                label: 'Submit Exam',
+   622→                onPressed: () => Navigator.of(ctx).pop(true),
+   623→                variant: AppButtonVariant.elevated,
+   624→                icon: Icons.send_rounded,
+   625→              ),
+   626→            ],
+   627→          ),
+   628→        ],
+   629→      ),
+   630→    );
+   631→
+   632→    if (confirmed == true) {
+   633→      ref.read(examTakerProvider.notifier).submitExam();
+   634→    }
+   635→  }
+   636→
+   637→  // ── Time Warnings ─────────────────────────────────────────────────────
+   638→
+   639→  void _checkTimeWarnings(ExamTakerState state) {
+   640→    if (state.timeRemaining.inMinutes == 5 &&
+   641→        !_hasShownTimeWarning &&
+   642→        state.timeRemaining.inSeconds > 0) {
+   643→      _hasShownTimeWarning = true;
+   644→      Future.microtask(() {
+   645→        if (mounted) {
+   646→          AppDialog.showInfo(
+   647→            context: context,
+   648→            title: 'Time Warning',
+   649→            message: 'You have less than 5 minutes remaining. Please review your answers.',
+   650→            dismissText: 'Continue',
+   651→          );
+   652→        }
+   653→      });
+   654→    }
+   655→
+   656→    if (state.timeRemaining.inMinutes == 0 &&
+   657→        state.timeRemaining.inSeconds > 30 &&
+   658→        !_hasShownCriticalWarning) {
+   659→      _hasShownCriticalWarning = true;
+   660→      Future.microtask(() {
+   661→        if (mounted) {
+   662→          AppDialog.showInfo(
+   663→            context: context,
+   664→            title: 'Less Than 1 Minute!',
+   665→            message: 'Your exam will be auto-submitted when time runs out. Please save your current answer.',
+   666→            dismissText: 'OK',
+   667→          );
+   668→        }
+   669→      });
+   670→    }
+   671→  }
+   672→
+   673→  // ── Exam Completed Screen ─────────────────────────────────────────────
+   674→
+   675→  Widget _buildExamCompletedScreen(BuildContext context, ExamTakerState state) {
+   676→    final cs = context.colorScheme;
+   677→    final tt = context.textTheme;
+   678→
+   679→    return Scaffold(
+   680→      backgroundColor: cs.surface,
+   681→      body: SafeArea(
+   682→        child: Center(
+   683→          child: Padding(
+   684→            padding: const EdgeInsets.all(Spacings.xl),
+   685→            child: Column(
+   686→              mainAxisSize: MainAxisSize.min,
+   687→              children: [
+   688→                Container(
+   689→                  width: 80,
+   690→                  height: 80,
+   691→                  decoration: BoxDecoration(
+   692→                    color: AppColors.successOf(cs.brightness)
+   693→                        .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+   694→                    shape: BoxShape.circle,
+   695→                  ),
+   696→                  child: Icon(
+   697→                    Icons.check_circle_rounded,
+   698→                    size: Spacings.xlIcon,
+   699→                    color: AppColors.successOf(cs.brightness),
+   700→                  ),
+   701→                ),
+   702→                const SizedBox(height: Spacings.xl),
+   703→                Text(
+   704→                  'Exam Submitted!',
+   705→                  style: tt.headlineMedium?.copyWith(
+   706→                    fontWeight: AppTypography.wBold,
+   707→                    color: cs.onSurface,
+   708→                  ),
+   709→                ),
+   710→                const SizedBox(height: Spacings.md),
+   711→                Text(
+   712→                  state.attempt?.submissionType?.label ?? 'Your exam has been submitted successfully.',
+   713→                  style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+   714→                  textAlign: TextAlign.center,
+   715→                ),
+   716→                const SizedBox(height: Spacings.xl),
+   717→                AppButton(
+   718→                  label: 'View Results',
+   719→                  onPressed: () {
+   720→                    // Navigate to result view
+   721→                  },
+   722→                  variant: AppButtonVariant.elevated,
+   723→                  icon: Icons.bar_chart_rounded,
+   724→                ),
+   725→                const SizedBox(height: Spacings.md),
+   726→                AppButton(
+   727→                  label: 'Back to Exams',
+   728→                  onPressed: () => Navigator.of(context).pop(),
+   729→                  variant: AppButtonVariant.text,
+   730→                ),
+   731→              ],
+   732→            ),
+   733→          ),
+   734→        ),
+   735→      ),
+   736→    );
+   737→  }
+   738→
+   739→  // ── Disqualified Screen ───────────────────────────────────────────────
+   740→
+   741→  Widget _buildDisqualifiedScreen(BuildContext context, ExamTakerState state) {
+   742→    final cs = context.colorScheme;
+   743→    final tt = context.textTheme;
+   744→
+   745→    return Scaffold(
+   746→      backgroundColor: cs.surface,
+   747→      body: SafeArea(
+   748→        child: Center(
+   749→          child: Padding(
+   750→            padding: const EdgeInsets.all(Spacings.xl),
+   751→            child: Column(
+   752→              mainAxisSize: MainAxisSize.min,
+   753→              children: [
+   754→                Container(
+   755→                  width: 80,
+   756→                  height: 80,
+   757→                  decoration: BoxDecoration(
+   758→                    color: AppColors.errorOf(cs.brightness)
+   759→                        .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+   760→                    shape: BoxShape.circle,
+   761→                  ),
+   762→                  child: Icon(
+   763→                    Icons.gpp_bad_rounded,
+   764→                    size: Spacings.xlIcon,
+   765→                    color: AppColors.errorOf(cs.brightness),
+   766→                  ),
+   767→                ),
+   768→                const SizedBox(height: Spacings.xl),
+   769→                Text(
+   770→                  'Exam Disqualified',
+   771→                  style: tt.headlineMedium?.copyWith(
+   772→                    fontWeight: AppTypography.wBold,
+   773→                    color: AppColors.errorOf(cs.brightness),
+   774→                  ),
+   775→                ),
+   776→                const SizedBox(height: Spacings.md),
+   777→                Text(
+   778→                  'Your exam has been disqualified due to suspicious activity. ${state.violationCount} violations were detected.',
+   779→                  style: tt.bodyLarge?.copyWith(color: cs.onSurfaceVariant),
+   780→                  textAlign: TextAlign.center,
+   781→                ),
+   782→                const SizedBox(height: Spacings.xl),
+   783→                AppButton(
+   784→                  label: 'Contact Support',
+   785→                  onPressed: () {},
+   786→                  variant: AppButtonVariant.tonal,
+   787→                  icon: Icons.support_agent_rounded,
+   788→                ),
+   789→                const SizedBox(height: Spacings.md),
+   790→                AppButton(
+   791→                  label: 'Back to Exams',
+   792→                  onPressed: () => Navigator.of(context).pop(),
+   793→                  variant: AppButtonVariant.text,
+   794→                ),
+   795→              ],
+   796→            ),
+   797→          ),
+   798→        ),
+   799→      ),
+   800→    );
+   801→  }
+   802→}
+   803→

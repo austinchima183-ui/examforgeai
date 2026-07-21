@@ -1,0 +1,937 @@
+     1→     1→import 'package:flutter/material.dart';
+     2→     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→     3→import 'package:go_router/go_router.dart';
+     4→     4→
+     5→     5→import '../../../../core/themes/app_colors.dart';
+     6→     6→import '../../../../core/themes/app_typography.dart';
+     7→     7→import '../../../../core/themes/spacings.dart';
+     8→     8→import '../../../../core/extensions/context_extensions.dart';
+     9→     9→import '../../../../routing/route_names.dart';
+    10→    10→import '../../../../shared/widgets/widgets.dart';
+    11→    11→import '../providers/student_portal_providers.dart';
+    12→    12→import '../../domain/entities/student_portal_entities.dart';
+    13→    13→
+    14→    14→/// Comprehensive student dashboard page for the Student Portal.
+    15→    15→///
+    16→    16→/// Displays:
+    17→    17→/// - Welcome section with student name and learning streak
+    18→    18→/// - Stat cards row: Upcoming Exams, Pending Assignments, Average Score, Practice Sessions
+    19→    19→/// - Quick Actions grid: AI Tutor, Practice Mode, Assignments, Flashcards, Study Planner, Resources
+    20→    20→/// - Today's Schedule section
+    21→    21→/// - Recent Activity list
+    22→    22→/// - Notifications summary
+    23→    23→/// - AI Study Suggestions section
+    24→    24→/// - Pull-to-refresh with [RefreshIndicator]
+    25→    25→/// - Loading skeleton state
+    26→    26→class StudentPortalDashboardPage extends ConsumerStatefulWidget {
+    27→    27→  const StudentPortalDashboardPage({super.key});
+    28→    28→
+    29→    29→  @override
+    30→    30→  ConsumerState<StudentPortalDashboardPage> createState() =>
+    31→    31→      _StudentPortalDashboardPageState();
+    32→    32→}
+    33→    33→
+    34→    34→class _StudentPortalDashboardPageState
+    35→    35→    extends ConsumerState<StudentPortalDashboardPage> {
+    36→    36→  @override
+    37→    37→  void initState() {
+    38→    38→    super.initState();
+    39→    39→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    40→    40→      ref.read(studentDashboardProvider.notifier).loadDashboard();
+    41→    41→    });
+    42→    42→  }
+    43→    43→
+    44→    44→  @override
+    45→    45→  Widget build(BuildContext context) {
+    46→    46→    final dashboardState = ref.watch(studentDashboardProvider);
+    47→    47→
+    48→    48→    if (dashboardState.isLoading && dashboardState.stats.upcomingExams == 0) {
+    49→    49→      return const _DashboardLoadingSkeleton();
+    50→    50→    }
+    51→    51→
+    52→    52→    if (dashboardState.error != null &&
+    53→    53→        dashboardState.stats.upcomingExams == 0) {
+    54→    54→      return AppErrorState(
+    55→    55→        icon: Icons.error_outline_rounded,
+    56→    56→        title: 'Failed to Load Dashboard',
+    57→    57→        message: dashboardState.error,
+    58→    58→        onRetry: () =>
+    59→    59→            ref.read(studentDashboardProvider.notifier).refresh(),
+    60→    60→      );
+    61→    61→    }
+    62→    62→
+    63→    63→    final stats = dashboardState.stats;
+    64→    64→
+    65→    65→    return RefreshIndicator(
+    66→    66→      onRefresh: () =>
+    67→    67→          ref.read(studentDashboardProvider.notifier).refresh(),
+    68→    68→      child: SingleChildScrollView(
+    69→    69→        physics: const AlwaysScrollableScrollPhysics(),
+    70→    70→        padding: Spacings.paddingScreen,
+    71→    71→        child: context.isDesktop
+    72→    72→            ? _buildDesktopLayout(context, ref, dashboardState, stats)
+    73→    73→            : _buildMobileLayout(context, ref, dashboardState, stats),
+    74→    74→      ),
+    75→    75→    );
+    76→    76→  }
+    77→    77→
+    78→    78→  // ─── Mobile Layout ──────────────────────────────────────────────────
+    79→    79→
+    80→    80→  Widget _buildMobileLayout(
+    81→    81→    BuildContext context,
+    82→    82→    WidgetRef ref,
+    83→    83→    StudentDashboardState state,
+    84→    84→    StudentDashboardStats stats,
+    85→    85→  ) {
+    86→    86→    return Column(
+    87→    87→      crossAxisAlignment: CrossAxisAlignment.start,
+    88→    88→      children: [
+    89→    89→        _buildWelcomeSection(context, stats),
+    90→    90→        Spacings.sectionGap,
+    91→    91→        _buildStatCards(context, stats),
+    92→    92→        Spacings.sectionGap,
+    93→    93→        _buildQuickActions(context),
+    94→    94→        Spacings.sectionGap,
+    95→    95→        _buildTodaySchedule(context, state),
+    96→    96→        Spacings.sectionGap,
+    97→    97→        _buildRecentActivity(context, state),
+    98→    98→        Spacings.sectionGap,
+    99→    99→        _buildNotificationsSummary(context, state),
+   100→   100→        Spacings.sectionGap,
+   101→   101→        _buildAiSuggestions(context, state),
+   102→   102→        const SizedBox(height: Spacings.xl),
+   103→   103→      ],
+   104→   104→    );
+   105→   105→  }
+   106→   106→
+   107→   107→  // ─── Desktop Layout ─────────────────────────────────────────────────
+   108→   108→
+   109→   109→  Widget _buildDesktopLayout(
+   110→   110→    BuildContext context,
+   111→   111→    WidgetRef ref,
+   112→   112→    StudentDashboardState state,
+   113→   113→    StudentDashboardStats stats,
+   114→   114→  ) {
+   115→   115→    return Column(
+   116→   116→      crossAxisAlignment: CrossAxisAlignment.start,
+   117→   117→      children: [
+   118→   118→        _buildWelcomeSection(context, stats),
+   119→   119→        Spacings.sectionGap,
+   120→   120→        _buildStatCards(context, stats),
+   121→   121→        Spacings.sectionGap,
+   122→   122→        Row(
+   123→   123→          crossAxisAlignment: CrossAxisAlignment.start,
+   124→   124→          children: [
+   125→   125→            Expanded(
+   126→   126→              flex: 3,
+   127→   127→              child: Column(
+   128→   128→                crossAxisAlignment: CrossAxisAlignment.start,
+   129→   129→                children: [
+   130→   130→                  _buildQuickActions(context),
+   131→   131→                  Spacings.sectionGap,
+   132→   132→                  _buildTodaySchedule(context, state),
+   133→   133→                  Spacings.sectionGap,
+   134→   134→                  _buildRecentActivity(context, state),
+   135→   135→                ],
+   136→   136→              ),
+   137→   137→            ),
+   138→   138→            const SizedBox(width: Spacings.xl),
+   139→   139→            Expanded(
+   140→   140→              flex: 2,
+   141→   141→              child: Column(
+   142→   142→                crossAxisAlignment: CrossAxisAlignment.start,
+   143→   143→                children: [
+   144→   144→                  _buildNotificationsSummary(context, state),
+   145→   145→                  Spacings.sectionGap,
+   146→   146→                  _buildAiSuggestions(context, state),
+   147→   147→                ],
+   148→   148→              ),
+   149→   149→            ),
+   150→   150→          ],
+   151→   151→        ),
+   152→   152→        const SizedBox(height: Spacings.xl),
+   153→   153→      ],
+   154→   154→    );
+   155→   155→  }
+   156→   156→
+   157→   157→  // ─── Welcome Section ────────────────────────────────────────────────
+   158→   158→
+   159→   159→  Widget _buildWelcomeSection(BuildContext context, StudentDashboardStats stats) {
+   160→   160→    final cs = context.colorScheme;
+   161→   161→    final tt = context.textTheme;
+   162→   162→
+   163→   163→    return AppCard(
+   164→   164→      padding: const EdgeInsets.all(Spacings.xl),
+   165→   165→      child: Row(
+   166→   166→        children: [
+   167→   167→          Expanded(
+   168→   168→            child: Column(
+   169→   169→              crossAxisAlignment: CrossAxisAlignment.start,
+   170→   170→              children: [
+   171→   171→                Text(
+   172→   172→                  'Welcome back! 👋',
+   173→   173→                  style: tt.headlineSmall?.copyWith(
+   174→   174→                    fontWeight: AppTypography.wBold,
+   175→   175→                    color: cs.onSurface,
+   176→   176→                  ),
+   177→   177→                ),
+   178→   178→                const SizedBox(height: Spacings.sm),
+   179→   179→                Text(
+   180→   180→                  'Keep up the great work on your learning journey.',
+   181→   181→                  style: tt.bodyMedium?.copyWith(
+   182→   182→                    color: cs.onSurfaceVariant,
+   183→   183→                  ),
+   184→   184→                ),
+   185→   185→              ],
+   186→   186→            ),
+   187→   187→          ),
+   188→   188→          if (stats.learningStreak > 0) ...[
+   189→   189→            const SizedBox(width: Spacings.lg),
+   190→   190→            Container(
+   191→   191→              padding: const EdgeInsets.symmetric(
+   192→   192→                horizontal: Spacings.lg,
+   193→   193→                vertical: Spacings.md,
+   194→   194→              ),
+   195→   195→              decoration: BoxDecoration(
+   196→   196→                gradient: AppColors.warmGradient,
+   197→   197→                borderRadius: BorderRadius.circular(Spacings.lgRadius),
+   198→   198→              ),
+   199→   199→              child: Column(
+   200→   200→                children: [
+   201→   201→                  Text(
+   202→   202→                    '${stats.learningStreak}',
+   203→   203→                    style: tt.headlineMedium?.copyWith(
+   204→   204→                      fontWeight: AppTypography.wBold,
+   205→   205→                      color: Colors.white,
+   206→   206→                    ),
+   207→   207→                  ),
+   208→   208→                  Text(
+   209→   209→                    'Day Streak 🔥',
+   210→   210→                    style: tt.bodySmall?.copyWith(
+   211→   211→                      color: Colors.white.withValues(alpha: 0.9),
+   212→   212→                      fontWeight: AppTypography.wSemiBold,
+   213→   213→                    ),
+   214→   214→                  ),
+   215→   215→                ],
+   216→   216→              ),
+   217→   217→            ),
+   218→   218→          ],
+   219→   219→        ],
+   220→   220→      ),
+   221→   221→    );
+   222→   222→  }
+   223→   223→
+   224→   224→  // ─── Stat Cards ─────────────────────────────────────────────────────
+   225→   225→
+   226→   226→  Widget _buildStatCards(BuildContext context, StudentDashboardStats stats) {
+   227→   227→    return SizedBox(
+   228→   228→      height: 110,
+   229→   229→      child: ListView(
+   230→   230→        scrollDirection: Axis.horizontal,
+   231→   231→        children: [
+   232→   232→          _StatCard(
+   233→   233→            title: 'Upcoming Exams',
+   234→   234→            value: '${stats.upcomingExams}',
+   235→   235→            icon: Icons.event_upcoming_outlined,
+   236→   236→            color: AppColors.info,
+   237→   237→          ),
+   238→   238→          const SizedBox(width: Spacings.md),
+   239→   239→          _StatCard(
+   240→   240→            title: 'Pending Assignments',
+   241→   241→            value: '${stats.pendingAssignments}',
+   242→   242→            icon: Icons.assignment_outlined,
+   243→   243→            color: AppColors.warning,
+   244→   244→          ),
+   245→   245→          const SizedBox(width: Spacings.md),
+   246→   246→          _StatCard(
+   247→   247→            title: 'Average Score',
+   248→   248→            value: '${stats.recentAvgScore.toStringAsFixed(1)}%',
+   249→   249→            icon: Icons.trending_up_outlined,
+   250→   250→            color: AppColors.success,
+   251→   251→          ),
+   252→   252→          const SizedBox(width: Spacings.md),
+   253→   253→          _StatCard(
+   254→   254→            title: 'Practice Sessions',
+   255→   255→            value: '${stats.practiceThisWeek}',
+   256→   256→            icon: Icons.auto_awesome_outlined,
+   257→   257→            color: context.colorScheme.tertiary,
+   258→   258→          ),
+   259→   259→        ],
+   260→   260→      ),
+   261→   261→    );
+   262→   262→  }
+   263→   263→
+   264→   264→  // ─── Quick Actions ──────────────────────────────────────────────────
+   265→   265→
+   266→   266→  Widget _buildQuickActions(BuildContext context) {
+   267→   267→    final cs = context.colorScheme;
+   268→   268→    final actions = [
+   269→   269→      _QuickActionData(
+   270→   270→        title: 'AI Tutor',
+   271→   271→        subtitle: 'Get help studying',
+   272→   272→        icon: Icons.smart_toy_outlined,
+   273→   273→        color: cs.primary,
+   274→   274→        onTap: () => context.go(RouteNames.dashboard),
+   275→   275→      ),
+   276→   276→      _QuickActionData(
+   277→   277→        title: 'Practice Mode',
+   278→   278→        subtitle: 'Test your knowledge',
+   279→   279→        icon: Icons.quiz_outlined,
+   280→   280→        color: AppColors.info,
+   281→   281→        onTap: () => context.go(RouteNames.dashboard),
+   282→   282→      ),
+   283→   283→      _QuickActionData(
+   284→   284→        title: 'Assignments',
+   285→   285→        subtitle: 'View & submit work',
+   286→   286→        icon: Icons.assignment_outlined,
+   287→   287→        color: AppColors.warning,
+   288→   288→        onTap: () => context.go(RouteNames.dashboard),
+   289→   289→      ),
+   290→   290→      _QuickActionData(
+   291→   291→        title: 'Flashcards',
+   292→   292→        subtitle: 'Spaced repetition',
+   293→   293→        icon: Icons.style_outlined,
+   294→   294→        color: AppColors.success,
+   295→   295→        onTap: () => context.go(RouteNames.dashboard),
+   296→   296→      ),
+   297→   297→      _QuickActionData(
+   298→   298→        title: 'Study Planner',
+   299→   299→        subtitle: 'Plan your study time',
+   300→   300→        icon: Icons.calendar_month_outlined,
+   301→   301→        color: cs.tertiary,
+   302→   302→        onTap: () => context.go(RouteNames.dashboard),
+   303→   303→      ),
+   304→   304→      _QuickActionData(
+   305→   305→        title: 'Resources',
+   306→   306→        subtitle: 'Learning materials',
+   307→   307→        icon: Icons.folder_open_outlined,
+   308→   308→        color: AppColors.error,
+   309→   309→        onTap: () => context.go(RouteNames.dashboard),
+   310→   310→      ),
+   311→   311→    ];
+   312→   312→
+   313→   313→    return Column(
+   314→   314→      crossAxisAlignment: CrossAxisAlignment.start,
+   315→   315→      mainAxisSize: MainAxisSize.min,
+   316→   316→      children: [
+   317→   317→        _sectionTitle(context, 'Quick Actions'),
+   318→   318→        const SizedBox(height: Spacings.md),
+   319→   319→        GridView.builder(
+   320→   320→          shrinkWrap: true,
+   321→   321→          physics: const NeverScrollableScrollPhysics(),
+   322→   322→          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+   323→   323→            crossAxisCount: context.isMobile ? 2 : 3,
+   324→   324→            childAspectRatio: 1.4,
+   325→   325→            crossAxisSpacing: Spacings.md,
+   326→   326→            mainAxisSpacing: Spacings.md,
+   327→   327→          ),
+   328→   328→          itemCount: actions.length,
+   329→   329→          itemBuilder: (context, index) {
+   330→   330→            final action = actions[index];
+   331→   331→            return _QuickActionCard(action: action);
+   332→   332→          },
+   333→   333→        ),
+   334→   334→      ],
+   335→   335→    );
+   336→   336→  }
+   337→   337→
+   338→   338→  // ─── Today's Schedule ───────────────────────────────────────────────
+   339→   339→
+   340→   340→  Widget _buildTodaySchedule(
+   341→   341→      BuildContext context, StudentDashboardState state) {
+   342→   342→    final cs = context.colorScheme;
+   343→   343→    final tt = context.textTheme;
+   344→   344→
+   345→   345→    final pendingAssignments = state.pendingAssignments.take(3).toList();
+   346→   346→
+   347→   347→    return Column(
+   348→   348→      crossAxisAlignment: CrossAxisAlignment.start,
+   349→   349→      mainAxisSize: MainAxisSize.min,
+   350→   350→      children: [
+   351→   351→        _sectionTitle(context, "Today's Schedule"),
+   352→   352→        const SizedBox(height: Spacings.sm),
+   353→   353→        if (pendingAssignments.isEmpty)
+   354→   354→          AppCard(
+   355→   355→            child: Center(
+   356→   356→              child: Padding(
+   357→   357→                padding: const EdgeInsets.all(Spacings.xl),
+   358→   358→                child: Text(
+   359→   359→                  'No pending tasks for today! 🎉',
+   360→   360→                  style: tt.bodyMedium?.copyWith(
+   361→   361→                    color: cs.onSurfaceVariant,
+   362→   362→                  ),
+   363→   363→                ),
+   364→   364→              ),
+   365→   365→            ),
+   366→   366→          )
+   367→   367→        else
+   368→   368→          ...pendingAssignments.map(
+   369→   369→            (assignment) => Padding(
+   370→   370→              padding: const EdgeInsets.only(bottom: Spacings.sm),
+   371→   371→              child: AppInfoCard(
+   372→   372→                title: assignment.assignmentTitle ?? 'Untitled Assignment',
+   373→   373→                subtitle:
+   374→   374→                    '${assignment.subjectName ?? 'No Subject'} · Due ${_formatDate(assignment.dueDate)}',
+   375→   375→                icon: Icons.assignment_outlined,
+   376→   376→                iconColor: AppColors.warning,
+   377→   377→                trailing: _buildStatusBadge(context, assignment.status),
+   378→   378→              ),
+   379→   379→            ),
+   380→   380→          ),
+   381→   381→      ],
+   382→   382→    );
+   383→   383→  }
+   384→   384→
+   385→   385→  // ─── Recent Activity ────────────────────────────────────────────────
+   386→   386→
+   387→   387→  Widget _buildRecentActivity(
+   388→   388→      BuildContext context, StudentDashboardState state) {
+   389→   389→    final tt = context.textTheme;
+   390→   390→    final cs = context.colorScheme;
+   391→   391→
+   392→   392→    final recentPractice = state.recentPractice.take(5).toList();
+   393→   393→
+   394→   394→    return Column(
+   395→   395→      crossAxisAlignment: CrossAxisAlignment.start,
+   396→   396→      mainAxisSize: MainAxisSize.min,
+   397→   397→      children: [
+   398→   398→        _sectionTitle(context, 'Recent Activity'),
+   399→   399→        const SizedBox(height: Spacings.sm),
+   400→   400→        if (recentPractice.isEmpty)
+   401→   401→          AppCard(
+   402→   402→            child: Center(
+   403→   403→              child: Padding(
+   404→   404→                padding: const EdgeInsets.all(Spacings.xl),
+   405→   405→                child: Text(
+   406→   406→                  'No recent activity yet.',
+   407→   407→                  style: tt.bodyMedium?.copyWith(
+   408→   408→                    color: cs.onSurfaceVariant,
+   409→   409→                  ),
+   410→   410→                ),
+   411→   411→              ),
+   412→   412→            ),
+   413→   413→          )
+   414→   414→        else
+   415→   415→          ...recentPractice.map(
+   416→   416→            (session) => Padding(
+   417→   417→              padding: const EdgeInsets.only(bottom: Spacings.sm),
+   418→   418→              child: AppInfoCard(
+   419→   419→                title:
+   420→   420→                    '${session.subjectName ?? 'Practice'} - ${session.topicName ?? 'Mixed Topics'}',
+   421→   421→                subtitle:
+   422→   422→                    'Score: ${session.scorePct.toStringAsFixed(0)}% · ${session.totalQuestions} questions',
+   423→   423→                icon: Icons.quiz_outlined,
+   424→   424→                iconColor: session.scorePct >= 70
+   425→   425→                    ? AppColors.success
+   426→   426→                    : AppColors.warning,
+   427→   427→                trailing: Text(
+   428→   428→                  _formatDate(session.createdAt),
+   429→   429→                  style: tt.bodySmall?.copyWith(
+   430→   430→                    color: cs.onSurfaceVariant,
+   431→   431→                  ),
+   432→   432→                ),
+   433→   433→              ),
+   434→   434→            ),
+   435→   435→          ),
+   436→   436→      ],
+   437→   437→    );
+   438→   438→  }
+   439→   439→
+   440→   440→  // ─── Notifications Summary ──────────────────────────────────────────
+   441→   441→
+   442→   442→  Widget _buildNotificationsSummary(
+   443→   443→      BuildContext context, StudentDashboardState state) {
+   444→   444→    final cs = context.colorScheme;
+   445→   445→    final tt = context.textTheme;
+   446→   446→    final notifications = state.recentNotifications.take(4).toList();
+   447→   447→
+   448→   448→    return Column(
+   449→   449→      crossAxisAlignment: CrossAxisAlignment.start,
+   450→   450→      mainAxisSize: MainAxisSize.min,
+   451→   451→      children: [
+   452→   452→        Row(
+   453→   453→          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   454→   454→          children: [
+   455→   455→            _sectionTitle(context, 'Notifications'),
+   456→   456→            if (state.unreadNotificationCount > 0)
+   457→   457→              Badge(
+   458→   458→                label: Text('${state.unreadNotificationCount}'),
+   459→   459→                child: const SizedBox.shrink(),
+   460→   460→              ),
+   461→   461→          ],
+   462→   462→        ),
+   463→   463→        const SizedBox(height: Spacings.sm),
+   464→   464→        if (notifications.isEmpty)
+   465→   465→          AppCard(
+   466→   466→            child: Center(
+   467→   467→              child: Padding(
+   468→   468→                padding: const EdgeInsets.all(Spacings.xl),
+   469→   469→                child: Text(
+   470→   470→                  "You're all caught up! 🎉",
+   471→   471→                  style: tt.bodyMedium?.copyWith(
+   472→   472→                    color: cs.onSurfaceVariant,
+   473→   473→                  ),
+   474→   474→                ),
+   475→   475→              ),
+   476→   476→            ),
+   477→   477→          )
+   478→   478→        else
+   479→   479→          ...notifications.map(
+   480→   480→            (notification) => Padding(
+   481→   481→              padding: const EdgeInsets.only(bottom: Spacings.sm),
+   482→   482→              child: AppInfoCard(
+   483→   483→                title: notification.title,
+   484→   484→                subtitle: notification.message,
+   485→   485→                icon: _notificationIcon(notification.type),
+   486→   486→                iconColor: _notificationColor(notification.type),
+   487→   487→                onTap: () {
+   488→   488→                  // Navigate to notifications page
+   489→   489→                },
+   490→   490→              ),
+   491→   491→            ),
+   492→   492→          ),
+   493→   493→        const SizedBox(height: Spacings.sm),
+   494→   494→        SizedBox(
+   495→   495→          width: double.infinity,
+   496→   496→          child: OutlinedButton(
+   497→   497→            onPressed: () {
+   498→   498→              // Navigate to full notifications
+   499→   499→            },
+   500→   500→            child: const Text('View All Notifications'),
+   501→   501→          ),
+   502→   502→        ),
+   503→   503→      ],
+   504→   504→    );
+   505→   505→  }
+   506→   506→
+   507→   507→  // ─── AI Study Suggestions ───────────────────────────────────────────
+   508→   508→
+   509→   509→  Widget _buildAiSuggestions(
+   510→   510→      BuildContext context, StudentDashboardState state) {
+   511→   511→    final cs = context.colorScheme;
+   512→   512→    final tt = context.textTheme;
+   513→   513→
+   514→   514→    final suggestions = [
+   515→   515→      _AiSuggestion(
+   516→   516→        icon: Icons.auto_awesome_outlined,
+   517→   517→        title: 'Focus on Weak Topics',
+   518→   518→        description:
+   519→   519→            'Based on your recent practice, consider reviewing topics where your score was below 60%.',
+   520→   520→        actionLabel: 'Start Practice',
+   521→   521→        color: AppColors.info,
+   522→   522→      ),
+   523→   523→      _AiSuggestion(
+   524→   524→        icon: Icons.style_outlined,
+   525→   525→        title: 'Review Flashcards',
+   526→   526→        description:
+   527→   527→            'You have ${state.stats.pendingAssignments} pending assignments. Review key concepts first.',
+   528→   528→        actionLabel: 'Review Now',
+   529→   529→        color: AppColors.success,
+   530→   530→      ),
+   531→   531→      _AiSuggestion(
+   532→   532→        icon: Icons.timer_outlined,
+   533→   533→        title: 'Study Time Goal',
+   534→   534→        description:
+   535→   535→            'You\'ve studied ${state.stats.studyTimeThisWeekMin} minutes this week. Try to reach 5 hours!',
+   536→   536→        actionLabel: 'Plan Study',
+   537→   537→        color: AppColors.warning,
+   538→   538→      ),
+   539→   539→    ];
+   540→   540→
+   541→   541→    return Column(
+   542→   542→      crossAxisAlignment: CrossAxisAlignment.start,
+   543→   543→      mainAxisSize: MainAxisSize.min,
+   544→   544→      children: [
+   545→   545→        Row(
+   546→   546→          children: [
+   547→   547→            Icon(
+   548→   548→              Icons.auto_awesome_rounded,
+   549→   549→              size: Spacings.mdIcon,
+   550→   550→              color: cs.primary,
+   551→   551→            ),
+   552→   552→            const SizedBox(width: Spacings.sm),
+   553→   553→            _sectionTitle(context, 'AI Study Suggestions'),
+   554→   554→          ],
+   555→   555→        ),
+   556→   556→        const SizedBox(height: Spacings.sm),
+   557→   557→        ...suggestions.map(
+   558→   558→          (suggestion) => Padding(
+   559→   559→            padding: const EdgeInsets.only(bottom: Spacings.md),
+   560→   560→            child: AppCard(
+   561→   561→              child: Row(
+   562→   562→                children: [
+   563→   563→                  Container(
+   564→   564→                    padding: const EdgeInsets.all(Spacings.md),
+   565→   565→                    decoration: BoxDecoration(
+   566→   566→                      color: suggestion.color.withValues(
+   567→   567→                        alpha: context.isDarkMode ? 0.20 : 0.12,
+   568→   568→                      ),
+   569→   569→                      borderRadius:
+   570→   570→                          BorderRadius.circular(Spacings.mdRadius),
+   571→   571→                    ),
+   572→   572→                    child: Icon(
+   573→   573→                      suggestion.icon,
+   574→   574→                      size: Spacings.lgIcon,
+   575→   575→                      color: suggestion.color,
+   576→   576→                    ),
+   577→   577→                  ),
+   578→   578→                  const SizedBox(width: Spacings.md),
+   579→   579→                  Expanded(
+   580→   580→                    child: Column(
+   581→   581→                      crossAxisAlignment: CrossAxisAlignment.start,
+   582→   582→                      children: [
+   583→   583→                        Text(
+   584→   584→                          suggestion.title,
+   585→   585→                          style: tt.titleSmall?.copyWith(
+   586→   586→                            fontWeight: AppTypography.wSemiBold,
+   587→   587→                            color: cs.onSurface,
+   588→   588→                          ),
+   589→   589→                        ),
+   590→   590→                        const SizedBox(height: Spacings.xs),
+   591→   591→                        Text(
+   592→   592→                          suggestion.description,
+   593→   593→                          style: tt.bodySmall?.copyWith(
+   594→   594→                            color: cs.onSurfaceVariant,
+   595→   595→                          ),
+   596→   596→                          maxLines: 2,
+   597→   597→                          overflow: TextOverflow.ellipsis,
+   598→   598→                        ),
+   599→   599→                      ],
+   600→   600→                    ),
+   601→   601→                  ),
+   602→   602→                  const SizedBox(width: Spacings.sm),
+   603→   603→                  FilledButton.tonal(
+   604→   604→                    onPressed: () {},
+   605→   605→                    style: FilledButton.styleFrom(
+   606→   606→                      visualDensity: VisualDensity.compact,
+   607→   607→                      padding: const EdgeInsets.symmetric(
+   608→   608→                        horizontal: Spacings.md,
+   609→   609→                        vertical: Spacings.sm,
+   610→   610→                      ),
+   611→   611→                    ),
+   612→   612→                    child: Text(
+   613→   613→                      suggestion.actionLabel,
+   614→   614→                      style: tt.labelSmall,
+   615→   615→                    ),
+   616→   616→                  ),
+   617→   617→                ],
+   618→   618→              ),
+   619→   619→            ),
+   620→   620→          ),
+   621→   621→        ),
+   622→   622→      ],
+   623→   623→    );
+   624→   624→  }
+   625→   625→
+   626→   626→  // ─── Helpers ────────────────────────────────────────────────────────
+   627→   627→
+   628→   628→  Widget _sectionTitle(BuildContext context, String title) {
+   629→   629→    return Text(
+   630→   630→      title,
+   631→   631→      style: context.textTheme.titleMedium?.copyWith(
+   632→   632→        fontWeight: AppTypography.wSemiBold,
+   633→   633→        color: context.colorScheme.onSurface,
+   634→   634→      ),
+   635→   635→    );
+   636→   636→  }
+   637→   637→
+   638→   638→  Widget _buildStatusBadge(BuildContext context, SubmissionStatus status) {
+   639→   639→    final cs = context.colorScheme;
+   640→   640→    final tt = context.textTheme;
+   641→   641→    final (color, label) = switch (status) {
+   642→   642→      SubmissionStatus.draft => (AppColors.warning, 'Draft'),
+   643→   643→      SubmissionStatus.submitted => (AppColors.info, 'Submitted'),
+   644→   644→      SubmissionStatus.graded => (AppColors.success, 'Graded'),
+   645→   645→      SubmissionStatus.returned => (AppColors.error, 'Returned'),
+   646→   646→      SubmissionStatus.lateSubmitted => (AppColors.warning, 'Late'),
+   647→   647→      SubmissionStatus.resubmitted => (AppColors.info, 'Resubmitted'),
+   648→   648→    };
+   649→   649→
+   650→   650→    return Container(
+   651→   651→      padding: const EdgeInsets.symmetric(
+   652→   652→        horizontal: Spacings.md,
+   653→   653→        vertical: Spacings.xs,
+   654→   654→      ),
+   655→   655→      decoration: BoxDecoration(
+   656→   656→        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+   657→   657→        borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   658→   658→      ),
+   659→   659→      child: Text(
+   660→   660→        label,
+   661→   661→        style: tt.labelSmall?.copyWith(
+   662→   662→          color: color,
+   663→   663→          fontWeight: AppTypography.wSemiBold,
+   664→   664→        ),
+   665→   665→      ),
+   666→   666→    );
+   667→   667→  }
+   668→   668→
+   669→   669→  IconData _notificationIcon(StudentNotificationType type) {
+   670→   670→    return switch (type) {
+   671→   671→      StudentNotificationType.newAssignment => Icons.assignment_outlined,
+   672→   672→      StudentNotificationType.upcomingExam => Icons.event_upcoming_outlined,
+   673→   673→      StudentNotificationType.resultPublished => Icons.assessment_outlined,
+   674→   674→      StudentNotificationType.teacherAnnouncement =>
+   675→   675→        Icons.campaign_outlined,
+   676→   676→      StudentNotificationType.studyReminder => Icons.alarm_outlined,
+   677→   677→      StudentNotificationType.deadlineApproaching =>
+   678→   678→        Icons.schedule_outlined,
+   679→   679→      StudentNotificationType.feedbackReceived =>
+   680→   680→        Icons.feedback_outlined,
+   681→   681→    };
+   682→   682→  }
+   683→   683→
+   684→   684→  Color _notificationColor(StudentNotificationType type) {
+   685→   685→    return switch (type) {
+   686→   686→      StudentNotificationType.newAssignment => AppColors.info,
+   687→   687→      StudentNotificationType.upcomingExam => AppColors.warning,
+   688→   688→      StudentNotificationType.resultPublished => AppColors.success,
+   689→   689→      StudentNotificationType.teacherAnnouncement => AppColors.info,
+   690→   690→      StudentNotificationType.studyReminder => AppColors.warning,
+   691→   691→      StudentNotificationType.deadlineApproaching => AppColors.error,
+   692→   692→      StudentNotificationType.feedbackReceived => AppColors.success,
+   693→   693→    };
+   694→   694→  }
+   695→   695→
+   696→   696→  String _formatDate(DateTime? date) {
+   697→   697→    if (date == null) return 'N/A';
+   698→   698→    final now = DateTime.now();
+   699→   699→    final diff = date.difference(now).inDays;
+   700→   700→    if (diff == 0) return 'Today';
+   701→   701→    if (diff == 1) return 'Tomorrow';
+   702→   702→    if (diff > 0 && diff <= 7) return 'In $diff days';
+   703→   703→    return '${date.day}/${date.month}/${date.year}';
+   704→   704→  }
+   705→   705→}
+   706→   706→
+   707→   707→// ═══════════════════════════════════════════════════════════════════════
+   708→   708→// PRIVATE HELPER WIDGETS
+   709→   709→// ═══════════════════════════════════════════════════════════════════════
+   710→   710→
+   711→   711→class _StatCard extends StatelessWidget {
+   712→   712→  const _StatCard({
+   713→   713→    required this.title,
+   714→   714→    required this.value,
+   715→   715→    required this.icon,
+   716→   716→    required this.color,
+   717→   717→  });
+   718→   718→
+   719→   719→  final String title;
+   720→   720→  final String value;
+   721→   721→  final IconData icon;
+   722→   722→  final Color color;
+   723→   723→
+   724→   724→  @override
+   725→   725→  Widget build(BuildContext context) {
+   726→   726→    final cs = context.colorScheme;
+   727→   727→    final tt = context.textTheme;
+   728→   728→    final isDark = context.isDarkMode;
+   729→   729→
+   730→   730→    return AppCard(
+   731→   731→      width: 160,
+   732→   732→      padding: const EdgeInsets.all(Spacings.lg),
+   733→   733→      child: Column(
+   734→   734→        crossAxisAlignment: CrossAxisAlignment.start,
+   735→   735→        children: [
+   736→   736→          Container(
+   737→   737→            padding: const EdgeInsets.all(Spacings.sm),
+   738→   738→            decoration: BoxDecoration(
+   739→   739→              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+   740→   740→              borderRadius: BorderRadius.circular(Spacings.smRadius),
+   741→   741→            ),
+   742→   742→            child: Icon(icon, size: Spacings.mdIcon, color: color),
+   743→   743→          ),
+   744→   744→          const SizedBox(height: Spacings.md),
+   745→   745→          Text(
+   746→   746→            value,
+   747→   747→            style: tt.headlineSmall?.copyWith(
+   748→   748→              fontWeight: AppTypography.wBold,
+   749→   749→              color: cs.onSurface,
+   750→   750→            ),
+   751→   751→          ),
+   752→   752→          const SizedBox(height: Spacings.xs),
+   753→   753→          Text(
+   754→   754→            title,
+   755→   755→            style: tt.bodySmall?.copyWith(
+   756→   756→              color: cs.onSurfaceVariant,
+   757→   757→            ),
+   758→   758→            maxLines: 1,
+   759→   759→            overflow: TextOverflow.ellipsis,
+   760→   760→          ),
+   761→   761→        ],
+   762→   762→      ),
+   763→   763→    );
+   764→   764→  }
+   765→   765→}
+   766→   766→
+   767→   767→class _QuickActionData {
+   768→   768→  const _QuickActionData({
+   769→   769→    required this.title,
+   770→   770→    required this.subtitle,
+   771→   771→    required this.icon,
+   772→   772→    required this.color,
+   773→   773→    required this.onTap,
+   774→   774→  });
+   775→   775→
+   776→   776→  final String title;
+   777→   777→  final String subtitle;
+   778→   778→  final IconData icon;
+   779→   779→  final Color color;
+   780→   780→  final VoidCallback onTap;
+   781→   781→}
+   782→   782→
+   783→   783→class _QuickActionCard extends StatelessWidget {
+   784→   784→  const _QuickActionCard({required this.action});
+   785→   785→
+   786→   786→  final _QuickActionData action;
+   787→   787→
+   788→   788→  @override
+   789→   789→  Widget build(BuildContext context) {
+   790→   790→    final cs = context.colorScheme;
+   791→   791→    final tt = context.textTheme;
+   792→   792→    final isDark = context.isDarkMode;
+   793→   793→
+   794→   794→    return AppCard(
+   795→   795→      onTap: action.onTap,
+   796→   796→      child: Column(
+   797→   797→        mainAxisAlignment: MainAxisAlignment.center,
+   798→   798→        children: [
+   799→   799→          Container(
+   800→   800→            padding: const EdgeInsets.all(Spacings.md),
+   801→   801→            decoration: BoxDecoration(
+   802→   802→              color: action.color.withValues(alpha: isDark ? 0.20 : 0.12),
+   803→   803→              borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   804→   804→            ),
+   805→   805→            child: Icon(
+   806→   806→              action.icon,
+   807→   807→              size: Spacings.lgIcon,
+   808→   808→              color: action.color,
+   809→   809→            ),
+   810→   810→          ),
+   811→   811→          const SizedBox(height: Spacings.sm),
+   812→   812→          Text(
+   813→   813→            action.title,
+   814→   814→            style: tt.titleSmall?.copyWith(
+   815→   815→              fontWeight: AppTypography.wSemiBold,
+   816→   816→              color: cs.onSurface,
+   817→   817→            ),
+   818→   818→            textAlign: TextAlign.center,
+   819→   819→          ),
+   820→   820→          const SizedBox(height: Spacings.xs),
+   821→   821→          Text(
+   822→   822→            action.subtitle,
+   823→   823→            style: tt.bodySmall?.copyWith(
+   824→   824→              color: cs.onSurfaceVariant,
+   825→   825→            ),
+   826→   826→            textAlign: TextAlign.center,
+   827→   827→            maxLines: 1,
+   828→   828→            overflow: TextOverflow.ellipsis,
+   829→   829→          ),
+   830→   830→        ],
+   831→   831→      ),
+   832→   832→    );
+   833→   833→  }
+   834→   834→}
+   835→   835→
+   836→   836→class _AiSuggestion {
+   837→   837→  const _AiSuggestion({
+   838→   838→    required this.icon,
+   839→   839→    required this.title,
+   840→   840→    required this.description,
+   841→   841→    required this.actionLabel,
+   842→   842→    required this.color,
+   843→   843→  });
+   844→   844→
+   845→   845→  final IconData icon;
+   846→   846→  final String title;
+   847→   847→  final String description;
+   848→   848→  final String actionLabel;
+   849→   849→  final Color color;
+   850→   850→}
+   851→   851→
+   852→   852→// ═══════════════════════════════════════════════════════════════════════
+   853→   853→// LOADING SKELETON
+   854→   854→// ═══════════════════════════════════════════════════════════════════════
+   855→   855→
+   856→   856→class _DashboardLoadingSkeleton extends StatelessWidget {
+   857→   857→  const _DashboardLoadingSkeleton();
+   858→   858→
+   859→   859→  @override
+   860→   860→  Widget build(BuildContext context) {
+   861→   861→    return SingleChildScrollView(
+   862→   862→      padding: Spacings.paddingScreen,
+   863→   863→      child: Column(
+   864→   864→        crossAxisAlignment: CrossAxisAlignment.start,
+   865→   865→        children: [
+   866→   866→          // Welcome section skeleton
+   867→   867→          AppLoadingShimmer(
+   868→   868→            child: Container(
+   869→   869→              height: 100,
+   870→   870→              width: double.infinity,
+   871→   871→              decoration: BoxDecoration(
+   872→   872→                color: context.colorScheme.surfaceContainerHighest,
+   873→   873→                borderRadius:
+   874→   874→                    BorderRadius.circular(Spacings.lgRadius),
+   875→   875→              ),
+   876→   876→            ),
+   877→   877→          ),
+   878→   878→          Spacings.sectionGap,
+   879→   879→          // Stat cards skeleton
+   880→   880→          Row(
+   881→   881→            children: List.generate(
+   882→   882→              4,
+   883→   883→              (_) => Expanded(
+   884→   884→                child: Padding(
+   885→   885→                  padding: const EdgeInsets.only(right: Spacings.md),
+   886→   886→                  child: AppLoadingShimmer(
+   887→   887→                    child: Container(
+   888→   888→                      height: 100,
+   889→   889→                      decoration: BoxDecoration(
+   890→   890→                        color:
+   891→   891→                            context.colorScheme.surfaceContainerHighest,
+   892→   892→                        borderRadius: BorderRadius.circular(
+   893→   893→                            Spacings.mdRadius),
+   894→   894→                      ),
+   895→   895→                    ),
+   896→   896→                  ),
+   897→   897→                ),
+   898→   898→              ),
+   899→   899→            ),
+   900→   900→          ),
+   901→   901→          Spacings.sectionGap,
+   902→   902→          // Quick actions skeleton
+   903→   903→          AppLoadingShimmer(
+   904→   904→            child: Container(
+   905→   905→              height: 200,
+   906→   906→              decoration: BoxDecoration(
+   907→   907→                color: context.colorScheme.surfaceContainerHighest,
+   908→   908→                borderRadius:
+   909→   909→                    BorderRadius.circular(Spacings.mdRadius),
+   910→   910→              ),
+   911→   911→            ),
+   912→   912→          ),
+   913→   913→          Spacings.sectionGap,
+   914→   914→          // Recent activity skeleton
+   915→   915→          ...List.generate(
+   916→   916→            3,
+   917→   917→            (_) => Padding(
+   918→   918→              padding: const EdgeInsets.only(bottom: Spacings.md),
+   919→   919→              child: AppLoadingShimmer(
+   920→   920→                child: Container(
+   921→   921→                  height: 72,
+   922→   922→                  decoration: BoxDecoration(
+   923→   923→                    color:
+   924→   924→                        context.colorScheme.surfaceContainerHighest,
+   925→   925→                    borderRadius: BorderRadius.circular(
+   926→   926→                        Spacings.mdRadius),
+   927→   927→                  ),
+   928→   928→                ),
+   929→   929→              ),
+   930→   930→            ),
+   931→   931→          ),
+   932→   932→        ],
+   933→   933→      ),
+   934→   934→    );
+   935→   935→  }
+   936→   936→}
+   937→   937→
