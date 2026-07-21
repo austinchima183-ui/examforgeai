@@ -150,7 +150,10 @@ class _AppErrorStateState extends State<AppErrorState>
     final isMobile = context.isMobile;
     final iconSize = isMobile ? Spacings.xlIcon : 64.0;
 
-    return FadeTransition(
+    return Semantics(
+      liveRegion: true,
+      label: '${widget.title ?? 'Error'}${widget.message != null ? '. ${widget.message}' : ''}',
+      child: FadeTransition(
       opacity: _fadeAnimation,
       child: SlideTransition(
         position: _slideAnimation,
@@ -163,20 +166,22 @@ class _AppErrorStateState extends State<AppErrorState>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Icon
+                // Icon (decorative — excluded from semantics)
                 if (widget.icon != null)
-                  Container(
-                    padding: const EdgeInsets.all(Spacings.lg),
-                    decoration: BoxDecoration(
-                      color: AppColors.errorOf(cs.brightness).withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.10,
+                  ExcludeSemantics(
+                    child: Container(
+                      padding: const EdgeInsets.all(Spacings.lg),
+                      decoration: BoxDecoration(
+                        color: AppColors.errorOf(cs.brightness).withValues(
+                          alpha: context.isDarkMode ? 0.20 : 0.10,
+                        ),
+                        shape: BoxShape.circle,
                       ),
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      widget.icon,
-                      size: iconSize * 0.6,
-                      color: AppColors.errorOf(cs.brightness),
+                      child: Icon(
+                        widget.icon,
+                        size: iconSize * 0.6,
+                        color: AppColors.errorOf(cs.brightness),
+                      ),
                     ),
                   ),
 
@@ -222,6 +227,7 @@ class _AppErrorStateState extends State<AppErrorState>
             ),
           ),
         ),
+      ),
       ),
     );
   }

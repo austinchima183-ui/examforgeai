@@ -1,0 +1,857 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/extensions/context_extensions.dart';
+     5→import '../../../../core/themes/app_colors.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/themes/spacings.dart';
+     8→import '../../../../shared/widgets/app_app_bar.dart';
+     9→import '../../../../shared/widgets/app_empty_state.dart';
+    10→import '../../../../shared/widgets/app_error_state.dart';
+    11→import '../../../../shared/widgets/app_loading.dart';
+    12→import '../../domain/entities/parent_portal_entities.dart';
+    13→import '../../domain/usecases/send_parent_message_usecase.dart';
+    14→import '../providers/parent_messaging_provider.dart';
+    15→
+    16→// ═══════════════════════════════════════════════════════════════════════
+    17→// PARENT MESSAGING PAGE
+    18→// ═══════════════════════════════════════════════════════════════════════
+    19→
+    20→/// Secure messaging page for parent-teacher communication.
+    21→///
+    22→/// Presents two views:
+    23→/// - **Threads list** (default): Shows all conversation threads with
+    24→///   avatar, name, role badge, last message preview, unread count,
+    25→///   timestamp, and optional student name tag.
+    26→/// - **Conversation view** (shown when a thread is selected): Shows
+    27→///   message bubbles with date separators, read receipts, and an
+    28→///   input bar for composing new messages.
+    29→///
+    30→/// Uses [ConsumerStatefulWidget] with a private [_State] class pattern,
+    31→/// loads data in [initState] via [WidgetsBinding.instance.addPostFrameCallback],
+    32→/// and renders a responsive layout using [Scaffold] with [AppAppBar].
+    33→class ParentMessagingPage extends ConsumerStatefulWidget {
+    34→  const ParentMessagingPage({super.key});
+    35→
+    36→  @override
+    37→  ConsumerState<ParentMessagingPage> createState() => _State();
+    38→}
+    39→
+    40→class _State extends ConsumerState<ParentMessagingPage> {
+    41→  // ─── State ──────────────────────────────────────────────────────────
+    42→
+    43→  /// The currently selected thread, or `null` to show the threads list.
+    44→  ParentMessageThreadEntity? _selectedThread;
+    45→
+    46→  /// Search query for filtering threads.
+    47→  String _searchQuery = '';
+    48→
+    49→  /// Controller for the message input field.
+    50→  final TextEditingController _messageController = TextEditingController();
+    51→
+    52→  /// Scroll controller for the conversation messages list.
+    53→  final ScrollController _scrollController = ScrollController();
+    54→
+    55→  // ─── Lifecycle ──────────────────────────────────────────────────────
+    56→
+    57→  @override
+    58→  void initState() {
+    59→    super.initState();
+    60→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    61→      ref.read(parentMessagingProvider.notifier).loadThreads();
+    62→    });
+    63→  }
+    64→
+    65→  @override
+    66→  void dispose() {
+    67→    _messageController.dispose();
+    68→    _scrollController.dispose();
+    69→    super.dispose();
+    70→  }
+    71→
+    72→  // ─── Build ──────────────────────────────────────────────────────────
+    73→
+    74→  @override
+    75→  Widget build(BuildContext context) {
+    76→    final messagingState = ref.watch(parentMessagingProvider);
+    77→
+    78→    return Scaffold(
+    79→      appBar: _selectedThread != null
+    80→          ? _buildConversationAppBar(context, messagingState)
+    81→          : AppAppBar(
+    82→              title: 'Messages',
+    83→              actions: [
+    84→                IconButton(
+    85→                  icon: const Icon(Icons.edit_outlined),
+    86→                  tooltip: 'Compose',
+    87→                  onPressed: () {
+    88→                    // TODO: Navigate to compose new message
+    89→                  },
+    90→                ),
+    91→              ],
+    92→            ),
+    93→      body: _selectedThread != null
+    94→          ? _buildConversationView(context, messagingState)
+    95→          : _buildThreadsView(context, messagingState),
+    96→    );
+    97→  }
+    98→
+    99→  // ═══════════════════════════════════════════════════════════════════════
+   100→  // CONVERSATION APP BAR
+   101→  // ═══════════════════════════════════════════════════════════════════════
+   102→
+   103→  PreferredSizeWidget _buildConversationAppBar(
+   104→    BuildContext context,
+   105→    ParentMessagingState state,
+   106→  ) {
+   107→    final cs = context.colorScheme;
+   108→    final tt = context.textTheme;
+   109→    final thread = _selectedThread!;
+   110→
+   111→    return AppAppBar(
+   112→      leading: IconButton(
+   113→        icon: const Icon(Icons.arrow_back),
+   114→        onPressed: () {
+   115→          setState(() => _selectedThread = null);
+   116→          ref.read(parentMessagingProvider.notifier).loadThreads();
+   117→        },
+   118→      ),
+   119→      title: Row(
+   120→        children: [
+   121→          CircleAvatar(
+   122→            radius: 16,
+   123→            backgroundColor: cs.primaryContainer,
+   124→            child: Text(
+   125→              thread.otherUserName.isNotEmpty
+   126→                  ? thread.otherUserName[0].toUpperCase()
+   127→                  : '?',
+   128→              style: tt.labelMedium?.copyWith(
+   129→                color: cs.onPrimaryContainer,
+   130→                fontWeight: AppTypography.wBold,
+   131→              ),
+   132→            ),
+   133→          ),
+   134→          const SizedBox(width: Spacings.sm),
+   135→          Expanded(
+   136→            child: Column(
+   137→              crossAxisAlignment: CrossAxisAlignment.start,
+   138→              children: [
+   139→                Text(
+   140→                  thread.otherUserName,
+   141→                  style: tt.titleSmall?.copyWith(
+   142→                    fontWeight: AppTypography.wSemiBold,
+   143→                    color: cs.onSurface,
+   144→                  ),
+   145→                  maxLines: 1,
+   146→                  overflow: TextOverflow.ellipsis,
+   147→                ),
+   148→                Text(
+   149→                  _roleLabel(thread.otherUserRole),
+   150→                  style: tt.labelSmall?.copyWith(
+   151→                    color: cs.onSurfaceVariant,
+   152→                  ),
+   153→                ),
+   154→              ],
+   155→            ),
+   156→          ),
+   157→        ],
+   158→      ),
+   159→    );
+   160→  }
+   161→
+   162→  // ═══════════════════════════════════════════════════════════════════════
+   163→  // THREADS LIST VIEW
+   164→  // ═══════════════════════════════════════════════════════════════════════
+   165→
+   166→  Widget _buildThreadsView(
+   167→    BuildContext context,
+   168→    ParentMessagingState state,
+   169→  ) {
+   170→    // Loading state
+   171→    if (state.isLoading && state.threads.isEmpty) {
+   172→      return _buildShimmerLoading(context);
+   173→    }
+   174→
+   175→    // Error state
+   176→    if (state.error != null && state.threads.isEmpty) {
+   177→      return AppErrorState.genericError(
+   178→        message: state.error,
+   179→        onRetry: () => ref.read(parentMessagingProvider.notifier).loadThreads(),
+   180→      );
+   181→    }
+   182→
+   183→    // Filter threads by search query
+   184→    final threads = _filterThreads(state.threads);
+   185→
+   186→    return Column(
+   187→      children: [
+   188→        // ─── Search Bar ───────────────────────────────────────────
+   189→        _buildSearchBar(context),
+   190→
+   191→        // ─── Threads List ─────────────────────────────────────────
+   192→        Expanded(
+   193→          child: threads.isEmpty
+   194→              ? AppEmptyState.noMessages(
+   195→                  title: 'No Messages Yet',
+   196→                  subtitle:
+   197→                      'Start a conversation with a teacher.',
+   198→                  actionLabel: 'Compose',
+   199→                  onAction: () {
+   200→                    // TODO: Navigate to compose
+   201→                  },
+   202→                )
+   203→              : RefreshIndicator(
+   204→                  onRefresh: () =>
+   205→                      ref.read(parentMessagingProvider.notifier).loadThreads(),
+   206→                  child: ListView.separated(
+   207→                    padding: const EdgeInsets.only(bottom: Spacings.xxl),
+   208→                    itemCount: threads.length,
+   209→                    separatorBuilder: (_, __) =>
+   210→                        const SizedBox(height: Spacings.xs),
+   211→                    itemBuilder: (_, index) =>
+   212→                        _buildThreadCard(context, threads[index]),
+   213→                  ),
+   214→                ),
+   215→        ),
+   216→      ],
+   217→    );
+   218→  }
+   219→
+   220→  // ─── Search Bar ─────────────────────────────────────────────────────
+   221→
+   222→  Widget _buildSearchBar(BuildContext context) {
+   223→    final cs = context.colorScheme;
+   224→    final tt = context.textTheme;
+   225→
+   226→    return Padding(
+   227→      padding: const EdgeInsets.symmetric(
+   228→        horizontal: Spacings.lg,
+   229→        vertical: Spacings.sm,
+   230→      ),
+   231→      child: TextField(
+   232→        decoration: InputDecoration(
+   233→          hintText: 'Search messages…',
+   234→          hintStyle: tt.bodyMedium?.copyWith(
+   235→            color: cs.onSurfaceVariant,
+   236→          ),
+   237→          prefixIcon: Icon(
+   238→            Icons.search,
+   239→            color: cs.onSurfaceVariant,
+   240→            size: Spacings.mdIcon,
+   241→          ),
+   242→          filled: true,
+   243→          fillColor: cs.surfaceContainerHighest,
+   244→          border: OutlineInputBorder(
+   245→            borderRadius: Spacings.borderRadiusMd,
+   246→            borderSide: BorderSide.none,
+   247→          ),
+   248→          contentPadding: const EdgeInsets.symmetric(
+   249→            horizontal: Spacings.lg,
+   250→            vertical: Spacings.md,
+   251→          ),
+   252→        ),
+   253→        onChanged: (value) {
+   254→          setState(() => _searchQuery = value);
+   255→        },
+   256→      ),
+   257→    );
+   258→  }
+   259→
+   260→  // ─── Thread Card ────────────────────────────────────────────────────
+   261→
+   262→  Widget _buildThreadCard(
+   263→    BuildContext context,
+   264→    ParentMessageThreadEntity thread,
+   265→  ) {
+   266→    final cs = context.colorScheme;
+   267→    final tt = context.textTheme;
+   268→    final hasUnread = thread.unreadCount > 0;
+   269→    final initial = thread.otherUserName.isNotEmpty
+   270→        ? thread.otherUserName[0].toUpperCase()
+   271→        : '?';
+   272→
+   273→    return Padding(
+   274→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   275→      child: Card(
+   276→        elevation: Spacings.elevationNone,
+   277→        color: hasUnread
+   278→            ? cs.primaryContainer.withValues(alpha: 0.15)
+   279→            : cs.surfaceContainerLow,
+   280→        shape: RoundedRectangleBorder(
+   281→          borderRadius: Spacings.borderRadiusMd,
+   282→        ),
+   283→        child: InkWell(
+   284→          onTap: () => _openThread(thread),
+   285→          borderRadius: Spacings.borderRadiusMd,
+   286→          child: Padding(
+   287→            padding: Spacings.paddingCard,
+   288→            child: Row(
+   289→              children: [
+   290→                // Avatar
+   291→                CircleAvatar(
+   292→                  radius: 24,
+   293→                  backgroundColor: cs.primaryContainer,
+   294→                  child: Text(
+   295→                    initial,
+   296→                    style: tt.titleMedium?.copyWith(
+   297→                      color: cs.onPrimaryContainer,
+   298→                      fontWeight: AppTypography.wBold,
+   299→                    ),
+   300→                  ),
+   301→                ),
+   302→                const SizedBox(width: Spacings.md),
+   303→
+   304→                // Name, role, last message
+   305→                Expanded(
+   306→                  child: Column(
+   307→                    crossAxisAlignment: CrossAxisAlignment.start,
+   308→                    children: [
+   309→                      Row(
+   310→                        children: [
+   311→                          // Name
+   312→                          Expanded(
+   313→                            child: Text(
+   314→                              thread.otherUserName,
+   315→                              style: tt.titleSmall?.copyWith(
+   316→                                fontWeight: hasUnread
+   317→                                    ? AppTypography.wBold
+   318→                                    : AppTypography.wSemiBold,
+   319→                                color: cs.onSurface,
+   320→                              ),
+   321→                              maxLines: 1,
+   322→                              overflow: TextOverflow.ellipsis,
+   323→                            ),
+   324→                          ),
+   325→                          // Role badge
+   326→                          Container(
+   327→                            padding: const EdgeInsets.symmetric(
+   328→                              horizontal: Spacings.sm,
+   329→                              vertical: 2,
+   330→                            ),
+   331→                            decoration: BoxDecoration(
+   332→                              color: cs.secondaryContainer,
+   333→                              borderRadius: Spacings.borderRadiusSm,
+   334→                            ),
+   335→                            child: Text(
+   336→                              _roleLabel(thread.otherUserRole),
+   337→                              style: tt.labelSmall?.copyWith(
+   338→                                color: cs.onSecondaryContainer,
+   339→                              ),
+   340→                            ),
+   341→                          ),
+   342→                        ],
+   343→                      ),
+   344→                      const SizedBox(height: Spacings.xs),
+   345→                      // Last message preview
+   346→                      if (thread.lastMessage != null)
+   347→                        Text(
+   348→                          thread.lastMessage!.body,
+   349→                          style: tt.bodySmall?.copyWith(
+   350→                            fontWeight: hasUnread
+   351→                                ? AppTypography.wSemiBold
+   352→                                : AppTypography.wRegular,
+   353→                            color: cs.onSurfaceVariant,
+   354→                          ),
+   355→                          maxLines: 1,
+   356→                          overflow: TextOverflow.ellipsis,
+   357→                        ),
+   358→                      // Student name tag
+   359→                      if (thread.studentName != null) ...[
+   360→                        const SizedBox(height: Spacings.xs),
+   361→                        Container(
+   362→                          padding: const EdgeInsets.symmetric(
+   363→                            horizontal: Spacings.sm,
+   364→                            vertical: 2,
+   365→                          ),
+   366→                          decoration: BoxDecoration(
+   367→                            color: cs.tertiaryContainer,
+   368→                            borderRadius: Spacings.borderRadiusSm,
+   369→                          ),
+   370→                          child: Text(
+   371→                            thread.studentName!,
+   372→                            style: tt.labelSmall?.copyWith(
+   373→                              color: cs.onTertiaryContainer,
+   374→                            ),
+   375→                          ),
+   376→                        ),
+   377→                      ],
+   378→                    ],
+   379→                  ),
+   380→                ),
+   381→
+   382→                const SizedBox(width: Spacings.sm),
+   383→
+   384→                // Unread count + timestamp
+   385→                Column(
+   386→                  crossAxisAlignment: CrossAxisAlignment.end,
+   387→                  children: [
+   388→                    // Timestamp
+   389→                    if (thread.lastMessage != null)
+   390→                      Text(
+   391→                        _formatTimeAgo(thread.lastMessage!.createdAt),
+   392→                        style: tt.labelSmall?.copyWith(
+   393→                          color: cs.onSurfaceVariant,
+   394→                        ),
+   395→                      ),
+   396→                    const SizedBox(height: Spacings.xs),
+   397→                    // Unread count badge
+   398→                    if (hasUnread)
+   399→                      Container(
+   400→                        padding: const EdgeInsets.symmetric(
+   401→                          horizontal: Spacings.sm,
+   402→                          vertical: 2,
+   403→                        ),
+   404→                        decoration: BoxDecoration(
+   405→                          color: cs.primary,
+   406→                          borderRadius: Spacings.borderRadiusFull,
+   407→                        ),
+   408→                        child: Text(
+   409→                          '${thread.unreadCount}',
+   410→                          style: tt.labelSmall?.copyWith(
+   411→                            color: cs.onPrimary,
+   412→                            fontWeight: AppTypography.wBold,
+   413→                          ),
+   414→                        ),
+   415→                      ),
+   416→                  ],
+   417→                ),
+   418→              ],
+   419→            ),
+   420→          ),
+   421→        ),
+   422→      ),
+   423→    );
+   424→  }
+   425→
+   426→  // ═══════════════════════════════════════════════════════════════════════
+   427→  // CONVERSATION VIEW
+   428→  // ═══════════════════════════════════════════════════════════════════════
+   429→
+   430→  Widget _buildConversationView(
+   431→    BuildContext context,
+   432→    ParentMessagingState state,
+   433→  ) {
+   434→    final messages = state.messages;
+   435→
+   436→    return Column(
+   437→      children: [
+   438→        // ─── Messages List ────────────────────────────────────────
+   439→        Expanded(
+   440→          child: state.isLoading && messages.isEmpty
+   441→              ? _buildShimmerLoading(context)
+   442→              : messages.isEmpty
+   443→                  ? AppEmptyState.noMessages(
+   444→                      title: 'No Messages',
+   445→                      subtitle: 'Start the conversation below.',
+   446→                    )
+   447→                  : RefreshIndicator(
+   448→                      onRefresh: () => ref
+   449→                          .read(parentMessagingProvider.notifier)
+   450→                          .loadMessages(_selectedThread!.threadId),
+   451→                      child: ListView.builder(
+   452→                        controller: _scrollController,
+   453→                        padding: const EdgeInsets.symmetric(
+   454→                          horizontal: Spacings.lg,
+   455→                          vertical: Spacings.md,
+   456→                        ),
+   457→                        itemCount: messages.length,
+   458→                        itemBuilder: (_, index) {
+   459→                          final message = messages[index];
+   460→                          final showDateSeparator = _shouldShowDateSeparator(
+   461→                            messages,
+   462→                            index,
+   463→                          );
+   464→                          return Column(
+   465→                            crossAxisAlignment: CrossAxisAlignment.stretch,
+   466→                            children: [
+   467→                              if (showDateSeparator)
+   468→                                _buildDateSeparator(
+   469→                                  context,
+   470→                                  message.createdAt,
+   471→                                ),
+   472→                              _buildMessageBubble(context, message),
+   473→                            ],
+   474→                          );
+   475→                        },
+   476→                      ),
+   477→                    ),
+   478→        ),
+   479→
+   480→        // ─── Input Bar ────────────────────────────────────────────
+   481→        _buildInputBar(context, state),
+   482→      ],
+   483→    );
+   484→  }
+   485→
+   486→  // ─── Message Bubble ─────────────────────────────────────────────────
+   487→
+   488→  Widget _buildMessageBubble(
+   489→    BuildContext context,
+   490→    ParentMessageEntity message,
+   491→  ) {
+   492→    final cs = context.colorScheme;
+   493→    final tt = context.textTheme;
+   494→    final isSent = message.direction == MessageDirection.outgoing;
+   495→    final isRead = message.readAt != null;
+   496→
+   497→    return Padding(
+   498→      padding: const EdgeInsets.only(bottom: Spacings.md),
+   499→      child: Align(
+   500→        alignment: isSent ? Alignment.centerRight : Alignment.centerLeft,
+   501→        child: ConstrainedBox(
+   502→          constraints: BoxConstraints(
+   503→            maxWidth: context.width * 0.75,
+   504→          ),
+   505→          child: Container(
+   506→            padding: const EdgeInsets.symmetric(
+   507→              horizontal: Spacings.md,
+   508→              vertical: Spacings.sm,
+   509→            ),
+   510→            decoration: BoxDecoration(
+   511→              color: isSent ? cs.primary : cs.surfaceContainerHighest,
+   512→              borderRadius: BorderRadius.only(
+   513→                topLeft: const Radius.circular(Spacings.mdRadius),
+   514→                topRight: const Radius.circular(Spacings.mdRadius),
+   515→                bottomLeft: Radius.circular(
+   516→                  isSent ? Spacings.mdRadius : Spacings.xs,
+   517→                ),
+   518→                bottomRight: Radius.circular(
+   519→                  isSent ? Spacings.xs : Spacings.mdRadius,
+   520→                ),
+   521→              ),
+   522→            ),
+   523→            child: Column(
+   524→              crossAxisAlignment: isSent
+   525→                  ? CrossAxisAlignment.end
+   526→                  : CrossAxisAlignment.start,
+   527→              children: [
+   528→                // Message body
+   529→                Text(
+   530→                  message.body,
+   531→                  style: tt.bodyMedium?.copyWith(
+   532→                    color: isSent ? cs.onPrimary : cs.onSurface,
+   533→                  ),
+   534→                ),
+   535→                const SizedBox(height: Spacings.xs),
+   536→                // Timestamp + read receipt
+   537→                Row(
+   538→                  mainAxisSize: MainAxisSize.min,
+   539→                  children: [
+   540→                    Text(
+   541→                      _formatMessageTime(message.createdAt),
+   542→                      style: tt.labelSmall?.copyWith(
+   543→                        color: isSent
+   544→                            ? cs.onPrimary.withValues(alpha: 0.7)
+   545→                            : cs.onSurfaceVariant,
+   546→                      ),
+   547→                    ),
+   548→                    if (isSent) ...[
+   549→                      const SizedBox(width: Spacings.xs),
+   550→                      Icon(
+   551→                        isRead
+   552→                            ? Icons.done_all
+   553→                            : Icons.done,
+   554→                        size: Spacings.smIcon,
+   555→                        color: isRead
+   556→                            ? cs.onPrimary.withValues(alpha: 0.7)
+   557→                            : cs.onPrimary.withValues(alpha: 0.5),
+   558→                      ),
+   559→                    ],
+   560→                  ],
+   561→                ),
+   562→              ],
+   563→            ),
+   564→          ),
+   565→        ),
+   566→      ),
+   567→    );
+   568→  }
+   569→
+   570→  // ─── Date Separator ─────────────────────────────────────────────────
+   571→
+   572→  Widget _buildDateSeparator(BuildContext context, DateTime date) {
+   573→    final cs = context.colorScheme;
+   574→    final tt = context.textTheme;
+   575→
+   576→    return Padding(
+   577→      padding: const EdgeInsets.symmetric(vertical: Spacings.md),
+   578→      child: Center(
+   579→        child: Container(
+   580→          padding: const EdgeInsets.symmetric(
+   581→            horizontal: Spacings.md,
+   582→            vertical: Spacings.xs,
+   583→          ),
+   584→          decoration: BoxDecoration(
+   585→            color: cs.surfaceContainerHighest,
+   586→            borderRadius: Spacings.borderRadiusSm,
+   587→          ),
+   588→          child: Text(
+   589→            _formatDate(date),
+   590→            style: tt.labelSmall?.copyWith(
+   591→              color: cs.onSurfaceVariant,
+   592→            ),
+   593→          ),
+   594→        ),
+   595→      ),
+   596→    );
+   597→  }
+   598→
+   599→  // ─── Input Bar ──────────────────────────────────────────────────────
+   600→
+   601→  Widget _buildInputBar(BuildContext context, ParentMessagingState state) {
+   602→    final cs = context.colorScheme;
+   603→    final tt = context.textTheme;
+   604→
+   605→    return Container(
+   606→      padding: EdgeInsets.only(
+   607→        left: Spacings.lg,
+   608→        right: Spacings.lg,
+   609→        top: Spacings.sm,
+   610→        bottom: Spacings.lg + context.mediaQuery.padding.bottom,
+   611→      ),
+   612→      decoration: BoxDecoration(
+   613→        color: cs.surface,
+   614→        border: Border(
+   615→          top: BorderSide(
+   616→            color: cs.outlineVariant,
+   617→            width: 1,
+   618→          ),
+   619→        ),
+   620→      ),
+   621→      child: Row(
+   622→        children: [
+   623→          // Attachment button
+   624→          IconButton(
+   625→            icon: Icon(
+   626→              Icons.attach_file_outlined,
+   627→              color: cs.onSurfaceVariant,
+   628→              size: Spacings.mdIcon,
+   629→            ),
+   630→            onPressed: () {
+   631→              // TODO: Handle attachment
+   632→            },
+   633→            tooltip: 'Attach file',
+   634→          ),
+   635→          const SizedBox(width: Spacings.xs),
+   636→          // Text field
+   637→          Expanded(
+   638→            child: TextField(
+   639→              controller: _messageController,
+   640→              decoration: InputDecoration(
+   641→                hintText: 'Type a message…',
+   642→                hintStyle: tt.bodyMedium?.copyWith(
+   643→                  color: cs.onSurfaceVariant,
+   644→                ),
+   645→                filled: true,
+   646→                fillColor: cs.surfaceContainerHighest,
+   647→                border: OutlineInputBorder(
+   648→                  borderRadius: Spacings.borderRadiusMd,
+   649→                  borderSide: BorderSide.none,
+   650→                ),
+   651→                contentPadding: const EdgeInsets.symmetric(
+   652→                  horizontal: Spacings.md,
+   653→                  vertical: Spacings.sm,
+   654→                ),
+   655→              ),
+   656→              maxLines: null,
+   657→              textInputAction: TextInputAction.send,
+   658→              onSubmitted: (_) => _sendMessage(state),
+   659→            ),
+   660→          ),
+   661→          const SizedBox(width: Spacings.xs),
+   662→          // Send button
+   663→          IconButton(
+   664→            icon: Icon(
+   665→              Icons.send,
+   666→              color: cs.primary,
+   667→              size: Spacings.mdIcon,
+   668→            ),
+   669→            onPressed: state.isSending ? null : () => _sendMessage(state),
+   670→            tooltip: 'Send',
+   671→          ),
+   672→        ],
+   673→      ),
+   674→    );
+   675→  }
+   676→
+   677→  // ═══════════════════════════════════════════════════════════════════════
+   678→  // SHIMMER LOADING
+   679→  // ═══════════════════════════════════════════════════════════════════════
+   680→
+   681→  Widget _buildShimmerLoading(BuildContext context) {
+   682→    return SingleChildScrollView(
+   683→      physics: const NeverScrollableScrollPhysics(),
+   684→      child: AppLoadingShimmer(
+   685→        child: Padding(
+   686→          padding: const EdgeInsets.all(Spacings.lg),
+   687→          child: Column(
+   688→            children: List.generate(
+   689→              6,
+   690→              (_) => Padding(
+   691→                padding: const EdgeInsets.only(bottom: Spacings.md),
+   692→                child: Row(
+   693→                  children: [
+   694→                    AppLoadingShimmer.box(
+   695→                      width: 48,
+   696→                      height: 48,
+   697→                      shape: BoxShape.circle,
+   698→                    ),
+   699→                    const SizedBox(width: Spacings.md),
+   700→                    Expanded(
+   701→                      child: Column(
+   702→                        crossAxisAlignment: CrossAxisAlignment.start,
+   703→                        children: [
+   704→                          AppLoadingShimmer.box(
+   705→                            width: 140,
+   706→                            height: 14,
+   707→                            borderRadius: Spacings.borderRadiusSm,
+   708→                          ),
+   709→                          const SizedBox(height: Spacings.sm),
+   710→                          AppLoadingShimmer.box(
+   711→                            height: 12,
+   712→                            borderRadius: Spacings.borderRadiusSm,
+   713→                          ),
+   714→                        ],
+   715→                      ),
+   716→                    ),
+   717→                  ],
+   718→                ),
+   719→              ),
+   720→            ),
+   721→          ),
+   722→        ),
+   723→      ),
+   724→    );
+   725→  }
+   726→
+   727→  // ═══════════════════════════════════════════════════════════════════════
+   728→  // ACTIONS
+   729→  // ═══════════════════════════════════════════════════════════════════════
+   730→
+   731→  /// Opens a conversation thread and loads its messages.
+   732→  void _openThread(ParentMessageThreadEntity thread) {
+   733→    setState(() => _selectedThread = thread);
+   734→    ref.read(parentMessagingProvider.notifier).loadMessages(thread.threadId);
+   735→  }
+   736→
+   737→  /// Sends a message in the current conversation.
+   738→  void _sendMessage(ParentMessagingState state) {
+   739→    final text = _messageController.text.trim();
+   740→    if (text.isEmpty || _selectedThread == null) return;
+   741→
+   742→    _messageController.clear();
+   743→    ref.read(parentMessagingProvider.notifier).sendMessage(
+   744→      SendMessageParams(
+   745→        recipientId: _selectedThread!.otherUserId,
+   746→        subject: _selectedThread!.lastMessage?.subject ?? 'Message',
+   747→        body: text,
+   748→      ),
+   749→    );
+   750→
+   751→    // Auto-scroll to bottom after sending
+   752→    WidgetsBinding.instance.addPostFrameCallback((_) {
+   753→      if (_scrollController.hasClients) {
+   754→        _scrollController.animateTo(
+   755→          _scrollController.position.maxScrollExtent,
+   756→          duration: const Duration(milliseconds: 300),
+   757→          curve: Curves.easeOut,
+   758→        );
+   759→      }
+   760→    });
+   761→  }
+   762→
+   763→  // ═══════════════════════════════════════════════════════════════════════
+   764→  // FILTERING
+   765→  // ═══════════════════════════════════════════════════════════════════════
+   766→
+   767→  /// Filters threads by the current search query.
+   768→  List<ParentMessageThreadEntity> _filterThreads(
+   769→    List<ParentMessageThreadEntity> threads,
+   770→  ) {
+   771→    if (_searchQuery.isEmpty) return threads;
+   772→    final query = _searchQuery.toLowerCase();
+   773→    return threads.where((thread) {
+   774→      return thread.otherUserName.toLowerCase().contains(query) ||
+   775→          (thread.studentName?.toLowerCase().contains(query) ?? false) ||
+   776→          (thread.lastMessage?.body.toLowerCase().contains(query) ?? false);
+   777→    }).toList();
+   778→  }
+   779→
+   780→  // ═══════════════════════════════════════════════════════════════════════
+   781→  // HELPER METHODS
+   782→  // ═══════════════════════════════════════════════════════════════════════
+   783→
+   784→  /// Returns a human-readable role label.
+   785→  String _roleLabel(String role) {
+   786→    switch (role.toLowerCase()) {
+   787→      case 'teacher':
+   788→        return 'Teacher';
+   789→      case 'admin':
+   790→        return 'Admin';
+   791→      case 'principal':
+   792→        return 'Principal';
+   793→      default:
+   794→        return role[0].toUpperCase() + role.substring(1);
+   795→    }
+   796→  }
+   797→
+   798→  /// Determines whether a date separator should be shown before [index].
+   799→  bool _shouldShowDateSeparator(
+   800→    List<ParentMessageEntity> messages,
+   801→    int index,
+   802→  ) {
+   803→    if (index == 0) return true;
+   804→    final current = messages[index].createdAt;
+   805→    final previous = messages[index - 1].createdAt;
+   806→    return current.year != previous.year ||
+   807→        current.month != previous.month ||
+   808→        current.day != previous.day;
+   809→  }
+   810→
+   811→  /// Formats a [DateTime] as a short date string for separators.
+   812→  String _formatDate(DateTime dt) {
+   813→    final now = DateTime.now();
+   814→    final today = DateTime(now.year, now.month, now.day);
+   815→    final date = DateTime(dt.year, dt.month, dt.day);
+   816→
+   817→    if (date == today) return 'Today';
+   818→    if (date == today.subtract(const Duration(days: 1))) return 'Yesterday';
+   819→
+   820→    const months = [
+   821→      '',
+   822→      'Jan',
+   823→      'Feb',
+   824→      'Mar',
+   825→      'Apr',
+   826→      'May',
+   827→      'Jun',
+   828→      'Jul',
+   829→      'Aug',
+   830→      'Sep',
+   831→      'Oct',
+   832→      'Nov',
+   833→      'Dec',
+   834→    ];
+   835→    return '${months[dt.month]} ${dt.day}, ${dt.year}';
+   836→  }
+   837→
+   838→  /// Formats a [DateTime] as a short time string for message bubbles.
+   839→  String _formatMessageTime(DateTime dt) {
+   840→    final hour = dt.hour.toString().padLeft(2, '0');
+   841→    final minute = dt.minute.toString().padLeft(2, '0');
+   842→    return '$hour:$minute';
+   843→  }
+   844→
+   845→  /// Formats a [DateTime] as a relative time-ago string.
+   846→  String _formatTimeAgo(DateTime dt) {
+   847→    final now = DateTime.now();
+   848→    final diff = now.difference(dt);
+   849→
+   850→    if (diff.inMinutes < 1) return 'Just now';
+   851→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+   852→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+   853→    if (diff.inDays < 7) return '${diff.inDays}d ago';
+   854→    return _formatDate(dt);
+   855→  }
+   856→}
+   857→

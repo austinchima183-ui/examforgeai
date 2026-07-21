@@ -1,0 +1,820 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_button.dart';
+     9→import '../../../../shared/widgets/app_card.dart';
+    10→import '../../../../shared/widgets/app_text_field.dart';
+    11→import '../../../../shared/widgets/app_loading.dart';
+    12→import '../../../../shared/widgets/app_app_bar.dart';
+    13→import '../../../../shared/widgets/app_error_state.dart';
+    14→import '../../../../routing/route_names.dart';
+    15→import '../../domain/entities/teacher_workspace_entities.dart';
+    16→import '../../domain/usecases/create_worksheet_usecase.dart';
+    17→import '../../domain/usecases/export_worksheet_usecase.dart';
+    18→import '../../domain/usecases/generate_worksheet_usecase.dart';
+    19→import '../providers/worksheet_provider.dart';
+    20→import '../widgets/generate_questions_button.dart';
+    21→
+    22→// ═══════════════════════════════════════════════════════════════════════
+    23→// WORKSHEET GENERATOR PAGE
+    24→// ═══════════════════════════════════════════════════════════════════════
+    25→
+    26→/// AI-powered Worksheet Generator page.
+    27→///
+    28→/// Teachers specify subject, class, topic, worksheet type, difficulty,
+    29→/// and question count; the AI generates a complete worksheet with
+    30→/// questions, answer key, total marks, and duration.
+    31→class WorksheetGeneratorPage extends ConsumerStatefulWidget {
+    32→  const WorksheetGeneratorPage({super.key});
+    33→
+    34→  @override
+    35→  ConsumerState<WorksheetGeneratorPage> createState() =>
+    36→      _WorksheetGeneratorPageState();
+    37→}
+    38→
+    39→class _WorksheetGeneratorPageState
+    40→    extends ConsumerState<WorksheetGeneratorPage> {
+    41→  final _formKey = GlobalKey<FormState>();
+    42→  final _subjectController = TextEditingController();
+    43→  final _classNameController = TextEditingController();
+    44→  final _topicController = TextEditingController();
+    45→  final _questionCountController = TextEditingController(text: '10');
+    46→
+    47→  WorksheetType _worksheetType = WorksheetType.classwork;
+    48→  String _difficulty = 'medium';
+    49→  bool _answerKeyExpanded = false;
+    50→  bool _showResult = false;
+    51→
+    52→  @override
+    53→  void dispose() {
+    54→    _subjectController.dispose();
+    55→    _classNameController.dispose();
+    56→    _topicController.dispose();
+    57→    _questionCountController.dispose();
+    58→    super.dispose();
+    59→  }
+    60→
+    61→  // ─── Form Validation ──────────────────────────────────────────────
+    62→
+    63→  bool get _isFormValid {
+    64→    return _subjectController.text.trim().isNotEmpty;
+    65→  }
+    66→
+    67→  // ─── Generate Worksheet ───────────────────────────────────────────
+    68→
+    69→  void _generateWorksheet() {
+    70→    if (!_formKey.currentState!.validate()) return;
+    71→
+    72→    final questionCount = int.tryParse(_questionCountController.text.trim()) ?? 10;
+    73→
+    74→    ref.read(worksheetProvider.notifier).generateWorksheet(
+    75→          GenerateWorksheetParams(
+    76→            subject: _subjectController.text.trim(),
+    77→            className: _classNameController.text.trim().isNotEmpty
+    78→                ? _classNameController.text.trim()
+    79→                : null,
+    80→            topic: _topicController.text.trim().isNotEmpty
+    81→                ? _topicController.text.trim()
+    82→                : null,
+    83→            worksheetType: _worksheetType,
+    84→            difficulty: _difficulty,
+    85→            questionCount: questionCount,
+    86→          ),
+    87→        );
+    88→    setState(() => _showResult = true);
+    89→  }
+    90→
+    91→  // ─── Save Worksheet ───────────────────────────────────────────────
+    92→
+    93→  void _saveWorksheet() {
+    94→    final worksheet = ref.read(worksheetProvider).currentWorksheet;
+    95→    if (worksheet == null) return;
+    96→
+    97→    ref.read(worksheetProvider.notifier).createWorksheet(
+    98→          CreateWorksheetParams(worksheet: worksheet),
+    99→        );
+   100→  }
+   101→
+   102→  // ─── Export Worksheet ─────────────────────────────────────────────
+   103→
+   104→  void _exportWorksheet(String format) {
+   105→    final worksheet = ref.read(worksheetProvider).currentWorksheet;
+   106→    if (worksheet == null) return;
+   107→
+   108→    ref.read(worksheetProvider.notifier).exportWorksheet(
+   109→          ExportWorksheetParams(
+   110→            worksheetId: worksheet.id,
+   111→            format: format,
+   112→          ),
+   113→        );
+   114→  }
+   115→
+   116→  // ─── Build ────────────────────────────────────────────────────────
+   117→
+   118→  @override
+   119→  Widget build(BuildContext context) {
+   120→    final cs = context.colorScheme;
+   121→    final tt = context.textTheme;
+   122→    final state = ref.watch(worksheetProvider);
+   123→
+   124→    ref.listen<WorksheetState>(worksheetProvider, (prev, next) {
+   125→      if (next.error != null && prev?.error != next.error) {
+   126→        ScaffoldMessenger.of(context).showSnackBar(
+   127→          SnackBar(content: Text(next.error!), backgroundColor: cs.error),
+   128→        );
+   129→        ref.read(worksheetProvider.notifier).clearError();
+   130→      }
+   131→      if (next.successMessage != null &&
+   132→          prev?.successMessage != next.successMessage) {
+   133→        ScaffoldMessenger.of(context).showSnackBar(
+   134→          SnackBar(
+   135→              content: Text(next.successMessage!), backgroundColor: cs.primary),
+   136→        );
+   137→        ref.read(worksheetProvider.notifier).clearSuccessMessage();
+   138→      }
+   139→    });
+   140→
+   141→    return Scaffold(
+   142→      appBar: AppAppBar(
+   143→        title: 'AI Worksheet',
+   144→      ),
+   145→      body: state.isGenerating
+   146→          ? Center(
+   147→              child: Column(
+   148→                mainAxisSize: MainAxisSize.min,
+   149→                children: [
+   150→                  const AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+   151→                  const SizedBox(height: Spacings.lg),
+   152→                  Text(
+   153→                    'Generating worksheet...',
+   154→                    style: tt.bodyLarge?.copyWith(
+   155→                      color: cs.onSurfaceVariant,
+   156→                    ),
+   157→                  ),
+   158→                  const SizedBox(height: Spacings.sm),
+   159→                  Text(
+   160→                    'This may take a moment',
+   161→                    style: tt.bodySmall?.copyWith(
+   162→                      color: cs.onSurfaceVariant,
+   163→                    ),
+   164→                  ),
+   165→                ],
+   166→              ),
+   167→            )
+   168→          : SingleChildScrollView(
+   169→              padding: Spacings.paddingScreen,
+   170→              child: Column(
+   171→                crossAxisAlignment: CrossAxisAlignment.stretch,
+   172→                children: [
+   173→                  // ── Input Form ─────────────────────────────────────
+   174→                  if (!_showResult || state.currentWorksheet == null) ...[
+   175→                    _buildFormSection(cs, tt, state),
+   176→                  ],
+   177→
+   178→                  // ── Generated Result ──────────────────────────────
+   179→                  if (_showResult && state.currentWorksheet != null) ...[
+   180→                    _buildResultHeader(cs, tt, state.currentWorksheet!),
+   181→                    const SizedBox(height: Spacings.lg),
+   182→                    _buildInstructions(cs, tt, state.currentWorksheet!),
+   183→                    const SizedBox(height: Spacings.lg),
+   184→                    _buildQuestionsList(cs, tt, state.currentWorksheet!),
+   185→                    const SizedBox(height: Spacings.lg),
+   186→                    _buildAnswerKey(cs, tt, state.currentWorksheet!),
+   187→                    const SizedBox(height: Spacings.lg),
+   188→                    _buildMarksAndDuration(cs, tt, state.currentWorksheet!),
+   189→                    const SizedBox(height: Spacings.xl),
+   190→                    _buildActionButtons(cs, state),
+   191→                  ],
+   192→                ],
+   193→              ),
+   194→            ),
+   195→    );
+   196→  }
+   197→
+   198→  // ─── Form Section ─────────────────────────────────────────────────
+   199→
+   200→  Widget _buildFormSection(
+   201→      ColorScheme cs, TextTheme tt, WorksheetState state) {
+   202→    return Form(
+   203→      key: _formKey,
+   204→      child: AppCard(
+   205→        child: Column(
+   206→          crossAxisAlignment: CrossAxisAlignment.start,
+   207→          children: [
+   208→            Row(
+   209→              children: [
+   210→                Icon(Icons.auto_awesome, color: cs.primary, size: Spacings.lgIcon),
+   211→                const SizedBox(width: Spacings.sm),
+   212→                Text(
+   213→                  'Generate with AI',
+   214→                  style: tt.titleLarge?.copyWith(
+   215→                    fontWeight: AppTypography.wSemiBold,
+   216→                    color: cs.onSurface,
+   217→                  ),
+   218→                ),
+   219→              ],
+   220→            ),
+   221→            const SizedBox(height: Spacings.sm),
+   222→            Text(
+   223→              'Fill in the details below and let AI create a complete worksheet for you.',
+   224→              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+   225→            ),
+   226→            const SizedBox(height: Spacings.xl),
+   227→
+   228→            // Subject (required)
+   229→            AppTextField(
+   230→              label: 'Subject',
+   231→              hint: 'e.g. Mathematics',
+   232→              controller: _subjectController,
+   233→              prefixIcon: Icons.book_outlined,
+   234→              isRequired: true,
+   235→              validator: (v) =>
+   236→                  v == null || v.trim().isEmpty ? 'Subject is required' : null,
+   237→              onChanged: (_) => setState(() {}),
+   238→            ),
+   239→            const SizedBox(height: Spacings.lg),
+   240→
+   241→            // Class Name
+   242→            AppTextField(
+   243→              label: 'Class Name',
+   244→              hint: 'e.g. SS2, JSS3',
+   245→              controller: _classNameController,
+   246→              prefixIcon: Icons.school_outlined,
+   247→            ),
+   248→            const SizedBox(height: Spacings.lg),
+   249→
+   250→            // Topic
+   251→            AppTextField(
+   252→              label: 'Topic',
+   253→              hint: 'e.g. Quadratic Equations',
+   254→              controller: _topicController,
+   255→              prefixIcon: Icons.topic_outlined,
+   256→            ),
+   257→            const SizedBox(height: Spacings.lg),
+   258→
+   259→            // Worksheet Type Dropdown
+   260→            AppDropdownField<WorksheetType>(
+   261→              label: 'Worksheet Type',
+   262→              items: WorksheetType.values,
+   263→              selectedItem: _worksheetType,
+   264→              onChanged: (v) {
+   265→                if (v != null) setState(() => _worksheetType = v);
+   266→              },
+   267→              itemLabel: (t) => t.label,
+   268→              prefixIcon: Icons.description_outlined,
+   269→              isRequired: true,
+   270→            ),
+   271→            const SizedBox(height: Spacings.lg),
+   272→
+   273→            // Difficulty Dropdown
+   274→            AppDropdownField<String>(
+   275→              label: 'Difficulty',
+   276→              items: const ['easy', 'medium', 'hard'],
+   277→              selectedItem: _difficulty,
+   278→              onChanged: (v) {
+   279→                if (v != null) setState(() => _difficulty = v);
+   280→              },
+   281→              itemLabel: (d) => d[0].toUpperCase() + d.substring(1),
+   282→              prefixIcon: Icons.signal_cellular_alt_outlined,
+   283→            ),
+   284→            const SizedBox(height: Spacings.lg),
+   285→
+   286→            // Number of Questions
+   287→            AppTextField(
+   288→              label: 'Number of Questions',
+   289→              hint: '10',
+   290→              controller: _questionCountController,
+   291→              prefixIcon: Icons.format_list_numbered_outlined,
+   292→              keyboardType: TextInputType.number,
+   293→            ),
+   294→            const SizedBox(height: Spacings.xxl),
+   295→
+   296→            // Generate Button
+   297→            AppButton(
+   298→              label: 'Generate Worksheet',
+   299→              onPressed: _isFormValid ? _generateWorksheet : null,
+   300→              variant: AppButtonVariant.elevated,
+   301→              fullWidth: true,
+   302→              icon: Icons.auto_awesome,
+   303→              isLoading: state.isGenerating,
+   304→              isDisabled: !_isFormValid || state.isBusy,
+   305→            ),
+   306→          ],
+   307→        ),
+   308→      ),
+   309→    );
+   310→  }
+   311→
+   312→  // ─── Result Header ────────────────────────────────────────────────
+   313→
+   314→  Widget _buildResultHeader(
+   315→      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+   316→    return AppCard(
+   317→      child: Column(
+   318→        crossAxisAlignment: CrossAxisAlignment.start,
+   319→        children: [
+   320→          // Title & AI badge
+   321→          Row(
+   322→            children: [
+   323→              Expanded(
+   324→                child: Text(
+   325→                  worksheet.title,
+   326→                  style: tt.titleLarge?.copyWith(
+   327→                    fontWeight: AppTypography.wBold,
+   328→                    color: cs.onSurface,
+   329→                  ),
+   330→                ),
+   331→              ),
+   332→              if (worksheet.isAiGenerated)
+   333→                Container(
+   334→                  padding: const EdgeInsets.symmetric(
+   335→                    horizontal: Spacings.sm,
+   336→                    vertical: Spacings.xs,
+   337→                  ),
+   338→                  decoration: BoxDecoration(
+   339→                    color: cs.tertiaryContainer,
+   340→                    borderRadius: BorderRadius.circular(Spacings.smRadius),
+   341→                  ),
+   342→                  child: Row(
+   343→                    mainAxisSize: MainAxisSize.min,
+   344→                    children: [
+   345→                      Icon(Icons.auto_awesome,
+   346→                          size: Spacings.smIcon, color: cs.onTertiaryContainer),
+   347→                      const SizedBox(width: Spacings.xs),
+   348→                      Text(
+   349→                        'AI Generated',
+   350→                        style: tt.labelSmall?.copyWith(
+   351→                          color: cs.onTertiaryContainer,
+   352→                          fontWeight: AppTypography.wSemiBold,
+   353→                        ),
+   354→                      ),
+   355→                    ],
+   356→                  ),
+   357→                ),
+   358→            ],
+   359→          ),
+   360→          const SizedBox(height: Spacings.md),
+   361→
+   362→          // Metadata chips
+   363→          Wrap(
+   364→            spacing: Spacings.sm,
+   365→            runSpacing: Spacings.sm,
+   366→            children: [
+   367→              _buildMetadataChip(cs, tt, Icons.book_outlined, worksheet.subject),
+   368→              if (worksheet.className != null)
+   369→                _buildMetadataChip(
+   370→                    cs, tt, Icons.school_outlined, worksheet.className!),
+   371→              _buildMetadataChip(cs, tt, Icons.description_outlined,
+   372→                  worksheet.worksheetType.label),
+   373→              _buildMetadataChip(
+   374→                cs,
+   375→                tt,
+   376→                Icons.signal_cellular_alt_outlined,
+   377→                worksheet.difficulty[0].toUpperCase() +
+   378→                    worksheet.difficulty.substring(1),
+   379→              ),
+   380→              if (worksheet.topic != null)
+   381→                _buildMetadataChip(
+   382→                    cs, tt, Icons.topic_outlined, worksheet.topic!),
+   383→            ],
+   384→          ),
+   385→          const SizedBox(height: Spacings.md),
+   386→
+   387→          // Version indicator
+   388→          Row(
+   389→            children: [
+   390→              Icon(Icons.history_rounded,
+   391→                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+   392→              const SizedBox(width: Spacings.xs),
+   393→              Text(
+   394→                'Version ${worksheet.version}',
+   395→                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   396→              ),
+   397→            ],
+   398→          ),
+   399→        ],
+   400→      ),
+   401→    );
+   402→  }
+   403→
+   404→  Widget _buildMetadataChip(
+   405→      ColorScheme cs, TextTheme tt, IconData icon, String label) {
+   406→    return Container(
+   407→      padding: const EdgeInsets.symmetric(
+   408→        horizontal: Spacings.sm,
+   409→        vertical: Spacings.xs,
+   410→      ),
+   411→      decoration: BoxDecoration(
+   412→        color: cs.secondaryContainer,
+   413→        borderRadius: BorderRadius.circular(Spacings.smRadius),
+   414→      ),
+   415→      child: Row(
+   416→        mainAxisSize: MainAxisSize.min,
+   417→        children: [
+   418→          Icon(icon, size: 14, color: cs.onSecondaryContainer),
+   419→          const SizedBox(width: Spacings.xs),
+   420→          Text(
+   421→            label,
+   422→            style: tt.labelSmall?.copyWith(
+   423→              color: cs.onSecondaryContainer,
+   424→              fontWeight: AppTypography.wMedium,
+   425→            ),
+   426→          ),
+   427→        ],
+   428→      ),
+   429→    );
+   430→  }
+   431→
+   432→  // ─── Instructions ─────────────────────────────────────────────────
+   433→
+   434→  Widget _buildInstructions(
+   435→      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+   436→    if (worksheet.instructions == null ||
+   437→        worksheet.instructions!.isEmpty) {
+   438→      return const SizedBox.shrink();
+   439→    }
+   440→
+   441→    return AppCard(
+   442→      child: Column(
+   443→        crossAxisAlignment: CrossAxisAlignment.start,
+   444→        children: [
+   445→          Row(
+   446→            children: [
+   447→              Icon(Icons.info_outline, size: Spacings.mdIcon, color: cs.primary),
+   448→              const SizedBox(width: Spacings.sm),
+   449→              Text(
+   450→                'Instructions',
+   451→                style: tt.titleSmall?.copyWith(
+   452→                  fontWeight: AppTypography.wSemiBold,
+   453→                  color: cs.onSurface,
+   454→                ),
+   455→              ),
+   456→            ],
+   457→          ),
+   458→          const SizedBox(height: Spacings.sm),
+   459→          Text(
+   460→            worksheet.instructions!,
+   461→            style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+   462→          ),
+   463→        ],
+   464→      ),
+   465→    );
+   466→  }
+   467→
+   468→  // ─── Questions List ───────────────────────────────────────────────
+   469→
+   470→  Widget _buildQuestionsList(
+   471→      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+   472→    final questions = worksheet.questions;
+   473→    if (questions.isEmpty) {
+   474→      return AppCard(
+   475→        child: Center(
+   476→          child: Padding(
+   477→            padding: const EdgeInsets.all(Spacings.xl),
+   478→            child: Text(
+   479→              'No questions generated yet.',
+   480→              style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+   481→            ),
+   482→          ),
+   483→        ),
+   484→      );
+   485→    }
+   486→
+   487→    return Column(
+   488→      crossAxisAlignment: CrossAxisAlignment.start,
+   489→      children: [
+   490→        Text(
+   491→          'Questions (${questions.length})',
+   492→          style: tt.titleMedium?.copyWith(
+   493→            fontWeight: AppTypography.wSemiBold,
+   494→            color: cs.onSurface,
+   495→          ),
+   496→        ),
+   497→        const SizedBox(height: Spacings.md),
+   498→        ...questions.asMap().entries.map((entry) {
+   499→          final index = entry.key;
+   500→          final question = entry.value;
+   501→          return Padding(
+   502→            padding: const EdgeInsets.only(bottom: Spacings.md),
+   503→            child: _buildQuestionCard(cs, tt, index + 1, question),
+   504→          );
+   505→        }),
+   506→      ],
+   507→    );
+   508→  }
+   509→
+   510→  Widget _buildQuestionCard(
+   511→      ColorScheme cs, TextTheme tt, int number, Map<String, dynamic> question) {
+   512→    final text = question['text'] as String? ?? question['question'] as String? ?? '';
+   513→    final type = question['type'] as String? ?? '';
+   514→    final marks = question['marks'] ?? question['mark'] ?? '';
+   515→    final options = question['options'] as List<dynamic>?;
+   516→
+   517→    return AppCard(
+   518→      child: Column(
+   519→        crossAxisAlignment: CrossAxisAlignment.start,
+   520→        children: [
+   521→          // Question header row
+   522→          Row(
+   523→            crossAxisAlignment: CrossAxisAlignment.start,
+   524→            children: [
+   525→              Container(
+   526→                width: 28,
+   527→                height: 28,
+   528→                decoration: BoxDecoration(
+   529→                  color: cs.primaryContainer,
+   530→                  borderRadius: BorderRadius.circular(Spacings.smRadius),
+   531→                ),
+   532→                child: Center(
+   533→                  child: Text(
+   534→                    '$number',
+   535→                    style: tt.labelMedium?.copyWith(
+   536→                      color: cs.onPrimaryContainer,
+   537→                      fontWeight: AppTypography.wBold,
+   538→                    ),
+   539→                  ),
+   540→                ),
+   541→              ),
+   542→              const SizedBox(width: Spacings.sm),
+   543→              Expanded(
+   544→                child: Text(
+   545→                  text,
+   546→                  style: tt.bodyLarge?.copyWith(color: cs.onSurface),
+   547→                ),
+   548→              ),
+   549→              if (marks != '') ...[
+   550→                const SizedBox(width: Spacings.sm),
+   551→                Container(
+   552→                  padding: const EdgeInsets.symmetric(
+   553→                    horizontal: Spacings.sm,
+   554→                    vertical: Spacings.xs,
+   555→                  ),
+   556→                  decoration: BoxDecoration(
+   557→                    color: cs.secondaryContainer,
+   558→                    borderRadius: BorderRadius.circular(Spacings.smRadius),
+   559→                  ),
+   560→                  child: Text(
+   561→                    '${marks} mark${marks == 1 ? '' : 's'}',
+   562→                    style: tt.labelSmall?.copyWith(
+   563→                      color: cs.onSecondaryContainer,
+   564→                      fontWeight: AppTypography.wMedium,
+   565→                    ),
+   566→                  ),
+   567→                ),
+   568→              ],
+   569→            ],
+   570→          ),
+   571→
+   572→          // Options (for MCQ type)
+   573→          if (options != null && options.isNotEmpty) ...[
+   574→            const SizedBox(height: Spacings.sm),
+   575→            ...options.map((option) {
+   576→              final optionText = option.toString();
+   577→              return Padding(
+   578→                padding: const EdgeInsets.only(
+   579→                  left: Spacings.xl,
+   580→                  bottom: Spacings.xs,
+   581→                ),
+   582→                child: Row(
+   583→                  crossAxisAlignment: CrossAxisAlignment.start,
+   584→                  children: [
+   585→                    Text(
+   586→                      '\u2022 ',
+   587→                      style: tt.bodyMedium?.copyWith(
+   588→                        color: cs.onSurfaceVariant,
+   589→                      ),
+   590→                    ),
+   591→                    Expanded(
+   592→                      child: Text(
+   593→                        optionText,
+   594→                        style: tt.bodyMedium?.copyWith(
+   595→                          color: cs.onSurfaceVariant,
+   596→                        ),
+   597→                      ),
+   598→                    ),
+   599→                  ],
+   600→                ),
+   601→              );
+   602→            }),
+   603→          ],
+   604→        ],
+   605→      ),
+   606→    );
+   607→  }
+   608→
+   609→  // ─── Answer Key (Collapsible) ─────────────────────────────────────
+   610→
+   611→  Widget _buildAnswerKey(
+   612→      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+   613→    final answers = worksheet.answerKey;
+   614→    if (answers.isEmpty) return const SizedBox.shrink();
+   615→
+   616→    return AppCard(
+   617→      child: Column(
+   618→        crossAxisAlignment: CrossAxisAlignment.start,
+   619→        children: [
+   620→          InkWell(
+   621→            onTap: () =>
+   622→                setState(() => _answerKeyExpanded = !_answerKeyExpanded),
+   623→            child: Row(
+   624→              children: [
+   625→                Icon(Icons.key_outlined,
+   626→                    size: Spacings.mdIcon, color: cs.primary),
+   627→                const SizedBox(width: Spacings.sm),
+   628→                Text(
+   629→                  'Answer Key',
+   630→                  style: tt.titleSmall?.copyWith(
+   631→                    fontWeight: AppTypography.wSemiBold,
+   632→                    color: cs.onSurface,
+   633→                  ),
+   634→                ),
+   635→                const Spacer(),
+   636→                Icon(
+   637→                  _answerKeyExpanded
+   638→                      ? Icons.expand_less_rounded
+   639→                      : Icons.expand_more_rounded,
+   640→                  color: cs.onSurfaceVariant,
+   641→                ),
+   642→              ],
+   643→            ),
+   644→          ),
+   645→          if (_answerKeyExpanded) ...[
+   646→            const SizedBox(height: Spacings.md),
+   647→            const Divider(),
+   648→            const SizedBox(height: Spacings.sm),
+   649→            ...answers.asMap().entries.map((entry) {
+   650→              final index = entry.key;
+   651→              final answer = entry.value;
+   652→              final questionNum =
+   653→                  answer['questionNumber'] ?? answer['number'] ?? (index + 1);
+   654→              final answerText =
+   655→                  answer['answer'] as String? ?? answer.toString();
+   656→              return Padding(
+   657→                padding: const EdgeInsets.only(bottom: Spacings.sm),
+   658→                child: Row(
+   659→                  crossAxisAlignment: CrossAxisAlignment.start,
+   660→                  children: [
+   661→                    SizedBox(
+   662→                      width: 28,
+   663→                      child: Text(
+   664→                        '$questionNum.',
+   665→                        style: tt.bodyMedium?.copyWith(
+   666→                          fontWeight: AppTypography.wSemiBold,
+   667→                          color: cs.primary,
+   668→                        ),
+   669→                      ),
+   670→                    ),
+   671→                    Expanded(
+   672→                      child: Text(
+   673→                        answerText,
+   674→                        style: tt.bodyMedium?.copyWith(
+   675→                          color: cs.onSurfaceVariant,
+   676→                        ),
+   677→                      ),
+   678→                    ),
+   679→                  ],
+   680→                ),
+   681→              );
+   682→            }),
+   683→          ],
+   684→        ],
+   685→      ),
+   686→    );
+   687→  }
+   688→
+   689→  // ─── Total Marks & Duration ───────────────────────────────────────
+   690→
+   691→  Widget _buildMarksAndDuration(
+   692→      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+   693→    return Row(
+   694→      children: [
+   695→        // Total marks
+   696→        Expanded(
+   697→          child: AppCard(
+   698→            child: Column(
+   699→              children: [
+   700→                Icon(Icons.grade_outlined,
+   701→                    size: Spacings.lgIcon, color: cs.primary),
+   702→                const SizedBox(height: Spacings.sm),
+   703→                Text(
+   704→                  'Total Marks',
+   705→                  style: tt.bodySmall?.copyWith(
+   706→                    color: cs.onSurfaceVariant,
+   707→                  ),
+   708→                ),
+   709→                const SizedBox(height: Spacings.xs),
+   710→                Text(
+   711→                  '${worksheet.totalMarks.toInt()}',
+   712→                  style: tt.headlineSmall?.copyWith(
+   713→                    fontWeight: AppTypography.wBold,
+   714→                    color: cs.onSurface,
+   715→                  ),
+   716→                ),
+   717→              ],
+   718→            ),
+   719→          ),
+   720→        ),
+   721→        const SizedBox(width: Spacings.md),
+   722→
+   723→        // Duration
+   724→        if (worksheet.durationMinutes != null)
+   725→          Expanded(
+   726→            child: AppCard(
+   727→              child: Column(
+   728→                children: [
+   729→                  Icon(Icons.timer_outlined,
+   730→                      size: Spacings.lgIcon, color: cs.tertiary),
+   731→                  const SizedBox(height: Spacings.sm),
+   732→                  Text(
+   733→                    'Duration',
+   734→                    style: tt.bodySmall?.copyWith(
+   735→                      color: cs.onSurfaceVariant,
+   736→                    ),
+   737→                  ),
+   738→                  const SizedBox(height: Spacings.xs),
+   739→                  Text(
+   740→                    '${worksheet.durationMinutes} min',
+   741→                    style: tt.headlineSmall?.copyWith(
+   742→                      fontWeight: AppTypography.wBold,
+   743→                      color: cs.onSurface,
+   744→                    ),
+   745→                  ),
+   746→                ],
+   747→              ),
+   748→            ),
+   749→          ),
+   750→      ],
+   751→    );
+   752→  }
+   753→
+   754→  // ─── Action Buttons ───────────────────────────────────────────────
+   755→
+   756→  Widget _buildActionButtons(ColorScheme cs, WorksheetState state) {
+   757→    final worksheet = state.currentWorksheet;
+   758→    return Wrap(
+   759→      spacing: Spacings.md,
+   760→      runSpacing: Spacings.sm,
+   761→      alignment: WrapAlignment.start,
+   762→      children: [
+   763→        // Save
+   764→        AppButton(
+   765→          label: 'Save',
+   766→          onPressed: state.isCreating ? null : _saveWorksheet,
+   767→          variant: AppButtonVariant.elevated,
+   768→          icon: Icons.save_outlined,
+   769→          isLoading: state.isCreating,
+   770→        ),
+   771→
+   772→        // Export dropdown
+   773→        PopupMenuButton<String>(
+   774→          onSelected: _exportWorksheet,
+   775→          enabled: !state.isExporting,
+   776→          position: PopupMenuPosition.under,
+   777→          child: AppButton(
+   778→            label: 'Export',
+   779→            onPressed: null, // handled by popup
+   780→            variant: AppButtonVariant.outlined,
+   781→            icon: state.isExporting
+   782→                ? null
+   783→                : Icons.file_download_outlined,
+   784→            isLoading: state.isExporting,
+   785→          ),
+   786→          itemBuilder: (ctx) => [
+   787→            const PopupMenuItem(value: 'pdf', child: Text('Export as PDF')),
+   788→            const PopupMenuItem(value: 'docx', child: Text('Export as DOCX')),
+   789→          ],
+   790→        ),
+   791→
+   792→        // Generate Questions
+   793→        if (worksheet != null)
+   794→          GenerateQuestionsButton(
+   795→            resourceType: 'worksheet',
+   796→            resourceId: worksheet.id,
+   797→          ),
+   798→
+   799→        // New / Reset
+   800→        AppButton(
+   801→          label: 'New',
+   802→          onPressed: () {
+   803→            setState(() {
+   804→              _showResult = false;
+   805→              _subjectController.clear();
+   806→              _classNameController.clear();
+   807→              _topicController.clear();
+   808→              _questionCountController.text = '10';
+   809→              _worksheetType = WorksheetType.classwork;
+   810→              _difficulty = 'medium';
+   811→            });
+   812→          },
+   813→          variant: AppButtonVariant.outlined,
+   814→          icon: Icons.add_rounded,
+   815→        ),
+   816→      ],
+   817→    );
+   818→  }
+   819→}
+   820→

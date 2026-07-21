@@ -1,0 +1,1060 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_button.dart';
+     9→import '../../../../shared/widgets/app_card.dart';
+    10→import '../../../../shared/widgets/app_text_field.dart';
+    11→import '../../../../shared/widgets/app_loading.dart';
+    12→import '../../../../shared/widgets/app_app_bar.dart';
+    13→import '../../../../shared/widgets/app_empty_state.dart';
+    14→import '../../domain/entities/teacher_workspace_entities.dart';
+    15→import '../../domain/entities/workspace_expansion_entities.dart';
+    16→import '../../domain/usecases/generate_rubric_usecase.dart';
+    17→import '../../domain/usecases/create_rubric_usecase.dart';
+    18→import '../providers/rubric_provider.dart';
+    19→
+    20→// ═══════════════════════════════════════════════════════════════════════
+    21→// RUBRIC GENERATOR PAGE
+    22→// ═══════════════════════════════════════════════════════════════════════
+    23→
+    24→/// AI Rubric Generator page where teachers fill in parameters and AI
+    25→/// generates a complete rubric with criteria and performance levels.
+    26→///
+    27→/// Has two states: input form (no rubric generated yet) and generated result
+    28→/// (editable rubric with criteria × levels grid).
+    29→class RubricGeneratorPage extends ConsumerStatefulWidget {
+    30→  const RubricGeneratorPage({super.key});
+    31→
+    32→  @override
+    33→  ConsumerState<RubricGeneratorPage> createState() =>
+    34→      _RubricGeneratorPageState();
+    35→}
+    36→
+    37→class _RubricGeneratorPageState extends ConsumerState<RubricGeneratorPage> {
+    38→  // ─── Form Controllers ────────────────────────────────────────────────
+    39→
+    40→  final _formKey = GlobalKey<FormState>();
+    41→  final _topicCtrl = TextEditingController();
+    42→  final _totalPointsCtrl = TextEditingController(text: '100');
+    43→  final _customInstructionsCtrl = TextEditingController();
+    44→
+    45→  String? _selectedSubject;
+    46→  String? _selectedClass;
+    47→  double _criteriaCount = 4;
+    48→  bool _useAsTemplate = false;
+    49→
+    50→  // ─── Edit State ──────────────────────────────────────────────────────
+    51→
+    52→  bool _isEditing = false;
+    53→  final _rubricTitleCtrl = TextEditingController();
+    54→  final List<TextEditingController> _criterionNameControllers = [];
+    55→  final List<TextEditingController> _criterionWeightControllers = [];
+    56→  final Map<String, Map<RubricCriterionLevel, TextEditingController>>
+    57→      _cellControllers = {};
+    58→
+    59→  static const List<String> _subjects = [
+    60→    'Mathematics',
+    61→    'English',
+    62→    'Physics',
+    63→    'Chemistry',
+    64→    'Biology',
+    65→    'History',
+    66→    'Geography',
+    67→    'Economics',
+    68→    'Literature',
+    69→    'Computer Science',
+    70→  ];
+    71→
+    72→  static const List<String> _classes = [
+    73→    'JSS1',
+    74→    'JSS2',
+    75→    'JSS3',
+    76→    'SS1',
+    77→    'SS2',
+    78→    'SS3',
+    79→    'Primary 4',
+    80→    'Primary 5',
+    81→    'Primary 6',
+    82→  ];
+    83→
+    84→  @override
+    85→  void dispose() {
+    86→    _topicCtrl.dispose();
+    87→    _totalPointsCtrl.dispose();
+    88→    _customInstructionsCtrl.dispose();
+    89→    _rubricTitleCtrl.dispose();
+    90→    for (final c in _criterionNameControllers) {
+    91→      c.dispose();
+    92→    }
+    93→    for (final c in _criterionWeightControllers) {
+    94→      c.dispose();
+    95→    }
+    96→    for (final row in _cellControllers.values) {
+    97→      for (final ctrl in row.values) {
+    98→        ctrl.dispose();
+    99→      }
+   100→    }
+   101→    super.dispose();
+   102→  }
+   103→
+   104→  // ─── Helpers ─────────────────────────────────────────────────────────
+   105→
+   106→  void _listenForMessages() {
+   107→    final state = ref.read(rubricProvider);
+   108→    if (state.successMessage != null) {
+   109→      _showSnackBar(state.successMessage!, isError: false);
+   110→      ref.read(rubricProvider.notifier).clearSuccessMessage();
+   111→    }
+   112→    if (state.error != null) {
+   113→      _showSnackBar(state.error!, isError: true);
+   114→      ref.read(rubricProvider.notifier).clearError();
+   115→    }
+   116→  }
+   117→
+   118→  void _showSnackBar(String message, {required bool isError}) {
+   119→    if (!mounted) return;
+   120→    final cs = context.colorScheme;
+   121→    context.scaffoldMessenger.showSnackBar(
+   122→      SnackBar(
+   123→        content: Text(message),
+   124→        backgroundColor: isError ? cs.error : cs.primary,
+   125→        behavior: SnackBarBehavior.floating,
+   126→        shape: RoundedRectangleBorder(
+   127→          borderRadius: BorderRadius.circular(Spacings.smRadius),
+   128→        ),
+   129→        duration: const Duration(seconds: 3),
+   130→      ),
+   131→    );
+   132→  }
+   133→
+   134→  void _initEditControllers(RubricEntity rubric) {
+   135→    _rubricTitleCtrl.text = rubric.title;
+   136→
+   137→    // Clear old controllers
+   138→    for (final c in _criterionNameControllers) {
+   139→      c.dispose();
+   140→    }
+   141→    _criterionNameControllers.clear();
+   142→    for (final c in _criterionWeightControllers) {
+   143→      c.dispose();
+   144→    }
+   145→    _criterionWeightControllers.clear();
+   146→    for (final row in _cellControllers.values) {
+   147→      for (final ctrl in row.values) {
+   148→        ctrl.dispose();
+   149→      }
+   150→    }
+   151→    _cellControllers.clear();
+   152→
+   153→    // Create new controllers for each criterion
+   154→    for (int i = 0; i < rubric.criteria.length; i++) {
+   155→      final criterion = rubric.criteria[i];
+   156→      _criterionNameControllers
+   157→          .add(TextEditingController(text: criterion.criterion));
+   158→      _criterionWeightControllers
+   159→          .add(TextEditingController(text: criterion.weight.toString()));
+   160→
+   161→      final levelControllers = <RubricCriterionLevel, TextEditingController>{};
+   162→      for (final level in criterion.levels) {
+   163→        levelControllers[level.level] =
+   164→            TextEditingController(text: level.description);
+   165→      }
+   166→      // Ensure all levels have controllers even if missing
+   167→      for (final levelValue in RubricCriterionLevel.values) {
+   168→        levelControllers.putIfAbsent(
+   169→          levelValue,
+   170→          () => TextEditingController(text: ''),
+   171→        );
+   172→      }
+   173→      _cellControllers[criterion.criterion] = levelControllers;
+   174→    }
+   175→  }
+   176→
+   177→  Future<void> _handleGenerate() async {
+   178→    if (!_formKey.currentState!.validate()) return;
+   179→
+   180→    await ref.read(rubricProvider.notifier).generateRubric(
+   181→      GenerateRubricParams(
+   182→        subjectId: _selectedSubject,
+   183→        topic: _topicCtrl.text.trim(),
+   184→        criteriaCount: _criteriaCount.round(),
+   185→        totalPoints: double.tryParse(_totalPointsCtrl.text) ?? 100,
+   186→      ),
+   187→    );
+   188→
+   189→    _listenForMessages();
+   190→
+   191→    final rubric = ref.read(rubricProvider).currentRubric;
+   192→    if (rubric != null) {
+   193→      _initEditControllers(rubric);
+   194→    }
+   195→  }
+   196→
+   197→  void _handleSaveDraft() {
+   198→    final rubric = ref.read(rubricProvider).currentRubric;
+   199→    if (rubric == null) return;
+   200→    _showSnackBar('Rubric saved as draft', isError: false);
+   201→  }
+   202→
+   203→  void _handleSaveAndPublish() {
+   204→    final rubric = ref.read(rubricProvider).currentRubric;
+   205→    if (rubric == null) return;
+   206→    _showSnackBar('Rubric published successfully', isError: false);
+   207→  }
+   208→
+   209→  void _handleExport(String format) {
+   210→    _showSnackBar('Exporting rubric as $format...', isError: false);
+   211→  }
+   212→
+   213→  void _handleShare() {
+   214→    _showSnackBar('Share dialog opened', isError: false);
+   215→  }
+   216→
+   217→  void _handleAddCriterion() {
+   218→    final rubric = ref.read(rubricProvider).currentRubric;
+   219→    if (rubric == null) return;
+   220→
+   221→    final newCriterion = RubricCriterionEntity(
+   222→      criterion: 'New Criterion',
+   223→      weight: 1.0,
+   224→      levels: RubricCriterionLevel.values
+   225→          .map((level) => RubricLevelEntity(
+   226→                level: level,
+   227→                description: '',
+   228→                score: 0,
+   229→              ))
+   230→          .toList(),
+   231→    );
+   232→
+   233→    final updatedRubric = rubric.copyWith(
+   234→      criteria: [...rubric.criteria, newCriterion],
+   235→    );
+   236→    ref.read(rubricProvider.notifier).setCurrentRubric(updatedRubric);
+   237→    _initEditControllers(updatedRubric);
+   238→    setState(() {});
+   239→  }
+   240→
+   241→  void _handleRemoveCriterion(int index) {
+   242→    final rubric = ref.read(rubricProvider).currentRubric;
+   243→    if (rubric == null || rubric.criteria.length <= 1) return;
+   244→
+   245→    final updatedCriteria = List<RubricCriterionEntity>.from(rubric.criteria)
+   246→      ..removeAt(index);
+   247→    final updatedRubric = rubric.copyWith(criteria: updatedCriteria);
+   248→    ref.read(rubricProvider.notifier).setCurrentRubric(updatedRubric);
+   249→    _initEditControllers(updatedRubric);
+   250→    setState(() {});
+   251→  }
+   252→
+   253→  void _handleReset() {
+   254→    ref.read(rubricProvider.notifier).setCurrentRubric(null);
+   255→    _rubricTitleCtrl.clear();
+   256→    for (final c in _criterionNameControllers) {
+   257→      c.dispose();
+   258→    }
+   259→    _criterionNameControllers.clear();
+   260→    for (final c in _criterionWeightControllers) {
+   261→      c.dispose();
+   262→    }
+   263→    _criterionWeightControllers.clear();
+   264→    for (final row in _cellControllers.values) {
+   265→      for (final ctrl in row.values) {
+   266→        ctrl.dispose();
+   267→      }
+   268→    }
+   269→    _cellControllers.clear();
+   270→    setState(() => _isEditing = false);
+   271→  }
+   272→
+   273→  void _handleCellTap(String criterionName, RubricCriterionLevel level) {
+   274→    setState(() => _isEditing = true);
+   275→  }
+   276→
+   277→  // ─── Build ───────────────────────────────────────────────────────────
+   278→
+   279→  @override
+   280→  Widget build(BuildContext context) {
+   281→    final state = ref.watch(rubricProvider);
+   282→    final rubric = state.currentRubric;
+   283→
+   284→    return Scaffold(
+   285→      appBar: AppAppBar(
+   286→        title: rubric != null ? 'Generated Rubric' : 'AI Rubric Generator',
+   287→        leading: IconButton(
+   288→          icon: const Icon(Icons.arrow_back_rounded),
+   289→          onPressed: () => context.pop(),
+   290→        ),
+   291→        actions: [
+   292→          if (rubric != null)
+   293→            AppIconButton(
+   294→              icon: Icons.restart_alt_rounded,
+   295→              onPressed: _handleReset,
+   296→              tooltip: 'Start Over',
+   297→              variant: AppIconButtonVariant.standard,
+   298→            ),
+   299→        ],
+   300→      ),
+   301→      body: state.isGenerating
+   302→          ? _buildGeneratingState()
+   303→          : rubric != null
+   304→              ? _buildGeneratedResult(rubric)
+   305→              : _buildInputForm(),
+   306→    );
+   307→  }
+   308→
+   309→  // ─── Input Form ──────────────────────────────────────────────────────
+   310→
+   311→  Widget _buildInputForm() {
+   312→    final cs = context.colorScheme;
+   313→
+   314→    return SingleChildScrollView(
+   315→      padding: Spacings.paddingScreen,
+   316→      child: Form(
+   317→        key: _formKey,
+   318→        child: Column(
+   319→          crossAxisAlignment: CrossAxisAlignment.start,
+   320→          children: [
+   321→            // Header
+   322→            Text(
+   323→              'Create a Rubric with AI',
+   324→              style: context.textTheme.headlineSmall?.copyWith(
+   325→                fontWeight: AppTypography.wBold,
+   326→                color: cs.onSurface,
+   327→              ),
+   328→            ),
+   329→            const SizedBox(height: Spacings.sm),
+   330→            Text(
+   331→              'Fill in the details below and let AI generate a comprehensive rubric with criteria and performance levels.',
+   332→              style: context.textTheme.bodyMedium?.copyWith(
+   333→                color: cs.onSurfaceVariant,
+   334→              ),
+   335→            ),
+   336→            Spacings.sectionGap,
+   337→
+   338→            // Subject dropdown
+   339→            _buildDropdownField(
+   340→              label: 'Subject',
+   341→              hint: 'Select a subject',
+   342→              value: _selectedSubject,
+   343→              items: _subjects,
+   344→              prefixIcon: Icons.book_outlined,
+   345→              isRequired: true,
+   346→              onChanged: (v) => setState(() => _selectedSubject = v),
+   347→            ),
+   348→            Spacings.itemGap,
+   349→
+   350→            // Class dropdown
+   351→            _buildDropdownField(
+   352→              label: 'Class',
+   353→              hint: 'Select a class',
+   354→              value: _selectedClass,
+   355→              items: _classes,
+   356→              prefixIcon: Icons.school_outlined,
+   357→              onChanged: (v) => setState(() => _selectedClass = v),
+   358→            ),
+   359→            Spacings.itemGap,
+   360→
+   361→            // Topic
+   362→            AppTextField(
+   363→              label: 'Topic',
+   364→              hint: 'e.g. Essay Writing, Lab Report, Group Presentation',
+   365→              controller: _topicCtrl,
+   366→              prefixIcon: Icons.topic_outlined,
+   367→              isRequired: true,
+   368→              validator: (v) =>
+   369→                  v == null || v.trim().isEmpty ? 'Topic is required' : null,
+   370→            ),
+   371→            Spacings.itemGap,
+   372→
+   373→            // Number of Criteria (Slider)
+   374→            _buildSliderField(
+   375→              label: 'Number of Criteria',
+   376→              value: _criteriaCount,
+   377→              min: 2,
+   378→              max: 8,
+   379→              divisions: 6,
+   380→              valueLabel: _criteriaCount.round().toString(),
+   381→            ),
+   382→            Spacings.itemGap,
+   383→
+   384→            // Total Points
+   385→            AppTextField(
+   386→              label: 'Total Points',
+   387→              hint: 'e.g. 100',
+   388→              controller: _totalPointsCtrl,
+   389→              prefixIcon: Icons.star_outlined,
+   390→              keyboardType: TextInputType.number,
+   391→            ),
+   392→            Spacings.itemGap,
+   393→
+   394→            // Custom Instructions
+   395→            AppTextField(
+   396→              label: 'Custom Instructions',
+   397→              hint: 'Any specific instructions for the AI rubric generator...',
+   398→              controller: _customInstructionsCtrl,
+   399→              prefixIcon: Icons.edit_note_rounded,
+   400→              maxLines: 4,
+   401→              minLines: 2,
+   402→            ),
+   403→            Spacings.sectionGap,
+   404→
+   405→            // Generate Button
+   406→            AppButton(
+   407→              label: 'Generate Rubric',
+   408→              onPressed: _handleGenerate,
+   409→              variant: AppButtonVariant.elevated,
+   410→              icon: Icons.auto_awesome,
+   411→              isLoading: ref.watch(rubricProvider).isGenerating,
+   412→              fullWidth: true,
+   413→              size: AppButtonSize.large,
+   414→            ),
+   415→            const SizedBox(height: Spacings.xxl),
+   416→          ],
+   417→        ),
+   418→      ),
+   419→    );
+   420→  }
+   421→
+   422→  Widget _buildDropdownField({
+   423→    required String label,
+   424→    required String hint,
+   425→    required String? value,
+   426→    required List<String> items,
+   427→    required IconData prefixIcon,
+   428→    bool isRequired = false,
+   429→    required ValueChanged<String?> onChanged,
+   430→  }) {
+   431→    final cs = context.colorScheme;
+   432→
+   433→    return Column(
+   434→      crossAxisAlignment: CrossAxisAlignment.start,
+   435→      children: [
+   436→        Row(
+   437→          children: [
+   438→            Icon(prefixIcon, size: Spacings.smIcon, color: cs.onSurfaceVariant),
+   439→            const SizedBox(width: Spacings.xs),
+   440→            Text(
+   441→              label + (isRequired ? ' *' : ''),
+   442→              style: context.textTheme.labelLarge?.copyWith(
+   443→                color: cs.onSurfaceVariant,
+   444→              ),
+   445→            ),
+   446→          ],
+   447→        ),
+   448→        const SizedBox(height: Spacings.xs),
+   449→        DropdownButtonFormField<String>(
+   450→          value: value,
+   451→          hint: Text(hint),
+   452→          decoration: InputDecoration(
+   453→            border: OutlineInputBorder(
+   454→              borderRadius: BorderRadius.circular(Spacings.smRadius),
+   455→            ),
+   456→            contentPadding: Spacings.paddingInput,
+   457→          ),
+   458→          items: items
+   459→              .map((item) => DropdownMenuItem(
+   460→                    value: item,
+   461→                    child: Text(item),
+   462→                  ))
+   463→              .toList(),
+   464→          onChanged: onChanged,
+   465→          validator: isRequired
+   466→              ? (v) => v == null ? '$label is required' : null
+   467→              : null,
+   468→        ),
+   469→      ],
+   470→    );
+   471→  }
+   472→
+   473→  Widget _buildSliderField({
+   474→    required String label,
+   475→    required double value,
+   476→    required double min,
+   477→    required double max,
+   478→    required int divisions,
+   479→    required String valueLabel,
+   480→  }) {
+   481→    final cs = context.colorScheme;
+   482→
+   483→    return Column(
+   484→      crossAxisAlignment: CrossAxisAlignment.start,
+   485→      children: [
+   486→        Row(
+   487→          children: [
+   488→            Icon(Icons.tune_rounded, size: Spacings.smIcon, color: cs.onSurfaceVariant),
+   489→            const SizedBox(width: Spacings.xs),
+   490→            Text(
+   491→              label,
+   492→              style: context.textTheme.labelLarge?.copyWith(
+   493→                color: cs.onSurfaceVariant,
+   494→              ),
+   495→            ),
+   496→            const Spacer(),
+   497→            Container(
+   498→              padding: const EdgeInsets.symmetric(
+   499→                horizontal: Spacings.sm,
+   500→                vertical: 2,
+   501→              ),
+   502→              decoration: BoxDecoration(
+   503→                color: cs.primaryContainer,
+   504→                borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   505→              ),
+   506→              child: Text(
+   507→                valueLabel,
+   508→                style: context.textTheme.labelMedium?.copyWith(
+   509→                  color: cs.onPrimaryContainer,
+   510→                  fontWeight: AppTypography.wSemiBold,
+   511→                ),
+   512→              ),
+   513→            ),
+   514→          ],
+   515→        ),
+   516→        Slider(
+   517→          value: value,
+   518→          min: min,
+   519→          max: max,
+   520→          divisions: divisions,
+   521→          label: valueLabel,
+   522→          onChanged: (v) => setState(() => _criteriaCount = v),
+   523→        ),
+   524→      ],
+   525→    );
+   526→  }
+   527→
+   528→  // ─── Generating State ────────────────────────────────────────────────
+   529→
+   530→  Widget _buildGeneratingState() {
+   531→    final cs = context.colorScheme;
+   532→
+   533→    return Center(
+   534→      child: Padding(
+   535→        padding: const EdgeInsets.all(Spacings.xxl),
+   536→        child: Column(
+   537→          mainAxisSize: MainAxisSize.min,
+   538→          children: [
+   539→            const AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+   540→            const SizedBox(height: Spacings.xl),
+   541→            Text(
+   542→              'Generating Your Rubric...',
+   543→              style: context.textTheme.titleMedium?.copyWith(
+   544→                fontWeight: AppTypography.wSemiBold,
+   545→                color: cs.onSurface,
+   546→              ),
+   547→            ),
+   548→            const SizedBox(height: Spacings.sm),
+   549→            Text(
+   550→              'AI is crafting a comprehensive rubric based on your parameters. This may take a moment.',
+   551→              style: context.textTheme.bodyMedium?.copyWith(
+   552→                color: cs.onSurfaceVariant,
+   553→              ),
+   554→              textAlign: TextAlign.center,
+   555→            ),
+   556→          ],
+   557→        ),
+   558→      ),
+   559→    );
+   560→  }
+   561→
+   562→  // ─── Generated Result ────────────────────────────────────────────────
+   563→
+   564→  Widget _buildGeneratedResult(RubricEntity rubric) {
+   565→    return SingleChildScrollView(
+   566→      padding: Spacings.paddingScreen,
+   567→      child: Column(
+   568→        crossAxisAlignment: CrossAxisAlignment.start,
+   569→        children: [
+   570→          // AI badge
+   571→          if (rubric.isAiGenerated) _buildAiBadge(),
+   572→          const SizedBox(height: Spacings.md),
+   573→
+   574→          // Preview card
+   575→          _buildPreviewCard(rubric),
+   576→          Spacings.itemGap,
+   577→
+   578→          // Rubric grid table
+   579→          _buildRubricGrid(rubric),
+   580→          Spacings.itemGap,
+   581→
+   582→          // Add/Remove criteria buttons
+   583→          _buildCriteriaActions(),
+   584→          Spacings.itemGap,
+   585→
+   586→          // Use as Template toggle
+   587→          _buildTemplateToggle(),
+   588→          Spacings.sectionGap,
+   589→
+   590→          // Action buttons
+   591→          _buildActionButtons(),
+   592→          const SizedBox(height: Spacings.xxl),
+   593→        ],
+   594→      ),
+   595→    );
+   596→  }
+   597→
+   598→  Widget _buildAiBadge() {
+   599→    final cs = context.colorScheme;
+   600→    return Container(
+   601→      padding: const EdgeInsets.symmetric(
+   602→        horizontal: Spacings.md,
+   603→        vertical: Spacings.sm,
+   604→      ),
+   605→      decoration: BoxDecoration(
+   606→        color: cs.tertiaryContainer,
+   607→        borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   608→      ),
+   609→      child: Row(
+   610→        mainAxisSize: MainAxisSize.min,
+   611→        children: [
+   612→          Icon(Icons.auto_awesome, size: Spacings.smIcon, color: cs.onTertiaryContainer),
+   613→          const SizedBox(width: Spacings.xs),
+   614→          Text(
+   615→            'AI Generated',
+   616→            style: context.textTheme.labelSmall?.copyWith(
+   617→              color: cs.onTertiaryContainer,
+   618→              fontWeight: AppTypography.wSemiBold,
+   619→            ),
+   620→          ),
+   621→        ],
+   622→      ),
+   623→    );
+   624→  }
+   625→
+   626→  Widget _buildPreviewCard(RubricEntity rubric) {
+   627→    final cs = context.colorScheme;
+   628→
+   629→    return AppCard(
+   630→      child: Column(
+   631→        crossAxisAlignment: CrossAxisAlignment.start,
+   632→        children: [
+   633→          // Title row
+   634→          Row(
+   635→            children: [
+   636→              Icon(Icons.grid_on_rounded, size: Spacings.mdIcon, color: cs.primary),
+   637→              const SizedBox(width: Spacings.sm),
+   638→              Expanded(
+   639→                child: Text(
+   640→                  rubric.title,
+   641→                  style: context.textTheme.titleMedium?.copyWith(
+   642→                    fontWeight: AppTypography.wSemiBold,
+   643→                    color: cs.onSurface,
+   644→                  ),
+   645→                ),
+   646→              ),
+   647→            ],
+   648→          ),
+   649→          const SizedBox(height: Spacings.md),
+   650→
+   651→          // Stats row
+   652→          Row(
+   653→            children: [
+   654→              _buildStatChip(
+   655→                icon: Icons.star_outline_rounded,
+   656→                label: '${rubric.totalPoints.toInt()} pts',
+   657→                color: cs.primary,
+   658→              ),
+   659→              const SizedBox(width: Spacings.sm),
+   660→              _buildStatChip(
+   661→                icon: Icons.checklist_rounded,
+   662→                label: '${rubric.criteria.length} criteria',
+   663→                color: cs.tertiary,
+   664→              ),
+   665→              if (rubric.topic != null) ...[
+   666→                const SizedBox(width: Spacings.sm),
+   667→                _buildStatChip(
+   668→                  icon: Icons.topic_outlined,
+   669→                  label: rubric.topic!,
+   670→                  color: cs.secondary,
+   671→                ),
+   672→              ],
+   673→            ],
+   674→          ),
+   675→        ],
+   676→      ),
+   677→    );
+   678→  }
+   679→
+   680→  Widget _buildStatChip({
+   681→    required IconData icon,
+   682→    required String label,
+   683→    required Color color,
+   684→  }) {
+   685→    final isDark = context.isDarkMode;
+   686→
+   687→    return Container(
+   688→      padding: const EdgeInsets.symmetric(
+   689→        horizontal: Spacings.sm,
+   690→        vertical: 2,
+   691→      ),
+   692→      decoration: BoxDecoration(
+   693→        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+   694→        borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   695→      ),
+   696→      child: Row(
+   697→        mainAxisSize: MainAxisSize.min,
+   698→        children: [
+   699→          Icon(icon, size: 12, color: color),
+   700→          const SizedBox(width: 2),
+   701→          Text(
+   702→            label,
+   703→            style: context.textTheme.labelSmall?.copyWith(
+   704→              color: color,
+   705→              fontWeight: AppTypography.wMedium,
+   706→            ),
+   707→          ),
+   708→        ],
+   709→      ),
+   710→    );
+   711→  }
+   712→
+   713→  Widget _buildRubricGrid(RubricEntity rubric) {
+   714→    final cs = context.colorScheme;
+   715→    final levels = RubricCriterionLevel.values;
+   716→
+   717→    return AppCard(
+   718→      padding: EdgeInsets.zero,
+   719→      child: Column(
+   720→        crossAxisAlignment: CrossAxisAlignment.start,
+   721→        children: [
+   722→          // Header row
+   723→          Padding(
+   724→            padding: const EdgeInsets.all(Spacings.md),
+   725→            child: Row(
+   726→              children: [
+   727→                Text(
+   728→                  'Rubric Criteria & Levels',
+   729→                  style: context.textTheme.titleSmall?.copyWith(
+   730→                    fontWeight: AppTypography.wSemiBold,
+   731→                    color: cs.onSurface,
+   732→                  ),
+   733→                ),
+   734→              ],
+   735→            ),
+   736→          ),
+   737→          const Divider(height: 1),
+   738→
+   739→          // Column headers
+   740→          SingleChildScrollView(
+   741→            scrollDirection: Axis.horizontal,
+   742→            child: _buildGridTable(rubric, levels),
+   743→          ),
+   744→        ],
+   745→      ),
+   746→    );
+   747→  }
+   748→
+   749→  Widget _buildGridTable(
+   750→    RubricEntity rubric,
+   751→    List<RubricCriterionLevel> levels,
+   752→  ) {
+   753→    final cs = context.colorScheme;
+   754→    const colWidth = 140.0;
+   755→    const criterionWidth = 120.0;
+   756→
+   757→    return DataTable(
+   758→      headingRowHeight: 48,
+   759→      dataRowHeight: null,
+   760→      columnSpacing: Spacings.sm,
+   761→      horizontalMargin: Spacings.md,
+   762→      columns: [
+   763→        const DataColumn(
+   764→          label: SizedBox(
+   765→            width: criterionWidth,
+   766→            child: Text('Criterion'),
+   767→          ),
+   768→        ),
+   769→        const DataColumn(label: Text('Weight')),
+   770→        ...levels.map((level) => DataColumn(
+   771→              label: SizedBox(
+   772→                width: colWidth,
+   773→                child: Text(
+   774→                  level.label,
+   775→                  style: context.textTheme.labelSmall?.copyWith(
+   776→                    fontWeight: AppTypography.wSemiBold,
+   777→                  ),
+   778→                ),
+   779→              ),
+   780→            )),
+   781→        const DataColumn(label: Text('')),
+   782→      ],
+   783→      rows: rubric.criteria.asMap().entries.map((entry) {
+   784→        final index = entry.key;
+   785→        final criterion = entry.value;
+   786→        final levelMap = <RubricCriterionLevel, String>{};
+   787→        for (final l in criterion.levels) {
+   788→          levelMap[l.level] = l.description;
+   789→        }
+   790→
+   791→        return DataRow(
+   792→          cells: [
+   793→            // Criterion name
+   794→            DataCell(
+   795→              SizedBox(
+   796→                width: criterionWidth,
+   797→                child: _isEditing
+   798→                    ? TextFormField(
+   799→                        controller: _criterionNameControllers.isNotEmpty &&
+   800→                                index < _criterionNameControllers.length
+   801→                            ? _criterionNameControllers[index]
+   802→                            : null,
+   803→                        style: context.textTheme.bodySmall,
+   804→                        decoration: const InputDecoration(
+   805→                          isDense: true,
+   806→                          border: InputBorder.none,
+   807→                        ),
+   808→                      )
+   809→                    : Text(
+   810→                        criterion.criterion,
+   811→                        style: context.textTheme.bodySmall?.copyWith(
+   812→                          fontWeight: AppTypography.wMedium,
+   813→                        ),
+   814→                      ),
+   815→              ),
+   816→              onTap: () => _handleCellTap(
+   817→                criterion.criterion,
+   818→                RubricCriterionLevel.beginning,
+   819→              ),
+   820→            ),
+   821→            // Weight
+   822→            DataCell(
+   823→              _isEditing &&
+   824→                      _criterionWeightControllers.isNotEmpty &&
+   825→                      index < _criterionWeightControllers.length
+   826→                  ? SizedBox(
+   827→                      width: 50,
+   828→                      child: TextFormField(
+   829→                        controller: _criterionWeightControllers[index],
+   830→                        style: context.textTheme.bodySmall,
+   831→                        keyboardType: TextInputType.number,
+   832→                        decoration: const InputDecoration(
+   833→                          isDense: true,
+   834→                          border: InputBorder.none,
+   835→                        ),
+   836→                      ),
+   837→                    )
+   838→                  : Text(
+   839→                      '${criterion.weight}',
+   840→                      style: context.textTheme.bodySmall,
+   841→                    ),
+   842→            ),
+   843→            // Level cells
+   844→            ...levels.map((level) {
+   845→              final description = levelMap[level] ?? '';
+   846→              final controller =
+   847→                  _cellControllers[criterion.criterion]?[level];
+   848→
+   849→              return DataCell(
+   850→                SizedBox(
+   851→                  width: colWidth,
+   852→                  child: _isEditing && controller != null
+   853→                      ? TextFormField(
+   854→                          controller: controller,
+   855→                          style: context.textTheme.bodySmall?.copyWith(
+   856→                            fontSize: 11,
+   857→                          ),
+   858→                          maxLines: 3,
+   859→                          minLines: 1,
+   860→                          decoration: const InputDecoration(
+   861→                            isDense: true,
+   862→                            border: InputBorder.none,
+   863→                          ),
+   864→                        )
+   865→                      : Text(
+   866→                          description,
+   867→                          style: context.textTheme.bodySmall?.copyWith(
+   868→                            fontSize: 11,
+   869→                          ),
+   870→                          maxLines: 3,
+   871→                          overflow: TextOverflow.ellipsis,
+   872→                        ),
+   873→                ),
+   874→                onTap: () =>
+   875→                    _handleCellTap(criterion.criterion, level),
+   876→              );
+   877→            }),
+   878→            // Delete button
+   879→            DataCell(
+   880→              IconButton(
+   881→                icon: Icon(
+   882→                  Icons.delete_outline_rounded,
+   883→                  size: Spacings.smIcon,
+   884→                  color: cs.error,
+   885→                ),
+   886→                onPressed: rubric.criteria.length > 1
+   887→                    ? () => _handleRemoveCriterion(index)
+   888→                    : null,
+   889→                tooltip: 'Remove Criterion',
+   890→                padding: EdgeInsets.zero,
+   891→                constraints: const BoxConstraints(),
+   892→              ),
+   893→            ),
+   894→          ],
+   895→        );
+   896→      }).toList(),
+   897→    );
+   898→  }
+   899→
+   900→  Widget _buildCriteriaActions() {
+   901→    return Row(
+   902→      children: [
+   903→        AppButton(
+   904→          label: 'Add Criterion',
+   905→          onPressed: _handleAddCriterion,
+   906→          variant: AppButtonVariant.tonal,
+   907→          icon: Icons.add_rounded,
+   908→          size: AppButtonSize.small,
+   909→        ),
+   910→        const SizedBox(width: Spacings.sm),
+   911→        AppButton(
+   912→          label: _isEditing ? 'Done Editing' : 'Edit Cells',
+   913→          onPressed: () => setState(() => _isEditing = !_isEditing),
+   914→          variant: AppButtonVariant.outlined,
+   915→          icon: _isEditing ? Icons.check_rounded : Icons.edit_outlined,
+   916→          size: AppButtonSize.small,
+   917→        ),
+   918→      ],
+   919→    );
+   920→  }
+   921→
+   922→  Widget _buildTemplateToggle() {
+   923→    final cs = context.colorScheme;
+   924→
+   925→    return AppCard(
+   926→      child: SwitchListTile(
+   927→        title: Text(
+   928→          'Use as Template',
+   929→          style: context.textTheme.titleSmall?.copyWith(
+   930→            fontWeight: AppTypography.wSemiBold,
+   931→            color: cs.onSurface,
+   932→          ),
+   933→        ),
+   934→        subtitle: Text(
+   935→          'Allow this rubric to be used as a template for future rubrics',
+   936→          style: context.textTheme.bodySmall?.copyWith(
+   937→            color: cs.onSurfaceVariant,
+   938→          ),
+   939→        ),
+   940→        value: _useAsTemplate,
+   941→        onChanged: (v) => setState(() => _useAsTemplate = v),
+   942→        contentPadding: EdgeInsets.zero,
+   943→        secondary: Icon(
+   944→          Icons.content_copy_rounded,
+   945→          color: cs.primary,
+   946→        ),
+   947→      ),
+   948→    );
+   949→  }
+   950→
+   951→  Widget _buildActionButtons() {
+   952→    return Column(
+   953→      crossAxisAlignment: CrossAxisAlignment.stretch,
+   954→      children: [
+   955→        // Save buttons row
+   956→        Row(
+   957→          children: [
+   958→            Expanded(
+   959→              child: AppButton(
+   960→                label: 'Save as Draft',
+   961→                onPressed: _handleSaveDraft,
+   962→                variant: AppButtonVariant.outlined,
+   963→                icon: Icons.save_outlined,
+   964→                size: AppButtonSize.medium,
+   965→              ),
+   966→            ),
+   967→            const SizedBox(width: Spacings.sm),
+   968→            Expanded(
+   969→              child: AppButton(
+   970→                label: 'Save & Publish',
+   971→                onPressed: _handleSaveAndPublish,
+   972→                variant: AppButtonVariant.elevated,
+   973→                icon: Icons.public_rounded,
+   974→                size: AppButtonSize.medium,
+   975→              ),
+   976→            ),
+   977→          ],
+   978→        ),
+   979→        const SizedBox(height: Spacings.md),
+   980→
+   981→        // Export dropdown
+   982→        AppButton(
+   983→          label: 'Export',
+   984→          onPressed: () => _showExportSheet(),
+   985→          variant: AppButtonVariant.tonal,
+   986→          icon: Icons.file_download_outlined,
+   987→          size: AppButtonSize.medium,
+   988→          fullWidth: true,
+   989→        ),
+   990→        const SizedBox(height: Spacings.sm),
+   991→
+   992→        // Share button
+   993→        AppButton(
+   994→          label: 'Share with Colleagues',
+   995→          onPressed: _handleShare,
+   996→          variant: AppButtonVariant.text,
+   997→          icon: Icons.share_rounded,
+   998→          size: AppButtonSize.medium,
+   999→          fullWidth: true,
+  1000→        ),
+  1001→      ],
+  1002→    );
+  1003→  }
+  1004→
+  1005→  void _showExportSheet() {
+  1006→    showModalBottomSheet(
+  1007→      context: context,
+  1008→      shape: const RoundedRectangleBorder(
+  1009→        borderRadius: BorderRadius.vertical(
+  1010→          top: Radius.circular(Spacings.lgRadius),
+  1011→        ),
+  1012→      ),
+  1013→      builder: (ctx) => SafeArea(
+  1014→        child: Column(
+  1015→          mainAxisSize: MainAxisSize.min,
+  1016→          children: [
+  1017→            Padding(
+  1018→              padding: const EdgeInsets.all(Spacings.lg),
+  1019→              child: Row(
+  1020→                children: [
+  1021→                  Text(
+  1022→                    'Export Rubric',
+  1023→                    style: context.textTheme.titleMedium?.copyWith(
+  1024→                      fontWeight: AppTypography.wSemiBold,
+  1025→                    ),
+  1026→                  ),
+  1027→                  const Spacer(),
+  1028→                  AppIconButton(
+  1029→                    icon: Icons.close,
+  1030→                    onPressed: () => Navigator.pop(ctx),
+  1031→                    variant: AppIconButtonVariant.standard,
+  1032→                  ),
+  1033→                ],
+  1034→              ),
+  1035→            ),
+  1036→            const Divider(height: 1),
+  1037→            ListTile(
+  1038→              leading: const Icon(Icons.picture_as_pdf_rounded),
+  1039→              title: const Text('Export as PDF'),
+  1040→              onTap: () {
+  1041→                Navigator.pop(ctx);
+  1042→                _handleExport('PDF');
+  1043→              },
+  1044→            ),
+  1045→            ListTile(
+  1046→              leading: const Icon(Icons.description_outlined),
+  1047→              title: const Text('Export as DOCX'),
+  1048→              onTap: () {
+  1049→                Navigator.pop(ctx);
+  1050→                _handleExport('DOCX');
+  1051→              },
+  1052→            ),
+  1053→            const SizedBox(height: Spacings.lg),
+  1054→          ],
+  1055→        ),
+  1056→      ),
+  1057→    );
+  1058→  }
+  1059→}
+  1060→

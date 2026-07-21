@@ -41,6 +41,7 @@ class AppCard extends StatelessWidget {
     this.color,
     this.borderColor,
     this.onTap,
+    this.semanticLabel,
     this.shadow,
     this.clipBehavior,
   });
@@ -69,6 +70,10 @@ class AppCard extends StatelessWidget {
   /// Optional callback making the card tappable with ink splash.
   final VoidCallback? onTap;
 
+  /// Semantic label for the card when tappable. Required for accessibility
+  /// when [onTap] is provided.
+  final String? semanticLabel;
+
   /// Optional shadow colour.
   final Color? shadow;
 
@@ -90,7 +95,10 @@ class AppCard extends StatelessWidget {
     final cardColor = color ??
         (isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight);
 
-    return Card(
+    return Semantics(
+      button: onTap != null,
+      label: semanticLabel,
+      child: Card(
       elevation: elevation ?? 0,
       color: cardColor,
       shadowColor: shadow ?? Colors.transparent,
@@ -105,6 +113,7 @@ class AppCard extends StatelessWidget {
           padding: padding ?? Spacings.paddingCard,
           child: child,
         ),
+      ),
       ),
     );
   }

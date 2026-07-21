@@ -101,7 +101,10 @@ class AppLoadingOverlay extends StatelessWidget {
   Widget build(BuildContext context) {
     final cs = context.colorScheme;
 
-    return GestureDetector(
+    return Semantics(
+      label: message ?? 'Loading',
+      busy: true,
+      child: GestureDetector(
       onTap: isDismissible ? onDismiss : null,
       child: Container(
         constraints: const BoxConstraints.expand(),
@@ -121,9 +124,11 @@ class AppLoadingOverlay extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  AppLoadingSpinner(
-                    size: AppLoadingSpinnerSize.large,
-                    color: cs.primary,
+                  ExcludeSemantics(
+                    child: AppLoadingSpinner(
+                      size: AppLoadingSpinnerSize.large,
+                      color: cs.primary,
+                    ),
                   ),
                   if (message != null) ...[
                     const SizedBox(height: Spacings.lg),
@@ -140,6 +145,7 @@ class AppLoadingOverlay extends StatelessWidget {
             ),
           ),
         ),
+      ),
       ),
     );
   }

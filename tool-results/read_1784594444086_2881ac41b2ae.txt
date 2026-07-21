@@ -1,0 +1,790 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter/services.dart';
+     3→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     4→
+     5→import '../../../../core/themes/app_colors.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/themes/spacings.dart';
+     8→import '../../../../core/extensions/context_extensions.dart';
+     9→import '../../../../shared/widgets/app_app_bar.dart';
+    10→import '../../../../shared/widgets/app_button.dart';
+    11→import '../../../../shared/widgets/app_card.dart';
+    12→import '../../../../shared/widgets/app_empty_state.dart';
+    13→import '../../../../shared/widgets/app_loading.dart';
+    14→import '../../domain/entities/exam_template_entities.dart';
+    15→import '../../domain/entities/cbt_entities.dart';
+    16→import '../providers/submission_receipt_provider.dart';
+    17→
+    18→// ═══════════════════════════════════════════════════════════════════════
+    19→// SUBMISSION RECEIPT PAGE (Student)
+    20→// ═══════════════════════════════════════════════════════════════════════
+    21→
+    22→/// Student's submission receipt page showing verifiable proof of exam
+    23→/// submission including receipt number, answer statistics, time spent,
+    24→/// device info, and verified status.
+    25→class SubmissionReceiptPage extends ConsumerWidget {
+    26→  const SubmissionReceiptPage({
+    27→    super.key,
+    28→    required this.attemptId,
+    29→  });
+    30→
+    31→  /// The exam attempt ID to load the receipt for.
+    32→  final String attemptId;
+    33→
+    34→  @override
+    35→  Widget build(BuildContext context, WidgetRef ref) {
+    36→    final state = ref.watch(submissionReceiptProvider);
+    37→    final receipt = state.receipt;
+    38→
+    39→    return Scaffold(
+    40→      appBar: const AppAppBar(
+    41→        title: 'Submission Receipt',
+    42→      ),
+    43→      body: state.isLoading
+    44→          ? const Center(
+    45→              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+    46→            )
+    47→          : state.error != null && receipt == null
+    48→              ? Center(
+    49→                  child: AppEmptyState(
+    50→                    icon: Icons.receipt_long_outlined,
+    51→                    title: 'Receipt Not Available',
+    52→                    subtitle: state.error ??
+    53→                        'Your submission receipt could not be loaded.',
+    54→                    actionLabel: 'Try Again',
+    55→                    onAction: () => ref
+    56→                        .read(submissionReceiptProvider.notifier)
+    57→                        .loadReceipt(attemptId),
+    58→                  ),
+    59→                )
+    60→              : receipt == null
+    61→                  ? Center(
+    62→                      child: AppEmptyState(
+    63→                        icon: Icons.receipt_long_outlined,
+    64→                        title: 'No Receipt',
+    65→                        subtitle: 'Submit an exam to generate a receipt.',
+    66→                      ),
+    67→                    )
+    68→                  : SingleChildScrollView(
+    69→                      padding: const EdgeInsets.all(Spacings.lg),
+    70→                      child: Center(
+    71→                        child: ConstrainedBox(
+    72→                          constraints: const BoxConstraints(maxWidth: 800),
+    73→                          child: Column(
+    74→                            crossAxisAlignment: CrossAxisAlignment.start,
+    75→                            children: [
+    76→                              // ── Receipt Header ─────────────────────────
+    77→                              _buildReceiptHeader(context, receipt, state),
+    78→                              const SizedBox(height: Spacings.xl),
+    79→
+    80→                              // ── Answer Statistics ──────────────────────
+    81→                              _buildAnswerStatistics(context, receipt),
+    82→                              const SizedBox(height: Spacings.xl),
+    83→
+    84→                              // ── Time & Submission Details ──────────────
+    85→                              _buildSubmissionDetails(context, receipt),
+    86→                              const SizedBox(height: Spacings.xl),
+    87→
+    88→                              // ── Device Info Summary ───────────────────
+    89→                              if (receipt.deviceInfo != null) ...[
+    90→                                _buildDeviceInfo(context, receipt),
+    91→                                const SizedBox(height: Spacings.xl),
+    92→                              ],
+    93→
+    94→                              // ── Verified Status ───────────────────────
+    95→                              _buildVerifiedStatus(context, state, receipt),
+    96→                              const SizedBox(height: Spacings.xl),
+    97→
+    98→                              // ── Action Buttons ────────────────────────
+    99→                              _buildActionButtons(context, state, receipt),
+   100→                            ],
+   101→                          ),
+   102→                        ),
+   103→                      ),
+   104→                    ),
+   105→    );
+   106→  }
+   107→
+   108→  // ─── Receipt Header ───────────────────────────────────────────────────
+   109→
+   110→  Widget _buildReceiptHeader(
+   111→    BuildContext context,
+   112→    SubmissionReceiptEntity receipt,
+   113→    SubmissionReceiptState state,
+   114→  ) {
+   115→    final cs = context.colorScheme;
+   116→    final tt = context.textTheme;
+   117→    final isDark = context.isDarkMode;
+   118→
+   119→    return AppCard(
+   120→      child: Column(
+   121→        crossAxisAlignment: CrossAxisAlignment.start,
+   122→        children: [
+   123→          // Receipt icon and title
+   124→          Row(
+   125→            children: [
+   126→              Container(
+   127→                padding: const EdgeInsets.all(Spacings.md),
+   128→                decoration: BoxDecoration(
+   129→                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+   130→                  borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   131→                ),
+   132→                child: Icon(
+   133→                  Icons.receipt_long_rounded,
+   134→                  size: Spacings.lgIcon,
+   135→                  color: cs.primary,
+   136→                ),
+   137→              ),
+   138→              const SizedBox(width: Spacings.lg),
+   139→              Expanded(
+   140→                child: Column(
+   141→                  crossAxisAlignment: CrossAxisAlignment.start,
+   142→                  children: [
+   143→                    Text(
+   144→                      receipt.examTitle,
+   145→                      style: tt.titleMedium?.copyWith(
+   146→                        fontWeight: AppTypography.wSemiBold,
+   147→                        color: cs.onSurface,
+   148→                      ),
+   149→                      maxLines: 2,
+   150→                      overflow: TextOverflow.ellipsis,
+   151→                    ),
+   152→                    const SizedBox(height: Spacings.xs),
+   153→                    Text(
+   154→                      'Submitted ${_formatDateTime(receipt.submittedAt)}',
+   155→                      style: tt.bodySmall?.copyWith(
+   156→                        color: cs.onSurfaceVariant,
+   157→                      ),
+   158→                    ),
+   159→                  ],
+   160→                ),
+   161→              ),
+   162→            ],
+   163→          ),
+   164→
+   165→          const SizedBox(height: Spacings.xl),
+   166→
+   167→          // Receipt number with copy-to-clipboard
+   168→          Container(
+   169→            width: double.infinity,
+   170→            padding: const EdgeInsets.all(Spacings.md),
+   171→            decoration: BoxDecoration(
+   172→              color: cs.surfaceContainerHighest,
+   173→              borderRadius: BorderRadius.circular(Spacings.smRadius),
+   174→              border: Border.all(
+   175→                color: cs.outlineVariant.withValues(alpha: 0.5),
+   176→              ),
+   177→            ),
+   178→            child: Row(
+   179→              children: [
+   180→                Expanded(
+   181→                  child: Column(
+   182→                    crossAxisAlignment: CrossAxisAlignment.start,
+   183→                    children: [
+   184→                      Text(
+   185→                        'RECEIPT NUMBER',
+   186→                        style: tt.labelSmall?.copyWith(
+   187→                          color: cs.onSurfaceVariant,
+   188→                          fontWeight: AppTypography.wSemiBold,
+   189→                          letterSpacing: 1.0,
+   190→                        ),
+   191→                      ),
+   192→                      const SizedBox(height: Spacings.xs),
+   193→                      Text(
+   194→                        receipt.receiptNumber,
+   195→                        style: tt.titleMedium?.copyWith(
+   196→                          fontWeight: AppTypography.wBold,
+   197→                          color: cs.onSurface,
+   198→                          fontFamily: 'monospace',
+   199→                        ),
+   200→                      ),
+   201→                    ],
+   202→                  ),
+   203→                ),
+   204→                IconButton(
+   205→                  onPressed: () {
+   206→                    Clipboard.setData(
+   207→                      ClipboardData(text: receipt.receiptNumber),
+   208→                    );
+   209→                    ScaffoldMessenger.of(context).showSnackBar(
+   210→                      const SnackBar(
+   211→                        content: Text('Receipt number copied'),
+   212→                        behavior: SnackBarBehavior.floating,
+   213→                        duration: Duration(seconds: 2),
+   214→                      ),
+   215→                    );
+   216→                  },
+   217→                  icon: Icon(
+   218→                    Icons.copy_rounded,
+   219→                    size: Spacings.mdIcon,
+   220→                    color: cs.primary,
+   221→                  ),
+   222→                  tooltip: 'Copy receipt number',
+   223→                ),
+   224→              ],
+   225→            ),
+   226→          ),
+   227→
+   228→          // Submission type badge
+   229→          const SizedBox(height: Spacings.md),
+   230→          Row(
+   231→            children: [
+   232→              _buildSubmissionTypeBadge(context, receipt.submissionType),
+   233→            ],
+   234→          ),
+   235→        ],
+   236→      ),
+   237→    );
+   238→  }
+   239→
+   240→  // ─── Answer Statistics ─────────────────────────────────────────────────
+   241→
+   242→  Widget _buildAnswerStatistics(
+   243→    BuildContext context,
+   244→    SubmissionReceiptEntity receipt,
+   245→  ) {
+   246→    final cs = context.colorScheme;
+   247→    final tt = context.textTheme;
+   248→    final isDark = context.isDarkMode;
+   249→
+   250→    final answeredPercent = receipt.totalQuestions > 0
+   251→        ? (receipt.answeredQuestions / receipt.totalQuestions * 100)
+   252→            .round()
+   253→        : 0;
+   254→
+   255→    return AppCard(
+   256→      child: Column(
+   257→        crossAxisAlignment: CrossAxisAlignment.start,
+   258→        children: [
+   259→          Text(
+   260→            'Answer Statistics',
+   261→            style: tt.titleSmall?.copyWith(
+   262→              fontWeight: AppTypography.wSemiBold,
+   263→              color: cs.onSurface,
+   264→            ),
+   265→          ),
+   266→          const SizedBox(height: Spacings.lg),
+   267→
+   268→          // Stats grid
+   269→          Row(
+   270→            children: [
+   271→              Expanded(
+   272→                child: _buildStatItem(
+   273→                  context,
+   274→                  icon: Icons.check_circle_rounded,
+   275→                  label: 'Answered',
+   276→                  value: '${receipt.answeredQuestions}',
+   277→                  color: AppColors.successOf(cs.brightness),
+   278→                ),
+   279→              ),
+   280→              const SizedBox(width: Spacings.md),
+   281→              Expanded(
+   282→                child: _buildStatItem(
+   283→                  context,
+   284→                  icon: Icons.radio_button_unchecked_rounded,
+   285→                  label: 'Unanswered',
+   286→                  value: '${receipt.unansweredQuestions}',
+   287→                  color: AppColors.warningOf(cs.brightness),
+   288→                ),
+   289→              ),
+   290→            ],
+   291→          ),
+   292→          const SizedBox(height: Spacings.md),
+   293→          Row(
+   294→            children: [
+   295→              Expanded(
+   296→                child: _buildStatItem(
+   297→                  context,
+   298→                  icon: Icons.flag_rounded,
+   299→                  label: 'Flagged',
+   300→                  value: '${receipt.flaggedQuestions}',
+   301→                  color: AppColors.infoOf(cs.brightness),
+   302→                ),
+   303→              ),
+   304→              const SizedBox(width: Spacings.md),
+   305→              Expanded(
+   306→                child: _buildStatItem(
+   307→                  context,
+   308→                  icon: Icons.quiz_rounded,
+   309→                  label: 'Total',
+   310→                  value: '${receipt.totalQuestions}',
+   311→                  color: cs.primary,
+   312→                ),
+   313→              ),
+   314→            ],
+   315→          ),
+   316→
+   317→          // Progress bar
+   318→          const SizedBox(height: Spacings.lg),
+   319→          Row(
+   320→            children: [
+   321→              Expanded(
+   322→                child: Column(
+   323→                  crossAxisAlignment: CrossAxisAlignment.start,
+   324→                  children: [
+   325→                    Row(
+   326→                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   327→                      children: [
+   328→                        Text(
+   329→                          'Completion',
+   330→                          style: tt.labelSmall?.copyWith(
+   331→                            color: cs.onSurfaceVariant,
+   332→                          ),
+   333→                        ),
+   334→                        Text(
+   335→                          '$answeredPercent%',
+   336→                          style: tt.labelSmall?.copyWith(
+   337→                            fontWeight: AppTypography.wSemiBold,
+   338→                            color: AppColors.successOf(cs.brightness),
+   339→                          ),
+   340→                        ),
+   341→                      ],
+   342→                    ),
+   343→                    const SizedBox(height: Spacings.xs),
+   344→                    ClipRRect(
+   345→                      borderRadius:
+   346→                          BorderRadius.circular(Spacings.smRadius),
+   347→                      child: LinearProgressIndicator(
+   348→                        value: answeredPercent / 100.0,
+   349→                        minHeight: 6.0,
+   350→                        backgroundColor: cs.surfaceContainerHighest,
+   351→                        color: AppColors.successOf(cs.brightness),
+   352→                        borderRadius:
+   353→                            BorderRadius.circular(Spacings.smRadius),
+   354→                      ),
+   355→                    ),
+   356→                  ],
+   357→                ),
+   358→              ),
+   359→            ],
+   360→          ),
+   361→        ],
+   362→      ),
+   363→    );
+   364→  }
+   365→
+   366→  // ─── Submission Details ────────────────────────────────────────────────
+   367→
+   368→  Widget _buildSubmissionDetails(
+   369→    BuildContext context,
+   370→    SubmissionReceiptEntity receipt,
+   371→  ) {
+   372→    final cs = context.colorScheme;
+   373→    final tt = context.textTheme;
+   374→
+   375→    return AppCard(
+   376→      child: Column(
+   377→        crossAxisAlignment: CrossAxisAlignment.start,
+   378→        children: [
+   379→          Text(
+   380→            'Submission Details',
+   381→            style: tt.titleSmall?.copyWith(
+   382→              fontWeight: AppTypography.wSemiBold,
+   383→              color: cs.onSurface,
+   384→            ),
+   385→          ),
+   386→          const SizedBox(height: Spacings.lg),
+   387→
+   388→          _buildDetailRow(
+   389→            context,
+   390→            icon: Icons.schedule_rounded,
+   391→            label: 'Time Spent',
+   392→            value: _formatTimeSpent(receipt.timeSpentMinutes),
+   393→          ),
+   394→          const SizedBox(height: Spacings.md),
+   395→
+   396→          _buildDetailRow(
+   397→            context,
+   398→            icon: Icons.event_rounded,
+   399→            label: 'Submitted At',
+   400→            value: _formatDateTime(receipt.submittedAt),
+   401→          ),
+   402→          const SizedBox(height: Spacings.md),
+   403→
+   404→          _buildDetailRow(
+   405→            context,
+   406→            icon: Icons.how_to_reg_rounded,
+   407→            label: 'Submission Type',
+   408→            value: receipt.submissionType.label,
+   409→          ),
+   410→
+   411→          if (receipt.ipAddress != null) ...[
+   412→            const SizedBox(height: Spacings.md),
+   413→            _buildDetailRow(
+   414→              context,
+   415→              icon: Icons.language_rounded,
+   416→              label: 'IP Address',
+   417→              value: receipt.ipAddress!,
+   418→            ),
+   419→          ],
+   420→        ],
+   421→      ),
+   422→    );
+   423→  }
+   424→
+   425→  // ─── Device Info ───────────────────────────────────────────────────────
+   426→
+   427→  Widget _buildDeviceInfo(
+   428→    BuildContext context,
+   429→    SubmissionReceiptEntity receipt,
+   430→  ) {
+   431→    final cs = context.colorScheme;
+   432→    final tt = context.textTheme;
+   433→    final deviceInfo = receipt.deviceInfo!;
+   434→
+   435→    return AppCard(
+   436→      child: Column(
+   437→        crossAxisAlignment: CrossAxisAlignment.start,
+   438→        children: [
+   439→          Text(
+   440→            'Device Information',
+   441→            style: tt.titleSmall?.copyWith(
+   442→              fontWeight: AppTypography.wSemiBold,
+   443→              color: cs.onSurface,
+   444→            ),
+   445→          ),
+   446→          const SizedBox(height: Spacings.lg),
+   447→
+   448→          if (deviceInfo['platform'] != null)
+   449→            _buildDetailRow(
+   450→              context,
+   451→              icon: Icons.devices_rounded,
+   452→              label: 'Platform',
+   453→              value: deviceInfo['platform'].toString(),
+   454→            ),
+   455→          if (deviceInfo['browser'] != null) ...[
+   456→            const SizedBox(height: Spacings.md),
+   457→            _buildDetailRow(
+   458→              context,
+   459→              icon: Icons.web_rounded,
+   460→              label: 'Browser',
+   461→              value: deviceInfo['browser'].toString(),
+   462→            ),
+   463→          ],
+   464→          if (deviceInfo['os'] != null) ...[
+   465→            const SizedBox(height: Spacings.md),
+   466→            _buildDetailRow(
+   467→              context,
+   468→              icon: Icons.computer_rounded,
+   469→              label: 'OS',
+   470→              value: deviceInfo['os'].toString(),
+   471→            ),
+   472→          ],
+   473→          if (deviceInfo['screenResolution'] != null) ...[
+   474→            const SizedBox(height: Spacings.md),
+   475→            _buildDetailRow(
+   476→              context,
+   477→              icon: Icons.monitor_rounded,
+   478→              label: 'Screen',
+   479→              value: deviceInfo['screenResolution'].toString(),
+   480→            ),
+   481→          ],
+   482→        ],
+   483→      ),
+   484→    );
+   485→  }
+   486→
+   487→  // ─── Verified Status ───────────────────────────────────────────────────
+   488→
+   489→  Widget _buildVerifiedStatus(
+   490→    BuildContext context,
+   491→    SubmissionReceiptState state,
+   492→    SubmissionReceiptEntity receipt,
+   493→  ) {
+   494→    final cs = context.colorScheme;
+   495→    final tt = context.textTheme;
+   496→    final isDark = context.isDarkMode;
+   497→
+   498→    final isVerified = state.isVerified ?? receipt.isVerified;
+   499→    final statusColor = isVerified
+   500→        ? AppColors.successOf(cs.brightness)
+   501→        : AppColors.warningOf(cs.brightness);
+   502→
+   503→    return AppCard(
+   504→      child: Column(
+   505→        crossAxisAlignment: CrossAxisAlignment.start,
+   506→        children: [
+   507→          Text(
+   508→            'Verification Status',
+   509→            style: tt.titleSmall?.copyWith(
+   510→              fontWeight: AppTypography.wSemiBold,
+   511→              color: cs.onSurface,
+   512→            ),
+   513→          ),
+   514→          const SizedBox(height: Spacings.lg),
+   515→
+   516→          Container(
+   517→            width: double.infinity,
+   518→            padding: const EdgeInsets.all(Spacings.lg),
+   519→            decoration: BoxDecoration(
+   520→              color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
+   521→              borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   522→              border: Border.all(
+   523→                color: statusColor.withValues(alpha: 0.3),
+   524→              ),
+   525→            ),
+   526→            child: Row(
+   527→              children: [
+   528→                Icon(
+   529→                  isVerified
+   530→                      ? Icons.verified_user_rounded
+   531→                      : Icons.pending_rounded,
+   532→                  size: Spacings.lgIcon,
+   533→                  color: statusColor,
+   534→                ),
+   535→                const SizedBox(width: Spacings.md),
+   536→                Expanded(
+   537→                  child: Column(
+   538→                    crossAxisAlignment: CrossAxisAlignment.start,
+   539→                    children: [
+   540→                      Text(
+   541→                        isVerified ? 'Verified' : 'Pending Verification',
+   542→                        style: tt.titleSmall?.copyWith(
+   543→                          fontWeight: AppTypography.wSemiBold,
+   544→                          color: statusColor,
+   545→                        ),
+   546→                      ),
+   547→                      const SizedBox(height: Spacings.xs),
+   548→                      Text(
+   549→                        isVerified
+   550→                            ? 'This receipt has been verified as authentic.'
+   551→                            : 'Tap "Verify Receipt" to confirm authenticity.',
+   552→                        style: tt.bodySmall?.copyWith(
+   553→                          color: cs.onSurfaceVariant,
+   554→                        ),
+   555→                      ),
+   556→                    ],
+   557→                  ),
+   558→                ),
+   559→              ],
+   560→            ),
+   561→          ),
+   562→        ],
+   563→      ),
+   564→    );
+   565→  }
+   566→
+   567→  // ─── Action Buttons ────────────────────────────────────────────────────
+   568→
+   569→  Widget _buildActionButtons(
+   570→    BuildContext context,
+   571→    SubmissionReceiptState state,
+   572→    SubmissionReceiptEntity receipt,
+   573→  ) {
+   574→    return Column(
+   575→      children: [
+   576→        SizedBox(
+   577→          width: double.infinity,
+   578→          child: AppButton(
+   579→            label: 'Verify Receipt',
+   580→            onPressed: () => _verifyReceipt(context, receipt.receiptNumber),
+   581→            variant: AppButtonVariant.tonal,
+   582→            icon: Icons.verified_user_rounded,
+   583→          ),
+   584→        ),
+   585→        const SizedBox(height: Spacings.md),
+   586→        Row(
+   587→          children: [
+   588→            Expanded(
+   589→              child: AppButton(
+   590→                label: 'Download',
+   591→                onPressed: () => _downloadReceipt(context),
+   592→                variant: AppButtonVariant.outlined,
+   593→                icon: Icons.download_rounded,
+   594→              ),
+   595→            ),
+   596→            const SizedBox(width: Spacings.md),
+   597→            Expanded(
+   598→              child: AppButton(
+   599→                label: 'Share',
+   600→                onPressed: () => _shareReceipt(context),
+   601→                variant: AppButtonVariant.outlined,
+   602→                icon: Icons.share_rounded,
+   603→              ),
+   604→            ),
+   605→          ],
+   606→        ),
+   607→      ],
+   608→    );
+   609→  }
+   610→
+   611→  // ─── Helper Methods ────────────────────────────────────────────────────
+   612→
+   613→  void _verifyReceipt(BuildContext context, String receiptNumber) {
+   614→    // Access the notifier through the reader — this widget uses ConsumerWidget
+   615→    // so we need to get ref from the build context's ProviderScope
+   616→    // For simplicity, this would be called with ref in a ConsumerStatefulWidget
+   617→    ScaffoldMessenger.of(context).showSnackBar(
+   618→      const SnackBar(
+   619→        content: Text('Verifying receipt...'),
+   620→        behavior: SnackBarBehavior.floating,
+   621→      ),
+   622→    );
+   623→  }
+   624→
+   625→  void _downloadReceipt(BuildContext context) {
+   626→    // Placeholder: download receipt as PDF
+   627→    ScaffoldMessenger.of(context).showSnackBar(
+   628→      const SnackBar(
+   629→        content: Text('Download receipt — coming soon'),
+   630→        behavior: SnackBarBehavior.floating,
+   631→      ),
+   632→    );
+   633→  }
+   634→
+   635→  void _shareReceipt(BuildContext context) {
+   636→    // Placeholder: share receipt
+   637→    ScaffoldMessenger.of(context).showSnackBar(
+   638→      const SnackBar(
+   639→        content: Text('Share receipt — coming soon'),
+   640→        behavior: SnackBarBehavior.floating,
+   641→      ),
+   642→    );
+   643→  }
+   644→
+   645→  Widget _buildStatItem(
+   646→    BuildContext context, {
+   647→    required IconData icon,
+   648→    required String label,
+   649→    required String value,
+   650→    required Color color,
+   651→  }) {
+   652→    final cs = context.colorScheme;
+   653→    final tt = context.textTheme;
+   654→    final isDark = context.isDarkMode;
+   655→
+   656→    return Container(
+   657→      padding: const EdgeInsets.all(Spacings.md),
+   658→      decoration: BoxDecoration(
+   659→        color: color.withValues(alpha: isDark ? 0.12 : 0.06),
+   660→        borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   661→        border: Border.all(
+   662→          color: color.withValues(alpha: 0.2),
+   663→        ),
+   664→      ),
+   665→      child: Column(
+   666→        crossAxisAlignment: CrossAxisAlignment.start,
+   667→        children: [
+   668→          Icon(icon, size: Spacings.mdIcon, color: color),
+   669→          const SizedBox(height: Spacings.sm),
+   670→          Text(
+   671→            value,
+   672→            style: tt.headlineSmall?.copyWith(
+   673→              fontWeight: AppTypography.wBold,
+   674→              color: color,
+   675→            ),
+   676→          ),
+   677→          Text(
+   678→            label,
+   679→            style: tt.bodySmall?.copyWith(
+   680→              color: cs.onSurfaceVariant,
+   681→            ),
+   682→          ),
+   683→        ],
+   684→      ),
+   685→    );
+   686→  }
+   687→
+   688→  Widget _buildDetailRow(
+   689→    BuildContext context, {
+   690→    required IconData icon,
+   691→    required String label,
+   692→    required String value,
+   693→  }) {
+   694→    final cs = context.colorScheme;
+   695→    final tt = context.textTheme;
+   696→    return Row(
+   697→      children: [
+   698→        Icon(icon, size: Spacings.mdIcon, color: cs.onSurfaceVariant),
+   699→        const SizedBox(width: Spacings.md),
+   700→        Expanded(
+   701→          child: Column(
+   702→            crossAxisAlignment: CrossAxisAlignment.start,
+   703→            children: [
+   704→              Text(
+   705→                label,
+   706→                style: tt.labelSmall?.copyWith(
+   707→                  color: cs.onSurfaceVariant,
+   708→                ),
+   709→              ),
+   710→              const SizedBox(height: 2.0),
+   711→              Text(
+   712→                value,
+   713→                style: tt.bodyMedium?.copyWith(
+   714→                  fontWeight: AppTypography.wSemiBold,
+   715→                  color: cs.onSurface,
+   716→                ),
+   717→              ),
+   718→            ],
+   719→          ),
+   720→        ),
+   721→      ],
+   722→    );
+   723→  }
+   724→
+   725→  Widget _buildSubmissionTypeBadge(
+   726→    BuildContext context,
+   727→    SubmissionType type,
+   728→  ) {
+   729→    final cs = context.colorScheme;
+   730→    final tt = context.textTheme;
+   731→    final isDark = context.isDarkMode;
+   732→
+   733→    final color = switch (type) {
+   734→      SubmissionType.manual => AppColors.successOf(cs.brightness),
+   735→      SubmissionType.autoSubmit => AppColors.infoOf(cs.brightness),
+   736→      SubmissionType.timedOut => AppColors.warningOf(cs.brightness),
+   737→      SubmissionType.forceSubmit => AppColors.errorOf(cs.brightness),
+   738→    };
+   739→
+   740→    final icon = switch (type) {
+   741→      SubmissionType.manual => Icons.send_rounded,
+   742→      SubmissionType.autoSubmit => Icons.autorenew_rounded,
+   743→      SubmissionType.timedOut => Icons.timer_off_rounded,
+   744→      SubmissionType.forceSubmit => Icons.power_settings_new_rounded,
+   745→    };
+   746→
+   747→    return Container(
+   748→      padding: const EdgeInsets.symmetric(
+   749→        horizontal: Spacings.sm,
+   750→        vertical: Spacings.xs,
+   751→      ),
+   752→      decoration: BoxDecoration(
+   753→        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+   754→        borderRadius: BorderRadius.circular(Spacings.smRadius),
+   755→      ),
+   756→      child: Row(
+   757→        mainAxisSize: MainAxisSize.min,
+   758→        children: [
+   759→          Icon(icon, size: 14.0, color: color),
+   760→          const SizedBox(width: Spacings.xs),
+   761→          Text(
+   762→            type.label,
+   763→            style: tt.labelSmall?.copyWith(
+   764→              fontWeight: AppTypography.wSemiBold,
+   765→              color: isDark ? color.withValues(alpha: 0.9) : color,
+   766→            ),
+   767→          ),
+   768→        ],
+   769→      ),
+   770→    );
+   771→  }
+   772→
+   773→  String _formatDateTime(DateTime dt) {
+   774→    const months = [
+   775→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+   776→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+   777→    ];
+   778→    final hour = dt.hour.toString().padLeft(2, '0');
+   779→    final minute = dt.minute.toString().padLeft(2, '0');
+   780→    return '${months[dt.month]} ${dt.day}, ${dt.year} at $hour:$minute';
+   781→  }
+   782→
+   783→  String _formatTimeSpent(int minutes) {
+   784→    if (minutes < 60) return '$minutes min';
+   785→    final hours = minutes ~/ 60;
+   786→    final mins = minutes % 60;
+   787→    return mins > 0 ? '${hours}h ${mins}m' : '${hours}h';
+   788→  }
+   789→}
+   790→

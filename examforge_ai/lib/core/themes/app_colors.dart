@@ -32,21 +32,31 @@ class AppColors {
   static const Color success = Color(0xFF16A34A);
   static const Color successLight = Color(0xFFDCFCE7);
   static const Color successDark = Color(0xFF166534);
+  static const Color onSuccess = Color(0xFFFFFFFF);
+  static const Color onSuccessDark = Color(0xFFDCFCE7);
 
   // Warning (Amber)
+  // Note: #F59E0B fails AA contrast on white (1.9:1). Use warningOf(brightness)
+  // which returns warningDark (#92400E) for light mode to ensure 4.5:1+.
   static const Color warning = Color(0xFFF59E0B);
   static const Color warningLight = Color(0xFFFEF3C7);
   static const Color warningDark = Color(0xFF92400E);
+  static const Color onWarning = Color(0xFFFFFFFF);
+  static const Color onWarningDark = Color(0xFFFEF3C7);
 
   // Error (Red)
   static const Color error = Color(0xFFDC2626);
   static const Color errorLight = Color(0xFFFEE2E2);
   static const Color errorDark = Color(0xFF991B1B);
+  static const Color onError = Color(0xFFFFFFFF);
+  static const Color onErrorDark = Color(0xFFFEE2E2);
 
   // Info (Blue)
   static const Color info = Color(0xFF2563EB);
   static const Color infoLight = Color(0xFFDBEAFE);
   static const Color infoDark = Color(0xFF1E3A8A);
+  static const Color onInfo = Color(0xFFFFFFFF);
+  static const Color onInfoDark = Color(0xFFDBEAFE);
 
   // ─── Custom Surface / Overlay Colors ──────────────────────────────────────
 
@@ -114,8 +124,9 @@ class AppColors {
       brightness == Brightness.dark ? successDark : success;
 
   /// Returns the warning color variant appropriate for [brightness].
+  /// Uses warningDark for light mode to ensure WCAG AA contrast (4.5:1+).
   static Color warningOf(Brightness brightness) =>
-      brightness == Brightness.dark ? warningDark : warning;
+      brightness == Brightness.dark ? warning : warningDark;
 
   /// Returns the error color variant appropriate for [brightness].
   static Color errorOf(Brightness brightness) =>
@@ -124,4 +135,36 @@ class AppColors {
   /// Returns the info color variant appropriate for [brightness].
   static Color infoOf(Brightness brightness) =>
       brightness == Brightness.dark ? infoDark : info;
+
+  /// Returns the on-success text color appropriate for [brightness].
+  static Color onSuccessOf(Brightness brightness) =>
+      brightness == Brightness.dark ? onSuccessDark : onSuccess;
+
+  /// Returns the on-warning text color appropriate for [brightness].
+  static Color onWarningOf(Brightness brightness) =>
+      brightness == Brightness.dark ? onWarningDark : onWarning;
+
+  /// Returns the on-error text color appropriate for [brightness].
+  static Color onErrorOf(Brightness brightness) =>
+      brightness == Brightness.dark ? onErrorDark : onError;
+
+  /// Returns the on-info text color appropriate for [brightness].
+  static Color onInfoOf(Brightness brightness) =>
+      brightness == Brightness.dark ? onInfoDark : onInfo;
+
+  /// Returns the success container (light bg) color for [brightness].
+  static Color successContainerOf(Brightness brightness) =>
+      brightness == Brightness.dark ? successDark.withValues(alpha: 0.15) : successLight;
+
+  /// Returns the warning container (light bg) color for [brightness].
+  static Color warningContainerOf(Brightness brightness) =>
+      brightness == Brightness.dark ? warningDark.withValues(alpha: 0.15) : warningLight;
+
+  /// Returns the error container (light bg) color for [brightness].
+  static Color errorContainerOf(Brightness brightness) =>
+      brightness == Brightness.dark ? errorDark.withValues(alpha: 0.15) : errorLight;
+
+  /// Returns the info container (light bg) color for [brightness].
+  static Color infoContainerOf(Brightness brightness) =>
+      brightness == Brightness.dark ? infoDark.withValues(alpha: 0.15) : infoLight;
 }

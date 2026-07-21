@@ -1,0 +1,929 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/extensions/context_extensions.dart';
+     5→import '../../../../core/themes/app_colors.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/themes/spacings.dart';
+     8→import '../../../../shared/widgets/app_app_bar.dart';
+     9→import '../../../../shared/widgets/app_empty_state.dart';
+    10→import '../../../../shared/widgets/app_error_state.dart';
+    11→import '../../../../shared/widgets/app_loading.dart';
+    12→import '../../domain/entities/parent_portal_entities.dart';
+    13→import '../providers/child_attendance_provider.dart';
+    14→
+    15→// ═══════════════════════════════════════════════════════════════════════
+    16→// CHILD ATTENDANCE PAGE
+    17→// ═══════════════════════════════════════════════════════════════════════
+    18→
+    19→/// Attendance viewer page for a specific child in the Parent Portal.
+    20→///
+    21→/// Displays comprehensive attendance information including:
+    22→/// - Attendance summary card with rate and day breakdown
+    23→/// - Month selector with navigation arrows
+    24→/// - Monthly attendance calendar with colour-coded days
+    25→/// - Attendance trends card
+    26→/// - Late arrivals section
+    27→/// - Download attendance report button
+    28→///
+    29→/// Receives [studentId] as a route parameter and loads attendance
+    30→/// data using [childAttendanceProvider].
+    31→class ChildAttendancePage extends ConsumerStatefulWidget {
+    32→  const ChildAttendancePage({
+    33→    super.key,
+    34→    required this.studentId,
+    35→  });
+    36→
+    37→  /// Unique identifier of the student whose attendance is displayed.
+    38→  final String studentId;
+    39→
+    40→  @override
+    41→  ConsumerState<ChildAttendancePage> createState() => _State();
+    42→}
+    43→
+    44→class _State extends ConsumerState<ChildAttendancePage> {
+    45→  /// The currently selected month for the calendar view.
+    46→  DateTime _selectedMonth = DateTime.now();
+    47→
+    48→  // ─── Lifecycle ──────────────────────────────────────────────────────
+    49→
+    50→  @override
+    51→  void initState() {
+    52→    super.initState();
+    53→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    54→      _loadAttendanceForMonth();
+    55→    });
+    56→  }
+    57→
+    58→  // ─── Load Attendance ────────────────────────────────────────────────
+    59→
+    60→  /// Loads attendance data for the currently selected month.
+    61→  void _loadAttendanceForMonth() {
+    62→    final start = DateTime(_selectedMonth.year, _selectedMonth.month, 1);
+    63→    final end = DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0);
+    64→
+    65→    ref.read(childAttendanceProvider.notifier).loadAttendance(
+    66→          widget.studentId,
+    67→          startDate: start,
+    68→          endDate: end,
+    69→        );
+    70→  }
+    71→
+    72→  // ─── Build ──────────────────────────────────────────────────────────
+    73→
+    74→  @override
+    75→  Widget build(BuildContext context) {
+    76→    final attendanceState = ref.watch(childAttendanceProvider);
+    77→
+    78→    return Scaffold(
+    79→      appBar: const AppAppBar(title: 'Attendance Record'),
+    80→      body: _buildBody(context, attendanceState),
+    81→    );
+    82→  }
+    83→
+    84→  // ─── Body Router ────────────────────────────────────────────────────
+    85→
+    86→  Widget _buildBody(BuildContext context, ChildAttendanceState state) {
+    87→    // Loading state
+    88→    if (state.isLoading && state.attendance == null) {
+    89→      return _buildShimmerLoading(context);
+    90→    }
+    91→
+    92→    // Error state
+    93→    if (state.error != null && state.attendance == null) {
+    94→      return AppErrorState.genericError(
+    95→        message: state.error,
+    96→        onRetry: () => _loadAttendanceForMonth(),
+    97→      );
+    98→    }
+    99→
+   100→    // Empty state
+   101→    final attendance = state.attendance;
+   102→    if (attendance == null) {
+   103→      return AppEmptyState.noData(
+   104→        title: 'No Attendance Data',
+   105→        subtitle:
+   106→            'Attendance records will appear here once available.',
+   107→        actionLabel: 'Retry',
+   108→        onAction: () => _loadAttendanceForMonth(),
+   109→      );
+   110→    }
+   111→
+   112→    // Success — render attendance
+   113→    return RefreshIndicator(
+   114→      onRefresh: () async {
+   115→        ref
+   116→            .read(childAttendanceProvider.notifier)
+   117→            .refreshAttendance(
+   118→              widget.studentId,
+   119→              startDate: DateTime(
+   120→                  _selectedMonth.year, _selectedMonth.month, 1),
+   121→              endDate: DateTime(
+   122→                  _selectedMonth.year, _selectedMonth.month + 1, 0),
+   123→            );
+   124→      },
+   125→      child: SingleChildScrollView(
+   126→        physics: const AlwaysScrollableScrollPhysics(),
+   127→        padding: const EdgeInsets.only(bottom: Spacings.xxl),
+   128→        child: Column(
+   129→          crossAxisAlignment: CrossAxisAlignment.start,
+   130→          children: [
+   131→            // ─── Attendance Summary Card ────────────────────────────
+   132→            _buildAttendanceSummaryCard(context, attendance),
+   133→
+   134→            const SizedBox(height: Spacings.xl),
+   135→
+   136→            // ─── Month Selector ─────────────────────────────────────
+   137→            _buildMonthSelector(context),
+   138→
+   139→            const SizedBox(height: Spacings.md),
+   140→
+   141→            // ─── Monthly Attendance Calendar ────────────────────────
+   142→            _buildMonthlyCalendar(context, attendance),
+   143→
+   144→            const SizedBox(height: Spacings.xl),
+   145→
+   146→            // ─── Attendance Trends Card ─────────────────────────────
+   147→            _buildTrendsCard(context, attendance),
+   148→
+   149→            const SizedBox(height: Spacings.xl),
+   150→
+   151→            // ─── Late Arrivals Section ──────────────────────────────
+   152→            _buildLateArrivalsSection(context, attendance),
+   153→
+   154→            const SizedBox(height: Spacings.xl),
+   155→
+   156→            // ─── Download Report Button ─────────────────────────────
+   157→            _buildDownloadReportButton(context),
+   158→
+   159→            const SizedBox(height: Spacings.lg),
+   160→          ],
+   161→        ),
+   162→      ),
+   163→    );
+   164→  }
+   165→
+   166→  // ═══════════════════════════════════════════════════════════════════════
+   167→  // SHIMMER LOADING
+   168→  // ═══════════════════════════════════════════════════════════════════════
+   169→
+   170→  Widget _buildShimmerLoading(BuildContext context) {
+   171→    return SingleChildScrollView(
+   172→      physics: const NeverScrollableScrollPhysics(),
+   173→      child: AppLoadingShimmer(
+   174→        child: Padding(
+   175→          padding: const EdgeInsets.all(Spacings.lg),
+   176→          child: Column(
+   177→            children: [
+   178→              // Summary card shimmer
+   179→              AppLoadingShimmer.box(
+   180→                height: 180,
+   181→                borderRadius: Spacings.borderRadiusLg,
+   182→              ),
+   183→              const SizedBox(height: Spacings.xl),
+   184→              // Month selector shimmer
+   185→              AppLoadingShimmer.box(
+   186→                height: 48,
+   187→                borderRadius: Spacings.borderRadiusMd,
+   188→              ),
+   189→              const SizedBox(height: Spacings.md),
+   190→              // Calendar shimmer
+   191→              AppLoadingShimmer.box(
+   192→                height: 280,
+   193→                borderRadius: Spacings.borderRadiusLg,
+   194→              ),
+   195→            ],
+   196→          ),
+   197→        ),
+   198→      ),
+   199→    );
+   200→  }
+   201→
+   202→  // ═══════════════════════════════════════════════════════════════════════
+   203→  // ATTENDANCE SUMMARY CARD
+   204→  // ═══════════════════════════════════════════════════════════════════════
+   205→
+   206→  Widget _buildAttendanceSummaryCard(
+   207→    BuildContext context,
+   208→    ChildAttendanceEntity attendance,
+   209→  ) {
+   210→    final cs = context.colorScheme;
+   211→    final tt = context.textTheme;
+   212→
+   213→    // Parse attendance summary from records
+   214→    final summary = _parseAttendanceSummary(attendance.records);
+   215→    final ratePct = (summary.rate * 100).round();
+   216→    final rateColor = _attendanceRateColor(summary.rate, cs.brightness);
+   217→
+   218→    return Padding(
+   219→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   220→      child: Card(
+   221→        elevation: Spacings.elevationSm,
+   222→        shape: RoundedRectangleBorder(
+   223→          borderRadius: Spacings.borderRadiusLg,
+   224→        ),
+   225→        child: Padding(
+   226→          padding: const EdgeInsets.all(Spacings.xl),
+   227→          child: Column(
+   228→            children: [
+   229→              Text(
+   230→                'Attendance Summary',
+   231→                style: tt.titleMedium?.copyWith(
+   232→                  fontWeight: AppTypography.wSemiBold,
+   233→                  color: cs.onSurface,
+   234→                ),
+   235→              ),
+   236→              const SizedBox(height: Spacings.lg),
+   237→              // Circular progress with rate
+   238→              SizedBox(
+   239→                width: 100,
+   240→                height: 100,
+   241→                child: Stack(
+   242→                  alignment: Alignment.center,
+   243→                  children: [
+   244→                    CircularProgressIndicator(
+   245→                      value: summary.rate,
+   246→                      strokeWidth: 8,
+   247→                      backgroundColor: cs.surfaceContainerHighest,
+   248→                      color: rateColor,
+   249→                    ),
+   250→                    Column(
+   251→                      mainAxisSize: MainAxisSize.min,
+   252→                      children: [
+   253→                        Text(
+   254→                          '$ratePct%',
+   255→                          style: tt.headlineSmall?.copyWith(
+   256→                            fontWeight: AppTypography.wBold,
+   257→                            color: cs.onSurface,
+   258→                          ),
+   259→                        ),
+   260→                        Text(
+   261→                          'Rate',
+   262→                          style: tt.labelSmall?.copyWith(
+   263→                            color: cs.onSurfaceVariant,
+   264→                          ),
+   265→                        ),
+   266→                      ],
+   267→                    ),
+   268→                  ],
+   269→                ),
+   270→              ),
+   271→              const SizedBox(height: Spacings.lg),
+   272→              // Day breakdown
+   273→              Row(
+   274→                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+   275→                children: [
+   276→                  _buildDayStat(
+   277→                    context,
+   278→                    label: 'Present',
+   279→                    value: summary.present,
+   280→                    color: AppColors.successOf(cs.brightness),
+   281→                  ),
+   282→                  _buildDayStat(
+   283→                    context,
+   284→                    label: 'Absent',
+   285→                    value: summary.absent,
+   286→                    color: AppColors.errorOf(cs.brightness),
+   287→                  ),
+   288→                  _buildDayStat(
+   289→                    context,
+   290→                    label: 'Late',
+   291→                    value: summary.late,
+   292→                    color: AppColors.warningOf(cs.brightness),
+   293→                  ),
+   294→                  _buildDayStat(
+   295→                    context,
+   296→                    label: 'Excused',
+   297→                    value: summary.excused,
+   298→                    color: AppColors.infoOf(cs.brightness),
+   299→                  ),
+   300→                ],
+   301→              ),
+   302→            ],
+   303→          ),
+   304→        ),
+   305→      ),
+   306→    );
+   307→  }
+   308→
+   309→  Widget _buildDayStat(
+   310→    BuildContext context, {
+   311→    required String label,
+   312→    required int value,
+   313→    required Color color,
+   314→  }) {
+   315→    final tt = context.textTheme;
+   316→    return Column(
+   317→      children: [
+   318→        Container(
+   319→          width: 40,
+   320→          height: 40,
+   321→          decoration: BoxDecoration(
+   322→            color: color.withValues(alpha: 0.12),
+   323→            shape: BoxShape.circle,
+   324→          ),
+   325→          child: Center(
+   326→            child: Text(
+   327→              '$value',
+   328→              style: tt.titleSmall?.copyWith(
+   329→                fontWeight: AppTypography.wBold,
+   330→                color: color,
+   331→              ),
+   332→            ),
+   333→          ),
+   334→        ),
+   335→        const SizedBox(height: Spacings.xs),
+   336→        Text(
+   337→          label,
+   338→          style: tt.labelSmall?.copyWith(
+   339→            color: context.colorScheme.onSurfaceVariant,
+   340→          ),
+   341→        ),
+   342→      ],
+   343→    );
+   344→  }
+   345→
+   346→  // ═══════════════════════════════════════════════════════════════════════
+   347→  // MONTH SELECTOR
+   348→  // ═══════════════════════════════════════════════════════════════════════
+   349→
+   350→  Widget _buildMonthSelector(BuildContext context) {
+   351→    final cs = context.colorScheme;
+   352→    final tt = context.textTheme;
+   353→    final monthName = _monthName(_selectedMonth.month);
+   354→    final year = _selectedMonth.year;
+   355→
+   356→    return Padding(
+   357→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   358→      child: Card(
+   359→        elevation: Spacings.elevationNone,
+   360→        color: cs.surfaceContainerLow,
+   361→        shape: RoundedRectangleBorder(
+   362→          borderRadius: Spacings.borderRadiusMd,
+   363→        ),
+   364→        child: Padding(
+   365→          padding: const EdgeInsets.symmetric(
+   366→            horizontal: Spacings.sm,
+   367→            vertical: Spacings.xs,
+   368→          ),
+   369→          child: Row(
+   370→            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   371→            children: [
+   372→              IconButton(
+   373→                icon: const Icon(Icons.chevron_left),
+   374→                onPressed: () {
+   375→                  setState(() {
+   376→                    _selectedMonth = DateTime(
+   377→                      _selectedMonth.year,
+   378→                      _selectedMonth.month - 1,
+   379→                    );
+   380→                  });
+   381→                  _loadAttendanceForMonth();
+   382→                },
+   383→                tooltip: 'Previous month',
+   384→              ),
+   385→              Text(
+   386→                '$monthName $year',
+   387→                style: tt.titleSmall?.copyWith(
+   388→                  fontWeight: AppTypography.wSemiBold,
+   389→                  color: cs.onSurface,
+   390→                ),
+   391→              ),
+   392→              IconButton(
+   393→                icon: const Icon(Icons.chevron_right),
+   394→                onPressed: () {
+   395→                  setState(() {
+   396→                    _selectedMonth = DateTime(
+   397→                      _selectedMonth.year,
+   398→                      _selectedMonth.month + 1,
+   399→                    );
+   400→                  });
+   401→                  _loadAttendanceForMonth();
+   402→                },
+   403→                tooltip: 'Next month',
+   404→              ),
+   405→            ],
+   406→          ),
+   407→        ),
+   408→      ),
+   409→    );
+   410→  }
+   411→
+   412→  // ═══════════════════════════════════════════════════════════════════════
+   413→  // MONTHLY ATTENDANCE CALENDAR
+   414→  // ═══════════════════════════════════════════════════════════════════════
+   415→
+   416→  Widget _buildMonthlyCalendar(
+   417→    BuildContext context,
+   418→    ChildAttendanceEntity attendance,
+   419→  ) {
+   420→    final cs = context.colorScheme;
+   421→    final tt = context.textTheme;
+   422→
+   423→    // Build a map of date -> status from records
+   424→    final attendanceMap = <int, String>{};
+   425→    for (final record in attendance.records) {
+   426→      final dateStr = record['date'] as String?;
+   427→      final status = record['status'] as String?;
+   428→      if (dateStr != null && status != null) {
+   429→        final date = DateTime.tryParse(dateStr);
+   430→        if (date != null &&
+   431→            date.year == _selectedMonth.year &&
+   432→            date.month == _selectedMonth.month) {
+   433→          attendanceMap[date.day] = status;
+   434→        }
+   435→      }
+   436→    }
+   437→
+   438→    final daysInMonth =
+   439→        DateTime(_selectedMonth.year, _selectedMonth.month + 1, 0).day;
+   440→    final firstWeekday =
+   441→        DateTime(_selectedMonth.year, _selectedMonth.month, 1).weekday;
+   442→    // Convert Monday=1 to Monday=0 for our grid
+   443→    final startOffset = firstWeekday - 1;
+   444→
+   445→    return Padding(
+   446→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   447→      child: Card(
+   448→        elevation: Spacings.elevationSm,
+   449→        shape: RoundedRectangleBorder(
+   450→          borderRadius: Spacings.borderRadiusLg,
+   451→        ),
+   452→        child: Padding(
+   453→          padding: Spacings.paddingCard,
+   454→          child: Column(
+   455→            children: [
+   456→              // Weekday headers
+   457→              Row(
+   458→                children: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+   459→                    .map((day) => Expanded(
+   460→                          child: Center(
+   461→                            child: Text(
+   462→                              day,
+   463→                              style: tt.labelSmall?.copyWith(
+   464→                                color: cs.onSurfaceVariant,
+   465→                                fontWeight: AppTypography.wSemiBold,
+   466→                              ),
+   467→                            ),
+   468→                          ),
+   469→                        ))
+   470→                    .toList(),
+   471→              ),
+   472→              const SizedBox(height: Spacings.sm),
+   473→              // Day grid
+   474→              Wrap(
+   475→                spacing: 0,
+   476→                runSpacing: 0,
+   477→                children: [
+   478→                  // Empty cells for offset
+   479→                  for (int i = 0; i < startOffset; i++)
+   480→                    SizedBox(
+   481→                      width: (MediaQuery.of(context).size.width -
+   482→                              Spacings.lg * 2 -
+   483→                              Spacings.lg * 2) /
+   484→                          7,
+   485→                      height: 36,
+   486→                    ),
+   487→                  // Day cells
+   488→                  for (int day = 1; day <= daysInMonth; day++)
+   489→                    _buildCalendarDay(
+   490→                      context,
+   491→                      day: day,
+   492→                      status: attendanceMap[day],
+   493→                      isWeekend: (startOffset + day - 1) % 7 >= 5,
+   494→                    ),
+   495→                ],
+   496→              ),
+   497→              const SizedBox(height: Spacings.md),
+   498→              // Legend
+   499→              _buildCalendarLegend(context),
+   500→            ],
+   501→          ),
+   502→        ),
+   503→      ),
+   504→    );
+   505→  }
+   506→
+   507→  Widget _buildCalendarDay(
+   508→    BuildContext context, {
+   509→    required int day,
+   510→    String? status,
+   511→    required bool isWeekend,
+   512→  }) {
+   513→    final cs = context.colorScheme;
+   514→    final tt = context.textTheme;
+   515→    final brightness = cs.brightness;
+   516→
+   517→    Color bgColor;
+   518→    Color textColor;
+   519→    switch (status?.toLowerCase()) {
+   520→      case 'present':
+   521→        bgColor = AppColors.successLight;
+   522→        textColor = AppColors.successOf(brightness);
+   523→        break;
+   524→      case 'absent':
+   525→        bgColor = AppColors.errorLight;
+   526→        textColor = AppColors.errorOf(brightness);
+   527→        break;
+   528→      case 'late':
+   529→        bgColor = AppColors.warningLight;
+   530→        textColor = AppColors.warningOf(brightness);
+   531→        break;
+   532→      case 'excused':
+   533→        bgColor = AppColors.infoLight;
+   534→        textColor = AppColors.infoOf(brightness);
+   535→        break;
+   536→      default:
+   537→        bgColor = isWeekend
+   538→            ? cs.surfaceContainerHighest
+   539→            : Colors.transparent;
+   540→        textColor = isWeekend
+   541→            ? cs.onSurfaceVariant
+   542→            : cs.onSurface;
+   543→    }
+   544→
+   545→    final width = (MediaQuery.of(context).size.width -
+   546→            Spacings.lg * 2 -
+   547→            Spacings.lg * 2) /
+   548→        7;
+   549→
+   550→    return SizedBox(
+   551→      width: width,
+   552→      height: 36,
+   553→      child: Container(
+   554→        margin: const EdgeInsets.all(2),
+   555→        decoration: BoxDecoration(
+   556→          color: bgColor,
+   557→          borderRadius: Spacings.borderRadiusSm,
+   558→        ),
+   559→        child: Center(
+   560→          child: Text(
+   561→            '$day',
+   562→            style: tt.labelMedium?.copyWith(
+   563→              color: textColor,
+   564→              fontWeight: status != null
+   565→                  ? AppTypography.wSemiBold
+   566→                  : AppTypography.wRegular,
+   567→            ),
+   568→          ),
+   569→        ),
+   570→      ),
+   571→    );
+   572→  }
+   573→
+   574→  Widget _buildCalendarLegend(BuildContext context) {
+   575→    final cs = context.colorScheme;
+   576→    final tt = context.textTheme;
+   577→    final brightness = cs.brightness;
+   578→
+   579→    final legends = [
+   580→      _LegendEntry('Present', AppColors.successOf(brightness), AppColors.successLight),
+   581→      _LegendEntry('Absent', AppColors.errorOf(brightness), AppColors.errorLight),
+   582→      _LegendEntry('Late', AppColors.warningOf(brightness), AppColors.warningLight),
+   583→      _LegendEntry('Excused', AppColors.infoOf(brightness), AppColors.infoLight),
+   584→    ];
+   585→
+   586→    return Wrap(
+   587→      spacing: Spacings.md,
+   588→      runSpacing: Spacings.xs,
+   589→      alignment: WrapAlignment.center,
+   590→      children: legends.map((entry) {
+   591→        return Row(
+   592→          mainAxisSize: MainAxisSize.min,
+   593→          children: [
+   594→            Container(
+   595→              width: 12,
+   596→              height: 12,
+   597→              decoration: BoxDecoration(
+   598→                color: entry.bgColor,
+   599→                borderRadius: Spacings.borderRadiusSm,
+   600→                border: Border.all(
+   601→                  color: entry.color.withValues(alpha: 0.4),
+   602→                ),
+   603→              ),
+   604→            ),
+   605→            const SizedBox(width: Spacings.xs),
+   606→            Text(
+   607→              entry.label,
+   608→              style: tt.labelSmall?.copyWith(
+   609→                color: cs.onSurfaceVariant,
+   610→              ),
+   611→            ),
+   612→          ],
+   613→        );
+   614→      }).toList(),
+   615→    );
+   616→  }
+   617→
+   618→  // ═══════════════════════════════════════════════════════════════════════
+   619→  // ATTENDANCE TRENDS CARD
+   620→  // ═══════════════════════════════════════════════════════════════════════
+   621→
+   622→  Widget _buildTrendsCard(
+   623→    BuildContext context,
+   624→    ChildAttendanceEntity attendance,
+   625→  ) {
+   626→    final cs = context.colorScheme;
+   627→    final tt = context.textTheme;
+   628→    final summary = _parseAttendanceSummary(attendance.records);
+   629→    final rate = summary.rate;
+   630→
+   631→    String trendText;
+   632→    IconData trendIcon;
+   633→    Color trendColor;
+   634→    if (rate >= 0.9) {
+   635→      trendText = 'Attendance is excellent this month. Keep it up!';
+   636→      trendIcon = Icons.trending_up;
+   637→      trendColor = AppColors.successOf(cs.brightness);
+   638→    } else if (rate >= 0.75) {
+   639→      trendText =
+   640→          'Attendance is acceptable but could be improved.';
+   641→      trendIcon = Icons.trending_flat;
+   642→      trendColor = AppColors.warningOf(cs.brightness);
+   643→    } else {
+   644→      trendText =
+   645→          'Attendance has declined this month. Please ensure regular attendance.';
+   646→      trendIcon = Icons.trending_down;
+   647→      trendColor = AppColors.errorOf(cs.brightness);
+   648→    }
+   649→
+   650→    return Padding(
+   651→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   652→      child: Card(
+   653→        elevation: Spacings.elevationNone,
+   654→        color: cs.surfaceContainerLow,
+   655→        shape: RoundedRectangleBorder(
+   656→          borderRadius: Spacings.borderRadiusMd,
+   657→        ),
+   658→        child: Padding(
+   659→          padding: Spacings.paddingCard,
+   660→          child: Row(
+   661→            children: [
+   662→              Icon(trendIcon, color: trendColor, size: Spacings.lgIcon),
+   663→              const SizedBox(width: Spacings.md),
+   664→              Expanded(
+   665→                child: Text(
+   666→                  trendText,
+   667→                  style: tt.bodyMedium?.copyWith(
+   668→                    color: cs.onSurface,
+   669→                  ),
+   670→                ),
+   671→              ),
+   672→            ],
+   673→          ),
+   674→        ),
+   675→      ),
+   676→    );
+   677→  }
+   678→
+   679→  // ═══════════════════════════════════════════════════════════════════════
+   680→  // LATE ARRIVALS SECTION
+   681→  // ═══════════════════════════════════════════════════════════════════════
+   682→
+   683→  Widget _buildLateArrivalsSection(
+   684→    BuildContext context,
+   685→    ChildAttendanceEntity attendance,
+   686→  ) {
+   687→    final cs = context.colorScheme;
+   688→    final tt = context.textTheme;
+   689→
+   690→    // Filter late records
+   691→    final lateRecords = attendance.records
+   692→        .where((r) => (r['status'] as String?)?.toLowerCase() == 'late')
+   693→        .toList();
+   694→
+   695→    return Padding(
+   696→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   697→      child: Column(
+   698→        crossAxisAlignment: CrossAxisAlignment.start,
+   699→        children: [
+   700→          Text(
+   701→            'Late Arrivals',
+   702→            style: tt.titleMedium?.copyWith(
+   703→              fontWeight: AppTypography.wSemiBold,
+   704→              color: cs.onSurface,
+   705→            ),
+   706→          ),
+   707→          const SizedBox(height: Spacings.sm),
+   708→          if (lateRecords.isEmpty)
+   709→            Card(
+   710→              elevation: Spacings.elevationNone,
+   711→              color: cs.surfaceContainerLow,
+   712→              shape: RoundedRectangleBorder(
+   713→                borderRadius: Spacings.borderRadiusMd,
+   714→              ),
+   715→              child: Padding(
+   716→                padding: const EdgeInsets.all(Spacings.xl),
+   717→                child: Center(
+   718→                  child: Text(
+   719→                    'No late arrivals this month',
+   720→                    style: tt.bodyMedium?.copyWith(
+   721→                      color: cs.onSurfaceVariant,
+   722→                    ),
+   723→                  ),
+   724→                ),
+   725→              ),
+   726→            )
+   727→          else
+   728→            ...lateRecords.map((record) {
+   729→              final dateStr = record['date'] as String? ?? '';
+   730→              final timeStr = record['arrival_time'] as String? ??
+   731→                  record['time'] as String? ??
+   732→                  '';
+   733→              final date = DateTime.tryParse(dateStr);
+   734→
+   735→              return Padding(
+   736→                padding: const EdgeInsets.only(bottom: Spacings.sm),
+   737→                child: Card(
+   738→                  elevation: Spacings.elevationNone,
+   739→                  color: cs.surfaceContainerLow,
+   740→                  shape: RoundedRectangleBorder(
+   741→                    borderRadius: Spacings.borderRadiusMd,
+   742→                  ),
+   743→                  child: ListTile(
+   744→                    dense: true,
+   745→                    leading: Icon(
+   746→                      Icons.access_time,
+   747→                      color: AppColors.warningOf(cs.brightness),
+   748→                      size: Spacings.mdIcon,
+   749→                    ),
+   750→                    title: Text(
+   751→                      date != null
+   752→                          ? '${_monthAbbr(date.month)} ${date.day}, ${date.year}'
+   753→                          : dateStr,
+   754→                      style: tt.bodyMedium?.copyWith(
+   755→                        fontWeight: AppTypography.wMedium,
+   756→                        color: cs.onSurface,
+   757→                      ),
+   758→                    ),
+   759→                    subtitle: timeStr.isNotEmpty
+   760→                        ? Text(
+   761→                            'Arrived at $timeStr',
+   762→                            style: tt.bodySmall?.copyWith(
+   763→                              color: cs.onSurfaceVariant,
+   764→                            ),
+   765→                          )
+   766→                        : null,
+   767→                  ),
+   768→                ),
+   769→              );
+   770→            }),
+   771→        ],
+   772→      ),
+   773→    );
+   774→  }
+   775→
+   776→  // ═══════════════════════════════════════════════════════════════════════
+   777→  // DOWNLOAD REPORT BUTTON
+   778→  // ═══════════════════════════════════════════════════════════════════════
+   779→
+   780→  Widget _buildDownloadReportButton(BuildContext context) {
+   781→    return Padding(
+   782→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   783→      child: SizedBox(
+   784→        width: double.infinity,
+   785→        child: OutlinedButton.icon(
+   786→          onPressed: () {
+   787→            // TODO: Trigger attendance report download
+   788→          },
+   789→          icon: const Icon(Icons.download_outlined),
+   790→          label: const Text('Download Attendance Report'),
+   791→          style: OutlinedButton.styleFrom(
+   792→            padding: const EdgeInsets.symmetric(
+   793→              vertical: Spacings.md,
+   794→            ),
+   795→            shape: RoundedRectangleBorder(
+   796→              borderRadius: Spacings.borderRadiusMd,
+   797→            ),
+   798→          ),
+   799→        ),
+   800→      ),
+   801→    );
+   802→  }
+   803→
+   804→  // ═══════════════════════════════════════════════════════════════════════
+   805→  // HELPER METHODS
+   806→  // ═══════════════════════════════════════════════════════════════════════
+   807→
+   808→  /// Parses attendance records into a summary with counts and rate.
+   809→  _AttendanceSummary _parseAttendanceSummary(
+   810→    List<Map<String, dynamic>> records,
+   811→  ) {
+   812→    int present = 0;
+   813→    int absent = 0;
+   814→    int late = 0;
+   815→    int excused = 0;
+   816→
+   817→    for (final record in records) {
+   818→      final status = (record['status'] as String?)?.toLowerCase();
+   819→      switch (status) {
+   820→        case 'present':
+   821→          present++;
+   822→          break;
+   823→        case 'absent':
+   824→          absent++;
+   825→          break;
+   826→        case 'late':
+   827→          late++;
+   828→          break;
+   829→        case 'excused':
+   830→          excused++;
+   831→          break;
+   832→      }
+   833→    }
+   834→
+   835→    final total = present + absent + late + excused;
+   836→    final rate = total > 0 ? (present + late) / total : 0.0;
+   837→
+   838→    return _AttendanceSummary(
+   839→      present: present,
+   840→      absent: absent,
+   841→      late: late,
+   842→      excused: excused,
+   843→      total: total,
+   844→      rate: rate,
+   845→    );
+   846→  }
+   847→
+   848→  /// Returns the colour for an attendance rate.
+   849→  ///
+   850→  /// Green if >90%, amber if 75–90%, red if <75%.
+   851→  Color _attendanceRateColor(double rate, Brightness brightness) {
+   852→    if (rate > 0.9) return AppColors.successOf(brightness);
+   853→    if (rate >= 0.75) return AppColors.warningOf(brightness);
+   854→    return AppColors.errorOf(brightness);
+   855→  }
+   856→
+   857→  /// Returns the month name for the given [month] (1 = January).
+   858→  String _monthName(int month) {
+   859→    const names = [
+   860→      '',
+   861→      'January',
+   862→      'February',
+   863→      'March',
+   864→      'April',
+   865→      'May',
+   866→      'June',
+   867→      'July',
+   868→      'August',
+   869→      'September',
+   870→      'October',
+   871→      'November',
+   872→      'December',
+   873→    ];
+   874→    return names[month];
+   875→  }
+   876→
+   877→  /// Returns the abbreviated month name for the given [month].
+   878→  String _monthAbbr(int month) {
+   879→    const abbrs = [
+   880→      '',
+   881→      'Jan',
+   882→      'Feb',
+   883→      'Mar',
+   884→      'Apr',
+   885→      'May',
+   886→      'Jun',
+   887→      'Jul',
+   888→      'Aug',
+   889→      'Sep',
+   890→      'Oct',
+   891→      'Nov',
+   892→      'Dec',
+   893→    ];
+   894→    return abbrs[month];
+   895→  }
+   896→}
+   897→
+   898→// ═══════════════════════════════════════════════════════════════════════
+   899→// PRIVATE HELPER CLASSES
+   900→// ═══════════════════════════════════════════════════════════════════════
+   901→
+   902→/// Parsed attendance summary with counts and rate.
+   903→class _AttendanceSummary {
+   904→  const _AttendanceSummary({
+   905→    required this.present,
+   906→    required this.absent,
+   907→    required this.late,
+   908→    required this.excused,
+   909→    required this.total,
+   910→    required this.rate,
+   911→  });
+   912→
+   913→  final int present;
+   914→  final int absent;
+   915→  final int late;
+   916→  final int excused;
+   917→  final int total;
+   918→  final double rate;
+   919→}
+   920→
+   921→/// A legend entry for the calendar colour coding.
+   922→class _LegendEntry {
+   923→  const _LegendEntry(this.label, this.color, this.bgColor);
+   924→
+   925→  final String label;
+   926→  final Color color;
+   927→  final Color bgColor;
+   928→}
+   929→

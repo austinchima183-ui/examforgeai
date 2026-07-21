@@ -137,62 +137,67 @@ class AppEmptyState extends StatelessWidget {
     // Responsive icon sizing
     final iconSize = isMobile ? Spacings.xlIcon : 64.0;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Spacings.xl,
-        vertical: Spacings.xxl,
-      ),
-      child: Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Illustration or icon
-            if (illustration != null)
-              illustration!
-            else if (icon != null)
-              Icon(
-                icon,
-                size: iconSize,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
-
-            const SizedBox(height: Spacings.xl),
-
-            // Title
-            if (title != null)
-              Text(
-                title!,
-                style: tt.titleMedium?.copyWith(
-                  fontWeight: AppTypography.wSemiBold,
-                  color: cs.onSurface,
+    return Semantics(
+      label: '${title ?? ''}${subtitle != null ? '. $subtitle' : ''}',
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: Spacings.xl,
+          vertical: Spacings.xxl,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Illustration or icon (decorative — excluded from semantics)
+              if (illustration != null)
+                ExcludeSemantics(child: illustration!)
+              else if (icon != null)
+                ExcludeSemantics(
+                  child: Icon(
+                    icon,
+                    size: iconSize,
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                  ),
                 ),
-                textAlign: TextAlign.center,
-              ),
 
-            if (subtitle != null) ...[
-              const SizedBox(height: Spacings.sm),
-              ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 280),
-                child: Text(
-                  subtitle!,
-                  style: tt.bodyMedium?.copyWith(
-                    color: cs.onSurfaceVariant,
+              const SizedBox(height: Spacings.xl),
+
+              // Title
+              if (title != null)
+                Text(
+                  title!,
+                  style: tt.titleMedium?.copyWith(
+                    fontWeight: AppTypography.wSemiBold,
+                    color: cs.onSurface,
                   ),
                   textAlign: TextAlign.center,
                 ),
-              ),
-            ],
 
-            // Action button
-            if (actionLabel != null && onAction != null) ...[
-              const SizedBox(height: Spacings.xl),
-              AppButton(
-                label: actionLabel!,
-                onPressed: onAction,
-                variant: AppButtonVariant.tonal,
-              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: Spacings.sm),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(maxWidth: 280),
+                  child: Text(
+                    subtitle!,
+                    style: tt.bodyMedium?.copyWith(
+                      color: cs.onSurfaceVariant,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ],
+
+              // Action button
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: Spacings.xl),
+                AppButton(
+                  label: actionLabel!,
+                  onPressed: onAction,
+                  variant: AppButtonVariant.tonal,
+                ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
     );

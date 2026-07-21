@@ -1,0 +1,804 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/app_typography.dart';
+     6→import '../../../../core/themes/spacings.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_app_bar.dart';
+     9→import '../../../../shared/widgets/app_button.dart';
+    10→import '../../../../shared/widgets/app_card.dart';
+    11→import '../../../../shared/widgets/app_dialog.dart';
+    12→import '../../../../shared/widgets/app_text_field.dart';
+    13→import '../../../../shared/widgets/app_loading.dart';
+    14→import '../../../question_bank/domain/entities/question_entities.dart';
+    15→import '../../../question_bank/presentation/widgets/question_type_badge.dart';
+    16→import '../../../question_bank/presentation/widgets/difficulty_badge.dart';
+    17→import '../../domain/entities/cbt_entities.dart';
+    18→import '../providers/exam_builder_provider.dart';
+    19→import '../widgets/question_selector_widget.dart';
+    20→
+    21→// ═══════════════════════════════════════════════════════════════════════
+    22→// EXAM BUILDER PAGE (Teacher)
+    23→// ═══════════════════════════════════════════════════════════════════════
+    24→
+    25→/// Exam creation/editing page with a multi-section scrollable form.
+    26→class ExamBuilderPage extends ConsumerStatefulWidget {
+    27→  const ExamBuilderPage({super.key, this.examId});
+    28→
+    29→  /// Optional exam ID for editing an existing exam.
+    30→  final String? examId;
+    31→
+    32→  @override
+    33→  ConsumerState<ExamBuilderPage> createState() => _ExamBuilderPageState();
+    34→}
+    35→
+    36→class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
+    37→    with SingleTickerProviderStateMixin {
+    38→  late TabController _tabController;
+    39→  final _scrollController = ScrollController();
+    40→
+    41→  // Form controllers
+    42→  final _titleController = TextEditingController();
+    43→  final _descriptionController = TextEditingController();
+    44→  final _instructionsController = TextEditingController();
+    45→  final _passMarkController = TextEditingController(text: '50');
+    46→  final _timeLimitController = TextEditingController(text: '60');
+    47→  final _gracePeriodController = TextEditingController(text: '0');
+    48→  final _allowedAttemptsController = TextEditingController(text: '1');
+    49→  final _negativeMarkController = TextEditingController(text: '0');
+    50→
+    51→  // Form state
+    52→  String _selectedSubjectId = '';
+    53→  String _selectedClassId = '';
+    54→  String _selectedSessionId = '';
+    55→  ExamType _examType = ExamType.schoolExam;
+    56→  DateTime? _startTime;
+    57→  DateTime? _endTime;
+    58→  String _passMarkType = 'percentage';
+    59→  bool _negativeMarkingEnabled = false;
+    60→  bool _autoSubmit = true;
+    61→  bool _randomizeQuestions = false;
+    62→  bool _randomizeOptions = false;
+    63→  String _showResults = 'after_submission';
+    64→  bool _showCorrectAnswers = false;
+    65→  bool _showExplanations = false;
+    66→  bool _requireFullScreen = false;
+    67→  bool _allowResume = true;
+    68→  bool _browserLockdown = false;
+    69→  Set<String> _selectedQuestionIds = {};
+    70→
+    71→  static const _sectionTabs = [
+    72→    'Basic Info',
+    73→    'Schedule',
+    74→    'Scoring',
+    75→    'Questions',
+    76→    'Students',
+    77→    'Settings',
+    78→    'Security',
+    79→    'Instructions',
+    80→  ];
+    81→
+    82→  @override
+    83→  void initState() {
+    84→    super.initState();
+    85→    _tabController = TabController(length: _sectionTabs.length, vsync: this);
+    86→
+    87→    if (widget.examId != null) {
+    88→      // Load existing exam for editing
+    89→      Future.microtask(() {
+    90→        ref.read(examBuilderProvider.notifier).loadExamForEditing(widget.examId!);
+    91→      });
+    92→    }
+    93→  }
+    94→
+    95→  @override
+    96→  void dispose() {
+    97→    _tabController.dispose();
+    98→    _scrollController.dispose();
+    99→    _titleController.dispose();
+   100→    _descriptionController.dispose();
+   101→    _instructionsController.dispose();
+   102→    _passMarkController.dispose();
+   103→    _timeLimitController.dispose();
+   104→    _gracePeriodController.dispose();
+   105→    _allowedAttemptsController.dispose();
+   106→    _negativeMarkController.dispose();
+   107→    super.dispose();
+   108→  }
+   109→
+   110→  @override
+   111→  Widget build(BuildContext context) {
+   112→    final cs = context.colorScheme;
+   113→    final tt = context.textTheme;
+   114→    final state = ref.watch(examBuilderProvider);
+   115→    final isEditing = widget.examId != null;
+   116→
+   117→    return PopScope(
+   118→      canPop: !state.isSaving,
+   119→      onPopInvokedWithResult: (didPop, _) async {
+   120→        if (!didPop && state.isSaving) return;
+   121→        if (!didPop) {
+   122→          final shouldLeave = await AppDialog.showConfirm(
+   123→            context: context,
+   124→            title: 'Leave Editor?',
+   125→            message: 'You have unsaved changes. Are you sure you want to leave?',
+   126→            isDestructive: true,
+   127→            confirmText: 'Leave',
+   128→          );
+   129→          if (shouldLeave == true && context.mounted) {
+   130→            Navigator.of(context).pop();
+   131→          }
+   132→        }
+   133→      },
+   134→      child: Scaffold(
+   135→        appBar: AppAppBar(
+   136→          title: isEditing ? 'Edit Exam' : 'Create Exam',
+   137→          actions: [
+   138→            Padding(
+   139→              padding: const EdgeInsets.only(right: Spacings.sm),
+   140→              child: AppButton(
+   141→                label: 'Save Draft',
+   142→                onPressed: state.isSaving ? null : _saveDraft,
+   143→                variant: AppButtonVariant.outlined,
+   144→                size: AppButtonSize.small,
+   145→                isLoading: state.isSaving,
+   146→              ),
+   147→            ),
+   148→            Padding(
+   149→              padding: const EdgeInsets.only(right: Spacings.md),
+   150→              child: AppButton(
+   151→                label: 'Publish',
+   152→                onPressed: state.isSaving ? null : _publishExam,
+   153→                variant: AppButtonVariant.elevated,
+   154→                size: AppButtonSize.small,
+   155→                isLoading: state.isPublishing,
+   156→              ),
+   157→            ),
+   158→          ],
+   159→        ),
+   160→        body: Column(
+   161→          children: [
+   162→            // Section tabs
+   163→            Container(
+   164→              color: cs.surface,
+   165→              child: TabBar(
+   166→                controller: _tabController,
+   167→                isScrollable: true,
+   168→                tabAlignment: TabAlignment.start,
+   169→                labelColor: cs.primary,
+   170→                unselectedLabelColor: cs.onSurfaceVariant,
+   171→                indicatorColor: cs.primary,
+   172→                labelStyle: tt.labelLarge?.copyWith(
+   173→                  fontWeight: AppTypography.wSemiBold,
+   174→                ),
+   175→                tabs: _sectionTabs.map((t) => Tab(text: t)).toList(),
+   176→              ),
+   177→            ),
+   178→            // Form content
+   179→            Expanded(
+   180→              child: state.isLoading
+   181→                  ? const Center(
+   182→                      child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+   183→                  : TabBarView(
+   184→                      controller: _tabController,
+   185→                      children: [
+   186→                        _buildBasicInfoSection(context),
+   187→                        _buildScheduleSection(context),
+   188→                        _buildScoringSection(context),
+   189→                        _buildQuestionsSection(context),
+   190→                        _buildStudentsSection(context),
+   191→                        _buildSettingsSection(context),
+   192→                        _buildSecuritySection(context),
+   193→                        _buildInstructionsSection(context),
+   194→                      ],
+   195→                    ),
+   196→            ),
+   197→          ],
+   198→        ),
+   199→      ),
+   200→    );
+   201→  }
+   202→
+   203→  // ─── Section 1: Basic Info ──────────────────────────────────────────
+   204→
+   205→  Widget _buildBasicInfoSection(BuildContext context) {
+   206→    return _sectionScroll(
+   207→      child: Column(
+   208→        crossAxisAlignment: CrossAxisAlignment.start,
+   209→        children: [
+   210→          _sectionTitle(context, 'Basic Information'),
+   211→          const SizedBox(height: Spacings.lg),
+   212→          AppTextField(
+   213→            label: 'Exam Title',
+   214→            hint: 'e.g. Biology Mid-Term Exam',
+   215→            controller: _titleController,
+   216→            isRequired: true,
+   217→            prefixIcon: Icons.title_rounded,
+   218→          ),
+   219→          const SizedBox(height: Spacings.md),
+   220→          AppTextField(
+   221→            label: 'Description',
+   222→            hint: 'Brief description of the exam',
+   223→            controller: _descriptionController,
+   224→            maxLines: 3,
+   225→            minLines: 2,
+   226→          ),
+   227→          const SizedBox(height: Spacings.md),
+   228→          Row(
+   229→            children: [
+   230→              Expanded(
+   231→                child: AppDropdownField<String>(
+   232→                  label: 'Subject',
+   233→                  items: const ['Mathematics', 'English', 'Biology', 'Physics', 'Chemistry'],
+   234→                  selectedItem: _selectedSubjectId.isNotEmpty ? _selectedSubjectId : null,
+   235→                  onChanged: (v) => setState(() => _selectedSubjectId = v ?? ''),
+   236→                  itemLabel: (v) => v,
+   237→                  isRequired: true,
+   238→                  prefixIcon: Icons.subject_rounded,
+   239→                ),
+   240→              ),
+   241→              const SizedBox(width: Spacings.md),
+   242→              Expanded(
+   243→                child: AppDropdownField<String>(
+   244→                  label: 'Class',
+   245→                  items: const ['SS1', 'SS2', 'SS3', 'JSS1', 'JSS2', 'JSS3'],
+   246→                  selectedItem: _selectedClassId.isNotEmpty ? _selectedClassId : null,
+   247→                  onChanged: (v) => setState(() => _selectedClassId = v ?? ''),
+   248→                  itemLabel: (v) => v,
+   249→                  isRequired: true,
+   250→                  prefixIcon: Icons.class_rounded,
+   251→                ),
+   252→              ),
+   253→            ],
+   254→          ),
+   255→          const SizedBox(height: Spacings.md),
+   256→          Row(
+   257→            children: [
+   258→              Expanded(
+   259→                child: AppDropdownField<String>(
+   260→                  label: 'Academic Session',
+   261→                  items: const ['2024/2025', '2023/2024'],
+   262→                  selectedItem: _selectedSessionId.isNotEmpty ? _selectedSessionId : null,
+   263→                  onChanged: (v) => setState(() => _selectedSessionId = v ?? ''),
+   264→                  itemLabel: (v) => v,
+   265→                  isRequired: true,
+   266→                  prefixIcon: Icons.school_rounded,
+   267→                ),
+   268→              ),
+   269→              const SizedBox(width: Spacings.md),
+   270→              Expanded(
+   271→                child: AppDropdownField<ExamType>(
+   272→                  label: 'Exam Type',
+   273→                  items: ExamType.values,
+   274→                  selectedItem: _examType,
+   275→                  onChanged: (v) => setState(() => _examType = v ?? _examType),
+   276→                  itemLabel: (v) => v.label,
+   277→                  isRequired: true,
+   278→                  prefixIcon: Icons.category_rounded,
+   279→                ),
+   280→              ),
+   281→            ],
+   282→          ),
+   283→        ],
+   284→      ),
+   285→    );
+   286→  }
+   287→
+   288→  // ─── Section 2: Schedule ────────────────────────────────────────────
+   289→
+   290→  Widget _buildScheduleSection(BuildContext context) {
+   291→    return _sectionScroll(
+   292→      child: Column(
+   293→        crossAxisAlignment: CrossAxisAlignment.start,
+   294→        children: [
+   295→          _sectionTitle(context, 'Schedule'),
+   296→          const SizedBox(height: Spacings.lg),
+   297→          Row(
+   298→            children: [
+   299→              Expanded(
+   300→                child: _buildDateTimePicker(
+   301→                  context: context,
+   302→                  label: 'Start Date & Time',
+   303→                  value: _startTime,
+   304→                  onPressed: () async {
+   305→                    final picked = await _pickDateTime(context, _startTime);
+   306→                    if (picked != null) setState(() => _startTime = picked);
+   307→                  },
+   308→                ),
+   309→              ),
+   310→              const SizedBox(width: Spacings.md),
+   311→              Expanded(
+   312→                child: _buildDateTimePicker(
+   313→                  context: context,
+   314→                  label: 'End Date & Time',
+   315→                  value: _endTime,
+   316→                  onPressed: () async {
+   317→                    final picked = await _pickDateTime(context, _endTime);
+   318→                    if (picked != null) setState(() => _endTime = picked);
+   319→                  },
+   320→                ),
+   321→              ),
+   322→            ],
+   323→          ),
+   324→          const SizedBox(height: Spacings.md),
+   325→          Row(
+   326→            children: [
+   327→              Expanded(
+   328→                child: AppTextField(
+   329→                  label: 'Time Limit (minutes)',
+   330→                  controller: _timeLimitController,
+   331→                  keyboardType: TextInputType.number,
+   332→                  prefixIcon: Icons.timer_rounded,
+   333→                  isRequired: true,
+   334→                ),
+   335→              ),
+   336→              const SizedBox(width: Spacings.md),
+   337→              Expanded(
+   338→                child: AppTextField(
+   339→                  label: 'Grace Period (minutes)',
+   340→                  controller: _gracePeriodController,
+   341→                  keyboardType: TextInputType.number,
+   342→                  prefixIcon: Icons.schedule_rounded,
+   343→                ),
+   344→              ),
+   345→            ],
+   346→          ),
+   347→        ],
+   348→      ),
+   349→    );
+   350→  }
+   351→
+   352→  // ─── Section 3: Scoring ─────────────────────────────────────────────
+   353→
+   354→  Widget _buildScoringSection(BuildContext context) {
+   355→    final cs = context.colorScheme;
+   356→    return _sectionScroll(
+   357→      child: Column(
+   358→        crossAxisAlignment: CrossAxisAlignment.start,
+   359→        children: [
+   360→          _sectionTitle(context, 'Scoring'),
+   361→          const SizedBox(height: Spacings.lg),
+   362→          Row(
+   363→            children: [
+   364→              Expanded(
+   365→                child: AppTextField(
+   366→                  label: 'Total Marks',
+   367→                  hint: 'Auto-calculated from questions',
+   368→                  controller: TextEditingController(
+   369→                    text: '${_calculateTotalMarks()}',
+   370→                  ),
+   371→                  readOnly: true,
+   372→                  prefixIcon: Icons.assessment_rounded,
+   373→                ),
+   374→              ),
+   375→              const SizedBox(width: Spacings.md),
+   376→              Expanded(
+   377→                child: AppTextField(
+   378→                  label: 'Pass Mark',
+   379→                  controller: _passMarkController,
+   380→                  keyboardType: TextInputType.number,
+   381→                  prefixIcon: Icons.check_circle_rounded,
+   382→                  isRequired: true,
+   383→                ),
+   384→              ),
+   385→            ],
+   386→          ),
+   387→          const SizedBox(height: Spacings.md),
+   388→          AppDropdownField<String>(
+   389→            label: 'Pass Mark Type',
+   390→            items: const ['percentage', 'absolute'],
+   391→            selectedItem: _passMarkType,
+   392→            onChanged: (v) => setState(() => _passMarkType = v ?? 'percentage'),
+   393→            itemLabel: (v) => v == 'percentage' ? 'Percentage (%)' : 'Absolute Marks',
+   394→            prefixIcon: Icons.percent_rounded,
+   395→          ),
+   396→          const SizedBox(height: Spacings.md),
+   397→          SwitchListTile(
+   398→            title: Text('Negative Marking',
+   399→                style: context.textTheme.bodyLarge?.copyWith(
+   400→                    fontWeight: AppTypography.wSemiBold)),
+   401→            subtitle: Text('Deduct marks for wrong answers',
+   402→                style: context.textTheme.bodySmall),
+   403→            value: _negativeMarkingEnabled,
+   404→            onChanged: (v) => setState(() => _negativeMarkingEnabled = v),
+   405→            activeColor: cs.primary,
+   406→          ),
+   407→          if (_negativeMarkingEnabled)
+   408→            Padding(
+   409→              padding: const EdgeInsets.only(top: Spacings.sm),
+   410→              child: AppTextField(
+   411→                label: 'Negative Mark Value',
+   412→                controller: _negativeMarkController,
+   413→                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+   414→                prefixIcon: Icons.remove_circle_rounded,
+   415→              ),
+   416→            ),
+   417→        ],
+   418→      ),
+   419→    );
+   420→  }
+   421→
+   422→  // ─── Section 4: Questions ───────────────────────────────────────────
+   423→
+   424→  Widget _buildQuestionsSection(BuildContext context) {
+   425→    return _sectionScroll(
+   426→      child: Column(
+   427→        crossAxisAlignment: CrossAxisAlignment.start,
+   428→        children: [
+   429→          _sectionTitle(context, 'Questions'),
+   430→          const SizedBox(height: Spacings.lg),
+   431→          QuestionSelectorWidget(
+   432→            availableQuestions: const [], // Would be loaded from QB provider
+   433→            selectedQuestionIds: _selectedQuestionIds,
+   434→            onSelectionChanged: (ids) {
+   435→              setState(() => _selectedQuestionIds = ids);
+   436→            },
+   437→            onImportSelected: () {
+   438→              // Handle import
+   439→            },
+   440→          ),
+   441→          const SizedBox(height: Spacings.xl),
+   442→          if (_selectedQuestionIds.isNotEmpty) ...[
+   443→            Text(
+   444→              'Selected Questions (${_selectedQuestionIds.length})',
+   445→              style: context.textTheme.titleSmall?.copyWith(
+   446→                fontWeight: AppTypography.wSemiBold,
+   447→                color: context.colorScheme.onSurface,
+   448→              ),
+   449→            ),
+   450→            const SizedBox(height: Spacings.md),
+   451→            // Display selected questions list with reorder/remove
+   452→            Text(
+   453→              'Reorder and remove questions below:',
+   454→              style: context.textTheme.bodySmall?.copyWith(
+   455→                color: context.colorScheme.onSurfaceVariant,
+   456→              ),
+   457→            ),
+   458→          ],
+   459→        ],
+   460→      ),
+   461→    );
+   462→  }
+   463→
+   464→  // ─── Section 5: Students ────────────────────────────────────────────
+   465→
+   466→  Widget _buildStudentsSection(BuildContext context) {
+   467→    return _sectionScroll(
+   468→      child: Column(
+   469→        crossAxisAlignment: CrossAxisAlignment.start,
+   470→        children: [
+   471→          _sectionTitle(context, 'Assign Students'),
+   472→          const SizedBox(height: Spacings.lg),
+   473→          AppTextField(
+   474→            label: 'Search Students',
+   475→            hint: 'Type a student name or ID…',
+   476→            prefixIcon: Icons.search_rounded,
+   477→          ),
+   478→          const SizedBox(height: Spacings.md),
+   479→          AppButton(
+   480→            label: 'Add All Students in Class',
+   481→            onPressed: () {},
+   482→            variant: AppButtonVariant.tonal,
+   483→            icon: Icons.group_add_rounded,
+   484→          ),
+   485→          const SizedBox(height: Spacings.xl),
+   486→          Center(
+   487→            child: AppEmptyState(
+   488→              icon: Icons.people_outline_rounded,
+   489→              title: 'No Students Added',
+   490→              subtitle: 'Search and add students, or add all students in the class.',
+   491→            ),
+   492→          ),
+   493→        ],
+   494→      ),
+   495→    );
+   496→  }
+   497→
+   498→  // ─── Section 6: Settings ────────────────────────────────────────────
+   499→
+   500→  Widget _buildSettingsSection(BuildContext context) {
+   501→    final cs = context.colorScheme;
+   502→    return _sectionScroll(
+   503→      child: Column(
+   504→        crossAxisAlignment: CrossAxisAlignment.start,
+   505→        children: [
+   506→          _sectionTitle(context, 'Exam Settings'),
+   507→          const SizedBox(height: Spacings.lg),
+   508→          AppTextField(
+   509→            label: 'Allowed Attempts',
+   510→            controller: _allowedAttemptsController,
+   511→            keyboardType: TextInputType.number,
+   512→            prefixIcon: Icons.replay_rounded,
+   513→          ),
+   514→          const SizedBox(height: Spacings.md),
+   515→          SwitchListTile(
+   516→            title: Text('Auto Submit on Time Up',
+   517→                style: context.textTheme.bodyLarge?.copyWith(
+   518→                    fontWeight: AppTypography.wSemiBold)),
+   519→            subtitle: Text('Automatically submit the exam when time runs out',
+   520→                style: context.textTheme.bodySmall),
+   521→            value: _autoSubmit,
+   522→            onChanged: (v) => setState(() => _autoSubmit = v),
+   523→            activeColor: cs.primary,
+   524→          ),
+   525→          SwitchListTile(
+   526→            title: Text('Randomize Questions',
+   527→                style: context.textTheme.bodyLarge?.copyWith(
+   528→                    fontWeight: AppTypography.wSemiBold)),
+   529→            subtitle: Text('Shuffle question order for each student',
+   530→                style: context.textTheme.bodySmall),
+   531→            value: _randomizeQuestions,
+   532→            onChanged: (v) => setState(() => _randomizeQuestions = v),
+   533→            activeColor: cs.primary,
+   534→          ),
+   535→          SwitchListTile(
+   536→            title: Text('Randomize Options',
+   537→                style: context.textTheme.bodyLarge?.copyWith(
+   538→                    fontWeight: AppTypography.wSemiBold)),
+   539→            subtitle: Text('Shuffle answer options within each question',
+   540→                style: context.textTheme.bodySmall),
+   541→            value: _randomizeOptions,
+   542→            onChanged: (v) => setState(() => _randomizeOptions = v),
+   543→            activeColor: cs.primary,
+   544→          ),
+   545→          const SizedBox(height: Spacings.md),
+   546→          AppDropdownField<String>(
+   547→            label: 'Show Results',
+   548→            items: const ['immediate', 'after_submission', 'after_grading', 'manual'],
+   549→            selectedItem: _showResults,
+   550→            onChanged: (v) => setState(() => _showResults = v ?? 'after_submission'),
+   551→            itemLabel: (v) => switch (v) {
+   552→              'immediate' => 'Immediately',
+   553→              'after_submission' => 'After Submission',
+   554→              'after_grading' => 'After Grading',
+   555→              'manual' => 'Manual Release',
+   556→              _ => v,
+   557→            },
+   558→            prefixIcon: Icons.visibility_rounded,
+   559→          ),
+   560→          const SizedBox(height: Spacings.md),
+   561→          SwitchListTile(
+   562→            title: Text('Show Correct Answers',
+   563→                style: context.textTheme.bodyLarge?.copyWith(
+   564→                    fontWeight: AppTypography.wSemiBold)),
+   565→            subtitle: Text('Show correct answers in results',
+   566→                style: context.textTheme.bodySmall),
+   567→            value: _showCorrectAnswers,
+   568→            onChanged: (v) => setState(() => _showCorrectAnswers = v),
+   569→            activeColor: cs.primary,
+   570→          ),
+   571→          SwitchListTile(
+   572→            title: Text('Show Explanations',
+   573→                style: context.textTheme.bodyLarge?.copyWith(
+   574→                    fontWeight: AppTypography.wSemiBold)),
+   575→            subtitle: Text('Show explanations in results',
+   576→                style: context.textTheme.bodySmall),
+   577→            value: _showExplanations,
+   578→            onChanged: (v) => setState(() => _showExplanations = v),
+   579→            activeColor: cs.primary,
+   580→          ),
+   581→        ],
+   582→      ),
+   583→    );
+   584→  }
+   585→
+   586→  // ─── Section 7: Security ────────────────────────────────────────────
+   587→
+   588→  Widget _buildSecuritySection(BuildContext context) {
+   589→    final cs = context.colorScheme;
+   590→    return _sectionScroll(
+   591→      child: Column(
+   592→        crossAxisAlignment: CrossAxisAlignment.start,
+   593→        children: [
+   594→          _sectionTitle(context, 'Security'),
+   595→          const SizedBox(height: Spacings.lg),
+   596→          SwitchListTile(
+   597→            title: Text('Require Full Screen',
+   598→                style: context.textTheme.bodyLarge?.copyWith(
+   599→                    fontWeight: AppTypography.wSemiBold)),
+   600→            subtitle: Text('Students must remain in full-screen mode',
+   601→                style: context.textTheme.bodySmall),
+   602→            value: _requireFullScreen,
+   603→            onChanged: (v) => setState(() => _requireFullScreen = v),
+   604→            activeColor: cs.primary,
+   605→          ),
+   606→          SwitchListTile(
+   607→            title: Text('Browser Lockdown',
+   608→                style: context.textTheme.bodyLarge?.copyWith(
+   609→                    fontWeight: AppTypography.wSemiBold)),
+   610→            subtitle: Text('Prevent copy, paste, right-click during exam',
+   611→                style: context.textTheme.bodySmall),
+   612→            value: _browserLockdown,
+   613→            onChanged: (v) => setState(() => _browserLockdown = v),
+   614→            activeColor: cs.primary,
+   615→          ),
+   616→          SwitchListTile(
+   617→            title: Text('Allow Resume',
+   618→                style: context.textTheme.bodyLarge?.copyWith(
+   619→                    fontWeight: AppTypography.wSemiBold)),
+   620→            subtitle: Text('Allow students to resume after disconnection',
+   621→                style: context.textTheme.bodySmall),
+   622→            value: _allowResume,
+   623→            onChanged: (v) => setState(() => _allowResume = v),
+   624→            activeColor: cs.primary,
+   625→          ),
+   626→          const SizedBox(height: Spacings.md),
+   627→          AppTextField(
+   628→            label: 'IP Restriction (comma-separated)',
+   629→            hint: 'e.g. 192.168.1.0/24, 10.0.0.0/8',
+   630→            prefixIcon: Icons.lock_rounded,
+   631→          ),
+   632→        ],
+   633→      ),
+   634→    );
+   635→  }
+   636→
+   637→  // ─── Section 8: Instructions ────────────────────────────────────────
+   638→
+   639→  Widget _buildInstructionsSection(BuildContext context) {
+   640→    return _sectionScroll(
+   641→      child: Column(
+   642→        crossAxisAlignment: CrossAxisAlignment.start,
+   643→        children: [
+   644→          _sectionTitle(context, 'Exam Instructions'),
+   645→          const SizedBox(height: Spacings.lg),
+   646→          AppTextField(
+   647→            label: 'Instructions for Students',
+   648→            hint: 'Enter detailed instructions that students will see before starting the exam…',
+   649→            controller: _instructionsController,
+   650→            maxLines: 15,
+   651→            minLines: 10,
+   652→          ),
+   653→        ],
+   654→      ),
+   655→    );
+   656→  }
+   657→
+   658→  // ─── Helpers ─────────────────────────────────────────────────────────
+   659→
+   660→  Widget _sectionScroll({required Widget child}) {
+   661→    return SingleChildScrollView(
+   662→      controller: _scrollController,
+   663→      padding: const EdgeInsets.all(Spacings.lg),
+   664→      child: Center(
+   665→        child: ConstrainedBox(
+   666→          constraints: const BoxConstraints(maxWidth: 800),
+   667→          child: child,
+   668→        ),
+   669→      ),
+   670→    );
+   671→  }
+   672→
+   673→  Widget _sectionTitle(BuildContext context, String title) {
+   674→    final cs = context.colorScheme;
+   675→    final tt = context.textTheme;
+   676→    return Row(
+   677→      children: [
+   678→        Container(
+   679→          width: 4,
+   680→          height: 24,
+   681→          decoration: BoxDecoration(
+   682→            color: cs.primary,
+   683→            borderRadius: BorderRadius.circular(2),
+   684→          ),
+   685→        ),
+   686→        const SizedBox(width: Spacings.sm),
+   687→        Text(
+   688→          title,
+   689→          style: tt.titleMedium?.copyWith(
+   690→            fontWeight: AppTypography.wBold,
+   691→            color: cs.onSurface,
+   692→          ),
+   693→        ),
+   694→      ],
+   695→    );
+   696→  }
+   697→
+   698→  Widget _buildDateTimePicker({
+   699→    required BuildContext context,
+   700→    required String label,
+   701→    required DateTime? value,
+   702→    required VoidCallback onPressed,
+   703→  }) {
+   704→    final cs = context.colorScheme;
+   705→    final tt = context.textTheme;
+   706→    const months = [
+   707→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+   708→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+   709→    ];
+   710→    final displayText = value != null
+   711→        ? '${months[value.month]} ${value.day}, ${value.year} ${value.hour.toString().padLeft(2, '0')}:${value.minute.toString().padLeft(2, '0')}'
+   712→        : 'Select date & time';
+   713→
+   714→    return InkWell(
+   715→      onTap: onPressed,
+   716→      borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   717→      child: InputDecorator(
+   718→        decoration: InputDecoration(
+   719→          labelText: label,
+   720→          prefixIcon: const Icon(Icons.event_rounded),
+   721→        ),
+   722→        child: Text(
+   723→          displayText,
+   724→          style: tt.bodyLarge?.copyWith(
+   725→            color: value != null ? cs.onSurface : cs.onSurfaceVariant,
+   726→          ),
+   727→        ),
+   728→      ),
+   729→    );
+   730→  }
+   731→
+   732→  Future<DateTime?> _pickDateTime(BuildContext context, DateTime? initial) async {
+   733→    final date = await showDatePicker(
+   734→      context: context,
+   735→      initialDate: initial ?? DateTime.now(),
+   736→      firstDate: DateTime(2024),
+   737→      lastDate: DateTime(2030),
+   738→    );
+   739→    if (date == null) return null;
+   740→
+   741→    final time = await showTimePicker(
+   742→      context: context,
+   743→      initialTime: TimeOfDay.fromDateTime(initial ?? DateTime.now()),
+   744→    );
+   745→    if (time == null) return null;
+   746→
+   747→    return DateTime(
+   748→      date.year, date.month, date.day,
+   749→      time.hour, time.minute,
+   750→    );
+   751→  }
+   752→
+   753→  double _calculateTotalMarks() {
+   754→    // In production, calculate from selected questions
+   755→    return 0.0;
+   756→  }
+   757→
+   758→  Future<void> _saveDraft() async {
+   759→    if (_titleController.text.trim().isEmpty) {
+   760→      AppDialog.showError(
+   761→        context: context,
+   762→        title: 'Missing Title',
+   763→        message: 'Please enter an exam title before saving.',
+   764→      );
+   765→      return;
+   766→    }
+   767→
+   768→    await ref.read(examBuilderProvider.notifier).saveDraft();
+   769→    if (mounted) {
+   770→      ScaffoldMessenger.of(context).showSnackBar(
+   771→        const SnackBar(content: Text('Draft saved successfully')),
+   772→      );
+   773→    }
+   774→  }
+   775→
+   776→  Future<void> _publishExam() async {
+   777→    if (_titleController.text.trim().isEmpty) {
+   778→      AppDialog.showError(
+   779→        context: context,
+   780→        title: 'Missing Information',
+   781→        message: 'Please fill in all required fields before publishing.',
+   782→      );
+   783→      return;
+   784→    }
+   785→
+   786→    final confirmed = await AppDialog.showConfirm(
+   787→      context: context,
+   788→      title: 'Publish Exam?',
+   789→      message: 'Once published, the exam cannot be edited. Students will be able to see it.',
+   790→      confirmText: 'Publish',
+   791→    );
+   792→
+   793→    if (confirmed == true) {
+   794→      await ref.read(examBuilderProvider.notifier).publishExam();
+   795→      if (mounted) {
+   796→        ScaffoldMessenger.of(context).showSnackBar(
+   797→          const SnackBar(content: Text('Exam published successfully')),
+   798→        );
+   799→        Navigator.of(context).pop();
+   800→      }
+   801→    }
+   802→  }
+   803→}
+   804→

@@ -1,0 +1,887 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/app_typography.dart';
+     6→import '../../../../core/themes/spacings.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/widgets.dart';
+     9→import '../providers/student_portal_providers.dart';
+    10→import '../../domain/entities/student_portal_entities.dart';
+    11→
+    12→/// Practice quiz interface page with three screens:
+    13→/// - Setup: Subject/Topic/Difficulty selectors, Mode toggle, Question count, Start
+    14→/// - Session: Question display, Answer input, Navigator, Timer, Progress, Submit
+    15→/// - Results: Score display, Question review, Time per question, Retake
+    16→class PracticeModePage extends ConsumerStatefulWidget {
+    17→  const PracticeModePage({super.key});
+    18→
+    19→  @override
+    20→  ConsumerState<PracticeModePage> createState() => _PracticeModePageState();
+    21→}
+    22→
+    23→class _PracticeModePageState extends ConsumerState<PracticeModePage> {
+    24→  // Setup state
+    25→  String? _selectedSubject;
+    26→  String? _selectedTopic;
+    27→  String _selectedDifficulty = 'medium';
+    28→  PracticeMode _selectedMode = PracticeMode.untimed;
+    29→  double _questionCount = 10;
+    30→  int _timeLimitMin = 30;
+    31→
+    32→  @override
+    33→  void initState() {
+    34→    super.initState();
+    35→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    36→      ref.read(practiceProvider.notifier).loadSessions();
+    37→    });
+    38→  }
+    39→
+    40→  @override
+    41→  Widget build(BuildContext context) {
+    42→    final practiceState = ref.watch(practiceProvider);
+    43→
+    44→    // Determine which screen to show
+    45→    if (practiceState.currentSession != null &&
+    46→        practiceState.currentSession!.status ==
+    47→            PracticeSessionStatus.completed) {
+    48→      return _buildResultsScreen(context, practiceState);
+    49→    }
+    50→
+    51→    if (practiceState.currentSession != null &&
+    52→        practiceState.currentSession!.status ==
+    53→            PracticeSessionStatus.inProgress) {
+    54→      return _buildSessionScreen(context, practiceState);
+    55→    }
+    56→
+    57→    return _buildSetupScreen(context, practiceState);
+    58→  }
+    59→
+    60→  // ═══════════════════════════════════════════════════════════════════════
+    61→  // SETUP SCREEN
+    62→  // ═══════════════════════════════════════════════════════════════════════
+    63→
+    64→  Widget _buildSetupScreen(BuildContext context, PracticeState state) {
+    65→    final cs = context.colorScheme;
+    66→    final tt = context.textTheme;
+    67→
+    68→    return Scaffold(
+    69→      appBar: AppBar(title: const Text('Practice Mode')),
+    70→      body: SingleChildScrollView(
+    71→        padding: Spacings.paddingScreen,
+    72→        child: Column(
+    73→          crossAxisAlignment: CrossAxisAlignment.start,
+    74→          children: [
+    75→            // Header
+    76→            Container(
+    77→              padding: const EdgeInsets.all(Spacings.xl),
+    78→              decoration: BoxDecoration(
+    79→                gradient: AppColors.coolGradient,
+    80→                borderRadius: BorderRadius.circular(Spacings.lgRadius),
+    81→              ),
+    82→              child: Row(
+    83→                children: [
+    84→                  const Icon(
+    85→                    Icons.quiz_rounded,
+    86→                    size: Spacings.xlIcon,
+    87→                    color: Colors.white,
+    88→                  ),
+    89→                  const SizedBox(width: Spacings.lg),
+    90→                  Expanded(
+    91→                    child: Column(
+    92→                      crossAxisAlignment: CrossAxisAlignment.start,
+    93→                      children: [
+    94→                        Text(
+    95→                          'Practice Session',
+    96→                          style: tt.titleLarge?.copyWith(
+    97→                            fontWeight: AppTypography.wBold,
+    98→                            color: Colors.white,
+    99→                          ),
+   100→                        ),
+   101→                        const SizedBox(height: Spacings.xs),
+   102→                        Text(
+   103→                          'Configure your practice session below',
+   104→                          style: tt.bodyMedium?.copyWith(
+   105→                            color: Colors.white.withValues(alpha: 0.9),
+   106→                          ),
+   107→                        ),
+   108→                      ],
+   109→                    ),
+   110→                  ),
+   111→                ],
+   112→              ),
+   113→            ),
+   114→            Spacings.sectionGap,
+   115→
+   116→            // Subject selector
+   117→            _buildSectionTitle(context, 'Subject'),
+   118→            const SizedBox(height: Spacings.sm),
+   119→            DropdownButtonFormField<String>(
+   120→              value: _selectedSubject,
+   121→              decoration: const InputDecoration(
+   122→                hintText: 'Select a subject',
+   123→                border: OutlineInputBorder(),
+   124→                prefixIcon: Icon(Icons.menu_book_outlined),
+   125→              ),
+   126→              items: const [
+   127→                DropdownMenuItem(value: 'mathematics', child: Text('Mathematics')),
+   128→                DropdownMenuItem(value: 'english', child: Text('English')),
+   129→                DropdownMenuItem(value: 'biology', child: Text('Biology')),
+   130→                DropdownMenuItem(value: 'physics', child: Text('Physics')),
+   131→                DropdownMenuItem(value: 'chemistry', child: Text('Chemistry')),
+   132→              ],
+   133→              onChanged: (value) {
+   134→                setState(() => _selectedSubject = value);
+   135→              },
+   136→            ),
+   137→            Spacings.sectionGap,
+   138→
+   139→            // Topic selector
+   140→            _buildSectionTitle(context, 'Topic'),
+   141→            const SizedBox(height: Spacings.sm),
+   142→            DropdownButtonFormField<String>(
+   143→              value: _selectedTopic,
+   144→              decoration: const InputDecoration(
+   145→                hintText: 'Select a topic (optional)',
+   146→                border: OutlineInputBorder(),
+   147→                prefixIcon: Icon(Icons.topic_outlined),
+   148→              ),
+   149→              items: const [
+   150→                DropdownMenuItem(value: 'algebra', child: Text('Algebra')),
+   151→                DropdownMenuItem(value: 'geometry', child: Text('Geometry')),
+   152→                DropdownMenuItem(value: 'calculus', child: Text('Calculus')),
+   153→              ],
+   154→              onChanged: (value) {
+   155→                setState(() => _selectedTopic = value);
+   156→              },
+   157→            ),
+   158→            Spacings.sectionGap,
+   159→
+   160→            // Difficulty selector
+   161→            _buildSectionTitle(context, 'Difficulty'),
+   162→            const SizedBox(height: Spacings.sm),
+   163→            SegmentedButton<String>(
+   164→              segments: const [
+   165→                ButtonSegment(value: 'easy', label: Text('Easy')),
+   166→                ButtonSegment(value: 'medium', label: Text('Medium')),
+   167→                ButtonSegment(value: 'hard', label: Text('Hard')),
+   168→              ],
+   169→              selected: {_selectedDifficulty},
+   170→              onSelectionChanged: (selection) {
+   171→                setState(() => _selectedDifficulty = selection.first);
+   172→              },
+   173→            ),
+   174→            Spacings.sectionGap,
+   175→
+   176→            // Mode toggle
+   177→            _buildSectionTitle(context, 'Mode'),
+   178→            const SizedBox(height: Spacings.sm),
+   179→            SegmentedButton<PracticeMode>(
+   180→              segments: [
+   181→                ButtonSegment(
+   182→                  value: PracticeMode.untimed,
+   183→                  label: const Text('Untimed'),
+   184→                  icon: const Icon(Icons.timer_off_outlined, size: 18),
+   185→                ),
+   186→                ButtonSegment(
+   187→                  value: PracticeMode.timed,
+   188→                  label: const Text('Timed'),
+   189→                  icon: const Icon(Icons.timer_outlined, size: 18),
+   190→                ),
+   191→              ],
+   192→              selected: {_selectedMode},
+   193→              onSelectionChanged: (selection) {
+   194→                setState(() => _selectedMode = selection.first);
+   195→              },
+   196→            ),
+   197→            if (_selectedMode == PracticeMode.timed) ...[
+   198→              const SizedBox(height: Spacings.md),
+   199→              Row(
+   200→                children: [
+   201→                  const Icon(Icons.timer_outlined, size: 20),
+   202→                  const SizedBox(width: Spacings.sm),
+   203→                  Expanded(
+   204→                    child: Slider(
+   205→                      value: _timeLimitMin.toDouble(),
+   206→                      min: 5,
+   207→                      max: 120,
+   208→                      divisions: 23,
+   209→                      label: '$_timeLimitMin min',
+   210→                      onChanged: (value) {
+   211→                        setState(() => _timeLimitMin = value.toInt());
+   212→                      },
+   213→                    ),
+   214→                  ),
+   215→                  Text(
+   216→                    '$_timeLimitMin min',
+   217→                    style: tt.titleSmall?.copyWith(
+   218→                      fontWeight: AppTypography.wSemiBold,
+   219→                    ),
+   220→                  ),
+   221→                ],
+   222→              ),
+   223→            ],
+   224→            Spacings.sectionGap,
+   225→
+   226→            // Question count
+   227→            _buildSectionTitle(context, 'Number of Questions'),
+   228→            const SizedBox(height: Spacings.sm),
+   229→            Row(
+   230→              children: [
+   231→                Expanded(
+   232→                  child: Slider(
+   233→                    value: _questionCount,
+   234→                    min: 5,
+   235→                    max: 50,
+   236→                    divisions: 9,
+   237→                    label: '${_questionCount.toInt()}',
+   238→                    onChanged: (value) {
+   239→                      setState(() => _questionCount = value);
+   240→                    },
+   241→                  ),
+   242→                ),
+   243→                const SizedBox(width: Spacings.md),
+   244→                Text(
+   245→                  '${_questionCount.toInt()}',
+   246→                  style: tt.headlineSmall?.copyWith(
+   247→                    fontWeight: AppTypography.wBold,
+   248→                  ),
+   249→                ),
+   250→              ],
+   251→            ),
+   252→            Spacings.sectionGap,
+   253→
+   254→            // Start button
+   255→            SizedBox(
+   256→              width: double.infinity,
+   257→              child: FilledButton.icon(
+   258→                onPressed: state.isLoading
+   259→                    ? null
+   260→                    : _startSession,
+   261→                icon: state.isLoading
+   262→                    ? const SizedBox(
+   263→                        width: 20,
+   264→                        height: 20,
+   265→                        child: CircularProgressIndicator(
+   266→                          strokeWidth: 2,
+   267→                          color: Colors.white,
+   268→                        ),
+   269→                      )
+   270→                    : const Icon(Icons.play_arrow_rounded),
+   271→                label: const Text('Start Practice'),
+   272→                style: FilledButton.styleFrom(
+   273→                  padding: const EdgeInsets.symmetric(vertical: Spacings.lg),
+   274→                ),
+   275→              ),
+   276→            ),
+   277→          ],
+   278→        ),
+   279→      ),
+   280→    );
+   281→  }
+   282→
+   283→  // ═══════════════════════════════════════════════════════════════════════
+   284→  // SESSION SCREEN
+   285→  // ═══════════════════════════════════════════════════════════════════════
+   286→
+   287→  Widget _buildSessionScreen(BuildContext context, PracticeState state) {
+   288→    final cs = context.colorScheme;
+   289→    final tt = context.textTheme;
+   290→    final session = state.currentSession!;
+   291→
+   292→    return Scaffold(
+   293→      appBar: AppBar(
+   294→        title: Text(session.subjectName ?? 'Practice'),
+   295→        actions: [
+   296→          // Timer display for timed mode
+   297→          if (state.isTimedMode && state.remainingTime != null)
+   298→            Padding(
+   299→              padding: const EdgeInsets.symmetric(horizontal: Spacings.md),
+   300→              child: Center(
+   301→                child: Container(
+   302→                  padding: const EdgeInsets.symmetric(
+   303→                    horizontal: Spacings.md,
+   304→                    vertical: Spacings.xs,
+   305→                  ),
+   306→                  decoration: BoxDecoration(
+   307→                    color: state.remainingTime!.inMinutes < 5
+   308→                        ? AppColors.error.withValues(alpha: 0.1)
+   309→                        : cs.primaryContainer,
+   310→                    borderRadius:
+   311→                        BorderRadius.circular(Spacings.fullRadius),
+   312→                  ),
+   313→                  child: Row(
+   314→                    mainAxisSize: MainAxisSize.min,
+   315→                    children: [
+   316→                      Icon(
+   317→                        Icons.timer_outlined,
+   318→                        size: 18,
+   319→                        color: state.remainingTime!.inMinutes < 5
+   320→                            ? AppColors.error
+   321→                            : cs.primary,
+   322→                      ),
+   323→                      const SizedBox(width: Spacings.xs),
+   324→                      Text(
+   325→                        _formatDuration(state.remainingTime!),
+   326→                        style: tt.titleSmall?.copyWith(
+   327→                          fontWeight: AppTypography.wSemiBold,
+   328→                          color: state.remainingTime!.inMinutes < 5
+   329→                              ? AppColors.error
+   330→                              : cs.primary,
+   331→                        ),
+   332→                      ),
+   333→                    ],
+   334→                  ),
+   335→                ),
+   336→              ),
+   337→            ),
+   338→          IconButton(
+   339→            icon: const Icon(Icons.close),
+   340→            onPressed: () => _showAbandonDialog(context),
+   341→          ),
+   342→        ],
+   343→      ),
+   344→      body: Column(
+   345→        children: [
+   346→          // Progress indicator
+   347→          LinearProgressIndicator(
+   348→            value: state.totalQuestions > 0
+   349→                ? (state.currentQuestionIndex + 1) / state.totalQuestions
+   350→                : 0,
+   351→          ),
+   352→
+   353→          // Question navigator dots
+   354→          Container(
+   355→            padding: const EdgeInsets.symmetric(
+   356→              horizontal: Spacings.lg,
+   357→              vertical: Spacings.md,
+   358→            ),
+   359→            child: SingleChildScrollView(
+   360→              scrollDirection: Axis.horizontal,
+   361→              child: Row(
+   362→                children: List.generate(
+   363→                  state.totalQuestions,
+   364→                  (index) {
+   365→                    final isAnswered = index < state.answeredCount;
+   366→                    final isCurrent =
+   367→                        index == state.currentQuestionIndex;
+   368→                    return GestureDetector(
+   369→                      onTap: () {
+   370→                        // Navigate to question
+   371→                      },
+   372→                      child: Container(
+   373→                        width: 32,
+   374→                        height: 32,
+   375→                        margin: const EdgeInsets.symmetric(
+   376→                          horizontal: Spacings.xs,
+   377→                        ),
+   378→                        decoration: BoxDecoration(
+   379→                          shape: BoxShape.circle,
+   380→                          color: isCurrent
+   381→                              ? cs.primary
+   382→                              : isAnswered
+   383→                                  ? AppColors.success
+   384→                                  : cs.surfaceContainerHighest,
+   385→                          border: isCurrent
+   386→                              ? null
+   387→                              : Border.all(
+   388→                                  color: cs.outlineVariant,
+   389→                                ),
+   390→                        ),
+   391→                        child: Center(
+   392→                          child: Text(
+   393→                            '${index + 1}',
+   394→                            style: tt.labelSmall?.copyWith(
+   395→                              color: isCurrent
+   396→                                  ? cs.onPrimary
+   397→                                  : isAnswered
+   398→                                      ? Colors.white
+   399→                                      : cs.onSurfaceVariant,
+   400→                              fontWeight: AppTypography.wSemiBold,
+   401→                            ),
+   402→                          ),
+   403→                        ),
+   404→                      ),
+   405→                    );
+   406→                  },
+   407→                ),
+   408→              ),
+   409→            ),
+   410→          ),
+   411→
+   412→          // Question content area
+   413→          Expanded(
+   414→            child: SingleChildScrollView(
+   415→              padding: Spacings.paddingScreen,
+   416→              child: Column(
+   417→                crossAxisAlignment: CrossAxisAlignment.start,
+   418→                children: [
+   419→                  Text(
+   420→                    'Question ${state.currentQuestionIndex + 1} of ${state.totalQuestions}',
+   421→                    style: tt.labelMedium?.copyWith(
+   422→                      color: cs.primary,
+   423→                      fontWeight: AppTypography.wSemiBold,
+   424→                    ),
+   425→                  ),
+   426→                  const SizedBox(height: Spacings.md),
+   427→                  Container(
+   428→                    width: double.infinity,
+   429→                    padding: const EdgeInsets.all(Spacings.lg),
+   430→                    decoration: BoxDecoration(
+   431→                      color: cs.surfaceContainerLow,
+   432→                      borderRadius:
+   433→                          BorderRadius.circular(Spacings.lgRadius),
+   434→                    ),
+   435→                    child: Text(
+   436→                      'This is a sample question for the practice session. The actual question content would be loaded from the backend based on the selected subject and topic.',
+   437→                      style: tt.bodyLarge?.copyWith(
+   438→                        color: cs.onSurface,
+   439→                      ),
+   440→                    ),
+   441→                  ),
+   442→                  Spacings.sectionGap,
+   443→
+   444→                  // Answer area (multiple choice example)
+   445→                  _buildSectionTitle(context, 'Your Answer'),
+   446→                  const SizedBox(height: Spacings.sm),
+   447→                  ...['Option A', 'Option B', 'Option C', 'Option D']
+   448→                      .map((option) => _AnswerOption(
+   449→                            label: option,
+   450→                            isSelected: false,
+   451→                            onTap: () {},
+   452→                          )),
+   453→                ],
+   454→              ),
+   455→            ),
+   456→          ),
+   457→
+   458→          // Navigation buttons
+   459→          Container(
+   460→            padding: const EdgeInsets.all(Spacings.lg),
+   461→            decoration: BoxDecoration(
+   462→              color: cs.surface,
+   463→              border: Border(
+   464→                top: BorderSide(
+   465→                  color: cs.outlineVariant.withValues(alpha: 0.5),
+   466→                ),
+   467→              ),
+   468→            ),
+   469→            child: SafeArea(
+   470→              child: Row(
+   471→                children: [
+   472→                  Expanded(
+   473→                    child: OutlinedButton(
+   474→                      onPressed: state.isFirstQuestion
+   475→                          ? null
+   476→                          : () => ref
+   477→                              .read(practiceProvider.notifier)
+   478→                              .previousQuestion(),
+   479→                      child: const Text('Previous'),
+   480→                    ),
+   481→                  ),
+   482→                  const SizedBox(width: Spacings.md),
+   483→                  Expanded(
+   484→                    child: FilledButton(
+   485→                      onPressed: state.isLastQuestion
+   486→                          ? () => _completeSession()
+   487→                          : () => ref
+   488→                              .read(practiceProvider.notifier)
+   489→                              .nextQuestion(),
+   490→                      child: Text(
+   491→                        state.isLastQuestion ? 'Finish' : 'Next',
+   492→                      ),
+   493→                    ),
+   494→                  ),
+   495→                ],
+   496→              ),
+   497→            ),
+   498→          ),
+   499→        ],
+   500→      ),
+   501→    );
+   502→  }
+   503→
+   504→  // ═══════════════════════════════════════════════════════════════════════
+   505→  // RESULTS SCREEN
+   506→  // ═══════════════════════════════════════════════════════════════════════
+   507→
+   508→  Widget _buildResultsScreen(BuildContext context, PracticeState state) {
+   509→    final cs = context.colorScheme;
+   510→    final tt = context.textTheme;
+   511→    final session = state.currentSession!;
+   512→
+   513→    return Scaffold(
+   514→      appBar: AppBar(
+   515→        title: const Text('Practice Results'),
+   516→        automaticallyImplyLeading: false,
+   517→      ),
+   518→      body: SingleChildScrollView(
+   519→        padding: Spacings.paddingScreen,
+   520→        child: Column(
+   521→          crossAxisAlignment: CrossAxisAlignment.start,
+   522→          children: [
+   523→            // Score display
+   524→            Center(
+   525→              child: Column(
+   526→                children: [
+   527→                  Container(
+   528→                    width: 160,
+   529→                    height: 160,
+   530→                    decoration: BoxDecoration(
+   531→                      shape: BoxShape.circle,
+   532→                      gradient: session.scorePct >= 70
+   533→                          ? AppColors.coolGradient
+   534→                          : AppColors.warmGradient,
+   535→                    ),
+   536→                    child: Center(
+   537→                      child: Column(
+   538→                        mainAxisAlignment: MainAxisAlignment.center,
+   539→                        children: [
+   540→                          Text(
+   541→                            '${session.scorePct.toStringAsFixed(0)}%',
+   542→                            style: tt.displaySmall?.copyWith(
+   543→                              fontWeight: AppTypography.wBold,
+   544→                              color: Colors.white,
+   545→                            ),
+   546→                          ),
+   547→                          Text(
+   548→                            'Score',
+   549→                            style: tt.bodySmall?.copyWith(
+   550→                              color: Colors.white.withValues(alpha: 0.9),
+   551→                            ),
+   552→                          ),
+   553→                        ],
+   554→                      ),
+   555→                    ),
+   556→                  ),
+   557→                  const SizedBox(height: Spacings.lg),
+   558→                  Text(
+   559→                    session.scorePct >= 70
+   560→                        ? 'Great Job! 🎉'
+   561→                        : session.scorePct >= 50
+   562→                            ? 'Good Effort! 💪'
+   563→                            : 'Keep Practicing! 📚',
+   564→                    style: tt.headlineSmall?.copyWith(
+   565→                      fontWeight: AppTypography.wBold,
+   566→                      color: cs.onSurface,
+   567→                    ),
+   568→                  ),
+   569→                ],
+   570→              ),
+   571→            ),
+   572→            Spacings.sectionGap,
+   573→
+   574→            // Stats row
+   575→            Row(
+   576→              children: [
+   577→                Expanded(
+   578→                  child: _ResultStatCard(
+   579→                    label: 'Correct',
+   580→                    value: '${session.correctCount}',
+   581→                    icon: Icons.check_circle_outline,
+   582→                    color: AppColors.success,
+   583→                  ),
+   584→                ),
+   585→                const SizedBox(width: Spacings.md),
+   586→                Expanded(
+   587→                  child: _ResultStatCard(
+   588→                    label: 'Wrong',
+   589→                    value:
+   590→                        '${session.totalQuestions - session.correctCount}',
+   591→                    icon: Icons.cancel_outlined,
+   592→                    color: AppColors.error,
+   593→                  ),
+   594→                ),
+   595→                const SizedBox(width: Spacings.md),
+   596→                Expanded(
+   597→                  child: _ResultStatCard(
+   598→                    label: 'Total',
+   599→                    value: '${session.totalQuestions}',
+   600→                    icon: Icons.quiz_outlined,
+   601→                    color: AppColors.info,
+   602→                  ),
+   603→                ),
+   604→              ],
+   605→            ),
+   606→            Spacings.sectionGap,
+   607→
+   608→            // Question review
+   609→            _buildSectionTitle(context, 'Question Review'),
+   610→            const SizedBox(height: Spacings.sm),
+   611→            ...state.currentAnswers.map(
+   612→              (answer) => _QuestionReviewCard(answer: answer),
+   613→            ),
+   614→            Spacings.sectionGap,
+   615→
+   616→            // Action buttons
+   617→            Row(
+   618→              children: [
+   619→                Expanded(
+   620→                  child: OutlinedButton.icon(
+   621→                    onPressed: () {
+   622→                      ref.read(practiceProvider.notifier).abandonSession();
+   623→                    },
+   624→                    icon: const Icon(Icons.refresh_rounded),
+   625→                    label: const Text('Retake'),
+   626→                  ),
+   627→                ),
+   628→                const SizedBox(width: Spacings.md),
+   629→                Expanded(
+   630→                  child: FilledButton.icon(
+   631→                    onPressed: () {
+   632→                      ref.read(practiceProvider.notifier).abandonSession();
+   633→                    },
+   634→                    icon: const Icon(Icons.home_outlined),
+   635→                    label: const Text('Done'),
+   636→                  ),
+   637→                ),
+   638→              ],
+   639→            ),
+   640→          ],
+   641→        ),
+   642→      ),
+   643→    );
+   644→  }
+   645→
+   646→  // ─── Helpers ────────────────────────────────────────────────────────
+   647→
+   648→  Widget _buildSectionTitle(BuildContext context, String title) {
+   649→    return Text(
+   650→      title,
+   651→      style: context.textTheme.titleSmall?.copyWith(
+   652→        fontWeight: AppTypography.wSemiBold,
+   653→        color: context.colorScheme.onSurface,
+   654→      ),
+   655→    );
+   656→  }
+   657→
+   658→  void _startSession() {
+   659→    ref.read(practiceProvider.notifier).createSession(
+   660→      subjectId: _selectedSubject,
+   661→      topicId: _selectedTopic,
+   662→      difficulty: _selectedDifficulty,
+   663→      mode: _selectedMode,
+   664→      timeLimitSec: _selectedMode == PracticeMode.timed
+   665→          ? _timeLimitMin * 60
+   666→          : null,
+   667→      questionCount: _questionCount.toInt(),
+   668→    );
+   669→  }
+   670→
+   671→  void _completeSession() {
+   672→    ref.read(practiceProvider.notifier).completeSession();
+   673→  }
+   674→
+   675→  void _showAbandonDialog(BuildContext context) {
+   676→    showDialog(
+   677→      context: context,
+   678→      builder: (context) => AlertDialog(
+   679→        title: const Text('Abandon Session?'),
+   680→        content: const Text(
+   681→          'Are you sure you want to abandon this practice session? Your progress will be lost.',
+   682→        ),
+   683→        actions: [
+   684→          TextButton(
+   685→            onPressed: () => Navigator.pop(context),
+   686→            child: const Text('Cancel'),
+   687→          ),
+   688→          FilledButton(
+   689→            onPressed: () {
+   690→              Navigator.pop(context);
+   691→              ref.read(practiceProvider.notifier).abandonSession();
+   692→            },
+   693→            child: const Text('Abandon'),
+   694→          ),
+   695→        ],
+   696→      ),
+   697→    );
+   698→  }
+   699→
+   700→  String _formatDuration(Duration duration) {
+   701→    final hours = duration.inHours;
+   702→    final minutes = duration.inMinutes.remainder(60);
+   703→    final seconds = duration.inSeconds.remainder(60);
+   704→    if (hours > 0) {
+   705→      return '${hours}h ${minutes}m';
+   706→    }
+   707→    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+   708→  }
+   709→}
+   710→
+   711→// ═══════════════════════════════════════════════════════════════════════
+   712→// PRIVATE HELPER WIDGETS
+   713→// ═══════════════════════════════════════════════════════════════════════
+   714→
+   715→class _AnswerOption extends StatelessWidget {
+   716→  const _AnswerOption({
+   717→    required this.label,
+   718→    required this.isSelected,
+   719→    required this.onTap,
+   720→  });
+   721→
+   722→  final String label;
+   723→  final bool isSelected;
+   724→  final VoidCallback onTap;
+   725→
+   726→  @override
+   727→  Widget build(BuildContext context) {
+   728→    final cs = context.colorScheme;
+   729→    final tt = context.textTheme;
+   730→
+   731→    return Padding(
+   732→      padding: const EdgeInsets.only(bottom: Spacings.sm),
+   733→      child: InkWell(
+   734→        onTap: onTap,
+   735→        borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   736→        child: Container(
+   737→          padding: const EdgeInsets.all(Spacings.lg),
+   738→          decoration: BoxDecoration(
+   739→            border: Border.all(
+   740→              color: isSelected ? cs.primary : cs.outlineVariant,
+   741→              width: isSelected ? 2 : 1,
+   742→            ),
+   743→            borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   744→            color: isSelected
+   745→                ? cs.primaryContainer.withValues(alpha: 0.3)
+   746→                : null,
+   747→          ),
+   748→          child: Row(
+   749→            children: [
+   750→              Icon(
+   751→                isSelected
+   752→                    ? Icons.radio_button_checked
+   753→                    : Icons.radio_button_unchecked,
+   754→                color: isSelected ? cs.primary : cs.onSurfaceVariant,
+   755→              ),
+   756→              const SizedBox(width: Spacings.md),
+   757→              Expanded(
+   758→                child: Text(
+   759→                  label,
+   760→                  style: tt.bodyMedium?.copyWith(
+   761→                    color: isSelected ? cs.primary : cs.onSurface,
+   762→                    fontWeight: isSelected
+   763→                        ? AppTypography.wSemiBold
+   764→                        : AppTypography.wRegular,
+   765→                  ),
+   766→                ),
+   767→              ),
+   768→            ],
+   769→          ),
+   770→        ),
+   771→      ),
+   772→    );
+   773→  }
+   774→}
+   775→
+   776→class _ResultStatCard extends StatelessWidget {
+   777→  const _ResultStatCard({
+   778→    required this.label,
+   779→    required this.value,
+   780→    required this.icon,
+   781→    required this.color,
+   782→  });
+   783→
+   784→  final String label;
+   785→  final String value;
+   786→  final IconData icon;
+   787→  final Color color;
+   788→
+   789→  @override
+   790→  Widget build(BuildContext context) {
+   791→    final cs = context.colorScheme;
+   792→    final tt = context.textTheme;
+   793→
+   794→    return AppCard(
+   795→      child: Column(
+   796→        children: [
+   797→          Icon(icon, size: Spacings.lgIcon, color: color),
+   798→          const SizedBox(height: Spacings.sm),
+   799→          Text(
+   800→            value,
+   801→            style: tt.headlineSmall?.copyWith(
+   802→              fontWeight: AppTypography.wBold,
+   803→              color: cs.onSurface,
+   804→            ),
+   805→          ),
+   806→          Text(
+   807→            label,
+   808→            style: tt.bodySmall?.copyWith(
+   809→              color: cs.onSurfaceVariant,
+   810→            ),
+   811→          ),
+   812→        ],
+   813→      ),
+   814→    );
+   815→  }
+   816→}
+   817→
+   818→class _QuestionReviewCard extends StatelessWidget {
+   819→  const _QuestionReviewCard({required this.answer});
+   820→
+   821→  final PracticeAnswerEntity answer;
+   822→
+   823→  @override
+   824→  Widget build(BuildContext context) {
+   825→    final cs = context.colorScheme;
+   826→    final tt = context.textTheme;
+   827→    final isCorrect = answer.isCorrect == true;
+   828→
+   829→    return Padding(
+   830→      padding: const EdgeInsets.only(bottom: Spacings.sm),
+   831→      child: AppCard(
+   832→        child: Row(
+   833→          children: [
+   834→            Container(
+   835→              padding: const EdgeInsets.all(Spacings.sm),
+   836→              decoration: BoxDecoration(
+   837→                color: isCorrect
+   838→                    ? AppColors.success.withValues(alpha: 0.1)
+   839→                    : AppColors.error.withValues(alpha: 0.1),
+   840→                shape: BoxShape.circle,
+   841→              ),
+   842→              child: Icon(
+   843→                isCorrect ? Icons.check_rounded : Icons.close_rounded,
+   844→                color: isCorrect ? AppColors.success : AppColors.error,
+   845→                size: Spacings.mdIcon,
+   846→              ),
+   847→            ),
+   848→            const SizedBox(width: Spacings.md),
+   849→            Expanded(
+   850→              child: Column(
+   851→                crossAxisAlignment: CrossAxisAlignment.start,
+   852→                children: [
+   853→                  Text(
+   854→                    answer.questionText ?? 'Question ${answer.questionId}',
+   855→                    style: tt.bodyMedium?.copyWith(
+   856→                      color: cs.onSurface,
+   857→                    ),
+   858→                    maxLines: 2,
+   859→                    overflow: TextOverflow.ellipsis,
+   860→                  ),
+   861→                  if (answer.explanation != null) ...[
+   862→                    const SizedBox(height: Spacings.xs),
+   863→                    Text(
+   864→                      answer.explanation!,
+   865→                      style: tt.bodySmall?.copyWith(
+   866→                        color: cs.onSurfaceVariant,
+   867→                      ),
+   868→                      maxLines: 2,
+   869→                      overflow: TextOverflow.ellipsis,
+   870→                    ),
+   871→                  ],
+   872→                ],
+   873→              ),
+   874→            ),
+   875→            Text(
+   876→              '${answer.timeSpentSec}s',
+   877→              style: tt.labelSmall?.copyWith(
+   878→                color: cs.onSurfaceVariant,
+   879→              ),
+   880→            ),
+   881→          ],
+   882→        ),
+   883→      ),
+   884→    );
+   885→  }
+   886→}
+   887→

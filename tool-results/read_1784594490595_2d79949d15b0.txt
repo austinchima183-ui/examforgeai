@@ -1,0 +1,1129 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../../core/themes/app_colors.dart';
+     5→import '../../../../../core/themes/app_typography.dart';
+     6→import '../../../../../core/themes/spacings.dart';
+     7→import '../../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../../shared/widgets/widgets.dart';
+     9→import '../../domain/entities/marketplace_entities.dart';
+    10→import '../providers/product_detail_provider.dart';
+    11→import '../providers/cart_provider.dart';
+    12→import '../widgets/marketplace_widgets.dart';
+    13→
+    14→// ═══════════════════════════════════════════════════════════════════════════════
+    15→// PRODUCT DETAIL PAGE
+    16→// ═══════════════════════════════════════════════════════════════════════════════
+    17→
+    18→/// Single product detail page with full product information, reviews,
+    19→/// quality checks, related products, and purchase actions.
+    20→///
+    21→/// ```dart
+    22→/// Navigator.push(
+    23→///   context,
+    24→///   MaterialPageRoute(builder: (_) => ProductDetailPage(productId: '123')),
+    25→/// );
+    26→/// ```
+    27→class ProductDetailPage extends ConsumerStatefulWidget {
+    28→  const ProductDetailPage({
+    29→    super.key,
+    30→    required this.productId,
+    31→  });
+    32→
+    33→  final String productId;
+    34→
+    35→  @override
+    36→  ConsumerState<ProductDetailPage> createState() => _ProductDetailPageState();
+    37→}
+    38→
+    39→class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
+    40→  MarketplaceLicenseType _selectedLicense = MarketplaceLicenseType.personal;
+    41→
+    42→  @override
+    43→  void initState() {
+    44→    super.initState();
+    45→    WidgetsBinding.instance.addPostFrameCallback((_) => _loadData());
+    46→  }
+    47→
+    48→  Future<void> _loadData() async {
+    49→    final notifier = ref.read(productDetailProvider.notifier);
+    50→    await notifier.loadProduct(productId: widget.productId);
+    51→    // Load supplementary data
+    52→    notifier.loadReviews(productId: widget.productId);
+    53→    notifier.loadQualityCheck(productId: widget.productId);
+    54→    notifier.loadRelatedProducts(productId: widget.productId);
+    55→    notifier.recordView(productId: widget.productId);
+    56→  }
+    57→
+    58→  void _showSnackBar(String message, {bool isError = false}) {
+    59→    context.scaffoldMessenger.showSnackBar(
+    60→      SnackBar(
+    61→        content: Text(message),
+    62→        backgroundColor: isError ? AppColors.error : null,
+    63→        behavior: SnackBarBehavior.floating,
+    64→      ),
+    65→    );
+    66→  }
+    67→
+    68→  Future<void> _addToCart() async {
+    69→    final product = ref.read(productDetailProvider).product;
+    70→    if (product == null) return;
+    71→
+    72→    await ref.read(cartProvider.notifier).addToCart(
+    73→      userId: 'current_user',
+    74→      item: CartItemEntity(
+    75→        id: '',
+    76→        cartId: '',
+    77→        productId: product.id,
+    78→        licenseType: _selectedLicense,
+    79→        addedAt: DateTime.now(),
+    80→        product: product,
+    81→      ),
+    82→    );
+    83→
+    84→    final cartState = ref.read(cartProvider);
+    85→    if (cartState.error != null) {
+    86→      _showSnackBar(cartState.error!, isError: true);
+    87→    } else if (cartState.successMessage != null) {
+    88→      _showSnackBar(cartState.successMessage!);
+    89→    }
+    90→  }
+    91→
+    92→  void _buyNow() {
+    93→    // Navigate to checkout with this product
+    94→    _showSnackBar('Proceeding to checkout...');
+    95→  }
+    96→
+    97→  void _toggleWishlist() {
+    98→    final product = ref.read(productDetailProvider).product;
+    99→    if (product == null) return;
+   100→
+   101→    ref.read(productDetailProvider.notifier).toggleWishlist(
+   102→      userId: 'current_user',
+   103→      productId: product.id,
+   104→    );
+   105→
+   106→    final state = ref.read(productDetailProvider);
+   107→    _showSnackBar(
+   108→      state.isInWishlist
+   109→          ? 'Added to wishlist'
+   110→          : 'Removed from wishlist',
+   111→    );
+   112→  }
+   113→
+   114→  @override
+   115→  Widget build(BuildContext context) {
+   116→    final state = ref.watch(productDetailProvider);
+   117→
+   118→    // Listen for errors
+   119→    ref.listen<ProductDetailState>(productDetailProvider, (prev, next) {
+   120→      if (next.error != null && prev?.error != next.error) {
+   121→        _showSnackBar(next.error!, isError: true);
+   122→        ref.read(productDetailProvider.notifier).clearError();
+   123→      }
+   124→    });
+   125→
+   126→    return Scaffold(
+   127→      appBar: AppAppBar(
+   128→        title: 'Product Details',
+   129→        actions: [
+   130→          AppIconButton(
+   131→            icon: Icons.share_rounded,
+   132→            onPressed: () {
+   133→              // Share product
+   134→            },
+   135→            tooltip: 'Share',
+   136→          ),
+   137→        ],
+   138→      ),
+   139→      body: state.isLoading
+   140→          ? const Center(child: AppLoadingSpinner())
+   141→          : state.error != null && !state.hasProduct
+   142→              ? AppErrorState.serverError(onRetry: _loadData)
+   143→              : state.hasProduct
+   144→                  ? _buildContent(state)
+   145→                  : AppErrorState.notFoundError(onRetry: _loadData),
+   146→      bottomNavigationBar:
+   147→          state.hasProduct ? _buildBottomBar(state) : null,
+   148→    );
+   149→  }
+   150→
+   151→  // ─── Main Content ───────────────────────────────────────────────────────
+   152→
+   153→  Widget _buildContent(ProductDetailState state) {
+   154→    final product = state.product!;
+   155→
+   156→    return SingleChildScrollView(
+   157→      padding: const EdgeInsets.only(bottom: 100),
+   158→      child: Column(
+   159→        crossAxisAlignment: CrossAxisAlignment.start,
+   160→        children: [
+   161→          // ── Hero Preview ──────────────────────────────────────────────
+   162→          _buildHeroPreview(product),
+   163→
+   164→          Padding(
+   165→            padding: const EdgeInsets.all(Spacings.lg),
+   166→            child: Column(
+   167→              crossAxisAlignment: CrossAxisAlignment.start,
+   168→              children: [
+   169→                // ── Title & Badges ───────────────────────────────────────
+   170→                _buildTitleSection(product),
+   171→
+   172→                const SizedBox(height: Spacings.lg),
+   173→
+   174→                // ── Seller Info ──────────────────────────────────────────
+   175→                _buildSellerRow(product),
+   176→
+   177→                const SizedBox(height: Spacings.lg),
+   178→
+   179→                // ── Price & License Selector ─────────────────────────────
+   180→                _buildPriceAndLicense(product),
+   181→
+   182→                const SizedBox(height: Spacings.lg),
+   183→
+   184→                // ── Rating ───────────────────────────────────────────────
+   185→                _buildRatingSection(product),
+   186→
+   187→                Spacings.sectionGap,
+   188→
+   189→                // ── Description ──────────────────────────────────────────
+   190→                _buildDescription(product),
+   191→
+   192→                Spacings.sectionGap,
+   193→
+   194→                // ── Product Details ──────────────────────────────────────
+   195→                _buildProductDetails(product),
+   196→
+   197→                Spacings.sectionGap,
+   198→
+   199→                // ── Tags ─────────────────────────────────────────────────
+   200→                if (product.tags.isNotEmpty) ...[
+   201→                  _buildTags(product),
+   202→                  Spacings.sectionGap,
+   203→                ],
+   204→
+   205→                // ── AI Summary ───────────────────────────────────────────
+   206→                if (product.aiGeneratedSummary != null) ...[
+   207→                  _buildAiSummary(product),
+   208→                  Spacings.sectionGap,
+   209→                ],
+   210→
+   211→                // ── Quality Check ────────────────────────────────────────
+   212→                if (state.hasQualityCheck) ...[
+   213→                  QualityScoreCard(qualityCheck: state.qualityCheck!),
+   214→                  Spacings.sectionGap,
+   215→                ],
+   216→
+   217→                // ── Preview Section ──────────────────────────────────────
+   218→                if (product.previewImages.isNotEmpty ||
+   219→                    product.previewDocuments.isNotEmpty) ...[
+   220→                  _buildPreviewSection(product),
+   221→                  Spacings.sectionGap,
+   222→                ],
+   223→
+   224→                // ── Related Products ─────────────────────────────────────
+   225→                if (state.relatedProducts.isNotEmpty) ...[
+   226→                  _buildRelatedProducts(state),
+   227→                  Spacings.sectionGap,
+   228→                ],
+   229→
+   230→                // ── Reviews ──────────────────────────────────────────────
+   231→                _buildReviewsSection(state),
+   232→              ],
+   233→            ),
+   234→          ),
+   235→        ],
+   236→      ),
+   237→    );
+   238→  }
+   239→
+   240→  // ─── Hero Preview ───────────────────────────────────────────────────────
+   241→
+   242→  Widget _buildHeroPreview(MarketplaceProductEntity product) {
+   243→    final cs = context.colorScheme;
+   244→    final isDark = context.isDarkMode;
+   245→    final typeColor = _productTypeColor(product.productType, cs);
+   246→
+   247→    return Container(
+   248→      height: 220,
+   249→      width: double.infinity,
+   250→      decoration: BoxDecoration(
+   251→        color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+   252→      ),
+   253→      child: Stack(
+   254→        children: [
+   255→          Center(
+   256→            child: ProductTypeIcon(
+   257→              type: product.productType,
+   258→              size: 64,
+   259→              color: typeColor,
+   260→            ),
+   261→          ),
+   262→          // Badges
+   263→          Positioned(
+   264→            top: Spacings.md,
+   265→            left: Spacings.md,
+   266→            child: Wrap(
+   267→              spacing: Spacings.xs,
+   268→              runSpacing: Spacings.xs,
+   269→              children: [
+   270→                if (product.isFeatured)
+   271→                  _buildBadge('Featured', AppColors.warning, Colors.white),
+   272→                if (product.isFree)
+   273→                  _buildBadge('Free', AppColors.success, Colors.white),
+   274→                if (product.isAiGenerated)
+   275→                  _buildBadge('AI Generated', AppColors.info, Colors.white),
+   276→                if (product.isDiscounted)
+   277→                  _buildBadge(
+   278→                    '-${product.discountPercentage.toStringAsFixed(0)}%',
+   279→                    AppColors.error,
+   280→                    Colors.white,
+   281→                  ),
+   282→              ],
+   283→            ),
+   284→          ),
+   285→        ],
+   286→      ),
+   287→    );
+   288→  }
+   289→
+   290→  Widget _buildBadge(String label, Color bg, Color fg) {
+   291→    return Container(
+   292→      padding: const EdgeInsets.symmetric(
+   293→        horizontal: Spacings.sm,
+   294→        vertical: Spacings.xs,
+   295→      ),
+   296→      decoration: BoxDecoration(
+   297→        color: bg,
+   298→        borderRadius: BorderRadius.circular(Spacings.smRadius),
+   299→      ),
+   300→      child: Text(
+   301→        label,
+   302→        style: TextStyle(
+   303→          fontFamily: AppTypography.fontFamily,
+   304→          fontSize: 10,
+   305→          fontWeight: AppTypography.wBold,
+   306→          color: fg,
+   307→        ),
+   308→      ),
+   309→    );
+   310→  }
+   311→
+   312→  // ─── Title Section ──────────────────────────────────────────────────────
+   313→
+   314→  Widget _buildTitleSection(MarketplaceProductEntity product) {
+   315→    final cs = context.colorScheme;
+   316→    final tt = context.textTheme;
+   317→
+   318→    return Column(
+   319→      crossAxisAlignment: CrossAxisAlignment.start,
+   320→      children: [
+   321→        // Product type badge
+   322→        Row(
+   323→          children: [
+   324→            ProductTypeIcon(type: product.productType, size: Spacings.smIcon),
+   325→            const SizedBox(width: Spacings.xs),
+   326→            Text(
+   327→              product.productType.label,
+   328→              style: tt.labelMedium?.copyWith(
+   329→                color: cs.primary,
+   330→                fontWeight: AppTypography.wSemiBold,
+   331→              ),
+   332→            ),
+   333→            const SizedBox(width: Spacings.sm),
+   334→            LicenseBadge(licenseType: product.licenseType),
+   335→          ],
+   336→        ),
+   337→        const SizedBox(height: Spacings.sm),
+   338→
+   339→        // Title
+   340→        Text(
+   341→          product.title,
+   342→          style: tt.headlineSmall?.copyWith(
+   343→            fontWeight: AppTypography.wBold,
+   344→            color: cs.onSurface,
+   345→          ),
+   346→        ),
+   347→      ],
+   348→    );
+   349→  }
+   350→
+   351→  // ─── Seller Row ─────────────────────────────────────────────────────────
+   352→
+   353→  Widget _buildSellerRow(MarketplaceProductEntity product) {
+   354→    final cs = context.colorScheme;
+   355→    final tt = context.textTheme;
+   356→    final isDark = context.isDarkMode;
+   357→
+   358→    return Row(
+   359→      children: [
+   360→        CircleAvatar(
+   361→          radius: 20,
+   362→          backgroundColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+   363→          child: Icon(
+   364→            Icons.person_rounded,
+   365→            size: Spacings.lgIcon,
+   366→            color: cs.primary,
+   367→          ),
+   368→        ),
+   369→        const SizedBox(width: Spacings.md),
+   370→        Expanded(
+   371→          child: Column(
+   372→            crossAxisAlignment: CrossAxisAlignment.start,
+   373→            children: [
+   374→              Row(
+   375→                children: [
+   376→                  Flexible(
+   377→                    child: Text(
+   378→                      product.sellerId, // Placeholder for real seller name
+   379→                      style: tt.labelLarge?.copyWith(
+   380→                        fontWeight: AppTypography.wSemiBold,
+   381→                        color: cs.onSurface,
+   382→                      ),
+   383→                      maxLines: 1,
+   384→                      overflow: TextOverflow.ellipsis,
+   385→                    ),
+   386→                  ),
+   387→                  const SizedBox(width: Spacings.xs),
+   388→                  Icon(
+   389→                    Icons.verified_rounded,
+   390→                    size: Spacings.smIcon,
+   391→                    color: AppColors.info,
+   392→                  ),
+   393→                ],
+   394→              ),
+   395→              const SizedBox(height: 2),
+   396→              Text(
+   397→                'View Profile',
+   398→                style: tt.labelSmall?.copyWith(
+   399→                  color: cs.primary,
+   400→                  fontWeight: AppTypography.wSemiBold,
+   401→                ),
+   402→              ),
+   403→            ],
+   404→          ),
+   405→        ),
+   406→      ],
+   407→    );
+   408→  }
+   409→
+   410→  // ─── Price & License Selector ────────────────────────────────────────────
+   411→
+   412→  Widget _buildPriceAndLicense(MarketplaceProductEntity product) {
+   413→    final cs = context.colorScheme;
+   414→    final tt = context.textTheme;
+   415→
+   416→    return Column(
+   417→      crossAxisAlignment: CrossAxisAlignment.start,
+   418→      children: [
+   419→        // Price display
+   420→        Row(
+   421→          children: [
+   422→            PriceDisplay(
+   423→              price: product.price,
+   424→              originalPrice: product.isDiscounted ? product.originalPrice : null,
+   425→              currency: product.currency,
+   426→              isFree: product.isFree,
+   427→              fontSize: 24,
+   428→            ),
+   429→            const Spacer(),
+   430→            if (product.downloadCount > 0) ...[
+   431→              Icon(
+   432→                Icons.download_rounded,
+   433→                size: Spacings.smIcon,
+   434→                color: cs.onSurfaceVariant,
+   435→              ),
+   436→              const SizedBox(width: Spacings.xs),
+   437→              Text(
+   438→                _formatCount(product.downloadCount),
+   439→                style: tt.labelSmall?.copyWith(
+   440→                  color: cs.onSurfaceVariant,
+   441→                ),
+   442→              ),
+   443→            ],
+   444→          ],
+   445→        ),
+   446→        const SizedBox(height: Spacings.lg),
+   447→
+   448→        // License type selector
+   449→        Text(
+   450→          'License Type',
+   451→          style: tt.labelMedium?.copyWith(
+   452→            fontWeight: AppTypography.wSemiBold,
+   453→            color: cs.onSurface,
+   454→          ),
+   455→        ),
+   456→        const SizedBox(height: Spacings.sm),
+   457→        Wrap(
+   458→          spacing: Spacings.sm,
+   459→          runSpacing: Spacings.sm,
+   460→          children: MarketplaceLicenseType.values.map((type) {
+   461→            final isSelected = _selectedLicense == type;
+   462→            return GestureDetector(
+   463→              onTap: () => setState(() => _selectedLicense = type),
+   464→              child: AnimatedContainer(
+   465→                duration: const Duration(milliseconds: 200),
+   466→                padding: const EdgeInsets.symmetric(
+   467→                  horizontal: Spacings.md,
+   468→                  vertical: Spacings.sm,
+   469→                ),
+   470→                decoration: BoxDecoration(
+   471→                  color: isSelected
+   472→                      ? cs.primary
+   473→                      : cs.surfaceContainerHighest,
+   474→                  borderRadius: BorderRadius.circular(Spacings.fullRadius),
+   475→                  border: Border.all(
+   476→                    color: isSelected ? cs.primary : cs.outlineVariant,
+   477→                  ),
+   478→                ),
+   479→                child: Text(
+   480→                  type.label,
+   481→                  style: tt.labelMedium?.copyWith(
+   482→                    fontWeight: isSelected
+   483→                        ? AppTypography.wSemiBold
+   484→                        : AppTypography.wMedium,
+   485→                    color: isSelected ? cs.onPrimary : cs.onSurface,
+   486→                  ),
+   487→                ),
+   488→              ),
+   489→            );
+   490→          }).toList(),
+   491→        ),
+   492→      ],
+   493→    );
+   494→  }
+   495→
+   496→  // ─── Rating Section ─────────────────────────────────────────────────────
+   497→
+   498→  Widget _buildRatingSection(MarketplaceProductEntity product) {
+   499→    final cs = context.colorScheme;
+   500→    final tt = context.textTheme;
+   501→
+   502→    return Row(
+   503→      children: [
+   504→        StarRating(
+   505→          rating: product.averageRating,
+   506→          totalReviews: product.totalReviews,
+   507→          starSize: Spacings.mdIcon,
+   508→          showCount: true,
+   509→        ),
+   510→        const SizedBox(width: Spacings.sm),
+   511→        Text(
+   512→          product.averageRating.toStringAsFixed(1),
+   513→          style: tt.titleSmall?.copyWith(
+   514→            fontWeight: AppTypography.wBold,
+   515→            color: cs.onSurface,
+   516→          ),
+   517→        ),
+   518→      ],
+   519→    );
+   520→  }
+   521→
+   522→  // ─── Description ────────────────────────────────────────────────────────
+   523→
+   524→  Widget _buildDescription(MarketplaceProductEntity product) {
+   525→    final cs = context.colorScheme;
+   526→    final tt = context.textTheme;
+   527→
+   528→    return Column(
+   529→      crossAxisAlignment: CrossAxisAlignment.start,
+   530→      children: [
+   531→        Text(
+   532→          'Description',
+   533→          style: tt.titleSmall?.copyWith(
+   534→            fontWeight: AppTypography.wSemiBold,
+   535→            color: cs.onSurface,
+   536→          ),
+   537→        ),
+   538→        const SizedBox(height: Spacings.sm),
+   539→        Text(
+   540→          product.description ?? 'No description available.',
+   541→          style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+   542→        ),
+   543→      ],
+   544→    );
+   545→  }
+   546→
+   547→  // ─── Product Details ────────────────────────────────────────────────────
+   548→
+   549→  Widget _buildProductDetails(MarketplaceProductEntity product) {
+   550→    final cs = context.colorScheme;
+   551→    final tt = context.textTheme;
+   552→
+   553→    return Column(
+   554→      crossAxisAlignment: CrossAxisAlignment.start,
+   555→      children: [
+   556→        Text(
+   557→          'Product Details',
+   558→          style: tt.titleSmall?.copyWith(
+   559→            fontWeight: AppTypography.wSemiBold,
+   560→            color: cs.onSurface,
+   561→          ),
+   562→        ),
+   563→        const SizedBox(height: Spacings.md),
+   564→        AppCard(
+   565→          padding: const EdgeInsets.all(Spacings.lg),
+   566→          child: Column(
+   567→            children: [
+   568→              _buildDetailRow('Type', product.productType.label, cs, tt),
+   569→              if (product.subject != null)
+   570→                _buildDetailRow('Subject', product.subject!, cs, tt),
+   571→              if (product.classLevel != null)
+   572→                _buildDetailRow('Class Level', product.classLevel!, cs, tt),
+   573→              if (product.curriculum != null)
+   574→                _buildDetailRow('Curriculum', product.curriculum!, cs, tt),
+   575→              if (product.language != null)
+   576→                _buildDetailRow('Language', product.language!, cs, tt),
+   577→              _buildDetailRow('Version', product.version, cs, tt),
+   578→              _buildDetailRow(
+   579→                'File Size',
+   580→                '${product.fullDocumentUrls.length} file(s)',
+   581→                cs,
+   582→                tt,
+   583→              ),
+   584→            ],
+   585→          ),
+   586→        ),
+   587→      ],
+   588→    );
+   589→  }
+   590→
+   591→  Widget _buildDetailRow(
+   592→    String label,
+   593→    String value,
+   594→    ColorScheme cs,
+   595→    TextTheme tt,
+   596→  ) {
+   597→    return Padding(
+   598→      padding: const EdgeInsets.only(bottom: Spacings.sm),
+   599→      child: Row(
+   600→        crossAxisAlignment: CrossAxisAlignment.start,
+   601→        children: [
+   602→          SizedBox(
+   603→            width: 120,
+   604→            child: Text(
+   605→              label,
+   606→              style: tt.bodySmall?.copyWith(
+   607→                color: cs.onSurfaceVariant,
+   608→                fontWeight: AppTypography.wMedium,
+   609→              ),
+   610→            ),
+   611→          ),
+   612→          Expanded(
+   613→            child: Text(
+   614→              value,
+   615→              style: tt.bodySmall?.copyWith(
+   616→                color: cs.onSurface,
+   617→                fontWeight: AppTypography.wSemiBold,
+   618→              ),
+   619→            ),
+   620→          ),
+   621→        ],
+   622→      ),
+   623→    );
+   624→  }
+   625→
+   626→  // ─── Tags ───────────────────────────────────────────────────────────────
+   627→
+   628→  Widget _buildTags(MarketplaceProductEntity product) {
+   629→    final cs = context.colorScheme;
+   630→    final tt = context.textTheme;
+   631→
+   632→    return Column(
+   633→      crossAxisAlignment: CrossAxisAlignment.start,
+   634→      children: [
+   635→        Text(
+   636→          'Tags',
+   637→          style: tt.titleSmall?.copyWith(
+   638→            fontWeight: AppTypography.wSemiBold,
+   639→            color: cs.onSurface,
+   640→          ),
+   641→        ),
+   642→        const SizedBox(height: Spacings.sm),
+   643→        Wrap(
+   644→          spacing: Spacings.sm,
+   645→          runSpacing: Spacings.sm,
+   646→          children: product.tags.map((tag) {
+   647→            return Chip(
+   648→              label: Text(tag),
+   649→              labelStyle: tt.labelSmall?.copyWith(color: cs.onSurface),
+   650→              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   651→              visualDensity: VisualDensity.compact,
+   652→            );
+   653→          }).toList(),
+   654→        ),
+   655→      ],
+   656→    );
+   657→  }
+   658→
+   659→  // ─── AI Summary ─────────────────────────────────────────────────────────
+   660→
+   661→  Widget _buildAiSummary(MarketplaceProductEntity product) {
+   662→    final cs = context.colorScheme;
+   663→    final tt = context.textTheme;
+   664→    final isDark = context.isDarkMode;
+   665→
+   666→    return Column(
+   667→      crossAxisAlignment: CrossAxisAlignment.start,
+   668→      children: [
+   669→        Row(
+   670→          children: [
+   671→            Icon(
+   672→              Icons.auto_awesome_rounded,
+   673→              size: Spacings.mdIcon,
+   674→              color: cs.primary,
+   675→            ),
+   676→            const SizedBox(width: Spacings.sm),
+   677→            Text(
+   678→              'AI Summary',
+   679→              style: tt.titleSmall?.copyWith(
+   680→                fontWeight: AppTypography.wSemiBold,
+   681→                color: cs.onSurface,
+   682→              ),
+   683→            ),
+   684→          ],
+   685→        ),
+   686→        const SizedBox(height: Spacings.sm),
+   687→        Container(
+   688→          width: double.infinity,
+   689→          padding: const EdgeInsets.all(Spacings.lg),
+   690→          decoration: BoxDecoration(
+   691→            color: cs.primaryContainer.withValues(alpha: isDark ? 0.2 : 0.3),
+   692→            borderRadius: Spacings.borderRadiusMd,
+   693→            border: Border.all(
+   694→              color: cs.primary.withValues(alpha: 0.2),
+   695→            ),
+   696→          ),
+   697→          child: Text(
+   698→            product.aiGeneratedSummary!,
+   699→            style: tt.bodyMedium?.copyWith(color: cs.onSurfaceVariant),
+   700→          ),
+   701→        ),
+   702→      ],
+   703→    );
+   704→  }
+   705→
+   706→  // ─── Preview Section ────────────────────────────────────────────────────
+   707→
+   708→  Widget _buildPreviewSection(MarketplaceProductEntity product) {
+   709→    final cs = context.colorScheme;
+   710→    final tt = context.textTheme;
+   711→
+   712→    return Column(
+   713→      crossAxisAlignment: CrossAxisAlignment.start,
+   714→      children: [
+   715→        Text(
+   716→          'Preview',
+   717→          style: tt.titleSmall?.copyWith(
+   718→            fontWeight: AppTypography.wSemiBold,
+   719→            color: cs.onSurface,
+   720→          ),
+   721→        ),
+   722→        const SizedBox(height: Spacings.md),
+   723→        if (product.previewImages.isNotEmpty)
+   724→          SizedBox(
+   725→            height: 120,
+   726→            child: ListView.separated(
+   727→              scrollDirection: Axis.horizontal,
+   728→              itemCount: product.previewImages.length,
+   729→              separatorBuilder: (_, __) => const SizedBox(width: Spacings.sm),
+   730→              itemBuilder: (context, index) {
+   731→                return Container(
+   732→                  width: 160,
+   733→                  decoration: BoxDecoration(
+   734→                    color: cs.surfaceContainerHighest,
+   735→                    borderRadius: Spacings.borderRadiusMd,
+   736→                  ),
+   737→                  child: Center(
+   738→                    child: Column(
+   739→                      mainAxisAlignment: MainAxisAlignment.center,
+   740→                      children: [
+   741→                        Icon(
+   742→                          Icons.image_rounded,
+   743→                          size: Spacings.xlIcon,
+   744→                          color: cs.onSurfaceVariant,
+   745→                        ),
+   746→                        const SizedBox(height: Spacings.xs),
+   747→                        Text(
+   748→                          'Preview ${index + 1}',
+   749→                          style: tt.labelSmall?.copyWith(
+   750→                            color: cs.onSurfaceVariant,
+   751→                          ),
+   752→                        ),
+   753→                      ],
+   754→                    ),
+   755→                  ),
+   756→                );
+   757→              },
+   758→            ),
+   759→          ),
+   760→        if (product.previewDocuments.isNotEmpty) ...[
+   761→          const SizedBox(height: Spacings.md),
+   762→          ...product.previewDocuments.map((doc) {
+   763→            return Padding(
+   764→              padding: const EdgeInsets.only(bottom: Spacings.sm),
+   765→              child: ListTile(
+   766→                leading: Icon(
+   767→                  Icons.description_outlined,
+   768→                  color: cs.primary,
+   769→                ),
+   770→                title: Text(
+   771→                  'Document Preview',
+   772→                  style: tt.bodyMedium?.copyWith(color: cs.onSurface),
+   773→                ),
+   774→                trailing: Icon(
+   775→                  Icons.visibility_rounded,
+   776→                  color: cs.primary,
+   777→                  size: Spacings.mdIcon,
+   778→                ),
+   779→                shape: RoundedRectangleBorder(
+   780→                  borderRadius: Spacings.borderRadiusSm,
+   781→                  side: BorderSide(color: cs.outlineVariant),
+   782→                ),
+   783→                contentPadding: const EdgeInsets.symmetric(
+   784→                  horizontal: Spacings.md,
+   785→                ),
+   786→              ),
+   787→            );
+   788→          }),
+   789→        ],
+   790→      ],
+   791→    );
+   792→  }
+   793→
+   794→  // ─── Related Products ───────────────────────────────────────────────────
+   795→
+   796→  Widget _buildRelatedProducts(ProductDetailState state) {
+   797→    final cs = context.colorScheme;
+   798→    final tt = context.textTheme;
+   799→
+   800→    return Column(
+   801→      crossAxisAlignment: CrossAxisAlignment.start,
+   802→      children: [
+   803→        Text(
+   804→          'Related Products',
+   805→          style: tt.titleSmall?.copyWith(
+   806→            fontWeight: AppTypography.wSemiBold,
+   807→            color: cs.onSurface,
+   808→          ),
+   809→        ),
+   810→        const SizedBox(height: Spacings.md),
+   811→        SizedBox(
+   812→          height: 280,
+   813→          child: ListView.separated(
+   814→            scrollDirection: Axis.horizontal,
+   815→            itemCount: state.relatedProducts.length,
+   816→            separatorBuilder: (_, __) => const SizedBox(width: Spacings.md),
+   817→            itemBuilder: (context, index) {
+   818→              final product = state.relatedProducts[index];
+   819→              return SizedBox(
+   820→                width: 180,
+   821→                child: ProductCard(
+   822→                  product: product,
+   823→                  onTap: () {
+   824→                    // Navigate to this related product
+   825→                    Navigator.pushReplacement(
+   826→                      context,
+   827→                      MaterialPageRoute(
+   828→                        builder: (_) => ProductDetailPage(
+   829→                          productId: product.id,
+   830→                        ),
+   831→                      ),
+   832→                    );
+   833→                  },
+   834→                ),
+   835→              );
+   836→            },
+   837→          ),
+   838→        ),
+   839→      ],
+   840→    );
+   841→  }
+   842→
+   843→  // ─── Reviews Section ────────────────────────────────────────────────────
+   844→
+   845→  Widget _buildReviewsSection(ProductDetailState state) {
+   846→    final cs = context.colorScheme;
+   847→    final tt = context.textTheme;
+   848→    final product = state.product!;
+   849→
+   850→    return Column(
+   851→      crossAxisAlignment: CrossAxisAlignment.start,
+   852→      children: [
+   853→        // Section header with See All
+   854→        Row(
+   855→          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   856→          children: [
+   857→            Text(
+   858→              'Reviews',
+   859→              style: tt.titleSmall?.copyWith(
+   860→                fontWeight: AppTypography.wSemiBold,
+   861→                color: cs.onSurface,
+   862→              ),
+   863→            ),
+   864→            if (state.hasReviews)
+   865→              TextButton(
+   866→                onPressed: () {
+   867→                  // Navigate to full reviews page
+   868→                },
+   869→                child: Text(
+   870→                  'See All (${product.totalReviews})',
+   871→                  style: tt.labelMedium?.copyWith(
+   872→                    color: cs.primary,
+   873→                    fontWeight: AppTypography.wSemiBold,
+   874→                  ),
+   875→                ),
+   876→              ),
+   877→          ],
+   878→        ),
+   879→        const SizedBox(height: Spacings.md),
+   880→
+   881→        // Rating summary
+   882→        _buildRatingSummary(product, cs, tt),
+   883→
+   884→        const SizedBox(height: Spacings.lg),
+   885→
+   886→        // Individual reviews (show first 3)
+   887→        if (state.hasReviews)
+   888→          ...state.reviews.take(3).map((review) {
+   889→            return Padding(
+   890→              padding: const EdgeInsets.only(bottom: Spacings.md),
+   891→              child: ReviewCard(
+   892→                review: review,
+   893→                onHelpful: () {
+   894→                  ref.read(productDetailProvider.notifier).voteReviewHelpful(
+   895→                    reviewId: review.id,
+   896→                    userId: 'current_user',
+   897→                  );
+   898→                },
+   899→              ),
+   900→            );
+   901→          })
+   902→        else
+   903→          Center(
+   904→            child: Padding(
+   905→              padding: const EdgeInsets.symmetric(vertical: Spacings.xl),
+   906→              child: Text(
+   907→                'No reviews yet. Be the first to review!',
+   908→                style: tt.bodyMedium?.copyWith(
+   909→                  color: cs.onSurfaceVariant,
+   910→                ),
+   911→                textAlign: TextAlign.center,
+   912→              ),
+   913→            ),
+   914→          ),
+   915→      ],
+   916→    );
+   917→  }
+   918→
+   919→  Widget _buildRatingSummary(
+   920→    MarketplaceProductEntity product,
+   921→    ColorScheme cs,
+   922→    TextTheme tt,
+   923→  ) {
+   924→    return AppCard(
+   925→      padding: const EdgeInsets.all(Spacings.lg),
+   926→      child: Row(
+   927→        children: [
+   928→          // Average rating circle
+   929→          Column(
+   930→            children: [
+   931→              Text(
+   932→                product.averageRating.toStringAsFixed(1),
+   933→                style: tt.headlineMedium?.copyWith(
+   934→                  fontWeight: AppTypography.wBold,
+   935→                  color: cs.onSurface,
+   936→                ),
+   937→              ),
+   938→              StarRating(
+   939→                rating: product.averageRating,
+   940→                starSize: Spacings.smIcon,
+   941→                showCount: false,
+   942→              ),
+   943→              const SizedBox(height: Spacings.xs),
+   944→              Text(
+   945→                '${product.totalReviews} reviews',
+   946→                style: tt.labelSmall?.copyWith(
+   947→                  color: cs.onSurfaceVariant,
+   948→                ),
+   949→              ),
+   950→            ],
+   951→          ),
+   952→          const SizedBox(width: Spacings.xl),
+   953→
+   954→          // Rating bars
+   955→          Expanded(
+   956→            child: Column(
+   957→              children: [5, 4, 3, 2, 1].map((star) {
+   958→                // Simplified: even distribution for demo
+   959→                final percentage = star == 5
+   960→                    ? 0.6
+   961→                    : star == 4
+   962→                        ? 0.25
+   963→                        : star == 3
+   964→                            ? 0.1
+   965→                            : star == 2
+   966→                                ? 0.03
+   967→                                : 0.02;
+   968→                return Padding(
+   969→                  padding: const EdgeInsets.only(bottom: 4),
+   970→                  child: Row(
+   971→                    children: [
+   972→                      Text(
+   973→                        '$star',
+   974→                        style: tt.labelSmall?.copyWith(
+   975→                          color: cs.onSurfaceVariant,
+   976→                        ),
+   977→                      ),
+   978→                      const SizedBox(width: Spacings.xs),
+   979→                      Icon(
+   980→                        Icons.star_rounded,
+   981→                        size: Spacings.smIcon,
+   982→                        color: AppColors.warning,
+   983→                      ),
+   984→                      const SizedBox(width: Spacings.sm),
+   985→                      Expanded(
+   986→                        child: ClipRRect(
+   987→                          borderRadius: BorderRadius.circular(4),
+   988→                          child: LinearProgressIndicator(
+   989→                            value: percentage,
+   990→                            minHeight: 6,
+   991→                            backgroundColor: cs.surfaceContainerHighest,
+   992→                            color: AppColors.warning,
+   993→                          ),
+   994→                        ),
+   995→                      ),
+   996→                    ],
+   997→                  ),
+   998→                );
+   999→              }).toList(),
+  1000→            ),
+  1001→          ),
+  1002→        ],
+  1003→      ),
+  1004→    );
+  1005→  }
+  1006→
+  1007→  // ─── Bottom Bar ─────────────────────────────────────────────────────────
+  1008→
+  1009→  Widget _buildBottomBar(ProductDetailState state) {
+  1010→    final cs = context.colorScheme;
+  1011→    final tt = context.textTheme;
+  1012→
+  1013→    return Container(
+  1014→      padding: const EdgeInsets.all(Spacings.lg),
+  1015→      decoration: BoxDecoration(
+  1016→        color: cs.surface,
+  1017→        border: Border(
+  1018→          top: BorderSide(color: cs.outlineVariant),
+  1019→        ),
+  1020→      ),
+  1021→      child: SafeArea(
+  1022→        top: false,
+  1023→        child: Row(
+  1024→          children: [
+  1025→            // Wishlist toggle
+  1026→            GestureDetector(
+  1027→              onTap: _toggleWishlist,
+  1028→              child: Container(
+  1029→                padding: const EdgeInsets.all(Spacings.md),
+  1030→                decoration: BoxDecoration(
+  1031→                  shape: BoxShape.circle,
+  1032→                  border: Border.all(color: cs.outlineVariant),
+  1033→                ),
+  1034→                child: Icon(
+  1035→                  state.isInWishlist
+  1036→                      ? Icons.favorite_rounded
+  1037→                      : Icons.favorite_border_rounded,
+  1038→                  color: state.isInWishlist ? AppColors.error : cs.onSurfaceVariant,
+  1039→                  size: Spacings.mdIcon,
+  1040→                ),
+  1041→              ),
+  1042→            ),
+  1043→            const SizedBox(width: Spacings.md),
+  1044→
+  1045→            // Add to Cart
+  1046→            Expanded(
+  1047→              child: OutlinedButton(
+  1048→                onPressed: state.product!.isFree ? null : _addToCart,
+  1049→                style: OutlinedButton.styleFrom(
+  1050→                  padding: const EdgeInsets.symmetric(vertical: Spacings.md),
+  1051→                  shape: RoundedRectangleBorder(
+  1052→                    borderRadius: Spacings.borderRadiusSm,
+  1053→                  ),
+  1054→                ),
+  1055→                child: Text(
+  1056→                  state.product!.isFree ? 'Free' : 'Add to Cart',
+  1057→                  style: tt.labelLarge?.copyWith(
+  1058→                    fontWeight: AppTypography.wSemiBold,
+  1059→                  ),
+  1060→                ),
+  1061→              ),
+  1062→            ),
+  1063→            const SizedBox(width: Spacings.md),
+  1064→
+  1065→            // Buy Now
+  1066→            Expanded(
+  1067→              child: FilledButton(
+  1068→                onPressed: _buyNow,
+  1069→                style: FilledButton.styleFrom(
+  1070→                  padding: const EdgeInsets.symmetric(vertical: Spacings.md),
+  1071→                  shape: RoundedRectangleBorder(
+  1072→                    borderRadius: Spacings.borderRadiusSm,
+  1073→                  ),
+  1074→                ),
+  1075→                child: Text(
+  1076→                  state.product!.isFree ? 'Download' : 'Buy Now',
+  1077→                  style: tt.labelLarge?.copyWith(
+  1078→                    fontWeight: AppTypography.wSemiBold,
+  1079→                    color: cs.onPrimary,
+  1080→                  ),
+  1081→                ),
+  1082→              ),
+  1083→            ),
+  1084→          ],
+  1085→        ),
+  1086→      ),
+  1087→    );
+  1088→  }
+  1089→
+  1090→  // ─── Helper Methods ─────────────────────────────────────────────────────
+  1091→
+  1092→  Color _productTypeColor(MarketplaceProductType type, ColorScheme cs) {
+  1093→    return switch (type) {
+  1094→      MarketplaceProductType.questionBank ||
+  1095→      MarketplaceProductType.examTemplate ||
+  1096→      MarketplaceProductType.assessmentRubric =>
+  1097→        AppColors.info,
+  1098→      MarketplaceProductType.lessonNote ||
+  1099→      MarketplaceProductType.schemeOfWork ||
+  1100→      MarketplaceProductType.studyGuide =>
+  1101→        AppColors.success,
+  1102→      MarketplaceProductType.powerpoint ||
+  1103→      MarketplaceProductType.teachingSlides =>
+  1104→        AppColors.warning,
+  1105→      MarketplaceProductType.flashcards ||
+  1106→      MarketplaceProductType.worksheet ||
+  1107→      MarketplaceProductType.homeworkPack =>
+  1108→        cs.primary,
+  1109→      MarketplaceProductType.practicalManual ||
+  1110→      MarketplaceProductType.laboratoryGuide =>
+  1111→        cs.tertiary,
+  1112→      MarketplaceProductType.curriculumPack ||
+  1113→      MarketplaceProductType.classroomActivity =>
+  1114→        cs.secondary,
+  1115→      MarketplaceProductType.educationalImage ||
+  1116→      MarketplaceProductType.educationalVideo ||
+  1117→      MarketplaceProductType.educationalAudio =>
+  1118→        AppColors.error,
+  1119→      MarketplaceProductType.printableResource => cs.primaryContainer,
+  1120→      MarketplaceProductType.other => cs.onSurfaceVariant,
+  1121→    };
+  1122→  }
+  1123→
+  1124→  String _formatCount(int count) {
+  1125→    if (count >= 1000) return '${(count / 1000).toStringAsFixed(1)}k';
+  1126→    return count.toString();
+  1127→  }
+  1128→}
+  1129→

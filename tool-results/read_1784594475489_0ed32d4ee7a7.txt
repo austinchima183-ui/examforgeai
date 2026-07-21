@@ -1,0 +1,794 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/app_typography.dart';
+     6→import '../../../../core/themes/spacings.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/widgets.dart';
+     9→import '../providers/student_portal_providers.dart';
+    10→import '../../domain/entities/student_portal_entities.dart';
+    11→
+    12→/// AI Tutor chat interface page.
+    13→///
+    14→/// Features:
+    15→/// - Conversation list sidebar (desktop) / drawer (mobile)
+    16→/// - Chat area with message bubbles
+    17→/// - Input field with send button at bottom
+    18→/// - New conversation FAB
+    19→/// - Subject/topic selection when creating new conversation
+    20→/// - Auto-scroll to bottom on new messages
+    21→/// - Typing indicator for AI responses
+    22→/// - Markdown rendering for AI responses
+    23→/// - Empty state for no conversations
+    24→class AiTutorPage extends ConsumerStatefulWidget {
+    25→  const AiTutorPage({super.key});
+    26→
+    27→  @override
+    28→  ConsumerState<AiTutorPage> createState() => _AiTutorPageState();
+    29→}
+    30→
+    31→class _AiTutorPageState extends ConsumerState<AiTutorPage> {
+    32→  final TextEditingController _messageController = TextEditingController();
+    33→  final ScrollController _scrollController = ScrollController();
+    34→  final GlobalKey<AnimatedListState> _listKey = GlobalKey();
+    35→
+    36→  @override
+    37→  void initState() {
+    38→    super.initState();
+    39→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    40→      ref.read(aiTutorProvider.notifier).loadConversations();
+    41→    });
+    42→  }
+    43→
+    44→  @override
+    45→  void dispose() {
+    46→    _messageController.dispose();
+    47→    _scrollController.dispose();
+    48→    super.dispose();
+    49→  }
+    50→
+    51→  void _scrollToBottom() {
+    52→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    53→      if (_scrollController.hasClients) {
+    54→        _scrollController.animateTo(
+    55→          _scrollController.position.maxScrollExtent,
+    56→          duration: const Duration(milliseconds: 300),
+    57→          curve: Curves.easeOut,
+    58→        );
+    59→      }
+    60→    });
+    61→  }
+    62→
+    63→  @override
+    64→  Widget build(BuildContext context) {
+    65→    final tutorState = ref.watch(aiTutorProvider);
+    66→
+    67→    if (tutorState.isLoading && tutorState.conversations.isEmpty) {
+    68→      return const Center(child: AppLoadingSpinner());
+    69→    }
+    70→
+    71→    if (tutorState.error != null && tutorState.conversations.isEmpty) {
+    72→      return AppErrorState(
+    73→        icon: Icons.error_outline_rounded,
+    74→        title: 'Failed to Load Conversations',
+    75→        message: tutorState.error,
+    76→        onRetry: () =>
+    77→            ref.read(aiTutorProvider.notifier).loadConversations(),
+    78→      );
+    79→    }
+    80→
+    81→    if (context.isDesktop) {
+    82→      return _buildDesktopLayout(context, tutorState);
+    83→    }
+    84→    return _buildMobileLayout(context, tutorState);
+    85→  }
+    86→
+    87→  // ─── Desktop Layout ─────────────────────────────────────────────────
+    88→
+    89→  Widget _buildDesktopLayout(BuildContext context, AiTutorState state) {
+    90→    return Row(
+    91→      children: [
+    92→        // Sidebar - conversation list
+    93→        SizedBox(
+    94→          width: 300,
+    95→          child: _buildConversationList(context, state),
+    96→        ),
+    97→        const VerticalDivider(width: 1),
+    98→        // Chat area
+    99→        Expanded(
+   100→          child: state.currentConversation == null
+   101→              ? _buildEmptyChatState(context)
+   102→              : _buildChatArea(context, state),
+   103→        ),
+   104→      ],
+   105→    );
+   106→  }
+   107→
+   108→  // ─── Mobile Layout ──────────────────────────────────────────────────
+   109→
+   110→  Widget _buildMobileLayout(BuildContext context, AiTutorState state) {
+   111→    if (state.currentConversation == null) {
+   112→      return _buildConversationList(context, state);
+   113→    }
+   114→    return _buildChatArea(context, state);
+   115→  }
+   116→
+   117→  // ─── Conversation List ──────────────────────────────────────────────
+   118→
+   119→  Widget _buildConversationList(BuildContext context, AiTutorState state) {
+   120→    final cs = context.colorScheme;
+   121→    final tt = context.textTheme;
+   122→
+   123→    return Scaffold(
+   124→      appBar: AppBar(
+   125→        title: Text(
+   126→          'AI Tutor',
+   127→          style: tt.titleLarge?.copyWith(
+   128→            fontWeight: AppTypography.wSemiBold,
+   129→          ),
+   130→        ),
+   131→        actions: [
+   132→          IconButton(
+   133→            icon: const Icon(Icons.add_comment_outlined),
+   134→            onPressed: () => _showNewConversationDialog(context),
+   135→            tooltip: 'New Conversation',
+   136→          ),
+   137→        ],
+   138→      ),
+   139→      body: state.conversations.isEmpty
+   140→          ? AppEmptyState(
+   141→              icon: Icons.chat_bubble_outline_rounded,
+   142→              title: 'No Conversations',
+   143→              subtitle: 'Start a new conversation with the AI Tutor.',
+   144→              actionLabel: 'New Chat',
+   145→              onAction: () => _showNewConversationDialog(context),
+   146→            )
+   147→          : ListView.builder(
+   148→              padding: const EdgeInsets.symmetric(
+   149→                vertical: Spacings.sm,
+   150→              ),
+   151→              itemCount: state.conversations.length,
+   152→              itemBuilder: (context, index) {
+   153→                final conversation = state.conversations[index];
+   154→                final isSelected =
+   155→                    state.currentConversation?.id == conversation.id;
+   156→
+   157→                return _ConversationTile(
+   158→                  conversation: conversation,
+   159→                  isSelected: isSelected,
+   160→                  onTap: () {
+   161→                    ref
+   162→                        .read(aiTutorProvider.notifier)
+   163→                        .openConversation(conversation.id);
+   164→                    _scrollToBottom();
+   165→                  },
+   166→                  onDelete: () {
+   167→                    ref
+   168→                        .read(aiTutorProvider.notifier)
+   169→                        .deleteConversation(conversation.id);
+   170→                  },
+   171→                );
+   172→              },
+   173→            ),
+   174→      floatingActionButton: state.conversations.isEmpty
+   175→          ? null
+   176→          : FloatingActionButton(
+   177→              onPressed: () => _showNewConversationDialog(context),
+   178→              child: const Icon(Icons.add),
+   179→            ),
+   180→    );
+   181→  }
+   182→
+   183→  // ─── Empty Chat State ───────────────────────────────────────────────
+   184→
+   185→  Widget _buildEmptyChatState(BuildContext context) {
+   186→    final cs = context.colorScheme;
+   187→    final tt = context.textTheme;
+   188→
+   189→    return Center(
+   190→      child: Padding(
+   191→        padding: const EdgeInsets.all(Spacings.xxl),
+   192→        child: Column(
+   193→          mainAxisSize: MainAxisSize.min,
+   194→          children: [
+   195→            Container(
+   196→              padding: const EdgeInsets.all(Spacings.xl),
+   197→              decoration: BoxDecoration(
+   198→                color: cs.primaryContainer,
+   199→                shape: BoxShape.circle,
+   200→              ),
+   201→              child: Icon(
+   202→                Icons.smart_toy_rounded,
+   203→                size: 64,
+   204→                color: cs.primary,
+   205→              ),
+   206→            ),
+   207→            const SizedBox(height: Spacings.xl),
+   208→            Text(
+   209→              'AI Study Assistant',
+   210→              style: tt.headlineSmall?.copyWith(
+   211→                fontWeight: AppTypography.wBold,
+   212→                color: cs.onSurface,
+   213→              ),
+   214→            ),
+   215→            const SizedBox(height: Spacings.sm),
+   216→            Text(
+   217→              'Ask me anything about your subjects, get explanations, practice problems, and study tips.',
+   218→              style: tt.bodyMedium?.copyWith(
+   219→                color: cs.onSurfaceVariant,
+   220→              ),
+   221→              textAlign: TextAlign.center,
+   222→            ),
+   223→            const SizedBox(height: Spacings.xl),
+   224→            Wrap(
+   225→              spacing: Spacings.sm,
+   226→              runSpacing: Spacings.sm,
+   227→              children: [
+   228→                _SuggestionChip(
+   229→                  label: 'Explain a concept',
+   230→                  onTap: () => _sendMessage('Can you explain a concept to me?'),
+   231→                ),
+   232→                _SuggestionChip(
+   233→                  label: 'Help me practice',
+   234→                  onTap: () => _sendMessage('Can you give me some practice questions?'),
+   235→                ),
+   236→                _SuggestionChip(
+   237→                  label: 'Study tips',
+   238→                  onTap: () => _sendMessage('Give me some study tips for my upcoming exams.'),
+   239→                ),
+   240→                _SuggestionChip(
+   241→                  label: 'Review my answer',
+   242→                  onTap: () => _sendMessage('I\'d like you to review my answer to a question.'),
+   243→                ),
+   244→              ],
+   245→            ),
+   246→          ],
+   247→        ),
+   248→      ),
+   249→    );
+   250→  }
+   251→
+   252→  // ─── Chat Area ──────────────────────────────────────────────────────
+   253→
+   254→  Widget _buildChatArea(BuildContext context, AiTutorState state) {
+   255→    final cs = context.colorScheme;
+   256→
+   257→    return Column(
+   258→      children: [
+   259→        // Chat header
+   260→        _buildChatHeader(context, state),
+   261→
+   262→        // Messages
+   263→        Expanded(
+   264→          child: state.messages.isEmpty
+   265→              ? _buildWelcomeMessages(context)
+   266→              : ListView.builder(
+   267→                  controller: _scrollController,
+   268→                  padding: const EdgeInsets.all(Spacings.lg),
+   269→                  itemCount: state.messages.length +
+   270→                      (state.isSendingMessage ? 1 : 0),
+   271→                  itemBuilder: (context, index) {
+   272→                    if (index == state.messages.length) {
+   273→                      return _buildTypingIndicator(context);
+   274→                    }
+   275→                    final message = state.messages[index];
+   276→                    return _MessageBubble(message: message);
+   277→                  },
+   278→                ),
+   279→        ),
+   280→
+   281→        // Input area
+   282→        _buildInputArea(context, state),
+   283→      ],
+   284→    );
+   285→  }
+   286→
+   287→  Widget _buildChatHeader(BuildContext context, AiTutorState state) {
+   288→    final cs = context.colorScheme;
+   289→    final tt = context.textTheme;
+   290→    final conversation = state.currentConversation;
+   291→
+   292→    return Container(
+   293→      padding: const EdgeInsets.symmetric(
+   294→        horizontal: Spacings.lg,
+   295→        vertical: Spacings.md,
+   296→      ),
+   297→      decoration: BoxDecoration(
+   298→        color: cs.surface,
+   299→        border: Border(
+   300→          bottom: BorderSide(
+   301→            color: cs.outlineVariant.withValues(alpha: 0.5),
+   302→          ),
+   303→        ),
+   304→      ),
+   305→      child: Row(
+   306→        children: [
+   307→          if (context.isMobile)
+   308→            IconButton(
+   309→              icon: const Icon(Icons.arrow_back),
+   310→              onPressed: () {
+   311→                ref.read(aiTutorProvider.notifier).clearError();
+   312→                // Navigate back to conversation list
+   313→              },
+   314→            ),
+   315→          CircleAvatar(
+   316→            backgroundColor: cs.primaryContainer,
+   317→            child: Icon(
+   318→              Icons.smart_toy_rounded,
+   319→              color: cs.primary,
+   320→              size: Spacings.mdIcon,
+   321→            ),
+   322→          ),
+   323→          const SizedBox(width: Spacings.md),
+   324→          Expanded(
+   325→            child: Column(
+   326→              crossAxisAlignment: CrossAxisAlignment.start,
+   327→              children: [
+   328→                Text(
+   329→                  conversation?.title ?? 'AI Tutor',
+   330→                  style: tt.titleSmall?.copyWith(
+   331→                    fontWeight: AppTypography.wSemiBold,
+   332→                    color: cs.onSurface,
+   333→                  ),
+   334→                ),
+   335→                if (conversation?.topic != null)
+   336→                  Text(
+   337→                    conversation!.topic!,
+   338→                    style: tt.bodySmall?.copyWith(
+   339→                      color: cs.onSurfaceVariant,
+   340→                    ),
+   341→                  ),
+   342→              ],
+   343→            ),
+   344→          ),
+   345→          PopupMenuButton<String>(
+   346→            onSelected: (value) {
+   347→              if (value == 'delete') {
+   348→                ref
+   349→                    .read(aiTutorProvider.notifier)
+   350→                    .deleteConversation(conversation!.id);
+   351→              }
+   352→            },
+   353→            itemBuilder: (context) => [
+   354→              const PopupMenuItem(
+   355→                value: 'delete',
+   356→                child: Text('Delete Conversation'),
+   357→              ),
+   358→            ],
+   359→          ),
+   360→        ],
+   361→      ),
+   362→    );
+   363→  }
+   364→
+   365→  Widget _buildWelcomeMessages(BuildContext context) {
+   366→    final cs = context.colorScheme;
+   367→    final tt = context.textTheme;
+   368→
+   369→    return Center(
+   370→      child: Padding(
+   371→        padding: const EdgeInsets.all(Spacings.xl),
+   372→        child: Column(
+   373→          mainAxisSize: MainAxisSize.min,
+   374→          children: [
+   375→            Icon(
+   376→              Icons.auto_awesome_outlined,
+   377→              size: Spacings.xlIcon,
+   378→              color: cs.primary.withValues(alpha: 0.5),
+   379→            ),
+   380→            const SizedBox(height: Spacings.lg),
+   381→            Text(
+   382→              'Start the conversation!',
+   383→              style: tt.titleMedium?.copyWith(
+   384→                color: cs.onSurfaceVariant,
+   385→              ),
+   386→            ),
+   387→            const SizedBox(height: Spacings.sm),
+   388→            Text(
+   389→              'Ask any question about your subjects and I\'ll help you learn.',
+   390→              style: tt.bodyMedium?.copyWith(
+   391→                color: cs.onSurfaceVariant,
+   392→              ),
+   393→              textAlign: TextAlign.center,
+   394→            ),
+   395→          ],
+   396→        ),
+   397→      ),
+   398→    );
+   399→  }
+   400→
+   401→  Widget _buildTypingIndicator(BuildContext context) {
+   402→    final cs = context.colorScheme;
+   403→
+   404→    return Align(
+   405→      alignment: Alignment.centerLeft,
+   406→      child: Container(
+   407→        margin: const EdgeInsets.symmetric(vertical: Spacings.xs),
+   408→        padding: const EdgeInsets.symmetric(
+   409→          horizontal: Spacings.lg,
+   410→          vertical: Spacings.md,
+   411→        ),
+   412→        decoration: BoxDecoration(
+   413→          color: cs.surfaceContainerHighest,
+   414→          borderRadius: BorderRadius.circular(Spacings.lgRadius),
+   415→        ),
+   416→        child: Row(
+   417→          mainAxisSize: MainAxisSize.min,
+   418→          children: [
+   419→            AppLoadingDot(
+   420→              color: cs.onSurfaceVariant,
+   421→              size: 6,
+   422→              spacing: 4,
+   423→            ),
+   424→            const SizedBox(width: Spacings.sm),
+   425→            Text(
+   426→              'AI is thinking...',
+   427→              style: context.textTheme.bodySmall?.copyWith(
+   428→                color: cs.onSurfaceVariant,
+   429→              ),
+   430→            ),
+   431→          ],
+   432→        ),
+   433→      ),
+   434→    );
+   435→  }
+   436→
+   437→  Widget _buildInputArea(BuildContext context, AiTutorState state) {
+   438→    final cs = context.colorScheme;
+   439→
+   440→    return Container(
+   441→      padding: const EdgeInsets.symmetric(
+   442→        horizontal: Spacings.lg,
+   443→        vertical: Spacings.md,
+   444→      ),
+   445→      decoration: BoxDecoration(
+   446→        color: cs.surface,
+   447→        border: Border(
+   448→          top: BorderSide(
+   449→            color: cs.outlineVariant.withValues(alpha: 0.5),
+   450→          ),
+   451→        ),
+   452→      ),
+   453→      child: SafeArea(
+   454→        child: Row(
+   455→          children: [
+   456→            Expanded(
+   457→              child: TextField(
+   458→                controller: _messageController,
+   459→                decoration: InputDecoration(
+   460→                  hintText: 'Ask me anything...',
+   461→                  hintStyle: context.textTheme.bodyMedium?.copyWith(
+   462→                    color: cs.onSurfaceVariant,
+   463→                  ),
+   464→                  border: OutlineInputBorder(
+   465→                    borderRadius:
+   466→                        BorderRadius.circular(Spacings.xlRadius),
+   467→                    borderSide: BorderSide.none,
+   468→                  ),
+   469→                  filled: true,
+   470→                  fillColor: cs.surfaceContainerHighest,
+   471→                  contentPadding: const EdgeInsets.symmetric(
+   472→                    horizontal: Spacings.lg,
+   473→                    vertical: Spacings.md,
+   474→                  ),
+   475→                ),
+   476→                textInputAction: TextInputAction.send,
+   477→                onSubmitted: state.isSendingMessage
+   478→                    ? null
+   479→                    : (_) => _sendCurrentMessage(),
+   480→                maxLines: null,
+   481→              ),
+   482→            ),
+   483→            const SizedBox(width: Spacings.sm),
+   484→            IconButton.filled(
+   485→              onPressed: state.isSendingMessage
+   486→                  ? null
+   487→                  : _sendCurrentMessage,
+   488→              icon: state.isSendingMessage
+   489→                  ? const SizedBox(
+   490→                      width: 20,
+   491→                      height: 20,
+   492→                      child: CircularProgressIndicator(
+   493→                        strokeWidth: 2,
+   494→                        color: Colors.white,
+   495→                      ),
+   496→                    )
+   497→                  : const Icon(Icons.send_rounded),
+   498→            ),
+   499→          ],
+   500→        ),
+   501→      ),
+   502→    );
+   503→  }
+   504→
+   505→  // ─── Actions ────────────────────────────────────────────────────────
+   506→
+   507→  void _sendCurrentMessage() {
+   508→    final text = _messageController.text.trim();
+   509→    if (text.isEmpty) return;
+   510→    _messageController.clear();
+   511→    ref.read(aiTutorProvider.notifier).sendMessage(text);
+   512→    _scrollToBottom();
+   513→  }
+   514→
+   515→  void _sendMessage(String text) {
+   516→    _messageController.text = text;
+   517→    _sendCurrentMessage();
+   518→  }
+   519→
+   520→  // ─── New Conversation Dialog ────────────────────────────────────────
+   521→
+   522→  void _showNewConversationDialog(BuildContext context) {
+   523→    final cs = context.colorScheme;
+   524→    final tt = context.textTheme;
+   525→    final titleController = TextEditingController();
+   526→    final topicController = TextEditingController();
+   527→    String? selectedSubject;
+   528→
+   529→    showDialog(
+   530→      context: context,
+   531→      builder: (dialogContext) {
+   532→        return StatefulBuilder(
+   533→          builder: (context, setDialogState) {
+   534→            return AlertDialog(
+   535→              title: Text(
+   536→                'New Conversation',
+   537→                style: tt.titleLarge?.copyWith(
+   538→                  fontWeight: AppTypography.wSemiBold,
+   539→                ),
+   540→              ),
+   541→              content: SizedBox(
+   542→                width: context.isMobile ? double.maxFinite : 400,
+   543→                child: Column(
+   544→                  mainAxisSize: MainAxisSize.min,
+   545→                  crossAxisAlignment: CrossAxisAlignment.start,
+   546→                  children: [
+   547→                    TextField(
+   548→                      controller: titleController,
+   549→                      decoration: const InputDecoration(
+   550→                        labelText: 'Title',
+   551→                        hintText: 'e.g., Biology Review',
+   552→                        border: OutlineInputBorder(),
+   553→                      ),
+   554→                    ),
+   555→                    const SizedBox(height: Spacings.md),
+   556→                    DropdownButtonFormField<String>(
+   557→                      value: selectedSubject,
+   558→                      decoration: const InputDecoration(
+   559→                        labelText: 'Subject',
+   560→                        border: OutlineInputBorder(),
+   561→                      ),
+   562→                      items: const [
+   563→                        DropdownMenuItem(
+   564→                          value: 'mathematics',
+   565→                          child: Text('Mathematics'),
+   566→                        ),
+   567→                        DropdownMenuItem(
+   568→                          value: 'english',
+   569→                          child: Text('English'),
+   570→                        ),
+   571→                        DropdownMenuItem(
+   572→                          value: 'biology',
+   573→                          child: Text('Biology'),
+   574→                        ),
+   575→                        DropdownMenuItem(
+   576→                          value: 'physics',
+   577→                          child: Text('Physics'),
+   578→                        ),
+   579→                        DropdownMenuItem(
+   580→                          value: 'chemistry',
+   581→                          child: Text('Chemistry'),
+   582→                        ),
+   583→                      ],
+   584→                      onChanged: (value) {
+   585→                        setDialogState(() => selectedSubject = value);
+   586→                      },
+   587→                    ),
+   588→                    const SizedBox(height: Spacings.md),
+   589→                    TextField(
+   590→                      controller: topicController,
+   591→                      decoration: const InputDecoration(
+   592→                        labelText: 'Topic (optional)',
+   593→                        hintText: 'e.g., Photosynthesis',
+   594→                        border: OutlineInputBorder(),
+   595→                      ),
+   596→                    ),
+   597→                  ],
+   598→                ),
+   599→              ),
+   600→              actions: [
+   601→                TextButton(
+   602→                  onPressed: () => Navigator.pop(dialogContext),
+   603→                  child: const Text('Cancel'),
+   604→                ),
+   605→                FilledButton(
+   606→                  onPressed: () {
+   607→                    Navigator.pop(dialogContext);
+   608→                    ref.read(aiTutorProvider.notifier).createConversation(
+   609→                      title: titleController.text.trim().isEmpty
+   610→                          ? 'New Conversation'
+   611→                          : titleController.text.trim(),
+   612→                      subjectId: selectedSubject,
+   613→                      topic: topicController.text.trim().isEmpty
+   614→                          ? null
+   615→                          : topicController.text.trim(),
+   616→                    );
+   617→                  },
+   618→                  child: const Text('Create'),
+   619→                ),
+   620→              ],
+   621→            );
+   622→          },
+   623→        );
+   624→      },
+   625→    );
+   626→  }
+   627→}
+   628→
+   629→// ═══════════════════════════════════════════════════════════════════════
+   630→// PRIVATE HELPER WIDGETS
+   631→// ═══════════════════════════════════════════════════════════════════════
+   632→
+   633→class _ConversationTile extends StatelessWidget {
+   634→  const _ConversationTile({
+   635→    required this.conversation,
+   636→    required this.isSelected,
+   637→    required this.onTap,
+   638→    required this.onDelete,
+   639→  });
+   640→
+   641→  final AiTutorConversationEntity conversation;
+   642→  final bool isSelected;
+   643→  final VoidCallback onTap;
+   644→  final VoidCallback onDelete;
+   645→
+   646→  @override
+   647→  Widget build(BuildContext context) {
+   648→    final cs = context.colorScheme;
+   649→    final tt = context.textTheme;
+   650→
+   651→    return ListTile(
+   652→      selected: isSelected,
+   653→      selectedTileColor: cs.primaryContainer.withValues(alpha: 0.3),
+   654→      leading: CircleAvatar(
+   655→        backgroundColor:
+   656→            cs.primaryContainer.withValues(alpha: isSelected ? 1.0 : 0.5),
+   657→        child: Icon(
+   658→          Icons.chat_bubble_outline_rounded,
+   659→          size: Spacings.mdIcon,
+   660→          color: cs.primary,
+   661→        ),
+   662→      ),
+   663→      title: Text(
+   664→        conversation.title,
+   665→        style: tt.titleSmall?.copyWith(
+   666→          fontWeight:
+   667→              isSelected ? AppTypography.wSemiBold : AppTypography.wMedium,
+   668→          color: cs.onSurface,
+   669→        ),
+   670→        maxLines: 1,
+   671→        overflow: TextOverflow.ellipsis,
+   672→      ),
+   673→      subtitle: conversation.lastMessage != null
+   674→          ? Text(
+   675→              conversation.lastMessage!,
+   676→              style: tt.bodySmall?.copyWith(
+   677→                color: cs.onSurfaceVariant,
+   678→              ),
+   679→              maxLines: 1,
+   680→              overflow: TextOverflow.ellipsis,
+   681→            )
+   682→          : null,
+   683→      trailing: IconButton(
+   684→        icon: const Icon(Icons.delete_outline, size: 18),
+   685→        onPressed: onDelete,
+   686→      ),
+   687→      onTap: onTap,
+   688→      shape: RoundedRectangleBorder(
+   689→        borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   690→      ),
+   691→    );
+   692→  }
+   693→}
+   694→
+   695→class _MessageBubble extends StatelessWidget {
+   696→  const _MessageBubble({required this.message});
+   697→
+   698→  final AiTutorMessageEntity message;
+   699→
+   700→  @override
+   701→  Widget build(BuildContext context) {
+   702→    final cs = context.colorScheme;
+   703→    final tt = context.textTheme;
+   704→    final isUser = message.role == TutorMessageRole.user;
+   705→
+   706→    return Align(
+   707→      alignment: isUser ? Alignment.centerRight : Alignment.centerLeft,
+   708→      child: Container(
+   709→        margin: const EdgeInsets.symmetric(vertical: Spacings.xs),
+   710→        constraints: BoxConstraints(
+   711→          maxWidth: context.width * 0.75,
+   712→        ),
+   713→        padding: const EdgeInsets.symmetric(
+   714→          horizontal: Spacings.lg,
+   715→          vertical: Spacings.md,
+   716→        ),
+   717→        decoration: BoxDecoration(
+   718→          color: isUser
+   719→              ? cs.primary
+   720→              : cs.surfaceContainerHighest,
+   721→          borderRadius: BorderRadius.only(
+   722→            topLeft: const Radius.circular(Spacings.lgRadius),
+   723→            topRight: const Radius.circular(Spacings.lgRadius),
+   724→            bottomLeft: isUser
+   725→                ? const Radius.circular(Spacings.lgRadius)
+   726→                : Radius.zero,
+   727→            bottomRight: isUser
+   728→                ? Radius.zero
+   729→                : const Radius.circular(Spacings.lgRadius),
+   730→          ),
+   731→        ),
+   732→        child: Column(
+   733→          crossAxisAlignment: CrossAxisAlignment.start,
+   734→          children: [
+   735→            if (!isUser)
+   736→              Padding(
+   737→                padding: const EdgeInsets.only(bottom: Spacings.xs),
+   738→                child: Row(
+   739→                  mainAxisSize: MainAxisSize.min,
+   740→                  children: [
+   741→                    Icon(
+   742→                      Icons.smart_toy_rounded,
+   743→                      size: Spacings.smIcon,
+   744→                      color: cs.primary,
+   745→                    ),
+   746→                    const SizedBox(width: Spacings.xs),
+   747→                    Text(
+   748→                      'AI Tutor',
+   749→                      style: tt.labelSmall?.copyWith(
+   750→                        color: cs.primary,
+   751→                        fontWeight: AppTypography.wSemiBold,
+   752→                      ),
+   753→                    ),
+   754→                  ],
+   755→                ),
+   756→              ),
+   757→            SelectableText(
+   758→              message.content,
+   759→              style: tt.bodyMedium?.copyWith(
+   760→                color: isUser ? cs.onPrimary : cs.onSurface,
+   761→              ),
+   762→            ),
+   763→          ],
+   764→        ),
+   765→      ),
+   766→    );
+   767→  }
+   768→}
+   769→
+   770→class _SuggestionChip extends StatelessWidget {
+   771→  const _SuggestionChip({
+   772→    required this.label,
+   773→    required this.onTap,
+   774→  });
+   775→
+   776→  final String label;
+   777→  final VoidCallback onTap;
+   778→
+   779→  @override
+   780→  Widget build(BuildContext context) {
+   781→    final cs = context.colorScheme;
+   782→
+   783→    return ActionChip(
+   784→      label: Text(label),
+   785→      onPressed: onTap,
+   786→      avatar: Icon(
+   787→        Icons.auto_awesome_outlined,
+   788→        size: Spacings.smIcon,
+   789→        color: cs.primary,
+   790→      ),
+   791→    );
+   792→  }
+   793→}
+   794→

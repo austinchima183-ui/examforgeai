@@ -1,0 +1,1077 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/themes/app_colors.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/themes/spacings.dart';
+     8→import '../../../../core/extensions/context_extensions.dart';
+     9→import '../../../../routing/route_names.dart';
+    10→import '../../../../shared/widgets/app_app_bar.dart';
+    11→import '../../../../shared/widgets/app_card.dart';
+    12→import '../../../../shared/widgets/app_button.dart';
+    13→import '../../../../shared/widgets/app_text_field.dart';
+    14→import '../../../../shared/widgets/app_dialog.dart';
+    15→import '../../../../shared/widgets/app_loading.dart';
+    16→import '../../domain/entities/question_entities.dart';
+    17→import '../providers/question_editor_provider.dart';
+    18→import '../widgets/question_type_badge.dart';
+    19→import '../widgets/difficulty_badge.dart';
+    20→import '../widgets/answer_options_editor.dart';
+    21→import '../widgets/matching_pairs_editor.dart';
+    22→import '../widgets/ordering_items_editor.dart';
+    23→import '../widgets/fill_in_blank_editor.dart';
+    24→import '../widgets/question_preview_card.dart';
+    25→
+    26→// ═══════════════════════════════════════════════════════════════════════
+    27→// QUESTION EDITOR PAGE
+    28→// ═══════════════════════════════════════════════════════════════════════
+    29→
+    30→/// Full-featured question editor supporting create and edit modes.
+    31→///
+    32→/// The form is divided into sections:
+    33→/// 1. Question Type selection (grid of selectable type cards)
+    34→/// 2. Question Content (multiline text field)
+    35→/// 3. Answer Configuration (dynamic based on selected type)
+    36→/// 4. Classification (subject, topic, subtopic, class, category)
+    37→/// 5. Settings (difficulty, exam type, marks, negative marks, time)
+    38→/// 6. Explanation & Notes
+    39→/// 7. Attachments
+    40→/// 8. Tags
+    41→///
+    42→/// Supports:
+    43→/// - Preview mode toggle
+    44→/// - Save Draft / Publish actions
+    45→/// - Form validation
+    46→/// - Unsaved changes dialog on back
+    47→/// - Loading state while saving
+    48→class QuestionEditorPage extends ConsumerStatefulWidget {
+    49→  const QuestionEditorPage({
+    50→    super.key,
+    51→    this.questionId,
+    52→  });
+    53→
+    54→  /// If provided, the editor loads this question for editing.
+    55→  final String? questionId;
+    56→
+    57→  @override
+    58→  ConsumerState<QuestionEditorPage> createState() =>
+    59→      _QuestionEditorPageState();
+    60→}
+    61→
+    62→class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
+    63→  final _formKey = GlobalKey<FormState>();
+    64→  final _contentController = TextEditingController();
+    65→  final _explanationController = TextEditingController();
+    66→  final _teacherNotesController = TextEditingController();
+    67→  final _referenceMaterialsController = TextEditingController();
+    68→  final _marksController = TextEditingController();
+    69→  final _negativeMarksController = TextEditingController();
+    70→  final _timeAllowedController = TextEditingController();
+    71→  final _tagSearchController = TextEditingController();
+    72→
+    73→  bool _hasInitialized = false;
+    74→  bool _hasUnsavedChanges = false;
+    75→
+    76→  @override
+    77→  void initState() {
+    78→    super.initState();
+    79→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    80→      _initializeEditor();
+    81→    });
+    82→  }
+    83→
+    84→  @override
+    85→  void dispose() {
+    86→    _contentController.dispose();
+    87→    _explanationController.dispose();
+    88→    _teacherNotesController.dispose();
+    89→    _referenceMaterialsController.dispose();
+    90→    _marksController.dispose();
+    91→    _negativeMarksController.dispose();
+    92→    _timeAllowedController.dispose();
+    93→    _tagSearchController.dispose();
+    94→    super.dispose();
+    95→  }
+    96→
+    97→  Future<void> _initializeEditor() async {
+    98→    if (widget.questionId != null) {
+    99→      await ref
+   100→          .read(questionEditorProvider.notifier)
+   101→          .loadQuestionForEdit(widget.questionId!);
+   102→    }
+   103→    _syncControllersFromState();
+   104→    _hasInitialized = true;
+   105→  }
+   106→
+   107→  void _syncControllersFromState() {
+   108→    final state = ref.read(questionEditorProvider);
+   109→    _contentController.text = state.content;
+   110→    _explanationController.text = state.explanation;
+   111→    _teacherNotesController.text = state.teacherNotes;
+   112→    _referenceMaterialsController.text = state.referenceMaterials;
+   113→    _marksController.text = state.marks.toString();
+   114→    _negativeMarksController.text = state.negativeMarks.toString();
+   115→    if (state.timeAllowedSeconds != null) {
+   116→      _timeAllowedController.text = (state.timeAllowedSeconds! ~/ 60).toString();
+   117→    }
+   118→  }
+   119→
+   120→  void _markUnsaved() {
+   121→    if (!_hasUnsavedChanges) {
+   122→      setState(() => _hasUnsavedChanges = true);
+   123→    }
+   124→  }
+   125→
+   126→  // ─── Build ──────────────────────────────────────────────────────────
+   127→
+   128→  @override
+   129→  Widget build(BuildContext context) {
+   130→    final editorState = ref.watch(questionEditorProvider);
+   131→    final cs = context.colorScheme;
+   132→    final tt = context.textTheme;
+   133→
+   134→    return PopScope(
+   135→      canPop: !_hasUnsavedChanges,
+   136→      onPopInvokedWithResult: (didPop, _) async {
+   137→        if (didPop) return;
+   138→        if (_hasUnsavedChanges) {
+   139→          final shouldLeave = await _showUnsavedChangesDialog();
+   140→          if (shouldLeave == true && mounted) {
+   141→            context.pop();
+   142→          }
+   143→        }
+   144→      },
+   145→      child: Scaffold(
+   146→        appBar: AppAppBar(
+   147→          title: editorState.isEditMode ? 'Edit Question' : 'Create Question',
+   148→          actions: [
+   149→            // Preview toggle
+   150→            AppIconButton(
+   151→              icon: editorState.isPreviewMode
+   152→                  ? Icons.edit_rounded
+   153→                  : Icons.visibility_rounded,
+   154→              onPressed: () {
+   155→                ref.read(questionEditorProvider.notifier).togglePreviewMode();
+   156→              },
+   157→              tooltip: editorState.isPreviewMode ? 'Edit' : 'Preview',
+   158→            ),
+   159→            // Save Draft
+   160→            if (!editorState.isPreviewMode)
+   161→              AppButton(
+   162→                label: 'Save Draft',
+   163→                onPressed: editorState.isSaving ? null : _saveDraft,
+   164→                variant: AppButtonVariant.outlined,
+   165→                size: AppButtonSize.small,
+   166→                isLoading: editorState.isSaving,
+   167→              ),
+   168→            const SizedBox(width: Spacings.sm),
+   169→            // Publish
+   170→            AppButton(
+   171→              label: 'Publish',
+   172→              onPressed: editorState.isSaving ? null : _publish,
+   173→              variant: AppButtonVariant.elevated,
+   174→              size: AppButtonSize.small,
+   175→              isLoading: editorState.isSaving,
+   176→            ),
+   177→            const SizedBox(width: Spacings.sm),
+   178→          ],
+   179→        ),
+   180→        body: editorState.isLoading
+   181→            ? const Center(
+   182→                child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+   183→              )
+   184→            : editorState.isPreviewMode
+   185→                ? _buildPreviewMode(editorState)
+   186→                : _buildFormMode(editorState),
+   187→      ),
+   188→    );
+   189→  }
+   190→
+   191→  // ─── Preview Mode ───────────────────────────────────────────────────
+   192→
+   193→  Widget _buildPreviewMode(QuestionEditorState editorState) {
+   194→    // Build a temporary QuestionEntity from the current editor state
+   195→    final previewQuestion = _buildQuestionFromState(editorState);
+   196→
+   197→    return SingleChildScrollView(
+   198→      padding: const EdgeInsets.all(Spacings.lg),
+   199→      child: QuestionPreviewCard(
+   200→        question: previewQuestion,
+   201→      ),
+   202→    );
+   203→  }
+   204→
+   205→  // ─── Form Mode ──────────────────────────────────────────────────────
+   206→
+   207→  Widget _buildFormMode(QuestionEditorState editorState) {
+   208→    return Form(
+   209→      key: _formKey,
+   210→      child: SingleChildScrollView(
+   211→        padding: const EdgeInsets.all(Spacings.lg),
+   212→        child: Column(
+   213→          crossAxisAlignment: CrossAxisAlignment.start,
+   214→          children: [
+   215→            // ── 1. Question Type ──────────────────────────────────
+   216→            _buildSectionHeader(
+   217→              Icons.category_rounded,
+   218→              'Question Type',
+   219→            ),
+   220→            const SizedBox(height: Spacings.md),
+   221→            _buildQuestionTypeGrid(editorState),
+   222→
+   223→            Spacings.sectionGap,
+   224→
+   225→            // ── 2. Question Content ──────────────────────────────
+   226→            _buildSectionHeader(
+   227→              Icons.edit_note_rounded,
+   228→              'Question Content',
+   229→            ),
+   230→            const SizedBox(height: Spacings.md),
+   231→            AppTextField(
+   232→              label: 'Question',
+   233→              hint: 'Enter the question text…',
+   234→              controller: _contentController,
+   235→              maxLines: 10,
+   236→              minLines: 3,
+   237→              isRequired: true,
+   238→              validator: (v) =>
+   239→                  v == null || v.trim().isEmpty ? 'Question content is required' : null,
+   240→              onChanged: (v) {
+   241→                ref.read(questionEditorProvider.notifier).setContent(v);
+   242→                _markUnsaved();
+   243→              },
+   244→            ),
+   245→
+   246→            Spacings.sectionGap,
+   247→
+   248→            // ── 3. Answer Configuration ──────────────────────────
+   249→            _buildSectionHeader(
+   250→              Icons.check_circle_outline_rounded,
+   251→              'Answer Configuration',
+   252→            ),
+   253→            const SizedBox(height: Spacings.md),
+   254→            _buildAnswerConfiguration(editorState),
+   255→
+   256→            Spacings.sectionGap,
+   257→
+   258→            // ── 4. Classification ────────────────────────────────
+   259→            _buildSectionHeader(
+   260→              Icons.folder_outlined,
+   261→              'Classification',
+   262→            ),
+   263→            const SizedBox(height: Spacings.md),
+   264→            _buildClassification(editorState),
+   265→
+   266→            Spacings.sectionGap,
+   267→
+   268→            // ── 5. Settings ──────────────────────────────────────
+   269→            _buildSectionHeader(
+   270→              Icons.settings_outlined,
+   271→              'Settings',
+   272→            ),
+   273→            const SizedBox(height: Spacings.md),
+   274→            _buildSettings(editorState),
+   275→
+   276→            Spacings.sectionGap,
+   277→
+   278→            // ── 6. Explanation & Notes ───────────────────────────
+   279→            _buildSectionHeader(
+   280→              Icons.lightbulb_outline_rounded,
+   281→              'Explanation & Notes',
+   282→            ),
+   283→            const SizedBox(height: Spacings.md),
+   284→            _buildExplanationAndNotes(),
+   285→
+   286→            Spacings.sectionGap,
+   287→
+   288→            // ── 7. Attachments ───────────────────────────────────
+   289→            _buildSectionHeader(
+   290→              Icons.attach_file_rounded,
+   291→              'Attachments',
+   292→            ),
+   293→            const SizedBox(height: Spacings.md),
+   294→            _buildAttachments(editorState),
+   295→
+   296→            Spacings.sectionGap,
+   297→
+   298→            // ── 8. Tags ──────────────────────────────────────────
+   299→            _buildSectionHeader(
+   300→              Icons.label_outline_rounded,
+   301→              'Tags',
+   302→            ),
+   303→            const SizedBox(height: Spacings.md),
+   304→            _buildTags(editorState),
+   305→
+   306→            const SizedBox(height: Spacings.xxl),
+   307→          ],
+   308→        ),
+   309→      ),
+   310→    );
+   311→  }
+   312→
+   313→  // ─── Section Header ─────────────────────────────────────────────────
+   314→
+   315→  Widget _buildSectionHeader(IconData icon, String title) {
+   316→    final cs = context.colorScheme;
+   317→    final tt = context.textTheme;
+   318→
+   319→    return Row(
+   320→      children: [
+   321→        Icon(icon, size: Spacings.mdIcon, color: cs.primary),
+   322→        const SizedBox(width: Spacings.sm),
+   323→        Text(
+   324→          title,
+   325→          style: tt.titleMedium?.copyWith(
+   326→            fontWeight: AppTypography.wSemiBold,
+   327→            color: cs.onSurface,
+   328→          ),
+   329→        ),
+   330→      ],
+   331→    );
+   332→  }
+   333→
+   334→  // ─── 1. Question Type Grid ──────────────────────────────────────────
+   335→
+   336→  Widget _buildQuestionTypeGrid(QuestionEditorState editorState) {
+   337→    final cs = context.colorScheme;
+   338→    final isDesktop = context.isDesktop;
+   339→    final crossAxisCount = isDesktop ? 4 : (context.isTablet ? 3 : 2);
+   340→
+   341→    return GridView.count(
+   342→      shrinkWrap: true,
+   343→      physics: const NeverScrollableScrollPhysics(),
+   344→      crossAxisCount: crossAxisCount,
+   345→      childAspectRatio: 2.8,
+   346→      crossAxisSpacing: Spacings.sm,
+   347→      mainAxisSpacing: Spacings.sm,
+   348→      children: QuestionType.values.map((type) {
+   349→        final isSelected = editorState.selectedQuestionType == type;
+   350→        return InkWell(
+   351→          onTap: () {
+   352→            ref.read(questionEditorProvider.notifier).setQuestionType(type);
+   353→            _markUnsaved();
+   354→          },
+   355→          borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   356→          child: Container(
+   357→            padding: const EdgeInsets.symmetric(
+   358→              horizontal: Spacings.md,
+   359→              vertical: Spacings.sm,
+   360→            ),
+   361→            decoration: BoxDecoration(
+   362→              color: isSelected
+   363→                  ? cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.08)
+   364→                  : cs.surfaceContainerLow,
+   365→              borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   366→              border: Border.all(
+   367→                color: isSelected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
+   368→                width: isSelected ? 2.0 : 1.0,
+   369→              ),
+   370→            ),
+   371→            child: Row(
+   372→              children: [
+   373→                QuestionTypeBadge(
+   374→                  type: type,
+   375→                  variant: QuestionTypeBadgeVariant.iconOnly,
+   376→                  size: QuestionTypeBadgeSize.small,
+   377→                ),
+   378→                const SizedBox(width: Spacings.sm),
+   379→                Flexible(
+   380→                  child: Text(
+   381→                    type.label,
+   382→                    style: context.textTheme.bodySmall?.copyWith(
+   383→                      color: isSelected ? cs.primary : cs.onSurface,
+   384→                      fontWeight: isSelected
+   385→                          ? AppTypography.wSemiBold
+   386→                          : null,
+   387→                    ),
+   388→                    maxLines: 1,
+   389→                    overflow: TextOverflow.ellipsis,
+   390→                  ),
+   391→                ),
+   392→              ],
+   393→            ),
+   394→          ),
+   395→        );
+   396→      }).toList(),
+   397→    );
+   398→  }
+   399→
+   400→  // ─── 3. Answer Configuration ────────────────────────────────────────
+   401→
+   402→  Widget _buildAnswerConfiguration(QuestionEditorState editorState) {
+   403→    final type = editorState.selectedQuestionType;
+   404→    final cs = context.colorScheme;
+   405→
+   406→    switch (type) {
+   407→      case QuestionType.multipleChoice:
+   408→      case QuestionType.multipleResponse:
+   409→      case QuestionType.imageBased:
+   410→      case QuestionType.audioBased:
+   411→      case QuestionType.videoBased:
+   412→        return AnswerOptionsEditor(
+   413→          options: editorState.answerOptions,
+   414→          isMultipleChoice: type == QuestionType.multipleChoice,
+   415→          onAddOption: () {
+   416→            ref.read(questionEditorProvider.notifier).addAnswerOption();
+   417→            _markUnsaved();
+   418→          },
+   419→          onRemoveOption: (index) {
+   420→            ref.read(questionEditorProvider.notifier).removeAnswerOption(index);
+   421→            _markUnsaved();
+   422→          },
+   423→          onUpdateOption: (index, option) {
+   424→            ref.read(questionEditorProvider.notifier).updateAnswerOption(index, option);
+   425→            _markUnsaved();
+   426→          },
+   427→          onSetCorrectAnswer: (index) {
+   428→            ref.read(questionEditorProvider.notifier).setCorrectAnswer(index);
+   429→            _markUnsaved();
+   430→          },
+   431→          onSetCorrectAnswers: (indices) {
+   432→            ref.read(questionEditorProvider.notifier).setCorrectAnswers(indices);
+   433→            _markUnsaved();
+   434→          },
+   435→        );
+   436→
+   437→      case QuestionType.trueFalse:
+   438→        return _buildTrueFalseEditor(editorState);
+   439→
+   440→      case QuestionType.matching:
+   441→        return MatchingPairsEditor(
+   442→          pairs: editorState.matchingPairs,
+   443→          onAddPair: () {
+   444→            ref.read(questionEditorProvider.notifier).addMatchingPair();
+   445→            _markUnsaved();
+   446→          },
+   447→          onRemovePair: (index) {
+   448→            ref.read(questionEditorProvider.notifier).removeMatchingPair(index);
+   449→            _markUnsaved();
+   450→          },
+   451→          onUpdatePair: (index, pair) {
+   452→            ref.read(questionEditorProvider.notifier).updateMatchingPair(index, pair);
+   453→            _markUnsaved();
+   454→          },
+   455→        );
+   456→
+   457→      case QuestionType.ordering:
+   458→        return OrderingItemsEditor(
+   459→          items: editorState.orderingItems,
+   460→          onAddItem: () {
+   461→            ref.read(questionEditorProvider.notifier).addOrderingItem();
+   462→            _markUnsaved();
+   463→          },
+   464→          onRemoveItem: (index) {
+   465→            ref.read(questionEditorProvider.notifier).removeOrderingItem(index);
+   466→            _markUnsaved();
+   467→          },
+   468→          onUpdateItem: (index, item) {
+   469→            ref.read(questionEditorProvider.notifier).updateOrderingItem(index, item);
+   470→            _markUnsaved();
+   471→          },
+   472→          onReorder: (oldIndex, newIndex) {
+   473→            ref.read(questionEditorProvider.notifier).reorderOrderingItems(oldIndex, newIndex);
+   474→            _markUnsaved();
+   475→          },
+   476→        );
+   477→
+   478→      case QuestionType.fillInBlank:
+   479→        return FillInBlankEditor(
+   480→          answers: editorState.fillInBlankAnswers,
+   481→          onAddBlank: () {
+   482→            ref.read(questionEditorProvider.notifier).addFillInBlankAnswer();
+   483→            _markUnsaved();
+   484→          },
+   485→          onRemoveBlank: (index) {
+   486→            ref.read(questionEditorProvider.notifier).removeFillInBlankAnswer(index);
+   487→            _markUnsaved();
+   488→          },
+   489→          onUpdateBlank: (index, answer) {
+   490→            ref.read(questionEditorProvider.notifier).updateFillInBlankAnswer(index, answer);
+   491→            _markUnsaved();
+   492→          },
+   493→        );
+   494→
+   495→      case QuestionType.shortAnswer:
+   496→      case QuestionType.essay:
+   497→      case QuestionType.numerical:
+   498→      case QuestionType.practical:
+   499→      case QuestionType.caseStudy:
+   500→        return AppTextField(
+   501→          label: 'Model Answer',
+   502→          hint: 'Enter the model answer or expected response…',
+   503→          controller: _explanationController, // Reuse for model answer
+   504→          maxLines: 8,
+   505→          minLines: 3,
+   506→          onChanged: (v) {
+   507→            _markUnsaved();
+   508→          },
+   509→        );
+   510→    }
+   511→  }
+   512→
+   513→  // ─── True/False Editor ──────────────────────────────────────────────
+   514→
+   515→  Widget _buildTrueFalseEditor(QuestionEditorState editorState) {
+   516→    final cs = context.colorScheme;
+   517→    final tt = context.textTheme;
+   518→
+   519→    // Check if "True" is the correct answer
+   520→    final isTrueCorrect = editorState.answerOptions.any(
+   521→      (o) => o.isCorrect && o.content.toLowerCase() == 'true',
+   522→    );
+   523→
+   524→    return Column(
+   525→      crossAxisAlignment: CrossAxisAlignment.start,
+   526→      children: [
+   527→        Text(
+   528→          'Select the correct answer',
+   529→          style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   530→        ),
+   531→        const SizedBox(height: Spacings.md),
+   532→        SegmentedButton<bool>(
+   533→          segments: const [
+   534→            ButtonSegment(value: true, label: Text('True'), icon: Icon(Icons.check_rounded)),
+   535→            ButtonSegment(value: false, label: Text('False'), icon: Icon(Icons.close_rounded)),
+   536→          ],
+   537→          selected: {isTrueCorrect},
+   538→          onSelectionChanged: (selection) {
+   539→            final isTrue = selection.first;
+   540→            // Update the state with True/False options
+   541→            ref.read(questionEditorProvider.notifier).setCorrectAnswer(isTrue ? 0 : 1);
+   542→            _markUnsaved();
+   543→          },
+   544→        ),
+   545→      ],
+   546→    );
+   547→  }
+   548→
+   549→  // ─── 4. Classification ──────────────────────────────────────────────
+   550→
+   551→  Widget _buildClassification(QuestionEditorState editorState) {
+   552→    return Column(
+   553→      children: [
+   554→        _buildResponsiveRow([
+   555→          AppDropdownField<String>(
+   556→            label: 'Subject',
+   557→            hint: 'Select subject',
+   558→            items: const [], // TODO: populate from provider
+   559→            selectedItem: editorState.selectedSubjectId,
+   560→            onChanged: (v) {
+   561→              ref.read(questionEditorProvider.notifier).setSubject(v);
+   562→              _markUnsaved();
+   563→            },
+   564→            prefixIcon: Icons.book_outlined,
+   565→          ),
+   566→          AppDropdownField<String>(
+   567→            label: 'Topic',
+   568→            hint: 'Select topic',
+   569→            items: editorState.availableTopics.map((t) => t.id).toList(),
+   570→            selectedItem: editorState.selectedTopicId,
+   571→            onChanged: (v) {
+   572→              ref.read(questionEditorProvider.notifier).setTopic(v);
+   573→              _markUnsaved();
+   574→            },
+   575→            prefixIcon: Icons.topic_outlined,
+   576→            isEnabled: editorState.selectedSubjectId != null,
+   577→            itemLabel: (id) {
+   578→              final topic = editorState.availableTopics
+   579→                  .where((t) => t.id == id)
+   580→                  .firstOrNull;
+   581→              return topic?.name ?? id;
+   582→            },
+   583→          ),
+   584→        ]),
+   585→        const SizedBox(height: Spacings.md),
+   586→        _buildResponsiveRow([
+   587→          AppDropdownField<String>(
+   588→            label: 'Subtopic',
+   589→            hint: 'Select subtopic',
+   590→            items: editorState.availableSubtopics.map((s) => s.id).toList(),
+   591→            selectedItem: editorState.selectedSubtopicId,
+   592→            onChanged: (v) {
+   593→              ref.read(questionEditorProvider.notifier).setSubtopic(v);
+   594→              _markUnsaved();
+   595→            },
+   596→            prefixIcon: Icons.subdirectory_arrow_right_rounded,
+   597→            isEnabled: editorState.selectedTopicId != null,
+   598→            itemLabel: (id) {
+   599→              final subtopic = editorState.availableSubtopics
+   600→                  .where((s) => s.id == id)
+   601→                  .firstOrNull;
+   602→              return subtopic?.name ?? id;
+   603→            },
+   604→          ),
+   605→          AppDropdownField<String>(
+   606→            label: 'Class',
+   607→            hint: 'Select class',
+   608→            items: const [], // TODO: populate from provider
+   609→            selectedItem: editorState.selectedClassId,
+   610→            onChanged: (v) {
+   611→              ref.read(questionEditorProvider.notifier).setClass(v);
+   612→              _markUnsaved();
+   613→            },
+   614→            prefixIcon: Icons.school_outlined,
+   615→          ),
+   616→        ]),
+   617→        const SizedBox(height: Spacings.md),
+   618→        AppDropdownField<String>(
+   619→          label: 'Category',
+   620→          hint: 'Select category',
+   621→          items: const [], // TODO: populate from provider
+   622→          selectedItem: editorState.selectedCategoryId,
+   623→          onChanged: (v) {
+   624→            ref.read(questionEditorProvider.notifier).setCategory(v);
+   625→            _markUnsaved();
+   626→          },
+   627→          prefixIcon: Icons.category_outlined,
+   628→        ),
+   629→      ],
+   630→    );
+   631→  }
+   632→
+   633→  // ─── 5. Settings ────────────────────────────────────────────────────
+   634→
+   635→  Widget _buildSettings(QuestionEditorState editorState) {
+   636→    return Column(
+   637→      children: [
+   638→        _buildResponsiveRow([
+   639→          AppDropdownField<DifficultyLevel>(
+   640→            label: 'Difficulty',
+   641→            items: DifficultyLevel.values,
+   642→            selectedItem: editorState.selectedDifficulty,
+   643→            onChanged: (v) {
+   644→              if (v != null) {
+   645→                ref.read(questionEditorProvider.notifier).setDifficulty(v);
+   646→                _markUnsaved();
+   647→              }
+   648→            },
+   649→            itemLabel: (d) => d.label,
+   650→            prefixIcon: Icons.signal_cellular_alt_rounded,
+   651→          ),
+   652→          AppDropdownField<ExamType>(
+   653→            label: 'Exam Type',
+   654→            items: ExamType.values,
+   655→            selectedItem: editorState.selectedExamType,
+   656→            onChanged: (v) {
+   657→              if (v != null) {
+   658→                ref.read(questionEditorProvider.notifier).setExamType(v);
+   659→                _markUnsaved();
+   660→              }
+   661→            },
+   662→            itemLabel: (e) => e.label,
+   663→            prefixIcon: Icons.quiz_outlined,
+   664→          ),
+   665→        ]),
+   666→        const SizedBox(height: Spacings.md),
+   667→        _buildResponsiveRow([
+   668→          AppTextField(
+   669→            label: 'Marks',
+   670→            controller: _marksController,
+   671→            prefixIcon: Icons.star_outline_rounded,
+   672→            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+   673→            onChanged: (v) {
+   674→              final marks = double.tryParse(v);
+   675→              if (marks != null) {
+   676→                ref.read(questionEditorProvider.notifier).setMarks(marks);
+   677→              }
+   678→              _markUnsaved();
+   679→            },
+   680→          ),
+   681→          AppTextField(
+   682→            label: 'Negative Marks',
+   683→            controller: _negativeMarksController,
+   684→            prefixIcon: Icons.remove_circle_outline_rounded,
+   685→            keyboardType: const TextInputType.numberWithOptions(decimal: true),
+   686→            onChanged: (v) {
+   687→              final neg = double.tryParse(v);
+   688→              if (neg != null) {
+   689→                ref.read(questionEditorProvider.notifier).setNegativeMarks(neg);
+   690→              }
+   691→              _markUnsaved();
+   692→            },
+   693→          ),
+   694→        ]),
+   695→        const SizedBox(height: Spacings.md),
+   696→        AppTextField(
+   697→          label: 'Time Allowed (minutes)',
+   698→          controller: _timeAllowedController,
+   699→          prefixIcon: Icons.timer_outlined,
+   700→          keyboardType: TextInputType.number,
+   701→          onChanged: (v) {
+   702→            final minutes = int.tryParse(v);
+   703→            ref.read(questionEditorProvider.notifier).setTimeAllowed(
+   704→                  minutes != null ? minutes * 60 : null,
+   705→                );
+   706→            _markUnsaved();
+   707→          },
+   708→        ),
+   709→      ],
+   710→    );
+   711→  }
+   712→
+   713→  // ─── 6. Explanation & Notes ─────────────────────────────────────────
+   714→
+   715→  Widget _buildExplanationAndNotes() {
+   716→    return Column(
+   717→      children: [
+   718→        AppTextField(
+   719→          label: 'Explanation',
+   720→          hint: 'Explain the correct answer…',
+   721→          controller: _explanationController,
+   722→          maxLines: 6,
+   723→          minLines: 2,
+   724→          onChanged: (v) {
+   725→            ref.read(questionEditorProvider.notifier).setExplanation(v);
+   726→            _markUnsaved();
+   727→          },
+   728→        ),
+   729→        const SizedBox(height: Spacings.md),
+   730→        AppTextField(
+   731→          label: 'Teacher Notes',
+   732→          hint: 'Internal notes (not visible to students)…',
+   733→          controller: _teacherNotesController,
+   734→          maxLines: 4,
+   735→          minLines: 2,
+   736→          onChanged: (v) {
+   737→            ref.read(questionEditorProvider.notifier).setTeacherNotes(v);
+   738→            _markUnsaved();
+   739→          },
+   740→        ),
+   741→        const SizedBox(height: Spacings.md),
+   742→        AppTextField(
+   743→          label: 'Reference Materials',
+   744→          hint: 'Source or reference information…',
+   745→          controller: _referenceMaterialsController,
+   746→          maxLines: 3,
+   747→          minLines: 1,
+   748→          onChanged: (v) {
+   749→            ref.read(questionEditorProvider.notifier).setReferenceMaterials(v);
+   750→            _markUnsaved();
+   751→          },
+   752→        ),
+   753→      ],
+   754→    );
+   755→  }
+   756→
+   757→  // ─── 7. Attachments ─────────────────────────────────────────────────
+   758→
+   759→  Widget _buildAttachments(QuestionEditorState editorState) {
+   760→    final cs = context.colorScheme;
+   761→    final tt = context.textTheme;
+   762→
+   763→    return Column(
+   764→      crossAxisAlignment: CrossAxisAlignment.start,
+   765→      children: [
+   766→        AppButton(
+   767→          label: 'Add Attachment',
+   768→          onPressed: () {
+   769→            // TODO: file picker
+   770→            _markUnsaved();
+   771→          },
+   772→          variant: AppButtonVariant.outlined,
+   773→          size: AppButtonSize.small,
+   774→          icon: Icons.attach_file_rounded,
+   775→        ),
+   776→        if (editorState.attachments.isNotEmpty) ...[
+   777→          const SizedBox(height: Spacings.md),
+   778→          ...editorState.attachments.map((att) {
+   779→            final icon = _attachmentIcon(att.contentType);
+   780→            final color = _attachmentColor(att.contentType, cs);
+   781→            return Padding(
+   782→              padding: const EdgeInsets.only(bottom: Spacings.sm),
+   783→              child: Container(
+   784→                padding: const EdgeInsets.all(Spacings.md),
+   785→                decoration: BoxDecoration(
+   786→                  color: color.withValues(
+   787→                    alpha: context.isDarkMode ? 0.15 : 0.06,
+   788→                  ),
+   789→                  borderRadius: BorderRadius.circular(Spacings.smRadius),
+   790→                  border: Border.all(
+   791→                    color: color.withValues(alpha: 0.3),
+   792→                  ),
+   793→                ),
+   794→                child: Row(
+   795→                  children: [
+   796→                    Icon(icon, size: Spacings.mdIcon, color: color),
+   797→                    const SizedBox(width: Spacings.md),
+   798→                    Expanded(
+   799→                      child: Column(
+   800→                        crossAxisAlignment: CrossAxisAlignment.start,
+   801→                        children: [
+   802→                          Text(
+   803→                            att.fileName ?? att.contentType,
+   804→                            style: tt.bodyMedium?.copyWith(
+   805→                              color: cs.onSurface,
+   806→                              fontWeight: AppTypography.wMedium,
+   807→                            ),
+   808→                            maxLines: 1,
+   809→                            overflow: TextOverflow.ellipsis,
+   810→                          ),
+   811→                          if (att.fileSize != null)
+   812→                            Text(
+   813→                              _formatFileSize(att.fileSize!),
+   814→                              style: tt.bodySmall?.copyWith(
+   815→                                color: cs.onSurfaceVariant,
+   816→                              ),
+   817→                            ),
+   818→                        ],
+   819→                      ),
+   820→                    ),
+   821→                    IconButton(
+   822→                      icon: Icon(
+   823→                        Icons.close_rounded,
+   824→                        size: Spacings.smIcon,
+   825→                        color: AppColors.errorOf(cs.brightness),
+   826→                      ),
+   827→                      onPressed: () {
+   828→                        ref
+   829→                            .read(questionEditorProvider.notifier)
+   830→                            .removeAttachment(att.id);
+   831→                        _markUnsaved();
+   832→                      },
+   833→                      tooltip: 'Remove attachment',
+   834→                    ),
+   835→                  ],
+   836→                ),
+   837→              ),
+   838→            );
+   839→          }),
+   840→        ],
+   841→      ],
+   842→    );
+   843→  }
+   844→
+   845→  // ─── 8. Tags ────────────────────────────────────────────────────────
+   846→
+   847→  Widget _buildTags(QuestionEditorState editorState) {
+   848→    final cs = context.colorScheme;
+   849→    final tt = context.textTheme;
+   850→
+   851→    return Column(
+   852→      crossAxisAlignment: CrossAxisAlignment.start,
+   853→      children: [
+   854→        Row(
+   855→          children: [
+   856→            Expanded(
+   857→              child: AppTextField(
+   858→                label: 'Search Tags',
+   859→                hint: 'Type to search or add…',
+   860→                controller: _tagSearchController,
+   861→                prefixIcon: Icons.search_rounded,
+   862→                onFieldSubmitted: (v) {
+   863→                  if (v.trim().isNotEmpty) {
+   864→                    ref.read(questionEditorProvider.notifier).addTag(
+   865→                          QuestionTagEntity(
+   866→                            id: 'tag-${DateTime.now().millisecondsSinceEpoch}',
+   867→                            name: v.trim(),
+   868→                            createdAt: DateTime.now(),
+   869→                          ),
+   870→                        );
+   871→                    _tagSearchController.clear();
+   872→                    _markUnsaved();
+   873→                  }
+   874→                },
+   875→              ),
+   876→            ),
+   877→            const SizedBox(width: Spacings.sm),
+   878→            AppButton(
+   879→              label: 'Add',
+   880→              onPressed: () {
+   881→                final v = _tagSearchController.text.trim();
+   882→                if (v.isNotEmpty) {
+   883→                  ref.read(questionEditorProvider.notifier).addTag(
+   884→                        QuestionTagEntity(
+   885→                          id: 'tag-${DateTime.now().millisecondsSinceEpoch}',
+   886→                          name: v,
+   887→                          createdAt: DateTime.now(),
+   888→                        ),
+   889→                      );
+   890→                  _tagSearchController.clear();
+   891→                  _markUnsaved();
+   892→                }
+   893→              },
+   894→              variant: AppButtonVariant.tonal,
+   895→              size: AppButtonSize.small,
+   896→            ),
+   897→          ],
+   898→        ),
+   899→        if (editorState.selectedTags.isNotEmpty) ...[
+   900→          const SizedBox(height: Spacings.md),
+   901→          Wrap(
+   902→            spacing: Spacings.xs,
+   903→            runSpacing: Spacings.xs,
+   904→            children: editorState.selectedTags.map((tag) {
+   905→              return Chip(
+   906→                label: Text(
+   907→                  tag.name,
+   908→                  style: tt.bodySmall?.copyWith(color: cs.onSurface),
+   909→                ),
+   910→                deleteIcon: Icon(
+   911→                  Icons.close_rounded,
+   912→                  size: Spacings.smIcon,
+   913→                ),
+   914→                onDeleted: () {
+   915→                  ref
+   916→                      .read(questionEditorProvider.notifier)
+   917→                      .removeTag(tag.id);
+   918→                  _markUnsaved();
+   919→                },
+   920→              );
+   921→            }).toList(),
+   922→          ),
+   923→        ],
+   924→      ],
+   925→    );
+   926→  }
+   927→
+   928→  // ─── Responsive Row Helper ──────────────────────────────────────────
+   929→
+   930→  Widget _buildResponsiveRow(List<Widget> children) {
+   931→    if (context.isMobile) {
+   932→      return Column(
+   933→        crossAxisAlignment: CrossAxisAlignment.start,
+   934→        children: children
+   935→            .expand((w) => [w, const SizedBox(height: Spacings.sm)])
+   936→            .toList()
+   937→          ..removeLast(),
+   938→      );
+   939→    }
+   940→    return Row(
+   941→      crossAxisAlignment: CrossAxisAlignment.start,
+   942→      children: children
+   943→          .expand((w) => [Expanded(child: w), const SizedBox(width: Spacings.md)])
+   944→          .toList()
+   945→        ..removeLast(),
+   946→    );
+   947→  }
+   948→
+   949→  // ─── Save Draft ─────────────────────────────────────────────────────
+   950→
+   951→  Future<void> _saveDraft() async {
+   952→    if (!_formKey.currentState!.validate()) return;
+   953→
+   954→    final notifier = ref.read(questionEditorProvider.notifier);
+   955→    await notifier.saveAsDraft();
+   956→
+   957→    _handleSaveResult();
+   958→  }
+   959→
+   960→  // ─── Publish ────────────────────────────────────────────────────────
+   961→
+   962→  Future<void> _publish() async {
+   963→    if (!_formKey.currentState!.validate()) return;
+   964→
+   965→    final notifier = ref.read(questionEditorProvider.notifier);
+   966→    await notifier.saveAndPublish();
+   967→
+   968→    _handleSaveResult();
+   969→  }
+   970→
+   971→  void _handleSaveResult() {
+   972→    final state = ref.read(questionEditorProvider);
+   973→    if (state.error != null && mounted) {
+   974→      AppDialog.showError(
+   975→        context: context,
+   976→        title: 'Save Failed',
+   977→        message: state.error!,
+   978→      );
+   979→    } else if (state.successMessage != null && mounted) {
+   980→      setState(() => _hasUnsavedChanges = false);
+   981→      ScaffoldMessenger.of(context).showSnackBar(
+   982→        SnackBar(
+   983→          content: Text(state.successMessage!),
+   984→          behavior: SnackBarBehavior.floating,
+   985→        ),
+   986→      );
+   987→      if (mounted) context.pop();
+   988→    }
+   989→  }
+   990→
+   991→  // ─── Unsaved Changes Dialog ─────────────────────────────────────────
+   992→
+   993→  Future<bool?> _showUnsavedChangesDialog() {
+   994→    return AppDialog.showConfirm(
+   995→      context: context,
+   996→      title: 'Unsaved Changes',
+   997→      message:
+   998→          'You have unsaved changes. Are you sure you want to leave? Your changes will be lost.',
+   999→      confirmText: 'Leave',
+  1000→      isDestructive: true,
+  1001→    );
+  1002→  }
+  1003→
+  1004→  // ─── Build QuestionEntity from State ────────────────────────────────
+  1005→
+  1006→  QuestionEntity _buildQuestionFromState(QuestionEditorState editorState) {
+  1007→    final now = DateTime.now();
+  1008→    return QuestionEntity(
+  1009→      id: editorState.question?.id ?? 'preview',
+  1010→      subjectId: editorState.selectedSubjectId ?? '',
+  1011→      topicId: editorState.selectedTopicId,
+  1012→      subtopicId: editorState.selectedSubtopicId,
+  1013→      classId: editorState.selectedClassId,
+  1014→      categoryId: editorState.selectedCategoryId,
+  1015→      questionType: editorState.selectedQuestionType,
+  1016→      difficulty: editorState.selectedDifficulty,
+  1017→      examType: editorState.selectedExamType,
+  1018→      content: editorState.content,
+  1019→      explanation: editorState.explanation.isNotEmpty
+  1020→          ? editorState.explanation
+  1021→          : null,
+  1022→      teacherNotes: editorState.teacherNotes.isNotEmpty
+  1023→          ? editorState.teacherNotes
+  1024→          : null,
+  1025→      referenceMaterials: editorState.referenceMaterials.isNotEmpty
+  1026→          ? editorState.referenceMaterials
+  1027→          : null,
+  1028→      marks: editorState.marks,
+  1029→      negativeMarks: editorState.negativeMarks,
+  1030→      timeAllowedSeconds: editorState.timeAllowedSeconds,
+  1031→      isPublished: editorState.question?.isPublished ?? false,
+  1032→      isArchived: editorState.question?.isArchived ?? false,
+  1033→      isFeatured: editorState.question?.isFeatured ?? false,
+  1034→      version: editorState.question?.version ?? 1,
+  1035→      createdBy: editorState.question?.createdBy,
+  1036→      usageCount: editorState.question?.usageCount ?? 0,
+  1037→      avgScore: editorState.question?.avgScore ?? 0.0,
+  1038→      createdAt: editorState.question?.createdAt ?? now,
+  1039→      updatedAt: now,
+  1040→      answerOptions: editorState.answerOptions,
+  1041→      matchingPairs: editorState.matchingPairs,
+  1042→      orderingItems: editorState.orderingItems,
+  1043→      fillInBlankAnswers: editorState.fillInBlankAnswers,
+  1044→      attachments: editorState.attachments,
+  1045→      tags: editorState.selectedTags,
+  1046→    );
+  1047→  }
+  1048→
+  1049→  // ─── Attachment Helpers ──────────────────────────────────────────────
+  1050→
+  1051→  IconData _attachmentIcon(String contentType) {
+  1052→    return switch (contentType) {
+  1053→      'image' => Icons.image_outlined,
+  1054→      'audio' => Icons.audiotrack_outlined,
+  1055→      'video' => Icons.videocam_outlined,
+  1056→      'document' => Icons.description_outlined,
+  1057→      _ => Icons.attach_file_rounded,
+  1058→    };
+  1059→  }
+  1060→
+  1061→  Color _attachmentColor(String contentType, ColorScheme cs) {
+  1062→    return switch (contentType) {
+  1063→      'image' => const Color(0xFF2563EB),
+  1064→      'audio' => const Color(0xFFCA8A04),
+  1065→      'video' => const Color(0xFFBE185D),
+  1066→      'document' => const Color(0xFF059669),
+  1067→      _ => cs.onSurfaceVariant,
+  1068→    };
+  1069→  }
+  1070→
+  1071→  String _formatFileSize(int bytes) {
+  1072→    if (bytes < 1024) return '$bytes B';
+  1073→    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  1074→    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+  1075→  }
+  1076→}
+  1077→

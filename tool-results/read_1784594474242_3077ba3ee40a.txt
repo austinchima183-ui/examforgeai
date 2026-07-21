@@ -1,0 +1,920 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/app_typography.dart';
+     6→import '../../../../core/themes/spacings.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/widgets.dart';
+     9→import '../providers/student_portal_providers.dart';
+    10→import '../../domain/entities/student_portal_entities.dart';
+    11→
+    12→/// Flashcard study interface page.
+    13→///
+    14→/// Features:
+    15→/// - Deck list with: Title, Card count, Due count, Subject, Favorite toggle, Study button
+    16→/// - Create deck dialog
+    17→/// - Study mode: Card flip animation, Hint button, Rating buttons, Progress, Session summary
+    18→/// - Deck detail: Card list, Add card button, Edit card, Delete card
+    19→/// - Generate flashcards from content dialog
+    20→class FlashcardPage extends ConsumerStatefulWidget {
+    21→  const FlashcardPage({super.key});
+    22→
+    23→  @override
+    24→  ConsumerState<FlashcardPage> createState() => _FlashcardPageState();
+    25→}
+    26→
+    27→class _FlashcardPageState extends ConsumerState<FlashcardPage>
+    28→    with SingleTickerProviderStateMixin {
+    29→  late final AnimationController _flipController;
+    30→
+    31→  @override
+    32→  void initState() {
+    33→    super.initState();
+    34→    _flipController = AnimationController(
+    35→      vsync: this,
+    36→      duration: const Duration(milliseconds: 600),
+    37→    );
+    38→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    39→      ref.read(flashcardProvider.notifier).loadDecks();
+    40→    });
+    41→  }
+    42→
+    43→  @override
+    44→  void dispose() {
+    45→    _flipController.dispose();
+    46→    super.dispose();
+    47→  }
+    48→
+    49→  @override
+    50→  Widget build(BuildContext context) {
+    51→    final flashcardState = ref.watch(flashcardProvider);
+    52→
+    53→    if (flashcardState.isStudying && flashcardState.currentCard != null) {
+    54→      return _buildStudyMode(context, flashcardState);
+    55→    }
+    56→
+    57→    if (flashcardState.currentDeck != null && !flashcardState.isStudying) {
+    58→      return _buildDeckDetail(context, flashcardState);
+    59→    }
+    60→
+    61→    return _buildDeckList(context, flashcardState);
+    62→  }
+    63→
+    64→  // ═══════════════════════════════════════════════════════════════════════
+    65→  // DECK LIST
+    66→  // ═══════════════════════════════════════════════════════════════════════
+    67→
+    68→  Widget _buildDeckList(BuildContext context, FlashcardState state) {
+    69→    final cs = context.colorScheme;
+    70→
+    71→    return Scaffold(
+    72→      appBar: AppBar(title: const Text('Flashcards')),
+    73→      body: state.isLoading && state.decks.isEmpty
+    74→          ? const Center(child: AppLoadingSpinner())
+    75→          : state.error != null && state.decks.isEmpty
+    76→              ? AppErrorState(
+    77→                  icon: Icons.error_outline_rounded,
+    78→                  title: 'Failed to Load Decks',
+    79→                  message: state.error,
+    80→                  onRetry: () =>
+    81→                      ref.read(flashcardProvider.notifier).loadDecks(),
+    82→                )
+    83→              : state.decks.isEmpty
+    84→                  ? AppEmptyState(
+    85→                      icon: Icons.style_outlined,
+    86→                      title: 'No Flashcard Decks',
+    87→                      subtitle:
+    88→                          'Create a deck to start studying with spaced repetition.',
+    89→                      actionLabel: 'Create Deck',
+    90→                      onAction: () => _showCreateDeckDialog(context),
+    91→                    )
+    92→                  : GridView.builder(
+    93→                      padding: Spacings.paddingScreen,
+    94→                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+    95→                        crossAxisCount: context.isMobile ? 1 : 2,
+    96→                        childAspectRatio: 2.2,
+    97→                        crossAxisSpacing: Spacings.md,
+    98→                        mainAxisSpacing: Spacings.md,
+    99→                      ),
+   100→                      itemCount: state.decks.length,
+   101→                      itemBuilder: (context, index) {
+   102→                        final deck = state.decks[index];
+   103→                        return _DeckCard(
+   104→                          deck: deck,
+   105→                          onStudy: () {
+   106→                            ref
+   107→                                .read(flashcardProvider.notifier)
+   108→                                .startStudySession(deck.id);
+   109→                          },
+   110→                          onTap: () {
+   111→                            ref
+   112→                                .read(flashcardProvider.notifier)
+   113→                                .openDeck(deck.id);
+   114→                          },
+   115→                          onFavorite: () {
+   116→                            ref
+   117→                                .read(flashcardProvider.notifier)
+   118→                                .toggleFavorite(deck.id);
+   119→                          },
+   120→                        );
+   121→                      },
+   122→                    ),
+   123→      floatingActionButton: FloatingActionButton(
+   124→        onPressed: () => _showCreateDeckDialog(context),
+   125→        child: const Icon(Icons.add),
+   126→      ),
+   127→    );
+   128→  }
+   129→
+   130→  // ═══════════════════════════════════════════════════════════════════════
+   131→  // DECK DETAIL
+   132→  // ═══════════════════════════════════════════════════════════════════════
+   133→
+   134→  Widget _buildDeckDetail(BuildContext context, FlashcardState state) {
+   135→    final cs = context.colorScheme;
+   136→    final tt = context.textTheme;
+   137→    final deck = state.currentDeck!;
+   138→
+   139→    return Scaffold(
+   140→      appBar: AppBar(
+   141→        title: Text(deck.title),
+   142→        actions: [
+   143→          IconButton(
+   144→            icon: const Icon(Icons.auto_awesome_outlined),
+   145→            onPressed: () => _showGenerateDialog(context),
+   146→            tooltip: 'Generate Flashcards',
+   147→          ),
+   148→          IconButton(
+   149→            icon: const Icon(Icons.delete_outline),
+   150→            onPressed: () {
+   151→              ref.read(flashcardProvider.notifier).deleteDeck(deck.id);
+   152→            },
+   153→          ),
+   154→        ],
+   155→      ),
+   156→      body: state.isLoading
+   157→          ? const Center(child: AppLoadingSpinner())
+   158→          : state.currentCards.isEmpty
+   159→              ? AppEmptyState(
+   160→                  icon: Icons.style_outlined,
+   161→                  title: 'No Cards Yet',
+   162→                  subtitle:
+   163→                      'Add cards manually or generate them with AI.',
+   164→                  actionLabel: 'Add Card',
+   165→                  onAction: () => _showAddCardDialog(context),
+   166→                )
+   167→              : ListView.builder(
+   168→                  padding: Spacings.paddingScreen,
+   169→                  itemCount: state.currentCards.length,
+   170→                  itemBuilder: (context, index) {
+   171→                    final card = state.currentCards[index];
+   172→                    return Padding(
+   173→                      padding:
+   174→                          const EdgeInsets.only(bottom: Spacings.md),
+   175→                      child: _FlashcardListItem(
+   176→                        card: card,
+   177→                        onDelete: () {
+   178→                          ref
+   179→                              .read(flashcardProvider.notifier)
+   180→                              .deleteFlashcard(card.id);
+   181→                        },
+   182→                      ),
+   183→                    );
+   184→                  },
+   185→                ),
+   186→      floatingActionButton: FloatingActionButton.extended(
+   187→        onPressed: () => _showAddCardDialog(context),
+   188→        icon: const Icon(Icons.add),
+   189→        label: const Text('Add Card'),
+   190→      ),
+   191→    );
+   192→  }
+   193→
+   194→  // ═══════════════════════════════════════════════════════════════════════
+   195→  // STUDY MODE
+   196→  // ═══════════════════════════════════════════════════════════════════════
+   197→
+   198→  Widget _buildStudyMode(BuildContext context, FlashcardState state) {
+   199→    final cs = context.colorScheme;
+   200→    final tt = context.textTheme;
+   201→    final card = state.currentCard!;
+   202→
+   203→    if (state.isStudyComplete) {
+   204→      return _buildSessionSummary(context, state);
+   205→    }
+   206→
+   207→    return Scaffold(
+   208→      appBar: AppBar(
+   209→        title: Text(state.currentDeck?.title ?? 'Study'),
+   210→        actions: [
+   211→          TextButton(
+   212→            onPressed: () {
+   213→              ref.read(flashcardProvider.notifier).endStudySession();
+   214→            },
+   215→            child: const Text('End Session'),
+   216→          ),
+   217→        ],
+   218→      ),
+   219→      body: Column(
+   220→        children: [
+   221→          // Progress indicator
+   222→          LinearProgressIndicator(
+   223→            value: state.totalCards > 0
+   224→                ? state.currentCardIndex / state.totalCards
+   225→                : 0,
+   226→          ),
+   227→          Padding(
+   228→            padding: const EdgeInsets.symmetric(
+   229→              horizontal: Spacings.lg,
+   230→              vertical: Spacings.md,
+   231→            ),
+   232→            child: Row(
+   233→              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   234→              children: [
+   235→                Text(
+   236→                  '${state.currentCardIndex + 1} / ${state.totalCards}',
+   237→                  style: tt.titleSmall?.copyWith(
+   238→                    fontWeight: AppTypography.wSemiBold,
+   239→                    color: cs.onSurface,
+   240→                  ),
+   241→                ),
+   242→                Text(
+   243→                  '${state.cardsStudied} studied · ${state.cardsCorrect} correct',
+   244→                  style: tt.bodySmall?.copyWith(
+   245→                    color: cs.onSurfaceVariant,
+   246→                  ),
+   247→                ),
+   248→              ],
+   249→            ),
+   250→          ),
+   251→
+   252→          // Flashcard
+   253→          Expanded(
+   254→            child: Padding(
+   255→              padding: const EdgeInsets.all(Spacings.xl),
+   256→              child: GestureDetector(
+   257→                onTap: () {
+   258→                  if (!state.isShowingAnswer) {
+   259→                    ref.read(flashcardProvider.notifier).showAnswer();
+   260→                    _flipController.forward();
+   261→                  }
+   262→                },
+   263→                child: AnimatedBuilder(
+   264→                  animation: _flipController,
+   265→                  builder: (context, child) {
+   266→                    final angle = _flipController.value * 3.14159;
+   267→                    final isFront = _flipController.value <= 0.5;
+   268→                    return Transform(
+   269→                      alignment: Alignment.center,
+   270→                      transform: Matrix4.identity()
+   271→                        ..setEntry(3, 2, 0.001)
+   272→                        ..rotateY(angle),
+   273→                      child: Container(
+   274→                        width: double.infinity,
+   275→                        decoration: BoxDecoration(
+   276→                          color: isFront
+   277→                              ? cs.surfaceContainerLow
+   278→                              : cs.primaryContainer,
+   279→                          borderRadius:
+   280→                              BorderRadius.circular(Spacings.xlRadius),
+   281→                          boxShadow: [
+   282→                            BoxShadow(
+   283→                              color: cs.shadow.withValues(alpha: 0.1),
+   284→                              blurRadius: 10,
+   285→                              offset: const Offset(0, 4),
+   286→                            ),
+   287→                          ],
+   288→                        ),
+   289→                        child: Padding(
+   290→                          padding: const EdgeInsets.all(Spacings.xxl),
+   291→                          child: Column(
+   292→                            mainAxisAlignment: MainAxisAlignment.center,
+   293→                            children: [
+   294→                              Text(
+   295→                                isFront ? 'QUESTION' : 'ANSWER',
+   296→                                style: tt.labelMedium?.copyWith(
+   297→                                  color: isFront
+   298→                                      ? cs.onSurfaceVariant
+   299→                                      : cs.onPrimaryContainer,
+   300→                                  letterSpacing: 2,
+   301→                                ),
+   302→                              ),
+   303→                              const SizedBox(height: Spacings.lg),
+   304→                              Text(
+   305→                                isFront
+   306→                                    ? card.frontContent
+   307→                                    : card.backContent,
+   308→                                style: tt.headlineSmall?.copyWith(
+   309→                                  fontWeight: AppTypography.wSemiBold,
+   310→                                  color: isFront
+   311→                                      ? cs.onSurface
+   312→                                      : cs.onPrimaryContainer,
+   313→                                ),
+   314→                                textAlign: TextAlign.center,
+   315→                              ),
+   316→                              if (!isFront && card.hint != null) ...[
+   317→                                const SizedBox(height: Spacings.lg),
+   318→                                Text(
+   319→                                  'Hint: ${card.hint}',
+   320→                                  style: tt.bodyMedium?.copyWith(
+   321→                                    color: cs.onPrimaryContainer
+   322→                                        .withValues(alpha: 0.7),
+   323→                                    fontStyle: FontStyle.italic,
+   324→                                  ),
+   325→                                  textAlign: TextAlign.center,
+   326→                                ),
+   327→                              ],
+   328→                            ],
+   329→                          ),
+   330→                        ),
+   331→                      ),
+   332→                    );
+   333→                  },
+   334→                ),
+   335→              ),
+   336→            ),
+   337→          ),
+   338→
+   339→          // Rating buttons (shown after flip)
+   340→          if (state.isShowingAnswer)
+   341→            Padding(
+   342→              padding: const EdgeInsets.all(Spacings.lg),
+   343→              child: Column(
+   344→                children: [
+   345→                  Text(
+   346→                    'How well did you know this?',
+   347→                    style: tt.bodyMedium?.copyWith(
+   348→                      color: cs.onSurfaceVariant,
+   349→                    ),
+   350→                  ),
+   351→                  const SizedBox(height: Spacings.md),
+   352→                  Row(
+   353→                    children: [
+   354→                      Expanded(
+   355→                        child: _RatingButton(
+   356→                          label: 'Again',
+   357→                          color: AppColors.error,
+   358→                          onPressed: () => _rateCard(FlashcardRating.again),
+   359→                        ),
+   360→                      ),
+   361→                      const SizedBox(width: Spacings.sm),
+   362→                      Expanded(
+   363→                        child: _RatingButton(
+   364→                          label: 'Hard',
+   365→                          color: AppColors.warning,
+   366→                          onPressed: () => _rateCard(FlashcardRating.hard),
+   367→                        ),
+   368→                      ),
+   369→                      const SizedBox(width: Spacings.sm),
+   370→                      Expanded(
+   371→                        child: _RatingButton(
+   372→                          label: 'Good',
+   373→                          color: AppColors.success,
+   374→                          onPressed: () => _rateCard(FlashcardRating.good),
+   375→                        ),
+   376→                      ),
+   377→                      const SizedBox(width: Spacings.sm),
+   378→                      Expanded(
+   379→                        child: _RatingButton(
+   380→                          label: 'Easy',
+   381→                          color: AppColors.info,
+   382→                          onPressed: () => _rateCard(FlashcardRating.easy),
+   383→                        ),
+   384→                      ),
+   385→                    ],
+   386→                  ),
+   387→                ],
+   388→              ),
+   389→            )
+   390→          else
+   391→            Padding(
+   392→              padding: const EdgeInsets.all(Spacings.xl),
+   393→              child: Text(
+   394→                'Tap the card to reveal the answer',
+   395→                style: tt.bodyMedium?.copyWith(
+   396→                  color: cs.onSurfaceVariant,
+   397→                ),
+   398→              ),
+   399→            ),
+   400→        ],
+   401→      ),
+   402→    );
+   403→  }
+   404→
+   405→  // ═══════════════════════════════════════════════════════════════════════
+   406→  // SESSION SUMMARY
+   407→  // ═══════════════════════════════════════════════════════════════════════
+   408→
+   409→  Widget _buildSessionSummary(BuildContext context, FlashcardState state) {
+   410→    final cs = context.colorScheme;
+   411→    final tt = context.textTheme;
+   412→
+   413→    return Scaffold(
+   414→      appBar: AppBar(
+   415→        title: const Text('Session Complete'),
+   416→        automaticallyImplyLeading: false,
+   417→      ),
+   418→      body: Center(
+   419→        child: Padding(
+   420→          padding: const EdgeInsets.all(Spacings.xxl),
+   421→          child: Column(
+   422→            mainAxisSize: MainAxisSize.min,
+   423→            children: [
+   424→              Icon(
+   425→                Icons.emoji_events_rounded,
+   426→                size: 64,
+   427→                color: AppColors.warning,
+   428→              ),
+   429→              const SizedBox(height: Spacings.xl),
+   430→              Text(
+   431→                'Session Complete! 🎉',
+   432→                style: tt.headlineSmall?.copyWith(
+   433→                  fontWeight: AppTypography.wBold,
+   434→                  color: cs.onSurface,
+   435→                ),
+   436→              ),
+   437→              const SizedBox(height: Spacings.xl),
+   438→              Row(
+   439→                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+   440→                children: [
+   441→                  _SummaryStat(
+   442→                    label: 'Studied',
+   443→                    value: '${state.cardsStudied}',
+   444→                    color: AppColors.info,
+   445→                  ),
+   446→                  _SummaryStat(
+   447→                    label: 'Correct',
+   448→                    value: '${state.cardsCorrect}',
+   449→                    color: AppColors.success,
+   450→                  ),
+   451→                  _SummaryStat(
+   452→                    label: 'Accuracy',
+   453→                    value:
+   454→                        '${state.studyAccuracy.toStringAsFixed(0)}%',
+   455→                    color: state.studyAccuracy >= 70
+   456→                        ? AppColors.success
+   457→                        : AppColors.warning,
+   458→                  ),
+   459→                ],
+   460→              ),
+   461→              const SizedBox(height: Spacings.xxl),
+   462→              SizedBox(
+   463→                width: double.infinity,
+   464→                child: FilledButton(
+   465→                  onPressed: () {
+   466→                    ref
+   467→                        .read(flashcardProvider.notifier)
+   468→                        .endStudySession();
+   469→                  },
+   470→                  child: const Text('Done'),
+   471→                ),
+   472→              ),
+   473→            ],
+   474→          ),
+   475→        ),
+   476→      ),
+   477→    );
+   478→  }
+   479→
+   480→  // ─── Actions ────────────────────────────────────────────────────────
+   481→
+   482→  void _rateCard(FlashcardRating rating) {
+   483→    _flipController.reverse().then((_) {
+   484→      ref.read(flashcardProvider.notifier).rateCard(rating);
+   485→    });
+   486→  }
+   487→
+   488→  void _showCreateDeckDialog(BuildContext context) {
+   489→    final titleController = TextEditingController();
+   490→    String? selectedSubject;
+   491→
+   492→    showDialog(
+   493→      context: context,
+   494→      builder: (dialogContext) {
+   495→        return StatefulBuilder(
+   496→          builder: (context, setDialogState) {
+   497→            return AlertDialog(
+   498→              title: const Text('Create Deck'),
+   499→              content: Column(
+   500→                mainAxisSize: MainAxisSize.min,
+   501→                children: [
+   502→                  TextField(
+   503→                    controller: titleController,
+   504→                    decoration: const InputDecoration(
+   505→                      labelText: 'Deck Title',
+   506→                      border: OutlineInputBorder(),
+   507→                    ),
+   508→                  ),
+   509→                  const SizedBox(height: Spacings.md),
+   510→                  DropdownButtonFormField<String>(
+   511→                    value: selectedSubject,
+   512→                    decoration: const InputDecoration(
+   513→                      labelText: 'Subject (optional)',
+   514→                      border: OutlineInputBorder(),
+   515→                    ),
+   516→                    items: const [
+   517→                      DropdownMenuItem(
+   518→                          value: 'math', child: Text('Mathematics')),
+   519→                      DropdownMenuItem(
+   520→                          value: 'english', child: Text('English')),
+   521→                      DropdownMenuItem(
+   522→                          value: 'biology', child: Text('Biology')),
+   523→                      DropdownMenuItem(
+   524→                          value: 'physics', child: Text('Physics')),
+   525→                    ],
+   526→                    onChanged: (value) {
+   527→                      setDialogState(() => selectedSubject = value);
+   528→                    },
+   529→                  ),
+   530→                ],
+   531→              ),
+   532→              actions: [
+   533→                TextButton(
+   534→                  onPressed: () => Navigator.pop(dialogContext),
+   535→                  child: const Text('Cancel'),
+   536→                ),
+   537→                FilledButton(
+   538→                  onPressed: () {
+   539→                    Navigator.pop(dialogContext);
+   540→                    ref.read(flashcardProvider.notifier).createDeck(
+   541→                      title: titleController.text.trim().isEmpty
+   542→                          ? 'New Deck'
+   543→                          : titleController.text.trim(),
+   544→                      subjectId: selectedSubject,
+   545→                    );
+   546→                  },
+   547→                  child: const Text('Create'),
+   548→                ),
+   549→              ],
+   550→            );
+   551→          },
+   552→        );
+   553→      },
+   554→    );
+   555→  }
+   556→
+   557→  void _showAddCardDialog(BuildContext context) {
+   558→    final frontController = TextEditingController();
+   559→    final backController = TextEditingController();
+   560→    final hintController = TextEditingController();
+   561→
+   562→    showDialog(
+   563→      context: context,
+   564→      builder: (dialogContext) {
+   565→        return AlertDialog(
+   566→          title: const Text('Add Card'),
+   567→          content: Column(
+   568→            mainAxisSize: MainAxisSize.min,
+   569→            children: [
+   570→              TextField(
+   571→                controller: frontController,
+   572→                decoration: const InputDecoration(
+   573→                  labelText: 'Front (Question)',
+   574→                  border: OutlineInputBorder(),
+   575→                ),
+   576→                maxLines: 3,
+   577→              ),
+   578→              const SizedBox(height: Spacings.md),
+   579→              TextField(
+   580→                controller: backController,
+   581→                decoration: const InputDecoration(
+   582→                  labelText: 'Back (Answer)',
+   583→                  border: OutlineInputBorder(),
+   584→                ),
+   585→                maxLines: 3,
+   586→              ),
+   587→              const SizedBox(height: Spacings.md),
+   588→              TextField(
+   589→                controller: hintController,
+   590→                decoration: const InputDecoration(
+   591→                  labelText: 'Hint (optional)',
+   592→                  border: OutlineInputBorder(),
+   593→                ),
+   594→              ),
+   595→            ],
+   596→          ),
+   597→          actions: [
+   598→            TextButton(
+   599→              onPressed: () => Navigator.pop(dialogContext),
+   600→              child: const Text('Cancel'),
+   601→            ),
+   602→            FilledButton(
+   603→              onPressed: () {
+   604→                Navigator.pop(dialogContext);
+   605→                ref.read(flashcardProvider.notifier).createFlashcard(
+   606→                  frontContent: frontController.text.trim(),
+   607→                  backContent: backController.text.trim(),
+   608→                  hint: hintController.text.trim().isEmpty
+   609→                      ? null
+   610→                      : hintController.text.trim(),
+   611→                );
+   612→              },
+   613→              child: const Text('Add'),
+   614→            ),
+   615→          ],
+   616→        );
+   617→      },
+   618→    );
+   619→  }
+   620→
+   621→  void _showGenerateDialog(BuildContext context) {
+   622→    final titleController = TextEditingController();
+   623→    final contentController = TextEditingController();
+   624→
+   625→    showDialog(
+   626→      context: context,
+   627→      builder: (dialogContext) {
+   628→        return AlertDialog(
+   629→          title: const Text('Generate Flashcards'),
+   630→          content: SizedBox(
+   631→            width: context.isMobile ? double.maxFinite : 500,
+   632→            child: Column(
+   633→              mainAxisSize: MainAxisSize.min,
+   634→              children: [
+   635→                TextField(
+   636→                  controller: titleController,
+   637→                  decoration: const InputDecoration(
+   638→                    labelText: 'Deck Title',
+   639→                    border: OutlineInputBorder(),
+   640→                  ),
+   641→                ),
+   642→                const SizedBox(height: Spacings.md),
+   643→                TextField(
+   644→                  controller: contentController,
+   645→                  decoration: const InputDecoration(
+   646→                    labelText: 'Content to Generate From',
+   647→                    border: OutlineInputBorder(),
+   648→                    alignLabelWithHint: true,
+   649→                  ),
+   650→                  maxLines: 6,
+   651→                ),
+   652→              ],
+   653→            ),
+   654→          ),
+   655→          actions: [
+   656→            TextButton(
+   657→              onPressed: () => Navigator.pop(dialogContext),
+   658→              child: const Text('Cancel'),
+   659→            ),
+   660→            FilledButton(
+   661→              onPressed: () {
+   662→                Navigator.pop(dialogContext);
+   663→                ref.read(flashcardProvider.notifier).generateFlashcards(
+   664→                  title: titleController.text.trim().isEmpty
+   665→                      ? 'Generated Deck'
+   666→                      : titleController.text.trim(),
+   667→                  sourceContent: contentController.text.trim(),
+   668→                );
+   669→              },
+   670→              child: const Text('Generate'),
+   671→            ),
+   672→          ],
+   673→        );
+   674→      },
+   675→    );
+   676→  }
+   677→}
+   678→
+   679→// ═══════════════════════════════════════════════════════════════════════
+   680→// PRIVATE HELPER WIDGETS
+   681→// ═══════════════════════════════════════════════════════════════════════
+   682→
+   683→class _DeckCard extends StatelessWidget {
+   684→  const _DeckCard({
+   685→    required this.deck,
+   686→    required this.onStudy,
+   687→    required this.onTap,
+   688→    required this.onFavorite,
+   689→  });
+   690→
+   691→  final FlashcardDeckEntity deck;
+   692→  final VoidCallback onStudy;
+   693→  final VoidCallback onTap;
+   694→  final VoidCallback onFavorite;
+   695→
+   696→  @override
+   697→  Widget build(BuildContext context) {
+   698→    final cs = context.colorScheme;
+   699→    final tt = context.textTheme;
+   700→
+   701→    return AppCard(
+   702→      onTap: onTap,
+   703→      child: Column(
+   704→        crossAxisAlignment: CrossAxisAlignment.start,
+   705→        children: [
+   706→          Row(
+   707→            children: [
+   708→              Expanded(
+   709→                child: Text(
+   710→                  deck.title,
+   711→                  style: tt.titleSmall?.copyWith(
+   712→                    fontWeight: AppTypography.wSemiBold,
+   713→                    color: cs.onSurface,
+   714→                  ),
+   715→                  maxLines: 1,
+   716→                  overflow: TextOverflow.ellipsis,
+   717→                ),
+   718→              ),
+   719→              IconButton(
+   720→                icon: Icon(
+   721→                  deck.isFavorite
+   722→                      ? Icons.favorite
+   723→                      : Icons.favorite_border,
+   724→                  color: deck.isFavorite ? AppColors.error : null,
+   725→                  size: 20,
+   726→                ),
+   727→                onPressed: onFavorite,
+   728→              ),
+   729→            ],
+   730→          ),
+   731→          const SizedBox(height: Spacings.sm),
+   732→          Row(
+   733→            children: [
+   734→              if (deck.subjectName != null)
+   735→                Container(
+   736→                  padding: const EdgeInsets.symmetric(
+   737→                    horizontal: Spacings.sm,
+   738→                    vertical: 2,
+   739→                  ),
+   740→                  decoration: BoxDecoration(
+   741→                    color: cs.tertiaryContainer,
+   742→                    borderRadius:
+   743→                        BorderRadius.circular(Spacings.fullRadius),
+   744→                  ),
+   745→                  child: Text(
+   746→                    deck.subjectName!,
+   747→                    style: tt.labelSmall?.copyWith(
+   748→                      color: cs.onTertiaryContainer,
+   749→                    ),
+   750→                  ),
+   751→                ),
+   752→              const Spacer(),
+   753→              Icon(
+   754→                Icons.style_outlined,
+   755→                size: Spacings.smIcon,
+   756→                color: cs.onSurfaceVariant,
+   757→              ),
+   758→              const SizedBox(width: Spacings.xs),
+   759→              Text(
+   760→                '${deck.cardCount}',
+   761→                style: tt.bodySmall?.copyWith(
+   762→                  color: cs.onSurfaceVariant,
+   763→                ),
+   764→              ),
+   765→              if (deck.dueCount > 0) ...[
+   766→                const SizedBox(width: Spacings.md),
+   767→                Icon(
+   768→                  Icons.notifications_active_outlined,
+   769→                  size: Spacings.smIcon,
+   770→                  color: AppColors.warning,
+   771→                ),
+   772→                const SizedBox(width: Spacings.xs),
+   773→                Text(
+   774→                  '${deck.dueCount} due',
+   775→                  style: tt.bodySmall?.copyWith(
+   776→                    color: AppColors.warning,
+   777→                    fontWeight: AppTypography.wSemiBold,
+   778→                  ),
+   779→                ),
+   780→              ],
+   781→            ],
+   782→          ),
+   783→          const SizedBox(height: Spacings.md),
+   784→          SizedBox(
+   785→            width: double.infinity,
+   786→            child: FilledButton.tonal(
+   787→              onPressed: deck.dueCount > 0 ? onStudy : null,
+   788→              child: Text(
+   789→                deck.dueCount > 0 ? 'Study Now' : 'No Cards Due',
+   790→              ),
+   791→            ),
+   792→          ),
+   793→        ],
+   794→      ),
+   795→    );
+   796→  }
+   797→}
+   798→
+   799→class _FlashcardListItem extends StatelessWidget {
+   800→  const _FlashcardListItem({
+   801→    required this.card,
+   802→    required this.onDelete,
+   803→  });
+   804→
+   805→  final FlashcardEntity card;
+   806→  final VoidCallback onDelete;
+   807→
+   808→  @override
+   809→  Widget build(BuildContext context) {
+   810→    final cs = context.colorScheme;
+   811→    final tt = context.textTheme;
+   812→
+   813→    return AppCard(
+   814→      child: Row(
+   815→        children: [
+   816→          Expanded(
+   817→            child: Column(
+   818→              crossAxisAlignment: CrossAxisAlignment.start,
+   819→              children: [
+   820→                Text(
+   821→                  card.frontContent,
+   822→                  style: tt.bodyMedium?.copyWith(
+   823→                    fontWeight: AppTypography.wSemiBold,
+   824→                    color: cs.onSurface,
+   825→                  ),
+   826→                  maxLines: 2,
+   827→                  overflow: TextOverflow.ellipsis,
+   828→                ),
+   829→                const SizedBox(height: Spacings.xs),
+   830→                Text(
+   831→                  card.backContent,
+   832→                  style: tt.bodySmall?.copyWith(
+   833→                    color: cs.onSurfaceVariant,
+   834→                  ),
+   835→                  maxLines: 1,
+   836→                  overflow: TextOverflow.ellipsis,
+   837→                ),
+   838→              ],
+   839→            ),
+   840→          ),
+   841→          IconButton(
+   842→            icon: const Icon(Icons.delete_outline, size: 20),
+   843→            onPressed: onDelete,
+   844→          ),
+   845→        ],
+   846→      ),
+   847→    );
+   848→  }
+   849→}
+   850→
+   851→class _RatingButton extends StatelessWidget {
+   852→  const _RatingButton({
+   853→    required this.label,
+   854→    required this.color,
+   855→    required this.onPressed,
+   856→  });
+   857→
+   858→  final String label;
+   859→  final Color color;
+   860→  final VoidCallback onPressed;
+   861→
+   862→  @override
+   863→  Widget build(BuildContext context) {
+   864→    final tt = context.textTheme;
+   865→
+   866→    return FilledButton(
+   867→      onPressed: onPressed,
+   868→      style: FilledButton.styleFrom(
+   869→        backgroundColor: color,
+   870→        foregroundColor: Colors.white,
+   871→        padding: const EdgeInsets.symmetric(vertical: Spacings.md),
+   872→        shape: RoundedRectangleBorder(
+   873→          borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   874→        ),
+   875→      ),
+   876→      child: Text(
+   877→        label,
+   878→        style: tt.labelSmall?.copyWith(
+   879→          fontWeight: AppTypography.wSemiBold,
+   880→        ),
+   881→      ),
+   882→    );
+   883→  }
+   884→}
+   885→
+   886→class _SummaryStat extends StatelessWidget {
+   887→  const _SummaryStat({
+   888→    required this.label,
+   889→    required this.value,
+   890→    required this.color,
+   891→  });
+   892→
+   893→  final String label;
+   894→  final String value;
+   895→  final Color color;
+   896→
+   897→  @override
+   898→  Widget build(BuildContext context) {
+   899→    final tt = context.textTheme;
+   900→
+   901→    return Column(
+   902→      children: [
+   903→        Text(
+   904→          value,
+   905→          style: tt.headlineMedium?.copyWith(
+   906→            fontWeight: AppTypography.wBold,
+   907→            color: color,
+   908→          ),
+   909→        ),
+   910→        Text(
+   911→          label,
+   912→          style: tt.bodySmall?.copyWith(
+   913→            color: context.colorScheme.onSurfaceVariant,
+   914→          ),
+   915→        ),
+   916→      ],
+   917→    );
+   918→  }
+   919→}
+   920→

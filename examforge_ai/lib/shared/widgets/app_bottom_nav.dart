@@ -156,10 +156,10 @@ class _NavItemIcon extends StatelessWidget {
         label: item.badgeCount != null && item.badgeCount! > 0
             ? Text(
                 item.badgeCount! > 99 ? '99+' : '${item.badgeCount}',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 10,
                   fontWeight: AppTypography.wSemiBold,
-                  color: Colors.white,
+                  color: AppColors.onErrorOf(cs.brightness),
                 ),
               )
             : null,

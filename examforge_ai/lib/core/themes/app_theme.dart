@@ -416,7 +416,9 @@ class AppTheme {
 
       // ── Divider ─────────────────────────────────────────────────────────
       dividerTheme: DividerThemeData(
-        color: colorScheme.outlineVariant,
+        // Using outline color (higher contrast than outlineVariant) to meet
+        // WCAG 1.4.11 Non-text Contrast (3:1 minimum for UI components).
+        color: colorScheme.outline,
         thickness: 1,
         space: 1,
         indent: 0,

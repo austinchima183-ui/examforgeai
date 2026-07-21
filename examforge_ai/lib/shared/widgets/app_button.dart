@@ -74,6 +74,8 @@ class AppButton extends StatelessWidget {
     this.isLoading = false,
     this.isDisabled = false,
     this.fullWidth = false,
+    this.semanticLabel,
+    this.isDestructive = false,
   });
 
   /// The text displayed inside the button.
@@ -104,6 +106,13 @@ class AppButton extends StatelessWidget {
 
   /// When `true`, the button expands to fill available horizontal space.
   final bool fullWidth;
+
+  /// Optional semantic label for accessibility. If null, [label] is used.
+  final String? semanticLabel;
+
+  /// When `true`, indicates this button performs a destructive action.
+  /// Affects semantics and may affect visual styling (e.g., red color for destructive actions).
+  final bool isDestructive;
 
   // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -229,12 +238,10 @@ class AppButton extends StatelessWidget {
     );
 
     // Build button by variant
-    switch (variant) {
-      case AppButtonVariant.elevated:
-        return SizedBox(
+    final button = switch (variant) {
+      AppButtonVariant.elevated => SizedBox(
           width: fullWidth ? double.infinity : null,
           child: ElevatedButton(
-            onPressed: effectiveOnPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.primary,
               foregroundColor: cs.onPrimary,
@@ -246,19 +253,10 @@ class AppButton extends StatelessWidget {
               shape: shape,
               textStyle: _textStyleForSize(size, cs),
             ),
-            child: iconWidget != null
-                ? Row(
-                    mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
-                    mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
-                    children: iconAlignment == IconAlignment.start
-                        ? [iconWidget, const SizedBox(width: Spacings.sm), Flexible(child: labelWidget)]
-                        : [Flexible(child: labelWidget), const SizedBox(width: Spacings.sm), iconWidget],
-                  )
-                : labelWidget,
+            child: _buildButtonChild(iconWidget, labelWidget),
           ),
-        );
-
-      case AppButtonVariant.outlined:
+        ),
+      AppButtonVariant.outlined =>
         return SizedBox(
           width: fullWidth ? double.infinity : null,
           child: OutlinedButton(

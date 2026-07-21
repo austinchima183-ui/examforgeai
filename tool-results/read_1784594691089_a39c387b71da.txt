@@ -1,0 +1,890 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→
+     5→import '../../../../core/themes/app_colors.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/themes/spacings.dart';
+     8→import '../../../../core/extensions/context_extensions.dart';
+     9→import '../../../../shared/widgets/app_button.dart';
+    10→import '../../../../shared/widgets/app_card.dart';
+    11→import '../../../../shared/widgets/app_empty_state.dart';
+    12→import '../../../../shared/widgets/app_error_state.dart';
+    13→import '../../../../shared/widgets/app_loading.dart';
+    14→import '../../../../shared/widgets/app_text_field.dart';
+    15→import '../../../../routing/route_names.dart';
+    16→import '../../domain/entities/school_management_entities.dart';
+    17→import '../providers/school_provider.dart';
+    18→
+    19→// ═══════════════════════════════════════════════════════════════════════
+    20→// SCHOOL SETTINGS PAGE (Admin)
+    21→// ═══════════════════════════════════════════════════════════════════════
+    22→
+    23→/// School settings page with sections for branding, limits, subscription,
+    24→/// and general configuration toggles.
+    25→class SchoolSettingsPage extends ConsumerStatefulWidget {
+    26→  const SchoolSettingsPage({super.key, required this.schoolId});
+    27→
+    28→  final String schoolId;
+    29→
+    30→  @override
+    31→  ConsumerState<SchoolSettingsPage> createState() =>
+    32→      _SchoolSettingsPageState();
+    33→}
+    34→
+    35→class _SchoolSettingsPageState extends ConsumerState<SchoolSettingsPage> {
+    36→  bool _isSaving = false;
+    37→
+    38→  // ─── Branding Controllers ────────────────────────────────────────────
+    39→  late TextEditingController _primaryColorCtrl;
+    40→  late TextEditingController _secondaryColorCtrl;
+    41→  late TextEditingController _mottoCtrl;
+    42→  late TextEditingController _logoUrlCtrl;
+    43→
+    44→  // ─── Limits Controllers ──────────────────────────────────────────────
+    45→  late TextEditingController _maxStudentsCtrl;
+    46→  late TextEditingController _maxTeachersCtrl;
+    47→
+    48→  // ─── Toggle States ───────────────────────────────────────────────────
+    49→  bool _enableNotifications = true;
+    50→  bool _enableAttendance = true;
+    51→  bool _enableHomework = true;
+    52→  bool _enableAnnouncements = true;
+    53→  bool _enableDocumentUpload = true;
+    54→  bool _enableParentPortal = true;
+    55→  bool _enableStudentPortal = true;
+    56→  bool _maintenanceMode = false;
+    57→
+    58→  @override
+    59→  void initState() {
+    60→    super.initState();
+    61→    _primaryColorCtrl = TextEditingController();
+    62→    _secondaryColorCtrl = TextEditingController();
+    63→    _mottoCtrl = TextEditingController();
+    64→    _logoUrlCtrl = TextEditingController();
+    65→    _maxStudentsCtrl = TextEditingController();
+    66→    _maxTeachersCtrl = TextEditingController();
+    67→
+    68→    Future.microtask(() {
+    69→      ref.read(schoolDetailProvider.notifier).loadSchool(widget.schoolId);
+    70→    });
+    71→  }
+    72→
+    73→  @override
+    74→  void dispose() {
+    75→    _primaryColorCtrl.dispose();
+    76→    _secondaryColorCtrl.dispose();
+    77→    _mottoCtrl.dispose();
+    78→    _logoUrlCtrl.dispose();
+    79→    _maxStudentsCtrl.dispose();
+    80→    _maxTeachersCtrl.dispose();
+    81→    super.dispose();
+    82→  }
+    83→
+    84→  void _populateForm(SchoolEntity school) {
+    85→    _primaryColorCtrl.text = school.primaryColor;
+    86→    _secondaryColorCtrl.text = school.secondaryColor;
+    87→    _mottoCtrl.text = school.motto ?? '';
+    88→    _logoUrlCtrl.text = school.logoUrl ?? '';
+    89→    _maxStudentsCtrl.text = '${school.maxStudents}';
+    90→    _maxTeachersCtrl.text = '${school.maxTeachers}';
+    91→
+    92→    // Load settings from school entity's settings map
+    93→    final settings = school.settings;
+    94→    _enableNotifications = settings['enable_notifications'] as bool? ?? true;
+    95→    _enableAttendance = settings['enable_attendance'] as bool? ?? true;
+    96→    _enableHomework = settings['enable_homework'] as bool? ?? true;
+    97→    _enableAnnouncements = settings['enable_announcements'] as bool? ?? true;
+    98→    _enableDocumentUpload = settings['enable_document_upload'] as bool? ?? true;
+    99→    _enableParentPortal = settings['enable_parent_portal'] as bool? ?? true;
+   100→    _enableStudentPortal = settings['enable_student_portal'] as bool? ?? true;
+   101→    _maintenanceMode = settings['maintenance_mode'] as bool? ?? false;
+   102→  }
+   103→
+   104→  Future<void> _saveSettings() async {
+   105→    setState(() => _isSaving = true);
+   106→
+   107→    final detailState = ref.read(schoolDetailProvider);
+   108→    final school = detailState.school;
+   109→
+   110→    if (school == null) {
+   111→      setState(() => _isSaving = false);
+   112→      return;
+   113→    }
+   114→
+   115→    final updatedSchool = school.copyWith(
+   116→      primaryColor: _primaryColorCtrl.text.trim(),
+   117→      secondaryColor: _secondaryColorCtrl.text.trim(),
+   118→      motto: _mottoCtrl.text.trim().isEmpty ? null : _mottoCtrl.text.trim(),
+   119→      logoUrl: _logoUrlCtrl.text.trim().isEmpty ? null : _logoUrlCtrl.text.trim(),
+   120→      maxStudents: int.tryParse(_maxStudentsCtrl.text.trim()) ?? school.maxStudents,
+   121→      maxTeachers: int.tryParse(_maxTeachersCtrl.text.trim()) ?? school.maxTeachers,
+   122→      settings: {
+   123→        ...school.settings,
+   124→        'enable_notifications': _enableNotifications,
+   125→        'enable_attendance': _enableAttendance,
+   126→        'enable_homework': _enableHomework,
+   127→        'enable_announcements': _enableAnnouncements,
+   128→        'enable_document_upload': _enableDocumentUpload,
+   129→        'enable_parent_portal': _enableParentPortal,
+   130→        'enable_student_portal': _enableStudentPortal,
+   131→        'maintenance_mode': _maintenanceMode,
+   132→      },
+   133→    );
+   134→
+   135→    await ref.read(schoolDetailProvider.notifier).updateSchool(updatedSchool);
+   136→
+   137→    if (mounted) {
+   138→      setState(() => _isSaving = false);
+   139→      ScaffoldMessenger.of(context).showSnackBar(
+   140→        const SnackBar(
+   141→          content: Text('Settings saved successfully'),
+   142→          backgroundColor: AppColors.success,
+   143→        ),
+   144→      );
+   145→    }
+   146→  }
+   147→
+   148→  @override
+   149→  Widget build(BuildContext context) {
+   150→    final cs = context.colorScheme;
+   151→    final tt = context.textTheme;
+   152→    final state = ref.watch(schoolDetailProvider);
+   153→
+   154→    if (state.isLoading) {
+   155→      return Scaffold(
+   156→        appBar: AppBar(title: const Text('School Settings')),
+   157→        body: const Center(
+   158→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+   159→        ),
+   160→      );
+   161→    }
+   162→
+   163→    if (state.error != null) {
+   164→      return Scaffold(
+   165→        appBar: AppBar(title: const Text('School Settings')),
+   166→        body: AppErrorState.genericError(
+   167→          message: state.error,
+   168→          onRetry: () =>
+   169→              ref.read(schoolDetailProvider.notifier).loadSchool(widget.schoolId),
+   170→        ),
+   171→      );
+   172→    }
+   173→
+   174→    if (state.school == null) {
+   175→      return Scaffold(
+   176→        appBar: AppBar(title: const Text('School Settings')),
+   177→        body: const AppEmptyState(
+   178→          icon: Icons.school_outlined,
+   179→          title: 'School Not Found',
+   180→          subtitle: 'The school you are looking for does not exist.',
+   181→        ),
+   182→      );
+   183→    }
+   184→
+   185→    // Populate form on first load
+   186→    if (_primaryColorCtrl.text.isEmpty) {
+   187→      _populateForm(state.school!);
+   188→    }
+   189→
+   190→    return Scaffold(
+   191→      appBar: AppBar(
+   192→        title: Text(
+   193→          'School Settings',
+   194→          style: tt.titleLarge?.copyWith(
+   195→            fontWeight: AppTypography.wSemiBold,
+   196→            color: cs.onSurface,
+   197→          ),
+   198→        ),
+   199→        actions: [
+   200→          Padding(
+   201→            padding: const EdgeInsets.only(right: Spacings.md),
+   202→            child: AppButton(
+   203→              label: 'Save',
+   204→              onPressed: _isSaving ? null : _saveSettings,
+   205→              variant: AppButtonVariant.elevated,
+   206→              icon: Icons.save_outlined,
+   207→              size: AppButtonSize.small,
+   208→              isLoading: _isSaving,
+   209→            ),
+   210→          ),
+   211→        ],
+   212→      ),
+   213→      body: SingleChildScrollView(
+   214→        padding: const EdgeInsets.all(Spacings.lg),
+   215→        child: Center(
+   216→          child: ConstrainedBox(
+   217→            constraints: const BoxConstraints(maxWidth: 800),
+   218→            child: Column(
+   219→              crossAxisAlignment: CrossAxisAlignment.start,
+   220→              children: [
+   221→                // ── School Branding ────────────────────────────────────
+   222→                _SettingsSection(
+   223→                  title: 'School Branding',
+   224→                  icon: Icons.palette_outlined,
+   225→                  children: [
+   226→                    // Logo preview and upload
+   227→                    _buildLogoSection(context, state.school!),
+   228→                    const SizedBox(height: Spacings.md),
+   229→                    Row(
+   230→                      children: [
+   231→                        Expanded(
+   232→                          child: _buildColorField(
+   233→                            context,
+   234→                            label: 'Primary Color',
+   235→                            controller: _primaryColorCtrl,
+   236→                            colorHint: '#4F46E5',
+   237→                          ),
+   238→                        ),
+   239→                        const SizedBox(width: Spacings.md),
+   240→                        Expanded(
+   241→                          child: _buildColorField(
+   242→                            context,
+   243→                            label: 'Secondary Color',
+   244→                            controller: _secondaryColorCtrl,
+   245→                            colorHint: '#7C3AED',
+   246→                          ),
+   247→                        ),
+   248→                      ],
+   249→                    ),
+   250→                    const SizedBox(height: Spacings.md),
+   251→                    AppTextField(
+   252→                      label: 'School Motto',
+   253→                      controller: _mottoCtrl,
+   254→                      prefixIcon: Icons.format_quote_outlined,
+   255→                      hint: 'e.g., Excellence in Education',
+   256→                      maxLines: 2,
+   257→                    ),
+   258→                  ],
+   259→                ),
+   260→                const SizedBox(height: Spacings.xl),
+   261→
+   262→                // ── School Limits ──────────────────────────────────────
+   263→                _SettingsSection(
+   264→                  title: 'School Limits',
+   265→                  icon: Icons.tune_outlined,
+   266→                  children: [
+   267→                    Row(
+   268→                      children: [
+   269→                        Expanded(
+   270→                          child: AppTextField(
+   271→                            label: 'Max Students',
+   272→                            controller: _maxStudentsCtrl,
+   273→                            prefixIcon: Icons.people_outline_rounded,
+   274→                            keyboardType: TextInputType.number,
+   275→                            validator: (v) {
+   276→                              if (v == null || v.isEmpty) return 'Required';
+   277→                              final n = int.tryParse(v);
+   278→                              if (n == null || n < 1) return 'Enter a valid number';
+   279→                              return null;
+   280→                            },
+   281→                          ),
+   282→                        ),
+   283→                        const SizedBox(width: Spacings.md),
+   284→                        Expanded(
+   285→                          child: AppTextField(
+   286→                            label: 'Max Teachers',
+   287→                            controller: _maxTeachersCtrl,
+   288→                            prefixIcon: Icons.person_outline_rounded,
+   289→                            keyboardType: TextInputType.number,
+   290→                            validator: (v) {
+   291→                              if (v == null || v.isEmpty) return 'Required';
+   292→                              final n = int.tryParse(v);
+   293→                              if (n == null || n < 1) return 'Enter a valid number';
+   294→                              return null;
+   295→                            },
+   296→                          ),
+   297→                        ),
+   298→                      ],
+   299→                    ),
+   300→                    const SizedBox(height: Spacings.md),
+   301→                    _buildLimitsInfo(context, state.school!),
+   302→                  ],
+   303→                ),
+   304→                const SizedBox(height: Spacings.xl),
+   305→
+   306→                // ── Subscription Info ──────────────────────────────────
+   307→                _SettingsSection(
+   308→                  title: 'Subscription',
+   309→                  icon: Icons.card_membership_outlined,
+   310→                  children: [
+   311→                    _buildSubscriptionInfo(context, state.school!),
+   312→                  ],
+   313→                ),
+   314→                const SizedBox(height: Spacings.xl),
+   315→
+   316→                // ── General Settings ───────────────────────────────────
+   317→                _SettingsSection(
+   318→                  title: 'General Settings',
+   319→                  icon: Icons.settings_outlined,
+   320→                  children: [
+   321→                    _ToggleRow(
+   322→                      icon: Icons.notifications_active_outlined,
+   323→                      title: 'Enable Notifications',
+   324→                      subtitle: 'Allow push and email notifications for users',
+   325→                      value: _enableNotifications,
+   326→                      onChanged: (v) =>
+   327→                          setState(() => _enableNotifications = v),
+   328→                    ),
+   329→                    const Divider(height: Spacings.lg),
+   330→                    _ToggleRow(
+   331→                      icon: Icons.fact_check_outlined,
+   332→                      title: 'Enable Attendance',
+   333→                      subtitle: 'Allow daily attendance tracking',
+   334→                      value: _enableAttendance,
+   335→                      onChanged: (v) =>
+   336→                          setState(() => _enableAttendance = v),
+   337→                    ),
+   338→                    const Divider(height: Spacings.lg),
+   339→                    _ToggleRow(
+   340→                      icon: Icons.assignment_outlined,
+   341→                      title: 'Enable Homework',
+   342→                      subtitle: 'Allow homework assignment and submission',
+   343→                      value: _enableHomework,
+   344→                      onChanged: (v) =>
+   345→                          setState(() => _enableHomework = v),
+   346→                    ),
+   347→                    const Divider(height: Spacings.lg),
+   348→                    _ToggleRow(
+   349→                      icon: Icons.campaign_outlined,
+   350→                      title: 'Enable Announcements',
+   351→                      subtitle: 'Allow school-wide announcements',
+   352→                      value: _enableAnnouncements,
+   353→                      onChanged: (v) =>
+   354→                          setState(() => _enableAnnouncements = v),
+   355→                    ),
+   356→                    const Divider(height: Spacings.lg),
+   357→                    _ToggleRow(
+   358→                      icon: Icons.upload_file_outlined,
+   359→                      title: 'Enable Document Upload',
+   360→                      subtitle: 'Allow document uploads for students and teachers',
+   361→                      value: _enableDocumentUpload,
+   362→                      onChanged: (v) =>
+   363→                          setState(() => _enableDocumentUpload = v),
+   364→                    ),
+   365→                    const Divider(height: Spacings.lg),
+   366→                    _ToggleRow(
+   367→                      icon: Icons.family_restroom_outlined,
+   368→                      title: 'Enable Parent Portal',
+   369→                      subtitle: 'Allow parents to view their children\'s data',
+   370→                      value: _enableParentPortal,
+   371→                      onChanged: (v) =>
+   372→                          setState(() => _enableParentPortal = v),
+   373→                    ),
+   374→                    const Divider(height: Spacings.lg),
+   375→                    _ToggleRow(
+   376→                      icon: Icons.school_outlined,
+   377→                      title: 'Enable Student Portal',
+   378→                      subtitle: 'Allow students to access their portal',
+   379→                      value: _enableStudentPortal,
+   380→                      onChanged: (v) =>
+   381→                          setState(() => _enableStudentPortal = v),
+   382→                    ),
+   383→                    const Divider(height: Spacings.lg),
+   384→                    _ToggleRow(
+   385→                      icon: Icons.build_outlined,
+   386→                      title: 'Maintenance Mode',
+   387→                      subtitle: 'Disable access for all non-admin users',
+   388→                      value: _maintenanceMode,
+   389→                      onChanged: (v) =>
+   390→                          setState(() => _maintenanceMode = v),
+   391→                      isDestructive: true,
+   392→                    ),
+   393→                  ],
+   394→                ),
+   395→                const SizedBox(height: Spacings.xxl),
+   396→
+   397→                // ── Save Button ────────────────────────────────────────
+   398→                AppButton(
+   399→                  label: 'Save Settings',
+   400→                  onPressed: _isSaving ? null : _saveSettings,
+   401→                  variant: AppButtonVariant.elevated,
+   402→                  icon: Icons.save_outlined,
+   403→                  isLoading: _isSaving,
+   404→                  fullWidth: true,
+   405→                ),
+   406→                const SizedBox(height: Spacings.xxl),
+   407→
+   408→                // ── Danger Zone ────────────────────────────────────────
+   409→                _SettingsSection(
+   410→                  title: 'Danger Zone',
+   411→                  icon: Icons.warning_amber_rounded,
+   412→                  titleColor: AppColors.error,
+   413→                  children: [
+   414→                    Row(
+   415→                      children: [
+   416→                        Expanded(
+   417→                          child: Column(
+   418→                            crossAxisAlignment: CrossAxisAlignment.start,
+   419→                            children: [
+   420→                              Text(
+   421→                                'Delete School',
+   422→                                style: tt.bodyMedium?.copyWith(
+   423→                                  fontWeight: AppTypography.wSemiBold,
+   424→                                  color: AppColors.error,
+   425→                                ),
+   426→                              ),
+   427→                              Text(
+   428→                                'Permanently delete this school and all associated data. This action cannot be undone.',
+   429→                                style: tt.bodySmall?.copyWith(
+   430→                                  color: cs.onSurfaceVariant,
+   431→                                ),
+   432→                              ),
+   433→                            ],
+   434→                          ),
+   435→                        ),
+   436→                        const SizedBox(width: Spacings.md),
+   437→                        AppButton(
+   438→                          label: 'Delete',
+   439→                          onPressed: () => _confirmDeleteSchool(context),
+   440→                          variant: AppButtonVariant.outlined,
+   441→                          size: AppButtonSize.small,
+   442→                        ),
+   443→                      ],
+   444→                    ),
+   445→                  ],
+   446→                ),
+   447→              ],
+   448→            ),
+   449→          ),
+   450→        ),
+   451→      ),
+   452→    );
+   453→  }
+   454→
+   455→  Widget _buildLogoSection(BuildContext context, SchoolEntity school) {
+   456→    final cs = context.colorScheme;
+   457→    final tt = context.textTheme;
+   458→    final isDark = context.isDarkMode;
+   459→
+   460→    return Row(
+   461→      children: [
+   462→        // Logo preview
+   463→        Container(
+   464→          width: 72,
+   465→          height: 72,
+   466→          decoration: BoxDecoration(
+   467→            color: cs.surfaceContainerHigh,
+   468→            borderRadius: BorderRadius.circular(Spacings.lgRadius),
+   469→            border: Border.all(color: cs.outlineVariant),
+   470→          ),
+   471→          child: school.logoUrl != null
+   472→              ? ClipRRect(
+   473→                  borderRadius: BorderRadius.circular(Spacings.lgRadius),
+   474→                  child: Image.network(
+   475→                    school.logoUrl!,
+   476→                    errorBuilder: (_, __, ___) => Icon(
+   477→                      Icons.school_rounded,
+   478→                      size: 32,
+   479→                      color: cs.onSurfaceVariant,
+   480→                    ),
+   481→                  ),
+   482→                )
+   483→              : Icon(
+   484→                  Icons.school_rounded,
+   485→                  size: 32,
+   486→                  color: cs.onSurfaceVariant,
+   487→                ),
+   488→        ),
+   489→        const SizedBox(width: Spacings.lg),
+   490→        Expanded(
+   491→          child: Column(
+   492→            crossAxisAlignment: CrossAxisAlignment.start,
+   493→            children: [
+   494→              Text(
+   495→                'School Logo',
+   496→                style: tt.bodyMedium?.copyWith(
+   497→                  fontWeight: AppTypography.wSemiBold,
+   498→                  color: cs.onSurface,
+   499→                ),
+   500→              ),
+   501→              const SizedBox(height: Spacings.xs),
+   502→              Text(
+   503→                'Upload a logo image or provide a URL. Recommended: 512x512px PNG.',
+   504→                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   505→              ),
+   506→              const SizedBox(height: Spacings.sm),
+   507→              Row(
+   508→                children: [
+   509→                  AppButton(
+   510→                    label: 'Upload',
+   511→                    onPressed: () {
+   512→                      // File picker logic would go here
+   513→                    },
+   514→                    variant: AppButtonVariant.tonal,
+   515→                    icon: Icons.upload_outlined,
+   516→                    size: AppButtonSize.small,
+   517→                  ),
+   518→                  const SizedBox(width: Spacings.sm),
+   519→                  Expanded(
+   520→                    child: AppTextField(
+   521→                      label: 'Logo URL',
+   522→                      controller: _logoUrlCtrl,
+   523→                      hint: 'https://...',
+   524→                      keyboardType: TextInputType.url,
+   525→                    ),
+   526→                  ),
+   527→                ],
+   528→              ),
+   529→            ],
+   530→          ),
+   531→        ),
+   532→      ],
+   533→    );
+   534→  }
+   535→
+   536→  Widget _buildColorField(
+   537→    BuildContext context, {
+   538→    required String label,
+   539→    required TextEditingController controller,
+   540→    required String colorHint,
+   541→  }) {
+   542→    return Row(
+   543→      crossAxisAlignment: CrossAxisAlignment.end,
+   544→      children: [
+   545→        Expanded(
+   546→          child: AppTextField(
+   547→            label: label,
+   548→            controller: controller,
+   549→            hint: colorHint,
+   550→            onChanged: (_) => setState(() {}),
+   551→          ),
+   552→        ),
+   553→        const SizedBox(width: Spacings.sm),
+   554→        Padding(
+   555→          padding: const EdgeInsets.only(bottom: Spacings.md),
+   556→          child: Container(
+   557→            width: 40,
+   558→            height: 40,
+   559→            decoration: BoxDecoration(
+   560→              color: _parseColor(controller.text),
+   561→              borderRadius: BorderRadius.circular(Spacings.smRadius),
+   562→              border: Border.all(color: context.colorScheme.outlineVariant),
+   563→            ),
+   564→          ),
+   565→        ),
+   566→      ],
+   567→    );
+   568→  }
+   569→
+   570→  Widget _buildLimitsInfo(BuildContext context, SchoolEntity school) {
+   571→    final cs = context.colorScheme;
+   572→    final tt = context.textTheme;
+   573→    final isDark = context.isDarkMode;
+   574→
+   575→    return Container(
+   576→      padding: const EdgeInsets.all(Spacings.md),
+   577→      decoration: BoxDecoration(
+   578→        color: AppColors.info.withValues(alpha: isDark ? 0.10 : 0.06),
+   579→        borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   580→        border: Border.all(
+   581→          color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
+   582→        ),
+   583→      ),
+   584→      child: Row(
+   585→        children: [
+   586→          Icon(Icons.info_outline_rounded, size: Spacings.mdIcon, color: AppColors.info),
+   587→          const SizedBox(width: Spacings.md),
+   588→          Expanded(
+   589→            child: Text(
+   590→              'Current limits: ${school.maxStudents} students, ${school.maxTeachers} teachers. '
+   591→              'New users cannot be added beyond these limits.',
+   592→              style: tt.bodySmall?.copyWith(color: AppColors.info),
+   593→            ),
+   594→          ),
+   595→        ],
+   596→      ),
+   597→    );
+   598→  }
+   599→
+   600→  Widget _buildSubscriptionInfo(BuildContext context, SchoolEntity school) {
+   601→    final cs = context.colorScheme;
+   602→    final tt = context.textTheme;
+   603→    final isDark = context.isDarkMode;
+   604→
+   605→    final planColor = _subscriptionColor(school.subscriptionStatus);
+   606→    final planLabel = _subscriptionLabel(school.subscriptionStatus);
+   607→    final hasExpiry = school.subscriptionExpiresAt != null;
+   608→    final isExpiringSoon = hasExpiry &&
+   609→        school.subscriptionExpiresAt!.difference(DateTime.now()).inDays < 30;
+   610→
+   611→    return Column(
+   612→      children: [
+   613→        Row(
+   614→          children: [
+   615→            Container(
+   616→              padding: const EdgeInsets.all(Spacings.md),
+   617→              decoration: BoxDecoration(
+   618→                color: planColor.withValues(alpha: isDark ? 0.20 : 0.12),
+   619→                borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   620→              ),
+   621→              child: Icon(
+   622→                Icons.card_membership_outlined,
+   623→                size: Spacings.lgIcon,
+   624→                color: planColor,
+   625→              ),
+   626→            ),
+   627→            const SizedBox(width: Spacings.lg),
+   628→            Expanded(
+   629→              child: Column(
+   630→                crossAxisAlignment: CrossAxisAlignment.start,
+   631→                children: [
+   632→                  Text(
+   633→                    planLabel,
+   634→                    style: tt.headlineSmall?.copyWith(
+   635→                      fontWeight: AppTypography.wBold,
+   636→                      color: planColor,
+   637→                    ),
+   638→                  ),
+   639→                  const SizedBox(height: Spacings.xs),
+   640→                  if (hasExpiry)
+   641→                    Text(
+   642→                      isExpiringSoon
+   643→                          ? 'Expires in ${school.subscriptionExpiresAt!.difference(DateTime.now()).inDays} days'
+   644→                          : 'Expires ${_formatDate(school.subscriptionExpiresAt!)}',
+   645→                      style: tt.bodySmall?.copyWith(
+   646→                        color: isExpiringSoon ? AppColors.error : cs.onSurfaceVariant,
+   647→                      ),
+   648→                    )
+   649→                  else
+   650→                    Text(
+   651→                      'No expiration date set',
+   652→                      style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   653→                    ),
+   654→                ],
+   655→              ),
+   656→            ),
+   657→            AppButton(
+   658→              label: 'Upgrade',
+   659→              onPressed: () {
+   660→                // Navigate to upgrade page
+   661→              },
+   662→              variant: AppButtonVariant.tonal,
+   663→              icon: Icons.upgrade_rounded,
+   664→              size: AppButtonSize.small,
+   665→            ),
+   666→          ],
+   667→        ),
+   668→        if (isExpiringSoon) ...[
+   669→          const SizedBox(height: Spacings.md),
+   670→          Container(
+   671→            padding: const EdgeInsets.all(Spacings.md),
+   672→            decoration: BoxDecoration(
+   673→              color: AppColors.warning.withValues(alpha: isDark ? 0.10 : 0.06),
+   674→              borderRadius: BorderRadius.circular(Spacings.mdRadius),
+   675→              border: Border.all(
+   676→                color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
+   677→              ),
+   678→            ),
+   679→            child: Row(
+   680→              children: [
+   681→                Icon(Icons.warning_amber_rounded,
+   682→                    size: Spacings.mdIcon, color: AppColors.warning),
+   683→                const SizedBox(width: Spacings.md),
+   684→                Expanded(
+   685→                  child: Text(
+   686→                    'Your subscription is expiring soon. Renew to avoid service interruption.',
+   687→                    style: tt.bodySmall?.copyWith(color: AppColors.warning),
+   688→                  ),
+   689→                ),
+   690→              ],
+   691→            ),
+   692→          ),
+   693→        ],
+   694→      ],
+   695→    );
+   696→  }
+   697→
+   698→  void _confirmDeleteSchool(BuildContext context) {
+   699→    showDialog(
+   700→      context: context,
+   701→      builder: (ctx) => AlertDialog(
+   702→        title: const Text('Delete School'),
+   703→        content: const Text(
+   704→          'This will permanently delete the school and all associated data including '
+   705→          'students, teachers, classes, and records. This action cannot be undone.',
+   706→        ),
+   707→        actions: [
+   708→          TextButton(
+   709→            onPressed: () => Navigator.pop(ctx),
+   710→            child: const Text('Cancel'),
+   711→          ),
+   712→          FilledButton(
+   713→            onPressed: () {
+   714→              Navigator.pop(ctx);
+   715→              ref.read(schoolListProvider.notifier).deleteSchool(widget.schoolId);
+   716→              context.go(RouteNames.superAdminDashboard);
+   717→            },
+   718→            style: FilledButton.styleFrom(backgroundColor: AppColors.error),
+   719→            child: const Text('Delete School'),
+   720→          ),
+   721→        ],
+   722→      ),
+   723→    );
+   724→  }
+   725→
+   726→  Color _parseColor(String hexColor) {
+   727→    try {
+   728→      return Color(int.parse(hexColor.replaceFirst('#', '0xFF')));
+   729→    } catch (_) {
+   730→      return AppColors.seed;
+   731→    }
+   732→  }
+   733→
+   734→  Color _subscriptionColor(String status) {
+   735→    switch (status) {
+   736→      case 'premium':
+   737→        return AppColors.success;
+   738→      case 'basic':
+   739→        return AppColors.info;
+   740→      case 'free':
+   741→      default:
+   742→        return AppColors.warning;
+   743→    }
+   744→  }
+   745→
+   746→  String _subscriptionLabel(String status) {
+   747→    switch (status) {
+   748→      case 'premium':
+   749→        return 'Premium Plan';
+   750→      case 'basic':
+   751→        return 'Basic Plan';
+   752→      case 'free':
+   753→      default:
+   754→        return 'Free Plan';
+   755→    }
+   756→  }
+   757→
+   758→  String _formatDate(DateTime date) {
+   759→    const months = [
+   760→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+   761→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+   762→    ];
+   763→    return '${months[date.month]} ${date.day}, ${date.year}';
+   764→  }
+   765→}
+   766→
+   767→// ═══════════════════════════════════════════════════════════════════════
+   768→// SETTINGS SECTION WIDGET
+   769→// ═══════════════════════════════════════════════════════════════════════
+   770→
+   771→class _SettingsSection extends StatelessWidget {
+   772→  const _SettingsSection({
+   773→    required this.title,
+   774→    required this.icon,
+   775→    required this.children,
+   776→    this.titleColor,
+   777→  });
+   778→
+   779→  final String title;
+   780→  final IconData icon;
+   781→  final List<Widget> children;
+   782→  final Color? titleColor;
+   783→
+   784→  @override
+   785→  Widget build(BuildContext context) {
+   786→    final cs = context.colorScheme;
+   787→    final tt = context.textTheme;
+   788→
+   789→    return AppCard(
+   790→      child: Column(
+   791→        crossAxisAlignment: CrossAxisAlignment.start,
+   792→        children: [
+   793→          Row(
+   794→            children: [
+   795→              Icon(
+   796→                icon,
+   797→                size: Spacings.mdIcon,
+   798→                color: titleColor ?? cs.primary,
+   799→              ),
+   800→              const SizedBox(width: Spacings.sm),
+   801→              Text(
+   802→                title,
+   803→                style: tt.titleMedium?.copyWith(
+   804→                  fontWeight: AppTypography.wSemiBold,
+   805→                  color: titleColor ?? cs.onSurface,
+   806→                ),
+   807→              ),
+   808→            ],
+   809→          ),
+   810→          const SizedBox(height: Spacings.lg),
+   811→          ...children,
+   812→        ],
+   813→      ),
+   814→    );
+   815→  }
+   816→}
+   817→
+   818→// ═══════════════════════════════════════════════════════════════════════
+   819→// TOGGLE ROW WIDGET
+   820→// ═══════════════════════════════════════════════════════════════════════
+   821→
+   822→class _ToggleRow extends StatelessWidget {
+   823→  const _ToggleRow({
+   824→    required this.icon,
+   825→    required this.title,
+   826→    required this.subtitle,
+   827→    required this.value,
+   828→    required this.onChanged,
+   829→    this.isDestructive = false,
+   830→  });
+   831→
+   832→  final IconData icon;
+   833→  final String title;
+   834→  final String subtitle;
+   835→  final bool value;
+   836→  final ValueChanged<bool> onChanged;
+   837→  final bool isDestructive;
+   838→
+   839→  @override
+   840→  Widget build(BuildContext context) {
+   841→    final cs = context.colorScheme;
+   842→    final tt = context.textTheme;
+   843→    final isDark = context.isDarkMode;
+   844→
+   845→    final activeColor = isDestructive ? AppColors.error : cs.primary;
+   846→
+   847→    return Row(
+   848→      children: [
+   849→        Container(
+   850→          padding: const EdgeInsets.all(Spacings.sm),
+   851→          decoration: BoxDecoration(
+   852→            color: (isDestructive ? AppColors.error : cs.primary)
+   853→                .withValues(alpha: isDark ? 0.20 : 0.12),
+   854→            borderRadius: BorderRadius.circular(Spacings.smRadius),
+   855→          ),
+   856→          child: Icon(
+   857→            icon,
+   858→            size: Spacings.mdIcon,
+   859→            color: isDestructive ? AppColors.error : cs.primary,
+   860→          ),
+   861→        ),
+   862→        const SizedBox(width: Spacings.md),
+   863→        Expanded(
+   864→          child: Column(
+   865→            crossAxisAlignment: CrossAxisAlignment.start,
+   866→            children: [
+   867→              Text(
+   868→                title,
+   869→                style: tt.bodyMedium?.copyWith(
+   870→                  fontWeight: AppTypography.wSemiBold,
+   871→                  color: cs.onSurface,
+   872→                ),
+   873→              ),
+   874→              Text(
+   875→                subtitle,
+   876→                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
+   877→              ),
+   878→            ],
+   879→          ),
+   880→        ),
+   881→        Switch(
+   882→          value: value,
+   883→          onChanged: onChanged,
+   884→          activeColor: activeColor,
+   885→        ),
+   886→      ],
+   887→    );
+   888→  }
+   889→}
+   890→
