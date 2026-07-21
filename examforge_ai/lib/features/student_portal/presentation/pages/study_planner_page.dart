@@ -56,6 +56,8 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
   Widget _buildPlanList(BuildContext context, StudyPlannerState state) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
+    final inactivePlans =
+        state.plans.where((p) => !p.isActive).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Study Planner')),
@@ -135,9 +137,6 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                         ],
 
                         // Inactive plans
-                        final inactivePlans = state.plans
-                            .where((p) => !p.isActive)
-                            .toList();
                         if (inactivePlans.isNotEmpty) ...[
                           const SizedBox(height: Spacings.lg),
                           _buildSectionTitle(context, 'Completed Plans'),

@@ -7,6 +7,8 @@ import '../../domain/repositories/billing_repository.dart';
 import '../datasources/billing_remote_datasource.dart';
 import '../datasources/flutterwave_datasource.dart';
 import '../models/billing_models.dart';
+import '../../../../features/billing/domain/repositories/billing_repository.dart';
+
 
 /// Implementation of [BillingRepository] that bridges domain layer
 /// with Supabase data source and Flutterwave payment API.

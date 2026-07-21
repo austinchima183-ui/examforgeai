@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../../core/errors/exceptions.dart';
-import '../../../core/utils/logger.dart';
+import '../../core/errors/exceptions.dart';
+import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM NOTIFICATION SERVICE

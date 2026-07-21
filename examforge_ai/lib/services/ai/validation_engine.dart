@@ -1,4 +1,4 @@
-import '../../../core/utils/logger.dart';
+import '../../core/utils/logger.dart';
 import '../../features/ai_generator/domain/entities/ai_entities.dart';
 import '../../features/question_bank/domain/entities/question_entities.dart';
 

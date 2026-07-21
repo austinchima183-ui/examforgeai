@@ -98,6 +98,11 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
 
   // ─── Sign Up ────────────────────────────────────────────────────
 
+  /// SECURITY: The [role] parameter is accepted for interface compatibility
+  /// but is **always overridden to 'student'**. Self-service registration
+  /// can only create student accounts. Role elevation (teacher, schoolAdmin)
+  /// must happen through invite codes or admin approval — never via
+  /// self-service registration.
   @override
   Future<UserModel> signUp({
     required String email,
@@ -107,9 +112,14 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     String? schoolId,
   }) async {
     try {
+      // SECURITY: Force role to 'student' regardless of what the client sends.
+      // The server should also enforce this, but we hardcode it here as a
+      // defense-in-depth measure.
+      const enforcedRole = 'student';
+
       final metadata = <String, dynamic>{
         'full_name': fullName,
-        'role': role,
+        'role': enforcedRole,
       };
       if (schoolId != null) {
         metadata['school_id'] = schoolId;

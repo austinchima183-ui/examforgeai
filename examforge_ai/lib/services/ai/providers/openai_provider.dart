@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../../../core/utils/logger.dart';
+import '../../../core/utils/logger.dart';
 import '../../../features/ai_generator/domain/entities/ai_entities.dart';
 import '../ai_provider_interface.dart';
 
@@ -22,61 +23,74 @@ import '../ai_provider_interface.dart';
 /// - Rate-limit, auth, and context-length error handling
 class OpenAiProvider implements AiProviderInterface {
   OpenAiProvider({
-    required String apiKey,
+    String? apiKey,
     String baseUrl = 'https://api.openai.com/v1',
     this.defaultModel = 'gpt-4o',
+    sb.SupabaseClient? supabaseClient,
     Dio? dio,
   })  : _apiKey = apiKey,
         _baseUrl = baseUrl,
-        _dio = dio ?? Dio(BaseOptions(
-          baseUrl: baseUrl,
-          headers: {
-            'Authorization': 'Bearer $apiKey',
-            'Content-Type': 'application/json',
-          },
-          connectTimeout: const Duration(seconds: 30),
-          receiveTimeout: const Duration(seconds: 120),
-        ));
+        _supabaseClient = supabaseClient,
+        _dio = dio ?? (apiKey != null && apiKey.isNotEmpty
+            ? Dio(BaseOptions(
+                baseUrl: baseUrl,
+                headers: {
+                  'Authorization': 'Bearer $apiKey',
+                  'Content-Type': 'application/json',
+                },
+                connectTimeout: const Duration(seconds: 30),
+                receiveTimeout: const Duration(seconds: 120),
+              ))
+            : Dio());
 
-  final String _apiKey;
+  final String? _apiKey;
   final String _baseUrl;
+  final sb.SupabaseClient? _supabaseClient;
   final String defaultModel;
   final Dio _dio;
+
+  /// Whether to route AI calls through Supabase Edge Functions.
+  bool get _useEdgeFunctions =>
+      (_apiKey == null || _apiKey!.isEmpty) && _supabaseClient != null;
+
+  // ─── Edge Function Names ──────────────────────────────────────────
+  static const _aiCompleteFunction = 'ai-complete';
+  static const _aiStreamFunction = 'ai-stream';
 
   // ─── Capability table per model ────────────────────────────────────
 
   static const Map<String, _ModelSpec> _modelSpecs = {
     'gpt-4o': _ModelSpec(
-      maxContext: 128_000,
-      maxOutput: 16_384,
+      maxContext: 128000,
+      maxOutput: 16384,
       streaming: true,
       functionCalling: true,
       vision: true,
     ),
     'gpt-4o-mini': _ModelSpec(
-      maxContext: 128_000,
-      maxOutput: 16_384,
+      maxContext: 128000,
+      maxOutput: 16384,
       streaming: true,
       functionCalling: true,
       vision: true,
     ),
     'gpt-4-turbo': _ModelSpec(
-      maxContext: 128_000,
-      maxOutput: 4_096,
+      maxContext: 128000,
+      maxOutput: 4096,
       streaming: true,
       functionCalling: true,
       vision: true,
     ),
     'gpt-4': _ModelSpec(
-      maxContext: 8_192,
-      maxOutput: 8_192,
+      maxContext: 8192,
+      maxOutput: 8192,
       streaming: true,
       functionCalling: true,
       vision: false,
     ),
     'gpt-3.5-turbo': _ModelSpec(
-      maxContext: 16_385,
-      maxOutput: 4_096,
+      maxContext: 16385,
+      maxOutput: 4096,
       streaming: true,
       functionCalling: true,
       vision: false,
@@ -92,8 +106,8 @@ class OpenAiProvider implements AiProviderInterface {
   AiProviderCapabilities get capabilities {
     final spec = _modelSpecs[defaultModel] ??
         const _ModelSpec(
-          maxContext: 128_000,
-          maxOutput: 16_384,
+          maxContext: 128000,
+          maxOutput: 16384,
           streaming: true,
           functionCalling: true,
           vision: true,
@@ -109,6 +123,18 @@ class OpenAiProvider implements AiProviderInterface {
 
   @override
   Future<bool> isAvailable() async {
+    if (_useEdgeFunctions) {
+      try {
+        final response = await _supabaseClient!.functions.invoke(
+          _aiCompleteFunction,
+          body: {'action': 'health_check', 'provider': 'openai'},
+        );
+        return response.status == 200;
+      } catch (e) {
+        AppLogger.warning('OpenAI Edge Function availability check failed', error: e);
+        return false;
+      }
+    }
     try {
       final response = await _dio.get<Map<String, dynamic>>('/models');
       return response.statusCode == 200;
@@ -126,6 +152,11 @@ class OpenAiProvider implements AiProviderInterface {
   @override
   Future<AiCompletionResult> complete(AiCompletionRequest request) async {
     final stopwatch = Stopwatch()..start();
+
+    // ─── Route through Edge Function if no API key ──────────────────
+    if (_useEdgeFunctions) {
+      return _completeViaEdgeFunction(request, stopwatch);
+    }
 
     try {
       final body = _buildRequestBody(request, stream: false);
@@ -169,10 +200,72 @@ class OpenAiProvider implements AiProviderInterface {
     }
   }
 
+  /// Complete via Supabase Edge Function (server-side API key).
+  Future<AiCompletionResult> _completeViaEdgeFunction(
+    AiCompletionRequest request,
+    Stopwatch stopwatch,
+  ) async {
+    try {
+      final response = await _supabaseClient!.functions.invoke(
+        _aiCompleteFunction,
+        body: {
+          'provider': 'openai',
+          'model': defaultModel,
+          'system_prompt': request.systemPrompt,
+          'user_prompt': request.userPrompt,
+          'temperature': request.temperature,
+          'max_tokens': request.maxTokens,
+          'top_p': request.topP,
+          'json_mode': request.jsonMode,
+          'extra_params': request.extraParams,
+        },
+      );
+
+      stopwatch.stop();
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map<String, dynamic>
+            ? data['message'] as String? ?? 'OpenAI Edge Function failed.'
+            : 'OpenAI Edge Function failed.';
+        throw Exception('OpenAI Edge Function error: $message');
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      final content = data['content'] as String? ?? '';
+
+      Map<String, dynamic>? parsedJson;
+      if (request.jsonMode) {
+        parsedJson = _tryParseJson(content);
+      }
+
+      return AiCompletionResult(
+        content: content,
+        parsedJson: parsedJson,
+        inputTokens: data['input_tokens'] as int? ?? 0,
+        outputTokens: data['output_tokens'] as int? ?? 0,
+        model: data['model'] as String? ?? defaultModel,
+        generationTime: stopwatch.elapsed,
+        provider: AiProvider.openai,
+      );
+    } catch (e) {
+      stopwatch.stop();
+      if (e is Exception) rethrow;
+      AppLogger.error('OpenAI Edge Function complete failed', error: e);
+      throw Exception('OpenAI Edge Function complete failed: $e');
+    }
+  }
+
   // ─── Streaming completion ─────────────────────────────────────────
 
   @override
   Stream<AiCompletionChunk> completeStream(AiCompletionRequest request) async* {
+    // ─── Route through Edge Function if no API key ──────────────────
+    if (_useEdgeFunctions) {
+      yield* _completeStreamViaEdgeFunction(request);
+      return;
+    }
+
     final body = _buildRequestBody(request, stream: true);
     AppLogger.debug('OpenAI stream request: model=${body['model']}');
 
@@ -185,7 +278,7 @@ class OpenAiProvider implements AiProviderInterface {
         options: Options(
           responseType: ResponseType.stream,
           headers: {
-            'Authorization': 'Bearer $_apiKey',
+            'Authorization': 'Bearer ${_apiKey ?? ''}',
             'Content-Type': 'application/json',
           },
         ),
@@ -253,6 +346,61 @@ class OpenAiProvider implements AiProviderInterface {
     }
 
     yield* controller.stream;
+  }
+
+  /// Stream completion via Supabase Edge Function.
+  ///
+  /// The Edge Function returns a non-streaming response; we emit it as
+  /// a single chunk followed by a done chunk. True SSE streaming from
+  /// Edge Functions requires the `ai-stream` function to support SSE,
+  /// which can be added in a future iteration.
+  Stream<AiCompletionChunk> _completeStreamViaEdgeFunction(
+    AiCompletionRequest request,
+  ) async* {
+    try {
+      final response = await _supabaseClient!.functions.invoke(
+        _aiStreamFunction,
+        body: {
+          'provider': 'openai',
+          'model': defaultModel,
+          'system_prompt': request.systemPrompt,
+          'user_prompt': request.userPrompt,
+          'temperature': request.temperature,
+          'max_tokens': request.maxTokens,
+          'top_p': request.topP,
+          'json_mode': request.jsonMode,
+          'extra_params': request.extraParams,
+        },
+      );
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map<String, dynamic>
+            ? data['message'] as String? ?? 'OpenAI stream Edge Function failed.'
+            : 'OpenAI stream Edge Function failed.';
+        throw Exception('OpenAI Edge Function stream error: $message');
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      final content = data['content'] as String? ?? '';
+
+      // Emit content as a single chunk
+      if (content.isNotEmpty) {
+        yield AiCompletionChunk(delta: content);
+      }
+
+      // Emit done chunk with token counts
+      yield AiCompletionChunk(
+        delta: '',
+        isDone: true,
+        inputTokens: data['input_tokens'] as int?,
+        outputTokens: data['output_tokens'] as int?,
+      );
+    } catch (e) {
+      if (e is Exception) rethrow;
+      AppLogger.error('OpenAI Edge Function stream failed', error: e);
+      throw Exception('OpenAI Edge Function stream failed: $e');
+    }
   }
 
   // ─── Token counting ───────────────────────────────────────────────

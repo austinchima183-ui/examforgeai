@@ -1,4 +1,6 @@
 import '../../domain/entities/school_management_entities.dart';
+import '../../../../features/school_management/domain/entities/school_management_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // SCHOOL MANAGEMENT DATA MODELS

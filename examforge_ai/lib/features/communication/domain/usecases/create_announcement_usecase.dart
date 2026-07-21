@@ -4,6 +4,8 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../entities/communication_entities.dart';
 import '../repositories/communication_repository.dart';
+import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType;
+
 
 class CreateAnnouncementParams extends Equatable {
   const CreateAnnouncementParams({

@@ -1,0 +1,1232 @@
+     1→import '../../../question_bank/domain/entities/question_entities.dart';
+     2→import '../../domain/entities/cbt_entities.dart';
+     3→import '../../domain/entities/exam_template_entities.dart';
+     4→
+     5→// ═══════════════════════════════════════════════════════════════════════
+     6→// EXAM TEMPLATE DATA MODELS
+     7→// ═══════════════════════════════════════════════════════════════════════
+     8→// Plain class models (NOT Equatable) for the Exam Template data layer.
+     9→// Pattern: fromJson (snake_case & camelCase), toJson (snake_case for
+    10→// Supabase), fromEntity, toEntity, copyWith, manual == and hashCode.
+    11→// ═══════════════════════════════════════════════════════════════════════
+    12→
+    13→// ───────────────────────────────────────────────────────────────────────
+    14→// Helper: parse DateTime accepting both snake_case and camelCase keys
+    15→// ───────────────────────────────────────────────────────────────────────
+    16→
+    17→DateTime _parseDateTime(dynamic value) {
+    18→  if (value is String) return DateTime.parse(value);
+    19→  if (value is DateTime) return value;
+    20→  return DateTime.now();
+    21→}
+    22→
+    23→DateTime? _parseDateTimeNullable(dynamic value) {
+    24→  if (value == null) return null;
+    25→  if (value is String) return DateTime.parse(value);
+    26→  if (value is DateTime) return value;
+    27→  return null;
+    28→}
+    29→
+    30→// ───────────────────────────────────────────────────────────────────────
+    31→// Helper: parse list of strings from JSON
+    32→// ───────────────────────────────────────────────────────────────────────
+    33→
+    34→List<String> _parseStringList(dynamic value) {
+    35→  if (value == null) return const [];
+    36→  if (value is List) {
+    37→    return value.whereType<String>().toList();
+    38→  }
+    39→  return const [];
+    40→}
+    41→
+    42→// ───────────────────────────────────────────────────────────────────────
+    43→// Helper: parse nested model lists from JSON
+    44→// ───────────────────────────────────────────────────────────────────────
+    45→
+    46→List<ExamTemplateSectionModel> _parseTemplateSections(dynamic data) {
+    47→  if (data == null) return const [];
+    48→  if (data is List) {
+    49→    return data
+    50→        .whereType<Map<String, dynamic>>()
+    51→        .map((e) => ExamTemplateSectionModel.fromJson(e))
+    52→        .toList();
+    53→  }
+    54→  return const [];
+    55→}
+    56→
+    57→List<QuestionSelectionRuleModel> _parseQuestionSelectionRules(dynamic data) {
+    58→  if (data == null) return const [];
+    59→  if (data is List) {
+    60→    return data
+    61→        .whereType<Map<String, dynamic>>()
+    62→        .map((e) => QuestionSelectionRuleModel.fromJson(e))
+    63→        .toList();
+    64→  }
+    65→  return const [];
+    66→}
+    67→
+    68→// ═══════════════════════════════════════════════════════════════════════
+    69→// QuestionSelectionRuleModel
+    70→// ═══════════════════════════════════════════════════════════════════════
+    71→
+    72→class QuestionSelectionRuleModel {
+    73→  const QuestionSelectionRuleModel({
+    74→    required this.id,
+    75→    required this.subjectId,
+    76→    this.topicIds = const [],
+    77→    this.difficultyLevels = const [],
+    78→    this.questionTypes = const [],
+    79→    this.curriculumTypes = const [],
+    80→    required this.minQuestions,
+    81→    required this.maxQuestions,
+    82→    required this.marksPerQuestion,
+    83→    this.selectionMode = 'random',
+    84→    this.includeImages = false,
+    85→    this.includeAudio = false,
+    86→    this.includeVideo = false,
+    87→  });
+    88→
+    89→  final String id;
+    90→  final String subjectId;
+    91→  final List<String> topicIds;
+    92→  final List<String> difficultyLevels;
+    93→  final List<String> questionTypes;
+    94→  final List<String> curriculumTypes;
+    95→  final int minQuestions;
+    96→  final int maxQuestions;
+    97→  final double marksPerQuestion;
+    98→  final String selectionMode;
+    99→  final bool includeImages;
+   100→  final bool includeAudio;
+   101→  final bool includeVideo;
+   102→
+   103→  // ─── JSON Serialization ────────────────────────────────────────────
+   104→
+   105→  factory QuestionSelectionRuleModel.fromJson(Map<String, dynamic> json) {
+   106→    return QuestionSelectionRuleModel(
+   107→      id: json['id'] as String,
+   108→      subjectId: json['subject_id'] as String? ??
+   109→          json['subjectId'] as String? ??
+   110→          '',
+   111→      topicIds: _parseStringList(
+   112→        json['topic_ids'] ?? json['topicIds'],
+   113→      ),
+   114→      difficultyLevels: _parseStringList(
+   115→        json['difficulty_levels'] ?? json['difficultyLevels'],
+   116→      ),
+   117→      questionTypes: _parseStringList(
+   118→        json['question_types'] ?? json['questionTypes'],
+   119→      ),
+   120→      curriculumTypes: _parseStringList(
+   121→        json['curriculum_types'] ?? json['curriculumTypes'],
+   122→      ),
+   123→      minQuestions: json['min_questions'] as int? ??
+   124→          json['minQuestions'] as int? ??
+   125→          0,
+   126→      maxQuestions: json['max_questions'] as int? ??
+   127→          json['maxQuestions'] as int? ??
+   128→          0,
+   129→      marksPerQuestion:
+   130→          (json['marks_per_question'] as num?)?.toDouble() ??
+   131→              (json['marksPerQuestion'] as num?)?.toDouble() ??
+   132→              0.0,
+   133→      selectionMode: json['selection_mode'] as String? ??
+   134→          json['selectionMode'] as String? ??
+   135→          'random',
+   136→      includeImages: json['include_images'] as bool? ??
+   137→          json['includeImages'] as bool? ??
+   138→          false,
+   139→      includeAudio: json['include_audio'] as bool? ??
+   140→          json['includeAudio'] as bool? ??
+   141→          false,
+   142→      includeVideo: json['include_video'] as bool? ??
+   143→          json['includeVideo'] as bool? ??
+   144→          false,
+   145→    );
+   146→  }
+   147→
+   148→  Map<String, dynamic> toJson() {
+   149→    return {
+   150→      'id': id,
+   151→      'subject_id': subjectId,
+   152→      'topic_ids': topicIds,
+   153→      'difficulty_levels': difficultyLevels,
+   154→      'question_types': questionTypes,
+   155→      'curriculum_types': curriculumTypes,
+   156→      'min_questions': minQuestions,
+   157→      'max_questions': maxQuestions,
+   158→      'marks_per_question': marksPerQuestion,
+   159→      'selection_mode': selectionMode,
+   160→      'include_images': includeImages,
+   161→      'include_audio': includeAudio,
+   162→      'include_video': includeVideo,
+   163→    };
+   164→  }
+   165→
+   166→  // ─── Entity Conversion ─────────────────────────────────────────────
+   167→
+   168→  factory QuestionSelectionRuleModel.fromEntity(
+   169→    QuestionSelectionRuleEntity entity,
+   170→  ) {
+   171→    return QuestionSelectionRuleModel(
+   172→      id: entity.id,
+   173→      subjectId: entity.subjectId,
+   174→      topicIds: entity.topicIds,
+   175→      difficultyLevels:
+   176→          entity.difficultyLevels.map((e) => e.value).toList(),
+   177→      questionTypes:
+   178→          entity.questionTypes.map((e) => e.value).toList(),
+   179→      curriculumTypes: entity.curriculumTypes,
+   180→      minQuestions: entity.minQuestions,
+   181→      maxQuestions: entity.maxQuestions,
+   182→      marksPerQuestion: entity.marksPerQuestion,
+   183→      selectionMode: entity.selectionMode.value,
+   184→      includeImages: entity.includeImages,
+   185→      includeAudio: entity.includeAudio,
+   186→      includeVideo: entity.includeVideo,
+   187→    );
+   188→  }
+   189→
+   190→  QuestionSelectionRuleEntity toEntity() {
+   191→    return QuestionSelectionRuleEntity(
+   192→      id: id,
+   193→      subjectId: subjectId,
+   194→      topicIds: topicIds,
+   195→      difficultyLevels: difficultyLevels
+   196→          .map((e) => DifficultyLevel.fromString(e))
+   197→          .whereType<DifficultyLevel>()
+   198→          .toList(),
+   199→      questionTypes: questionTypes
+   200→          .map((e) => QuestionType.fromString(e))
+   201→          .whereType<QuestionType>()
+   202→          .toList(),
+   203→      curriculumTypes: curriculumTypes,
+   204→      minQuestions: minQuestions,
+   205→      maxQuestions: maxQuestions,
+   206→      marksPerQuestion: marksPerQuestion,
+   207→      selectionMode: QuestionSelectionMode.fromString(selectionMode) ??
+   208→          QuestionSelectionMode.random,
+   209→      includeImages: includeImages,
+   210→      includeAudio: includeAudio,
+   211→      includeVideo: includeVideo,
+   212→    );
+   213→  }
+   214→
+   215→  // ─── Copy With ─────────────────────────────────────────────────────
+   216→
+   217→  QuestionSelectionRuleModel copyWith({
+   218→    String? id,
+   219→    String? subjectId,
+   220→    List<String>? topicIds,
+   221→    List<String>? difficultyLevels,
+   222→    List<String>? questionTypes,
+   223→    List<String>? curriculumTypes,
+   224→    int? minQuestions,
+   225→    int? maxQuestions,
+   226→    double? marksPerQuestion,
+   227→    String? selectionMode,
+   228→    bool? includeImages,
+   229→    bool? includeAudio,
+   230→    bool? includeVideo,
+   231→  }) {
+   232→    return QuestionSelectionRuleModel(
+   233→      id: id ?? this.id,
+   234→      subjectId: subjectId ?? this.subjectId,
+   235→      topicIds: topicIds ?? this.topicIds,
+   236→      difficultyLevels: difficultyLevels ?? this.difficultyLevels,
+   237→      questionTypes: questionTypes ?? this.questionTypes,
+   238→      curriculumTypes: curriculumTypes ?? this.curriculumTypes,
+   239→      minQuestions: minQuestions ?? this.minQuestions,
+   240→      maxQuestions: maxQuestions ?? this.maxQuestions,
+   241→      marksPerQuestion: marksPerQuestion ?? this.marksPerQuestion,
+   242→      selectionMode: selectionMode ?? this.selectionMode,
+   243→      includeImages: includeImages ?? this.includeImages,
+   244→      includeAudio: includeAudio ?? this.includeAudio,
+   245→      includeVideo: includeVideo ?? this.includeVideo,
+   246→    );
+   247→  }
+   248→
+   249→  // ─── Equality ──────────────────────────────────────────────────────
+   250→
+   251→  @override
+   252→  bool operator ==(Object other) =>
+   253→      identical(this, other) ||
+   254→      other is QuestionSelectionRuleModel &&
+   255→          runtimeType == other.runtimeType &&
+   256→          id == other.id &&
+   257→          subjectId == other.subjectId &&
+   258→          _listEquals(topicIds, other.topicIds) &&
+   259→          _listEquals(difficultyLevels, other.difficultyLevels) &&
+   260→          _listEquals(questionTypes, other.questionTypes) &&
+   261→          _listEquals(curriculumTypes, other.curriculumTypes) &&
+   262→          minQuestions == other.minQuestions &&
+   263→          maxQuestions == other.maxQuestions &&
+   264→          marksPerQuestion == other.marksPerQuestion &&
+   265→          selectionMode == other.selectionMode &&
+   266→          includeImages == other.includeImages &&
+   267→          includeAudio == other.includeAudio &&
+   268→          includeVideo == other.includeVideo;
+   269→
+   270→  @override
+   271→  int get hashCode => Object.hash(
+   272→        id,
+   273→        subjectId,
+   274→        Object.hashAll(topicIds),
+   275→        Object.hashAll(difficultyLevels),
+   276→        Object.hashAll(questionTypes),
+   277→        Object.hashAll(curriculumTypes),
+   278→        minQuestions,
+   279→        maxQuestions,
+   280→        marksPerQuestion,
+   281→        selectionMode,
+   282→        includeImages,
+   283→        includeAudio,
+   284→        includeVideo,
+   285→      );
+   286→
+   287→  @override
+   288→  String toString() =>
+   289→      'QuestionSelectionRuleModel(id: $id, subjectId: $subjectId, minQuestions: $minQuestions, maxQuestions: $maxQuestions)';
+   290→}
+   291→
+   292→// ═══════════════════════════════════════════════════════════════════════
+   293→// ExamTemplateSectionModel
+   294→// ═══════════════════════════════════════════════════════════════════════
+   295→
+   296→class ExamTemplateSectionModel {
+   297→  const ExamTemplateSectionModel({
+   298→    required this.id,
+   299→    required this.templateId,
+   300→    required this.title,
+   301→    this.description,
+   302→    this.instructions,
+   303→    required this.sortOrder,
+   304→    this.timeLimitMinutes,
+   305→    this.randomizeQuestions = false,
+   306→    this.questionSelectionRule,
+   307→    this.marksPerQuestion = 1.0,
+   308→  });
+   309→
+   310→  final String id;
+   311→  final String templateId;
+   312→  final String title;
+   313→  final String? description;
+   314→  final String? instructions;
+   315→  final int sortOrder;
+   316→  final int? timeLimitMinutes;
+   317→  final bool randomizeQuestions;
+   318→  final QuestionSelectionRuleModel? questionSelectionRule;
+   319→  final double marksPerQuestion;
+   320→
+   321→  // ─── JSON Serialization ────────────────────────────────────────────
+   322→
+   323→  factory ExamTemplateSectionModel.fromJson(Map<String, dynamic> json) {
+   324→    return ExamTemplateSectionModel(
+   325→      id: json['id'] as String,
+   326→      templateId: json['template_id'] as String? ??
+   327→          json['templateId'] as String? ??
+   328→          '',
+   329→      title: json['title'] as String,
+   330→      description: json['description'] as String?,
+   331→      instructions: json['instructions'] as String?,
+   332→      sortOrder: json['sort_order'] as int? ??
+   333→          json['sortOrder'] as int? ??
+   334→          0,
+   335→      timeLimitMinutes: json['time_limit_minutes'] as int? ??
+   336→          json['timeLimitMinutes'] as int?,
+   337→      randomizeQuestions: json['randomize_questions'] as bool? ??
+   338→          json['randomizeQuestions'] as bool? ??
+   339→          false,
+   340→      questionSelectionRule: _parseQuestionSelectionRule(
+   341→        json['question_selection_rule'] ??
+   342→            json['questionSelectionRule'],
+   343→      ),
+   344→      marksPerQuestion:
+   345→          (json['marks_per_question'] as num?)?.toDouble() ??
+   346→              (json['marksPerQuestion'] as num?)?.toDouble() ??
+   347→              1.0,
+   348→    );
+   349→  }
+   350→
+   351→  Map<String, dynamic> toJson() {
+   352→    return {
+   353→      'id': id,
+   354→      'template_id': templateId,
+   355→      'title': title,
+   356→      'description': description,
+   357→      'instructions': instructions,
+   358→      'sort_order': sortOrder,
+   359→      'time_limit_minutes': timeLimitMinutes,
+   360→      'randomize_questions': randomizeQuestions,
+   361→      'question_selection_rule': questionSelectionRule?.toJson(),
+   362→      'marks_per_question': marksPerQuestion,
+   363→    };
+   364→  }
+   365→
+   366→  // ─── Entity Conversion ─────────────────────────────────────────────
+   367→
+   368→  factory ExamTemplateSectionModel.fromEntity(
+   369→    ExamTemplateSectionEntity entity,
+   370→  ) {
+   371→    return ExamTemplateSectionModel(
+   372→      id: entity.id,
+   373→      templateId: entity.templateId,
+   374→      title: entity.title,
+   375→      description: entity.description,
+   376→      instructions: entity.instructions,
+   377→      sortOrder: entity.sortOrder,
+   378→      timeLimitMinutes: entity.timeLimitMinutes,
+   379→      randomizeQuestions: entity.randomizeQuestions,
+   380→      questionSelectionRule: entity.questionSelectionRule != null
+   381→          ? QuestionSelectionRuleModel.fromEntity(
+   382→              entity.questionSelectionRule!)
+   383→          : null,
+   384→      marksPerQuestion: entity.marksPerQuestion,
+   385→    );
+   386→  }
+   387→
+   388→  ExamTemplateSectionEntity toEntity() {
+   389→    return ExamTemplateSectionEntity(
+   390→      id: id,
+   391→      templateId: templateId,
+   392→      title: title,
+   393→      description: description,
+   394→      instructions: instructions,
+   395→      sortOrder: sortOrder,
+   396→      timeLimitMinutes: timeLimitMinutes,
+   397→      randomizeQuestions: randomizeQuestions,
+   398→      questionSelectionRule: questionSelectionRule?.toEntity(),
+   399→      marksPerQuestion: marksPerQuestion,
+   400→    );
+   401→  }
+   402→
+   403→  // ─── Copy With ─────────────────────────────────────────────────────
+   404→
+   405→  ExamTemplateSectionModel copyWith({
+   406→    String? id,
+   407→    String? templateId,
+   408→    String? title,
+   409→    String? description,
+   410→    String? instructions,
+   411→    int? sortOrder,
+   412→    int? timeLimitMinutes,
+   413→    bool? randomizeQuestions,
+   414→    QuestionSelectionRuleModel? questionSelectionRule,
+   415→    double? marksPerQuestion,
+   416→  }) {
+   417→    return ExamTemplateSectionModel(
+   418→      id: id ?? this.id,
+   419→      templateId: templateId ?? this.templateId,
+   420→      title: title ?? this.title,
+   421→      description: description ?? this.description,
+   422→      instructions: instructions ?? this.instructions,
+   423→      sortOrder: sortOrder ?? this.sortOrder,
+   424→      timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
+   425→      randomizeQuestions: randomizeQuestions ?? this.randomizeQuestions,
+   426→      questionSelectionRule:
+   427→          questionSelectionRule ?? this.questionSelectionRule,
+   428→      marksPerQuestion: marksPerQuestion ?? this.marksPerQuestion,
+   429→    );
+   430→  }
+   431→
+   432→  // ─── Equality ──────────────────────────────────────────────────────
+   433→
+   434→  @override
+   435→  bool operator ==(Object other) =>
+   436→      identical(this, other) ||
+   437→      other is ExamTemplateSectionModel &&
+   438→          runtimeType == other.runtimeType &&
+   439→          id == other.id &&
+   440→          templateId == other.templateId &&
+   441→          title == other.title &&
+   442→          description == other.description &&
+   443→          instructions == other.instructions &&
+   444→          sortOrder == other.sortOrder &&
+   445→          timeLimitMinutes == other.timeLimitMinutes &&
+   446→          randomizeQuestions == other.randomizeQuestions &&
+   447→          questionSelectionRule == other.questionSelectionRule &&
+   448→          marksPerQuestion == other.marksPerQuestion;
+   449→
+   450→  @override
+   451→  int get hashCode => Object.hash(
+   452→        id,
+   453→        templateId,
+   454→        title,
+   455→        description,
+   456→        instructions,
+   457→        sortOrder,
+   458→        timeLimitMinutes,
+   459→        randomizeQuestions,
+   460→        questionSelectionRule,
+   461→        marksPerQuestion,
+   462→      );
+   463→
+   464→  @override
+   465→  String toString() =>
+   466→      'ExamTemplateSectionModel(id: $id, title: $title, templateId: $templateId)';
+   467→}
+   468→
+   469→// ═══════════════════════════════════════════════════════════════════════
+   470→// ExamTemplateModel
+   471→// ═══════════════════════════════════════════════════════════════════════
+   472→
+   473→class ExamTemplateModel {
+   474→  const ExamTemplateModel({
+   475→    required this.id,
+   476→    required this.schoolId,
+   477→    required this.createdBy,
+   478→    required this.name,
+   479→    this.description,
+   480→    required this.subjectId,
+   481→    required this.classId,
+   482→    required this.examType,
+   483→    required this.timeLimitMinutes,
+   484→    required this.passMark,
+   485→    this.passMarkType = 'percentage',
+   486→    this.instructions,
+   487→    this.allowedAttempts = 1,
+   488→    this.negativeMarkingEnabled = false,
+   489→    this.negativeMarkValue = 0.0,
+   490→    this.gracePeriodMinutes = 0,
+   491→    this.autoSubmit = true,
+   492→    this.randomizeQuestions = false,
+   493→    this.randomizeOptions = false,
+   494→    this.showResults = 'after_submission',
+   495→    this.showCorrectAnswers = false,
+   496→    this.showExplanations = false,
+   497→    this.requireFullScreen = false,
+   498→    this.allowResume = true,
+   499→    this.browserLockdown = false,
+   500→    this.sections = const [],
+   501→    this.questionSelectionRules = const [],
+   502→    this.metadata,
+   503→    this.usageCount = 0,
+   504→    this.isPublic = false,
+   505→    this.category = 'custom',
+   506→    this.tags = const [],
+   507→    required this.createdAt,
+   508→    required this.updatedAt,
+   509→  });
+   510→
+   511→  // ── Identifiers ─────────────────────────────────────────────────────
+   512→  final String id;
+   513→  final String schoolId;
+   514→  final String createdBy;
+   515→
+   516→  // ── Content ─────────────────────────────────────────────────────────
+   517→  final String name;
+   518→  final String? description;
+   519→
+   520→  // ── Classification ──────────────────────────────────────────────────
+   521→  final String subjectId;
+   522→  final String classId;
+   523→  final String examType;
+   524→
+   525→  // ── Timing ──────────────────────────────────────────────────────────
+   526→  final int timeLimitMinutes;
+   527→
+   528→  // ── Scoring ─────────────────────────────────────────────────────────
+   529→  final double passMark;
+   530→  final String passMarkType;
+   531→
+   532→  // ── Instructions ────────────────────────────────────────────────────
+   533→  final String? instructions;
+   534→
+   535→  // ── Attempt Rules ───────────────────────────────────────────────────
+   536→  final int allowedAttempts;
+   537→
+   538→  // ── Negative Marking ────────────────────────────────────────────────
+   539→  final bool negativeMarkingEnabled;
+   540→  final double negativeMarkValue;
+   541→
+   542→  // ── Grace Period & Auto Submit ──────────────────────────────────────
+   543→  final int gracePeriodMinutes;
+   544→  final bool autoSubmit;
+   545→
+   546→  // ── Randomization ───────────────────────────────────────────────────
+   547→  final bool randomizeQuestions;
+   548→  final bool randomizeOptions;
+   549→
+   550→  // ── Result Visibility ───────────────────────────────────────────────
+   551→  final String showResults;
+   552→  final bool showCorrectAnswers;
+   553→  final bool showExplanations;
+   554→
+   555→  // ── Security ────────────────────────────────────────────────────────
+   556→  final bool requireFullScreen;
+   557→  final bool allowResume;
+   558→  final bool browserLockdown;
+   559→
+   560→  // ── Structure ───────────────────────────────────────────────────────
+   561→  final List<ExamTemplateSectionModel> sections;
+   562→  final List<QuestionSelectionRuleModel> questionSelectionRules;
+   563→
+   564→  // ── Extensibility ───────────────────────────────────────────────────
+   565→  final Map<String, dynamic>? metadata;
+   566→
+   567→  // ── Usage & Sharing ─────────────────────────────────────────────────
+   568→  final int usageCount;
+   569→  final bool isPublic;
+   570→  final String category;
+   571→  final List<String> tags;
+   572→
+   573→  // ── Timestamps ──────────────────────────────────────────────────────
+   574→  final DateTime createdAt;
+   575→  final DateTime updatedAt;
+   576→
+   577→  // ─── JSON Serialization ────────────────────────────────────────────
+   578→
+   579→  factory ExamTemplateModel.fromJson(Map<String, dynamic> json) {
+   580→    return ExamTemplateModel(
+   581→      id: json['id'] as String,
+   582→      schoolId: json['school_id'] as String? ??
+   583→          json['schoolId'] as String? ??
+   584→          '',
+   585→      createdBy: json['created_by'] as String? ??
+   586→          json['createdBy'] as String? ??
+   587→          '',
+   588→      name: json['name'] as String,
+   589→      description: json['description'] as String?,
+   590→      subjectId: json['subject_id'] as String? ??
+   591→          json['subjectId'] as String? ??
+   592→          '',
+   593→      classId: json['class_id'] as String? ??
+   594→          json['classId'] as String? ??
+   595→          '',
+   596→      examType: json['exam_type'] as String? ??
+   597→          json['examType'] as String? ??
+   598→          'custom',
+   599→      timeLimitMinutes: json['time_limit_minutes'] as int? ??
+   600→          json['timeLimitMinutes'] as int? ??
+   601→          0,
+   602→      passMark: (json['pass_mark'] as num?)?.toDouble() ??
+   603→          (json['passMark'] as num?)?.toDouble() ??
+   604→          0.0,
+   605→      passMarkType: json['pass_mark_type'] as String? ??
+   606→          json['passMarkType'] as String? ??
+   607→          'percentage',
+   608→      instructions: json['instructions'] as String?,
+   609→      allowedAttempts: json['allowed_attempts'] as int? ??
+   610→          json['allowedAttempts'] as int? ??
+   611→          1,
+   612→      negativeMarkingEnabled: json['negative_marking_enabled'] as bool? ??
+   613→          json['negativeMarkingEnabled'] as bool? ??
+   614→          false,
+   615→      negativeMarkValue:
+   616→          (json['negative_mark_value'] as num?)?.toDouble() ??
+   617→              (json['negativeMarkValue'] as num?)?.toDouble() ??
+   618→              0.0,
+   619→      gracePeriodMinutes: json['grace_period_minutes'] as int? ??
+   620→          json['gracePeriodMinutes'] as int? ??
+   621→          0,
+   622→      autoSubmit: json['auto_submit'] as bool? ??
+   623→          json['autoSubmit'] as bool? ??
+   624→          true,
+   625→      randomizeQuestions: json['randomize_questions'] as bool? ??
+   626→          json['randomizeQuestions'] as bool? ??
+   627→          false,
+   628→      randomizeOptions: json['randomize_options'] as bool? ??
+   629→          json['randomizeOptions'] as bool? ??
+   630→          false,
+   631→      showResults: json['show_results'] as String? ??
+   632→          json['showResults'] as String? ??
+   633→          'after_submission',
+   634→      showCorrectAnswers: json['show_correct_answers'] as bool? ??
+   635→          json['showCorrectAnswers'] as bool? ??
+   636→          false,
+   637→      showExplanations: json['show_explanations'] as bool? ??
+   638→          json['showExplanations'] as bool? ??
+   639→          false,
+   640→      requireFullScreen: json['require_full_screen'] as bool? ??
+   641→          json['requireFullScreen'] as bool? ??
+   642→          false,
+   643→      allowResume: json['allow_resume'] as bool? ??
+   644→          json['allowResume'] as bool? ??
+   645→          true,
+   646→      browserLockdown: json['browser_lockdown'] as bool? ??
+   647→          json['browserLockdown'] as bool? ??
+   648→          false,
+   649→      sections: _parseTemplateSections(
+   650→        json['sections'] ?? json['exam_template_sections'],
+   651→      ),
+   652→      questionSelectionRules: _parseQuestionSelectionRules(
+   653→        json['question_selection_rules'],
+   654→      ),
+   655→      metadata: json['metadata'] as Map<String, dynamic>?,
+   656→      usageCount: json['usage_count'] as int? ??
+   657→          json['usageCount'] as int? ??
+   658→          0,
+   659→      isPublic: json['is_public'] as bool? ??
+   660→          json['isPublic'] as bool? ??
+   661→          false,
+   662→      category: json['category'] as String? ??
+   663→          'custom',
+   664→      tags: _parseStringList(json['tags']),
+   665→      createdAt: _parseDateTime(
+   666→        json['created_at'] ?? json['createdAt'],
+   667→      ),
+   668→      updatedAt: _parseDateTime(
+   669→        json['updated_at'] ?? json['updatedAt'],
+   670→      ),
+   671→    );
+   672→  }
+   673→
+   674→  Map<String, dynamic> toJson() {
+   675→    return {
+   676→      'id': id,
+   677→      'school_id': schoolId,
+   678→      'created_by': createdBy,
+   679→      'name': name,
+   680→      'description': description,
+   681→      'subject_id': subjectId,
+   682→      'class_id': classId,
+   683→      'exam_type': examType,
+   684→      'time_limit_minutes': timeLimitMinutes,
+   685→      'pass_mark': passMark,
+   686→      'pass_mark_type': passMarkType,
+   687→      'instructions': instructions,
+   688→      'allowed_attempts': allowedAttempts,
+   689→      'negative_marking_enabled': negativeMarkingEnabled,
+   690→      'negative_mark_value': negativeMarkValue,
+   691→      'grace_period_minutes': gracePeriodMinutes,
+   692→      'auto_submit': autoSubmit,
+   693→      'randomize_questions': randomizeQuestions,
+   694→      'randomize_options': randomizeOptions,
+   695→      'show_results': showResults,
+   696→      'show_correct_answers': showCorrectAnswers,
+   697→      'show_explanations': showExplanations,
+   698→      'require_full_screen': requireFullScreen,
+   699→      'allow_resume': allowResume,
+   700→      'browser_lockdown': browserLockdown,
+   701→      'sections': sections.map((s) => s.toJson()).toList(),
+   702→      'question_selection_rules':
+   703→          questionSelectionRules.map((r) => r.toJson()).toList(),
+   704→      'metadata': metadata,
+   705→      'usage_count': usageCount,
+   706→      'is_public': isPublic,
+   707→      'category': category,
+   708→      'tags': tags,
+   709→      'created_at': createdAt.toIso8601String(),
+   710→      'updated_at': updatedAt.toIso8601String(),
+   711→    };
+   712→  }
+   713→
+   714→  // ─── Entity Conversion ─────────────────────────────────────────────
+   715→
+   716→  factory ExamTemplateModel.fromEntity(ExamTemplateEntity entity) {
+   717→    return ExamTemplateModel(
+   718→      id: entity.id,
+   719→      schoolId: entity.schoolId,
+   720→      createdBy: entity.createdBy,
+   721→      name: entity.name,
+   722→      description: entity.description,
+   723→      subjectId: entity.subjectId,
+   724→      classId: entity.classId,
+   725→      examType: entity.examType.value,
+   726→      timeLimitMinutes: entity.timeLimitMinutes,
+   727→      passMark: entity.passMark,
+   728→      passMarkType: entity.passMarkType,
+   729→      instructions: entity.instructions,
+   730→      allowedAttempts: entity.allowedAttempts,
+   731→      negativeMarkingEnabled: entity.negativeMarkingEnabled,
+   732→      negativeMarkValue: entity.negativeMarkValue,
+   733→      gracePeriodMinutes: entity.gracePeriodMinutes,
+   734→      autoSubmit: entity.autoSubmit,
+   735→      randomizeQuestions: entity.randomizeQuestions,
+   736→      randomizeOptions: entity.randomizeOptions,
+   737→      showResults: entity.showResults,
+   738→      showCorrectAnswers: entity.showCorrectAnswers,
+   739→      showExplanations: entity.showExplanations,
+   740→      requireFullScreen: entity.requireFullScreen,
+   741→      allowResume: entity.allowResume,
+   742→      browserLockdown: entity.browserLockdown,
+   743→      sections: entity.sections
+   744→          .map((s) => ExamTemplateSectionModel.fromEntity(s))
+   745→          .toList(),
+   746→      questionSelectionRules: entity.questionSelectionRules
+   747→          .map((r) => QuestionSelectionRuleModel.fromEntity(r))
+   748→          .toList(),
+   749→      metadata: entity.metadata,
+   750→      usageCount: entity.usageCount,
+   751→      isPublic: entity.isPublic,
+   752→      category: entity.category.value,
+   753→      tags: entity.tags,
+   754→      createdAt: entity.createdAt,
+   755→      updatedAt: entity.updatedAt,
+   756→    );
+   757→  }
+   758→
+   759→  ExamTemplateEntity toEntity() {
+   760→    return ExamTemplateEntity(
+   761→      id: id,
+   762→      schoolId: schoolId,
+   763→      createdBy: createdBy,
+   764→      name: name,
+   765→      description: description,
+   766→      subjectId: subjectId,
+   767→      classId: classId,
+   768→      examType: ExamType.fromString(examType) ?? ExamType.custom,
+   769→      timeLimitMinutes: timeLimitMinutes,
+   770→      passMark: passMark,
+   771→      passMarkType: passMarkType,
+   772→      instructions: instructions,
+   773→      allowedAttempts: allowedAttempts,
+   774→      negativeMarkingEnabled: negativeMarkingEnabled,
+   775→      negativeMarkValue: negativeMarkValue,
+   776→      gracePeriodMinutes: gracePeriodMinutes,
+   777→      autoSubmit: autoSubmit,
+   778→      randomizeQuestions: randomizeQuestions,
+   779→      randomizeOptions: randomizeOptions,
+   780→      showResults: showResults,
+   781→      showCorrectAnswers: showCorrectAnswers,
+   782→      showExplanations: showExplanations,
+   783→      requireFullScreen: requireFullScreen,
+   784→      allowResume: allowResume,
+   785→      browserLockdown: browserLockdown,
+   786→      sections: sections.map((s) => s.toEntity()).toList(),
+   787→      questionSelectionRules:
+   788→          questionSelectionRules.map((r) => r.toEntity()).toList(),
+   789→      metadata: metadata,
+   790→      usageCount: usageCount,
+   791→      isPublic: isPublic,
+   792→      category: TemplateCategory.fromString(category) ??
+   793→          TemplateCategory.custom,
+   794→      tags: tags,
+   795→      createdAt: createdAt,
+   796→      updatedAt: updatedAt,
+   797→    );
+   798→  }
+   799→
+   800→  // ─── Copy With ─────────────────────────────────────────────────────
+   801→
+   802→  ExamTemplateModel copyWith({
+   803→    String? id,
+   804→    String? schoolId,
+   805→    String? createdBy,
+   806→    String? name,
+   807→    String? description,
+   808→    String? subjectId,
+   809→    String? classId,
+   810→    String? examType,
+   811→    int? timeLimitMinutes,
+   812→    double? passMark,
+   813→    String? passMarkType,
+   814→    String? instructions,
+   815→    int? allowedAttempts,
+   816→    bool? negativeMarkingEnabled,
+   817→    double? negativeMarkValue,
+   818→    int? gracePeriodMinutes,
+   819→    bool? autoSubmit,
+   820→    bool? randomizeQuestions,
+   821→    bool? randomizeOptions,
+   822→    String? showResults,
+   823→    bool? showCorrectAnswers,
+   824→    bool? showExplanations,
+   825→    bool? requireFullScreen,
+   826→    bool? allowResume,
+   827→    bool? browserLockdown,
+   828→    List<ExamTemplateSectionModel>? sections,
+   829→    List<QuestionSelectionRuleModel>? questionSelectionRules,
+   830→    Map<String, dynamic>? metadata,
+   831→    int? usageCount,
+   832→    bool? isPublic,
+   833→    String? category,
+   834→    List<String>? tags,
+   835→    DateTime? createdAt,
+   836→    DateTime? updatedAt,
+   837→  }) {
+   838→    return ExamTemplateModel(
+   839→      id: id ?? this.id,
+   840→      schoolId: schoolId ?? this.schoolId,
+   841→      createdBy: createdBy ?? this.createdBy,
+   842→      name: name ?? this.name,
+   843→      description: description ?? this.description,
+   844→      subjectId: subjectId ?? this.subjectId,
+   845→      classId: classId ?? this.classId,
+   846→      examType: examType ?? this.examType,
+   847→      timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
+   848→      passMark: passMark ?? this.passMark,
+   849→      passMarkType: passMarkType ?? this.passMarkType,
+   850→      instructions: instructions ?? this.instructions,
+   851→      allowedAttempts: allowedAttempts ?? this.allowedAttempts,
+   852→      negativeMarkingEnabled:
+   853→          negativeMarkingEnabled ?? this.negativeMarkingEnabled,
+   854→      negativeMarkValue: negativeMarkValue ?? this.negativeMarkValue,
+   855→      gracePeriodMinutes: gracePeriodMinutes ?? this.gracePeriodMinutes,
+   856→      autoSubmit: autoSubmit ?? this.autoSubmit,
+   857→      randomizeQuestions: randomizeQuestions ?? this.randomizeQuestions,
+   858→      randomizeOptions: randomizeOptions ?? this.randomizeOptions,
+   859→      showResults: showResults ?? this.showResults,
+   860→      showCorrectAnswers: showCorrectAnswers ?? this.showCorrectAnswers,
+   861→      showExplanations: showExplanations ?? this.showExplanations,
+   862→      requireFullScreen: requireFullScreen ?? this.requireFullScreen,
+   863→      allowResume: allowResume ?? this.allowResume,
+   864→      browserLockdown: browserLockdown ?? this.browserLockdown,
+   865→      sections: sections ?? this.sections,
+   866→      questionSelectionRules:
+   867→          questionSelectionRules ?? this.questionSelectionRules,
+   868→      metadata: metadata ?? this.metadata,
+   869→      usageCount: usageCount ?? this.usageCount,
+   870→      isPublic: isPublic ?? this.isPublic,
+   871→      category: category ?? this.category,
+   872→      tags: tags ?? this.tags,
+   873→      createdAt: createdAt ?? this.createdAt,
+   874→      updatedAt: updatedAt ?? this.updatedAt,
+   875→    );
+   876→  }
+   877→
+   878→  // ─── Equality ──────────────────────────────────────────────────────
+   879→
+   880→  @override
+   881→  bool operator ==(Object other) =>
+   882→      identical(this, other) ||
+   883→      other is ExamTemplateModel &&
+   884→          runtimeType == other.runtimeType &&
+   885→          id == other.id &&
+   886→          schoolId == other.schoolId &&
+   887→          createdBy == other.createdBy &&
+   888→          name == other.name &&
+   889→          description == other.description &&
+   890→          subjectId == other.subjectId &&
+   891→          classId == other.classId &&
+   892→          examType == other.examType &&
+   893→          timeLimitMinutes == other.timeLimitMinutes &&
+   894→          passMark == other.passMark &&
+   895→          passMarkType == other.passMarkType &&
+   896→          instructions == other.instructions &&
+   897→          allowedAttempts == other.allowedAttempts &&
+   898→          negativeMarkingEnabled == other.negativeMarkingEnabled &&
+   899→          negativeMarkValue == other.negativeMarkValue &&
+   900→          gracePeriodMinutes == other.gracePeriodMinutes &&
+   901→          autoSubmit == other.autoSubmit &&
+   902→          randomizeQuestions == other.randomizeQuestions &&
+   903→          randomizeOptions == other.randomizeOptions &&
+   904→          showResults == other.showResults &&
+   905→          showCorrectAnswers == other.showCorrectAnswers &&
+   906→          showExplanations == other.showExplanations &&
+   907→          requireFullScreen == other.requireFullScreen &&
+   908→          allowResume == other.allowResume &&
+   909→          browserLockdown == other.browserLockdown &&
+   910→          _listEquals(sections, other.sections) &&
+   911→          _listEquals(questionSelectionRules, other.questionSelectionRules) &&
+   912→          metadata == other.metadata &&
+   913→          usageCount == other.usageCount &&
+   914→          isPublic == other.isPublic &&
+   915→          category == other.category &&
+   916→          _listEquals(tags, other.tags) &&
+   917→          createdAt == other.createdAt &&
+   918→          updatedAt == other.updatedAt;
+   919→
+   920→  @override
+   921→  int get hashCode => Object.hash(
+   922→        id,
+   923→        schoolId,
+   924→        createdBy,
+   925→        name,
+   926→        description,
+   927→        subjectId,
+   928→        classId,
+   929→        examType,
+   930→        timeLimitMinutes,
+   931→        passMark,
+   932→        passMarkType,
+   933→        instructions,
+   934→        allowedAttempts,
+   935→        negativeMarkingEnabled,
+   936→        negativeMarkValue,
+   937→        gracePeriodMinutes,
+   938→        autoSubmit,
+   939→        randomizeQuestions,
+   940→        randomizeOptions,
+   941→        showResults,
+   942→        showCorrectAnswers,
+   943→        showExplanations,
+   944→        requireFullScreen,
+   945→        allowResume,
+   946→        browserLockdown,
+   947→        Object.hashAll(sections),
+   948→        Object.hashAll(questionSelectionRules),
+   949→        metadata,
+   950→        usageCount,
+   951→        isPublic,
+   952→        category,
+   953→        Object.hashAll(tags),
+   954→        createdAt,
+   955→        updatedAt,
+   956→      );
+   957→
+   958→  @override
+   959→  String toString() =>
+   960→      'ExamTemplateModel(id: $id, name: $name, category: $category)';
+   961→}
+   962→
+   963→// ═══════════════════════════════════════════════════════════════════════
+   964→// SubmissionReceiptModel
+   965→// ═══════════════════════════════════════════════════════════════════════
+   966→
+   967→class SubmissionReceiptModel {
+   968→  const SubmissionReceiptModel({
+   969→    required this.id,
+   970→    required this.attemptId,
+   971→    required this.examId,
+   972→    required this.studentId,
+   973→    required this.examTitle,
+   974→    required this.submittedAt,
+   975→    required this.submissionType,
+   976→    required this.totalQuestions,
+   977→    required this.answeredQuestions,
+   978→    required this.unansweredQuestions,
+   979→    required this.flaggedQuestions,
+   980→    required this.timeSpentMinutes,
+   981→    this.ipAddress,
+   982→    this.deviceInfo,
+   983→    required this.receiptNumber,
+   984→    this.isVerified = false,
+   985→  });
+   986→
+   987→  final String id;
+   988→  final String attemptId;
+   989→  final String examId;
+   990→  final String studentId;
+   991→  final String examTitle;
+   992→  final DateTime submittedAt;
+   993→  final String submissionType;
+   994→  final int totalQuestions;
+   995→  final int answeredQuestions;
+   996→  final int unansweredQuestions;
+   997→  final int flaggedQuestions;
+   998→  final int timeSpentMinutes;
+   999→  final String? ipAddress;
+  1000→  final Map<String, dynamic>? deviceInfo;
+  1001→  final String receiptNumber;
+  1002→  final bool isVerified;
+  1003→
+  1004→  // ─── JSON Serialization ────────────────────────────────────────────
+  1005→
+  1006→  factory SubmissionReceiptModel.fromJson(Map<String, dynamic> json) {
+  1007→    return SubmissionReceiptModel(
+  1008→      id: json['id'] as String,
+  1009→      attemptId: json['attempt_id'] as String? ??
+  1010→          json['attemptId'] as String? ??
+  1011→          '',
+  1012→      examId: json['exam_id'] as String? ??
+  1013→          json['examId'] as String? ??
+  1014→          '',
+  1015→      studentId: json['student_id'] as String? ??
+  1016→          json['studentId'] as String? ??
+  1017→          '',
+  1018→      examTitle: json['exam_title'] as String? ??
+  1019→          json['examTitle'] as String? ??
+  1020→          '',
+  1021→      submittedAt: _parseDateTime(
+  1022→        json['submitted_at'] ?? json['submittedAt'],
+  1023→      ),
+  1024→      submissionType: json['submission_type'] as String? ??
+  1025→          json['submissionType'] as String? ??
+  1026→          'manual',
+  1027→      totalQuestions: json['total_questions'] as int? ??
+  1028→          json['totalQuestions'] as int? ??
+  1029→          0,
+  1030→      answeredQuestions: json['answered_questions'] as int? ??
+  1031→          json['answeredQuestions'] as int? ??
+  1032→          0,
+  1033→      unansweredQuestions: json['unanswered_questions'] as int? ??
+  1034→          json['unansweredQuestions'] as int? ??
+  1035→          0,
+  1036→      flaggedQuestions: json['flagged_questions'] as int? ??
+  1037→          json['flaggedQuestions'] as int? ??
+  1038→          0,
+  1039→      timeSpentMinutes: json['time_spent_minutes'] as int? ??
+  1040→          json['timeSpentMinutes'] as int? ??
+  1041→          0,
+  1042→      ipAddress: json['ip_address'] as String? ??
+  1043→          json['ipAddress'] as String?,
+  1044→      deviceInfo: json['device_info'] as Map<String, dynamic>? ??
+  1045→          json['deviceInfo'] as Map<String, dynamic>?,
+  1046→      receiptNumber: json['receipt_number'] as String? ??
+  1047→          json['receiptNumber'] as String? ??
+  1048→          '',
+  1049→      isVerified: json['is_verified'] as bool? ??
+  1050→          json['isVerified'] as bool? ??
+  1051→          false,
+  1052→    );
+  1053→  }
+  1054→
+  1055→  Map<String, dynamic> toJson() {
+  1056→    return {
+  1057→      'id': id,
+  1058→      'attempt_id': attemptId,
+  1059→      'exam_id': examId,
+  1060→      'student_id': studentId,
+  1061→      'exam_title': examTitle,
+  1062→      'submitted_at': submittedAt.toIso8601String(),
+  1063→      'submission_type': submissionType,
+  1064→      'total_questions': totalQuestions,
+  1065→      'answered_questions': answeredQuestions,
+  1066→      'unanswered_questions': unansweredQuestions,
+  1067→      'flagged_questions': flaggedQuestions,
+  1068→      'time_spent_minutes': timeSpentMinutes,
+  1069→      'ip_address': ipAddress,
+  1070→      'device_info': deviceInfo,
+  1071→      'receipt_number': receiptNumber,
+  1072→      'is_verified': isVerified,
+  1073→    };
+  1074→  }
+  1075→
+  1076→  // ─── Entity Conversion ─────────────────────────────────────────────
+  1077→
+  1078→  factory SubmissionReceiptModel.fromEntity(
+  1079→    SubmissionReceiptEntity entity,
+  1080→  ) {
+  1081→    return SubmissionReceiptModel(
+  1082→      id: entity.id,
+  1083→      attemptId: entity.attemptId,
+  1084→      examId: entity.examId,
+  1085→      studentId: entity.studentId,
+  1086→      examTitle: entity.examTitle,
+  1087→      submittedAt: entity.submittedAt,
+  1088→      submissionType: entity.submissionType.value,
+  1089→      totalQuestions: entity.totalQuestions,
+  1090→      answeredQuestions: entity.answeredQuestions,
+  1091→      unansweredQuestions: entity.unansweredQuestions,
+  1092→      flaggedQuestions: entity.flaggedQuestions,
+  1093→      timeSpentMinutes: entity.timeSpentMinutes,
+  1094→      ipAddress: entity.ipAddress,
+  1095→      deviceInfo: entity.deviceInfo,
+  1096→      receiptNumber: entity.receiptNumber,
+  1097→      isVerified: entity.isVerified,
+  1098→    );
+  1099→  }
+  1100→
+  1101→  SubmissionReceiptEntity toEntity() {
+  1102→    return SubmissionReceiptEntity(
+  1103→      id: id,
+  1104→      attemptId: attemptId,
+  1105→      examId: examId,
+  1106→      studentId: studentId,
+  1107→      examTitle: examTitle,
+  1108→      submittedAt: submittedAt,
+  1109→      submissionType: SubmissionType.fromString(submissionType) ??
+  1110→          SubmissionType.manual,
+  1111→      totalQuestions: totalQuestions,
+  1112→      answeredQuestions: answeredQuestions,
+  1113→      unansweredQuestions: unansweredQuestions,
+  1114→      flaggedQuestions: flaggedQuestions,
+  1115→      timeSpentMinutes: timeSpentMinutes,
+  1116→      ipAddress: ipAddress,
+  1117→      deviceInfo: deviceInfo,
+  1118→      receiptNumber: receiptNumber,
+  1119→      isVerified: isVerified,
+  1120→    );
+  1121→  }
+  1122→
+  1123→  // ─── Copy With ─────────────────────────────────────────────────────
+  1124→
+  1125→  SubmissionReceiptModel copyWith({
+  1126→    String? id,
+  1127→    String? attemptId,
+  1128→    String? examId,
+  1129→    String? studentId,
+  1130→    String? examTitle,
+  1131→    DateTime? submittedAt,
+  1132→    String? submissionType,
+  1133→    int? totalQuestions,
+  1134→    int? answeredQuestions,
+  1135→    int? unansweredQuestions,
+  1136→    int? flaggedQuestions,
+  1137→    int? timeSpentMinutes,
+  1138→    String? ipAddress,
+  1139→    Map<String, dynamic>? deviceInfo,
+  1140→    String? receiptNumber,
+  1141→    bool? isVerified,
+  1142→  }) {
+  1143→    return SubmissionReceiptModel(
+  1144→      id: id ?? this.id,
+  1145→      attemptId: attemptId ?? this.attemptId,
+  1146→      examId: examId ?? this.examId,
+  1147→      studentId: studentId ?? this.studentId,
+  1148→      examTitle: examTitle ?? this.examTitle,
+  1149→      submittedAt: submittedAt ?? this.submittedAt,
+  1150→      submissionType: submissionType ?? this.submissionType,
+  1151→      totalQuestions: totalQuestions ?? this.totalQuestions,
+  1152→      answeredQuestions: answeredQuestions ?? this.answeredQuestions,
+  1153→      unansweredQuestions: unansweredQuestions ?? this.unansweredQuestions,
+  1154→      flaggedQuestions: flaggedQuestions ?? this.flaggedQuestions,
+  1155→      timeSpentMinutes: timeSpentMinutes ?? this.timeSpentMinutes,
+  1156→      ipAddress: ipAddress ?? this.ipAddress,
+  1157→      deviceInfo: deviceInfo ?? this.deviceInfo,
+  1158→      receiptNumber: receiptNumber ?? this.receiptNumber,
+  1159→      isVerified: isVerified ?? this.isVerified,
+  1160→    );
+  1161→  }
+  1162→
+  1163→  // ─── Equality ──────────────────────────────────────────────────────
+  1164→
+  1165→  @override
+  1166→  bool operator ==(Object other) =>
+  1167→      identical(this, other) ||
+  1168→      other is SubmissionReceiptModel &&
+  1169→          runtimeType == other.runtimeType &&
+  1170→          id == other.id &&
+  1171→          attemptId == other.attemptId &&
+  1172→          examId == other.examId &&
+  1173→          studentId == other.studentId &&
+  1174→          examTitle == other.examTitle &&
+  1175→          submittedAt == other.submittedAt &&
+  1176→          submissionType == other.submissionType &&
+  1177→          totalQuestions == other.totalQuestions &&
+  1178→          answeredQuestions == other.answeredQuestions &&
+  1179→          unansweredQuestions == other.unansweredQuestions &&
+  1180→          flaggedQuestions == other.flaggedQuestions &&
+  1181→          timeSpentMinutes == other.timeSpentMinutes &&
+  1182→          ipAddress == other.ipAddress &&
+  1183→          deviceInfo == other.deviceInfo &&
+  1184→          receiptNumber == other.receiptNumber &&
+  1185→          isVerified == other.isVerified;
+  1186→
+  1187→  @override
+  1188→  int get hashCode => Object.hash(
+  1189→        id,
+  1190→        attemptId,
+  1191→        examId,
+  1192→        studentId,
+  1193→        examTitle,
+  1194→        submittedAt,
+  1195→        submissionType,
+  1196→        totalQuestions,
+  1197→        answeredQuestions,
+  1198→        unansweredQuestions,
+  1199→        flaggedQuestions,
+  1200→        timeSpentMinutes,
+  1201→        ipAddress,
+  1202→        deviceInfo,
+  1203→        receiptNumber,
+  1204→        isVerified,
+  1205→      );
+  1206→
+  1207→  @override
+  1208→  String toString() =>
+  1209→      'SubmissionReceiptModel(id: $id, receiptNumber: $receiptNumber, examTitle: $examTitle)';
+  1210→}
+  1211→
+  1212→// ───────────────────────────────────────────────────────────────────────
+  1213→// Private helpers
+  1214→// ───────────────────────────────────────────────────────────────────────
+  1215→
+  1216→QuestionSelectionRuleModel? _parseQuestionSelectionRule(dynamic data) {
+  1217→  if (data == null) return null;
+  1218→  if (data is Map<String, dynamic>) {
+  1219→    return QuestionSelectionRuleModel.fromJson(data);
+  1220→  }
+  1221→  return null;
+  1222→}
+  1223→
+  1224→bool _listEquals<T>(List<T> a, List<T> b) {
+  1225→  if (identical(a, b)) return true;
+  1226→  if (a.length != b.length) return false;
+  1227→  for (var i = 0; i < a.length; i++) {
+  1228→    if (a[i] != b[i]) return false;
+  1229→  }
+  1230→  return true;
+  1231→}
+  1232→

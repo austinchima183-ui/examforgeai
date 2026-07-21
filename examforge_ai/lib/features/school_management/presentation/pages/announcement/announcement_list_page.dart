@@ -1,17 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_search_bar.dart';
+import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/themes/app_typography.dart';
+import '../../../../../core/themes/spacings.dart';
+import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/widgets/app_card.dart';
+import '../../../../../shared/widgets/app_empty_state.dart';
+import '../../../../../shared/widgets/app_error_state.dart';
+import '../../../../../shared/widgets/app_loading.dart';
+import '../../../../../shared/widgets/app_search_bar.dart';
+import '../../../../../shared/models/user_role.dart';
+import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../domain/entities/school_management_entities.dart';
-import '../providers/announcement_provider.dart';
+import '../../providers/announcement_provider.dart';
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
+
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // ANNOUNCEMENT LIST PAGE
@@ -33,8 +39,12 @@ class _AnnouncementListPageState extends ConsumerState<AnnouncementListPage> {
   bool _isSearchMode = false;
   AnnouncementType? _selectedType;
 
-  // Simulate user role – in production read from auth state.
-  static const _isAdminOrTeacher = true;
+  /// Whether the current user has an admin or teacher role.
+  bool get _isAdminOrTeacher {
+    final role = ref.read(resolvedUserRoleProvider);
+    return role != null &&
+        (role.isAdmin || role == UserRole.teacher);
+  }
 
   @override
   void initState() {

@@ -9,6 +9,8 @@ import '../../domain/entities/results_entities.dart';
 import '../../domain/repositories/results_repository.dart';
 import '../datasources/results_remote_datasource.dart';
 import '../models/results_models.dart';
+import '../../../../features/results/domain/entities/results_entities.dart';
+
 
 /// Concrete implementation of [ResultsRepository] that delegates
 /// all operations to [ResultsRemoteDataSource].

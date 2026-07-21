@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../../core/errors/failures.dart';
-import '../../../../../core/utils/result.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/result.dart';
 import '../repositories/parent_portal_repository.dart';
 
 /// Parameters for [MarkMessageReadUseCase].

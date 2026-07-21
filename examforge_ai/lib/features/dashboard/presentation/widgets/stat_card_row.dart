@@ -5,6 +5,8 @@ import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
+import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // DATA MODEL

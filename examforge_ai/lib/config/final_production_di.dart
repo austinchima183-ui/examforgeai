@@ -21,7 +21,7 @@ import 'package:examforge_ai/features/customer_success/domain/usecases/customer_
 import 'package:examforge_ai/features/marketing/domain/repositories/marketing_repository.dart';
 import 'package:examforge_ai/features/marketing/domain/usecases/marketing_usecases.dart';
 import 'package:examforge_ai/features/edu_os/domain/repositories/edu_os_repository.dart';
-import 'package:examforge_ai/features/edu_os/domain/usecases/edu_os_usecases.dart';
+import 'package:examforge_ai/features/edu_os/domain/usecases/edu_os_usecases.dart' hide GetAnalyticsSummaryUseCase;
 import 'package:examforge_ai/features/analytics_dashboard/domain/repositories/analytics_dashboard_repository.dart';
 import 'package:examforge_ai/features/analytics_dashboard/domain/usecases/analytics_dashboard_usecases.dart';
 

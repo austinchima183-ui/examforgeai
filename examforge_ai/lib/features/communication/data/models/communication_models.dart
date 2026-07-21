@@ -1,4 +1,6 @@
 import '../../domain/entities/communication_entities.dart';
+import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType, CalendarEventEntity, CalendarEventType;
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONVERSATION MODEL

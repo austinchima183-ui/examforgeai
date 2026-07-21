@@ -1,5 +1,7 @@
 import '../../../question_bank/domain/entities/question_entities.dart';
 import '../../domain/entities/cbt_entities.dart';
+import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // CBT ENGINE DATA MODELS

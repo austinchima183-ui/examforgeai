@@ -9,6 +9,8 @@ import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
 import '../providers/announcement_provider.dart';
+import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType;
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // ANNOUNCEMENT DETAIL PAGE

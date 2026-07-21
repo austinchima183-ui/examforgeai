@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/errors/failures.dart';
-import '../../../../../core/utils/logger.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/logger.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../../domain/usecases/get_user_purchases_usecase.dart';
 import '../../domain/usecases/record_download_usecase.dart';

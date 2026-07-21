@@ -2504,10 +2504,9 @@ class StudentPortalRemoteDatasource {
         );
       }
 
-      final questions = (aiResponse.data['questions'] as List<dynamic?)
+      final questions = (aiResponse.data['questions'] as List<dynamic>)
               .whereType<Map<String, dynamic>>()
-              .toList() ??
-          [];
+              .toList();
 
       AppLogger.info(
         'Generated ${questions.length} questions from content',

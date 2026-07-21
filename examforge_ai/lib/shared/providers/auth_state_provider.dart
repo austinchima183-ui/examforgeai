@@ -4,7 +4,7 @@
 /// whether a user is signed in, who they are, or what role they have.
 ///
 /// ```dart
-/// import 'package:examforge_ai/shared/providers/auth_state_provider.dart';
+/// import '../../shared/providers/auth_state_provider.dart';
 ///
 /// final isAuth = ref.watch(isAuthenticatedProvider);
 /// final user   = ref.watch(currentUserProvider);

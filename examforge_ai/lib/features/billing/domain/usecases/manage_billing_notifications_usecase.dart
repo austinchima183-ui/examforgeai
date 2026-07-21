@@ -1,7 +1,9 @@
-import '../../../../../core/errors/failures.dart';
-import '../../../../../core/utils/result.dart';
-import '../../entities/billing_entities.dart';
-import '../../repositories/billing_repository.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/result.dart';
+import '../../domain/entities/billing_entities.dart';
+import '../../data/repositories/billing_repository.dart';
+import '../../../../features/billing/domain/repositories/billing_repository.dart';
+
 
 // ─── Get Billing Notifications ───────────────────────────────────────────────
 

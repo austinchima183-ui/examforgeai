@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../config/dependency_injection.dart';
-import '../../../../../core/errors/failures.dart';
-import '../../../../../core/utils/logger.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/logger.dart';
 import '../../domain/entities/super_admin_entities.dart';
 import '../../domain/usecases/super_admin_usecases.dart';
 

@@ -3,10 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/themes/app_colors.dart';
-import '../../../../../core/themes/app_typography.dart';
-import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/product_detail_provider.dart';

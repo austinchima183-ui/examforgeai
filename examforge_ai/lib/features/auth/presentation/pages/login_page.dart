@@ -10,6 +10,8 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
 import '../providers/auth_form_provider.dart';
+import '../../../../config/dependency_injection.dart';
+
 
 /// Professional login page with email/password authentication.
 ///

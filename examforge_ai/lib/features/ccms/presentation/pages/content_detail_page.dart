@@ -7,6 +7,8 @@ import '../../domain/entities/ccms_entities.dart';
 import '../providers/ccms_providers.dart';
 import '../widgets/ccms_widgets.dart';
 
+export 'content_editor_page.dart';
+
 class ContentDetailPage extends ConsumerStatefulWidget {
   const ContentDetailPage({super.key, required this.contentId});
 
@@ -559,6 +561,3 @@ class _DetailSection extends StatelessWidget {
     );
   }
 }
-
-// Re-export for navigation
-export 'content_editor_page.dart';

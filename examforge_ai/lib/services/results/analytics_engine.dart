@@ -28,6 +28,8 @@
 library;
 
 import 'package:examforge_ai/features/results/domain/entities/results_entities.dart';
+import '../../features/student_portal/domain/entities/student_portal_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // OUTPUT DTOs

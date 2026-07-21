@@ -2,8 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:dio/dio.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../../../core/utils/logger.dart';
+import '../../../core/utils/logger.dart';
 import '../../../features/ai_generator/domain/entities/ai_entities.dart';
 import '../ai_provider_interface.dart';
 
@@ -22,51 +23,62 @@ import '../ai_provider_interface.dart';
 /// - Proper error handling (rate limits, auth, safety filters)
 class GeminiProvider implements AiProviderInterface {
   GeminiProvider({
-    required String apiKey,
+    String? apiKey,
     String baseUrl =
         'https://generativelanguage.googleapis.com/v1beta',
     this.defaultModel = 'gemini-1.5-pro',
+    sb.SupabaseClient? supabaseClient,
     Dio? dio,
   })  : _apiKey = apiKey,
         _baseUrl = baseUrl,
+        _supabaseClient = supabaseClient,
         _dio = dio ?? Dio(BaseOptions(
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 120),
         ));
 
-  final String _apiKey;
+  final String? _apiKey;
   final String _baseUrl;
+  final sb.SupabaseClient? _supabaseClient;
   final String defaultModel;
   final Dio _dio;
+
+  /// Whether to route AI calls through Supabase Edge Functions.
+  bool get _useEdgeFunctions =>
+      (_apiKey == null || _apiKey!.isEmpty) && _supabaseClient != null;
+
+  // ─── Edge Function Names ──────────────────────────────────────────
+  static const _aiCompleteFunction = 'ai-complete';
+  static const _aiStreamFunction = 'ai-stream';
 
   // ─── Capability table per model ────────────────────────────────────
 
   static const Map<String, _GeminiModelSpec> _modelSpecs = {
     'gemini-1.5-pro': _GeminiModelSpec(
-      maxContext: 2_097_152,
-      maxOutput: 8_192,
+      maxContext: 2097152,
+      maxOutput: 8192,
       streaming: true,
       functionCalling: true,
       vision: true,
     ),
     'gemini-1.5-flash': _GeminiModelSpec(
-      maxContext: 1_048_576,
-      maxOutput: 8_192,
+      maxContext: 1048576,
+      maxOutput: 8192,
       streaming: true,
       functionCalling: true,
       vision: true,
     ),
     'gemini-1.5-flash-8b': _GeminiModelSpec(
-      maxContext: 1_048_576,
-      maxOutput: 8_192,
+      maxContext: 1048576,
+      maxOutput: 8192,
       streaming: true,
       functionCalling: true,
       vision: true,
     ),
     'gemini-pro': _GeminiModelSpec(
-      maxContext: 32_768,
-      maxOutput: 2_048,
+      maxContext: 32768,
+      maxOutput: 2048,
       streaming: true,
       functionCalling: false,
       vision: false,
@@ -82,8 +94,8 @@ class GeminiProvider implements AiProviderInterface {
   AiProviderCapabilities get capabilities {
     final spec = _modelSpecs[defaultModel] ??
         const _GeminiModelSpec(
-          maxContext: 1_048_576,
-          maxOutput: 8_192,
+          maxContext: 1048576,
+          maxOutput: 8192,
           streaming: true,
           functionCalling: true,
           vision: true,
@@ -99,10 +111,22 @@ class GeminiProvider implements AiProviderInterface {
 
   @override
   Future<bool> isAvailable() async {
+    if (_useEdgeFunctions) {
+      try {
+        final response = await _supabaseClient!.functions.invoke(
+          _aiCompleteFunction,
+          body: {'action': 'health_check', 'provider': 'gemini'},
+        );
+        return response.status == 200;
+      } catch (e) {
+        AppLogger.warning('Gemini Edge Function availability check failed', error: e);
+        return false;
+      }
+    }
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         '/models/$defaultModel',
-        queryParameters: {'key': _apiKey},
+        queryParameters: {'key': _apiKey ?? ''},
       );
       return response.statusCode == 200;
     } on DioException catch (e) {
@@ -120,6 +144,11 @@ class GeminiProvider implements AiProviderInterface {
   Future<AiCompletionResult> complete(AiCompletionRequest request) async {
     final stopwatch = Stopwatch()..start();
 
+    // ─── Route through Edge Function if no API key ──────────────────
+    if (_useEdgeFunctions) {
+      return _completeViaEdgeFunction(request, stopwatch);
+    }
+
     try {
       final body = _buildRequestBody(request);
       AppLogger.debug('Gemini complete request: model=$defaultModel, '
@@ -128,7 +157,7 @@ class GeminiProvider implements AiProviderInterface {
       final response = await _dio.post<Map<String, dynamic>>(
         '/models/$defaultModel:generateContent',
         data: body,
-        queryParameters: {'key': _apiKey},
+        queryParameters: {'key': _apiKey ?? ''},
       );
 
       stopwatch.stop();
@@ -180,10 +209,72 @@ class GeminiProvider implements AiProviderInterface {
     }
   }
 
+  /// Complete via Supabase Edge Function (server-side API key).
+  Future<AiCompletionResult> _completeViaEdgeFunction(
+    AiCompletionRequest request,
+    Stopwatch stopwatch,
+  ) async {
+    try {
+      final response = await _supabaseClient!.functions.invoke(
+        _aiCompleteFunction,
+        body: {
+          'provider': 'gemini',
+          'model': defaultModel,
+          'system_prompt': request.systemPrompt,
+          'user_prompt': request.userPrompt,
+          'temperature': request.temperature,
+          'max_tokens': request.maxTokens,
+          'top_p': request.topP,
+          'json_mode': request.jsonMode,
+          'extra_params': request.extraParams,
+        },
+      );
+
+      stopwatch.stop();
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map<String, dynamic>
+            ? data['message'] as String? ?? 'Gemini Edge Function failed.'
+            : 'Gemini Edge Function failed.';
+        throw Exception('Gemini Edge Function error: $message');
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      final content = data['content'] as String? ?? '';
+
+      Map<String, dynamic>? parsedJson;
+      if (request.jsonMode) {
+        parsedJson = _tryParseJson(content);
+      }
+
+      return AiCompletionResult(
+        content: content,
+        parsedJson: parsedJson,
+        inputTokens: data['input_tokens'] as int? ?? 0,
+        outputTokens: data['output_tokens'] as int? ?? 0,
+        model: data['model'] as String? ?? defaultModel,
+        generationTime: stopwatch.elapsed,
+        provider: AiProvider.gemini,
+      );
+    } catch (e) {
+      stopwatch.stop();
+      if (e is Exception) rethrow;
+      AppLogger.error('Gemini Edge Function complete failed', error: e);
+      throw Exception('Gemini Edge Function complete failed: $e');
+    }
+  }
+
   // ─── Streaming completion ─────────────────────────────────────────
 
   @override
   Stream<AiCompletionChunk> completeStream(AiCompletionRequest request) async* {
+    // ─── Route through Edge Function if no API key ──────────────────
+    if (_useEdgeFunctions) {
+      yield* _completeStreamViaEdgeFunction(request);
+      return;
+    }
+
     final body = _buildRequestBody(request);
     AppLogger.debug('Gemini stream request: model=$defaultModel');
 
@@ -193,7 +284,7 @@ class GeminiProvider implements AiProviderInterface {
       final response = await _dio.post<ResponseBody>(
         '/models/$defaultModel:streamGenerateContent?alt=sse',
         data: body,
-        queryParameters: {'key': _apiKey},
+        queryParameters: {'key': _apiKey ?? ''},
         options: Options(
           responseType: ResponseType.stream,
           headers: {'Content-Type': 'application/json'},
@@ -267,6 +358,61 @@ class GeminiProvider implements AiProviderInterface {
     yield* controller.stream;
   }
 
+  /// Stream completion via Supabase Edge Function.
+  ///
+  /// The Edge Function returns a non-streaming response; we emit it as
+  /// a single chunk followed by a done chunk. True SSE streaming from
+  /// Edge Functions requires the `ai-stream` function to support SSE,
+  /// which can be added in a future iteration.
+  Stream<AiCompletionChunk> _completeStreamViaEdgeFunction(
+    AiCompletionRequest request,
+  ) async* {
+    try {
+      final response = await _supabaseClient!.functions.invoke(
+        _aiStreamFunction,
+        body: {
+          'provider': 'gemini',
+          'model': defaultModel,
+          'system_prompt': request.systemPrompt,
+          'user_prompt': request.userPrompt,
+          'temperature': request.temperature,
+          'max_tokens': request.maxTokens,
+          'top_p': request.topP,
+          'json_mode': request.jsonMode,
+          'extra_params': request.extraParams,
+        },
+      );
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map<String, dynamic>
+            ? data['message'] as String? ?? 'Gemini stream Edge Function failed.'
+            : 'Gemini stream Edge Function failed.';
+        throw Exception('Gemini Edge Function stream error: $message');
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      final content = data['content'] as String? ?? '';
+
+      // Emit content as a single chunk
+      if (content.isNotEmpty) {
+        yield AiCompletionChunk(delta: content);
+      }
+
+      // Emit done chunk with token counts
+      yield AiCompletionChunk(
+        delta: '',
+        isDone: true,
+        inputTokens: data['input_tokens'] as int?,
+        outputTokens: data['output_tokens'] as int?,
+      );
+    } catch (e) {
+      if (e is Exception) rethrow;
+      AppLogger.error('Gemini Edge Function stream failed', error: e);
+      throw Exception('Gemini Edge Function stream failed: $e');
+    }
+  }
+
   // ─── Token counting ───────────────────────────────────────────────
 
   @override
@@ -281,6 +427,11 @@ class GeminiProvider implements AiProviderInterface {
     final specialCharCount = RegExp(r'[^\w\s]').allMatches(text).length;
     estimatedTokens += (specialCharCount / 3).ceil();
 
+    // If using Edge Functions, skip the direct API call
+    if (_useEdgeFunctions) {
+      return estimatedTokens.clamp(1, capabilities.maxContextTokens);
+    }
+
     // Try using the countTokens endpoint if possible
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -293,7 +444,7 @@ class GeminiProvider implements AiProviderInterface {
             },
           ],
         },
-        queryParameters: {'key': _apiKey},
+        queryParameters: {'key': _apiKey ?? ''},
       );
       final totalTokens =
           response.data?['totalTokens'] as int?;

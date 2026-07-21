@@ -1,5 +1,5 @@
 import '../../../../core/utils/result.dart';
-import 'entities/user_entity.dart';
+import '../entities/user_entity.dart';
 
 /// Abstract contract for authentication operations.
 ///

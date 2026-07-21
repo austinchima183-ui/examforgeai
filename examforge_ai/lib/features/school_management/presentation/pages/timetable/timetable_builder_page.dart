@@ -1,15 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_button.dart';
+import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/themes/app_typography.dart';
+import '../../../../../core/themes/spacings.dart';
+import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/widgets/app_button.dart';
 import '../../domain/entities/school_management_entities.dart';
-import '../providers/timetable_provider.dart';
-import '../providers/subject_provider.dart';
-import '../providers/teacher_provider.dart';
+import '../../providers/timetable_provider.dart';
+import '../../providers/subject_provider.dart';
+import '../../providers/teacher_provider.dart';
+import '../../../../../config/dependency_injection.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // TIMETABLE BUILDER PAGE

@@ -1,0 +1,502 @@
+     1→     1→-- ============================================================================
+     2→     2→-- ExamForge AI - CBT Engine Module Schema
+     3→     3→-- ============================================================================
+     4→     4→-- Production-ready schema for the Computer-Based Testing (CBT) Engine.
+     5→     5→-- Supports: exam creation, question selection, student attempts, auto-save,
+     6→     6→--           anti-cheating, live monitoring via Supabase Realtime,
+     7→     7→--           result processing, rankings, and notifications.
+     8→     8→--
+     9→     9→-- Prerequisites:
+    10→    10→--   Existing tables: schools, users, classes, subjects, academic_sessions,
+    11→    11→--                    question_bank, answer_options, matching_pairs,
+    12→    12→--                    ordering_items, fill_in_blank_answers, notifications, audit_log
+    13→    13→--   Existing enums:  user_role, subscription_status, exam_status, exam_type,
+    14→    14→--                    question_type, difficulty_level, notification_type,
+    15→    15→--                    share_permission, import_status, content_type,
+    16→    16→--                    curriculum_standard_type
+    17→    17→--
+    18→    18→-- Performance: Designed for high-throughput with composite indexes,
+    19→    19→--              GIN indexes for JSONB, Supabase Realtime for live monitoring,
+    20→    20→--              and partitioning-ready layout.
+    21→    21→-- ============================================================================
+    22→    22→
+    23→    23→BEGIN;
+    24→    24→
+    25→    25→-- ============================================================================
+    26→    26→-- 1. EXTEND EXISTING ENUMS
+    27→    27→-- ============================================================================
+    28→    28→-- Add new values to existing enums that the CBT Engine requires.
+    29→    29→-- ============================================================================
+    30→    30→
+    31→    31→-- ---------------------------------------------------------------------------
+    32→    32→-- Extend exam_status: add 'cancelled' (existing: draft, published, active,
+    33→    33→--                                            completed, archived)
+    34→    34→-- ---------------------------------------------------------------------------
+    35→    35→DO $$
+    36→    36→BEGIN
+    37→    37→  IF NOT EXISTS (
+    38→    38→    SELECT 1 FROM pg_enum
+    39→    39→    WHERE enumlabel = 'cancelled'
+    40→    40→      AND enumtypid = (SELECT oid FROM pg_type WHERE typname = 'exam_status')
+    41→    41→  ) THEN
+    42→    42→    ALTER TYPE exam_status ADD VALUE 'cancelled';
+    43→    43→  END IF;
+    44→    44→END
+    45→    45→$$;
+    46→    46→
+    47→    47→-- ============================================================================
+    48→    48→-- 2. NEW ENUMERATION TYPES
+    49→    49→-- ============================================================================
+    50→    50→-- All new enums required by the CBT Engine.
+    51→    51→-- Uses IF NOT EXISTS pattern to ensure idempotent migrations.
+    52→    52→-- ============================================================================
+    53→    53→
+    54→    54→DO $$
+    55→    55→BEGIN
+    56→    56→  -- -------------------------------------------------------------------------
+    57→    57→  -- attempt_status: Lifecycle states for a student's exam attempt
+    58→    58→  -- -------------------------------------------------------------------------
+    59→    59→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'attempt_status') THEN
+    60→    60→    CREATE TYPE attempt_status AS ENUM (
+    61→    61→      'not_started',
+    62→    62→      'in_progress',
+    63→    63→      'submitted',
+    64→    64→      'auto_submitted',
+    65→    65→      'timed_out',
+    66→    66→      'disqualified',
+    67→    67→      'abandoned'
+    68→    68→    );
+    69→    69→  END IF;
+    70→    70→
+    71→    71→  -- -------------------------------------------------------------------------
+    72→    72→  -- submission_type: How the exam attempt was submitted
+    73→    73→  -- -------------------------------------------------------------------------
+    74→    74→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'submission_type') THEN
+    75→    75→    CREATE TYPE submission_type AS ENUM (
+    76→    76→      'manual',
+    77→    77→      'auto_submit',
+    78→    78→      'timed_out',
+    79→    79→      'force_submit'
+    80→    80→    );
+    81→    81→  END IF;
+    82→    82→
+    83→    83→  -- -------------------------------------------------------------------------
+    84→    84→  -- grading_status: State of grading for an attempt or result
+    85→    85→  -- -------------------------------------------------------------------------
+    86→    86→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'grading_status') THEN
+    87→    87→    CREATE TYPE grading_status AS ENUM (
+    88→    88→      'pending',
+    89→    89→      'auto_graded',
+    90→    90→      'partially_graded',
+    91→    91→      'fully_graded',
+    92→    92→      'disputed'
+    93→    93→    );
+    94→    94→  END IF;
+    95→    95→
+    96→    96→  -- -------------------------------------------------------------------------
+    97→    97→  -- monitoring_event_type: Anti-cheating / proctoring event categories
+    98→    98→  -- -------------------------------------------------------------------------
+    99→    99→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'monitoring_event_type') THEN
+   100→   100→    CREATE TYPE monitoring_event_type AS ENUM (
+   101→   101→      'tab_switch',
+   102→   102→      'focus_lost',
+   103→   103→      'copy_attempt',
+   104→   104→      'paste_attempt',
+   105→   105→      'multiple_login',
+   106→   106→      'idle_timeout',
+   107→   107→      'browser_resize',
+   108→   108→      'right_click',
+   109→   109→      'screenshot_attempt',
+   110→   110→      'full_screen_exit',
+   111→   111→      'session_recovery',
+   112→   112→      'suspicious_activity'
+   113→   113→    );
+   114→   114→  END IF;
+   115→   115→
+   116→   116→  -- -------------------------------------------------------------------------
+   117→   117→  -- notification_category: CBT-specific notification types
+   118→   118→  -- -------------------------------------------------------------------------
+   119→   119→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'notification_category') THEN
+   120→   120→    CREATE TYPE notification_category AS ENUM (
+   121→   121→      'exam_available',
+   122→   122→      'exam_starting',
+   123→   123→      'time_warning',
+   124→   124→      'exam_submitted',
+   125→   125→      'results_released',
+   126→   126→      'grading_required',
+   127→   127→      'exam_reminder'
+   128→   128→    );
+   129→   129→  END IF;
+   130→   130→END
+   131→   131→$$;
+   132→   132→
+   133→   133→COMMENT ON TYPE attempt_status IS
+   134→   134→  'Lifecycle states for a student exam attempt: not_started → in_progress → submitted/auto_submitted/timed_out/disqualified/abandoned';
+   135→   135→COMMENT ON TYPE submission_type IS
+   136→   136→  'How an exam attempt was submitted: manual, auto_submit, timed_out, or force_submit';
+   137→   137→COMMENT ON TYPE grading_status IS
+   138→   138→  'Grading progress: pending → auto_graded → partially_graded → fully_graded (or disputed)';
+   139→   139→COMMENT ON TYPE monitoring_event_type IS
+   140→   140→  'Anti-cheating / proctoring event categories for live monitoring';
+   141→   141→COMMENT ON TYPE notification_category IS
+   142→   142→  'CBT-specific notification categories for exam lifecycle communication';
+   143→   143→
+   144→   144→-- ============================================================================
+   145→   145→-- 3. EXAMS TABLE
+   146→   146→-- ============================================================================
+   147→   147→-- Core exam definition. Supports templates, scheduling, anti-cheating settings,
+   148→   148→-- result visibility control, and extensive configuration via metadata JSONB.
+   149→   149→-- ============================================================================
+   150→   150→
+   151→   151→CREATE TABLE IF NOT EXISTS exams (
+   152→   152→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   153→   153→  school_id               UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   154→   154→  created_by              UUID NOT NULL REFERENCES users(id),
+   155→   155→  title                   TEXT NOT NULL,
+   156→   156→  description             TEXT,
+   157→   157→  subject_id              UUID REFERENCES subjects(id) ON DELETE CASCADE,
+   158→   158→  class_id                UUID REFERENCES classes(id) ON DELETE CASCADE,
+   159→   159→  academic_session_id     UUID REFERENCES academic_sessions(id) ON DELETE CASCADE,
+   160→   160→  exam_type               exam_type NOT NULL DEFAULT 'school_exam',
+   161→   161→  status                  exam_status NOT NULL DEFAULT 'draft',
+   162→   162→  start_time              TIMESTAMPTZ NOT NULL,
+   163→   163→  end_time                TIMESTAMPTZ NOT NULL,
+   164→   164→  time_limit_minutes      INTEGER NOT NULL,
+   165→   165→  total_marks             NUMERIC(7,2) DEFAULT 0.00,
+   166→   166→  pass_mark               NUMERIC(7,2) DEFAULT 0.00,
+   167→   167→  pass_mark_type          VARCHAR(10) DEFAULT 'percentage',    -- 'percentage' or 'absolute'
+   168→   168→  instructions            TEXT,
+   169→   169→  allowed_attempts        INTEGER DEFAULT 1,
+   170→   170→  negative_marking_enabled BOOLEAN DEFAULT false,
+   171→   171→  negative_mark_value     NUMERIC(5,2) DEFAULT 0.00,          -- marks to deduct per wrong answer
+   172→   172→  grace_period_minutes    INTEGER DEFAULT 0,                    -- extra time after time_limit
+   173→   173→  auto_submit             BOOLEAN DEFAULT true,
+   174→   174→  randomize_questions     BOOLEAN DEFAULT false,
+   175→   175→  randomize_options       BOOLEAN DEFAULT false,
+   176→   176→  show_results            VARCHAR(20) DEFAULT 'after_submission',  -- 'immediate', 'after_submission', 'after_grading', 'manual'
+   177→   177→  show_correct_answers    BOOLEAN DEFAULT false,
+   178→   178→  show_explanations       BOOLEAN DEFAULT false,
+   179→   179→  is_template             BOOLEAN DEFAULT false,
+   180→   180→  template_id             UUID REFERENCES exams(id) ON DELETE SET NULL,  -- cloned from
+   181→   181→  max_students            INTEGER,                              -- null = unlimited
+   182→   182→  ip_restriction          TEXT[],                               -- allowed IP ranges, null = no restriction
+   183→   183→  require_full_screen     BOOLEAN DEFAULT false,
+   184→   184→  allow_resume            BOOLEAN DEFAULT true,
+   185→   185→  browser_lockdown        BOOLEAN DEFAULT false,
+   186→   186→  metadata                JSONB DEFAULT '{}',
+   187→   187→  published_at            TIMESTAMPTZ,
+   188→   188→  created_at              TIMESTAMPTZ DEFAULT now(),
+   189→   189→  updated_at              TIMESTAMPTZ DEFAULT now(),
+   190→   190→
+   191→   191→  -- Validation constraints
+   192→   192→  CONSTRAINT exams_time_range_valid CHECK (end_time > start_time),
+   193→   193→  CONSTRAINT exams_time_limit_positive CHECK (time_limit_minutes > 0),
+   194→   194→  CONSTRAINT exams_pass_mark_non_negative CHECK (pass_mark >= 0),
+   195→   195→  CONSTRAINT exams_total_marks_non_negative CHECK (total_marks >= 0),
+   196→   196→  CONSTRAINT exams_negative_mark_non_negative CHECK (negative_mark_value >= 0),
+   197→   197→  CONSTRAINT exams_grace_period_non_negative CHECK (grace_period_minutes >= 0),
+   198→   198→  CONSTRAINT exams_allowed_attempts_positive CHECK (allowed_attempts > 0),
+   199→   199→  CONSTRAINT exams_pass_mark_type_valid CHECK (pass_mark_type IN ('percentage', 'absolute')),
+   200→   200→  CONSTRAINT exams_show_results_valid CHECK (show_results IN ('immediate', 'after_submission', 'after_grading', 'manual')),
+   201→   201→  CONSTRAINT exams_max_students_positive CHECK (max_students IS NULL OR max_students > 0)
+   202→   202→);
+   203→   203→
+   204→   204→COMMENT ON TABLE exams IS 'Core exam definitions with scheduling, configuration, anti-cheating, and result visibility settings';
+   205→   205→COMMENT ON COLUMN exams.school_id IS 'The school that owns this exam';
+   206→   206→COMMENT ON COLUMN exams.created_by IS 'Teacher or admin who created the exam';
+   207→   207→COMMENT ON COLUMN exams.time_limit_minutes IS 'Duration of the exam in minutes';
+   208→   208→COMMENT ON COLUMN exams.total_marks IS 'Computed total marks from exam_questions; updated via trigger';
+   209→   209→COMMENT ON COLUMN exams.pass_mark IS 'Minimum marks/percentage required to pass';
+   210→   210→COMMENT ON COLUMN exams.pass_mark_type IS 'Whether pass_mark is a percentage (0-100) or absolute value';
+   211→   211→COMMENT ON COLUMN exams.negative_mark_value IS 'Marks to deduct per wrong answer when negative_marking_enabled is true';
+   212→   212→COMMENT ON COLUMN exams.grace_period_minutes IS 'Extra time allowed after time_limit before auto-submit';
+   213→   213→COMMENT ON COLUMN exams.show_results IS 'When students can see their results';
+   214→   214→COMMENT ON COLUMN exams.is_template IS 'If true, this exam is a reusable template';
+   215→   215→COMMENT ON COLUMN exams.template_id IS 'If set, this exam was cloned from the referenced template';
+   216→   216→COMMENT ON COLUMN exams.max_students IS 'Maximum concurrent students; null means unlimited';
+   217→   217→COMMENT ON COLUMN exams.ip_restriction IS 'Array of allowed IP ranges/CIDRs; null means no restriction';
+   218→   218→COMMENT ON COLUMN exams.require_full_screen IS 'Force students into full-screen mode during the exam';
+   219→   219→COMMENT ON COLUMN exams.allow_resume IS 'Allow students to resume if disconnected';
+   220→   220→COMMENT ON COLUMN exams.browser_lockdown IS 'Enable browser lockdown mode (restricts copy/paste, right-click, etc.)';
+   221→   221→COMMENT ON COLUMN exams.metadata IS 'Extensible JSONB for custom configuration and integrations';
+   222→   222→COMMENT ON COLUMN exams.published_at IS 'Timestamp when the exam was published; null while in draft';
+   223→   223→
+   224→   224→-- ============================================================================
+   225→   225→-- 4. EXAM_SECTIONS TABLE
+   226→   226→-- ============================================================================
+   227→   227→-- Logical groupings of questions within an exam (e.g., "Section A: Objective",
+   228→   228→-- "Section B: Theory"). Each section can have its own time limit and
+   229→   229→-- question randomization settings.
+   230→   230→-- ============================================================================
+   231→   231→
+   232→   232→CREATE TABLE IF NOT EXISTS exam_sections (
+   233→   233→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   234→   234→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   235→   235→  title                 TEXT NOT NULL,
+   236→   236→  description           TEXT,
+   237→   237→  instructions          TEXT,               -- section-specific instructions
+   238→   238→  sort_order            INTEGER DEFAULT 0,
+   239→   239→  time_limit_minutes    INTEGER,            -- null = use exam time limit
+   240→   240→  randomize_questions   BOOLEAN DEFAULT false,
+   241→   241→  created_at            TIMESTAMPTZ DEFAULT now(),
+   242→   242→
+   243→   243→  CONSTRAINT exam_sections_sort_order_non_negative CHECK (sort_order >= 0),
+   244→   244→  CONSTRAINT exam_sections_time_limit_positive CHECK (time_limit_minutes IS NULL OR time_limit_minutes > 0)
+   245→   245→);
+   246→   246→
+   247→   247→COMMENT ON TABLE exam_sections IS 'Logical sections within an exam for organizing questions (e.g., Section A, Section B)';
+   248→   248→COMMENT ON COLUMN exam_sections.time_limit_minutes IS 'Section-specific time limit; null means use the exam-level time limit';
+   249→   249→COMMENT ON COLUMN exam_sections.instructions IS 'Instructions shown to students at the start of this section';
+   250→   250→COMMENT ON COLUMN exam_sections.randomize_questions IS 'If true, question order is randomized within this section';
+   251→   251→
+   252→   252→-- ============================================================================
+   253→   253→-- 5. EXAM_QUESTIONS TABLE
+   254→   254→-- ============================================================================
+   255→   255→-- Junction table linking questions from question_bank to an exam (and
+   256→   256→-- optionally to a section). Marks can be overridden per-exam.
+   257→   257→-- ============================================================================
+   258→   258→
+   259→   259→CREATE TABLE IF NOT EXISTS exam_questions (
+   260→   260→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   261→   261→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   262→   262→  section_id            UUID REFERENCES exam_sections(id) ON DELETE CASCADE,
+   263→   263→  question_id           UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   264→   264→  sort_order            INTEGER DEFAULT 0,
+   265→   265→  marks                 NUMERIC(5,2) NOT NULL DEFAULT 1.00,   -- can override question default
+   266→   266→  negative_marks        NUMERIC(5,2) DEFAULT 0.00,            -- override
+   267→   267→  is_compulsory         BOOLEAN DEFAULT true,
+   268→   268→  created_at            TIMESTAMPTZ DEFAULT now(),
+   269→   269→
+   270→   270→  -- A question can only appear once per exam
+   271→   271→  CONSTRAINT exam_questions_unique_question UNIQUE(exam_id, question_id),
+   272→   272→  CONSTRAINT exam_questions_marks_positive CHECK (marks >= 0),
+   273→   273→  CONSTRAINT exam_questions_negative_marks_non_negative CHECK (negative_marks >= 0),
+   274→   274→  CONSTRAINT exam_questions_sort_order_non_negative CHECK (sort_order >= 0)
+   275→   275→);
+   276→   276→
+   277→   277→COMMENT ON TABLE exam_questions IS 'Questions assigned to an exam; marks and negative marks can be overridden per exam';
+   278→   278→COMMENT ON COLUMN exam_questions.marks IS 'Marks allocated to this question in this exam; overrides question_bank.marks';
+   279→   279→COMMENT ON COLUMN exam_questions.negative_marks IS 'Negative marks for wrong answer; overrides question_bank.negative_marks';
+   280→   280→COMMENT ON COLUMN exam_questions.is_compulsory IS 'If true, the student must attempt this question';
+   281→   281→
+   282→   282→-- ============================================================================
+   283→   283→-- 6. EXAM_STUDENTS TABLE
+   284→   284→-- ============================================================================
+   285→   285→-- Eligible / assigned students for an exam. Supports per-student attempt
+   286→   286→-- overrides and accommodation (extra time).
+   287→   287→-- ============================================================================
+   288→   288→
+   289→   289→CREATE TABLE IF NOT EXISTS exam_students (
+   290→   290→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   291→   291→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   292→   292→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   293→   293→  allowed_attempts      INTEGER,            -- override exam default; null = use exam default
+   294→   294→  extra_time_minutes    INTEGER DEFAULT 0,  -- accommodations (e.g., disability extra time)
+   295→   295→  is_exempt             BOOLEAN DEFAULT false,
+   296→   296→  started_at            TIMESTAMPTZ,
+   297→   297→  completed_at          TIMESTAMPTZ,
+   298→   298→  created_at            TIMESTAMPTZ DEFAULT now(),
+   299→   299→
+   300→   300→  -- A student can only be assigned once per exam
+   301→   301→  CONSTRAINT exam_students_unique_assignment UNIQUE(exam_id, student_id),
+   302→   302→  CONSTRAINT exam_students_extra_time_non_negative CHECK (extra_time_minutes >= 0),
+   303→   303→  CONSTRAINT exam_students_allowed_attempts_positive CHECK (allowed_attempts IS NULL OR allowed_attempts > 0)
+   304→   304→);
+   305→   305→
+   306→   306→COMMENT ON TABLE exam_students IS 'Eligible students for an exam with per-student overrides for attempts and time accommodations';
+   307→   307→COMMENT ON COLUMN exam_students.allowed_attempts IS 'Override exam-level allowed_attempts for this student; null = use exam default';
+   308→   308→COMMENT ON COLUMN exam_students.extra_time_minutes IS 'Extra time accommodation in minutes (e.g., for students with disabilities)';
+   309→   309→COMMENT ON COLUMN exam_students.is_exempt IS 'If true, this student is exempt from the exam';
+   310→   310→COMMENT ON COLUMN exam_students.started_at IS 'When the student first started the exam';
+   311→   311→COMMENT ON COLUMN exam_students.completed_at IS 'When the student finished all attempts';
+   312→   312→
+   313→   313→-- ============================================================================
+   314→   314→-- 7. EXAM_ATTEMPTS TABLE
+   315→   315→-- ============================================================================
+   316→   316→-- Records each attempt a student makes at an exam. Tracks timing, grading,
+   317→   317→-- device info, and auto-save snapshots. Heavily queried for monitoring and
+   318→   318→-- result processing.
+   319→   319→-- ============================================================================
+   320→   320→
+   321→   321→CREATE TABLE IF NOT EXISTS exam_attempts (
+   322→   322→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   323→   323→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   324→   324→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   325→   325→  attempt_number        INTEGER NOT NULL DEFAULT 1,
+   326→   326→  status                attempt_status NOT NULL DEFAULT 'not_started',
+   327→   327→  started_at            TIMESTAMPTZ,
+   328→   328→  submitted_at          TIMESTAMPTZ,
+   329→   329→  submission_type       submission_type,
+   330→   330→  time_spent_seconds    INTEGER DEFAULT 0,
+   331→   331→  total_marks           NUMERIC(7,2) DEFAULT 0.00,
+   332→   332→  score_percentage      NUMERIC(5,2) DEFAULT 0.00,
+   333→   333→  is_passed             BOOLEAN DEFAULT false,
+   334→   334→  grading_status        grading_status NOT NULL DEFAULT 'pending',
+   335→   335→  graded_by             UUID REFERENCES users(id),
+   336→   336→  graded_at             TIMESTAMPTZ,
+   337→   337→  device_info           JSONB DEFAULT '{}',
+   338→   338→  ip_address            INET,
+   339→   339→  user_agent            TEXT,
+   340→   340→  last_activity_at      TIMESTAMPTZ,
+   341→   341→  auto_save_data        JSONB DEFAULT '{}',   -- latest auto-save snapshot
+   342→   342→  metadata              JSONB DEFAULT '{}',
+   343→   343→  created_at            TIMESTAMPTZ DEFAULT now(),
+   344→   344→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   345→   345→
+   346→   346→  -- A student can only have one attempt per number per exam
+   347→   347→  CONSTRAINT exam_attempts_unique_attempt UNIQUE(exam_id, student_id, attempt_number),
+   348→   348→  CONSTRAINT exam_attempts_attempt_number_positive CHECK (attempt_number > 0),
+   349→   349→  CONSTRAINT exam_attempts_time_spent_non_negative CHECK (time_spent_seconds >= 0),
+   350→   350→  CONSTRAINT exam_attempts_total_marks_non_negative CHECK (total_marks >= 0),
+   351→   351→  CONSTRAINT exam_attempts_score_percentage_range CHECK (score_percentage >= 0 AND score_percentage <= 100)
+   352→   352→);
+   353→   353→
+   354→   354→COMMENT ON TABLE exam_attempts IS 'Student exam attempts with timing, grading, auto-save, and monitoring data';
+   355→   355→COMMENT ON COLUMN exam_attempts.attempt_number IS 'Attempt number (1-based); students may have multiple attempts if allowed';
+   356→   356→COMMENT ON COLUMN exam_attempts.submission_type IS 'How the attempt was submitted: manual, auto_submit, timed_out, force_submit';
+   357→   357→COMMENT ON COLUMN exam_attempts.time_spent_seconds IS 'Total time spent on this attempt in seconds';
+   358→   358→COMMENT ON COLUMN exam_attempts.total_marks IS 'Computed total marks for this attempt';
+   359→   359→COMMENT ON COLUMN exam_attempts.score_percentage IS 'Score as a percentage of total possible marks';
+   360→   360→COMMENT ON COLUMN exam_attempts.is_passed IS 'Whether the student passed based on the exam pass_mark';
+   361→   361→COMMENT ON COLUMN exam_attempts.grading_status IS 'Current grading status: pending → auto_graded → fully_graded';
+   362→   362→COMMENT ON COLUMN exam_attempts.device_info IS 'JSONB with device details: browser, OS, screen resolution, etc.';
+   363→   363→COMMENT ON COLUMN exam_attempts.auto_save_data IS 'Latest auto-save snapshot of student answers for recovery';
+   364→   364→COMMENT ON COLUMN exam_attempts.last_activity_at IS 'Last recorded student activity timestamp (for idle detection)';
+   365→   365→
+   366→   366→-- ============================================================================
+   367→   367→-- 8. STUDENT_ANSWERS TABLE
+   368→   368→-- ============================================================================
+   369→   369→-- Individual question answers within an attempt. Uses flexible JSONB for
+   370→   370→-- answer_data to support all question types (MCQ, matching, ordering, etc.).
+   371→   371→-- ============================================================================
+   372→   372→
+   373→   373→CREATE TABLE IF NOT EXISTS student_answers (
+   374→   374→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   375→   375→  attempt_id            UUID NOT NULL REFERENCES exam_attempts(id) ON DELETE CASCADE,
+   376→   376→  question_id           UUID NOT NULL REFERENCES question_bank(id) ON DELETE CASCADE,
+   377→   377→  exam_question_id      UUID REFERENCES exam_questions(id),
+   378→   378→  answer_data           JSONB NOT NULL DEFAULT '{}',  -- flexible answer storage
+   379→   379→  is_correct            BOOLEAN,
+   380→   380→  marks_awarded         NUMERIC(5,2) DEFAULT 0.00,
+   381→   381→  marks_deducted        NUMERIC(5,2) DEFAULT 0.00,
+   382→   382→  time_spent_seconds    INTEGER DEFAULT 0,
+   383→   383→  is_flagged            BOOLEAN DEFAULT false,
+   384→   384→  teacher_comment       TEXT,
+   385→   385→  graded_by             UUID REFERENCES users(id),
+   386→   386→  graded_at             TIMESTAMPTZ,
+   387→   387→  answered_at           TIMESTAMPTZ,
+   388→   388→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   389→   389→
+   390→   390→  -- A question can only be answered once per attempt
+   391→   391→  CONSTRAINT student_answers_unique_answer UNIQUE(attempt_id, question_id),
+   392→   392→  CONSTRAINT student_answers_marks_awarded_non_negative CHECK (marks_awarded >= 0),
+   393→   393→  CONSTRAINT student_answers_marks_deducted_non_negative CHECK (marks_deducted >= 0),
+   394→   394→  CONSTRAINT student_answers_time_spent_non_negative CHECK (time_spent_seconds >= 0)
+   395→   395→);
+   396→   396→
+   397→   397→COMMENT ON TABLE student_answers IS 'Individual question answers within an exam attempt with flexible JSONB answer storage';
+   398→   398→COMMENT ON COLUMN student_answers.answer_data IS
+   399→   399→  'Flexible answer payload: selected_options (MCQ/MR), text_answer (essay/short), matching_pairs, ordered_items, blank_answers, numerical_answer';
+   400→   400→COMMENT ON COLUMN student_answers.exam_question_id IS 'Link back to the exam_questions entry for marks/negative_marks lookup';
+   401→   401→COMMENT ON COLUMN student_answers.is_correct IS 'Whether the answer is correct; null for subjective questions until graded';
+   402→   402→COMMENT ON COLUMN student_answers.marks_awarded IS 'Marks given for this answer (may be partial for subjective questions)';
+   403→   403→COMMENT ON COLUMN student_answers.marks_deducted IS 'Marks deducted for wrong answer (negative marking)';
+   404→   404→COMMENT ON COLUMN student_answers.is_flagged IS 'Whether the student flagged this question for review';
+   405→   405→COMMENT ON COLUMN student_answers.teacher_comment IS 'Teacher comment/feedback on the answer';
+   406→   406→
+   407→   407→-- ============================================================================
+   408→   408→-- 9. EXAM_SESSIONS TABLE (REALTIME - for live monitoring)
+   409→   409→-- ============================================================================
+   410→   410→-- Active session tracking for live monitoring via Supabase Realtime.
+   411→   411→-- Teachers can observe student progress in real-time. This table is added
+   412→   412→-- to the supabase_realtime publication for live updates.
+   413→   413→-- ============================================================================
+   414→   414→
+   415→   415→CREATE TABLE IF NOT EXISTS exam_sessions (
+   416→   416→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   417→   417→  attempt_id              UUID NOT NULL REFERENCES exam_attempts(id) ON DELETE CASCADE,
+   418→   418→  exam_id                 UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   419→   419→  student_id              UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   420→   420→  is_active               BOOLEAN DEFAULT true,
+   421→   421→  current_question_index  INTEGER DEFAULT 0,
+   422→   422→  questions_answered      INTEGER DEFAULT 0,
+   423→   423→  questions_flagged       INTEGER DEFAULT 0,
+   424→   424→  last_heartbeat          TIMESTAMPTZ DEFAULT now(),
+   425→   425→  connection_status       VARCHAR(20) DEFAULT 'connected',  -- 'connected', 'disconnected', 'reconnecting'
+   426→   426→  ip_address              INET,
+   427→   427→  device_fingerprint      TEXT,
+   428→   428→  tab_switch_count        INTEGER DEFAULT 0,
+   429→   429→  focus_lost_count        INTEGER DEFAULT 0,
+   430→   430→  created_at              TIMESTAMPTZ DEFAULT now(),
+   431→   431→  updated_at              TIMESTAMPTZ DEFAULT now(),
+   432→   432→
+   433→   433→  CONSTRAINT exam_sessions_connection_status_valid CHECK (connection_status IN ('connected', 'disconnected', 'reconnecting')),
+   434→   434→  CONSTRAINT exam_sessions_current_question_non_negative CHECK (current_question_index >= 0),
+   435→   435→  CONSTRAINT exam_sessions_questions_answered_non_negative CHECK (questions_answered >= 0),
+   436→   436→  CONSTRAINT exam_sessions_questions_flagged_non_negative CHECK (questions_flagged >= 0),
+   437→   437→  CONSTRAINT exam_sessions_tab_switch_count_non_negative CHECK (tab_switch_count >= 0),
+   438→   438→  CONSTRAINT exam_sessions_focus_lost_count_non_negative CHECK (focus_lost_count >= 0)
+   439→   439→);
+   440→   440→
+   441→   441→COMMENT ON TABLE exam_sessions IS 'REALTIME: Active exam sessions for live monitoring of student progress and connection status';
+   442→   442→COMMENT ON COLUMN exam_sessions.is_active IS 'Whether the session is currently active';
+   443→   443→COMMENT ON COLUMN exam_sessions.current_question_index IS 'The question the student is currently viewing (0-based index)';
+   444→   444→COMMENT ON COLUMN exam_sessions.questions_answered IS 'Count of questions answered so far in this session';
+   445→   445→COMMENT ON COLUMN exam_sessions.questions_flagged IS 'Count of questions flagged for review';
+   446→   446→COMMENT ON COLUMN exam_sessions.last_heartbeat IS 'Last heartbeat timestamp; stale sessions are cleaned up by cleanup_stale_sessions()';
+   447→   447→COMMENT ON COLUMN exam_sessions.connection_status IS 'Current connection state: connected, disconnected, reconnecting';
+   448→   448→COMMENT ON COLUMN exam_sessions.device_fingerprint IS 'Browser/device fingerprint for anti-cheating detection';
+   449→   449→COMMENT ON COLUMN exam_sessions.tab_switch_count IS 'Number of tab switches detected during this session';
+   450→   450→COMMENT ON COLUMN exam_sessions.focus_lost_count IS 'Number of focus-loss events detected during this session';
+   451→   451→
+   452→   452→-- ============================================================================
+   453→   453→-- 10. EXAM_MONITORING_LOGS TABLE
+   454→   454→-- ============================================================================
+   455→   455→-- Detailed anti-cheating / proctoring event logs. Each monitoring event
+   456→   456→-- (tab switch, copy attempt, etc.) is recorded with severity and resolution
+   457→   457→-- status for teacher review.
+   458→   458→-- ============================================================================
+   459→   459→
+   460→   460→CREATE TABLE IF NOT EXISTS exam_monitoring_logs (
+   461→   461→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   462→   462→  attempt_id            UUID NOT NULL REFERENCES exam_attempts(id) ON DELETE CASCADE,
+   463→   463→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   464→   464→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   465→   465→  event_type            monitoring_event_type NOT NULL,
+   466→   466→  event_data            JSONB DEFAULT '{}',
+   467→   467→  severity              VARCHAR(10) DEFAULT 'info',   -- 'info', 'warning', 'critical'
+   468→   468→  is_resolved           BOOLEAN DEFAULT false,
+   469→   469→  resolved_by           UUID REFERENCES users(id),
+   470→   470→  resolved_at           TIMESTAMPTZ,
+   471→   471→  created_at            TIMESTAMPTZ DEFAULT now(),
+   472→   472→
+   473→   473→  CONSTRAINT exam_monitoring_logs_severity_valid CHECK (severity IN ('info', 'warning', 'critical'))
+   474→   474→);
+   475→   475→
+   476→   476→COMMENT ON TABLE exam_monitoring_logs IS 'Anti-cheating / proctoring event logs for student exam attempts';
+   477→   477→COMMENT ON COLUMN exam_monitoring_logs.event_type IS 'Type of monitoring event detected';
+   478→   478→COMMENT ON COLUMN exam_monitoring_logs.event_data IS 'Additional event details (e.g., tab URL, clipboard content hash, timestamp)';
+   479→   479→COMMENT ON COLUMN exam_monitoring_logs.severity IS 'Event severity: info (benign), warning (suspicious), critical (likely cheating)';
+   480→   480→COMMENT ON COLUMN exam_monitoring_logs.is_resolved IS 'Whether a teacher/admin has reviewed and resolved this event';
+   481→   481→COMMENT ON COLUMN exam_monitoring_logs.resolved_by IS 'Teacher/admin who resolved this event';
+   482→   482→
+   483→   483→-- ============================================================================
+   484→   484→-- 11. EXAM_RESULTS TABLE
+   485→   485→-- ============================================================================
+   486→   486→-- Processed results for each exam attempt. Created automatically when an
+   487→   487→-- attempt is submitted. Contains total marks, grade, rank, and release status.
+   488→   488→-- ============================================================================
+   489→   489→
+   490→   490→CREATE TABLE IF NOT EXISTS exam_results (
+   491→   491→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   492→   492→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   493→   493→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   494→   494→  attempt_id            UUID NOT NULL REFERENCES exam_attempts(id) ON DELETE CASCADE,
+   495→   495→  total_marks           NUMERIC(7,2) NOT NULL DEFAULT 0.00,
+   496→   496→  total_possible        NUMERIC(7,2) NOT NULL DEFAULT 0.00,
+   497→   497→  score_percentage      NUMERIC(5,2) NOT NULL DEFAULT 0.00,
+   498→   498→  grade                 VARCHAR(5),                   -- A, B, C, D, E, F
+   499→   499→  is_passed             BOOLEAN NOT NULL DEFAULT false,
+   500→   500→  rank                  INTEGER,                      -- if rankings enabled
+
+[showing lines 1-500 of 2002; use offset=501 with limit to continue reading]

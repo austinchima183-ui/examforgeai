@@ -5,7 +5,7 @@
 /// leaking routing concerns into domain / presentation layers.
 ///
 /// ```dart
-/// import 'package:examforge_ai/shared/models/user_role.dart';
+/// import '../../shared/models/user_role.dart';
 ///
 /// final role = UserRole.fromString('teacher');
 /// print(role?.label); // 'Teacher'

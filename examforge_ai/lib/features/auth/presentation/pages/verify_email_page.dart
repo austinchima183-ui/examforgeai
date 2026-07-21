@@ -12,6 +12,8 @@ import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
+import '../../../../config/dependency_injection.dart';
+
 
 /// Email verification page — shown after registration to prompt the
 /// user to verify their email address.

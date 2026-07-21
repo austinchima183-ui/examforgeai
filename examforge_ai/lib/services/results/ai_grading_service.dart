@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import '../../../core/utils/logger.dart';
+import '../../core/utils/logger.dart';
 import '../../features/ai_generator/domain/entities/ai_entities.dart';
 import '../ai/ai_provider_interface.dart';
 import '../ai/ai_service.dart';
@@ -629,7 +629,7 @@ class AiGradingService {
     for (int i = 0; i < answers.length; i++) {
       // Check for cancellation
       if (cancelToken != null && cancelToken.isCompleted) {
-        AppLogger.info('Batch grading cancelled at answer $i/$${answers.length}');
+        AppLogger.info('Batch grading cancelled at answer $i/${answers.length}');
         yield progress = progress.copyWith(
           currentQuestionIndex: i,
           status: BatchGradingStatus.cancelled,

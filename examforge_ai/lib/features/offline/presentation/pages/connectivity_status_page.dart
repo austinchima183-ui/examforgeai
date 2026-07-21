@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/themes/app_colors.dart';
-import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/themes/app_typography.dart';
-import '../../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/app_app_bar.dart';
-import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../../shared/widgets/app_empty_state.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/extensions/context_extensions.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import '../../domain/entities/offline_entities.dart';
 import '../providers/offline_provider.dart';
 import '../widgets/offline_widgets.dart';

@@ -1,6 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../../core/utils/result.dart';
+import '../../../../core/utils/result.dart';
 import '../entities/parent_portal_entities.dart';
 import '../repositories/parent_portal_repository.dart';
 

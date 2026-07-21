@@ -32,7 +32,7 @@
 
 import 'dart:convert';
 
-import '../../../core/utils/logger.dart';
+import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // PROMPT INJECTION PATTERNS (EXTENDED)
@@ -98,7 +98,7 @@ class PromptInjectionPatterns {
     RegExp(r'\[SYSTEM\]', caseSensitive: false),
     RegExp(r'ROLE\s*:', caseSensitive: false),
     RegExp(r'stop\s+being\s+a', caseSensitive: false),
-    RegExp(r'don\'?t\s+be\s+a', caseSensitive: false),
+    RegExp(r"don'?t\s+be\s+a", caseSensitive: false),
   ];
 
   // ─── UNICODE OBFUSCATION PATTERNS (NEW) ──────────────────────────────
@@ -653,7 +653,7 @@ class AiSecurityService {
       RegExp(r'###\s*system', caseSensitive: false),
       RegExp(r'\[SYSTEM\]', caseSensitive: false),
       RegExp(r'as an AI (language )?model', caseSensitive: false),
-      RegExp(r'I (cannot|can\'t|won\'t) (provide|generate|create)', caseSensitive: false),
+      RegExp(r"I (cannot|can't|won't) (provide|generate|create)", caseSensitive: false),
       RegExp(r'my\s+(instructions|prompt|guidelines|rules)\s+(are|state|say)', caseSensitive: false),
       RegExp(r'I\s+was\s+(instructed|told|programmed)\s+to', caseSensitive: false),
     ];

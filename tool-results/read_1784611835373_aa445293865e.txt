@@ -1,0 +1,1101 @@
+     1→-- ============================================================================
+     2→-- ExamForge AI - CBT Engine Enhancements Schema
+     3→-- ============================================================================
+     4→-- Enhancement migration for the Computer-Based Testing (CBT) Engine.
+     5→-- Adds: Exam Templates, Template Sections, Question Selection Rules,
+     6→--       Submission Receipts, and enhanced Exam Notifications.
+     7→--
+     8→-- Prerequisites:
+     9→--   Existing tables: schools, users, classes, subjects, exams, exam_attempts,
+    10→--                    question_bank (from cbt_engine_schema.sql and prior schemas)
+    11→--   Existing enums:  exam_type, question_type, difficulty_level, submission_type,
+    12→--                    exam_status, attempt_status, grading_status
+    13→--
+    14→-- Performance: Composite indexes for common query patterns, GIN indexes for
+    15→--              JSONB and array columns, partial indexes for hot paths.
+    16→--
+    17→-- Idempotent: All DDL uses IF NOT EXISTS / DO $$ blocks to ensure safe
+    18→--             re-execution without errors.
+    19→-- ============================================================================
+    20→
+    21→BEGIN;
+    22→
+    23→-- ============================================================================
+    24→-- 1. EXTEND EXISTING ENUMS (IF NEEDED)
+    25→-- ============================================================================
+    26→-- The existing exam_type enum already includes 'school_exam' and other values
+    27→-- used by exam_templates. No new enum types are required for this migration
+    28→-- since we reuse: exam_type, question_type, difficulty_level, submission_type.
+    29→-- ============================================================================
+    30→
+    31→-- Ensure 'custom' category support: verify exam_type has needed values.
+    32→-- The existing exam_type enum already covers: school_exam, mock_exam, assignment,
+    33→-- quiz, ca_test, mid_term, final_exam, external_exam, practice_test, diagnostic_test
+    34→
+    35→-- ============================================================================
+    36→-- 2. EXAM_TEMPLATES TABLE
+    37→-- ============================================================================
+    38→-- Store reusable exam templates that can be used to quickly create new exams.
+    39→-- Templates capture all configuration (timing, anti-cheat, result visibility,
+    40→-- negative marking, etc.) and can be shared across a school or made public.
+    41→-- ============================================================================
+    42→
+    43→CREATE TABLE IF NOT EXISTS exam_templates (
+    44→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    45→  school_id               UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    46→  created_by              UUID REFERENCES users(id) ON DELETE SET NULL,
+    47→  name                    TEXT NOT NULL,
+    48→  description             TEXT,
+    49→  subject_id              UUID REFERENCES subjects(id) ON DELETE SET NULL,
+    50→  class_id                UUID REFERENCES classes(id) ON DELETE SET NULL,
+    51→  exam_type               exam_type NOT NULL DEFAULT 'school_exam',
+    52→  time_limit_minutes      INTEGER NOT NULL DEFAULT 60,
+    53→  pass_mark               NUMERIC(5,2) NOT NULL DEFAULT 50.00,
+    54→  pass_mark_type          TEXT NOT NULL DEFAULT 'percentage' CHECK (pass_mark_type IN ('percentage', 'absolute')),
+    55→  instructions            TEXT,
+    56→  allowed_attempts        INTEGER NOT NULL DEFAULT 1,
+    57→  negative_marking_enabled BOOLEAN NOT NULL DEFAULT false,
+    58→  negative_mark_value     NUMERIC(5,2) NOT NULL DEFAULT 0.00,
+    59→  grace_period_minutes    INTEGER NOT NULL DEFAULT 0,
+    60→  auto_submit             BOOLEAN NOT NULL DEFAULT true,
+    61→  randomize_questions     BOOLEAN NOT NULL DEFAULT false,
+    62→  randomize_options       BOOLEAN NOT NULL DEFAULT false,
+    63→  show_results            TEXT NOT NULL DEFAULT 'after_submission' CHECK (show_results IN ('immediate', 'after_submission', 'after_grading', 'manual')),
+    64→  show_correct_answers    BOOLEAN NOT NULL DEFAULT false,
+    65→  show_explanations       BOOLEAN NOT NULL DEFAULT false,
+    66→  require_full_screen     BOOLEAN NOT NULL DEFAULT false,
+    67→  allow_resume            BOOLEAN NOT NULL DEFAULT true,
+    68→  browser_lockdown        BOOLEAN NOT NULL DEFAULT false,
+    69→  metadata                JSONB DEFAULT '{}',
+    70→  usage_count             INTEGER NOT NULL DEFAULT 0,
+    71→  is_public               BOOLEAN NOT NULL DEFAULT false,
+    72→  category                TEXT NOT NULL DEFAULT 'custom' CHECK (category IN ('school_exam', 'waec_prep', 'neco_prep', 'jamb_prep', 'bece_prep', 'certification', 'custom')),
+    73→  tags                    TEXT[] DEFAULT '{}',
+    74→  created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    75→  updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    76→
+    77→  -- Validation constraints
+    78→  CONSTRAINT exam_templates_name_not_empty CHECK (length(trim(name)) > 0),
+    79→  CONSTRAINT exam_templates_time_limit_positive CHECK (time_limit_minutes > 0),
+    80→  CONSTRAINT exam_templates_pass_mark_non_negative CHECK (pass_mark >= 0),
+    81→  CONSTRAINT exam_templates_negative_mark_non_negative CHECK (negative_mark_value >= 0),
+    82→  CONSTRAINT exam_templates_grace_period_non_negative CHECK (grace_period_minutes >= 0),
+    83→  CONSTRAINT exam_templates_allowed_attempts_positive CHECK (allowed_attempts > 0),
+    84→  CONSTRAINT exam_templates_usage_count_non_negative CHECK (usage_count >= 0)
+    85→);
+    86→
+    87→COMMENT ON TABLE exam_templates IS 'Reusable exam templates for quick exam creation with pre-configured settings, sections, and question selection rules';
+    88→COMMENT ON COLUMN exam_templates.school_id IS 'The school that owns this template';
+    89→COMMENT ON COLUMN exam_templates.created_by IS 'Teacher or admin who created the template';
+    90→COMMENT ON COLUMN exam_templates.name IS 'Human-readable template name (e.g., "WAEC Mathematics Prep 2025")';
+    91→COMMENT ON COLUMN exam_templates.description IS 'Optional description of the template purpose and contents';
+    92→COMMENT ON COLUMN exam_templates.exam_type IS 'Type of exam this template creates, using the existing exam_type enum';
+    93→COMMENT ON COLUMN exam_templates.time_limit_minutes IS 'Default exam duration in minutes';
+    94→COMMENT ON COLUMN exam_templates.pass_mark IS 'Minimum marks/percentage required to pass';
+    95→COMMENT ON COLUMN exam_templates.pass_mark_type IS 'Whether pass_mark is a percentage (0-100) or absolute value';
+    96→COMMENT ON COLUMN exam_templates.negative_marking_enabled IS 'Whether negative marking is enabled for wrong answers';
+    97→COMMENT ON COLUMN exam_templates.negative_mark_value IS 'Marks to deduct per wrong answer when negative_marking_enabled is true';
+    98→COMMENT ON COLUMN exam_templates.grace_period_minutes IS 'Extra time allowed after time_limit before auto-submit';
+    99→COMMENT ON COLUMN exam_templates.show_results IS 'When students can see their results after submission';
+   100→COMMENT ON COLUMN exam_templates.usage_count IS 'Number of times this template has been used to create an exam';
+   101→COMMENT ON COLUMN exam_templates.is_public IS 'If true, template is visible to all schools (community template)';
+   102→COMMENT ON COLUMN exam_templates.category IS 'Template category for filtering: school_exam, waec_prep, neco_prep, jamb_prep, bece_prep, certification, custom';
+   103→COMMENT ON COLUMN exam_templates.tags IS 'Array of tags for search and filtering (e.g., {"mathematics", "ss3", "waec"})';
+   104→COMMENT ON COLUMN exam_templates.metadata IS 'Extensible JSONB for custom configuration and integrations';
+   105→
+   106→-- ============================================================================
+   107→-- 3. EXAM_TEMPLATE_SECTIONS TABLE
+   108→-- ============================================================================
+   109→-- Sections within a template, mirroring the exam_sections structure.
+   110→-- Each section can have its own time limit and question randomization.
+   111→-- ============================================================================
+   112→
+   113→CREATE TABLE IF NOT EXISTS exam_template_sections (
+   114→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   115→  template_id           UUID NOT NULL REFERENCES exam_templates(id) ON DELETE CASCADE,
+   116→  title                 TEXT NOT NULL,
+   117→  description           TEXT,
+   118→  instructions          TEXT,
+   119→  sort_order            INTEGER NOT NULL DEFAULT 0,
+   120→  time_limit_minutes    INTEGER,            -- null = use template time limit
+   121→  randomize_questions   BOOLEAN NOT NULL DEFAULT false,
+   122→  marks_per_question    NUMERIC(5,2) NOT NULL DEFAULT 1.00,
+   123→  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   124→
+   125→  CONSTRAINT exam_template_sections_title_not_empty CHECK (length(trim(title)) > 0),
+   126→  CONSTRAINT exam_template_sections_sort_order_non_negative CHECK (sort_order >= 0),
+   127→  CONSTRAINT exam_template_sections_time_limit_positive CHECK (time_limit_minutes IS NULL OR time_limit_minutes > 0),
+   128→  CONSTRAINT exam_template_sections_marks_positive CHECK (marks_per_question > 0)
+   129→);
+   130→
+   131→COMMENT ON TABLE exam_template_sections IS 'Logical sections within an exam template for organizing questions (e.g., Section A: Objective, Section B: Theory)';
+   132→COMMENT ON COLUMN exam_template_sections.template_id IS 'Parent template this section belongs to';
+   133→COMMENT ON COLUMN exam_template_sections.instructions IS 'Section-specific instructions shown to students';
+   134→COMMENT ON COLUMN exam_template_sections.time_limit_minutes IS 'Section-specific time limit; null means use the template-level time limit';
+   135→COMMENT ON COLUMN exam_template_sections.randomize_questions IS 'If true, question order is randomized within this section';
+   136→COMMENT ON COLUMN exam_template_sections.marks_per_question IS 'Default marks per question for this section; can be overridden by selection rules';
+   137→
+   138→-- ============================================================================
+   139→-- 4. QUESTION_SELECTION_RULES TABLE
+   140→-- ============================================================================
+   141→-- Rules for automatically selecting questions from the question bank when
+   142→-- creating an exam from a template. Supports filtering by subject, topic,
+   143→-- difficulty, question type, and curriculum alignment. Selection can be
+   144→-- random, balanced (across difficulty levels), or progressive.
+   145→-- ============================================================================
+   146→
+   147→CREATE TABLE IF NOT EXISTS question_selection_rules (
+   148→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   149→  template_id           UUID NOT NULL REFERENCES exam_templates(id) ON DELETE CASCADE,
+   150→  section_id            UUID REFERENCES exam_template_sections(id) ON DELETE CASCADE,
+   151→  subject_id            UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   152→  topic_ids             UUID[] DEFAULT '{}',
+   153→  difficulty_levels     difficulty_level[] DEFAULT '{}',
+   154→  question_types        question_type[] DEFAULT '{}',
+   155→  curriculum_types      TEXT[] DEFAULT '{}',
+   156→  min_questions         INTEGER NOT NULL DEFAULT 1,
+   157→  max_questions         INTEGER NOT NULL DEFAULT 50,
+   158→  marks_per_question    NUMERIC(5,2) NOT NULL DEFAULT 1.00,
+   159→  selection_mode        TEXT NOT NULL DEFAULT 'random' CHECK (selection_mode IN ('random', 'balanced', 'progressive')),
+   160→  include_images        BOOLEAN NOT NULL DEFAULT false,
+   161→  include_audio         BOOLEAN NOT NULL DEFAULT false,
+   162→  include_video         BOOLEAN NOT NULL DEFAULT false,
+   163→  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   164→
+   165→  CONSTRAINT question_selection_rules_min_questions_positive CHECK (min_questions > 0),
+   166→  CONSTRAINT question_selection_rules_max_questions_positive CHECK (max_questions > 0),
+   167→  CONSTRAINT question_selection_rules_min_max_valid CHECK (min_questions <= max_questions),
+   168→  CONSTRAINT question_selection_rules_marks_positive CHECK (marks_per_question > 0)
+   169→);
+   170→
+   171→COMMENT ON TABLE question_selection_rules IS 'Rules for auto-selecting questions from the question bank when creating exams from templates';
+   172→COMMENT ON COLUMN question_selection_rules.template_id IS 'Parent template this rule belongs to';
+   173→COMMENT ON COLUMN question_selection_rules.section_id IS 'Target section for selected questions; null means unassigned/first section';
+   174→COMMENT ON COLUMN question_selection_rules.subject_id IS 'Filter: only select questions from this subject; null means use template subject';
+   175→COMMENT ON COLUMN question_selection_rules.topic_ids IS 'Filter: only select questions from these topics; empty means no topic filter';
+   176→COMMENT ON COLUMN question_selection_rules.difficulty_levels IS 'Filter: only select questions at these difficulty levels; empty means all levels';
+   177→COMMENT ON COLUMN question_selection_rules.question_types IS 'Filter: only select questions of these types; empty means all types';
+   178→COMMENT ON COLUMN question_selection_rules.curriculum_types IS 'Filter: only select questions matching these curriculum standards; empty means all';
+   179→COMMENT ON COLUMN question_selection_rules.min_questions IS 'Minimum number of questions to select; ensures adequate coverage';
+   180→COMMENT ON COLUMN question_selection_rules.max_questions IS 'Maximum number of questions to select; prevents overly long exams';
+   181→COMMENT ON COLUMN question_selection_rules.marks_per_question IS 'Default marks per question for this rule; can override section default';
+   182→COMMENT ON COLUMN question_selection_rules.selection_mode IS 'How questions are selected: random, balanced (across difficulty), progressive (easier to harder)';
+   183→COMMENT ON COLUMN question_selection_rules.include_images IS 'If true, include questions that contain images';
+   184→COMMENT ON COLUMN question_selection_rules.include_audio IS 'If true, include questions that contain audio';
+   185→COMMENT ON COLUMN question_selection_rules.include_video IS 'If true, include questions that contain video';
+   186→
+   187→-- ============================================================================
+   188→-- 5. SUBMISSION_RECEIPTS TABLE
+   189→-- ============================================================================
+   190→-- Digital receipts for exam submissions. Provides verifiable proof of
+   191→-- submission with a unique receipt number, device info, IP address, and
+   192→-- answer statistics. Used for audit trails and dispute resolution.
+   193→-- ============================================================================
+   194→
+   195→CREATE TABLE IF NOT EXISTS submission_receipts (
+   196→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   197→  attempt_id            UUID NOT NULL REFERENCES exam_attempts(id) ON DELETE CASCADE,
+   198→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   199→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   200→  exam_title            TEXT NOT NULL,
+   201→  submitted_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+   202→  submission_type       submission_type NOT NULL,
+   203→  total_questions       INTEGER NOT NULL DEFAULT 0,
+   204→  answered_questions    INTEGER NOT NULL DEFAULT 0,
+   205→  unanswered_questions  INTEGER NOT NULL DEFAULT 0,
+   206→  flagged_questions     INTEGER NOT NULL DEFAULT 0,
+   207→  time_spent_minutes    INTEGER NOT NULL DEFAULT 0,
+   208→  ip_address            INET,
+   209→  device_info           JSONB DEFAULT '{}',
+   210→  receipt_number        TEXT NOT NULL UNIQUE DEFAULT upper(substring(md5(random()::text) from 1 for 12)),
+   211→  is_verified           BOOLEAN NOT NULL DEFAULT true,
+   212→  created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   213→
+   214→  CONSTRAINT submission_receipts_total_questions_non_negative CHECK (total_questions >= 0),
+   215→  CONSTRAINT submission_receipts_answered_non_negative CHECK (answered_questions >= 0),
+   216→  CONSTRAINT submission_receipts_unanswered_non_negative CHECK (unanswered_questions >= 0),
+   217→  CONSTRAINT submission_receipts_flagged_non_negative CHECK (flagged_questions >= 0),
+   218→  CONSTRAINT submission_receipts_time_spent_non_negative CHECK (time_spent_minutes >= 0),
+   219→  CONSTRAINT submission_receipts_answer_counts_valid CHECK (answered_questions + unanswered_questions <= total_questions)
+   220→);
+   221→
+   222→COMMENT ON TABLE submission_receipts IS 'Digital receipts for exam submissions providing verifiable proof with unique receipt numbers, device info, and answer statistics';
+   223→COMMENT ON COLUMN submission_receipts.attempt_id IS 'The exam attempt this receipt belongs to';
+   224→COMMENT ON COLUMN submission_receipts.exam_id IS 'The exam this receipt is for (denormalized for quick lookups)';
+   225→COMMENT ON COLUMN submission_receipts.student_id IS 'The student who submitted (denormalized for quick lookups)';
+   226→COMMENT ON COLUMN submission_receipts.exam_title IS 'Exam title at time of submission (denormalized to preserve history)';
+   227→COMMENT ON COLUMN submission_receipts.submitted_at IS 'Exact timestamp when the submission was received by the server';
+   228→COMMENT ON COLUMN submission_receipts.submission_type IS 'How the exam was submitted: manual, auto_submit, timed_out, force_submit';
+   229→COMMENT ON COLUMN submission_receipts.total_questions IS 'Total number of questions in the exam at submission time';
+   230→COMMENT ON COLUMN submission_receipts.answered_questions IS 'Number of questions the student answered';
+   231→COMMENT ON COLUMN submission_receipts.unanswered_questions IS 'Number of questions left unanswered';
+   232→COMMENT ON COLUMN submission_receipts.flagged_questions IS 'Number of questions the student flagged for review';
+   233→COMMENT ON COLUMN submission_receipts.time_spent_minutes IS 'Total time the student spent on the exam in minutes';
+   234→COMMENT ON COLUMN submission_receipts.ip_address IS 'IP address from which the exam was submitted';
+   235→COMMENT ON COLUMN submission_receipts.device_info IS 'JSONB with device details: browser, OS, screen resolution, user agent';
+   236→COMMENT ON COLUMN submission_receipts.receipt_number IS 'Unique human-readable receipt number for student reference (auto-generated)';
+   237→COMMENT ON COLUMN submission_receipts.is_verified IS 'Whether the submission has been verified as legitimate (no tampering detected)';
+   238→
+   239→-- ============================================================================
+   240→-- 6. EXAM_NOTIFICATIONS TABLE (ENHANCED)
+   241→-- ============================================================================
+   242→-- Enhanced exam-specific notifications that extend the general notifications
+   243→-- system. Uses user_id (instead of student_id) to support notifications for
+   244→-- both students and teachers. notification_type provides fine-grained event
+   245→-- categorization for the exam lifecycle.
+   246→--
+   247→-- NOTE: This replaces the simpler exam_notifications table from the base
+   248→-- cbt_engine_schema.sql. The old table used student_id + category enum;
+   249→-- this version uses user_id + notification_type TEXT for broader support.
+   250→-- ============================================================================
+   251→
+   252→-- Safely drop the old exam_notifications table if it exists with the old schema
+   253→-- (has 'category' column instead of 'notification_type')
+   254→DO $$
+   255→BEGIN
+   256→  IF EXISTS (
+   257→    SELECT 1 FROM information_schema.tables
+   258→    WHERE table_name = 'exam_notifications'
+   259→      AND table_schema = 'public'
+   260→  ) THEN
+   261→    -- Check if it's the old schema (has 'category' column)
+   262→    IF EXISTS (
+   263→      SELECT 1 FROM information_schema.columns
+   264→      WHERE table_name = 'exam_notifications'
+   265→        AND table_schema = 'public'
+   266→        AND column_name = 'category'
+   267→    ) THEN
+   268→      -- Drop old table with cascade to remove dependent indexes/policies
+   269→      DROP TABLE IF EXISTS exam_notifications CASCADE;
+   270→      RAISE NOTICE 'Dropped old exam_notifications table (category-based schema) for enhancement migration';
+   271→    END IF;
+   272→  END IF;
+   273→END
+   274→$$;
+   275→
+   276→CREATE TABLE IF NOT EXISTS exam_notifications (
+   277→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   278→  exam_id               UUID NOT NULL REFERENCES exams(id) ON DELETE CASCADE,
+   279→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   280→  notification_type     TEXT NOT NULL CHECK (notification_type IN (
+   281→    'exam_published', 'exam_started', 'time_warning_5min', 'time_warning_1min',
+   282→    'exam_submitted', 'results_released', 'manual_grading_required',
+   283→    'all_submissions_complete', 'suspicious_activity', 'exam_cancelled',
+   284→    'exam_rescheduled', 'grading_complete'
+   285→  )),
+   286→  title                 TEXT NOT NULL,
+   287→  message               TEXT NOT NULL,
+   288→  data                  JSONB DEFAULT '{}',
+   289→  is_read               BOOLEAN NOT NULL DEFAULT false,
+   290→  read_at               TIMESTAMPTZ,
+   291→  created_at            TIMESTAMPTZ NOT NULL DEFAULT now()
+   292→);
+   293→
+   294→COMMENT ON TABLE exam_notifications IS 'Enhanced exam-specific notifications extending the general notifications system with fine-grained event types';
+   295→COMMENT ON COLUMN exam_notifications.exam_id IS 'The exam this notification relates to';
+   296→COMMENT ON COLUMN exam_notifications.user_id IS 'The user (student or teacher) who receives this notification';
+   297→COMMENT ON COLUMN exam_notifications.notification_type IS 'Specific event type: exam_published, exam_started, time_warning_*, exam_submitted, results_released, etc.';
+   298→COMMENT ON COLUMN exam_notifications.title IS 'Notification title for quick scanning';
+   299→COMMENT ON COLUMN exam_notifications.message IS 'Full notification message body';
+   300→COMMENT ON COLUMN exam_notifications.data IS 'Structured payload (e.g., exam_id, time_remaining, result summary, attempt details)';
+   301→COMMENT ON COLUMN exam_notifications.is_read IS 'Whether the user has read this notification';
+   302→COMMENT ON COLUMN exam_notifications.read_at IS 'Timestamp when the user read the notification';
+   303→
+   304→-- ============================================================================
+   305→-- 7. INDEXES
+   306→-- ============================================================================
+   307→-- Comprehensive indexing strategy for high-performance queries.
+   308→-- Single-column indexes for FK joins and lookups.
+   309→-- Composite indexes for common query patterns.
+   310→-- GIN indexes for JSONB and array columns.
+   311→-- Partial indexes for high-frequency filtered queries.
+   312→-- ============================================================================
+   313→
+   314→-- ---------------------------------------------------------------------------
+   315→-- exam_templates indexes
+   316→-- ---------------------------------------------------------------------------
+   317→CREATE INDEX IF NOT EXISTS idx_exam_templates_school_id ON exam_templates(school_id);
+   318→CREATE INDEX IF NOT EXISTS idx_exam_templates_created_by ON exam_templates(created_by);
+   319→CREATE INDEX IF NOT EXISTS idx_exam_templates_subject_id ON exam_templates(subject_id);
+   320→CREATE INDEX IF NOT EXISTS idx_exam_templates_class_id ON exam_templates(class_id);
+   321→CREATE INDEX IF NOT EXISTS idx_exam_templates_exam_type ON exam_templates(exam_type);
+   322→CREATE INDEX IF NOT EXISTS idx_exam_templates_category ON exam_templates(category);
+   323→CREATE INDEX IF NOT EXISTS idx_exam_templates_is_public ON exam_templates(is_public);
+   324→CREATE INDEX IF NOT EXISTS idx_exam_templates_created_at ON exam_templates(created_at);
+   325→-- Composite: templates by school filtered by category (template library)
+   326→CREATE INDEX IF NOT EXISTS idx_exam_templates_school_category ON exam_templates(school_id, category);
+   327→-- Composite: templates by school ordered by usage (popular templates)
+   328→CREATE INDEX IF NOT EXISTS idx_exam_templates_school_usage ON exam_templates(school_id, usage_count DESC);
+   329→-- Composite: public templates by category (community template library)
+   330→CREATE INDEX IF NOT EXISTS idx_exam_templates_public_category ON exam_templates(category, created_at DESC) WHERE is_public = true;
+   331→-- GIN index for metadata JSONB
+   332→CREATE INDEX IF NOT EXISTS idx_exam_templates_metadata_gin ON exam_templates USING gin(metadata);
+   333→-- GIN index for tags array (tag-based search)
+   334→CREATE INDEX IF NOT EXISTS idx_exam_templates_tags_gin ON exam_templates USING gin(tags);
+   335→
+   336→-- ---------------------------------------------------------------------------
+   337→-- exam_template_sections indexes
+   338→-- ---------------------------------------------------------------------------
+   339→CREATE INDEX IF NOT EXISTS idx_exam_template_sections_template_id ON exam_template_sections(template_id);
+   340→-- Composite: sections by template ordered by sort_order (section list retrieval)
+   341→CREATE INDEX IF NOT EXISTS idx_exam_template_sections_template_sort ON exam_template_sections(template_id, sort_order);
+   342→
+   343→-- ---------------------------------------------------------------------------
+   344→-- question_selection_rules indexes
+   345→-- ---------------------------------------------------------------------------
+   346→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_template_id ON question_selection_rules(template_id);
+   347→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_section_id ON question_selection_rules(section_id);
+   348→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_subject_id ON question_selection_rules(subject_id);
+   349→-- Composite: rules by template with section (for template assembly)
+   350→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_template_section ON question_selection_rules(template_id, section_id);
+   351→-- GIN index for topic_ids array (topic-based matching)
+   352→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_topic_ids_gin ON question_selection_rules USING gin(topic_ids);
+   353→-- GIN index for difficulty_levels array
+   354→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_difficulty_gin ON question_selection_rules USING gin(difficulty_levels);
+   355→-- GIN index for question_types array
+   356→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_question_types_gin ON question_selection_rules USING gin(question_types);
+   357→-- GIN index for curriculum_types array
+   358→CREATE INDEX IF NOT EXISTS idx_question_selection_rules_curriculum_gin ON question_selection_rules USING gin(curriculum_types);
+   359→
+   360→-- ---------------------------------------------------------------------------
+   361→-- submission_receipts indexes
+   362→-- ---------------------------------------------------------------------------
+   363→CREATE INDEX IF NOT EXISTS idx_submission_receipts_attempt_id ON submission_receipts(attempt_id);
+   364→CREATE INDEX IF NOT EXISTS idx_submission_receipts_exam_id ON submission_receipts(exam_id);
+   365→CREATE INDEX IF NOT EXISTS idx_submission_receipts_student_id ON submission_receipts(student_id);
+   366→CREATE INDEX IF NOT EXISTS idx_submission_receipts_receipt_number ON submission_receipts(receipt_number);
+   367→CREATE INDEX IF NOT EXISTS idx_submission_receipts_submitted_at ON submission_receipts(submitted_at);
+   368→CREATE INDEX IF NOT EXISTS idx_submission_receipts_is_verified ON submission_receipts(is_verified);
+   369→-- Composite: receipts by exam ordered by submission time (teacher dashboard)
+   370→CREATE INDEX IF NOT EXISTS idx_submission_receipts_exam_submitted ON submission_receipts(exam_id, submitted_at DESC);
+   371→-- Composite: student's receipt history
+   372→CREATE INDEX IF NOT EXISTS idx_submission_receipts_student_submitted ON submission_receipts(student_id, submitted_at DESC);
+   373→-- GIN index for device_info JSONB (forensic analysis)
+   374→CREATE INDEX IF NOT EXISTS idx_submission_receipts_device_info_gin ON submission_receipts USING gin(device_info);
+   375→-- Partial index: unverified receipts (requires review)
+   376→CREATE INDEX IF NOT EXISTS idx_submission_receipts_unverified ON submission_receipts(exam_id, submitted_at DESC) WHERE is_verified = false;
+   377→
+   378→-- ---------------------------------------------------------------------------
+   379→-- exam_notifications indexes (enhanced)
+   380→-- ---------------------------------------------------------------------------
+   381→CREATE INDEX IF NOT EXISTS idx_exam_notifications_exam_id ON exam_notifications(exam_id);
+   382→CREATE INDEX IF NOT EXISTS idx_exam_notifications_user_id ON exam_notifications(user_id);
+   383→CREATE INDEX IF NOT EXISTS idx_exam_notifications_notification_type ON exam_notifications(notification_type);
+   384→CREATE INDEX IF NOT EXISTS idx_exam_notifications_is_read ON exam_notifications(is_read);
+   385→CREATE INDEX IF NOT EXISTS idx_exam_notifications_created_at ON exam_notifications(created_at);
+   386→-- Composite: unread notifications per user (notification bell count — high frequency)
+   387→CREATE INDEX IF NOT EXISTS idx_exam_notifications_user_unread ON exam_notifications(user_id, is_read) WHERE is_read = false;
+   388→-- Composite: notifications per user ordered by time (notification list)
+   389→CREATE INDEX IF NOT EXISTS idx_exam_notifications_user_created ON exam_notifications(user_id, created_at DESC);
+   390→-- Composite: notifications per exam by type (admin/teacher filtering)
+   391→CREATE INDEX IF NOT EXISTS idx_exam_notifications_exam_type ON exam_notifications(exam_id, notification_type);
+   392→-- GIN index for data JSONB
+   393→CREATE INDEX IF NOT EXISTS idx_exam_notifications_data_gin ON exam_notifications USING gin(data);
+   394→
+   395→-- ============================================================================
+   396→-- 8. TRIGGERS
+   397→-- ============================================================================
+   398→-- Automated triggers for updated_at maintenance and template usage tracking.
+   399→-- Uses the existing update_updated_at_column() function from the base schema.
+   400→-- ============================================================================
+   401→
+   402→-- ---------------------------------------------------------------------------
+   403→-- Auto-update updated_at on tables with that column
+   404→-- ---------------------------------------------------------------------------
+   405→
+   406→-- exam_templates
+   407→DROP TRIGGER IF EXISTS set_exam_templates_updated_at ON exam_templates;
+   408→CREATE TRIGGER set_exam_templates_updated_at
+   409→  BEFORE UPDATE ON exam_templates
+   410→  FOR EACH ROW
+   411→  EXECUTE FUNCTION update_updated_at_column();
+   412→
+   413→-- ============================================================================
+   414→-- 9. FUNCTIONS
+   415→-- ============================================================================
+   416→-- Production-ready PL/pgSQL functions for template usage tracking.
+   417→-- ============================================================================
+   418→
+   419→-- ---------------------------------------------------------------------------
+   420→-- increment_template_usage(p_template_id UUID)
+   421→-- Increments the usage_count of an exam template when it is used to create
+   422→-- an exam. Called by application code or trigger after exam creation.
+   423→-- Returns the new usage_count value.
+   424→-- ---------------------------------------------------------------------------
+   425→CREATE OR REPLACE FUNCTION increment_template_usage(p_template_id UUID)
+   426→RETURNS INTEGER
+   427→LANGUAGE plpgsql
+   428→SECURITY DEFINER
+   429→AS $$
+   430→DECLARE
+   431→  v_new_count INTEGER;
+   432→BEGIN
+   433→  IF p_template_id IS NULL THEN
+   434→    RETURN NULL;
+   435→  END IF;
+   436→
+   437→  UPDATE exam_templates
+   438→  SET usage_count = usage_count + 1,
+   439→      updated_at = now()
+   440→  WHERE id = p_template_id
+   441→  RETURNING usage_count INTO v_new_count;
+   442→
+   443→  IF NOT FOUND THEN
+   444→    RAISE EXCEPTION 'Exam template not found: %', p_template_id;
+   445→  END IF;
+   446→
+   447→  RETURN v_new_count;
+   448→END;
+   449→$$;
+   450→
+   451→COMMENT ON FUNCTION increment_template_usage(UUID) IS
+   452→  'Increment the usage_count of an exam template when used to create an exam; returns the new count';
+   453→
+   454→-- ---------------------------------------------------------------------------
+   455→-- create_exam_from_template(p_template_id UUID, p_created_by UUID,
+   456→--   p_start_time TIMESTAMPTZ, p_end_time TIMESTAMPTZ,
+   457→--   p_school_id UUID, p_title TEXT DEFAULT NULL)
+   458→-- Creates a new exam from a template, copying all configuration and sections.
+   459→-- Increments template usage_count. Returns the new exam id.
+   460→-- ---------------------------------------------------------------------------
+   461→CREATE OR REPLACE FUNCTION create_exam_from_template(
+   462→  p_template_id  UUID,
+   463→  p_created_by   UUID,
+   464→  p_start_time   TIMESTAMPTZ,
+   465→  p_end_time     TIMESTAMPTZ,
+   466→  p_school_id    UUID,
+   467→  p_title        TEXT DEFAULT NULL
+   468→)
+   469→RETURNS UUID
+   470→LANGUAGE plpgsql
+   471→SECURITY DEFINER
+   472→AS $$
+   473→DECLARE
+   474→  v_exam_id       UUID;
+   475→  v_template      exam_templates%ROWTYPE;
+   476→  v_section       exam_template_sections%ROWTYPE;
+   477→  v_new_section_id UUID;
+   478→BEGIN
+   479→  -- Fetch the template
+   480→  SELECT * INTO v_template FROM exam_templates WHERE id = p_template_id;
+   481→  IF NOT FOUND THEN
+   482→    RAISE EXCEPTION 'Template not found: %', p_template_id;
+   483→  END IF;
+   484→
+   485→  -- Verify the template belongs to the specified school or is public
+   486→  IF v_template.school_id != p_school_id AND v_template.is_public = false THEN
+   487→    RAISE EXCEPTION 'Template % does not belong to school % and is not public', p_template_id, p_school_id;
+   488→  END IF;
+   489→
+   490→  -- Create the exam from template configuration
+   491→  INSERT INTO exams (
+   492→    school_id, created_by, title, description, subject_id, class_id,
+   493→    exam_type, status, start_time, end_time, time_limit_minutes,
+   494→    pass_mark, pass_mark_type, instructions, allowed_attempts,
+   495→    negative_marking_enabled, negative_mark_value, grace_period_minutes,
+   496→    auto_submit, randomize_questions, randomize_options,
+   497→    show_results, show_correct_answers, show_explanations,
+   498→    is_template, template_id, require_full_screen, allow_resume,
+   499→    browser_lockdown, metadata
+   500→  ) VALUES (
+   501→    p_school_id, p_created_by,
+   502→    COALESCE(p_title, v_template.name), v_template.description,
+   503→    v_template.subject_id, v_template.class_id,
+   504→    v_template.exam_type, 'draft', p_start_time, p_end_time,
+   505→    v_template.time_limit_minutes, v_template.pass_mark,
+   506→    v_template.pass_mark_type, v_template.instructions,
+   507→    v_template.allowed_attempts, v_template.negative_marking_enabled,
+   508→    v_template.negative_mark_value, v_template.grace_period_minutes,
+   509→    v_template.auto_submit, v_template.randomize_questions,
+   510→    v_template.randomize_options, v_template.show_results,
+   511→    v_template.show_correct_answers, v_template.show_explanations,
+   512→    false, p_template_id, v_template.require_full_screen,
+   513→    v_template.allow_resume, v_template.browser_lockdown,
+   514→    v_template.metadata
+   515→  )
+   516→  RETURNING id INTO v_exam_id;
+   517→
+   518→  -- Copy template sections to exam sections
+   519→  FOR v_section IN
+   520→    SELECT * FROM exam_template_sections
+   521→    WHERE template_id = p_template_id
+   522→    ORDER BY sort_order
+   523→  LOOP
+   524→    INSERT INTO exam_sections (
+   525→      exam_id, title, description, instructions, sort_order,
+   526→      time_limit_minutes, randomize_questions
+   527→    ) VALUES (
+   528→      v_exam_id, v_section.title, v_section.description,
+   529→      v_section.instructions, v_section.sort_order,
+   530→      v_section.time_limit_minutes, v_section.randomize_questions
+   531→    )
+   532→    RETURNING id INTO v_new_section_id;
+   533→
+   534→    -- Note: Question selection rules are NOT automatically resolved here.
+   535→    -- The application layer should use question_selection_rules to select
+   536→    -- questions from the question bank and populate exam_questions.
+   537→    -- This function only clones the structural template.
+   538→  END LOOP;
+   539→
+   540→  -- Increment template usage count
+   541→  PERFORM increment_template_usage(p_template_id);
+   542→
+   543→  RETURN v_exam_id;
+   544→END;
+   545→$$;
+   546→
+   547→COMMENT ON FUNCTION create_exam_from_template(UUID, UUID, TIMESTAMPTZ, TIMESTAMPTZ, UUID, TEXT) IS
+   548→  'Create a new exam from a template, copying all configuration and sections; increments template usage_count; returns the new exam id';
+   549→
+   550→-- ---------------------------------------------------------------------------
+   551→-- generate_submission_receipt(p_attempt_id UUID)
+   552→-- Generates a submission receipt for an exam attempt. Creates a verifiable
+   553→-- digital receipt with answer statistics, device info, and a unique receipt
+   554→-- number. Returns the receipt id.
+   555→-- ---------------------------------------------------------------------------
+   556→CREATE OR REPLACE FUNCTION generate_submission_receipt(p_attempt_id UUID)
+   557→RETURNS UUID
+   558→LANGUAGE plpgsql
+   559→SECURITY DEFINER
+   560→AS $$
+   561→DECLARE
+   562→  v_receipt_id     UUID;
+   563→  v_attempt        exam_attempts%ROWTYPE;
+   564→  v_exam           exams%ROWTYPE;
+   565→  v_total_questions  INTEGER := 0;
+   566→  v_answered        INTEGER := 0;
+   567→  v_unanswered      INTEGER := 0;
+   568→  v_flagged         INTEGER := 0;
+   569→  v_time_spent_min  INTEGER := 0;
+   570→BEGIN
+   571→  -- Fetch the attempt
+   572→  SELECT * INTO v_attempt FROM exam_attempts WHERE id = p_attempt_id;
+   573→  IF NOT FOUND THEN
+   574→    RAISE EXCEPTION 'Exam attempt not found: %', p_attempt_id;
+   575→  END IF;
+   576→
+   577→  -- Fetch the exam
+   578→  SELECT * INTO v_exam FROM exams WHERE id = v_attempt.exam_id;
+   579→
+   580→  -- Calculate answer statistics
+   581→  SELECT
+   582→    COUNT(*),
+   583→    COUNT(*) FILTER (WHERE answer_data != '{}'),
+   584→    COUNT(*) FILTER (WHERE answer_data = '{}'),
+   585→    COUNT(*) FILTER (WHERE is_flagged = true)
+   586→  INTO v_total_questions, v_answered, v_unanswered, v_flagged
+   587→  FROM student_answers
+   588→  WHERE attempt_id = p_attempt_id;
+   589→
+   590→  -- If no student_answers exist yet, count from exam_questions
+   591→  IF v_total_questions = 0 THEN
+   592→    SELECT COUNT(*) INTO v_total_questions
+   593→    FROM exam_questions
+   594→    WHERE exam_id = v_attempt.exam_id;
+   595→
+   596→    v_unanswered := v_total_questions;
+   597→  END IF;
+   598→
+   599→  -- Calculate time spent in minutes
+   600→  IF v_attempt.started_at IS NOT NULL AND v_attempt.submitted_at IS NOT NULL THEN
+   601→    v_time_spent_min := EXTRACT(EPOCH FROM (v_attempt.submitted_at - v_attempt.started_at))::INTEGER / 60;
+   602→  END IF;
+   603→
+   604→  -- Create the receipt
+   605→  INSERT INTO submission_receipts (
+   606→    attempt_id, exam_id, student_id, exam_title,
+   607→    submitted_at, submission_type, total_questions, answered_questions,
+   608→    unanswered_questions, flagged_questions, time_spent_minutes,
+   609→    ip_address, device_info
+   610→  ) VALUES (
+   611→    p_attempt_id, v_attempt.exam_id, v_attempt.student_id, v_exam.title,
+   612→    COALESCE(v_attempt.submitted_at, now()), COALESCE(v_attempt.submission_type, 'manual'),
+   613→    v_total_questions, v_answered, v_unanswered, v_flagged,
+   614→    v_time_spent_min, v_attempt.ip_address, v_attempt.device_info
+   615→  )
+   616→  RETURNING id INTO v_receipt_id;
+   617→
+   618→  RETURN v_receipt_id;
+   619→END;
+   620→$$;
+   621→
+   622→COMMENT ON FUNCTION generate_submission_receipt(UUID) IS
+   623→  'Generate a verifiable submission receipt for an exam attempt with answer statistics and unique receipt number';
+   624→
+   625→-- ---------------------------------------------------------------------------
+   626→-- create_exam_notification(p_exam_id UUID, p_user_id UUID,
+   627→--   p_notification_type TEXT, p_title TEXT, p_message TEXT, p_data JSONB)
+   628→-- Convenience function to insert an exam notification with validation.
+   629→-- Returns the notification id.
+   630→-- ---------------------------------------------------------------------------
+   631→CREATE OR REPLACE FUNCTION create_exam_notification(
+   632→  p_exam_id           UUID,
+   633→  p_user_id           UUID,
+   634→  p_notification_type TEXT,
+   635→  p_title             TEXT,
+   636→  p_message           TEXT,
+   637→  p_data              JSONB DEFAULT '{}'
+   638→)
+   639→RETURNS UUID
+   640→LANGUAGE plpgsql
+   641→SECURITY DEFINER
+   642→AS $$
+   643→DECLARE
+   644→  v_notification_id UUID;
+   645→BEGIN
+   646→  -- Validate notification_type
+   647→  IF p_notification_type NOT IN (
+   648→    'exam_published', 'exam_started', 'time_warning_5min', 'time_warning_1min',
+   649→    'exam_submitted', 'results_released', 'manual_grading_required',
+   650→    'all_submissions_complete', 'suspicious_activity', 'exam_cancelled',
+   651→    'exam_rescheduled', 'grading_complete'
+   652→  ) THEN
+   653→    RAISE EXCEPTION 'Invalid notification_type: %', p_notification_type;
+   654→  END IF;
+   655→
+   656→  INSERT INTO exam_notifications (
+   657→    exam_id, user_id, notification_type, title, message, data
+   658→  ) VALUES (
+   659→    p_exam_id, p_user_id, p_notification_type, p_title, p_message, p_data
+   660→  )
+   661→  RETURNING id INTO v_notification_id;
+   662→
+   663→  RETURN v_notification_id;
+   664→END;
+   665→$$;
+   666→
+   667→COMMENT ON FUNCTION create_exam_notification(UUID, UUID, TEXT, TEXT, TEXT, JSONB) IS
+   668→  'Convenience function to insert an exam notification with type validation; returns the notification id';
+   669→
+   670→-- ---------------------------------------------------------------------------
+   671→-- mark_exam_notification_read(p_notification_id UUID, p_user_id UUID)
+   672→-- Marks a notification as read by the specified user. Returns true if
+   673→-- the notification was successfully marked as read.
+   674→-- ---------------------------------------------------------------------------
+   675→CREATE OR REPLACE FUNCTION mark_exam_notification_read(
+   676→  p_notification_id UUID,
+   677→  p_user_id         UUID
+   678→)
+   679→RETURNS BOOLEAN
+   680→LANGUAGE plpgsql
+   681→SECURITY DEFINER
+   682→AS $$
+   683→BEGIN
+   684→  UPDATE exam_notifications
+   685→  SET is_read = true,
+   686→      read_at = now()
+   687→  WHERE id = p_notification_id
+   688→    AND user_id = p_user_id
+   689→    AND is_read = false;
+   690→
+   691→  RETURN FOUND;
+   692→END;
+   693→$$;
+   694→
+   695→COMMENT ON FUNCTION mark_exam_notification_read(UUID, UUID) IS
+   696→  'Mark an exam notification as read by the specified user; returns true if updated';
+   697→
+   698→-- ---------------------------------------------------------------------------
+   699→-- get_unread_notification_count(p_user_id UUID)
+   700→-- Returns the count of unread exam notifications for a user.
+   701→-- Optimized by the idx_exam_notifications_user_unread partial index.
+   702→-- ---------------------------------------------------------------------------
+   703→CREATE OR REPLACE FUNCTION get_unread_notification_count(p_user_id UUID)
+   704→RETURNS INTEGER
+   705→LANGUAGE plpgsql
+   706→SECURITY DEFINER
+   707→STABLE
+   708→AS $$
+   709→DECLARE
+   710→  v_count INTEGER;
+   711→BEGIN
+   712→  SELECT COUNT(*) INTO v_count
+   713→  FROM exam_notifications
+   714→  WHERE user_id = p_user_id
+   715→    AND is_read = false;
+   716→
+   717→  RETURN v_count;
+   718→END;
+   719→$$;
+   720→
+   721→COMMENT ON FUNCTION get_unread_notification_count(UUID) IS
+   722→  'Get the count of unread exam notifications for a user; optimized by partial index';
+   723→
+   724→-- ============================================================================
+   725→-- 10. ENABLE ROW LEVEL SECURITY
+   726→-- ============================================================================
+   727→-- RLS is enabled on all new tables. Policies follow the same pattern as
+   728→-- the base CBT schema: super_admin > school_admin > teacher > student.
+   729→-- ============================================================================
+   730→
+   731→ALTER TABLE exam_templates ENABLE ROW LEVEL SECURITY;
+   732→ALTER TABLE exam_template_sections ENABLE ROW LEVEL SECURITY;
+   733→ALTER TABLE question_selection_rules ENABLE ROW LEVEL SECURITY;
+   734→ALTER TABLE submission_receipts ENABLE ROW LEVEL SECURITY;
+   735→ALTER TABLE exam_notifications ENABLE ROW LEVEL SECURITY;
+   736→
+   737→-- ============================================================================
+   738→-- 11. ROW LEVEL SECURITY POLICIES
+   739→-- ============================================================================
+   740→-- Role hierarchy: super_admin (full) > school_admin (school-scoped) >
+   741→--                teacher (own-created) > student (own-records)
+   742→-- ============================================================================
+   743→
+   744→-- ===========================================================================
+   745→-- EXAM_TEMPLATES RLS POLICIES
+   746→-- ===========================================================================
+   747→
+   748→-- Super admins have full access
+   749→CREATE POLICY "Super admins have full access to exam_templates"
+   750→  ON exam_templates FOR ALL
+   751→  TO authenticated
+   752→  USING (get_user_role() = 'super_admin')
+   753→  WITH CHECK (get_user_role() = 'super_admin');
+   754→
+   755→-- School admins can manage templates in their school
+   756→CREATE POLICY "School admins can manage exam_templates"
+   757→  ON exam_templates FOR ALL
+   758→  TO authenticated
+   759→  USING (
+   760→    get_user_role() = 'school_admin'
+   761→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   762→  )
+   763→  WITH CHECK (
+   764→    get_user_role() = 'school_admin'
+   765→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   766→  );
+   767→
+   768→-- Teachers can read own school templates and public templates
+   769→CREATE POLICY "Teachers can read exam_templates"
+   770→  ON exam_templates FOR SELECT
+   771→  TO authenticated
+   772→  USING (
+   773→    get_user_role() = 'teacher'
+   774→    AND (
+   775→      school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   776→      OR is_public = true
+   777→    )
+   778→  );
+   779→
+   780→-- Teachers can insert templates in their school
+   781→CREATE POLICY "Teachers can insert exam_templates"
+   782→  ON exam_templates FOR INSERT
+   783→  TO authenticated
+   784→  WITH CHECK (
+   785→    get_user_role() = 'teacher'
+   786→    AND school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   787→  );
+   788→
+   789→-- Teachers can update templates they created
+   790→CREATE POLICY "Teachers can update own exam_templates"
+   791→  ON exam_templates FOR UPDATE
+   792→  TO authenticated
+   793→  USING (
+   794→    get_user_role() = 'teacher'
+   795→    AND created_by = auth.uid()
+   796→  )
+   797→  WITH CHECK (
+   798→    get_user_role() = 'teacher'
+   799→    AND created_by = auth.uid()
+   800→  );
+   801→
+   802→-- Teachers can delete templates they created
+   803→CREATE POLICY "Teachers can delete own exam_templates"
+   804→  ON exam_templates FOR DELETE
+   805→  TO authenticated
+   806→  USING (
+   807→    get_user_role() = 'teacher'
+   808→    AND created_by = auth.uid()
+   809→  );
+   810→
+   811→-- Students can read public templates (for practice exams)
+   812→CREATE POLICY "Students can read public exam_templates"
+   813→  ON exam_templates FOR SELECT
+   814→  TO authenticated
+   815→  USING (
+   816→    get_user_role() = 'student'
+   817→    AND is_public = true
+   818→  );
+   819→
+   820→-- ===========================================================================
+   821→-- EXAM_TEMPLATE_SECTIONS RLS POLICIES
+   822→-- ===========================================================================
+   823→
+   824→-- Super admins have full access
+   825→CREATE POLICY "Super admins have full access to exam_template_sections"
+   826→  ON exam_template_sections FOR ALL
+   827→  TO authenticated
+   828→  USING (get_user_role() = 'super_admin')
+   829→  WITH CHECK (get_user_role() = 'super_admin');
+   830→
+   831→-- School admins can manage sections for templates in their school
+   832→CREATE POLICY "School admins can manage exam_template_sections"
+   833→  ON exam_template_sections FOR ALL
+   834→  TO authenticated
+   835→  USING (
+   836→    get_user_role() = 'school_admin'
+   837→    AND EXISTS (
+   838→      SELECT 1 FROM exam_templates et
+   839→      WHERE et.id = template_id
+   840→        AND et.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   841→    )
+   842→  )
+   843→  WITH CHECK (
+   844→    get_user_role() = 'school_admin'
+   845→    AND EXISTS (
+   846→      SELECT 1 FROM exam_templates et
+   847→      WHERE et.id = template_id
+   848→        AND et.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   849→    )
+   850→  );
+   851→
+   852→-- Teachers can manage sections for templates they created
+   853→CREATE POLICY "Teachers can manage own exam_template_sections"
+   854→  ON exam_template_sections FOR ALL
+   855→  TO authenticated
+   856→  USING (
+   857→    get_user_role() = 'teacher'
+   858→    AND EXISTS (
+   859→      SELECT 1 FROM exam_templates et
+   860→      WHERE et.id = template_id AND et.created_by = auth.uid()
+   861→    )
+   862→  )
+   863→  WITH CHECK (
+   864→    get_user_role() = 'teacher'
+   865→    AND EXISTS (
+   866→      SELECT 1 FROM exam_templates et
+   867→      WHERE et.id = template_id AND et.created_by = auth.uid()
+   868→    )
+   869→  );
+   870→
+   871→-- Teachers can read sections for public templates
+   872→CREATE POLICY "Teachers can read public exam_template_sections"
+   873→  ON exam_template_sections FOR SELECT
+   874→  TO authenticated
+   875→  USING (
+   876→    get_user_role() = 'teacher'
+   877→    AND EXISTS (
+   878→      SELECT 1 FROM exam_templates et
+   879→      WHERE et.id = template_id
+   880→        AND (et.is_public = true OR et.school_id = (SELECT school_id FROM users WHERE id = auth.uid()))
+   881→    )
+   882→  );
+   883→
+   884→-- Students can read sections for public templates
+   885→CREATE POLICY "Students can read public exam_template_sections"
+   886→  ON exam_template_sections FOR SELECT
+   887→  TO authenticated
+   888→  USING (
+   889→    get_user_role() = 'student'
+   890→    AND EXISTS (
+   891→      SELECT 1 FROM exam_templates et
+   892→      WHERE et.id = template_id AND et.is_public = true
+   893→    )
+   894→  );
+   895→
+   896→-- ===========================================================================
+   897→-- QUESTION_SELECTION_RULES RLS POLICIES
+   898→-- ===========================================================================
+   899→
+   900→-- Super admins have full access
+   901→CREATE POLICY "Super admins have full access to question_selection_rules"
+   902→  ON question_selection_rules FOR ALL
+   903→  TO authenticated
+   904→  USING (get_user_role() = 'super_admin')
+   905→  WITH CHECK (get_user_role() = 'super_admin');
+   906→
+   907→-- School admins can manage rules for templates in their school
+   908→CREATE POLICY "School admins can manage question_selection_rules"
+   909→  ON question_selection_rules FOR ALL
+   910→  TO authenticated
+   911→  USING (
+   912→    get_user_role() = 'school_admin'
+   913→    AND EXISTS (
+   914→      SELECT 1 FROM exam_templates et
+   915→      WHERE et.id = template_id
+   916→        AND et.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   917→    )
+   918→  )
+   919→  WITH CHECK (
+   920→    get_user_role() = 'school_admin'
+   921→    AND EXISTS (
+   922→      SELECT 1 FROM exam_templates et
+   923→      WHERE et.id = template_id
+   924→        AND et.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   925→    )
+   926→  );
+   927→
+   928→-- Teachers can manage rules for templates they created
+   929→CREATE POLICY "Teachers can manage own question_selection_rules"
+   930→  ON question_selection_rules FOR ALL
+   931→  TO authenticated
+   932→  USING (
+   933→    get_user_role() = 'teacher'
+   934→    AND EXISTS (
+   935→      SELECT 1 FROM exam_templates et
+   936→      WHERE et.id = template_id AND et.created_by = auth.uid()
+   937→    )
+   938→  )
+   939→  WITH CHECK (
+   940→    get_user_role() = 'teacher'
+   941→    AND EXISTS (
+   942→      SELECT 1 FROM exam_templates et
+   943→      WHERE et.id = template_id AND et.created_by = auth.uid()
+   944→    )
+   945→  );
+   946→
+   947→-- Teachers can read rules for school/public templates
+   948→CREATE POLICY "Teachers can read question_selection_rules"
+   949→  ON question_selection_rules FOR SELECT
+   950→  TO authenticated
+   951→  USING (
+   952→    get_user_role() = 'teacher'
+   953→    AND EXISTS (
+   954→      SELECT 1 FROM exam_templates et
+   955→      WHERE et.id = template_id
+   956→        AND (et.created_by = auth.uid()
+   957→             OR et.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+   958→             OR et.is_public = true)
+   959→    )
+   960→  );
+   961→
+   962→-- Students can read rules for public templates (to understand exam structure)
+   963→CREATE POLICY "Students can read public question_selection_rules"
+   964→  ON question_selection_rules FOR SELECT
+   965→  TO authenticated
+   966→  USING (
+   967→    get_user_role() = 'student'
+   968→    AND EXISTS (
+   969→      SELECT 1 FROM exam_templates et
+   970→      WHERE et.id = template_id AND et.is_public = true
+   971→    )
+   972→  );
+   973→
+   974→-- ===========================================================================
+   975→-- SUBMISSION_RECEIPTS RLS POLICIES
+   976→-- ===========================================================================
+   977→
+   978→-- Students can read their own receipts
+   979→CREATE POLICY "Students can read own submission_receipts"
+   980→  ON submission_receipts FOR SELECT
+   981→  TO authenticated
+   982→  USING (student_id = auth.uid());
+   983→
+   984→-- Teachers can read receipts for their exams
+   985→CREATE POLICY "Teachers can read submission_receipts for own exams"
+   986→  ON submission_receipts FOR SELECT
+   987→  TO authenticated
+   988→  USING (
+   989→    get_user_role() = 'teacher'
+   990→    AND EXISTS (
+   991→      SELECT 1 FROM exams e
+   992→      WHERE e.id = exam_id AND e.created_by = auth.uid()
+   993→    )
+   994→  );
+   995→
+   996→-- School admins can read all receipts in their school
+   997→CREATE POLICY "School admins can read submission_receipts"
+   998→  ON submission_receipts FOR SELECT
+   999→  TO authenticated
+  1000→  USING (
+  1001→    get_user_role() = 'school_admin'
+  1002→    AND EXISTS (
+  1003→      SELECT 1 FROM exams e
+  1004→      WHERE e.id = exam_id
+  1005→        AND e.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1006→    )
+  1007→  );
+  1008→
+  1009→-- Super admins have full access
+  1010→CREATE POLICY "Super admins have full access to submission_receipts"
+  1011→  ON submission_receipts FOR ALL
+  1012→  TO authenticated
+  1013→  USING (get_user_role() = 'super_admin')
+  1014→  WITH CHECK (get_user_role() = 'super_admin');
+  1015→
+  1016→-- Receipts are inserted via service_role or SECURITY DEFINER functions
+  1017→
+  1018→-- ===========================================================================
+  1019→-- EXAM_NOTIFICATIONS RLS POLICIES (ENHANCED)
+  1020→-- ===========================================================================
+  1021→
+  1022→-- Users can read their own notifications
+  1023→CREATE POLICY "Users can read own exam_notifications"
+  1024→  ON exam_notifications FOR SELECT
+  1025→  TO authenticated
+  1026→  USING (user_id = auth.uid());
+  1027→
+  1028→-- Users can update their own notifications (mark as read)
+  1029→CREATE POLICY "Users can update own exam_notifications"
+  1030→  ON exam_notifications FOR UPDATE
+  1031→  TO authenticated
+  1032→  USING (user_id = auth.uid())
+  1033→  WITH CHECK (user_id = auth.uid());
+  1034→
+  1035→-- Teachers can read notifications for their exams
+  1036→CREATE POLICY "Teachers can read exam_notifications for own exams"
+  1037→  ON exam_notifications FOR SELECT
+  1038→  TO authenticated
+  1039→  USING (
+  1040→    get_user_role() = 'teacher'
+  1041→    AND EXISTS (
+  1042→      SELECT 1 FROM exams e
+  1043→      WHERE e.id = exam_id AND e.created_by = auth.uid()
+  1044→    )
+  1045→  );
+  1046→
+  1047→-- School admins can read notifications for exams in their school
+  1048→CREATE POLICY "School admins can read exam_notifications"
+  1049→  ON exam_notifications FOR SELECT
+  1050→  TO authenticated
+  1051→  USING (
+  1052→    get_user_role() = 'school_admin'
+  1053→    AND EXISTS (
+  1054→      SELECT 1 FROM exams e
+  1055→      WHERE e.id = exam_id
+  1056→        AND e.school_id = (SELECT school_id FROM users WHERE id = auth.uid())
+  1057→    )
+  1058→  );
+  1059→
+  1060→-- Super admins have full access
+  1061→CREATE POLICY "Super admins have full access to exam_notifications"
+  1062→  ON exam_notifications FOR ALL
+  1063→  TO authenticated
+  1064→  USING (get_user_role() = 'super_admin')
+  1065→  WITH CHECK (get_user_role() = 'super_admin');
+  1066→
+  1067→-- Notifications are inserted via service_role or SECURITY DEFINER functions
+  1068→
+  1069→-- ============================================================================
+  1070→-- 12. SUPABASE REALTIME SETUP
+  1071→-- ============================================================================
+  1072→-- Enable Realtime on exam_notifications for instant notification delivery.
+  1073→-- This allows the frontend to subscribe to new notifications in real-time.
+  1074→-- ============================================================================
+  1075→
+  1076→ALTER PUBLICATION supabase_realtime ADD TABLE exam_notifications;
+  1077→
+  1078→-- ============================================================================
+  1079→-- 13. TABLE COMMENTS SUMMARY
+  1080→-- ============================================================================
+  1081→
+  1082→COMMENT ON SCHEMA public IS 'ExamForge AI CBT Engine - Enhancement Schema v2.0 (Templates, Receipts, Enhanced Notifications)';
+  1083→
+  1084→-- Final verification notice
+  1085→DO $$
+  1086→BEGIN
+  1087→  RAISE NOTICE 'CBT Engine Enhancements schema migration completed successfully.';
+  1088→  RAISE NOTICE 'Tables created: exam_templates, exam_template_sections, question_selection_rules, submission_receipts, exam_notifications (enhanced)';
+  1089→  RAISE NOTICE 'Functions created: increment_template_usage, create_exam_from_template, generate_submission_receipt, create_exam_notification, mark_exam_notification_read, get_unread_notification_count';
+  1090→  RAISE NOTICE 'Triggers created: set_exam_templates_updated_at';
+  1091→  RAISE NOTICE 'Realtime enabled on: exam_notifications';
+  1092→  RAISE NOTICE 'RLS enabled on all enhancement tables';
+  1093→END
+  1094→$$;
+  1095→
+  1096→COMMIT;
+  1097→
+  1098→-- ============================================================================
+  1099→-- END OF CBT ENGINE ENHANCEMENTS SCHEMA
+  1100→-- ============================================================================
+  1101→

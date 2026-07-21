@@ -32,7 +32,9 @@
 library;
 
 import 'package:examforge_ai/features/results/domain/entities/results_entities.dart';
-import 'package:examforge_ai/features/cbt_engine/domain/entities/cbt_entities.dart';
+import 'package:examforge_ai/features/cbt_engine/domain/entities/cbt_entities.dart' hide GradeScaleEntity;
+import '../../features/student_portal/domain/entities/student_portal_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // OUTPUT DATA TYPES

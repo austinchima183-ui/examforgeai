@@ -12,6 +12,14 @@ import '../core/utils/logger.dart';
 /// In release builds, falls back to compile-time constants supplied
 /// via `--dart-define`. In debug, uses safe placeholder values so the
 /// app can still launch without a `.env` file.
+///
+/// ─── SECURITY NOTE ──────────────────────────────────────────────────
+/// Server-only secrets (SUPABASE_SERVICE_KEY, FLUTTERWAVE_SECRET_KEY,
+/// FCM_SERVER_KEY, FLUTTERWAVE_WEBHOOK_SECRET_HASH) have been REMOVED
+/// from this client-side configuration. These keys must ONLY exist in
+/// Supabase Edge Function environment variables (via Deno.env.get()).
+/// The Flutter client must NEVER have access to privileged keys.
+/// ─────────────────────────────────────────────────────────────────────
 class EnvConfig {
   EnvConfig._();
 
@@ -40,15 +48,12 @@ class EnvConfig {
 
       if (kReleaseMode) {
         // In production, rely on compile-time --dart-define constants.
+        // ONLY client-safe keys are loaded here — no server secrets.
         _env = {
           'SUPABASE_URL': const String.fromEnvironment('SUPABASE_URL'),
           'SUPABASE_ANON_KEY': const String.fromEnvironment('SUPABASE_ANON_KEY'),
-          'SUPABASE_SERVICE_KEY': const String.fromEnvironment('SUPABASE_SERVICE_KEY'),
-          'FCM_SERVER_KEY': const String.fromEnvironment('FCM_SERVER_KEY'),
           'FLUTTERWAVE_PUBLIC_KEY':
               const String.fromEnvironment('FLUTTERWAVE_PUBLIC_KEY'),
-          'FLUTTERWAVE_SECRET_KEY':
-              const String.fromEnvironment('FLUTTERWAVE_SECRET_KEY'),
           'ENVIRONMENT': const String.fromEnvironment(
             'ENVIRONMENT',
             defaultValue: 'production',
@@ -59,10 +64,7 @@ class EnvConfig {
         _env = {
           'SUPABASE_URL': 'https://placeholder.supabase.co',
           'SUPABASE_ANON_KEY': 'placeholder-key',
-          'SUPABASE_SERVICE_KEY': '',
-          'FCM_SERVER_KEY': '',
           'FLUTTERWAVE_PUBLIC_KEY': '',
-          'FLUTTERWAVE_SECRET_KEY': '',
           'ENVIRONMENT': 'development',
         };
       }
@@ -127,22 +129,25 @@ class EnvConfig {
 
   static String get supabaseUrl => _env['SUPABASE_URL'] ?? '';
   static String get supabaseAnonKey => _env['SUPABASE_ANON_KEY'] ?? '';
-  static String get supabaseServiceKey => _env['SUPABASE_SERVICE_KEY'] ?? '';
+
+  // NOTE: supabaseServiceKey has been REMOVED for security.
+  // Server-only operations must go through Supabase Edge Functions
+  // where the service role key is available via Deno.env.get().
 
   // ─── Firebase Cloud Messaging ────────────────────────────────────
 
-  static String get fcmServerKey => _env['FCM_SERVER_KEY'] ?? '';
+  // NOTE: fcmServerKey has been REMOVED for security.
+  // FCM server-side operations must go through Supabase Edge Functions.
 
   // ─── Flutterwave ────────────────────────────────────────────────
 
   static String get flutterwavePublicKey =>
       _env['FLUTTERWAVE_PUBLIC_KEY'] ?? '';
-  static String get flutterwaveSecretKey =>
-      _env['FLUTTERWAVE_SECRET_KEY'] ?? '';
 
-  /// Flutterwave webhook secret hash for signature verification.
-  static String get flutterwaveWebhookSecretHash =>
-      _env['FLUTTERWAVE_WEBHOOK_SECRET_HASH'] ?? '';
+  // NOTE: flutterwaveSecretKey and flutterwaveWebhookSecretHash have
+  // been REMOVED for security. All Flutterwave API calls requiring the
+  // secret key must go through Supabase Edge Functions where the key
+  // is available via Deno.env.get('FLUTTERWAVE_SECRET_KEY').
 
   // ─── Environment ────────────────────────────────────────────────
 

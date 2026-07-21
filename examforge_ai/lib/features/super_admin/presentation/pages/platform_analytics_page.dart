@@ -1,11 +1,11 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../../core/themes/app_colors.dart';
-import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/themes/app_typography.dart';
-import '../../../../../shared/widgets/app_app_bar.dart';
-import '../../../../../shared/widgets/app_loading.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../../../../config/dependency_injection.dart';
 import '../../domain/entities/super_admin_entities.dart';
 import '../providers/super_admin_providers.dart';

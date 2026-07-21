@@ -23,6 +23,8 @@ import '../../domain/entities/offline_entities.dart';
 import '../../domain/repositories/offline_repository.dart';
 import '../datasources/offline_local_datasource.dart';
 import '../datasources/offline_remote_datasource.dart';
+import '../../../../features/offline/domain/repositories/offline_repository.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // OFFLINE REPOSITORY IMPLEMENTATION

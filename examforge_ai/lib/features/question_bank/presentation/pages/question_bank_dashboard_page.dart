@@ -20,6 +20,8 @@ import '../providers/collection_provider.dart';
 import '../widgets/stats_overview.dart';
 import '../widgets/question_card.dart';
 import '../widgets/collection_card.dart';
+import '../../../../config/dependency_injection.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION BANK DASHBOARD PAGE

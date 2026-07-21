@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import '../../core/themes/app_colors.dart';
 import '../../core/themes/app_typography.dart';
 import '../../core/themes/spacings.dart';
 import '../../core/extensions/context_extensions.dart';
@@ -237,11 +236,24 @@ class AppButton extends StatelessWidget {
       borderRadius: BorderRadius.circular(Spacings.mdRadius),
     );
 
+    // Build the child widget for the button
+    Widget buttonChild = iconWidget != null
+        ? Row(
+            mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
+            mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
+            children: iconAlignment == IconAlignment.start
+                ? [iconWidget, const SizedBox(width: Spacings.sm), Flexible(child: labelWidget)]
+                : [Flexible(child: labelWidget), const SizedBox(width: Spacings.sm), iconWidget],
+          )
+        : labelWidget;
+
     // Build button by variant
-    final button = switch (variant) {
-      AppButtonVariant.elevated => SizedBox(
+    switch (variant) {
+      case AppButtonVariant.elevated:
+        return SizedBox(
           width: fullWidth ? double.infinity : null,
           child: ElevatedButton(
+            onPressed: effectiveOnPressed,
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.primary,
               foregroundColor: cs.onPrimary,
@@ -253,10 +265,10 @@ class AppButton extends StatelessWidget {
               shape: shape,
               textStyle: _textStyleForSize(size, cs),
             ),
-            child: _buildButtonChild(iconWidget, labelWidget),
+            child: buttonChild,
           ),
-        ),
-      AppButtonVariant.outlined =>
+        );
+      case AppButtonVariant.outlined:
         return SizedBox(
           width: fullWidth ? double.infinity : null,
           child: OutlinedButton(
@@ -274,18 +286,9 @@ class AppButton extends StatelessWidget {
               ),
               textStyle: _textStyleForSize(size, cs),
             ),
-            child: iconWidget != null
-                ? Row(
-                    mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
-                    mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
-                    children: iconAlignment == IconAlignment.start
-                        ? [iconWidget, const SizedBox(width: Spacings.sm), Flexible(child: labelWidget)]
-                        : [Flexible(child: labelWidget), const SizedBox(width: Spacings.sm), iconWidget],
-                  )
-                : labelWidget,
+            child: buttonChild,
           ),
         );
-
       case AppButtonVariant.text:
         return SizedBox(
           width: fullWidth ? double.infinity : null,
@@ -299,18 +302,9 @@ class AppButton extends StatelessWidget {
               shape: shape,
               textStyle: _textStyleForSize(size, cs),
             ),
-            child: iconWidget != null
-                ? Row(
-                    mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
-                    mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
-                    children: iconAlignment == IconAlignment.start
-                        ? [iconWidget, const SizedBox(width: Spacings.sm), Flexible(child: labelWidget)]
-                        : [Flexible(child: labelWidget), const SizedBox(width: Spacings.sm), iconWidget],
-                  )
-                : labelWidget,
+            child: buttonChild,
           ),
         );
-
       case AppButtonVariant.tonal:
         return SizedBox(
           width: fullWidth ? double.infinity : null,
@@ -327,15 +321,7 @@ class AppButton extends StatelessWidget {
               shape: shape,
               textStyle: _textStyleForSize(size, cs),
             ),
-            child: iconWidget != null
-                ? Row(
-                    mainAxisSize: fullWidth ? MainAxisSize.max : MainAxisSize.min,
-                    mainAxisAlignment: fullWidth ? MainAxisAlignment.center : MainAxisAlignment.start,
-                    children: iconAlignment == IconAlignment.start
-                        ? [iconWidget, const SizedBox(width: Spacings.sm), Flexible(child: labelWidget)]
-                        : [Flexible(child: labelWidget), const SizedBox(width: Spacings.sm), iconWidget],
-                  )
-                : labelWidget,
+            child: buttonChild,
           ),
         );
     }

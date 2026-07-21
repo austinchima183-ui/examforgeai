@@ -5,7 +5,7 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../config/dependency_injection.dart';
+import '../../../../config/dependency_injection.dart' hide dashboardProvider;
 import '../../../../routing/route_guards.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_summary.dart';
@@ -14,6 +14,8 @@ import '../widgets/recent_activity_list.dart';
 import '../widgets/stat_card_row.dart';
 import '../widgets/welcome_section.dart';
 import 'teacher_dashboard_page.dart' show ResponsiveLayout;
+import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
+
 
 /// Dashboard for users with the **student** role.
 ///

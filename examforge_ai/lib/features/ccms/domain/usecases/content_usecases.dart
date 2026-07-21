@@ -1,5 +1,5 @@
 import 'package:equatable/equatable.dart';
-import '../../../../../core/utils/result.dart';
+import '../../../../core/utils/result.dart';
 import '../entities/ccms_entities.dart';
 import '../repositories/ccms_repository.dart';
 

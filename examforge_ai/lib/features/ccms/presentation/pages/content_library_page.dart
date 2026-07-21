@@ -7,6 +7,8 @@ import '../../domain/entities/ccms_entities.dart';
 import '../providers/ccms_providers.dart';
 import '../widgets/ccms_widgets.dart';
 
+export 'content_editor_page.dart';
+
 class ContentLibraryPage extends ConsumerStatefulWidget {
   const ContentLibraryPage({super.key});
 
@@ -285,6 +287,3 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
     ref.read(contentProvider.notifier).loadContentItems();
   }
 }
-
-// Re-export for navigation from FAB
-export 'content_editor_page.dart';

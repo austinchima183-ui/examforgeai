@@ -445,7 +445,7 @@ class _State extends ConsumerState<CommunicationDashboardPage> {
         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
         maxLines: 1,
       ),
-      trailing: if (ann.isPinned) Icon(Icons.push_pin, size: Spacings.smIcon, color: cs.onSurfaceVariant),
+      trailing: ann.isPinned ? Icon(Icons.push_pin, size: Spacings.smIcon, color: cs.onSurfaceVariant) : null,
       onTap: () {/* TODO: navigate to detail */},
     );
   }

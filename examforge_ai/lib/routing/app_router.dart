@@ -86,7 +86,7 @@ import '../features/student_portal/presentation/pages/assignment_portal_page.dar
 import '../features/student_portal/presentation/pages/learning_resources_page.dart';
 import '../features/student_portal/presentation/pages/document_chat_page.dart';
 import '../features/student_portal/presentation/pages/flashcard_page.dart';
-import '../features/student_portal/presentation/pages/study_planner_page.dart';
+import '../features/student_portal/presentation/pages/study_planner_page.dart' hide StudyPlannerPage;
 import '../features/student_portal/presentation/pages/goals_page.dart';
 import '../features/student_portal/presentation/pages/progress_page.dart';
 import '../features/student_portal/presentation/pages/student_notifications_page.dart';
@@ -119,7 +119,7 @@ import '../features/school_management/presentation/pages/attendance/attendance_r
 import '../features/school_management/presentation/pages/homework/homework_list_page.dart';
 import '../features/school_management/presentation/pages/homework/homework_form_page.dart';
 import '../features/school_management/presentation/pages/homework/homework_submissions_page.dart';
-import '../features/school_management/presentation/pages/announcement/announcement_list_page.dart';
+import '../features/school_management/presentation/pages/announcement/announcement_list_page.dart' hide AnnouncementListPage;
 import '../features/school_management/presentation/pages/announcement/announcement_form_page.dart';
 import '../features/school_management/presentation/pages/document/document_center_page.dart';
 import '../features/school_management/presentation/pages/document/document_upload_page.dart';
@@ -164,7 +164,7 @@ import '../features/billing/presentation/pages/billing_history_page.dart';
 import '../features/billing/presentation/pages/invoice_detail_page.dart';
 import '../features/billing/presentation/pages/ai_credits_page.dart';
 import '../features/billing/presentation/pages/coupon_management_page.dart';
-import '../features/billing/presentation/pages/referral_program_page.dart';
+import '../features/billing/presentation/pages/referral_program_page.dart' hide ReferralProgramPage;
 import '../features/billing/presentation/pages/license_management_page.dart';
 import '../features/billing/presentation/pages/revenue_dashboard_page.dart';
 import '../features/billing/presentation/pages/school_billing_page.dart';

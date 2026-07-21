@@ -23,7 +23,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
-import '../core/utils/logger.dart';
+import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // CONSTANTS

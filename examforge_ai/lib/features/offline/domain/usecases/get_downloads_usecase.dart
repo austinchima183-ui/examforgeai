@@ -1,9 +1,11 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../../core/errors/failures.dart';
-import '../../../../../core/utils/result.dart';
-import '../../entities/offline_entities.dart';
-import '../../repositories/offline_repository.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/result.dart';
+import '../../domain/entities/offline_entities.dart';
+import '../../data/repositories/offline_repository.dart';
+import '../../../../features/offline/domain/repositories/offline_repository.dart';
+
 
 /// Parameters for [GetDownloadsUseCase].
 class GetDownloadsParams extends Equatable {

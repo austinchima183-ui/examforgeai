@@ -10,6 +10,8 @@ import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/password_strength_indicator.dart';
+import '../../../../config/dependency_injection.dart';
+
 
 /// Reset password page — the deep-link target from the password-reset
 /// email. Allows the user to enter and confirm a new password.

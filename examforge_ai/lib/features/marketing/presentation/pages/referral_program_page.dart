@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/marketing_entities.dart';
 import '../providers/marketing_provider.dart';
 import '../widgets/referral_code_display.dart';

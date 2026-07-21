@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/errors/failures.dart';
-import '../../../../../core/utils/logger.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/logger.dart';
 import '../../domain/entities/offline_entities.dart';
 import '../../domain/usecases/delete_draft_usecase.dart';
 import '../../domain/usecases/download_resource_usecase.dart';
@@ -15,6 +15,8 @@ import '../../domain/usecases/remove_offline_resource_usecase.dart';
 import '../../domain/usecases/save_draft_usecase.dart';
 import '../../domain/usecases/start_download_usecase.dart';
 import '../../domain/usecases/trigger_sync_usecase.dart';
+import '../../../../features/offline/domain/repositories/offline_repository.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // OFFLINE STATE

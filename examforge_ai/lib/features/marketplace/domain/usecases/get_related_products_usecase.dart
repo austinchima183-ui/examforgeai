@@ -1,7 +1,9 @@
-import '../../../../../core/errors/failures.dart';
-import '../../../../../core/utils/result.dart';
-import '../../entities/marketplace_entities.dart';
-import '../../repositories/marketplace_repository.dart';
+import '../../../../core/errors/failures.dart';
+import '../../../../core/utils/result.dart';
+import '../../domain/entities/marketplace_entities.dart';
+import '../../data/repositories/marketplace_repository.dart';
+import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
+
 
 class GetRelatedProductsParams {
   const GetRelatedProductsParams({required this.productId, this.limit = 10});

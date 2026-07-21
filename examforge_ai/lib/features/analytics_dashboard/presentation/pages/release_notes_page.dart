@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/analytics_dashboard_entities.dart';
 import '../providers/analytics_dashboard_provider.dart';
 

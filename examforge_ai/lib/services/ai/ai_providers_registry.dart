@@ -1,4 +1,5 @@
-import '../../../core/utils/logger.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+import '../../core/utils/logger.dart';
 import '../../features/ai_generator/domain/entities/ai_entities.dart';
 import 'ai_provider_interface.dart';
 import 'providers/gemini_provider.dart';
@@ -114,9 +115,14 @@ class AiProvidersRegistry {
   ///
   /// Currently supports OpenAI and Gemini. Additional providers
   /// (Claude, DeepSeek, Grok, Local LLM) can be registered manually.
+  ///
+  /// When API keys are provided, providers make direct API calls.
+  /// When API keys are absent but [supabaseClient] is provided,
+  /// providers route calls through Supabase Edge Functions.
   static AiProvidersRegistry createDefault({
-    required String openaiApiKey,
-    required String geminiApiKey,
+    String? openaiApiKey,
+    String? geminiApiKey,
+    sb.SupabaseClient? supabaseClient,
     String openaiBaseUrl = 'https://api.openai.com/v1',
     String geminiBaseUrl =
         'https://generativelanguage.googleapis.com/v1beta',
@@ -125,26 +131,32 @@ class AiProvidersRegistry {
   }) {
     final registry = AiProvidersRegistry();
 
+    final hasOpenai = openaiApiKey != null && openaiApiKey.isNotEmpty;
+    final hasGemini = geminiApiKey != null && geminiApiKey.isNotEmpty;
+    final hasEdgeFunctions = supabaseClient != null;
+
     // Register OpenAI provider
-    if (openaiApiKey.isNotEmpty) {
+    if (hasOpenai || hasEdgeFunctions) {
       registry.register(OpenAiProvider(
         apiKey: openaiApiKey,
         baseUrl: openaiBaseUrl,
         defaultModel: openaiModel,
+        supabaseClient: supabaseClient,
       ));
     } else {
-      AppLogger.warning('OpenAI API key is empty; skipping registration');
+      AppLogger.warning('No OpenAI API key or Supabase client; skipping OpenAI registration');
     }
 
     // Register Gemini provider
-    if (geminiApiKey.isNotEmpty) {
+    if (hasGemini || hasEdgeFunctions) {
       registry.register(GeminiProvider(
         apiKey: geminiApiKey,
         baseUrl: geminiBaseUrl,
         defaultModel: geminiModel,
+        supabaseClient: supabaseClient,
       ));
     } else {
-      AppLogger.warning('Gemini API key is empty; skipping registration');
+      AppLogger.warning('No Gemini API key or Supabase client; skipping Gemini registration');
     }
 
     return registry;

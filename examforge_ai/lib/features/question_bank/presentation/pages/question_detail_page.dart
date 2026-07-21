@@ -24,6 +24,8 @@ import '../widgets/question_type_badge.dart';
 import '../widgets/difficulty_badge.dart';
 import '../widgets/question_content_renderer.dart';
 import '../widgets/collection_card.dart';
+import '../../../../config/dependency_injection.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION DETAIL PAGE

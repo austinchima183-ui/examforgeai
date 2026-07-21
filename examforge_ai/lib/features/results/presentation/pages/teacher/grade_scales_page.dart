@@ -13,7 +13,7 @@ import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/results_entities.dart';
-import '../providers/results_providers.dart';
+import '../../providers/results_providers.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // GRADE SCALES PAGE

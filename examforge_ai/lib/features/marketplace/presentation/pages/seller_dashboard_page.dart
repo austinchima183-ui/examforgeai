@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/themes/app_colors.dart';
-import '../../../../../core/themes/app_typography.dart';
-import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/seller_provider.dart';
@@ -13,6 +13,8 @@ import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
 import '../providers/marketplace_notification_provider.dart';
 import '../widgets/marketplace_widgets.dart';
+import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // SELLER DASHBOARD PAGE

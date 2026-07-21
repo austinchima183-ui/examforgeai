@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/entities/edu_os_entities.dart';
 import '../providers/edu_os_provider.dart';
 import '../widgets/module_tier_badge.dart';

@@ -22,6 +22,8 @@ import '../widgets/matching_pairs_editor.dart';
 import '../widgets/ordering_items_editor.dart';
 import '../widgets/fill_in_blank_editor.dart';
 import '../widgets/question_preview_card.dart';
+import '../../../../config/dependency_injection.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION EDITOR PAGE

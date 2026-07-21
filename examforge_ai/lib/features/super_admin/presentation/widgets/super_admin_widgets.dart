@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../../../../../core/themes/app_colors.dart';
-import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../core/themes/app_typography.dart';
 import '../../domain/entities/super_admin_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════

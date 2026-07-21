@@ -7,6 +7,8 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/communication_entities.dart';
 import 'priority_badge.dart';
+import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType;
+
 
 // ─── AnnouncementCard ─────────────────────────────────────────────────────────
 

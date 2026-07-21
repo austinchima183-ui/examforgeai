@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_search_bar.dart';
+import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/themes/app_typography.dart';
+import '../../../../../core/themes/spacings.dart';
+import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/widgets/app_card.dart';
+import '../../../../../shared/widgets/app_empty_state.dart';
+import '../../../../../shared/widgets/app_error_state.dart';
+import '../../../../../shared/widgets/app_loading.dart';
+import '../../../../../shared/widgets/app_search_bar.dart';
+import '../../../../../shared/models/user_role.dart';
+import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../domain/entities/school_management_entities.dart';
-import '../providers/document_provider.dart';
+import '../../providers/document_provider.dart';
+import '../../../../../config/dependency_injection.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // DOCUMENT CENTER PAGE
@@ -38,8 +42,8 @@ class _DocumentCenterPageState extends ConsumerState<DocumentCenterPage>
   late TabController _tabController;
   String? _categoryFilter;
 
-  // Simulate user role – in production read from auth state.
-  static const _isAdmin = true;
+  /// Whether the current user has an admin role (superAdmin or schoolAdmin).
+  bool get _isAdmin => ref.read(resolvedUserRoleProvider)?.isAdmin ?? false;
 
   static const _typeTabs = <DocumentType?>[
     null, // All

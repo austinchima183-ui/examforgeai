@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/analytics_dashboard_provider.dart';
 import '../widgets/metric_card.dart';
 import '../widgets/trend_chart.dart';

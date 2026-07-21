@@ -5,6 +5,7 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entities/cbt_entities.dart';
 import '../../domain/repositories/cbt_repository.dart';
 
+
 // ═══════════════════════════════════════════════════════════════════════
 // STUDENT EXAMS STATE
 // ═══════════════════════════════════════════════════════════════════════
@@ -103,7 +104,7 @@ class StudentExamsNotifier extends StateNotifier<StudentExamsState> {
     );
 
     result.fold(
-      onSuccess: (exams) {
+      onSuccess: (exams) async {
         final now = DateTime.now();
 
         final upcoming = <ExamEntity>[];

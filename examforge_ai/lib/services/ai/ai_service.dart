@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
-import '../../../core/utils/logger.dart';
+import '../../core/utils/logger.dart';
 import '../../../core/performance/ai_cache_service.dart';
 import '../../features/ai_generator/domain/entities/ai_entities.dart';
 import '../../features/question_bank/domain/entities/question_entities.dart';
@@ -402,7 +402,7 @@ class AiService {
             'class_level': input.classLevel?.name,
           },
         );
-        final tokenCost = ((result.inputTokens + result.outputTokens) / 1_000_000) * 0.15; // approximate cost
+        final tokenCost = ((result.inputTokens + result.outputTokens) / 1000000) * 0.15; // approximate cost
         cacheService!.put(
           cacheKey: cacheKey,
           response: {'content': result.content},

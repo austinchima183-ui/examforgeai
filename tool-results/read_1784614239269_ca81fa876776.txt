@@ -1,0 +1,1917 @@
+     1→import 'package:equatable/equatable.dart';
+     2→
+     3→import '../../../question_bank/domain/entities/question_entities.dart';
+     4→import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+     5→
+     6→
+     7→// ═══════════════════════════════════════════════════════════════════════
+     8→// ENUMS
+     9→// ═══════════════════════════════════════════════════════════════════════
+    10→
+    11→/// Represents the lifecycle status of an exam.
+    12→enum ExamStatus {
+    13→  draft(
+    14→    value: 'draft',
+    15→    label: 'Draft',
+    16→    color: '#9CA3AF',
+    17→    isEditable: true,
+    18→  ),
+    19→  published(
+    20→    value: 'published',
+    21→    label: 'Published',
+    22→    color: '#3B82F6',
+    23→    isEditable: false,
+    24→  ),
+    25→  active(
+    26→    value: 'active',
+    27→    label: 'Active',
+    28→    color: '#22C55E',
+    29→    isEditable: false,
+    30→  ),
+    31→  completed(
+    32→    value: 'completed',
+    33→    label: 'Completed',
+    34→    color: '#6366F1',
+    35→    isEditable: false,
+    36→  ),
+    37→  archived(
+    38→    value: 'archived',
+    39→    label: 'Archived',
+    40→    color: '#78716C',
+    41→    isEditable: false,
+    42→  ),
+    43→  cancelled(
+    44→    value: 'cancelled',
+    45→    label: 'Cancelled',
+    46→    color: '#EF4444',
+    47→    isEditable: false,
+    48→  );
+    49→
+    50→  const ExamStatus({
+    51→    required this.value,
+    52→    required this.label,
+    53→    required this.color,
+    54→    required this.isEditable,
+    55→  });
+    56→
+    57→  /// The string representation stored in the backend.
+    58→  final String value;
+    59→
+    60→  /// Human-readable label for display in the UI.
+    61→  final String label;
+    62→
+    63→  /// Hex color string for UI rendering.
+    64→  final String color;
+    65→
+    66→  /// Whether the exam can still be edited in this status.
+    67→  final bool isEditable;
+    68→
+    69→  /// Parses a raw [value] string into an [ExamStatus].
+    70→  ///
+    71→  /// Returns `null` if the value does not match any known status.
+    72→  static ExamStatus? fromString(String? value) {
+    73→    if (value == null) return null;
+    74→    return ExamStatus.values.cast<ExamStatus?>().firstWhere(
+    75→          (status) => status?.value == value,
+    76→          orElse: () => null,
+    77→        );
+    78→  }
+    79→}
+    80→
+    81→/// Represents the status of a student's exam attempt.
+    82→enum AttemptStatus {
+    83→  notStarted(
+    84→    value: 'not_started',
+    85→    label: 'Not Started',
+    86→    isTerminal: false,
+    87→    isActive: false,
+    88→  ),
+    89→  inProgress(
+    90→    value: 'in_progress',
+    91→    label: 'In Progress',
+    92→    isTerminal: false,
+    93→    isActive: true,
+    94→  ),
+    95→  submitted(
+    96→    value: 'submitted',
+    97→    label: 'Submitted',
+    98→    isTerminal: true,
+    99→    isActive: false,
+   100→  ),
+   101→  autoSubmitted(
+   102→    value: 'auto_submitted',
+   103→    label: 'Auto Submitted',
+   104→    isTerminal: true,
+   105→    isActive: false,
+   106→  ),
+   107→  timedOut(
+   108→    value: 'timed_out',
+   109→    label: 'Timed Out',
+   110→    isTerminal: true,
+   111→    isActive: false,
+   112→  ),
+   113→  disqualified(
+   114→    value: 'disqualified',
+   115→    label: 'Disqualified',
+   116→    isTerminal: true,
+   117→    isActive: false,
+   118→  ),
+   119→  abandoned(
+   120→    value: 'abandoned',
+   121→    label: 'Abandoned',
+   122→    isTerminal: true,
+   123→    isActive: false,
+   124→  );
+   125→
+   126→  const AttemptStatus({
+   127→    required this.value,
+   128→    required this.label,
+   129→    required this.isTerminal,
+   130→    required this.isActive,
+   131→  });
+   132→
+   133→  /// The string representation stored in the backend.
+   134→  final String value;
+   135→
+   136→  /// Human-readable label for display in the UI.
+   137→  final String label;
+   138→
+   139→  /// Whether this status represents a final, non-transitionable state.
+   140→  final bool isTerminal;
+   141→
+   142→  /// Whether the attempt is currently active (student is taking the exam).
+   143→  final bool isActive;
+   144→
+   145→  /// Parses a raw [value] string into an [AttemptStatus].
+   146→  ///
+   147→  /// Returns `null` if the value does not match any known status.
+   148→  static AttemptStatus? fromString(String? value) {
+   149→    if (value == null) return null;
+   150→    return AttemptStatus.values.cast<AttemptStatus?>().firstWhere(
+   151→          (status) => status?.value == value,
+   152→          orElse: () => null,
+   153→        );
+   154→  }
+   155→}
+   156→
+   157→/// Represents how an exam attempt was submitted.
+   158→enum SubmissionType {
+   159→  manual(
+   160→    value: 'manual',
+   161→    label: 'Manual Submit',
+   162→  ),
+   163→  autoSubmit(
+   164→    value: 'auto_submit',
+   165→    label: 'Auto Submit',
+   166→  ),
+   167→  timedOut(
+   168→    value: 'timed_out',
+   169→    label: 'Timed Out',
+   170→  ),
+   171→  forceSubmit(
+   172→    value: 'force_submit',
+   173→    label: 'Force Submit',
+   174→  );
+   175→
+   176→  const SubmissionType({
+   177→    required this.value,
+   178→    required this.label,
+   179→  });
+   180→
+   181→  /// The string representation stored in the backend.
+   182→  final String value;
+   183→
+   184→  /// Human-readable label for display in the UI.
+   185→  final String label;
+   186→
+   187→  /// Parses a raw [value] string into a [SubmissionType].
+   188→  ///
+   189→  /// Returns `null` if the value does not match any known type.
+   190→  static SubmissionType? fromString(String? value) {
+   191→    if (value == null) return null;
+   192→    return SubmissionType.values.cast<SubmissionType?>().firstWhere(
+   193→          (type) => type?.value == value,
+   194→          orElse: () => null,
+   195→        );
+   196→  }
+   197→}
+   198→
+   199→/// Represents the grading status of an exam attempt.
+   200→enum GradingStatus {
+   201→  pending(
+   202→    value: 'pending',
+   203→    label: 'Pending',
+   204→    isComplete: false,
+   205→  ),
+   206→  autoGraded(
+   207→    value: 'auto_graded',
+   208→    label: 'Auto Graded',
+   209→    isComplete: true,
+   210→  ),
+   211→  partiallyGraded(
+   212→    value: 'partially_graded',
+   213→    label: 'Partially Graded',
+   214→    isComplete: false,
+   215→  ),
+   216→  fullyGraded(
+   217→    value: 'fully_graded',
+   218→    label: 'Fully Graded',
+   219→    isComplete: true,
+   220→  ),
+   221→  disputed(
+   222→    value: 'disputed',
+   223→    label: 'Disputed',
+   224→    isComplete: false,
+   225→  );
+   226→
+   227→  const GradingStatus({
+   228→    required this.value,
+   229→    required this.label,
+   230→    required this.isComplete,
+   231→  });
+   232→
+   233→  /// The string representation stored in the backend.
+   234→  final String value;
+   235→
+   236→  /// Human-readable label for display in the UI.
+   237→  final String label;
+   238→
+   239→  /// Whether the grading process is considered complete.
+   240→  final bool isComplete;
+   241→
+   242→  /// Parses a raw [value] string into a [GradingStatus].
+   243→  ///
+   244→  /// Returns `null` if the value does not match any known status.
+   245→  static GradingStatus? fromString(String? value) {
+   246→    if (value == null) return null;
+   247→    return GradingStatus.values.cast<GradingStatus?>().firstWhere(
+   248→          (status) => status?.value == value,
+   249→          orElse: () => null,
+   250→        );
+   251→  }
+   252→}
+   253→
+   254→/// Represents the type of a monitoring event during an exam.
+   255→enum MonitoringEventType {
+   256→  tabSwitch(
+   257→    value: 'tab_switch',
+   258→    label: 'Tab Switch',
+   259→    severity: 'warning',
+   260→    icon: 'tab_switch',
+   261→  ),
+   262→  focusLost(
+   263→    value: 'focus_lost',
+   264→    label: 'Focus Lost',
+   265→    severity: 'warning',
+   266→    icon: 'eye_off',
+   267→  ),
+   268→  copyAttempt(
+   269→    value: 'copy_attempt',
+   270→    label: 'Copy Attempt',
+   271→    severity: 'critical',
+   272→    icon: 'copy',
+   273→  ),
+   274→  pasteAttempt(
+   275→    value: 'paste_attempt',
+   276→    label: 'Paste Attempt',
+   277→    severity: 'critical',
+   278→    icon: 'clipboard_paste',
+   279→  ),
+   280→  multipleLogin(
+   281→    value: 'multiple_login',
+   282→    label: 'Multiple Login',
+   283→    severity: 'critical',
+   284→    icon: 'users',
+   285→  ),
+   286→  idleTimeout(
+   287→    value: 'idle_timeout',
+   288→    label: 'Idle Timeout',
+   289→    severity: 'warning',
+   290→    icon: 'clock',
+   291→  ),
+   292→  browserResize(
+   293→    value: 'browser_resize',
+   294→    label: 'Browser Resize',
+   295→    severity: 'info',
+   296→    icon: 'maximize',
+   297→  ),
+   298→  rightClick(
+   299→    value: 'right_click',
+   300→    label: 'Right Click',
+   301→    severity: 'warning',
+   302→    icon: 'mouse_pointer_click',
+   303→  ),
+   304→  screenshotAttempt(
+   305→    value: 'screenshot_attempt',
+   306→    label: 'Screenshot Attempt',
+   307→    severity: 'critical',
+   308→    icon: 'camera',
+   309→  ),
+   310→  fullScreenExit(
+   311→    value: 'full_screen_exit',
+   312→    label: 'Full Screen Exit',
+   313→    severity: 'warning',
+   314→    icon: 'minimize',
+   315→  ),
+   316→  sessionRecovery(
+   317→    value: 'session_recovery',
+   318→    label: 'Session Recovery',
+   319→    severity: 'info',
+   320→    icon: 'refresh_cw',
+   321→  ),
+   322→  suspiciousActivity(
+   323→    value: 'suspicious_activity',
+   324→    label: 'Suspicious Activity',
+   325→    severity: 'critical',
+   326→    icon: 'alert_triangle',
+   327→  );
+   328→
+   329→  const MonitoringEventType({
+   330→    required this.value,
+   331→    required this.label,
+   332→    required this.severity,
+   333→    required this.icon,
+   334→  });
+   335→
+   336→  /// The string representation stored in the backend.
+   337→  final String value;
+   338→
+   339→  /// Human-readable label for display in the UI.
+   340→  final String label;
+   341→
+   342→  /// Severity level: 'info', 'warning', or 'critical'.
+   343→  final String severity;
+   344→
+   345→  /// Icon identifier for UI rendering.
+   346→  final String icon;
+   347→
+   348→  /// Parses a raw [value] string into a [MonitoringEventType].
+   349→  ///
+   350→  /// Returns `null` if the value does not match any known type.
+   351→  static MonitoringEventType? fromString(String? value) {
+   352→    if (value == null) return null;
+   353→    return MonitoringEventType.values.cast<MonitoringEventType?>().firstWhere(
+   354→          (type) => type?.value == value,
+   355→          orElse: () => null,
+   356→        );
+   357→  }
+   358→}
+   359→
+   360→/// Represents the category of an exam notification.
+   361→enum NotificationCategory {
+   362→  examAvailable(
+   363→    value: 'exam_available',
+   364→    label: 'Exam Available',
+   365→  ),
+   366→  examStarting(
+   367→    value: 'exam_starting',
+   368→    label: 'Exam Starting',
+   369→  ),
+   370→  timeWarning(
+   371→    value: 'time_warning',
+   372→    label: 'Time Warning',
+   373→  ),
+   374→  examSubmitted(
+   375→    value: 'exam_submitted',
+   376→    label: 'Exam Submitted',
+   377→  ),
+   378→  resultsReleased(
+   379→    value: 'results_released',
+   380→    label: 'Results Released',
+   381→  ),
+   382→  gradingRequired(
+   383→    value: 'grading_required',
+   384→    label: 'Grading Required',
+   385→  ),
+   386→  examReminder(
+   387→    value: 'exam_reminder',
+   388→    label: 'Exam Reminder',
+   389→  );
+   390→
+   391→  const NotificationCategory({
+   392→    required this.value,
+   393→    required this.label,
+   394→  });
+   395→
+   396→  /// The string representation stored in the backend.
+   397→  final String value;
+   398→
+   399→  /// Human-readable label for display in the UI.
+   400→  final String label;
+   401→
+   402→  /// Parses a raw [value] string into a [NotificationCategory].
+   403→  ///
+   404→  /// Returns `null` if the value does not match any known category.
+   405→  static NotificationCategory? fromString(String? value) {
+   406→    if (value == null) return null;
+   407→    return NotificationCategory.values
+   408→        .cast<NotificationCategory?>()
+   409→        .firstWhere(
+   410→          (cat) => cat?.value == value,
+   411→          orElse: () => null,
+   412→        );
+   413→  }
+   414→}
+   415→
+   416→// ═══════════════════════════════════════════════════════════════════════
+   417→// ENTITY CLASSES
+   418→// ═══════════════════════════════════════════════════════════════════════
+   419→
+   420→/// Represents a section within an exam.
+   421→///
+   422→/// Exams can be divided into sections (e.g., Section A - Objective,
+   423→/// Section B - Theory) each with its own instructions and optional
+   424→/// time limits.
+   425→class ExamSectionEntity extends Equatable {
+   426→  const ExamSectionEntity({
+   427→    required this.id,
+   428→    required this.examId,
+   429→    required this.title,
+   430→    this.description,
+   431→    this.instructions,
+   432→    required this.sortOrder,
+   433→    this.timeLimitMinutes,
+   434→    this.randomizeQuestions = false,
+   435→    required this.createdAt,
+   436→  });
+   437→
+   438→  final String id;
+   439→  final String examId;
+   440→  final String title;
+   441→  final String? description;
+   442→  final String? instructions;
+   443→  final int sortOrder;
+   444→  final int? timeLimitMinutes;
+   445→  final bool randomizeQuestions;
+   446→  final DateTime createdAt;
+   447→
+   448→  ExamSectionEntity copyWith({
+   449→    String? id,
+   450→    String? examId,
+   451→    String? title,
+   452→    String? description,
+   453→    String? instructions,
+   454→    int? sortOrder,
+   455→    int? timeLimitMinutes,
+   456→    bool? randomizeQuestions,
+   457→    DateTime? createdAt,
+   458→  }) {
+   459→    return ExamSectionEntity(
+   460→      id: id ?? this.id,
+   461→      examId: examId ?? this.examId,
+   462→      title: title ?? this.title,
+   463→      description: description ?? this.description,
+   464→      instructions: instructions ?? this.instructions,
+   465→      sortOrder: sortOrder ?? this.sortOrder,
+   466→      timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
+   467→      randomizeQuestions: randomizeQuestions ?? this.randomizeQuestions,
+   468→      createdAt: createdAt ?? this.createdAt,
+   469→    );
+   470→  }
+   471→
+   472→  @override
+   473→  List<Object?> get props => [
+   474→        id,
+   475→        examId,
+   476→        title,
+   477→        description,
+   478→        instructions,
+   479→        sortOrder,
+   480→        timeLimitMinutes,
+   481→        randomizeQuestions,
+   482→        createdAt,
+   483→      ];
+   484→}
+   485→
+   486→/// Represents a question linked to an exam, with exam-specific overrides
+   487→/// for marks and ordering.
+   488→class ExamQuestionEntity extends Equatable {
+   489→  const ExamQuestionEntity({
+   490→    required this.id,
+   491→    required this.examId,
+   492→    this.sectionId,
+   493→    required this.questionId,
+   494→    required this.sortOrder,
+   495→    required this.marks,
+   496→    this.negativeMarks = 0.0,
+   497→    this.isCompulsory = true,
+   498→    this.question,
+   499→    required this.createdAt,
+   500→  });
+   501→
+   502→  final String id;
+   503→  final String examId;
+   504→  final String? sectionId;
+   505→  final String questionId;
+   506→  final int sortOrder;
+   507→  final double marks;
+   508→  final double negativeMarks;
+   509→  final bool isCompulsory;
+   510→
+   511→  /// The full question entity, loaded when [withDetails] is requested.
+   512→  final QuestionEntity? question;
+   513→
+   514→  final DateTime createdAt;
+   515→
+   516→  ExamQuestionEntity copyWith({
+   517→    String? id,
+   518→    String? examId,
+   519→    String? sectionId,
+   520→    String? questionId,
+   521→    int? sortOrder,
+   522→    double? marks,
+   523→    double? negativeMarks,
+   524→    bool? isCompulsory,
+   525→    QuestionEntity? question,
+   526→    DateTime? createdAt,
+   527→  }) {
+   528→    return ExamQuestionEntity(
+   529→      id: id ?? this.id,
+   530→      examId: examId ?? this.examId,
+   531→      sectionId: sectionId ?? this.sectionId,
+   532→      questionId: questionId ?? this.questionId,
+   533→      sortOrder: sortOrder ?? this.sortOrder,
+   534→      marks: marks ?? this.marks,
+   535→      negativeMarks: negativeMarks ?? this.negativeMarks,
+   536→      isCompulsory: isCompulsory ?? this.isCompulsory,
+   537→      question: question ?? this.question,
+   538→      createdAt: createdAt ?? this.createdAt,
+   539→    );
+   540→  }
+   541→
+   542→  @override
+   543→  List<Object?> get props => [
+   544→        id,
+   545→        examId,
+   546→        sectionId,
+   547→        questionId,
+   548→        sortOrder,
+   549→        marks,
+   550→        negativeMarks,
+   551→        isCompulsory,
+   552→        question,
+   553→        createdAt,
+   554→      ];
+   555→}
+   556→
+   557→/// Represents a student assigned to an exam with per-student overrides.
+   558→class ExamStudentEntity extends Equatable {
+   559→  const ExamStudentEntity({
+   560→    required this.id,
+   561→    required this.examId,
+   562→    required this.studentId,
+   563→    this.allowedAttempts,
+   564→    this.extraTimeMinutes = 0,
+   565→    this.isExempt = false,
+   566→    this.startedAt,
+   567→    this.completedAt,
+   568→    required this.createdAt,
+   569→  });
+   570→
+   571→  final String id;
+   572→  final String examId;
+   573→  final String studentId;
+   574→  final int? allowedAttempts;
+   575→  final int extraTimeMinutes;
+   576→  final bool isExempt;
+   577→  final DateTime? startedAt;
+   578→  final DateTime? completedAt;
+   579→  final DateTime createdAt;
+   580→
+   581→  ExamStudentEntity copyWith({
+   582→    String? id,
+   583→    String? examId,
+   584→    String? studentId,
+   585→    int? allowedAttempts,
+   586→    int? extraTimeMinutes,
+   587→    bool? isExempt,
+   588→    DateTime? startedAt,
+   589→    DateTime? completedAt,
+   590→    DateTime? createdAt,
+   591→  }) {
+   592→    return ExamStudentEntity(
+   593→      id: id ?? this.id,
+   594→      examId: examId ?? this.examId,
+   595→      studentId: studentId ?? this.studentId,
+   596→      allowedAttempts: allowedAttempts ?? this.allowedAttempts,
+   597→      extraTimeMinutes: extraTimeMinutes ?? this.extraTimeMinutes,
+   598→      isExempt: isExempt ?? this.isExempt,
+   599→      startedAt: startedAt ?? this.startedAt,
+   600→      completedAt: completedAt ?? this.completedAt,
+   601→      createdAt: createdAt ?? this.createdAt,
+   602→    );
+   603→  }
+   604→
+   605→  @override
+   606→  List<Object?> get props => [
+   607→        id,
+   608→        examId,
+   609→        studentId,
+   610→        allowedAttempts,
+   611→        extraTimeMinutes,
+   612→        isExempt,
+   613→        startedAt,
+   614→        completedAt,
+   615→        createdAt,
+   616→      ];
+   617→}
+   618→
+   619→/// Represents a single answer submitted by a student during an exam attempt.
+   620→class StudentAnswerEntity extends Equatable {
+   621→  const StudentAnswerEntity({
+   622→    required this.id,
+   623→    required this.attemptId,
+   624→    required this.questionId,
+   625→    this.examQuestionId,
+   626→    required this.answerData,
+   627→    this.isCorrect,
+   628→    this.marksAwarded = 0.0,
+   629→    this.marksDeducted = 0.0,
+   630→    this.timeSpentSeconds = 0,
+   631→    this.isFlagged = false,
+   632→    this.teacherComment,
+   633→    this.gradedBy,
+   634→    this.gradedAt,
+   635→    this.answeredAt,
+   636→    this.updatedAt,
+   637→  });
+   638→
+   639→  final String id;
+   640→  final String attemptId;
+   641→  final String questionId;
+   642→  final String? examQuestionId;
+   643→
+   644→  /// Flexible answer payload that accommodates all question types.
+   645→  ///
+   646→  /// For multiple choice: `{'selected_option_id': 'abc123'}`
+   647→  /// For multiple response: `{'selected_option_ids': ['abc123', 'def456']}`
+   648→  /// For fill-in-blank: `{'blanks': [{'index': 0, 'answer': 'photosynthesis'}]}`
+   649→  /// For matching: `{'pairs': [{'left_id': 'l1', 'right_id': 'r2'}]}`
+   650→  /// For ordering: `{'ordered_ids': ['q1', 'q3', 'q2']}`
+   651→  /// For essay/short answer: `{'text': 'Student response...'}`
+   652→  /// For numerical: `{'value': 42.5}`
+   653→  final Map<String, dynamic> answerData;
+   654→
+   655→  final bool? isCorrect;
+   656→  final double marksAwarded;
+   657→  final double marksDeducted;
+   658→  final int timeSpentSeconds;
+   659→  final bool isFlagged;
+   660→  final String? teacherComment;
+   661→  final String? gradedBy;
+   662→  final DateTime? gradedAt;
+   663→  final DateTime? answeredAt;
+   664→  final DateTime? updatedAt;
+   665→
+   666→  StudentAnswerEntity copyWith({
+   667→    String? id,
+   668→    String? attemptId,
+   669→    String? questionId,
+   670→    String? examQuestionId,
+   671→    Map<String, dynamic>? answerData,
+   672→    bool? isCorrect,
+   673→    double? marksAwarded,
+   674→    double? marksDeducted,
+   675→    int? timeSpentSeconds,
+   676→    bool? isFlagged,
+   677→    String? teacherComment,
+   678→    String? gradedBy,
+   679→    DateTime? gradedAt,
+   680→    DateTime? answeredAt,
+   681→    DateTime? updatedAt,
+   682→  }) {
+   683→    return StudentAnswerEntity(
+   684→      id: id ?? this.id,
+   685→      attemptId: attemptId ?? this.attemptId,
+   686→      questionId: questionId ?? this.questionId,
+   687→      examQuestionId: examQuestionId ?? this.examQuestionId,
+   688→      answerData: answerData ?? this.answerData,
+   689→      isCorrect: isCorrect ?? this.isCorrect,
+   690→      marksAwarded: marksAwarded ?? this.marksAwarded,
+   691→      marksDeducted: marksDeducted ?? this.marksDeducted,
+   692→      timeSpentSeconds: timeSpentSeconds ?? this.timeSpentSeconds,
+   693→      isFlagged: isFlagged ?? this.isFlagged,
+   694→      teacherComment: teacherComment ?? this.teacherComment,
+   695→      gradedBy: gradedBy ?? this.gradedBy,
+   696→      gradedAt: gradedAt ?? this.gradedAt,
+   697→      answeredAt: answeredAt ?? this.answeredAt,
+   698→      updatedAt: updatedAt ?? this.updatedAt,
+   699→    );
+   700→  }
+   701→
+   702→  @override
+   703→  List<Object?> get props => [
+   704→        id,
+   705→        attemptId,
+   706→        questionId,
+   707→        examQuestionId,
+   708→        answerData,
+   709→        isCorrect,
+   710→        marksAwarded,
+   711→        marksDeducted,
+   712→        timeSpentSeconds,
+   713→        isFlagged,
+   714→        teacherComment,
+   715→        gradedBy,
+   716→        gradedAt,
+   717→        answeredAt,
+   718→        updatedAt,
+   719→      ];
+   720→}
+   721→
+   722→/// Represents a student's attempt at an exam.
+   723→class ExamAttemptEntity extends Equatable {
+   724→  const ExamAttemptEntity({
+   725→    required this.id,
+   726→    required this.examId,
+   727→    required this.studentId,
+   728→    required this.attemptNumber,
+   729→    required this.status,
+   730→    required this.startedAt,
+   731→    this.submittedAt,
+   732→    this.submissionType,
+   733→    this.timeSpentSeconds = 0,
+   734→    this.totalMarks = 0.0,
+   735→    this.scorePercentage = 0.0,
+   736→    this.isPassed = false,
+   737→    required this.gradingStatus,
+   738→    this.gradedBy,
+   739→    this.gradedAt,
+   740→    this.deviceInfo,
+   741→    this.ipAddress,
+   742→    this.userAgent,
+   743→    this.lastActivityAt,
+   744→    this.autoSaveData,
+   745→    this.metadata,
+   746→    this.answers = const [],
+   747→    this.exam,
+   748→    required this.createdAt,
+   749→    required this.updatedAt,
+   750→  });
+   751→
+   752→  final String id;
+   753→  final String examId;
+   754→  final String studentId;
+   755→  final int attemptNumber;
+   756→  final AttemptStatus status;
+   757→  final DateTime startedAt;
+   758→  final DateTime? submittedAt;
+   759→  final SubmissionType? submissionType;
+   760→  final int timeSpentSeconds;
+   761→  final double totalMarks;
+   762→  final double scorePercentage;
+   763→  final bool isPassed;
+   764→  final GradingStatus gradingStatus;
+   765→  final String? gradedBy;
+   766→  final DateTime? gradedAt;
+   767→  final Map<String, dynamic>? deviceInfo;
+   768→  final String? ipAddress;
+   769→  final String? userAgent;
+   770→  final DateTime? lastActivityAt;
+   771→  final Map<String, dynamic>? autoSaveData;
+   772→  final Map<String, dynamic>? metadata;
+   773→
+   774→  /// All answers submitted in this attempt, loaded when [withAnswers] is
+   775→  /// requested.
+   776→  final List<StudentAnswerEntity> answers;
+   777→
+   778→  /// The parent exam entity, loaded for display purposes.
+   779→  final ExamEntity? exam;
+   780→
+   781→  final DateTime createdAt;
+   782→  final DateTime updatedAt;
+   783→
+   784→  ExamAttemptEntity copyWith({
+   785→    String? id,
+   786→    String? examId,
+   787→    String? studentId,
+   788→    int? attemptNumber,
+   789→    AttemptStatus? status,
+   790→    DateTime? startedAt,
+   791→    DateTime? submittedAt,
+   792→    SubmissionType? submissionType,
+   793→    int? timeSpentSeconds,
+   794→    double? totalMarks,
+   795→    double? scorePercentage,
+   796→    bool? isPassed,
+   797→    GradingStatus? gradingStatus,
+   798→    String? gradedBy,
+   799→    DateTime? gradedAt,
+   800→    Map<String, dynamic>? deviceInfo,
+   801→    String? ipAddress,
+   802→    String? userAgent,
+   803→    DateTime? lastActivityAt,
+   804→    Map<String, dynamic>? autoSaveData,
+   805→    Map<String, dynamic>? metadata,
+   806→    List<StudentAnswerEntity>? answers,
+   807→    ExamEntity? exam,
+   808→    DateTime? createdAt,
+   809→    DateTime? updatedAt,
+   810→  }) {
+   811→    return ExamAttemptEntity(
+   812→      id: id ?? this.id,
+   813→      examId: examId ?? this.examId,
+   814→      studentId: studentId ?? this.studentId,
+   815→      attemptNumber: attemptNumber ?? this.attemptNumber,
+   816→      status: status ?? this.status,
+   817→      startedAt: startedAt ?? this.startedAt,
+   818→      submittedAt: submittedAt ?? this.submittedAt,
+   819→      submissionType: submissionType ?? this.submissionType,
+   820→      timeSpentSeconds: timeSpentSeconds ?? this.timeSpentSeconds,
+   821→      totalMarks: totalMarks ?? this.totalMarks,
+   822→      scorePercentage: scorePercentage ?? this.scorePercentage,
+   823→      isPassed: isPassed ?? this.isPassed,
+   824→      gradingStatus: gradingStatus ?? this.gradingStatus,
+   825→      gradedBy: gradedBy ?? this.gradedBy,
+   826→      gradedAt: gradedAt ?? this.gradedAt,
+   827→      deviceInfo: deviceInfo ?? this.deviceInfo,
+   828→      ipAddress: ipAddress ?? this.ipAddress,
+   829→      userAgent: userAgent ?? this.userAgent,
+   830→      lastActivityAt: lastActivityAt ?? this.lastActivityAt,
+   831→      autoSaveData: autoSaveData ?? this.autoSaveData,
+   832→      metadata: metadata ?? this.metadata,
+   833→      answers: answers ?? this.answers,
+   834→      exam: exam ?? this.exam,
+   835→      createdAt: createdAt ?? this.createdAt,
+   836→      updatedAt: updatedAt ?? this.updatedAt,
+   837→    );
+   838→  }
+   839→
+   840→  @override
+   841→  List<Object?> get props => [
+   842→        id,
+   843→        examId,
+   844→        studentId,
+   845→        attemptNumber,
+   846→        status,
+   847→        startedAt,
+   848→        submittedAt,
+   849→        submissionType,
+   850→        timeSpentSeconds,
+   851→        totalMarks,
+   852→        scorePercentage,
+   853→        isPassed,
+   854→        gradingStatus,
+   855→        gradedBy,
+   856→        gradedAt,
+   857→        deviceInfo,
+   858→        ipAddress,
+   859→        userAgent,
+   860→        lastActivityAt,
+   861→        autoSaveData,
+   862→        metadata,
+   863→        answers,
+   864→        exam,
+   865→        createdAt,
+   866→        updatedAt,
+   867→      ];
+   868→}
+   869→
+   870→/// Represents a real-time session for an active exam attempt.
+   871→///
+   872→/// This entity is updated frequently via WebSocket/Supabase Realtime
+   873→/// and is used for live monitoring dashboards.
+   874→class ExamSessionEntity extends Equatable {
+   875→  const ExamSessionEntity({
+   876→    required this.id,
+   877→    required this.attemptId,
+   878→    required this.examId,
+   879→    required this.studentId,
+   880→    this.isActive = true,
+   881→    this.currentQuestionIndex = 0,
+   882→    this.questionsAnswered = 0,
+   883→    this.questionsFlagged = 0,
+   884→    required this.lastHeartbeat,
+   885→    this.connectionStatus = 'connected',
+   886→    this.ipAddress,
+   887→    this.deviceFingerprint,
+   888→    this.tabSwitchCount = 0,
+   889→    this.focusLostCount = 0,
+   890→    required this.createdAt,
+   891→    required this.updatedAt,
+   892→  });
+   893→
+   894→  final String id;
+   895→  final String attemptId;
+   896→  final String examId;
+   897→  final String studentId;
+   898→  final bool isActive;
+   899→  final int currentQuestionIndex;
+   900→  final int questionsAnswered;
+   901→  final int questionsFlagged;
+   902→  final DateTime lastHeartbeat;
+   903→
+   904→  /// One of: 'connected', 'disconnected', 'reconnecting'.
+   905→  final String connectionStatus;
+   906→  final String? ipAddress;
+   907→  final String? deviceFingerprint;
+   908→  final int tabSwitchCount;
+   909→  final int focusLostCount;
+   910→  final DateTime createdAt;
+   911→  final DateTime updatedAt;
+   912→
+   913→  ExamSessionEntity copyWith({
+   914→    String? id,
+   915→    String? attemptId,
+   916→    String? examId,
+   917→    String? studentId,
+   918→    bool? isActive,
+   919→    int? currentQuestionIndex,
+   920→    int? questionsAnswered,
+   921→    int? questionsFlagged,
+   922→    DateTime? lastHeartbeat,
+   923→    String? connectionStatus,
+   924→    String? ipAddress,
+   925→    String? deviceFingerprint,
+   926→    int? tabSwitchCount,
+   927→    int? focusLostCount,
+   928→    DateTime? createdAt,
+   929→    DateTime? updatedAt,
+   930→  }) {
+   931→    return ExamSessionEntity(
+   932→      id: id ?? this.id,
+   933→      attemptId: attemptId ?? this.attemptId,
+   934→      examId: examId ?? this.examId,
+   935→      studentId: studentId ?? this.studentId,
+   936→      isActive: isActive ?? this.isActive,
+   937→      currentQuestionIndex: currentQuestionIndex ?? this.currentQuestionIndex,
+   938→      questionsAnswered: questionsAnswered ?? this.questionsAnswered,
+   939→      questionsFlagged: questionsFlagged ?? this.questionsFlagged,
+   940→      lastHeartbeat: lastHeartbeat ?? this.lastHeartbeat,
+   941→      connectionStatus: connectionStatus ?? this.connectionStatus,
+   942→      ipAddress: ipAddress ?? this.ipAddress,
+   943→      deviceFingerprint: deviceFingerprint ?? this.deviceFingerprint,
+   944→      tabSwitchCount: tabSwitchCount ?? this.tabSwitchCount,
+   945→      focusLostCount: focusLostCount ?? this.focusLostCount,
+   946→      createdAt: createdAt ?? this.createdAt,
+   947→      updatedAt: updatedAt ?? this.updatedAt,
+   948→    );
+   949→  }
+   950→
+   951→  @override
+   952→  List<Object?> get props => [
+   953→        id,
+   954→        attemptId,
+   955→        examId,
+   956→        studentId,
+   957→        isActive,
+   958→        currentQuestionIndex,
+   959→        questionsAnswered,
+   960→        questionsFlagged,
+   961→        lastHeartbeat,
+   962→        connectionStatus,
+   963→        ipAddress,
+   964→        deviceFingerprint,
+   965→        tabSwitchCount,
+   966→        focusLostCount,
+   967→        createdAt,
+   968→        updatedAt,
+   969→      ];
+   970→}
+   971→
+   972→/// Represents a monitoring event logged during an exam attempt.
+   973→///
+   974→/// Used for anti-cheating detection and audit trails.
+   975→class MonitoringLogEntity extends Equatable {
+   976→  const MonitoringLogEntity({
+   977→    required this.id,
+   978→    required this.attemptId,
+   979→    required this.examId,
+   980→    required this.studentId,
+   981→    required this.eventType,
+   982→    this.eventData,
+   983→    required this.severity,
+   984→    this.isResolved = false,
+   985→    this.resolvedBy,
+   986→    this.resolvedAt,
+   987→    required this.createdAt,
+   988→  });
+   989→
+   990→  final String id;
+   991→  final String attemptId;
+   992→  final String examId;
+   993→  final String studentId;
+   994→  final MonitoringEventType eventType;
+   995→  final Map<String, dynamic>? eventData;
+   996→
+   997→  /// One of: 'info', 'warning', 'critical'.
+   998→  final String severity;
+   999→  final bool isResolved;
+  1000→  final String? resolvedBy;
+  1001→  final DateTime? resolvedAt;
+  1002→  final DateTime createdAt;
+  1003→
+  1004→  MonitoringLogEntity copyWith({
+  1005→    String? id,
+  1006→    String? attemptId,
+  1007→    String? examId,
+  1008→    String? studentId,
+  1009→    MonitoringEventType? eventType,
+  1010→    Map<String, dynamic>? eventData,
+  1011→    String? severity,
+  1012→    bool? isResolved,
+  1013→    String? resolvedBy,
+  1014→    DateTime? resolvedAt,
+  1015→    DateTime? createdAt,
+  1016→  }) {
+  1017→    return MonitoringLogEntity(
+  1018→      id: id ?? this.id,
+  1019→      attemptId: attemptId ?? this.attemptId,
+  1020→      examId: examId ?? this.examId,
+  1021→      studentId: studentId ?? this.studentId,
+  1022→      eventType: eventType ?? this.eventType,
+  1023→      eventData: eventData ?? this.eventData,
+  1024→      severity: severity ?? this.severity,
+  1025→      isResolved: isResolved ?? this.isResolved,
+  1026→      resolvedBy: resolvedBy ?? this.resolvedBy,
+  1027→      resolvedAt: resolvedAt ?? this.resolvedAt,
+  1028→      createdAt: createdAt ?? this.createdAt,
+  1029→    );
+  1030→  }
+  1031→
+  1032→  @override
+  1033→  List<Object?> get props => [
+  1034→        id,
+  1035→        attemptId,
+  1036→        examId,
+  1037→        studentId,
+  1038→        eventType,
+  1039→        eventData,
+  1040→        severity,
+  1041→        isResolved,
+  1042→        resolvedBy,
+  1043→        resolvedAt,
+  1044→        createdAt,
+  1045→      ];
+  1046→}
+  1047→
+  1048→/// Represents the computed result for a student's exam attempt.
+  1049→class ExamResultEntity extends Equatable {
+  1050→  const ExamResultEntity({
+  1051→    required this.id,
+  1052→    required this.examId,
+  1053→    required this.studentId,
+  1054→    required this.attemptId,
+  1055→    required this.totalMarks,
+  1056→    required this.totalPossible,
+  1057→    required this.scorePercentage,
+  1058→    this.grade,
+  1059→    required this.isPassed,
+  1060→    this.rank,
+  1061→    this.subjectAverage,
+  1062→    required this.timeSpentSeconds,
+  1063→    required this.gradingStatus,
+  1064→    this.releasedAt,
+  1065→    this.isReleased = false,
+  1066→    this.metadata,
+  1067→    required this.createdAt,
+  1068→    required this.updatedAt,
+  1069→  });
+  1070→
+  1071→  final String id;
+  1072→  final String examId;
+  1073→  final String studentId;
+  1074→  final String attemptId;
+  1075→  final double totalMarks;
+  1076→  final double totalPossible;
+  1077→  final double scorePercentage;
+  1078→  final String? grade;
+  1079→  final bool isPassed;
+  1080→  final int? rank;
+  1081→  final double? subjectAverage;
+  1082→  final int timeSpentSeconds;
+  1083→  final GradingStatus gradingStatus;
+  1084→  final DateTime? releasedAt;
+  1085→  final bool isReleased;
+  1086→  final Map<String, dynamic>? metadata;
+  1087→  final DateTime createdAt;
+  1088→  final DateTime updatedAt;
+  1089→
+  1090→  ExamResultEntity copyWith({
+  1091→    String? id,
+  1092→    String? examId,
+  1093→    String? studentId,
+  1094→    String? attemptId,
+  1095→    double? totalMarks,
+  1096→    double? totalPossible,
+  1097→    double? scorePercentage,
+  1098→    String? grade,
+  1099→    bool? isPassed,
+  1100→    int? rank,
+  1101→    double? subjectAverage,
+  1102→    int? timeSpentSeconds,
+  1103→    GradingStatus? gradingStatus,
+  1104→    DateTime? releasedAt,
+  1105→    bool? isReleased,
+  1106→    Map<String, dynamic>? metadata,
+  1107→    DateTime? createdAt,
+  1108→    DateTime? updatedAt,
+  1109→  }) {
+  1110→    return ExamResultEntity(
+  1111→      id: id ?? this.id,
+  1112→      examId: examId ?? this.examId,
+  1113→      studentId: studentId ?? this.studentId,
+  1114→      attemptId: attemptId ?? this.attemptId,
+  1115→      totalMarks: totalMarks ?? this.totalMarks,
+  1116→      totalPossible: totalPossible ?? this.totalPossible,
+  1117→      scorePercentage: scorePercentage ?? this.scorePercentage,
+  1118→      grade: grade ?? this.grade,
+  1119→      isPassed: isPassed ?? this.isPassed,
+  1120→      rank: rank ?? this.rank,
+  1121→      subjectAverage: subjectAverage ?? this.subjectAverage,
+  1122→      timeSpentSeconds: timeSpentSeconds ?? this.timeSpentSeconds,
+  1123→      gradingStatus: gradingStatus ?? this.gradingStatus,
+  1124→      releasedAt: releasedAt ?? this.releasedAt,
+  1125→      isReleased: isReleased ?? this.isReleased,
+  1126→      metadata: metadata ?? this.metadata,
+  1127→      createdAt: createdAt ?? this.createdAt,
+  1128→      updatedAt: updatedAt ?? this.updatedAt,
+  1129→    );
+  1130→  }
+  1131→
+  1132→  @override
+  1133→  List<Object?> get props => [
+  1134→        id,
+  1135→        examId,
+  1136→        studentId,
+  1137→        attemptId,
+  1138→        totalMarks,
+  1139→        totalPossible,
+  1140→        scorePercentage,
+  1141→        grade,
+  1142→        isPassed,
+  1143→        rank,
+  1144→        subjectAverage,
+  1145→        timeSpentSeconds,
+  1146→        gradingStatus,
+  1147→        releasedAt,
+  1148→        isReleased,
+  1149→        metadata,
+  1150→        createdAt,
+  1151→        updatedAt,
+  1152→      ];
+  1153→}
+  1154→
+  1155→/// Represents a student's ranking in an exam leaderboard.
+  1156→class ExamRankingEntity extends Equatable {
+  1157→  const ExamRankingEntity({
+  1158→    required this.id,
+  1159→    required this.examId,
+  1160→    required this.studentId,
+  1161→    required this.attemptId,
+  1162→    required this.rank,
+  1163→    required this.totalMarks,
+  1164→    required this.scorePercentage,
+  1165→    required this.createdAt,
+  1166→  });
+  1167→
+  1168→  final String id;
+  1169→  final String examId;
+  1170→  final String studentId;
+  1171→  final String attemptId;
+  1172→  final int rank;
+  1173→  final double totalMarks;
+  1174→  final double scorePercentage;
+  1175→  final DateTime createdAt;
+  1176→
+  1177→  ExamRankingEntity copyWith({
+  1178→    String? id,
+  1179→    String? examId,
+  1180→    String? studentId,
+  1181→    String? attemptId,
+  1182→    int? rank,
+  1183→    double? totalMarks,
+  1184→    double? scorePercentage,
+  1185→    DateTime? createdAt,
+  1186→  }) {
+  1187→    return ExamRankingEntity(
+  1188→      id: id ?? this.id,
+  1189→      examId: examId ?? this.examId,
+  1190→      studentId: studentId ?? this.studentId,
+  1191→      attemptId: attemptId ?? this.attemptId,
+  1192→      rank: rank ?? this.rank,
+  1193→      totalMarks: totalMarks ?? this.totalMarks,
+  1194→      scorePercentage: scorePercentage ?? this.scorePercentage,
+  1195→      createdAt: createdAt ?? this.createdAt,
+  1196→    );
+  1197→  }
+  1198→
+  1199→  @override
+  1200→  List<Object?> get props => [
+  1201→        id,
+  1202→        examId,
+  1203→        studentId,
+  1204→        attemptId,
+  1205→        rank,
+  1206→        totalMarks,
+  1207→        scorePercentage,
+  1208→        createdAt,
+  1209→      ];
+  1210→}
+  1211→
+  1212→/// Represents a notification related to an exam.
+  1213→class ExamNotificationEntity extends Equatable {
+  1214→  const ExamNotificationEntity({
+  1215→    required this.id,
+  1216→    this.examId,
+  1217→    this.studentId,
+  1218→    required this.category,
+  1219→    required this.title,
+  1220→    required this.message,
+  1221→    this.data,
+  1222→    this.isRead = false,
+  1223→    this.readAt,
+  1224→    this.scheduledFor,
+  1225→    this.sentAt,
+  1226→    required this.createdAt,
+  1227→  });
+  1228→
+  1229→  final String id;
+  1230→  final String? examId;
+  1231→  final String? studentId;
+  1232→  final NotificationCategory category;
+  1233→  final String title;
+  1234→  final String message;
+  1235→  final Map<String, dynamic>? data;
+  1236→  final bool isRead;
+  1237→  final DateTime? readAt;
+  1238→  final DateTime? scheduledFor;
+  1239→  final DateTime? sentAt;
+  1240→  final DateTime createdAt;
+  1241→
+  1242→  ExamNotificationEntity copyWith({
+  1243→    String? id,
+  1244→    String? examId,
+  1245→    String? studentId,
+  1246→    NotificationCategory? category,
+  1247→    String? title,
+  1248→    String? message,
+  1249→    Map<String, dynamic>? data,
+  1250→    bool? isRead,
+  1251→    DateTime? readAt,
+  1252→    DateTime? scheduledFor,
+  1253→    DateTime? sentAt,
+  1254→    DateTime? createdAt,
+  1255→  }) {
+  1256→    return ExamNotificationEntity(
+  1257→      id: id ?? this.id,
+  1258→      examId: examId ?? this.examId,
+  1259→      studentId: studentId ?? this.studentId,
+  1260→      category: category ?? this.category,
+  1261→      title: title ?? this.title,
+  1262→      message: message ?? this.message,
+  1263→      data: data ?? this.data,
+  1264→      isRead: isRead ?? this.isRead,
+  1265→      readAt: readAt ?? this.readAt,
+  1266→      scheduledFor: scheduledFor ?? this.scheduledFor,
+  1267→      sentAt: sentAt ?? this.sentAt,
+  1268→      createdAt: createdAt ?? this.createdAt,
+  1269→    );
+  1270→  }
+  1271→
+  1272→  @override
+  1273→  List<Object?> get props => [
+  1274→        id,
+  1275→        examId,
+  1276→        studentId,
+  1277→        category,
+  1278→        title,
+  1279→        message,
+  1280→        data,
+  1281→        isRead,
+  1282→        readAt,
+  1283→        scheduledFor,
+  1284→        sentAt,
+  1285→        createdAt,
+  1286→      ];
+  1287→}
+  1288→
+  1289→/// Represents a single entry in a grade scale (e.g., A: 70-100, B: 60-69).
+  1290→class GradeScaleEntry extends Equatable {
+  1291→  const GradeScaleEntry({
+  1292→    required this.minPercentage,
+  1293→    required this.maxPercentage,
+  1294→    required this.grade,
+  1295→    this.description,
+  1296→    required this.isPassing,
+  1297→  });
+  1298→
+  1299→  final double minPercentage;
+  1300→  final double maxPercentage;
+  1301→  final String grade;
+  1302→  final String? description;
+  1303→  final bool isPassing;
+  1304→
+  1305→  GradeScaleEntry copyWith({
+  1306→    double? minPercentage,
+  1307→    double? maxPercentage,
+  1308→    String? grade,
+  1309→    String? description,
+  1310→    bool? isPassing,
+  1311→  }) {
+  1312→    return GradeScaleEntry(
+  1313→      minPercentage: minPercentage ?? this.minPercentage,
+  1314→      maxPercentage: maxPercentage ?? this.maxPercentage,
+  1315→      grade: grade ?? this.grade,
+  1316→      description: description ?? this.description,
+  1317→      isPassing: isPassing ?? this.isPassing,
+  1318→    );
+  1319→  }
+  1320→
+  1321→  @override
+  1322→  List<Object?> get props => [
+  1323→        minPercentage,
+  1324→        maxPercentage,
+  1325→        grade,
+  1326→        description,
+  1327→        isPassing,
+  1328→      ];
+  1329→}
+  1330→
+  1331→/// Represents a grading scale used to convert percentage scores to letter
+  1332→/// grades.
+  1333→class GradeScaleEntity extends Equatable {
+  1334→  const GradeScaleEntity({
+  1335→    required this.id,
+  1336→    required this.schoolId,
+  1337→    required this.name,
+  1338→    this.isDefault = false,
+  1339→    this.scaleEntries = const [],
+  1340→    this.createdBy,
+  1341→    required this.createdAt,
+  1342→    required this.updatedAt,
+  1343→  });
+  1344→
+  1345→  final String id;
+  1346→  final String schoolId;
+  1347→  final String name;
+  1348→  final bool isDefault;
+  1349→  final List<GradeScaleEntry> scaleEntries;
+  1350→  final String? createdBy;
+  1351→  final DateTime createdAt;
+  1352→  final DateTime updatedAt;
+  1353→
+  1354→  GradeScaleEntity copyWith({
+  1355→    String? id,
+  1356→    String? schoolId,
+  1357→    String? name,
+  1358→    bool? isDefault,
+  1359→    List<GradeScaleEntry>? scaleEntries,
+  1360→    String? createdBy,
+  1361→    DateTime? createdAt,
+  1362→    DateTime? updatedAt,
+  1363→  }) {
+  1364→    return GradeScaleEntity(
+  1365→      id: id ?? this.id,
+  1366→      schoolId: schoolId ?? this.schoolId,
+  1367→      name: name ?? this.name,
+  1368→      isDefault: isDefault ?? this.isDefault,
+  1369→      scaleEntries: scaleEntries ?? this.scaleEntries,
+  1370→      createdBy: createdBy ?? this.createdBy,
+  1371→      createdAt: createdAt ?? this.createdAt,
+  1372→      updatedAt: updatedAt ?? this.updatedAt,
+  1373→    );
+  1374→  }
+  1375→
+  1376→  @override
+  1377→  List<Object?> get props => [
+  1378→        id,
+  1379→        schoolId,
+  1380→        name,
+  1381→        isDefault,
+  1382→        scaleEntries,
+  1383→        createdBy,
+  1384→        createdAt,
+  1385→        updatedAt,
+  1386→      ];
+  1387→}
+  1388→
+  1389→/// THE MAIN EXAM entity representing a computer-based test.
+  1390→///
+  1391→/// Contains all configuration for exam delivery including timing, security,
+  1392→/// randomization, result visibility, and relations to sections, questions,
+  1393→/// and student assignments.
+  1394→class ExamEntity extends Equatable {
+  1395→  const ExamEntity({
+  1396→    required this.id,
+  1397→    required this.schoolId,
+  1398→    required this.createdBy,
+  1399→    required this.title,
+  1400→    this.description,
+  1401→    required this.subjectId,
+  1402→    required this.classId,
+  1403→    required this.academicSessionId,
+  1404→    required this.examType,
+  1405→    required this.status,
+  1406→    required this.startTime,
+  1407→    required this.endTime,
+  1408→    required this.timeLimitMinutes,
+  1409→    required this.totalMarks,
+  1410→    required this.passMark,
+  1411→    this.passMarkType = 'percentage',
+  1412→    this.instructions,
+  1413→    this.allowedAttempts = 1,
+  1414→    this.negativeMarkingEnabled = false,
+  1415→    this.negativeMarkValue = 0.0,
+  1416→    this.gracePeriodMinutes = 0,
+  1417→    this.autoSubmit = true,
+  1418→    this.randomizeQuestions = false,
+  1419→    this.randomizeOptions = false,
+  1420→    this.showResults = 'after_submission',
+  1421→    this.showCorrectAnswers = false,
+  1422→    this.showExplanations = false,
+  1423→    this.isTemplate = false,
+  1424→    this.templateId,
+  1425→    this.maxStudents,
+  1426→    this.ipRestriction,
+  1427→    this.requireFullScreen = false,
+  1428→    this.allowResume = true,
+  1429→    this.browserLockdown = false,
+  1430→    this.metadata,
+  1431→    this.publishedAt,
+  1432→    this.sections = const [],
+  1433→    this.questions = const [],
+  1434→    required this.createdAt,
+  1435→    required this.updatedAt,
+  1436→  });
+  1437→
+  1438→  // ── Identifiers ─────────────────────────────────────────────────────
+  1439→  final String id;
+  1440→  final String schoolId;
+  1441→  final String createdBy;
+  1442→
+  1443→  // ── Content ─────────────────────────────────────────────────────────
+  1444→  final String title;
+  1445→  final String? description;
+  1446→
+  1447→  // ── Classification ──────────────────────────────────────────────────
+  1448→  final String subjectId;
+  1449→  final String classId;
+  1450→  final String academicSessionId;
+  1451→  final ExamType examType;
+  1452→  final ExamStatus status;
+  1453→
+  1454→  // ── Scheduling ──────────────────────────────────────────────────────
+  1455→  final DateTime startTime;
+  1456→  final DateTime endTime;
+  1457→  final int timeLimitMinutes;
+  1458→
+  1459→  // ── Scoring ─────────────────────────────────────────────────────────
+  1460→  final double totalMarks;
+  1461→  final double passMark;
+  1462→
+  1463→  /// Either 'percentage' or 'absolute'.
+  1464→  final String passMarkType;
+  1465→
+  1466→  // ── Instructions ────────────────────────────────────────────────────
+  1467→  final String? instructions;
+  1468→
+  1469→  // ── Attempt Rules ───────────────────────────────────────────────────
+  1470→  final int allowedAttempts;
+  1471→
+  1472→  // ── Negative Marking ────────────────────────────────────────────────
+  1473→  final bool negativeMarkingEnabled;
+  1474→  final double negativeMarkValue;
+  1475→
+  1476→  // ── Timing ──────────────────────────────────────────────────────────
+  1477→  final int gracePeriodMinutes;
+  1478→  final bool autoSubmit;
+  1479→
+  1480→  // ── Randomization ───────────────────────────────────────────────────
+  1481→  final bool randomizeQuestions;
+  1482→  final bool randomizeOptions;
+  1483→
+  1484→  // ── Result Visibility ───────────────────────────────────────────────
+  1485→  /// One of: 'immediate', 'after_submission', 'after_grading', 'manual'.
+  1486→  final String showResults;
+  1487→  final bool showCorrectAnswers;
+  1488→  final bool showExplanations;
+  1489→
+  1490→  // ── Template ────────────────────────────────────────────────────────
+  1491→  final bool isTemplate;
+  1492→  final String? templateId;
+  1493→
+  1494→  // ── Capacity & Access ───────────────────────────────────────────────
+  1495→  final int? maxStudents;
+  1496→  final List<String>? ipRestriction;
+  1497→
+  1498→  // ── Security ────────────────────────────────────────────────────────
+  1499→  final bool requireFullScreen;
+  1500→  final bool allowResume;
+  1501→  final bool browserLockdown;
+  1502→
+  1503→  // ── Extensibility ───────────────────────────────────────────────────
+  1504→  final Map<String, dynamic>? metadata;
+  1505→  final DateTime? publishedAt;
+  1506→
+  1507→  // ── Relations ───────────────────────────────────────────────────────
+  1508→  final List<ExamSectionEntity> sections;
+  1509→  final List<ExamQuestionEntity> questions;
+  1510→
+  1511→  // ── Timestamps ──────────────────────────────────────────────────────
+  1512→  final DateTime createdAt;
+  1513→  final DateTime updatedAt;
+  1514→
+  1515→  ExamEntity copyWith({
+  1516→    String? id,
+  1517→    String? schoolId,
+  1518→    String? createdBy,
+  1519→    String? title,
+  1520→    String? description,
+  1521→    String? subjectId,
+  1522→    String? classId,
+  1523→    String? academicSessionId,
+  1524→    ExamType? examType,
+  1525→    ExamStatus? status,
+  1526→    DateTime? startTime,
+  1527→    DateTime? endTime,
+  1528→    int? timeLimitMinutes,
+  1529→    double? totalMarks,
+  1530→    double? passMark,
+  1531→    String? passMarkType,
+  1532→    String? instructions,
+  1533→    int? allowedAttempts,
+  1534→    bool? negativeMarkingEnabled,
+  1535→    double? negativeMarkValue,
+  1536→    int? gracePeriodMinutes,
+  1537→    bool? autoSubmit,
+  1538→    bool? randomizeQuestions,
+  1539→    bool? randomizeOptions,
+  1540→    String? showResults,
+  1541→    bool? showCorrectAnswers,
+  1542→    bool? showExplanations,
+  1543→    bool? isTemplate,
+  1544→    String? templateId,
+  1545→    int? maxStudents,
+  1546→    List<String>? ipRestriction,
+  1547→    bool? requireFullScreen,
+  1548→    bool? allowResume,
+  1549→    bool? browserLockdown,
+  1550→    Map<String, dynamic>? metadata,
+  1551→    DateTime? publishedAt,
+  1552→    List<ExamSectionEntity>? sections,
+  1553→    List<ExamQuestionEntity>? questions,
+  1554→    DateTime? createdAt,
+  1555→    DateTime? updatedAt,
+  1556→  }) {
+  1557→    return ExamEntity(
+  1558→      id: id ?? this.id,
+  1559→      schoolId: schoolId ?? this.schoolId,
+  1560→      createdBy: createdBy ?? this.createdBy,
+  1561→      title: title ?? this.title,
+  1562→      description: description ?? this.description,
+  1563→      subjectId: subjectId ?? this.subjectId,
+  1564→      classId: classId ?? this.classId,
+  1565→      academicSessionId: academicSessionId ?? this.academicSessionId,
+  1566→      examType: examType ?? this.examType,
+  1567→      status: status ?? this.status,
+  1568→      startTime: startTime ?? this.startTime,
+  1569→      endTime: endTime ?? this.endTime,
+  1570→      timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
+  1571→      totalMarks: totalMarks ?? this.totalMarks,
+  1572→      passMark: passMark ?? this.passMark,
+  1573→      passMarkType: passMarkType ?? this.passMarkType,
+  1574→      instructions: instructions ?? this.instructions,
+  1575→      allowedAttempts: allowedAttempts ?? this.allowedAttempts,
+  1576→      negativeMarkingEnabled:
+  1577→          negativeMarkingEnabled ?? this.negativeMarkingEnabled,
+  1578→      negativeMarkValue: negativeMarkValue ?? this.negativeMarkValue,
+  1579→      gracePeriodMinutes: gracePeriodMinutes ?? this.gracePeriodMinutes,
+  1580→      autoSubmit: autoSubmit ?? this.autoSubmit,
+  1581→      randomizeQuestions: randomizeQuestions ?? this.randomizeQuestions,
+  1582→      randomizeOptions: randomizeOptions ?? this.randomizeOptions,
+  1583→      showResults: showResults ?? this.showResults,
+  1584→      showCorrectAnswers: showCorrectAnswers ?? this.showCorrectAnswers,
+  1585→      showExplanations: showExplanations ?? this.showExplanations,
+  1586→      isTemplate: isTemplate ?? this.isTemplate,
+  1587→      templateId: templateId ?? this.templateId,
+  1588→      maxStudents: maxStudents ?? this.maxStudents,
+  1589→      ipRestriction: ipRestriction ?? this.ipRestriction,
+  1590→      requireFullScreen: requireFullScreen ?? this.requireFullScreen,
+  1591→      allowResume: allowResume ?? this.allowResume,
+  1592→      browserLockdown: browserLockdown ?? this.browserLockdown,
+  1593→      metadata: metadata ?? this.metadata,
+  1594→      publishedAt: publishedAt ?? this.publishedAt,
+  1595→      sections: sections ?? this.sections,
+  1596→      questions: questions ?? this.questions,
+  1597→      createdAt: createdAt ?? this.createdAt,
+  1598→      updatedAt: updatedAt ?? this.updatedAt,
+  1599→    );
+  1600→  }
+  1601→
+  1602→  /// Convenience getter to compute the effective pass mark based on
+  1603→  /// [passMarkType].
+  1604→  ///
+  1605→  /// If [passMarkType] is 'percentage', the pass mark is computed as
+  1606→  /// a percentage of [totalMarks]. Otherwise, [passMark] is treated
+  1607→  /// as an absolute value.
+  1608→  double get effectivePassMark {
+  1609→    if (passMarkType == 'percentage') {
+  1610→      return totalMarks * (passMark / 100);
+  1611→    }
+  1612→    return passMark;
+  1613→  }
+  1614→
+  1615→  /// Whether the exam is currently within its active time window.
+  1616→  bool get isWithinTimeWindow {
+  1617→    final now = DateTime.now();
+  1618→    return now.isAfter(startTime) && now.isBefore(endTime);
+  1619→  }
+  1620→
+  1621→  /// Whether the exam has not yet started.
+  1622→  bool get hasNotStarted => DateTime.now().isBefore(startTime);
+  1623→
+  1624→  /// Whether the exam time window has ended.
+  1625→  bool get hasEnded => DateTime.now().isAfter(endTime);
+  1626→
+  1627→  @override
+  1628→  List<Object?> get props => [
+  1629→        id,
+  1630→        schoolId,
+  1631→        createdBy,
+  1632→        title,
+  1633→        description,
+  1634→        subjectId,
+  1635→        classId,
+  1636→        academicSessionId,
+  1637→        examType,
+  1638→        status,
+  1639→        startTime,
+  1640→        endTime,
+  1641→        timeLimitMinutes,
+  1642→        totalMarks,
+  1643→        passMark,
+  1644→        passMarkType,
+  1645→        instructions,
+  1646→        allowedAttempts,
+  1647→        negativeMarkingEnabled,
+  1648→        negativeMarkValue,
+  1649→        gracePeriodMinutes,
+  1650→        autoSubmit,
+  1651→        randomizeQuestions,
+  1652→        randomizeOptions,
+  1653→        showResults,
+  1654→        showCorrectAnswers,
+  1655→        showExplanations,
+  1656→        isTemplate,
+  1657→        templateId,
+  1658→        maxStudents,
+  1659→        ipRestriction,
+  1660→        requireFullScreen,
+  1661→        allowResume,
+  1662→        browserLockdown,
+  1663→        metadata,
+  1664→        publishedAt,
+  1665→        sections,
+  1666→        questions,
+  1667→        createdAt,
+  1668→        updatedAt,
+  1669→      ];
+  1670→}
+  1671→
+  1672→/// Aggregated statistics for an exam. Not persisted — computed on demand.
+  1673→class ExamStatistics extends Equatable {
+  1674→  const ExamStatistics({
+  1675→    required this.examId,
+  1676→    required this.totalStudents,
+  1677→    required this.startedStudents,
+  1678→    required this.completedStudents,
+  1679→    required this.submittedStudents,
+  1680→    required this.averageScore,
+  1681→    required this.highestScore,
+  1682→    required this.lowestScore,
+  1683→    required this.medianScore,
+  1684→    required this.passRate,
+  1685→    required this.questionsByCorrectRate,
+  1686→    required this.averageTimeSpentSeconds,
+  1687→    required this.gradingCompletionPercentage,
+  1688→  });
+  1689→
+  1690→  final String examId;
+  1691→  final int totalStudents;
+  1692→  final int startedStudents;
+  1693→  final int completedStudents;
+  1694→  final int submittedStudents;
+  1695→  final double averageScore;
+  1696→  final double highestScore;
+  1697→  final double lowestScore;
+  1698→  final double medianScore;
+  1699→  final double passRate;
+  1700→
+  1701→  /// Map of question ID to the percentage of students who answered correctly.
+  1702→  final Map<String, double> questionsByCorrectRate;
+  1703→  final int averageTimeSpentSeconds;
+  1704→  final double gradingCompletionPercentage;
+  1705→
+  1706→  ExamStatistics copyWith({
+  1707→    String? examId,
+  1708→    int? totalStudents,
+  1709→    int? startedStudents,
+  1710→    int? completedStudents,
+  1711→    int? submittedStudents,
+  1712→    double? averageScore,
+  1713→    double? highestScore,
+  1714→    double? lowestScore,
+  1715→    double? medianScore,
+  1716→    double? passRate,
+  1717→    Map<String, double>? questionsByCorrectRate,
+  1718→    int? averageTimeSpentSeconds,
+  1719→    double? gradingCompletionPercentage,
+  1720→  }) {
+  1721→    return ExamStatistics(
+  1722→      examId: examId ?? this.examId,
+  1723→      totalStudents: totalStudents ?? this.totalStudents,
+  1724→      startedStudents: startedStudents ?? this.startedStudents,
+  1725→      completedStudents: completedStudents ?? this.completedStudents,
+  1726→      submittedStudents: submittedStudents ?? this.submittedStudents,
+  1727→      averageScore: averageScore ?? this.averageScore,
+  1728→      highestScore: highestScore ?? this.highestScore,
+  1729→      lowestScore: lowestScore ?? this.lowestScore,
+  1730→      medianScore: medianScore ?? this.medianScore,
+  1731→      passRate: passRate ?? this.passRate,
+  1732→      questionsByCorrectRate:
+  1733→          questionsByCorrectRate ?? this.questionsByCorrectRate,
+  1734→      averageTimeSpentSeconds:
+  1735→          averageTimeSpentSeconds ?? this.averageTimeSpentSeconds,
+  1736→      gradingCompletionPercentage:
+  1737→          gradingCompletionPercentage ?? this.gradingCompletionPercentage,
+  1738→    );
+  1739→  }
+  1740→
+  1741→  @override
+  1742→  List<Object?> get props => [
+  1743→        examId,
+  1744→        totalStudents,
+  1745→        startedStudents,
+  1746→        completedStudents,
+  1747→        submittedStudents,
+  1748→        averageScore,
+  1749→        highestScore,
+  1750→        lowestScore,
+  1751→        medianScore,
+  1752→        passRate,
+  1753→        questionsByCorrectRate,
+  1754→        averageTimeSpentSeconds,
+  1755→        gradingCompletionPercentage,
+  1756→      ];
+  1757→}
+  1758→
+  1759→/// Live exam stats for the real-time monitoring dashboard.
+  1760→///
+  1761→/// Not persisted — computed on demand from active sessions and recent
+  1762→/// events.
+  1763→class LiveExamStats extends Equatable {
+  1764→  const LiveExamStats({
+  1765→    required this.examId,
+  1766→    required this.totalEligible,
+  1767→    required this.activeNow,
+  1768→    required this.completed,
+  1769→    required this.notStarted,
+  1770→    required this.averageProgress,
+  1771→    this.recentSubmissions = const [],
+  1772→    this.activeSessions = const [],
+  1773→    this.recentMonitoringEvents = const [],
+  1774→  });
+  1775→
+  1776→  final String examId;
+  1777→  final int totalEligible;
+  1778→  final int activeNow;
+  1779→  final int completed;
+  1780→  final int notStarted;
+  1781→  final double averageProgress;
+  1782→  final List<ExamAttemptEntity> recentSubmissions;
+  1783→  final List<ExamSessionEntity> activeSessions;
+  1784→  final List<MonitoringLogEntity> recentMonitoringEvents;
+  1785→
+  1786→  LiveExamStats copyWith({
+  1787→    String? examId,
+  1788→    int? totalEligible,
+  1789→    int? activeNow,
+  1790→    int? completed,
+  1791→    int? notStarted,
+  1792→    double? averageProgress,
+  1793→    List<ExamAttemptEntity>? recentSubmissions,
+  1794→    List<ExamSessionEntity>? activeSessions,
+  1795→    List<MonitoringLogEntity>? recentMonitoringEvents,
+  1796→  }) {
+  1797→    return LiveExamStats(
+  1798→      examId: examId ?? this.examId,
+  1799→      totalEligible: totalEligible ?? this.totalEligible,
+  1800→      activeNow: activeNow ?? this.activeNow,
+  1801→      completed: completed ?? this.completed,
+  1802→      notStarted: notStarted ?? this.notStarted,
+  1803→      averageProgress: averageProgress ?? this.averageProgress,
+  1804→      recentSubmissions: recentSubmissions ?? this.recentSubmissions,
+  1805→      activeSessions: activeSessions ?? this.activeSessions,
+  1806→      recentMonitoringEvents:
+  1807→          recentMonitoringEvents ?? this.recentMonitoringEvents,
+  1808→    );
+  1809→  }
+  1810→
+  1811→  @override
+  1812→  List<Object?> get props => [
+  1813→        examId,
+  1814→        totalEligible,
+  1815→        activeNow,
+  1816→        completed,
+  1817→        notStarted,
+  1818→        averageProgress,
+  1819→        recentSubmissions,
+  1820→        activeSessions,
+  1821→        recentMonitoringEvents,
+  1822→      ];
+  1823→}
+  1824→
+  1825→/// Input data for creating a new exam (used by teachers).
+  1826→///
+  1827→/// This is a DTO-style class used solely in the [CreateExamUseCase]
+  1828→/// to carry the raw input from the presentation layer before it is
+  1829→/// transformed into a full [ExamEntity] with server-generated fields.
+  1830→class ExamCreateInput extends Equatable {
+  1831→  const ExamCreateInput({
+  1832→    required this.title,
+  1833→    this.description,
+  1834→    required this.subjectId,
+  1835→    required this.classId,
+  1836→    required this.academicSessionId,
+  1837→    required this.examType,
+  1838→    required this.startTime,
+  1839→    required this.endTime,
+  1840→    required this.timeLimitMinutes,
+  1841→    required this.passMark,
+  1842→    this.passMarkType = 'percentage',
+  1843→    this.instructions,
+  1844→    this.allowedAttempts = 1,
+  1845→    this.negativeMarkingEnabled = false,
+  1846→    this.negativeMarkValue = 0.0,
+  1847→    this.gracePeriodMinutes = 0,
+  1848→    this.autoSubmit = true,
+  1849→    this.randomizeQuestions = false,
+  1850→    this.randomizeOptions = false,
+  1851→    this.showResults = 'after_submission',
+  1852→    this.showCorrectAnswers = false,
+  1853→    this.showExplanations = false,
+  1854→    this.maxStudents,
+  1855→    this.requireFullScreen = false,
+  1856→    this.allowResume = true,
+  1857→    this.browserLockdown = false,
+  1858→  });
+  1859→
+  1860→  final String title;
+  1861→  final String? description;
+  1862→  final String subjectId;
+  1863→  final String classId;
+  1864→  final String academicSessionId;
+  1865→  final ExamType examType;
+  1866→  final DateTime startTime;
+  1867→  final DateTime endTime;
+  1868→  final int timeLimitMinutes;
+  1869→  final double passMark;
+  1870→  final String passMarkType;
+  1871→  final String? instructions;
+  1872→  final int allowedAttempts;
+  1873→  final bool negativeMarkingEnabled;
+  1874→  final double negativeMarkValue;
+  1875→  final int gracePeriodMinutes;
+  1876→  final bool autoSubmit;
+  1877→  final bool randomizeQuestions;
+  1878→  final bool randomizeOptions;
+  1879→  final String showResults;
+  1880→  final bool showCorrectAnswers;
+  1881→  final bool showExplanations;
+  1882→  final int? maxStudents;
+  1883→  final bool requireFullScreen;
+  1884→  final bool allowResume;
+  1885→  final bool browserLockdown;
+  1886→
+  1887→  @override
+  1888→  List<Object?> get props => [
+  1889→        title,
+  1890→        description,
+  1891→        subjectId,
+  1892→        classId,
+  1893→        academicSessionId,
+  1894→        examType,
+  1895→        startTime,
+  1896→        endTime,
+  1897→        timeLimitMinutes,
+  1898→        passMark,
+  1899→        passMarkType,
+  1900→        instructions,
+  1901→        allowedAttempts,
+  1902→        negativeMarkingEnabled,
+  1903→        negativeMarkValue,
+  1904→        gracePeriodMinutes,
+  1905→        autoSubmit,
+  1906→        randomizeQuestions,
+  1907→        randomizeOptions,
+  1908→        showResults,
+  1909→        showCorrectAnswers,
+  1910→        showExplanations,
+  1911→        maxStudents,
+  1912→        requireFullScreen,
+  1913→        allowResume,
+  1914→        browserLockdown,
+  1915→      ];
+  1916→}
+  1917→

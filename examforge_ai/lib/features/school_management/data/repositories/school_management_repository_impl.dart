@@ -6,6 +6,8 @@ import '../../domain/entities/school_management_entities.dart';
 import '../../domain/repositories/school_management_repository.dart';
 import '../datasources/school_management_remote_datasource.dart';
 import '../models/school_management_models.dart';
+import '../../../../features/school_management/domain/entities/school_management_entities.dart';
+
 
 /// Concrete implementation of [SchoolManagementRepository] that delegates
 /// all operations to [SchoolManagementRemoteDataSource].

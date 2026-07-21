@@ -5,25 +5,30 @@ import 'package:go_router/go_router.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../routing/route_guards.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/password_strength_indicator.dart';
+import '../../../../config/dependency_injection.dart';
+
 
 /// Registration page for creating a new account.
 ///
 /// Features:
 /// - Full name field
 /// - Email field with validation
+/// - School code field (optional, for joining a school)
 /// - Password field with strength indicator
 /// - Confirm password field
-/// - Role selection (Teacher/Student/School Admin dropdown)
-/// - School code field (for non-student roles)
 /// - Terms and conditions checkbox
 /// - Register button with loading state
 /// - Login link
+///
+/// SECURITY: All new accounts register as 'student' by default.
+/// Role elevation (to teacher/schoolAdmin) must happen through a
+/// separate server-side flow (invite codes, admin approval),
+/// not self-service registration.
 class RegisterPage extends ConsumerStatefulWidget {
   const RegisterPage({super.key});
 
@@ -38,7 +43,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _schoolCodeController = TextEditingController();
-  UserRole _selectedRole = UserRole.student;
   bool _agreedToTerms = false;
 
   @override
@@ -51,10 +55,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     super.dispose();
   }
 
-  bool get _needsSchoolCode =>
-      _selectedRole == UserRole.teacher ||
-      _selectedRole == UserRole.schoolAdmin;
-
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
     if (!_agreedToTerms) {
@@ -65,14 +65,16 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       return;
     }
 
+    // SECURITY: Role is always 'student' for self-service registration.
+    // Role elevation happens via server-side invite codes / admin approval.
+    final schoolCode = _schoolCodeController.text.trim();
+
     await ref.read(authProvider.notifier).signUp(
           email: _emailController.text.trim(),
           password: _passwordController.text,
           fullName: _nameController.text.trim(),
-          role: _selectedRole.value,
-          schoolId: _needsSchoolCode
-              ? _schoolCodeController.text.trim()
-              : null,
+          role: 'student',
+          schoolId: schoolCode.isNotEmpty ? schoolCode : null,
         );
 
     if (!mounted) return;
@@ -170,55 +172,30 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
 
                     const SizedBox(height: Spacings.lg),
 
-                    // ── Role Selection ─────────────────────────────────
-                    AppDropdownField<UserRole>(
-                      label: 'Role',
-                      hint: 'Select your role',
-                      items: UserRole.values
-                          .where((r) => r != UserRole.superAdmin)
-                          .toList(),
-                      selectedItem: _selectedRole,
-                      onChanged: (role) {
-                        if (role != null) {
-                          setState(() => _selectedRole = role);
-                        }
-                      },
-                      itemLabel: (role) => role.label,
-                      prefixIcon: Icons.badge_outlined,
-                      isRequired: true,
+                    // ── School Code (always visible, optional) ──────────
+                    AppTextField(
+                      label: 'School Code',
+                      hint: 'e.g. SCH001 (optional)',
+                      controller: _schoolCodeController,
+                      prefixIcon: Icons.domain_outlined,
+                      textInputAction: TextInputAction.next,
+                      isRequired: false,
+                      inputFormatters: [
+                        _UpperCaseTextFormatter(),
+                      ],
                       validator: (value) {
-                        if (value == null) return 'Please select a role';
+                        // School code is optional, but if provided it must be valid
+                        if (value != null && value.trim().isNotEmpty) {
+                          if (!RegExp(r'^[A-Z0-9]{4,12}$')
+                              .hasMatch(value.trim().toUpperCase())) {
+                            return 'School code must be 4-12 uppercase alphanumeric characters';
+                          }
+                        }
                         return null;
                       },
                     ),
 
                     const SizedBox(height: Spacings.lg),
-
-                    // ── School Code (conditional) ──────────────────────
-                    if (_needsSchoolCode) ...[
-                      AppTextField(
-                        label: 'School Code',
-                        hint: 'e.g. SCH001',
-                        controller: _schoolCodeController,
-                        prefixIcon: Icons.domain_outlined,
-                        textInputAction: TextInputAction.next,
-                        isRequired: true,
-                        inputFormatters: [
-                          _UpperCaseTextFormatter(),
-                        ],
-                        validator: (value) {
-                          if (value == null || value.trim().isEmpty) {
-                            return 'School code is required for $_selectedRoleDisplayName role';
-                          }
-                          if (!RegExp(r'^[A-Z0-9]{4,12}$')
-                              .hasMatch(value.trim().toUpperCase())) {
-                            return 'School code must be 4-12 uppercase alphanumeric characters';
-                          }
-                          return null;
-                        },
-                      ),
-                      const SizedBox(height: Spacings.lg),
-                    ],
 
                     // ── Password ───────────────────────────────────────
                     AppPasswordField(
@@ -371,8 +348,6 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
       ),
     );
   }
-
-  String get _selectedRoleDisplayName => _selectedRole.label;
 
   // ═══════════════════════════════════════════════════════════════════════
   // PRIVATE BUILDERS

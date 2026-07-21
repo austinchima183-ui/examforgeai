@@ -1,8 +1,8 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../../../../core/errors/exceptions.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../../../../core/network/paginated_query_mixin.dart';
-import '../../../../../core/utils/logger.dart';
+import '../../../../core/utils/logger.dart';
 import '../models/billing_models.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

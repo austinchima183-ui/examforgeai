@@ -1,6 +1,7 @@
 import '../../../../core/utils/result.dart';
 import 'entities/cbt_entities.dart';
 
+
 /// Abstract contract for all CBT engine operations.
 ///
 /// The domain layer defines this interface so that domain use cases

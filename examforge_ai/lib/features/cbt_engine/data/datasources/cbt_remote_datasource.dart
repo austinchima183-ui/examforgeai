@@ -664,55 +664,58 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         );
       }
 
-      // Get current attempt count
-      final existingAttempts = await _supabaseClient
-          .from(_examAttemptsTable)
-          .select('id')
-          .eq('exam_id', examId)
-          .eq('student_id', userId);
+      // ── Call server-side SQL function which validates eligibility,
+      //    creates the attempt AND session atomically ───────────────
+      final response = await _supabaseClient.rpc(
+        'start_exam_attempt',
+        params: {'p_exam_id': examId},
+      );
 
-      final now = DateTime.now();
-      final attemptData = {
-        'exam_id': examId,
-        'student_id': userId,
-        'attempt_number': existingAttempts.length + 1,
-        'status': 'in_progress',
-        'started_at': now.toIso8601String(),
-        'grading_status': 'pending',
-        'last_activity_at': now.toIso8601String(),
-      };
+      // Server returns the created attempt row as JSON
+      if (response == null) {
+        throw const ServerException(
+          message: 'Server returned no data for start_exam_attempt',
+          statusCode: 500,
+        );
+      }
 
-      final response = await _supabaseClient
-          .from(_examAttemptsTable)
-          .insert(attemptData)
-          .select()
-          .single();
+      final attemptMap = response as Map<String, dynamic>;
 
-      final attempt = ExamAttemptModel.fromJson(response);
+      // Validate the server confirmed the attempt was started
+      final attemptStatus = attemptMap['status'] as String?;
+      if (attemptStatus != 'in_progress') {
+        AppLogger.warning(
+          'Server returned unexpected attempt status: $attemptStatus',
+        );
+        throw ServerException(
+          message: 'Server did not start attempt. Status: $attemptStatus',
+          statusCode: 409,
+          data: attemptMap,
+        );
+      }
 
-      // Create session
-      await _supabaseClient.from(_examSessionsTable).insert({
-        'attempt_id': attempt.id,
-        'exam_id': examId,
-        'student_id': userId,
-        'is_active': true,
-        'current_question_index': 0,
-        'questions_answered': 0,
-        'questions_flagged': 0,
-        'last_heartbeat': now.toIso8601String(),
-        'connection_status': 'connected',
-      });
-
-      return attempt;
+      return ExamAttemptModel.fromJson(attemptMap);
     } on AuthException {
       rethrow;
     } on sb.PostgrestException catch (e) {
-      AppLogger.error('Start attempt failed', error: e);
+      AppLogger.error('Start attempt RPC failed', error: e);
+      // Map known Postgrest error codes to domain-meaningful exceptions
+      final msg = e.message;
+      if (msg.contains('not assigned') || msg.contains('not eligible')) {
+        throw ForbiddenException(msg);
+      }
+      if (msg.contains('max attempts') || msg.contains('already in progress')) {
+        throw ValidationException(message: msg);
+      }
       throw ServerException(
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
       );
+    } on ForbiddenException {
+      rethrow;
+    } on ValidationException {
+      rethrow;
     } catch (e) {
       if (e is ServerException || e is AuthException) rethrow;
       AppLogger.error('Start attempt unexpected error', error: e);
@@ -729,143 +732,61 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     String submissionType = 'manual',
   }) async {
     try {
-      final now = DateTime.now();
-
-      // Fetch the attempt
-      final attemptResponse = await _supabaseClient
-          .from(_examAttemptsTable)
-          .select()
-          .eq('id', attemptId)
-          .single();
-
-      final attempt = ExamAttemptModel.fromJson(attemptResponse);
-
-      // PERF: Select only needed columns instead of all columns
-      // Note: Answer fetching for a single attempt is bounded by exam question count
-      // (typically 20-100 questions), so no pagination needed.
-      final answersResponse = await _supabaseClient
-          .from(_studentAnswersTable)
-          .select('id, attempt_id, question_id, answer_data, is_correct, marks_awarded, marks_deducted, is_flagged, answered_at, graded_at, graded_by, teacher_comment')
-          .eq('attempt_id', attemptId);
-
-      final answers = answersResponse
-          .map<StudentAnswerModel>((a) => StudentAnswerModel.fromJson(a))
-          .toList();
-
-      // Calculate total marks
-      double totalMarks = 0;
-      for (final answer in answers) {
-        totalMarks += answer.marksAwarded - answer.marksDeducted;
-      }
-
-      // Calculate time spent
-      final startedAt = attempt.startedAt;
-      final timeSpent = now.difference(startedAt).inSeconds;
-
-      // Determine if all objective questions are graded
-      final hasUngradedSubjective = answers.any(
-        (a) => a.isCorrect == null && a.marksAwarded == 0,
+      // ── Call server-side SQL function which validates the attempt,
+      //    computes scores, deactivates the session, and creates the
+      //    result row atomically ─────────────────────────────────────
+      final response = await _supabaseClient.rpc(
+        'submit_exam_attempt',
+        params: {
+          'p_attempt_id': attemptId,
+          'p_submission_type': submissionType,
+        },
       );
-      final gradingStatus =
-          hasUngradedSubjective ? 'partially_graded' : 'auto_graded';
 
-      // Update the attempt
-      await _supabaseClient
-          .from(_examAttemptsTable)
-          .update({
-            'status': submissionType == 'auto_submit' ? 'auto_submitted' : 'submitted',
-            'submitted_at': now.toIso8601String(),
-            'submission_type': submissionType,
-            'time_spent_seconds': timeSpent,
-            'total_marks': totalMarks,
-            'grading_status': gradingStatus,
-            'last_activity_at': now.toIso8601String(),
-          })
-          .eq('id', attemptId);
-
-      // Deactivate the session
-      await _supabaseClient
-          .from(_examSessionsTable)
-          .update({
-            'is_active': false,
-            'connection_status': 'disconnected',
-          })
-          .eq('attempt_id', attemptId);
-
-      // Calculate score percentage
-      // Fetch exam total marks
-      final examResponse = await _supabaseClient
-          .from(_examsTable)
-          .select('total_marks, pass_mark, pass_mark_type')
-          .eq('id', attempt.examId)
-          .single();
-
-      final examTotalMarks =
-          (examResponse['total_marks'] as num?)?.toDouble() ?? 0.0;
-      final passMark =
-          (examResponse['pass_mark'] as num?)?.toDouble() ?? 0.0;
-      final passMarkType =
-          examResponse['pass_mark_type'] as String? ?? 'percentage';
-
-      final scorePercentage = examTotalMarks > 0
-          ? (totalMarks / examTotalMarks) * 100
-          : 0.0;
-
-      final effectivePassMark = passMarkType == 'percentage'
-          ? passMark
-          : (examTotalMarks > 0 ? (passMark / examTotalMarks) * 100 : 0.0);
-
-      final isPassed = scorePercentage >= effectivePassMark;
-
-      // Create or update result
-      final existingResult = await _supabaseClient
-          .from(_examResultsTable)
-          .select('id')
-          .eq('attempt_id', attemptId)
-          .maybeSingle();
-
-      final resultData = {
-        'exam_id': attempt.examId,
-        'student_id': attempt.studentId,
-        'attempt_id': attemptId,
-        'total_marks': totalMarks,
-        'total_possible': examTotalMarks,
-        'score_percentage': scorePercentage,
-        'is_passed': isPassed,
-        'time_spent_seconds': timeSpent,
-        'grading_status': gradingStatus,
-        'is_released': false,
-      };
-
-      if (existingResult != null) {
-        await _supabaseClient
-            .from(_examResultsTable)
-            .update(resultData)
-            .eq('id', existingResult['id'] as String);
-
-        final updatedResult = await _supabaseClient
-            .from(_examResultsTable)
-            .select()
-            .eq('id', existingResult['id'] as String)
-            .single();
-
-        return ExamResultModel.fromJson(updatedResult);
-      } else {
-        final insertResponse = await _supabaseClient
-            .from(_examResultsTable)
-            .insert(resultData)
-            .select()
-            .single();
-
-        return ExamResultModel.fromJson(insertResponse);
+      // Server returns the result row as JSON
+      if (response == null) {
+        throw const ServerException(
+          message: 'Server returned no data for submit_exam_attempt',
+          statusCode: 500,
+        );
       }
+
+      final resultMap = response as Map<String, dynamic>;
+
+      // Validate the server accepted the submission
+      final resultGradingStatus = resultMap['grading_status'] as String?;
+      if (resultGradingStatus == null) {
+        throw ServerException(
+          message: 'Server submission response missing grading_status',
+          statusCode: 500,
+          data: resultMap,
+        );
+      }
+
+      return ExamResultModel.fromJson(resultMap);
     } on sb.PostgrestException catch (e) {
-      AppLogger.error('Submit attempt failed', error: e);
+      AppLogger.error('Submit attempt RPC failed', error: e);
+      // Handle server-rejected late submissions
+      final msg = e.message;
+      if (msg.contains('time_exceeded') || msg.contains('time limit')) {
+        throw ValidationException(
+          message: 'Submission rejected: exam time has exceeded',
+          fieldErrors: {
+            'time_exceeded': 'The exam time limit has been exceeded. '
+                'Your answers have been auto-submitted.',
+          },
+        );
+      }
+      if (msg.contains('not in progress') || msg.contains('already submitted')) {
+        throw ValidationException(message: msg);
+      }
       throw ServerException(
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
       );
+    } on ValidationException {
+      rethrow;
     } catch (e) {
       if (e is ServerException) rethrow;
       AppLogger.error('Submit attempt unexpected error', error: e);
@@ -982,6 +903,31 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     Map<String, dynamic> answerData,
   ) async {
     try {
+      // ── Validate exam timing server-side before accepting the answer ──
+      final timingResponse = await _supabaseClient.rpc(
+        'validate_exam_timing',
+        params: {'p_attempt_id': attemptId},
+      );
+
+      final timingResult = timingResponse as Map<String, dynamic>?;
+      final isWithinTime = timingResult?['is_within_time'] as bool? ?? false;
+
+      if (!isWithinTime) {
+        throw ValidationException(
+          message: 'Cannot save answer: exam time has exceeded',
+          fieldErrors: {
+            'time_exceeded': 'The exam time limit has been exceeded. '
+                'No further answers can be saved.',
+          },
+        );
+      }
+
+      // Use server time for the answer timestamp to avoid client clock skew
+      final serverTime = timingResult?['server_time'] as String?;
+      final now = serverTime != null
+          ? DateTime.parse(serverTime)
+          : DateTime.now();
+
       // Upsert: update existing answer or insert new one
       final existing = await _supabaseClient
           .from(_studentAnswersTable)
@@ -989,8 +935,6 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
           .eq('attempt_id', attemptId)
           .eq('question_id', questionId)
           .maybeSingle();
-
-      final now = DateTime.now();
 
       if (existing != null) {
         final response = await _supabaseClient
@@ -1026,7 +970,10 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
       );
+    } on ValidationException {
+      rethrow;
     } catch (e) {
+      if (e is ServerException || e is ValidationException) rethrow;
       AppLogger.error('Save answer unexpected error', error: e);
       throw ServerException(
         message: 'Failed to save answer: $e',

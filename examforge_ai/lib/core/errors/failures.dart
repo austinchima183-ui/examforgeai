@@ -3,10 +3,8 @@
 /// A sealed union of failure types that are immutable, equatable, and
 /// exhaustively matchable via `when` / `maybeWhen`.
 ///
-/// Each concrete failure type is defined in `failures.freezed.dart`.
 /// This design provides the same API as a Freezed-generated union
 /// without requiring build_runner.
-part 'failures.freezed.dart';
 
 sealed class Failure {
   const Failure();

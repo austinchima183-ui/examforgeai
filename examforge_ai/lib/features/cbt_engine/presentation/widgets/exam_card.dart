@@ -7,6 +7,8 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../question_bank/presentation/widgets/question_type_badge.dart';
 import '../../domain/entities/cbt_entities.dart';
 import '../../../../shared/widgets/app_card.dart';
+import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM CARD

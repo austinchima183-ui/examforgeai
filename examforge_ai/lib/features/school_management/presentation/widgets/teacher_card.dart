@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/entities/school_management_entities.dart';
+import '../../../../features/school_management/domain/entities/school_management_entities.dart';
+
 
 class TeacherCard extends StatelessWidget {
   const TeacherCard({

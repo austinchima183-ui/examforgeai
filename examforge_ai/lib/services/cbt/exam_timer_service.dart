@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../../../core/utils/logger.dart';
+import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM TIMER SERVICE

@@ -1,6 +1,8 @@
 import '../../../../core/utils/result.dart';
 import '../entities/results_entities.dart';
 import '../repositories/results_repository.dart';
+import '../../../../features/results/domain/entities/results_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // RESULTS ENGINE — USE CASES

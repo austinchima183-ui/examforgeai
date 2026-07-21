@@ -4,6 +4,8 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/results_entities.dart';
 import '../../domain/usecases/results_usecases.dart';
+import '../../../../features/results/domain/entities/results_entities.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // RESULTS ENGINE — PRESENTATION PROVIDERS

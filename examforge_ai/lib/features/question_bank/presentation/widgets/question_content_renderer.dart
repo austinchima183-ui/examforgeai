@@ -82,7 +82,7 @@ class QuestionContentRenderer extends StatelessWidget {
         text.contains(r'\)') ||
         text.contains(r'\[') ||
         text.contains(r'\]') ||
-        text.contains('$$') ||
+        text.contains(r'$$') ||
         text.contains(RegExp(r'\\[a-zA-Z]+'));
   }
 

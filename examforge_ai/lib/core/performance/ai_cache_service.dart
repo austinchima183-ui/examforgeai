@@ -27,7 +27,7 @@
 import 'dart:convert';
 import 'dart:collection';
 
-import '../../../core/utils/logger.dart';
+import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // CACHE ENTRY
@@ -402,13 +402,13 @@ class AiCostEstimator {
     final inputPer1M = useGemini ? geminiFlashInputPer1M : gpt4oMiniInputPer1M;
     final outputPer1M = useGemini ? geminiFlashOutputPer1M : gpt4oMiniOutputPer1M;
 
-    final inputCost = (cacheMisses * avgInputTokens / 1_000_000) * inputPer1M;
-    final outputCost = (cacheMisses * avgOutputTokens / 1_000_000) * outputPer1M;
+    final inputCost = (cacheMisses * avgInputTokens / 1000000) * inputPer1M;
+    final outputCost = (cacheMisses * avgOutputTokens / 1000000) * outputPer1M;
     final totalCost = inputCost + outputCost;
 
     final savingsFromCache = cacheHits *
-        ((avgInputTokens / 1_000_000) * inputPer1M +
-            (avgOutputTokens / 1_000_000) * outputPer1M);
+        ((avgInputTokens / 1000000) * inputPer1M +
+            (avgOutputTokens / 1000000) * outputPer1M);
 
     return {
       'schools': schoolCount,

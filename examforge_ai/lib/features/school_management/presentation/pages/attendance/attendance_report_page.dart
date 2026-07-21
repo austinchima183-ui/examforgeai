@@ -1,18 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_loading.dart';
+import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/themes/app_typography.dart';
+import '../../../../../core/themes/spacings.dart';
+import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_card.dart';
+import '../../../../../shared/widgets/app_empty_state.dart';
+import '../../../../../shared/widgets/app_error_state.dart';
+import '../../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/school_management_entities.dart';
-import '../providers/attendance_provider.dart';
-import '../providers/class_provider.dart';
+import '../../providers/attendance_provider.dart';
+import '../../providers/class_provider.dart';
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
+
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // ATTENDANCE REPORT PAGE

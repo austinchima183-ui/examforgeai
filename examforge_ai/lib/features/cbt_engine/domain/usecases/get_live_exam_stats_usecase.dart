@@ -2,6 +2,8 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../entities/cbt_entities.dart';
 import '../repositories/cbt_repository.dart';
+import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+
 
 /// Parameters for the [GetLiveExamStatsUseCase].
 class GetLiveStatsParams {

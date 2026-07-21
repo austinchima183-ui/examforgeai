@@ -9,6 +9,8 @@ import '../../../school_management/presentation/providers/teacher_provider.dart'
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../../domain/usecases/share_resource_usecase.dart';
 import '../providers/collaboration_provider.dart';
+import '../../../../config/dependency_injection.dart' hide collaborationProvider;
+
 
 /// A dialog for sharing a resource with a colleague.
 ///

@@ -12,7 +12,7 @@ extension StringExtensions on String {
   /// Basic RFC-5322-ish email validation.
   bool get isEmail {
     final regex = RegExp(
-      r'^[a-zA-Z0-9.!#$%&\'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}'
+      r"^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}"
       r'[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,253}'
       r'[a-zA-Z0-9])?)*$',
     );

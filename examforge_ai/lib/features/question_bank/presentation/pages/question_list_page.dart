@@ -24,6 +24,8 @@ import '../widgets/question_card.dart';
 import '../widgets/question_filter_panel.dart';
 import '../widgets/question_type_badge.dart';
 import '../widgets/difficulty_badge.dart';
+import '../../../../config/dependency_injection.dart' hide questionFilterProvider;
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION LIST PAGE

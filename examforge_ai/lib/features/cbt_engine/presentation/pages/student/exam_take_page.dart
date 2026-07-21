@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/themes/app_typography.dart';
+import '../../../../../core/themes/spacings.dart';
+import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/widgets/app_button.dart';
+import '../../../../../shared/widgets/app_card.dart';
+import '../../../../../shared/widgets/app_dialog.dart';
 import '../../domain/entities/cbt_entities.dart';
-import '../providers/exam_taker_provider.dart';
+import '../../providers/exam_taker_provider.dart';
 import '../widgets/exam_timer_widget.dart';
 import '../widgets/question_navigator.dart';
 import '../widgets/question_display_widget.dart';
+import '../../../../../config/dependency_injection.dart';
+
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM TAKE PAGE (Student) - THE CRITICAL EXAM-TAKING INTERFACE
