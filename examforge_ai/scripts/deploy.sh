@@ -144,6 +144,12 @@ run_database_migrations() {
 
     log_info "Running database migrations for ${env}..."
 
+    # SECURITY FIX: Validate environment name to prevent injection
+    if ! echo "${env}" | grep -qE '^[a-z]+$'; then
+        log_error "Invalid environment name: ${env} — only lowercase letters allowed"
+        return 1
+    fi
+
     # Create migration tracking table if not exists
     psql "${DATABASE_URL}" -c "
         CREATE TABLE IF NOT EXISTS _deploy_migrations (
@@ -165,18 +171,31 @@ run_database_migrations() {
                 local migration_name
                 migration_name=$(basename "${migration_file}")
 
-                # Check if migration already applied
+                # SECURITY FIX: Validate migration filename — only allow alphanumeric,
+                # underscores, hyphens, and .sql extension to prevent SQL injection
+                if ! echo "${migration_name}" | grep -qE '^[a-zA-Z0-9_-]+\.sql$'; then
+                    log_error "Invalid migration filename (possible injection): ${migration_name}"
+                    continue
+                fi
+
+                # SECURITY FIX: Use psql variable substitution instead of string
+                # interpolation to prevent SQL injection. The -v flag passes
+                # variables safely, and we use :'variable' syntax for quoting.
                 local already_applied
-                already_applied=$(psql "${DATABASE_URL}" -t -c \
-                    "SELECT COUNT(*) FROM _deploy_migrations WHERE migration_name='${migration_name}' AND rolled_back_at IS NULL;" \
+                already_applied=$(psql "${DATABASE_URL}" -t -v ON_ERROR_STOP=1 \
+                    -v mname="${migration_name}" \
+                    -c "SELECT COUNT(*) FROM _deploy_migrations WHERE migration_name=:'mname' AND rolled_back_at IS NULL;" \
                     2>/dev/null | tr -d ' ' || echo "0")
 
                 if [ "${already_applied}" = "0" ]; then
                     log_info "Applying migration: ${migration_name}"
 
                     if psql "${DATABASE_URL}" -f "${migration_file}" 2>/dev/null; then
-                        psql "${DATABASE_URL}" -c \
-                            "INSERT INTO _deploy_migrations (deploy_id, migration_name) VALUES ('${DEPLOY_ID}', '${migration_name}');" \
+                        # SECURITY FIX: Use parameterized insert with psql variables
+                        psql "${DATABASE_URL}" -v ON_ERROR_STOP=1 \
+                            -v did="${DEPLOY_ID}" \
+                            -v mname="${migration_name}" \
+                            -c "INSERT INTO _deploy_migrations (deploy_id, migration_name) VALUES (:'did', :'mname');" \
                             2>/dev/null || true
                         migration_count=$((migration_count + 1))
                         log_success "Migration applied: ${migration_name}"

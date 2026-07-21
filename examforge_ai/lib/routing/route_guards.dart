@@ -72,6 +72,10 @@ enum UserRole {
 /// Routes inside the [ShellRoute] that are **not** in any role's
 /// restricted set are considered universally accessible (e.g.
 /// [RouteNames.profile], [RouteNames.settings]).
+///
+/// SECURITY FIX: Previously, super admin sub-routes (security, users,
+/// billing, etc.) were NOT in the restricted map, meaning any authenticated
+/// user could navigate to them. Now all admin routes are explicitly listed.
 final Map<UserRole, Set<String>> _roleRestrictedRoutes = {
   UserRole.teacher: {
     RouteNames.teacherDashboard,
@@ -85,10 +89,23 @@ final Map<UserRole, Set<String>> _roleRestrictedRoutes = {
     RouteNames.studentDashboard,
   },
   UserRole.superAdmin: {
+    // Dashboard access
     RouteNames.superAdminDashboard,
     RouteNames.schoolAdminDashboard,
     RouteNames.teacherDashboard,
     RouteNames.studentDashboard,
+    // Super admin sub-routes — ALL must be restricted to superAdmin only
+    RouteNames.superAdminSchools,
+    RouteNames.superAdminUsers,
+    RouteNames.superAdminAI,
+    RouteNames.superAdminBilling,
+    RouteNames.superAdminSupport,
+    RouteNames.superAdminSecurity,
+    RouteNames.superAdminInfrastructure,
+    RouteNames.superAdminIntelligence,
+    RouteNames.superAdminMarketplace,
+    RouteNames.superAdminAnalytics,
+    RouteNames.superAdminSettings,
   },
 };
 
@@ -208,11 +225,23 @@ class RoleBasedGuard {
     required UserRole? userRole,
     required String currentPath,
   }) {
-    // If we can't determine the role, allow navigation but log a
-    // warning. The auth guard will handle unauthenticated users.
+    // SECURITY FIX: Previously, null role was allowed through (default-allow).
+    // Now we default-DENY: if the role is unknown and the route is restricted,
+    // redirect to the login page. Only non-restricted routes are allowed
+    // through with a null role (e.g., during loading states).
     if (userRole == null) {
+      // Check if the current route is in any restricted set
+      final isRestricted = _roleRestrictedRoutes.values
+          .any((routes) => routes.contains(currentPath));
+
+      if (isRestricted) {
+        AppLogger.critical('RoleBasedGuard: NULL role attempted to access '
+            'restricted route $currentPath — DENIED (default-deny)');
+        return RouteNames.login;
+      }
+
       AppLogger.warning('RoleBasedGuard: user role is null, '
-          'allowing access to $currentPath');
+          'allowing access to non-restricted route $currentPath');
       return null;
     }
 

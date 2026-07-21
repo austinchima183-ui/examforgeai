@@ -219,30 +219,41 @@ perform_incremental_backup() {
     # This creates a SQL script with INSERT/UPDATE/DELETE for changed rows
     local since_date="${last_backup_date:0:4}-${last_backup_date:4:2}-${last_backup_date:6:2} ${last_backup_date:9:2}:${last_backup_date:11:2}:${last_backup_date:13:2}"
 
+    # SECURITY FIX: Validate the date format to prevent SQL injection
+    if ! echo "${since_date}" | grep -qE '^[0-9]{4}-[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}:[0-9]{2}$'; then
+        log_error "Invalid date format derived from backup filename: ${since_date}"
+        log_warn "Skipping incremental changes summary"
+        since_date=""
+    fi
+
     log_info "Exporting changes since ${since_date}..."
 
-    # Dump tables with updated_at column, filtering by date
-    PGPASSWORD="${DB_PASSWORD:-}" psql \
-        --host="${DB_HOST}" \
-        --port="${DB_PORT}" \
-        --username="${DB_USER}" \
-        --dbname="${DB_NAME}" \
-        --no-password \
-        --tuples-only \
-        --command="
-            COPY (
-                SELECT 'educational_levels' AS table_name, COUNT(*) AS changed_rows
-                FROM educational_levels WHERE updated_at > '${since_date}'
-                UNION ALL
-                SELECT 'subjects', COUNT(*) FROM subjects WHERE updated_at > '${since_date}'
-                UNION ALL
-                SELECT 'content_items', COUNT(*) FROM content_items WHERE updated_at > '${since_date}'
-                UNION ALL
-                SELECT 'topics', COUNT(*) FROM topics WHERE updated_at > '${since_date}'
-                UNION ALL
-                SELECT 'curricula', COUNT(*) FROM curricula WHERE updated_at > '${since_date}'
-            ) TO STDOUT WITH CSV HEADER;
-        " > "${backup_dir}/${BACKUP_FILENAME}.changes_summary.csv" 2>/dev/null || true
+    # SECURITY FIX: Use psql variable substitution instead of direct interpolation
+    # to prevent SQL injection through crafted backup filenames
+    if [ -n "${since_date}" ]; then
+        PGPASSWORD="${DB_PASSWORD:-}" psql \
+            --host="${DB_HOST}" \
+            --port="${DB_PORT}" \
+            --username="${DB_USER}" \
+            --dbname="${DB_NAME}" \
+            --no-password \
+            --tuples-only \
+            -v sdate="${since_date}" \
+            --command="
+                COPY (
+                    SELECT 'educational_levels' AS table_name, COUNT(*) AS changed_rows
+                    FROM educational_levels WHERE updated_at > :'sdate'
+                    UNION ALL
+                    SELECT 'subjects', COUNT(*) FROM subjects WHERE updated_at > :'sdate'
+                    UNION ALL
+                    SELECT 'content_items', COUNT(*) FROM content_items WHERE updated_at > :'sdate'
+                    UNION ALL
+                    SELECT 'topics', COUNT(*) FROM topics WHERE updated_at > :'sdate'
+                    UNION ALL
+                    SELECT 'curricula', COUNT(*) FROM curricula WHERE updated_at > :'sdate'
+                ) TO STDOUT WITH CSV HEADER;
+            " > "${backup_dir}/${BACKUP_FILENAME}.changes_summary.csv" 2>/dev/null || true
+    fi
 
     # Create incremental data dump
     PGPASSWORD="${DB_PASSWORD:-}" pg_dump \

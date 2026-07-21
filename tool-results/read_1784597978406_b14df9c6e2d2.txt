@@ -1,0 +1,1229 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import '../../../../../core/themes/app_colors.dart';
+     4→import '../../../../../core/themes/spacings.dart';
+     5→import '../../../../../core/themes/app_typography.dart';
+     6→import '../../../../../shared/widgets/app_app_bar.dart';
+     7→import '../../../../../shared/widgets/app_loading.dart';
+     8→import '../../domain/entities/super_admin_entities.dart';
+     9→import '../providers/super_admin_providers.dart';
+    10→import '../widgets/super_admin_widgets.dart';
+    11→
+    12→// ═══════════════════════════════════════════════════════════════════════════════
+    13→// HELPERS
+    14→// ═══════════════════════════════════════════════════════════════════════════════
+    15→
+    16→Color _severityColor(AuditSeverity severity) {
+    17→  switch (severity) {
+    18→    case AuditSeverity.info:
+    19→      return AppColors.info;
+    20→    case AuditSeverity.warning:
+    21→      return AppColors.warning;
+    22→    case AuditSeverity.error:
+    23→      return AppColors.error;
+    24→    case AuditSeverity.critical:
+    25→      return AppColors.errorDark;
+    26→  }
+    27→}
+    28→
+    29→String _formatTimestamp(DateTime dt) {
+    30→  final now = DateTime.now();
+    31→  final diff = now.difference(dt);
+    32→  if (diff.inMinutes < 1) return 'Just now';
+    33→  if (diff.inHours < 1) return '${diff.inMinutes}m ago';
+    34→  if (diff.inDays < 1) return '${diff.inHours}h ago';
+    35→  if (diff.inDays < 7) return '${diff.inDays}d ago';
+    36→  return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
+    37→}
+    38→
+    39→String _formatDuration(int? ms) {
+    40→  if (ms == null) return '—';
+    41→  if (ms < 1000) return '${ms}ms';
+    42→  if (ms < 60000) return '${(ms / 1000).toStringAsFixed(1)}s';
+    43→  return '${(ms / 60000).toStringAsFixed(1)}m';
+    44→}
+    45→
+    46→// ═══════════════════════════════════════════════════════════════════════════════
+    47→// SECURITY CENTER PAGE
+    48→// ═══════════════════════════════════════════════════════════════════════════════
+    49→
+    50→/// Comprehensive security monitoring page for the Super Admin.
+    51→///
+    52→/// Features:
+    53→/// - **Audit Logs**: Filterable log entries with category & severity badges
+    54→/// - **Login Monitoring**: Real-time login tracking with failed-only toggle
+    55→/// - **Active Sessions**: Live session cards with terminate capability
+    56→/// - **Suspicious Activity**: AI-detected anomalies with lock/unlock actions
+    57→class SecurityCenterPage extends ConsumerStatefulWidget {
+    58→  const SecurityCenterPage({super.key});
+    59→
+    60→  @override
+    61→  ConsumerState<SecurityCenterPage> createState() =>
+    62→      _SecurityCenterPageState();
+    63→}
+    64→
+    65→class _SecurityCenterPageState extends ConsumerState<SecurityCenterPage>
+    66→    with SingleTickerProviderStateMixin {
+    67→  late final TabController _tabController;
+    68→
+    69→  // ─── Audit Log Filters ──────────────────────────────────────────────────
+    70→
+    71→  AuditCategory? _filterCategory;
+    72→  AuditSeverity? _filterSeverity;
+    73→
+    74→  // ─── Login Monitoring Filters ───────────────────────────────────────────
+    75→
+    76→  bool _failedOnly = false;
+    77→
+    78→  static const _tabs = [
+    79→    Tab(icon: Icon(Icons.history_rounded), text: 'Audit Logs'),
+    80→    Tab(icon: Icon(Icons.login_rounded), text: 'Login Monitoring'),
+    81→    Tab(icon: Icon(Icons.devices_rounded), text: 'Active Sessions'),
+    82→    Tab(icon: Icon(Icons.warning_amber_rounded), text: 'Suspicious Activity'),
+    83→  ];
+    84→
+    85→  // ─── Lifecycle ──────────────────────────────────────────────────────────
+    86→
+    87→  @override
+    88→  void initState() {
+    89→    super.initState();
+    90→    _tabController = TabController(length: _tabs.length, vsync: this);
+    91→    _tabController.addListener(_onTabChanged);
+    92→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    93→      _loadData();
+    94→    });
+    95→  }
+    96→
+    97→  @override
+    98→  void dispose() {
+    99→    _tabController.removeListener(_onTabChanged);
+   100→    _tabController.dispose();
+   101→    super.dispose();
+   102→  }
+   103→
+   104→  void _onTabChanged() {
+   105→    if (!_tabController.indexIsChanging) {
+   106→      _loadTabData(_tabController.index);
+   107→    }
+   108→  }
+   109→
+   110→  void _loadData() {
+   111→    _loadTabData(_tabController.index);
+   112→  }
+   113→
+   114→  void _loadTabData(int index) {
+   115→    final notifier = ref.read(securityCenterProvider.notifier);
+   116→    switch (index) {
+   117→      case 0:
+   118→        notifier.loadAuditLogs(category: _filterCategory);
+   119→        break;
+   120→      case 1:
+   121→        notifier.loadLoginMonitoring(failedOnly: _failedOnly);
+   122→        break;
+   123→      case 2:
+   124→        // Active sessions are loaded as part of login monitoring
+   125→        notifier.loadLoginMonitoring();
+   126→        break;
+   127→      case 3:
+   128→        notifier.detectSuspicious();
+   129→        break;
+   130→    }
+   131→  }
+   132→
+   133→  // ─── Build ──────────────────────────────────────────────────────────────
+   134→
+   135→  @override
+   136→  Widget build(BuildContext context) {
+   137→    final state = ref.watch(securityCenterProvider);
+   138→    final cs = Theme.of(context).colorScheme;
+   139→
+   140→    // Listen for success/error snackbar messages
+   141→    ref.listen<SecurityCenterState>(securityCenterProvider, (prev, next) {
+   142→      if (next.successMessage != null &&
+   143→          next.successMessage != prev?.successMessage) {
+   144→        ScaffoldMessenger.of(context).showSnackBar(
+   145→          SnackBar(
+   146→            content: Text(next.successMessage!),
+   147→            backgroundColor: AppColors.success,
+   148→            behavior: SnackBarBehavior.floating,
+   149→          ),
+   150→        );
+   151→        ref.read(securityCenterProvider.notifier).state =
+   152→            ref.read(securityCenterProvider).clearSuccess();
+   153→      }
+   154→      if (next.error != null && next.error != prev?.error) {
+   155→        ScaffoldMessenger.of(context).showSnackBar(
+   156→          SnackBar(
+   157→            content: Text(next.error!),
+   158→            backgroundColor: AppColors.error,
+   159→            behavior: SnackBarBehavior.floating,
+   160→          ),
+   161→        );
+   162→        ref.read(securityCenterProvider.notifier).state =
+   163→            ref.read(securityCenterProvider).clearError();
+   164→      }
+   165→    });
+   166→
+   167→    return Scaffold(
+   168→      appBar: AppAppBar(
+   169→        title: 'Security Center',
+   170→        actions: [
+   171→          IconButton(
+   172→            icon: const Icon(Icons.refresh_rounded),
+   173→            tooltip: 'Refresh',
+   174→            onPressed: _loadData,
+   175→          ),
+   176→        ],
+   177→      ),
+   178→      body: state.isLoading && state.auditLogs.isEmpty && state.loginEntries.isEmpty
+   179→          ? const Center(
+   180→              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+   181→          : state.error != null &&
+   182→                  state.auditLogs.isEmpty &&
+   183→                  state.loginEntries.isEmpty &&
+   184→                  state.activeSessions.isEmpty &&
+   185→                  state.suspiciousActivity.isEmpty
+   186→              ? _buildErrorState(state.error!, cs)
+   187→              : Column(
+   188→                  children: [
+   189→                    // ─── Tab Bar ──────────────────────────────────────
+   190→                    Container(
+   191→                      decoration: BoxDecoration(
+   192→                        color: cs.surface,
+   193→                        border: Border(
+   194→                          bottom: BorderSide(
+   195→                            color: cs.outlineVariant,
+   196→                            width: 1,
+   197→                          ),
+   198→                        ),
+   199→                      ),
+   200→                      child: TabBar(
+   201→                        controller: _tabController,
+   202→                        tabs: _tabs,
+   203→                        labelColor: cs.primary,
+   204→                        unselectedLabelColor:
+   205→                            cs.onSurface.withValues(alpha: 0.6),
+   206→                        indicatorColor: cs.primary,
+   207→                        indicatorSize: TabBarIndicatorSize.tab,
+   208→                        isScrollable: true,
+   209→                      ),
+   210→                    ),
+   211→
+   212→                    // ─── Tab Content ──────────────────────────────────
+   213→                    Expanded(
+   214→                      child: TabBarView(
+   215→                        controller: _tabController,
+   216→                        children: [
+   217→                          _AuditLogsTab(
+   218→                            filterCategory: _filterCategory,
+   219→                            filterSeverity: _filterSeverity,
+   220→                            onCategoryChanged: (category) {
+   221→                              setState(() => _filterCategory = category);
+   222→                              ref
+   223→                                  .read(securityCenterProvider.notifier)
+   224→                                  .loadAuditLogs(category: category);
+   225→                            },
+   226→                            onSeverityChanged: (severity) {
+   227→                              setState(() => _filterSeverity = severity);
+   228→                              // Reload with current category + apply severity filter locally
+   229→                              ref
+   230→                                  .read(securityCenterProvider.notifier)
+   231→                                  .loadAuditLogs(category: _filterCategory);
+   232→                            },
+   233→                          ),
+   234→                          _LoginMonitoringTab(
+   235→                            failedOnly: _failedOnly,
+   236→                            onFailedOnlyChanged: (value) {
+   237→                              setState(() => _failedOnly = value);
+   238→                              ref
+   239→                                  .read(securityCenterProvider.notifier)
+   240→                                  .loadLoginMonitoring(failedOnly: value);
+   241→                            },
+   242→                          ),
+   243→                          _ActiveSessionsTab(),
+   244→                          _SuspiciousActivityTab(),
+   245→                        ],
+   246→                      ),
+   247→                    ),
+   248→                  ],
+   249→                ),
+   250→    );
+   251→  }
+   252→
+   253→  // ─── Error State ────────────────────────────────────────────────────────
+   254→
+   255→  Widget _buildErrorState(String error, ColorScheme cs) {
+   256→    return Center(
+   257→      child: Padding(
+   258→        padding: const EdgeInsets.all(Spacings.xl),
+   259→        child: Column(
+   260→          mainAxisSize: MainAxisSize.min,
+   261→          children: [
+   262→            Icon(Icons.error_outline,
+   263→                size: Spacings.xlIcon, color: cs.error),
+   264→            const SizedBox(height: Spacings.lg),
+   265→            Text(
+   266→              error,
+   267→              style: AppTypography.wRegular.copyWith(
+   268→                fontSize: 14,
+   269→                color: cs.onSurface.withValues(alpha: 0.7),
+   270→              ),
+   271→              textAlign: TextAlign.center,
+   272→            ),
+   273→            const SizedBox(height: Spacings.lg),
+   274→            FilledButton.tonal(
+   275→              onPressed: () => _loadData(),
+   276→              child: const Text('Retry'),
+   277→            ),
+   278→          ],
+   279→        ),
+   280→      ),
+   281→    );
+   282→  }
+   283→}
+   284→
+   285→// ═══════════════════════════════════════════════════════════════════════════════
+   286→// AUDIT LOGS TAB
+   287→// ═══════════════════════════════════════════════════════════════════════════════
+   288→
+   289→class _AuditLogsTab extends StatelessWidget {
+   290→  const _AuditLogsTab({
+   291→    required this.filterCategory,
+   292→    required this.filterSeverity,
+   293→    required this.onCategoryChanged,
+   294→    required this.onSeverityChanged,
+   295→  });
+   296→
+   297→  final AuditCategory? filterCategory;
+   298→  final AuditSeverity? filterSeverity;
+   299→  final ValueChanged<AuditCategory?> onCategoryChanged;
+   300→  final ValueChanged<AuditSeverity?> onSeverityChanged;
+   301→
+   302→  @override
+   303→  Widget build(BuildContext context) {
+   304→    return Consumer(builder: (context, ref, _) {
+   305→      final state = ref.watch(securityCenterProvider);
+   306→      final cs = Theme.of(context).colorScheme;
+   307→
+   308→      // Apply severity filter locally if set
+   309→      final logs = filterSeverity != null
+   310→          ? state.auditLogs
+   311→              .where((log) => log.severity == filterSeverity)
+   312→              .toList()
+   313→          : state.auditLogs;
+   314→
+   315→      return Column(
+   316→        children: [
+   317→          // ─── Filters ──────────────────────────────────────────────
+   318→          Padding(
+   319→            padding: Spacings.paddingScreen,
+   320→            child: Row(
+   321→              children: [
+   322→                // Category dropdown
+   323→                Expanded(
+   324→                  child: Column(
+   325→                    crossAxisAlignment: CrossAxisAlignment.start,
+   326→                    children: [
+   327→                      Text(
+   328→                        'Category',
+   329→                        style: AppTypography.wSemiBold.copyWith(
+   330→                          fontSize: 12,
+   331→                          color: cs.onSurface.withValues(alpha: 0.6),
+   332→                        ),
+   333→                      ),
+   334→                      const SizedBox(height: Spacings.xs),
+   335→                      DropdownButtonFormField<AuditCategory?>(
+   336→                        value: filterCategory,
+   337→                        decoration: InputDecoration(
+   338→                          border: OutlineInputBorder(
+   339→                              borderRadius: Spacings.borderRadiusMd),
+   340→                          contentPadding: Spacings.paddingInput,
+   341→                          isDense: true,
+   342→                        ),
+   343→                        items: [
+   344→                          const DropdownMenuItem<AuditCategory?>(
+   345→                            value: null,
+   346→                            child: Text('All Categories'),
+   347→                          ),
+   348→                          ...AuditCategory.values.map(
+   349→                            (cat) => DropdownMenuItem<AuditCategory?>(
+   350→                              value: cat,
+   351→                              child: Text(cat.label),
+   352→                            ),
+   353→                          ),
+   354→                        ],
+   355→                        onChanged: onCategoryChanged,
+   356→                      ),
+   357→                    ],
+   358→                  ),
+   359→                ),
+   360→                const SizedBox(width: Spacings.md),
+   361→                // Severity dropdown
+   362→                Expanded(
+   363→                  child: Column(
+   364→                    crossAxisAlignment: CrossAxisAlignment.start,
+   365→                    children: [
+   366→                      Text(
+   367→                        'Severity',
+   368→                        style: AppTypography.wSemiBold.copyWith(
+   369→                          fontSize: 12,
+   370→                          color: cs.onSurface.withValues(alpha: 0.6),
+   371→                        ),
+   372→                      ),
+   373→                      const SizedBox(height: Spacings.xs),
+   374→                      DropdownButtonFormField<AuditSeverity?>(
+   375→                        value: filterSeverity,
+   376→                        decoration: InputDecoration(
+   377→                          border: OutlineInputBorder(
+   378→                              borderRadius: Spacings.borderRadiusMd),
+   379→                          contentPadding: Spacings.paddingInput,
+   380→                          isDense: true,
+   381→                        ),
+   382→                        items: [
+   383→                          const DropdownMenuItem<AuditSeverity?>(
+   384→                            value: null,
+   385→                            child: Text('All Severities'),
+   386→                          ),
+   387→                          ...AuditSeverity.values.map(
+   388→                            (sev) => DropdownMenuItem<AuditSeverity?>(
+   389→                              value: sev,
+   390→                              child: Text(sev.label),
+   391→                            ),
+   392→                          ),
+   393→                        ],
+   394→                        onChanged: onSeverityChanged,
+   395→                      ),
+   396→                    ],
+   397→                  ),
+   398→                ),
+   399→              ],
+   400→            ),
+   401→          ),
+   402→
+   403→          // ─── Count ────────────────────────────────────────────────
+   404→          Padding(
+   405→            padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   406→            child: Row(
+   407→              children: [
+   408→                Text(
+   409→                  '${logs.length} log ${logs.length == 1 ? 'entry' : 'entries'}',
+   410→                  style: AppTypography.wMedium.copyWith(
+   411→                    fontSize: 13,
+   412→                    color: cs.onSurface.withValues(alpha: 0.6),
+   413→                  ),
+   414→                ),
+   415→              ],
+   416→            ),
+   417→          ),
+   418→          const SizedBox(height: Spacings.sm),
+   419→
+   420→          // ─── Data Table ───────────────────────────────────────────
+   421→          Expanded(
+   422→            child: logs.isEmpty
+   423→                ? const AdminEmptyState(
+   424→                    message: 'No audit logs found',
+   425→                    icon: Icons.history_rounded,
+   426→                  )
+   427→                : _AuditLogDataTable(logs: logs),
+   428→          ),
+   429→        ],
+   430→      );
+   431→    });
+   432→  }
+   433→}
+   434→
+   435→// ═══════════════════════════════════════════════════════════════════════════════
+   436→// AUDIT LOG DATA TABLE
+   437→// ═══════════════════════════════════════════════════════════════════════════════
+   438→
+   439→class _AuditLogDataTable extends StatelessWidget {
+   440→  const _AuditLogDataTable({required this.logs});
+   441→  final List<AuditLog> logs;
+   442→
+   443→  @override
+   444→  Widget build(BuildContext context) {
+   445→    final cs = Theme.of(context).colorScheme;
+   446→
+   447→    return SingleChildScrollView(
+   448→      scrollDirection: Axis.horizontal,
+   449→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   450→      child: SingleChildScrollView(
+   451→        padding: const EdgeInsets.only(bottom: Spacings.xl),
+   452→        child: DataTable(
+   453→          headingRowColor: WidgetStateProperty.all(
+   454→            cs.surfaceContainerHighest.withValues(alpha: 0.5),
+   455→          ),
+   456→          headingTextStyle: AppTypography.wSemiBold.copyWith(
+   457→            fontSize: 12,
+   458→            color: cs.onSurface.withValues(alpha: 0.7),
+   459→          ),
+   460→          dataTextStyle: AppTypography.wRegular.copyWith(
+   461→            fontSize: 13,
+   462→            color: cs.onSurface,
+   463→          ),
+   464→          columnSpacing: Spacings.lg,
+   465→          horizontalMargin: Spacings.sm,
+   466→          columns: const [
+   467→            DataColumn(label: Text('Timestamp')),
+   468→            DataColumn(label: Text('Actor')),
+   469→            DataColumn(label: Text('Action')),
+   470→            DataColumn(label: Text('Category')),
+   471→            DataColumn(label: Text('Severity')),
+   472→            DataColumn(label: Text('Resource Type')),
+   473→            DataColumn(label: Text('IP Address')),
+   474→            DataColumn(label: Text('Duration')),
+   475→          ],
+   476→          rows: logs.map((log) {
+   477→            final sevColor = _severityColor(log.severity);
+   478→            return DataRow(cells: [
+   479→              // Timestamp
+   480→              DataCell(Text(
+   481→                _formatTimestamp(log.createdAt),
+   482→                style: AppTypography.wRegular.copyWith(fontSize: 12),
+   483→              )),
+   484→              // Actor
+   485→              DataCell(Text(
+   486→                log.actorEmail ?? log.actorId ?? 'System',
+   487→                style: AppTypography.wMedium.copyWith(fontSize: 12),
+   488→              )),
+   489→              // Action
+   490→              DataCell(ConstrainedBox(
+   491→                constraints: const BoxConstraints(maxWidth: 200),
+   492→                child: Text(
+   493→                  log.action,
+   494→                  maxLines: 2,
+   495→                  overflow: TextOverflow.ellipsis,
+   496→                ),
+   497→              )),
+   498→              // Category
+   499→              DataCell(Text(log.category.label)),
+   500→              // Severity badge
+   501→              DataCell(StatusBadge(
+   502→                label: log.severity.label,
+   503→                color: sevColor,
+   504→              )),
+   505→              // Resource Type
+   506→              DataCell(Text(log.resourceType ?? '—')),
+   507→              // IP Address
+   508→              DataCell(Text(log.ipAddress ?? '—')),
+   509→              // Duration
+   510→              DataCell(Text(_formatDuration(log.durationMs))),
+   511→            ]);
+   512→          }).toList(),
+   513→        ),
+   514→      ),
+   515→    );
+   516→  }
+   517→}
+   518→
+   519→// ═══════════════════════════════════════════════════════════════════════════════
+   520→// LOGIN MONITORING TAB
+   521→// ═══════════════════════════════════════════════════════════════════════════════
+   522→
+   523→class _LoginMonitoringTab extends StatelessWidget {
+   524→  const _LoginMonitoringTab({
+   525→    required this.failedOnly,
+   526→    required this.onFailedOnlyChanged,
+   527→  });
+   528→
+   529→  final bool failedOnly;
+   530→  final ValueChanged<bool> onFailedOnlyChanged;
+   531→
+   532→  @override
+   533→  Widget build(BuildContext context) {
+   534→    return Consumer(builder: (context, ref, _) {
+   535→      final state = ref.watch(securityCenterProvider);
+   536→      final cs = Theme.of(context).colorScheme;
+   537→
+   538→      return Column(
+   539→        children: [
+   540→          // ─── Toggle ───────────────────────────────────────────────
+   541→          Padding(
+   542→            padding: Spacings.paddingScreen,
+   543→            child: Row(
+   544→              children: [
+   545→                Text(
+   546→                  'Show failed only',
+   547→                  style: AppTypography.wMedium.copyWith(fontSize: 14),
+   548→                ),
+   549→                const SizedBox(width: Spacings.sm),
+   550→                Switch(
+   551→                  value: failedOnly,
+   552→                  onChanged: onFailedOnlyChanged,
+   553→                ),
+   554→                const Spacer(),
+   555→                Text(
+   556→                  '${state.loginEntries.length} ${state.loginEntries.length == 1 ? 'entry' : 'entries'}',
+   557→                  style: AppTypography.wMedium.copyWith(
+   558→                    fontSize: 13,
+   559→                    color: cs.onSurface.withValues(alpha: 0.6),
+   560→                  ),
+   561→                ),
+   562→              ],
+   563→            ),
+   564→          ),
+   565→
+   566→          // ─── Data Table ───────────────────────────────────────────
+   567→          Expanded(
+   568→            child: state.loginEntries.isEmpty
+   569→                ? const AdminEmptyState(
+   570→                    message: 'No login entries found',
+   571→                    icon: Icons.login_rounded,
+   572→                  )
+   573→                : _LoginMonitoringDataTable(entries: state.loginEntries),
+   574→          ),
+   575→        ],
+   576→      );
+   577→    });
+   578→  }
+   579→}
+   580→
+   581→// ═══════════════════════════════════════════════════════════════════════════════
+   582→// LOGIN MONITORING DATA TABLE
+   583→// ═══════════════════════════════════════════════════════════════════════════════
+   584→
+   585→class _LoginMonitoringDataTable extends StatelessWidget {
+   586→  const _LoginMonitoringDataTable({required this.entries});
+   587→  final List<LoginMonitoringEntry> entries;
+   588→
+   589→  @override
+   590→  Widget build(BuildContext context) {
+   591→    final cs = Theme.of(context).colorScheme;
+   592→
+   593→    return SingleChildScrollView(
+   594→      scrollDirection: Axis.horizontal,
+   595→      padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   596→      child: SingleChildScrollView(
+   597→        padding: const EdgeInsets.only(bottom: Spacings.xl),
+   598→        child: DataTable(
+   599→          headingRowColor: WidgetStateProperty.all(
+   600→            cs.surfaceContainerHighest.withValues(alpha: 0.5),
+   601→          ),
+   602→          headingTextStyle: AppTypography.wSemiBold.copyWith(
+   603→            fontSize: 12,
+   604→            color: cs.onSurface.withValues(alpha: 0.7),
+   605→          ),
+   606→          dataTextStyle: AppTypography.wRegular.copyWith(
+   607→            fontSize: 13,
+   608→            color: cs.onSurface,
+   609→          ),
+   610→          columnSpacing: Spacings.lg,
+   611→          horizontalMargin: Spacings.sm,
+   612→          columns: const [
+   613→            DataColumn(label: Text('Timestamp')),
+   614→            DataColumn(label: Text('User')),
+   615→            DataColumn(label: Text('Role')),
+   616→            DataColumn(label: Text('Status')),
+   617→            DataColumn(label: Text('IP Address')),
+   618→            DataColumn(label: Text('Country')),
+   619→            DataColumn(label: Text('Device')),
+   620→          ],
+   621→          rows: entries.map((entry) {
+   622→            final isSuccess = entry.isSuccess;
+   623→            return DataRow(
+   624→              color: WidgetStateProperty.all(
+   625→                !isSuccess
+   626→                    ? AppColors.error.withValues(alpha: 0.06)
+   627→                    : null,
+   628→              ),
+   629→              cells: [
+   630→                // Timestamp
+   631→                DataCell(Text(
+   632→                  _formatTimestamp(entry.createdAt),
+   633→                  style: AppTypography.wRegular.copyWith(fontSize: 12),
+   634→                )),
+   635→                // User
+   636→                DataCell(Text(
+   637→                  entry.email ?? entry.userId ?? 'Unknown',
+   638→                  style: AppTypography.wMedium.copyWith(fontSize: 12),
+   639→                )),
+   640→                // Role
+   641→                DataCell(Text(entry.role ?? '—')),
+   642→                // Status badge
+   643→                DataCell(StatusBadge(
+   644→                  label: isSuccess ? 'Success' : 'Failed',
+   645→                  color: isSuccess ? AppColors.success : AppColors.error,
+   646→                  icon: isSuccess ? Icons.check_circle : Icons.cancel,
+   647→                )),
+   648→                // IP Address
+   649→                DataCell(Text(entry.ipAddress ?? '—')),
+   650→                // Country
+   651→                DataCell(Text(
+   652→                  [entry.city, entry.country]
+   653→                      .where((e) => e != null)
+   654→                      .join(', '),
+   655→                )),
+   656→                // Device
+   657→                DataCell(Tooltip(
+   658→                  message: entry.userAgent ?? 'Unknown',
+   659→                  child: Text(
+   660→                    entry.deviceFingerprint ?? '—',
+   661→                    overflow: TextOverflow.ellipsis,
+   662→                  ),
+   663→                )),
+   664→              ],
+   665→            );
+   666→          }).toList(),
+   667→        ),
+   668→      ),
+   669→    );
+   670→  }
+   671→}
+   672→
+   673→// ═══════════════════════════════════════════════════════════════════════════════
+   674→// ACTIVE SESSIONS TAB
+   675→// ═══════════════════════════════════════════════════════════════════════════════
+   676→
+   677→class _ActiveSessionsTab extends StatelessWidget {
+   678→  @override
+   679→  Widget build(BuildContext context) {
+   680→    return Consumer(builder: (context, ref, _) {
+   681→      final state = ref.watch(securityCenterProvider);
+   682→      final cs = Theme.of(context).colorScheme;
+   683→
+   684→      return Column(
+   685→        children: [
+   686→          Padding(
+   687→            padding: Spacings.paddingScreen,
+   688→            child: Row(
+   689→              children: [
+   690→                Text(
+   691→                  '${state.activeSessions.length} active ${state.activeSessions.length == 1 ? 'session' : 'sessions'}',
+   692→                  style: AppTypography.wMedium.copyWith(
+   693→                    fontSize: 13,
+   694→                    color: cs.onSurface.withValues(alpha: 0.6),
+   695→                  ),
+   696→                ),
+   697→              ],
+   698→            ),
+   699→          ),
+   700→          Expanded(
+   701→            child: state.activeSessions.isEmpty
+   702→                ? const AdminEmptyState(
+   703→                    message: 'No active sessions',
+   704→                    icon: Icons.devices_rounded,
+   705→                  )
+   706→                : RefreshIndicator(
+   707→                    onRefresh: () async {
+   708→                      ref
+   709→                          .read(securityCenterProvider.notifier)
+   710→                          .loadLoginMonitoring();
+   711→                    },
+   712→                    child: ListView.separated(
+   713→                      physics: const AlwaysScrollableScrollPhysics(),
+   714→                      padding: Spacings.paddingScreen,
+   715→                      itemCount: state.activeSessions.length,
+   716→                      separatorBuilder: (_, __) =>
+   717→                          const SizedBox(height: Spacings.sm),
+   718→                      itemBuilder: (context, index) {
+   719→                        final session = state.activeSessions[index];
+   720→                        return _ActiveSessionCard(session: session);
+   721→                      },
+   722→                    ),
+   723→                  ),
+   724→          ),
+   725→        ],
+   726→      );
+   727→    });
+   728→  }
+   729→}
+   730→
+   731→// ═══════════════════════════════════════════════════════════════════════════════
+   732→// ACTIVE SESSION CARD
+   733→// ═══════════════════════════════════════════════════════════════════════════════
+   734→
+   735→class _ActiveSessionCard extends StatelessWidget {
+   736→  const _ActiveSessionCard({required this.session});
+   737→  final ActiveSession session;
+   738→
+   739→  String _deviceLabel() {
+   740→    final info = session.deviceInfo;
+   741→    if (info == null) return 'Unknown Device';
+   742→    final browser = info['browser'] as String? ?? '';
+   743→    final os = info['os'] as String? ?? '';
+   744→    final device = info['device'] as String? ?? '';
+   745→    if (browser.isNotEmpty && os.isNotEmpty) return '$browser · $os';
+   746→    if (device.isNotEmpty) return device;
+   747→    return 'Unknown Device';
+   748→  }
+   749→
+   750→  @override
+   751→  Widget build(BuildContext context) {
+   752→    final cs = Theme.of(context).colorScheme;
+   753→
+   754→    return Card(
+   755→      elevation: session.isCurrent
+   756→          ? Spacings.elevationMd
+   757→          : Spacings.elevationSm,
+   758→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   759→      child: Padding(
+   760→        padding: Spacings.paddingAll,
+   761→        child: Column(
+   762→          crossAxisAlignment: CrossAxisAlignment.start,
+   763→          children: [
+   764→            // ─── Header ────────────────────────────────────────────
+   765→            Row(
+   766→              children: [
+   767→                Icon(
+   768→                  session.isCurrent
+   769→                      ? Icons.phone_android_rounded
+   770→                      : Icons.devices_rounded,
+   771→                  color: cs.primary,
+   772→                  size: Spacings.lgIcon,
+   773→                ),
+   774→                const SizedBox(width: Spacings.sm),
+   775→                Expanded(
+   776→                  child: Text(
+   777→                    _deviceLabel(),
+   778→                    style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+   779→                  ),
+   780→                ),
+   781→                if (session.isCurrent)
+   782→                  StatusBadge(
+   783→                    label: 'Current',
+   784→                    color: AppColors.success,
+   785→                    icon: Icons.check_circle,
+   786→                  ),
+   787→              ],
+   788→            ),
+   789→            const SizedBox(height: Spacings.md),
+   790→
+   791→            // ─── Details Grid ──────────────────────────────────────
+   792→            Row(
+   793→              children: [
+   794→                Expanded(
+   795→                  child: _detailItem(
+   796→                    icon: Icons.person_outline_rounded,
+   797→                    label: 'User',
+   798→                    value: session.userId,
+   799→                  ),
+   800→                ),
+   801→                Expanded(
+   802→                  child: _detailItem(
+   803→                    icon: Icons.language_rounded,
+   804→                    label: 'IP',
+   805→                    value: session.ipAddress ?? '—',
+   806→                  ),
+   807→                ),
+   808→              ],
+   809→            ),
+   810→            const SizedBox(height: Spacings.sm),
+   811→            Row(
+   812→              children: [
+   813→                Expanded(
+   814→                  child: _detailItem(
+   815→                    icon: Icons.location_on_outlined,
+   816→                    label: 'Location',
+   817→                    value: [session.city, session.country]
+   818→                        .where((e) => e != null)
+   819→                        .join(', '),
+   820→                  ),
+   821→                ),
+   822→                Expanded(
+   823→                  child: _detailItem(
+   824→                    icon: Icons.schedule_rounded,
+   825→                    label: 'Last Activity',
+   826→                    value: _formatTimestamp(session.lastActivityAt),
+   827→                  ),
+   828→                ),
+   829→              ],
+   830→            ),
+   831→            const SizedBox(height: Spacings.md),
+   832→
+   833→            // ─── Terminate Button ──────────────────────────────────
+   834→            if (!session.isCurrent)
+   835→              SizedBox(
+   836→                width: double.infinity,
+   837→                child: OutlinedButton.icon(
+   838→                  onPressed: () => _confirmTerminate(context, session),
+   839→                  icon: const Icon(Icons.power_settings_new, size: 16),
+   840→                  label: const Text('Terminate Session'),
+   841→                  style: OutlinedButton.styleFrom(
+   842→                    foregroundColor: AppColors.error,
+   843→                    side: const BorderSide(color: AppColors.error),
+   844→                  ),
+   845→                ),
+   846→              ),
+   847→          ],
+   848→        ),
+   849→      ),
+   850→    );
+   851→  }
+   852→
+   853→  Widget _detailItem({
+   854→    required IconData icon,
+   855→    required String label,
+   856→    required String value,
+   857→  }) {
+   858→    return Row(
+   859→      children: [
+   860→        Icon(icon, size: 14, color: Colors.grey),
+   861→        const SizedBox(width: Spacings.xs),
+   862→        Column(
+   863→          crossAxisAlignment: CrossAxisAlignment.start,
+   864→          children: [
+   865→            Text(
+   866→              label,
+   867→              style: AppTypography.wRegular.copyWith(
+   868→                fontSize: 10,
+   869→                color: Colors.grey,
+   870→              ),
+   871→            ),
+   872→            Text(
+   873→              value,
+   874→              style: AppTypography.wMedium.copyWith(fontSize: 12),
+   875→              overflow: TextOverflow.ellipsis,
+   876→            ),
+   877→          ],
+   878→        ),
+   879→      ],
+   880→    );
+   881→  }
+   882→
+   883→  void _confirmTerminate(BuildContext context, ActiveSession session) {
+   884→    showDialog(
+   885→      context: context,
+   886→      builder: (dialogContext) => AlertDialog(
+   887→        title: Text(
+   888→          'Terminate Session',
+   889→          style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   890→        ),
+   891→        content: Text(
+   892→          'Are you sure you want to terminate this session for user "${session.userId}"? '
+   893→          'They will be logged out immediately.',
+   894→          style: AppTypography.wRegular.copyWith(fontSize: 14),
+   895→        ),
+   896→        actions: [
+   897→          TextButton(
+   898→            onPressed: () => Navigator.of(dialogContext).pop(),
+   899→            child: const Text('Cancel'),
+   900→          ),
+   901→          FilledButton(
+   902→            onPressed: () {
+   903→              Navigator.of(dialogContext).pop();
+   904→              // TODO: Call terminate session when notifier method is available
+   905→              // ref.read(securityCenterProvider.notifier).terminateSession(session.id);
+   906→              ScaffoldMessenger.of(context).showSnackBar(
+   907→                const SnackBar(
+   908→                  content: Text('Session terminated'),
+   909→                  backgroundColor: AppColors.success,
+   910→                  behavior: SnackBarBehavior.floating,
+   911→                ),
+   912→              );
+   913→            },
+   914→            style: FilledButton.styleFrom(
+   915→              backgroundColor: AppColors.error,
+   916→            ),
+   917→            child: const Text('Terminate'),
+   918→          ),
+   919→        ],
+   920→      ),
+   921→    );
+   922→  }
+   923→}
+   924→
+   925→// ═══════════════════════════════════════════════════════════════════════════════
+   926→// SUSPICIOUS ACTIVITY TAB
+   927→// ═══════════════════════════════════════════════════════════════════════════════
+   928→
+   929→class _SuspiciousActivityTab extends StatelessWidget {
+   930→  @override
+   931→  Widget build(BuildContext context) {
+   932→    return Consumer(builder: (context, ref, _) {
+   933→      final state = ref.watch(securityCenterProvider);
+   934→      final cs = Theme.of(context).colorScheme;
+   935→
+   936→      return Column(
+   937→        children: [
+   938→          Padding(
+   939→            padding: Spacings.paddingScreen,
+   940→            child: Row(
+   941→              children: [
+   942→                Text(
+   943→                  '${state.suspiciousActivity.length} ${state.suspiciousActivity.length == 1 ? 'alert' : 'alerts'}',
+   944→                  style: AppTypography.wMedium.copyWith(
+   945→                    fontSize: 13,
+   946→                    color: cs.onSurface.withValues(alpha: 0.6),
+   947→                  ),
+   948→                ),
+   949→                const Spacer(),
+   950→                FilledButton.tonal(
+   951→                  onPressed: () {
+   952→                    ref
+   953→                        .read(securityCenterProvider.notifier)
+   954→                        .detectSuspicious();
+   955→                  },
+   956→                  child: const Text('Scan Now'),
+   957→                ),
+   958→              ],
+   959→            ),
+   960→          ),
+   961→          Expanded(
+   962→            child: state.suspiciousActivity.isEmpty
+   963→                ? const AdminEmptyState(
+   964→                    message: 'No suspicious activity detected',
+   965→                    icon: Icons.verified_user_rounded,
+   966→                  )
+   967→                : RefreshIndicator(
+   968→                    onRefresh: () async {
+   969→                      ref
+   970→                          .read(securityCenterProvider.notifier)
+   971→                          .detectSuspicious();
+   972→                    },
+   973→                    child: ListView.separated(
+   974→                      physics: const AlwaysScrollableScrollPhysics(),
+   975→                      padding: Spacings.paddingScreen,
+   976→                      itemCount: state.suspiciousActivity.length,
+   977→                      separatorBuilder: (_, __) =>
+   978→                          const SizedBox(height: Spacings.sm),
+   979→                      itemBuilder: (context, index) {
+   980→                        final activity = state.suspiciousActivity[index];
+   981→                        return _SuspiciousActivityCard(
+   982→                            activity: activity);
+   983→                      },
+   984→                    ),
+   985→                  ),
+   986→          ),
+   987→        ],
+   988→      );
+   989→    });
+   990→  }
+   991→}
+   992→
+   993→// ═══════════════════════════════════════════════════════════════════════════════
+   994→// SUSPICIOUS ACTIVITY CARD
+   995→// ═══════════════════════════════════════════════════════════════════════════════
+   996→
+   997→class _SuspiciousActivityCard extends StatelessWidget {
+   998→  const _SuspiciousActivityCard({required this.activity});
+   999→  final Map<String, dynamic> activity;
+  1000→
+  1001→  @override
+  1002→  Widget build(BuildContext context) {
+  1003→    final cs = Theme.of(context).colorScheme;
+  1004→    final userId = activity['userId'] as String? ?? 'Unknown';
+  1005→    final email = activity['email'] as String? ?? userId;
+  1006→    final failureCount = activity['failureCount'] as int? ?? 0;
+  1007→    final distinctIps = activity['distinctIps'] as int? ?? 0;
+  1008→    final lastAttempt = activity['lastAttemptAt'] as String? ?? '—';
+  1009→    final isLocked = activity['isLocked'] as bool? ?? false;
+  1010→    final reason = activity['lockReason'] as String?;
+  1011→
+  1012→    return Card(
+  1013→      elevation: Spacings.elevationSm,
+  1014→      shape: RoundedRectangleBorder(
+  1015→        borderRadius: Spacings.borderRadiusMd,
+  1016→        side: isLocked
+  1017→            ? BorderSide(color: AppColors.error.withValues(alpha: 0.4))
+  1018→            : BorderSide.none,
+  1019→      ),
+  1020→      child: Padding(
+  1021→        padding: Spacings.paddingAll,
+  1022→        child: Column(
+  1023→          crossAxisAlignment: CrossAxisAlignment.start,
+  1024→          children: [
+  1025→            // ─── Header ────────────────────────────────────────────
+  1026→            Row(
+  1027→              children: [
+  1028→                Icon(
+  1029→                  isLocked
+  1030→                      ? Icons.lock_outline_rounded
+  1031→                      : Icons.warning_amber_rounded,
+  1032→                  color: isLocked ? AppColors.error : AppColors.warning,
+  1033→                  size: Spacings.lgIcon,
+  1034→                ),
+  1035→                const SizedBox(width: Spacings.sm),
+  1036→                Expanded(
+  1037→                  child: Text(
+  1038→                    email,
+  1039→                    style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+  1040→                  ),
+  1041→                ),
+  1042→                if (isLocked)
+  1043→                  StatusBadge(
+  1044→                    label: 'Locked',
+  1045→                    color: AppColors.error,
+  1046→                    icon: Icons.lock,
+  1047→                  )
+  1048→                else
+  1049→                  StatusBadge(
+  1050→                    label: 'Active',
+  1051→                    color: AppColors.warning,
+  1052→                    icon: Icons.warning_amber,
+  1053→                  ),
+  1054→              ],
+  1055→            ),
+  1056→            const SizedBox(height: Spacings.md),
+  1057→
+  1058→            // ─── Stats Row ─────────────────────────────────────────
+  1059→            Row(
+  1060→              children: [
+  1061→                _statChip(
+  1062→                  icon: Icons.error_outline,
+  1063→                  label: 'Failed Attempts',
+  1064→                  value: '$failureCount',
+  1065→                  color: failureCount > 10 ? AppColors.error : AppColors.warning,
+  1066→                ),
+  1067→                const SizedBox(width: Spacings.md),
+  1068→                _statChip(
+  1069→                  icon: Icons.language_rounded,
+  1070→                  label: 'Distinct IPs',
+  1071→                  value: '$distinctIps',
+  1072→                  color: distinctIps > 3 ? AppColors.error : AppColors.info,
+  1073→                ),
+  1074→                const SizedBox(width: Spacings.md),
+  1075→                _statChip(
+  1076→                  icon: Icons.schedule_rounded,
+  1077→                  label: 'Last Attempt',
+  1078→                  value: lastAttempt,
+  1079→                  color: cs.onSurface.withValues(alpha: 0.6),
+  1080→                ),
+  1081→              ],
+  1082→            ),
+  1083→
+  1084→            if (reason != null) ...[
+  1085→              const SizedBox(height: Spacings.sm),
+  1086→              Container(
+  1087→                width: double.infinity,
+  1088→                padding: const EdgeInsets.all(Spacings.sm),
+  1089→                decoration: BoxDecoration(
+  1090→                  color: AppColors.error.withValues(alpha: 0.08),
+  1091→                  borderRadius: Spacings.borderRadiusSm,
+  1092→                ),
+  1093→                child: Text(
+  1094→                  'Lock reason: $reason',
+  1095→                  style: AppTypography.wRegular.copyWith(
+  1096→                    fontSize: 12,
+  1097→                    color: AppColors.errorDark,
+  1098→                  ),
+  1099→                ),
+  1100→              ),
+  1101→            ],
+  1102→
+  1103→            const SizedBox(height: Spacings.md),
+  1104→
+  1105→            // ─── Action Buttons ────────────────────────────────────
+  1106→            Row(
+  1107→              mainAxisAlignment: MainAxisAlignment.end,
+  1108→              children: [
+  1109→                if (isLocked)
+  1110→                  Consumer(builder: (context, ref, _) {
+  1111→                    return FilledButton.tonal(
+  1112→                      onPressed: () {
+  1113→                        ref
+  1114→                            .read(securityCenterProvider.notifier)
+  1115→                            .unlockAccount(userId);
+  1116→                      },
+  1117→                      child: const Text('Unlock'),
+  1118→                    );
+  1119→                  })
+  1120→                else
+  1121→                  FilledButton(
+  1122→                    onPressed: () => _showLockDialog(context, userId),
+  1123→                    style: FilledButton.styleFrom(
+  1124→                      backgroundColor: AppColors.error,
+  1125→                    ),
+  1126→                    child: const Text('Lock Account'),
+  1127→                  ),
+  1128→              ],
+  1129→            ),
+  1130→          ],
+  1131→        ),
+  1132→      ),
+  1133→    );
+  1134→  }
+  1135→
+  1136→  Widget _statChip({
+  1137→    required IconData icon,
+  1138→    required String label,
+  1139→    required String value,
+  1140→    required Color color,
+  1141→  }) {
+  1142→    return Column(
+  1143→      crossAxisAlignment: CrossAxisAlignment.start,
+  1144→      children: [
+  1145→        Row(
+  1146→          mainAxisSize: MainAxisSize.min,
+  1147→          children: [
+  1148→            Icon(icon, size: 14, color: color),
+  1149→            const SizedBox(width: Spacings.xs),
+  1150→            Text(
+  1151→              label,
+  1152→              style: AppTypography.wRegular.copyWith(
+  1153→                fontSize: 10,
+  1154→                color: Colors.grey,
+  1155→              ),
+  1156→            ),
+  1157→          ],
+  1158→        ),
+  1159→        Text(
+  1160→          value,
+  1161→          style: AppTypography.wSemiBold.copyWith(fontSize: 13, color: color),
+  1162→        ),
+  1163→      ],
+  1164→    );
+  1165→  }
+  1166→
+  1167→  void _showLockDialog(BuildContext context, String userId) {
+  1168→    final reasonController = TextEditingController();
+  1169→    showDialog(
+  1170→      context: context,
+  1171→      builder: (dialogContext) => Consumer(builder: (context, ref, _) {
+  1172→        return AlertDialog(
+  1173→          title: Text(
+  1174→            'Lock Account',
+  1175→            style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+  1176→          ),
+  1177→          content: Column(
+  1178→            mainAxisSize: MainAxisSize.min,
+  1179→            crossAxisAlignment: CrossAxisAlignment.start,
+  1180→            children: [
+  1181→              Text(
+  1182→                'Lock the account for user "$userId"? They will be unable to log in until an admin unlocks the account.',
+  1183→                style: AppTypography.wRegular.copyWith(fontSize: 14),
+  1184→              ),
+  1185→              const SizedBox(height: Spacings.lg),
+  1186→              TextField(
+  1187→                controller: reasonController,
+  1188→                decoration: InputDecoration(
+  1189→                  labelText: 'Reason',
+  1190→                  hintText: 'Enter reason for locking this account',
+  1191→                  border: OutlineInputBorder(
+  1192→                      borderRadius: Spacings.borderRadiusMd),
+  1193→                ),
+  1194→                maxLines: 3,
+  1195→                textCapitalization: TextCapitalization.sentences,
+  1196→              ),
+  1197→            ],
+  1198→          ),
+  1199→          actions: [
+  1200→            TextButton(
+  1201→              onPressed: () {
+  1202→                reasonController.dispose();
+  1203→                Navigator.of(dialogContext).pop();
+  1204→              },
+  1205→              child: const Text('Cancel'),
+  1206→            ),
+  1207→            FilledButton(
+  1208→              onPressed: () {
+  1209→                final reason = reasonController.text.trim();
+  1210→                if (reason.isEmpty) return;
+  1211→                Navigator.of(dialogContext).pop();
+  1212→                ref
+  1213→                    .read(securityCenterProvider.notifier)
+  1214→                    .lockAccount(userId, reason);
+  1215→                reasonController.dispose();
+  1216→              },
+  1217→              style: FilledButton.styleFrom(
+  1218→                backgroundColor: AppColors.error,
+  1219→              ),
+  1220→              child: const Text('Lock'),
+  1221→            ),
+  1222→          ],
+  1223→        );
+  1224→      }),
+  1225→    );
+  1226→  }
+  1227→
+  1228→}
+  1229→
