@@ -7,8 +7,8 @@ import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
-import 'providers/onboarding_provider.dart';
-import 'widgets/onboarding_slide.dart';
+import '../providers/onboarding_provider.dart';
+import '../widgets/onboarding_slide.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // ONBOARDING SLIDE DATA
@@ -153,7 +153,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                     'Skip',
                     style: tt.labelLarge?.copyWith(
                       color: isLastPage
-                          ? cs.onSurfaceVariant.withValues(alpha: 0.38)
+                          ? cs.onSurfaceVariant.withOpacity(0.38)
                           : cs.onSurfaceVariant,
                     ),
                   ),

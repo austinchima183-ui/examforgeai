@@ -382,8 +382,7 @@ class _ResourceCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.info.withValues(
-                    alpha: context.isDarkMode ? 0.20 : 0.12,
+                  color: AppColors.info.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.smRadius),
@@ -526,7 +525,7 @@ class _ResourceInfoChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

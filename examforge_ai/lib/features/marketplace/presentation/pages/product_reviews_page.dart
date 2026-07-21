@@ -374,8 +374,7 @@ class _ProductReviewsPageState extends ConsumerState<ProductReviewsPage> {
                 onSelected: (_) {
                   setState(() => _filter = filter);
                 },
-                selectedColor: context.colorScheme.primary.withValues(
-                  alpha: context.isDarkMode ? 0.25 : 0.15,
+                selectedColor: context.colorScheme.primary.withOpacity(context.isDarkMode ? 0.25 : 0.15,
                 ),
                 checkmarkColor: context.colorScheme.primary,
               ),

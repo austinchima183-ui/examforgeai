@@ -441,10 +441,7 @@ class SchoolManagementRemoteDataSourceImpl
       final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
       final offset = (page - 1) * perPage;
 
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
 
       return response
           .map<SchoolModel>((json) => SchoolModel.fromJson(json))
@@ -834,10 +831,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
 
       return response
           .map<StudentProfileModel>((json) => StudentProfileModel.fromJson(json))
@@ -1099,10 +1093,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
 
       return response
           .map<TeacherProfileModel>((json) => TeacherProfileModel.fromJson(json))
@@ -1240,10 +1231,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
 
       return response
           .map<ParentProfileModel>((json) => ParentProfileModel.fromJson(json))
@@ -1866,10 +1854,7 @@ class SchoolManagementRemoteDataSourceImpl
         query = query.lte('start_date', endDate);
       }
 
-      query = query.order('start_date', ascending: true);
-      query = query.range(offset, offset + limit - 1);
-
-      final response = await query;
+      final response = await query.order('start_date', ascending: true).range(offset, offset + limit - 1);
 
       return response
           .map<CalendarEventModel>((json) => CalendarEventModel.fromJson(json))
@@ -2030,10 +2015,7 @@ class SchoolManagementRemoteDataSourceImpl
         query = query.eq('class_id', classId);
       }
 
-      query = query.order('created_at', ascending: false);
-      query = query.range(offset, offset + limit - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
 
       return response
           .map<TimetableModel>((json) => TimetableModel.fromJson(json))
@@ -2185,14 +2167,13 @@ class SchoolManagementRemoteDataSourceImpl
           .select('id, teacher_id, class_id, day_of_week, period_number, timetables!timetable_slots_timetable_id_fkey(id, name, is_active)')
           .eq('teacher_id', teacherId)
           .eq('day_of_week', dayOfWeek)
-          .eq('period_number', periodNumber)
-          .limit(PaginatedQueryMixin.dropdownPageSize);
+          .eq('period_number', periodNumber);
 
       if (excludeSlotId != null) {
         teacherQuery = teacherQuery.neq('id', excludeSlotId);
       }
 
-      final teacherResponse = await teacherQuery;
+      final teacherResponse = await teacherQuery.limit(PaginatedQueryMixin.dropdownPageSize);
 
       // Filter for active timetables only
       for (final slot in teacherResponse) {
@@ -2213,14 +2194,13 @@ class SchoolManagementRemoteDataSourceImpl
           .select('id, teacher_id, class_id, day_of_week, period_number, timetables!timetable_slots_timetable_id_fkey(id, name, is_active)')
           .eq('class_id', classId)
           .eq('day_of_week', dayOfWeek)
-          .eq('period_number', periodNumber)
-          .limit(PaginatedQueryMixin.dropdownPageSize);
+          .eq('period_number', periodNumber);
 
       if (excludeSlotId != null) {
         classQuery = classQuery.neq('id', excludeSlotId);
       }
 
-      final classResponse = await classQuery;
+      final classResponse = await classQuery.limit(PaginatedQueryMixin.dropdownPageSize);
 
       for (final slot in classResponse) {
         final timetable = slot['timetables'] as Map<String, dynamic>?;
@@ -2380,10 +2360,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('date', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('date', ascending: false);
 
       return response
           .map<AttendanceRecordModel>(
@@ -2660,10 +2637,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
 
       return response
           .map<HomeworkModel>((json) => HomeworkModel.fromJson(json))
@@ -2927,10 +2901,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
 
       return response
           .map<AnnouncementModel>((json) => AnnouncementModel.fromJson(json))
@@ -3100,10 +3071,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
 
       return response
           .map<DocumentModel>((json) => DocumentModel.fromJson(json))
@@ -3218,10 +3186,7 @@ class SchoolManagementRemoteDataSourceImpl
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('name', ascending: true);
-
-      final response = await query;
+      final response = await query.range(offset, offset + perPage - 1).order('name', ascending: true);
 
       return response
           .map<ClassModel>((json) => ClassModel.fromJson(json))
@@ -3411,10 +3376,7 @@ class SchoolManagementRemoteDataSourceImpl
         query = query.eq('is_active', isActive);
       }
 
-      query = query.order('name', ascending: true);
-      query = query.range(offset, offset + limit - 1);
-
-      final response = await query;
+      final response = await query.order('name', ascending: true).range(offset, offset + limit - 1);
 
       return response
           .map<SubjectModel>((json) => SubjectModel.fromJson(json))
@@ -3606,10 +3568,7 @@ class SchoolManagementRemoteDataSourceImpl
         query = query.eq('current_class_id', classId);
       }
 
-      query = query.order('admission_number', ascending: true);
-      query = query.range(offset, offset + limit - 1);
-
-      final response = await query;
+      final response = await query.order('admission_number', ascending: true).range(offset, offset + limit - 1);
 
       return response
           .map<StudentProfileModel>((json) => StudentProfileModel.fromJson(json))
@@ -3679,8 +3638,7 @@ class SchoolManagementRemoteDataSourceImpl
           .from(_attendanceRecordsTable)
           .select('id, date, attendance_type, attendance_entries(status)')
           .eq('school_id', schoolId)
-          .eq('term_id', termId)
-          .limit(PaginatedQueryMixin.statsPageSize);
+          .eq('term_id', termId);
 
       if (classId != null) {
         query = query.eq('class_id', classId);
@@ -3692,7 +3650,7 @@ class SchoolManagementRemoteDataSourceImpl
         query = query.lte('date', endDate);
       }
 
-      final records = await query;
+      final records = await query.limit(PaginatedQueryMixin.statsPageSize);
 
       // Aggregate attendance data
       int totalRecords = records.length;

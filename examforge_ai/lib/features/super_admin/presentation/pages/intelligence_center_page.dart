@@ -169,7 +169,7 @@ class _IntelligenceCenterPageState
                         controller: _tabController,
                         tabs: _tabs,
                         labelColor: cs.primary,
-                        unselectedLabelColor: cs.onSurface.withValues(alpha: 0.6),
+                        unselectedLabelColor: cs.onSurface.withOpacity(0.6),
                         indicatorColor: cs.primary,
                         indicatorSize: TabBarIndicatorSize.tab,
                         isScrollable: true,
@@ -233,7 +233,7 @@ class _IntelligenceCenterPageState
               error,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: cs.onSurface.withValues(alpha: 0.7),
+                color: cs.onSurface.withOpacity(0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -316,7 +316,7 @@ class _AlertsTab extends StatelessWidget {
                         'Alert Type',
                         style: AppTypography.wSemiBold.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.6),
+                          color: cs.onSurface.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -339,7 +339,7 @@ class _AlertsTab extends StatelessWidget {
                   'Severity',
                   style: AppTypography.wSemiBold.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
                 const SizedBox(height: Spacings.xs),
@@ -534,7 +534,7 @@ class _ChurnPredictionCard extends StatelessWidget {
                   'Churn Probability',
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
                 const Spacer(),
@@ -565,7 +565,7 @@ class _ChurnPredictionCard extends StatelessWidget {
                 'Recommended Actions',
                 style: AppTypography.wSemiBold.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
               ),
               const SizedBox(height: Spacings.sm),
@@ -667,7 +667,7 @@ class _RevenueForecastTab extends StatelessWidget {
                           'Overall Confidence',
                           style: AppTypography.wRegular.copyWith(
                             fontSize: 12,
-                            color: cs.onSurface.withValues(alpha: 0.6),
+                            color: cs.onSurface.withOpacity(0.6),
                           ),
                         ),
                         Text(
@@ -795,7 +795,7 @@ class _ForecastBar extends StatelessWidget {
                           child: Container(
                             height: 28,
                             decoration: BoxDecoration(
-                              color: cs.primary.withValues(alpha: 0.15),
+                              color: cs.primary.withOpacity(0.15),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                           ),
@@ -806,7 +806,7 @@ class _ForecastBar extends StatelessWidget {
                           child: Container(
                             height: 28,
                             decoration: BoxDecoration(
-                              color: cs.primary.withValues(alpha: 0.5),
+                              color: cs.primary.withOpacity(0.5),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             alignment: Alignment.centerLeft,
@@ -833,7 +833,7 @@ class _ForecastBar extends StatelessWidget {
                   '${confidence.toStringAsFixed(0)}% conf.',
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 11,
-                    color: cs.onSurface.withValues(alpha: 0.5),
+                    color: cs.onSurface.withOpacity(0.5),
                   ),
                   textAlign: TextAlign.right,
                 ),
@@ -848,7 +848,7 @@ class _ForecastBar extends StatelessWidget {
                 'Range: \$${_formatCompact(lowerBound)} — \$${_formatCompact(upperBound)}',
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 11,
-                  color: cs.onSurface.withValues(alpha: 0.4),
+                  color: cs.onSurface.withOpacity(0.4),
                 ),
               ),
             ],
@@ -1028,7 +1028,7 @@ class _CostOptimizationTab extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.all(Spacings.sm),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.1),
+                          color: AppColors.success.withOpacity(0.1),
                           borderRadius: Spacings.borderRadiusSm,
                         ),
                         child: const Icon(
@@ -1065,7 +1065,7 @@ class _CostOptimizationTab extends StatelessWidget {
                               description,
                               style: AppTypography.wRegular.copyWith(
                                 fontSize: 13,
-                                color: cs.onSurface.withValues(alpha: 0.7),
+                                color: cs.onSurface.withOpacity(0.7),
                               ),
                             ),
                             if (estimatedSavings > 0) ...[
@@ -1123,7 +1123,7 @@ class _ComparisonBar extends StatelessWidget {
             label,
             style: AppTypography.wSemiBold.copyWith(
               fontSize: 13,
-              color: cs.onSurface.withValues(alpha: 0.7),
+              color: cs.onSurface.withOpacity(0.7),
             ),
           ),
         ),
@@ -1203,7 +1203,7 @@ class _ProviderCostCard extends StatelessWidget {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
+                      color: AppColors.success.withOpacity(0.1),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
                     child: Text(

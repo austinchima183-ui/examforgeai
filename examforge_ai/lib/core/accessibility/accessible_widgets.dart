@@ -544,10 +544,10 @@ class AccessiblyHeading extends StatelessWidget {
 enum HeadingLevel { h1, h2, h3 }
 
 extension on HeadingLevel {
-  SemanticsHeadingLevel get _toSemanticsLevel => switch (this) {
-        HeadingLevel.h1 => SemanticsHeadingLevel.h1,
-        HeadingLevel.h2 => SemanticsHeadingLevel.h2,
-        HeadingLevel.h3 => SemanticsHeadingLevel.h3,
+  int get _toSemanticsLevel => switch (this) {
+        HeadingLevel.h1 => 1,
+        HeadingLevel.h2 => 2,
+        HeadingLevel.h3 => 3,
       };
 }
 

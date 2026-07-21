@@ -257,8 +257,8 @@ class AppButton extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.primary,
               foregroundColor: cs.onPrimary,
-              disabledBackgroundColor: cs.onSurface.withValues(alpha: 0.12),
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledBackgroundColor: cs.onSurface.withOpacity(0.12),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               elevation: 0,
               padding: _paddingForSize(size),
               minimumSize: _minimumSizeForSize(size),
@@ -275,13 +275,13 @@ class AppButton extends StatelessWidget {
             onPressed: effectiveOnPressed,
             style: OutlinedButton.styleFrom(
               foregroundColor: cs.primary,
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               padding: _paddingForSize(size),
               minimumSize: _minimumSizeForSize(size),
               shape: shape,
               side: BorderSide(
                 color: _effectiveDisabled
-                    ? cs.onSurface.withValues(alpha: 0.12)
+                    ? cs.onSurface.withOpacity(0.12)
                     : cs.outline,
               ),
               textStyle: _textStyleForSize(size, cs),
@@ -296,7 +296,7 @@ class AppButton extends StatelessWidget {
             onPressed: effectiveOnPressed,
             style: TextButton.styleFrom(
               foregroundColor: cs.primary,
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               padding: _paddingForSize(size),
               minimumSize: _minimumSizeForSize(size),
               shape: shape,
@@ -313,8 +313,8 @@ class AppButton extends StatelessWidget {
             style: ElevatedButton.styleFrom(
               backgroundColor: cs.secondaryContainer,
               foregroundColor: cs.onSecondaryContainer,
-              disabledBackgroundColor: cs.onSurface.withValues(alpha: 0.12),
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledBackgroundColor: cs.onSurface.withOpacity(0.12),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               elevation: 0,
               padding: _paddingForSize(size),
               minimumSize: _minimumSizeForSize(size),
@@ -437,8 +437,8 @@ class AppIconButton extends StatelessWidget {
             style: IconButton.styleFrom(
               backgroundColor: cs.primary,
               foregroundColor: cs.onPrimary,
-              disabledBackgroundColor: cs.onSurface.withValues(alpha: 0.12),
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledBackgroundColor: cs.onSurface.withOpacity(0.12),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               shape: shape,
               iconSize: _iconSize(),
             ),
@@ -455,8 +455,8 @@ class AppIconButton extends StatelessWidget {
             style: IconButton.styleFrom(
               backgroundColor: cs.secondaryContainer,
               foregroundColor: cs.onSecondaryContainer,
-              disabledBackgroundColor: cs.onSurface.withValues(alpha: 0.12),
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledBackgroundColor: cs.onSurface.withOpacity(0.12),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               shape: shape,
               iconSize: _iconSize(),
             ),
@@ -472,10 +472,10 @@ class AppIconButton extends StatelessWidget {
             onPressed: effectiveOnPressed,
             style: IconButton.styleFrom(
               foregroundColor: cs.primary,
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               side: BorderSide(
                 color: _effectiveDisabled
-                    ? cs.onSurface.withValues(alpha: 0.12)
+                    ? cs.onSurface.withOpacity(0.12)
                     : cs.outline,
               ),
               shape: shape,
@@ -493,7 +493,7 @@ class AppIconButton extends StatelessWidget {
             onPressed: effectiveOnPressed,
             style: IconButton.styleFrom(
               foregroundColor: cs.onSurfaceVariant,
-              disabledForegroundColor: cs.onSurface.withValues(alpha: 0.38),
+              disabledForegroundColor: cs.onSurface.withOpacity(0.38),
               shape: shape,
               iconSize: _iconSize(),
             ),

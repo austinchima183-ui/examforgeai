@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/parent_provider.dart';
 import '../../providers/announcement_provider.dart';
 import '../../../../../config/dependency_injection.dart';
@@ -301,7 +301,7 @@ class _QuickLinkCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(icon, size: Spacings.lgIcon, color: color),
@@ -348,7 +348,7 @@ class _ChildOverviewCard extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -545,7 +545,7 @@ class _AnnouncementCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(_typeIcon(), size: Spacings.mdIcon, color: color),

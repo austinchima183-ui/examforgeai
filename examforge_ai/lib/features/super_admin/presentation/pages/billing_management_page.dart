@@ -156,7 +156,7 @@ class _BillingManagementPageState
               state.error ?? 'An unexpected error occurred.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -438,7 +438,7 @@ class _BillingManagementPageState
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
+                color: color.withOpacity(0.1),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(icon, color: color, size: Spacings.mdIcon),
@@ -464,7 +464,7 @@ class _BillingManagementPageState
               subtitle,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 11,
-                color: cs.onSurface.withValues(alpha: 0.5),
+                color: cs.onSurface.withOpacity(0.5),
               ),
             ),
           ],
@@ -535,7 +535,7 @@ class _BillingManagementPageState
                                 _formatCompactCurrency(revenue),
                                 style: AppTypography.wSemiBold.copyWith(
                                   fontSize: 10,
-                                  color: cs.onSurface.withValues(alpha: 0.7),
+                                  color: cs.onSurface.withOpacity(0.7),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -544,7 +544,7 @@ class _BillingManagementPageState
                               Container(
                                 height: heightPercent * 140,
                                 decoration: BoxDecoration(
-                                  color: cs.primary.withValues(alpha: 0.8),
+                                  color: cs.primary.withOpacity(0.8),
                                   borderRadius: const BorderRadius.only(
                                     topLeft:
                                         Radius.circular(Spacings.smRadius / 2),
@@ -560,7 +560,7 @@ class _BillingManagementPageState
                                 style: AppTypography.wRegular.copyWith(
                                   fontSize: 10,
                                   color:
-                                      cs.onSurface.withValues(alpha: 0.5),
+                                      cs.onSurface.withOpacity(0.5),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -673,7 +673,7 @@ class _BillingManagementPageState
                       : '—',
                   style: AppTypography.wSemiBold.copyWith(
                     fontSize: 13,
-                    color: growth != null ? statusColor : cs.onSurface.withValues(alpha: 0.4),
+                    color: growth != null ? statusColor : cs.onSurface.withOpacity(0.4),
                   ),
                 ),
               ),
@@ -693,7 +693,7 @@ class _BillingManagementPageState
                           : (isPositive ? 'Healthy' : 'Review'),
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.6),
+                        color: cs.onSurface.withOpacity(0.6),
                       ),
                     ),
                   ],

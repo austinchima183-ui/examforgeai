@@ -176,7 +176,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
+                          color: const Color(0xFF8B5CF6).withOpacity(0.1),
                           borderRadius: Spacings.borderRadiusFull,
                         ),
                         child: Row(
@@ -281,7 +281,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                       Icon(
                         Icons.event_available_outlined,
                         size: 48,
-                        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                        color: cs.onSurfaceVariant.withOpacity(0.5),
                       ),
                       const SizedBox(height: Spacings.md),
                       Text(
@@ -335,7 +335,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: activityColor.withValues(alpha: 0.1),
+                  color: activityColor.withOpacity(0.1),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -398,7 +398,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: activityColor.withValues(alpha: 0.1),
+                            color: activityColor.withOpacity(0.1),
                             borderRadius: Spacings.borderRadiusFull,
                           ),
                           child: Text(
@@ -434,8 +434,8 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                   ),
                   decoration: BoxDecoration(
                     color: activity.performanceScore! >= 70
-                        ? AppColors.success.withValues(alpha: 0.1)
-                        : AppColors.warning.withValues(alpha: 0.1),
+                        ? AppColors.success.withOpacity(0.1)
+                        : AppColors.warning.withOpacity(0.1),
                     borderRadius: Spacings.borderRadiusFull,
                   ),
                   child: Text(

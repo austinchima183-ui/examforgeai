@@ -457,7 +457,7 @@ class _OralQuestionListPageState extends ConsumerState<OralQuestionListPage> {
                   ),
                   decoration: BoxDecoration(
                     color:
-                        cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                        cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Row(
@@ -604,7 +604,7 @@ class _OralQuestionListPageState extends ConsumerState<OralQuestionListPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

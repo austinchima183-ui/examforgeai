@@ -287,7 +287,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
         const SizedBox(height: Spacings.md),
         Card(
           elevation: Spacings.elevationSm,
-          shadowColor: cs.shadow.withValues(alpha: 0.06),
+          shadowColor: cs.shadow.withOpacity(0.06),
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
           ),
@@ -344,7 +344,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
                 Container(
                   height: height.clamp(4.0, 160.0),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.7),
+                    color: cs.primary.withOpacity(0.7),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(4),
                     ),
@@ -423,7 +423,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
+              color: cs.outlineVariant.withOpacity(0.5),
             ),
           ),
           child: Padding(
@@ -526,7 +526,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
+              color: cs.outlineVariant.withOpacity(0.5),
             ),
           ),
           clipBehavior: Clip.antiAlias,
@@ -534,7 +534,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
             children: [
               // Header
               Container(
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: cs.surfaceContainerHighest.withOpacity(0.5),
                 padding: const EdgeInsets.symmetric(
                   horizontal: Spacings.lg,
                   vertical: Spacings.md,

@@ -2,7 +2,7 @@ import 'package:equatable/equatable.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
-import '../../data/repositories/offline_repository.dart';
+import '../../domain/repositories/offline_repository.dart';
 import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 

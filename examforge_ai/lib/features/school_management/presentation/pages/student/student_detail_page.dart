@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/student_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -269,7 +269,7 @@ class _ProfileHeader extends StatelessWidget {
         color: cs.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -280,7 +280,7 @@ class _ProfileHeader extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: student.avatarUrl != null
@@ -331,7 +331,7 @@ class _ProfileHeader extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.08),
+                          color: cs.primary.withOpacity(isDark ? 0.20 : 0.08),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
                         child: Text(
@@ -350,7 +350,7 @@ class _ProfileHeader extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                        color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -518,7 +518,7 @@ class _ParentsTab extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
+                          color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
                           shape: BoxShape.circle,
                         ),
                         child: Icon(
@@ -557,8 +557,7 @@ class _ParentsTab extends StatelessWidget {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.success.withValues(
-                                        alpha: isDark ? 0.20 : 0.12,
+                                      color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12,
                                       ),
                                       borderRadius: BorderRadius.circular(
                                         Spacings.fullRadius,
@@ -652,7 +651,7 @@ class _PromotionHistoryTab extends StatelessWidget {
                       Expanded(
                         child: Container(
                           width: 2,
-                          color: cs.outlineVariant.withValues(alpha: 0.5),
+                          color: cs.outlineVariant.withOpacity(0.5),
                         ),
                       ),
                   ],
@@ -675,8 +674,7 @@ class _PromotionHistoryTab extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: statusColor.withValues(
-                                  alpha: isDark ? 0.20 : 0.12,
+                                color: statusColor.withOpacity(isDark ? 0.20 : 0.12,
                                 ),
                                 borderRadius: BorderRadius.circular(
                                   Spacings.fullRadius,

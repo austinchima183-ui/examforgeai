@@ -165,7 +165,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
@@ -192,7 +192,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
                   ),
                   decoration: BoxDecoration(
                     color:
-                        statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                        statusColor.withOpacity(isDark ? 0.20 : 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Text(
@@ -283,7 +283,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -352,7 +352,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -360,7 +360,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
         children: [
           // Header row
           Container(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: cs.surfaceContainerHighest.withOpacity(0.5),
             padding: const EdgeInsets.symmetric(
               horizontal: Spacings.lg,
               vertical: Spacings.md,
@@ -492,7 +492,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -548,7 +548,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(

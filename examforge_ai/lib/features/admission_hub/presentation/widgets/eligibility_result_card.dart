@@ -24,13 +24,13 @@ class EligibilityResultCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(16),
         border: Border.all(
           color: result.isEligible
-              ? AppColors.success.withValues(alpha: 0.5)
-              : AppColors.error.withValues(alpha: 0.5),
+              ? AppColors.success.withOpacity(0.5)
+              : AppColors.error.withOpacity(0.5),
           width: 2,
         ),
         color: result.isEligible
-            ? AppColors.success.withValues(alpha: 0.05)
-            : AppColors.error.withValues(alpha: 0.05),
+            ? AppColors.success.withOpacity(0.05)
+            : AppColors.error.withOpacity(0.05),
       ),
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -145,7 +145,7 @@ class EligibilityResultCard extends StatelessWidget {
                 return Chip(
                   label: Text(subject),
                   avatar: Icon(Icons.close, size: 14, color: AppColors.error),
-                  backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                  backgroundColor: AppColors.error.withOpacity(0.1),
                   labelStyle: context.textTheme.bodySmall?.copyWith(
                     color: AppColors.error,
                   ),
@@ -173,7 +173,7 @@ class EligibilityResultCard extends StatelessWidget {
                 return Chip(
                   label: Text(grade),
                   avatar: Icon(Icons.close, size: 14, color: AppColors.error),
-                  backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                  backgroundColor: AppColors.error.withOpacity(0.1),
                   labelStyle: context.textTheme.bodySmall?.copyWith(
                     color: AppColors.error,
                   ),

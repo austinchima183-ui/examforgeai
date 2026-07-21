@@ -501,7 +501,7 @@ class _CommissionRateCard extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: rateColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+                  color: rateColor.withOpacity(context.isDarkMode ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -560,8 +560,8 @@ class _CommissionRateCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: rate.isCurrentlyEffective
-                      ? AppColors.success.withValues(alpha: context.isDarkMode ? 0.20 : 0.12)
-                      : cs.onSurfaceVariant.withValues(alpha: 0.12),
+                      ? AppColors.success.withOpacity(context.isDarkMode ? 0.20 : 0.12)
+                      : cs.onSurfaceVariant.withOpacity(0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -772,8 +772,7 @@ class _CommissionRecordCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: rateColor.withValues(
-                alpha: context.isDarkMode ? 0.20 : 0.12,
+              color: rateColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
@@ -901,7 +900,7 @@ class _SellerPayoutsTab extends StatelessWidget {
                   'You\'ll be able to process batch payouts, set minimum '
                   'thresholds, and track payment history.',
                   style: tt.bodyMedium?.copyWith(
-                    color: Colors.white.withValues(alpha: 0.9),
+                    color: Colors.white.withOpacity(0.9),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -1043,8 +1042,7 @@ class _PayoutPreviewCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.primary.withValues(
-                alpha: context.isDarkMode ? 0.20 : 0.12,
+              color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
@@ -1077,8 +1075,7 @@ class _PayoutPreviewCard extends StatelessWidget {
               vertical: 2.0,
             ),
             decoration: BoxDecoration(
-              color: statusColor.withValues(
-                alpha: context.isDarkMode ? 0.20 : 0.12,
+              color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.fullRadius),
             ),

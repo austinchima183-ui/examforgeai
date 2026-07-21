@@ -9,7 +9,7 @@ import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 import '../../providers/results_page_providers.dart';
 import '../../../../../features/student_portal/domain/entities/student_portal_entities.dart';
@@ -195,9 +195,9 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
         vertical: Spacings.md,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+        color: color.withOpacity(isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
-        border: Border.all(color: color.withValues(alpha: 0.3)),
+        border: Border.all(color: color.withOpacity(0.3)),
       ),
       child: Column(
         children: [
@@ -337,10 +337,10 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: masteryColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: masteryColor.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: masteryColor.withValues(alpha: 0.4),
+                    color: masteryColor.withOpacity(0.4),
                   ),
                 ),
                 child: Text(

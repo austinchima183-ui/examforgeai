@@ -195,7 +195,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                           height: 4,
                           decoration: BoxDecoration(
                             color: context.colorScheme.onSurfaceVariant
-                                .withValues(alpha: 0.3),
+                                .withOpacity(0.3),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -410,7 +410,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: context.colorScheme.primary
-                                                  .withValues(alpha: 0.1),
+                                                  .withOpacity(0.1),
                                               borderRadius:
                                                   BorderRadius.circular(
                                                       Spacings.xs),

@@ -69,10 +69,10 @@ class CurriculumTypeBadge extends StatelessWidget {
       child: Container(
         padding: EdgeInsets.symmetric(horizontal: hPadding, vertical: vPadding),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+          color: color.withOpacity(isDark ? 0.20 : 0.12),
           borderRadius: Spacings.borderRadiusSm,
           border: Border.all(
-            color: color.withValues(alpha: 0.25),
+            color: color.withOpacity(0.25),
             width: 1,
           ),
         ),

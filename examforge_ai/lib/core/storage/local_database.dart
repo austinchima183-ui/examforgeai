@@ -9,6 +9,7 @@
 /// ```sh
 /// dart run build_runner build --delete-conflicting-outputs
 /// ```
+
 library;
 
 import 'dart:io';
@@ -19,6 +20,8 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../utils/logger.dart';
+
+part 'local_database.g.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TABLE DEFINITIONS
@@ -34,7 +37,7 @@ class LocalSyncQueueTable extends Table {
   TextColumn get userId => text()();
 
   /// Target table name on the remote.
-  TextColumn get tableName => text()();
+  TextColumn get targetTable => text()();
 
   /// Remote record ID (null for inserts).
   TextColumn get recordId => text().nullable()();
@@ -471,7 +474,7 @@ class LocalSyncMetadataTable extends Table {
   TextColumn get userId => text()();
 
   /// Table name this metadata tracks.
-  TextColumn get tableName => text()();
+  TextColumn get targetTable => text()();
 
   /// When the table was last fully synced.
   DateTimeColumn get lastSyncedAt => dateTime().nullable()();
@@ -552,7 +555,7 @@ class AppDatabase extends _$AppDatabase {
         },
         beforeOpen: (OpeningDetails details) async {
           AppLogger.info(
-            'AppDatabase: opening (v${details.version})',
+            'AppDatabase: opening (v${details.versionBefore})',
           );
         },
       );
@@ -560,40 +563,40 @@ class AppDatabase extends _$AppDatabase {
   // ─── DAO-style convenience getters ────────────────────────────────
 
   /// Access the sync queue table.
-  LocalSyncQueueTable get syncQueue => localSyncQueueTable;
+  $LocalSyncQueueTableTable get syncQueue => localSyncQueueTable;
 
   /// Access the cache table.
-  LocalCacheTable get cache => localCacheTable;
+  $LocalCacheTableTable get cache => localCacheTable;
 
   /// Access the drafts table.
-  LocalDraftsTable get drafts => localDraftsTable;
+  $LocalDraftsTableTable get drafts => localDraftsTable;
 
   /// Access the user data table.
-  LocalUserDataTable get userData => localUserDataTable;
+  $LocalUserDataTableTable get userData => localUserDataTable;
 
   /// Access the question bank table.
-  LocalQuestionBankTable get questionBank => localQuestionBankTable;
+  $LocalQuestionBankTableTable get questionBank => localQuestionBankTable;
 
   /// Access the resources table.
-  LocalResourcesTable get resources => localResourcesTable;
+  $LocalResourcesTableTable get resources => localResourcesTable;
 
   /// Access the announcements table.
-  LocalAnnouncementsTable get announcements => localAnnouncementsTable;
+  $LocalAnnouncementsTableTable get announcements => localAnnouncementsTable;
 
   /// Access the timetable table.
-  LocalTimetableTable get timetable => localTimetableTable;
+  $LocalTimetableTableTable get timetable => localTimetableTable;
 
   /// Access the exam attempts table.
-  LocalExamAttemptsTable get examAttempts => localExamAttemptsTable;
+  $LocalExamAttemptsTableTable get examAttempts => localExamAttemptsTable;
 
   /// Access the notifications table.
-  LocalNotificationsTable get notifications => localNotificationsTable;
+  $LocalNotificationsTableTable get notifications => localNotificationsTable;
 
   /// Access the connectivity logs table.
-  ConnectivityLogsTable get connectivityLogs => connectivityLogsTable;
+  $ConnectivityLogsTableTable get connectivityLogs => connectivityLogsTable;
 
   /// Access the sync metadata table.
-  LocalSyncMetadataTable get syncMetadata => localSyncMetadataTable;
+  $LocalSyncMetadataTableTable get syncMetadata => localSyncMetadataTable;
 
   // ─── Utility methods ─────────────────────────────────────────────
 

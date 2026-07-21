@@ -15,7 +15,7 @@ import '../features/dashboard/presentation/pages/student_dashboard_page.dart';
 // Original dashboard redirector — now replaced by full Super Admin Platform
 import '../features/dashboard/presentation/pages/teacher_dashboard_page.dart';
 import '../features/notifications/presentation/pages/notifications_page.dart';
-import '../features/onboarding/presentation/onboarding_page.dart';
+import '../features/onboarding/presentation/pages/onboarding_page.dart';
 import '../features/profile/presentation/pages/profile_page.dart';
 import '../features/settings/presentation/pages/settings_page.dart';
 import '../features/splash/presentation/splash_page.dart';
@@ -297,16 +297,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     // ─── Global Redirect ──────────────────────────────────────────
     redirect: (context, state) {
       final currentPath = state.matchedLocation;
+      // ── Loading Guard ───────────────────────────────────────
+      // While loading, only allow splash to avoid flicker.
+      if (authState.isLoading && currentPath != RouteNames.splash) {
+        return RouteNames.splash;
+      }
+
       final isAuthenticated = authState.when(
         data: (authData) => authData.session != null,
-        loading: () {
-          // While loading, only allow splash. Everything else redirects
-          // to splash so we don't flash the login page briefly.
-          if (currentPath != RouteNames.splash) {
-            return RouteNames.splash;
-          }
-          return null;
-        },
+        loading: () => false, // Handled by loading guard above.
         error: (_, __) => false,
       );
 
@@ -973,10 +972,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.studentList,
             name: 'smStudentList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return StudentListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const StudentListPage(),
           ),
           GoRoute(
             path: RouteNames.studentDetail,
@@ -990,28 +986,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.studentForm,
             name: 'smStudentForm',
             builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               final userId = state.uri.queryParameters['userId'];
-              return StudentFormPage(schoolId: schoolId, userId: userId);
+              return StudentFormPage(studentId: userId);
             },
           ),
           GoRoute(
             path: RouteNames.studentPromotion,
             name: 'studentPromotion',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return PromotionPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const PromotionPage(),
           ),
 
           // Teachers
           GoRoute(
             path: RouteNames.teacherList,
             name: 'smTeacherList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return TeacherListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const TeacherListPage(),
           ),
           GoRoute(
             path: RouteNames.teacherDetail,
@@ -1025,9 +1014,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.teacherForm,
             name: 'smTeacherForm',
             builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               final userId = state.uri.queryParameters['userId'];
-              return TeacherFormPage(schoolId: schoolId, userId: userId);
+              return TeacherFormPage(teacherId: userId);
             },
           ),
 
@@ -1035,10 +1023,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.parentList,
             name: 'smParentList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return ParentListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const ParentListPage(),
           ),
           GoRoute(
             path: RouteNames.parentDetail,
@@ -1058,10 +1043,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.classList,
             name: 'smClassList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return ClassListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const ClassListPage(),
           ),
           GoRoute(
             path: RouteNames.classDetail,
@@ -1075,9 +1057,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.classForm,
             name: 'smClassForm',
             builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               final classId = state.uri.queryParameters['id'];
-              return ClassFormPage(schoolId: schoolId, classId: classId);
+              return ClassFormPage(classId: classId);
             },
           ),
 
@@ -1085,18 +1066,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.subjectList,
             name: 'smSubjectList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return SubjectListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const SubjectListPage(),
           ),
           GoRoute(
             path: RouteNames.subjectForm,
             name: 'smSubjectForm',
             builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               final subjectId = state.uri.queryParameters['id'];
-              return SubjectFormPage(schoolId: schoolId, subjectId: subjectId);
+              return SubjectFormPage(subjectId: subjectId);
             },
           ),
 
@@ -1104,10 +1081,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.timetableList,
             name: 'timetableList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return TimetableListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const TimetableListPage(),
           ),
           GoRoute(
             path: RouteNames.timetableBuilder,
@@ -1130,36 +1104,26 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.attendance,
             name: 'smAttendance',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return AttendancePage(schoolId: schoolId);
-            },
+            builder: (context, state) => const AttendancePage(),
           ),
           GoRoute(
             path: RouteNames.attendanceReport,
             name: 'smAttendanceReport',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return AttendanceReportPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const AttendanceReportPage(),
           ),
 
           // Homework
           GoRoute(
             path: RouteNames.homeworkList,
             name: 'smHomeworkList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return HomeworkListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const HomeworkListPage(),
           ),
           GoRoute(
             path: RouteNames.homeworkForm,
             name: 'smHomeworkForm',
             builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               final homeworkId = state.uri.queryParameters['id'];
-              return HomeworkFormPage(schoolId: schoolId, homeworkId: homeworkId);
+              return HomeworkFormPage(homeworkId: homeworkId);
             },
           ),
           GoRoute(
@@ -1175,18 +1139,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.announcementList,
             name: 'smAnnouncementList',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return AnnouncementListPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const AnnouncementListPage(),
           ),
           GoRoute(
             path: RouteNames.announcementForm,
             name: 'smAnnouncementForm',
             builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
               final announcementId = state.uri.queryParameters['id'];
-              return AnnouncementFormPage(schoolId: schoolId, announcementId: announcementId);
+              return AnnouncementFormPage(announcementId: announcementId);
             },
           ),
 
@@ -1194,44 +1154,29 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.documentCenter,
             name: 'documentCenter',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return DocumentCenterPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const DocumentCenterPage(),
           ),
           GoRoute(
             path: RouteNames.documentUpload,
             name: 'documentUpload',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return DocumentUploadPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const DocumentUploadPage(),
           ),
 
           // Reports
           GoRoute(
             path: RouteNames.reportDashboard,
             name: 'smReportDashboard',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return ReportDashboardPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const ReportDashboardPage(),
           ),
           GoRoute(
             path: RouteNames.studentReport,
             name: 'smStudentReport',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return StudentReportPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const StudentReportPage(),
           ),
           GoRoute(
             path: RouteNames.reportAttendance,
             name: 'smReportAttendance',
-            builder: (context, state) {
-              final schoolId = state.uri.queryParameters['schoolId'] ?? '';
-              return sm.AttendanceReportPage(schoolId: schoolId);
-            },
+            builder: (context, state) => const sm.AttendanceReportPage(),
           ),
 
           // ── Parent Portal Routes ────────────────────────────────────
@@ -1359,7 +1304,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: RouteNames.forumPostDetail,
             name: 'forum-post-detail',
-            builder: (context, state) => ForumPostDetailPage(postId: state.uri.queryParameters['id'] ?? ''),
+            builder: (context, state) => ForumPostDetailPage(forumId: state.uri.queryParameters['forumId'] ?? '', postId: state.uri.queryParameters['id'] ?? ''),
           ),
           GoRoute(
             path: RouteNames.communicationCalendar,
@@ -1402,7 +1347,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: RouteNames.billingCheckout,
             name: 'billing-checkout',
             builder: (context, state) {
-              final planId = state.uri.queryParameters['planId'];
+              final planId = state.uri.queryParameters['planId'] ?? '';
               final billingCycle = state.uri.queryParameters['billingCycle'] ?? 'monthly';
               return CheckoutPage(planId: planId, billingCycle: billingCycle);
             },
@@ -1710,7 +1655,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           // ── EduOS Routes ──────────────────────────────
           GoRoute(path: RouteNames.eduOsDashboard, name: 'edu-os', builder: (context, state) => const EduOsDashboardPage()),
           GoRoute(path: RouteNames.moduleDetail, name: 'module-detail', builder: (context, state) { final code = state.uri.queryParameters['code'] ?? ''; return ModuleDetailPage(moduleCode: code); }),
-          GoRoute(path: RouteNames.schoolModules, name: 'school-modules', builder: (context, state) => const SchoolModulesPage()),
+          GoRoute(path: RouteNames.schoolModules, name: 'school-modules', builder: (context, state) {
+            final schoolId = state.uri.queryParameters['schoolId'] ?? '';
+            return SchoolModulesPage(schoolId: schoolId);
+          }),
 
           // ── Analytics Dashboard Routes ──────────────────────────────
           GoRoute(path: RouteNames.analyticsDashboardHome, name: 'analytics', builder: (context, state) => const AnalyticsDashboardHomePage()),

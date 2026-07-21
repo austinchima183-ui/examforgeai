@@ -236,7 +236,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
           Text(
             'Find question banks, lesson notes, exam templates, and more from trusted educators.',
             style: tt.bodyMedium?.copyWith(
-              color: Colors.white.withValues(alpha: 0.9),
+              color: Colors.white.withOpacity(0.9),
             ),
           ),
           const SizedBox(height: Spacings.lg),
@@ -249,24 +249,24 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
                 vertical: Spacings.md,
               ),
               decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.2),
+                color: Colors.white.withOpacity(0.2),
                 borderRadius: Spacings.borderRadiusLg,
                 border: Border.all(
-                  color: Colors.white.withValues(alpha: 0.3),
+                  color: Colors.white.withOpacity(0.3),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.search_rounded,
-                    color: Colors.white.withValues(alpha: 0.8),
+                    color: Colors.white.withOpacity(0.8),
                     size: Spacings.mdIcon,
                   ),
                   const SizedBox(width: Spacings.sm),
                   Text(
                     'Search resources...',
                     style: tt.bodyMedium?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.7),
+                      color: Colors.white.withOpacity(0.7),
                     ),
                   ),
                 ],

@@ -99,7 +99,7 @@ class _StudyProgressRingState extends State<StudyProgressRing>
   }
 
   Color _progressBgColor(BuildContext context, Color fgColor) {
-    return fgColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
+    return fgColor.withOpacity(context.isDarkMode ? 0.20 : 0.10);
   }
 
   @override

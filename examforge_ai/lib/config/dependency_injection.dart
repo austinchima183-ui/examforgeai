@@ -19,7 +19,7 @@ import '../features/ai_generator/domain/usecases/improve_question_usecase.dart';
 import '../features/ai_generator/domain/usecases/manage_prompt_templates_usecase.dart';
 import '../features/ai_generator/domain/usecases/review_generated_question_usecase.dart';
 import '../features/ai_generator/domain/usecases/save_to_question_bank_usecase.dart';
-import '../features/ai_generator/domain/usecases/upload_document_usecase.dart';
+import '../features/ai_generator/domain/usecases/upload_document_usecase.dart' as ai_upload;
 import '../features/ai_generator/domain/usecases/validate_question_usecase.dart';
 import '../features/ai_generator/presentation/providers/ai_document_provider.dart';
 import '../features/ai_generator/presentation/providers/ai_generator_provider.dart';
@@ -111,7 +111,7 @@ import '../features/results/presentation/providers/results_providers.dart';
 import '../features/student_portal/data/datasources/student_portal_remote_datasource.dart';
 import '../features/student_portal/data/repositories/student_portal_repository_impl.dart';
 import '../features/student_portal/domain/repositories/student_portal_repository.dart';
-import '../features/student_portal/domain/usecases/student_portal_usecases.dart' hide CreateConversationUseCase, GenerateQuestionsFromContentUseCase, GetConversationsUseCase, GetNotificationsUseCase, MarkAllNotificationsReadUseCase, MarkNotificationReadUseCase, SendMessageUseCase, UploadDocumentUseCase;
+import '../features/student_portal/domain/usecases/student_portal_usecases.dart' hide CreateConversationUseCase, GenerateQuestionsFromContentUseCase, GetConversationsUseCase, GetNotificationsUseCase, MarkAllNotificationsReadUseCase, MarkNotificationReadUseCase, SendMessageUseCase;
 import '../features/student_portal/presentation/providers/ai_tutor_provider.dart';
 import '../features/student_portal/presentation/providers/assignment_provider.dart' hide AssignmentNotifier, AssignmentState;
 import '../features/student_portal/presentation/providers/document_chat_provider.dart';
@@ -139,6 +139,8 @@ import '../features/super_admin/data/datasources/super_admin_remote_datasource.d
 import '../features/super_admin/data/repositories/super_admin_repository_impl.dart';
 import '../features/super_admin/domain/repositories/super_admin_repository.dart';
 import '../features/super_admin/domain/usecases/super_admin_usecases.dart' hide CreateSchoolUseCase, GetAuditLogsUseCase, GetNotificationsUseCase, GetSchoolsUseCase, MarkNotificationReadUseCase;
+import '../features/super_admin/domain/usecases/super_admin_usecases.dart' as sa;
+import '../features/super_admin/presentation/providers/super_admin_providers.dart' hide AnalyticsNotifier, AnalyticsState;
 import '../features/marketplace/data/datasources/marketplace_remote_datasource.dart';
 import '../features/marketplace/data/repositories/marketplace_repository_impl.dart';
 import '../features/marketplace/domain/repositories/marketplace_repository.dart';
@@ -189,8 +191,8 @@ import '../features/marketplace/domain/usecases/get_quality_check_usecase.dart';
 import '../features/marketplace/domain/usecases/create_dispute_usecase.dart';
 import '../features/marketplace/domain/usecases/resolve_dispute_usecase.dart';
 import '../features/marketplace/domain/usecases/get_disputes_usecase.dart';
-import '../features/marketplace/domain/usecases/get_notifications_usecase.dart' hide GetNotificationsUseCase;
-import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart' hide MarkNotificationReadUseCase;
+import '../features/marketplace/domain/usecases/get_notifications_usecase.dart' as mp_notif;
+import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart' as mp_mark_notif;
 import '../features/marketplace/domain/usecases/get_recommendations_usecase.dart';
 import '../features/marketplace/domain/usecases/get_trending_products_usecase.dart';
 import '../features/marketplace/domain/usecases/approve_product_usecase.dart';
@@ -337,7 +339,7 @@ import '../features/parent_portal/domain/usecases/get_child_performance_usecase.
 import '../features/parent_portal/domain/usecases/get_child_attendance_usecase.dart';
 import '../features/parent_portal/domain/usecases/get_child_assignments_usecase.dart';
 import '../features/parent_portal/domain/usecases/get_parent_notifications_usecase.dart';
-import '../features/parent_portal/domain/usecases/mark_notification_read_usecase.dart' hide MarkNotificationReadUseCase;
+import '../features/parent_portal/domain/usecases/mark_notification_read_usecase.dart' as pp_mark_notif;
 import '../features/parent_portal/domain/usecases/get_parent_messages_usecase.dart';
 import '../features/parent_portal/domain/usecases/mark_message_read_usecase.dart';
 import '../features/parent_portal/domain/usecases/send_parent_message_usecase.dart';
@@ -345,7 +347,7 @@ import '../features/parent_portal/domain/usecases/get_message_threads_usecase.da
 import '../features/parent_portal/domain/usecases/get_parent_calendar_usecase.dart';
 import '../features/parent_portal/domain/usecases/dismiss_insight_usecase.dart';
 import '../features/parent_portal/domain/usecases/ask_parent_assistant_usecase.dart';
-import '../features/parent_portal/domain/usecases/download_report_usecase.dart' hide DownloadReportUseCase;
+import '../features/parent_portal/domain/usecases/download_report_usecase.dart' as pp_download;
 import '../features/parent_portal/domain/usecases/record_engagement_usecase.dart';
 import '../features/parent_portal/domain/usecases/get_engagement_analytics_usecase.dart';
 import '../features/communication/data/datasources/communication_remote_datasource.dart';
@@ -409,7 +411,7 @@ import '../features/billing/data/repositories/billing_repository_impl.dart';
 import '../features/billing/domain/repositories/billing_repository.dart';
 import '../features/billing/domain/usecases/get_subscription_plans_usecase.dart';
 import '../features/billing/domain/usecases/manage_subscription_usecase.dart';
-import '../features/billing/domain/usecases/process_payment_usecase.dart' hide VerifyPaymentUseCase;
+import '../features/billing/domain/usecases/process_payment_usecase.dart' as bn_payment;
 import '../features/billing/domain/usecases/manage_ai_credits_usecase.dart';
 import '../features/billing/domain/usecases/manage_coupons_usecase.dart';
 import '../features/billing/domain/usecases/manage_referrals_usecase.dart';
@@ -417,7 +419,7 @@ import '../features/billing/domain/usecases/manage_invoices_usecase.dart';
 import '../features/billing/domain/usecases/manage_licenses_usecase.dart';
 import '../features/billing/domain/usecases/get_revenue_analytics_usecase.dart';
 import '../features/billing/domain/usecases/manage_school_billing_usecase.dart';
-import '../features/billing/domain/usecases/manage_billing_notifications_usecase.dart' hide MarkNotificationReadUseCase, UpdateNotificationPreferencesUseCase;
+import '../features/billing/domain/usecases/manage_billing_notifications_usecase.dart' as bn;
 import '../features/billing/presentation/providers/subscription_provider.dart';
 import '../features/billing/presentation/providers/payment_provider.dart';
 import '../features/billing/presentation/providers/ai_credits_provider.dart';
@@ -547,7 +549,7 @@ final isAuthenticatedProvider = Provider<bool>((ref) {
 /// This is a future provider since it reads from secure storage.
 final userRoleProvider = FutureProvider<String>((ref) async {
   final storageService = ref.watch(storageServiceProvider);
-  return storageService.getUserRole() ?? 'student';
+  return await storageService.getUserRole() ?? 'student';
 });
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -606,16 +608,14 @@ final databasePoolManagerProvider = Provider<DatabasePoolManager>((ref) {
 final performanceConfigProvider = Provider<PerformanceConfig>((ref) {
   return const PerformanceConfig(
     enableLazyLoading: true,
-    enableImageOptimization: true,
-    enableRequestBatching: true,
-    enableDataCompression: true,
-    enableMemoryMonitoring: true,
-    imageCacheMaxWidth: 800,
-    imageCacheMaxHeight: 800,
-    imageCacheQuality: 80,
-    lazyLoadBatchSize: 20,
-    requestBatchWindow: Duration(milliseconds: 100),
-    memoryWarningThresholdMB: 200,
+    enableImageCache: true,
+    enableCompression: true,
+    maxCacheSizeMB: 200,
+    imageQuality: 0.8,
+    prefetchCount: 20,
+    debounceDuration: Duration(milliseconds: 100),
+    maxConcurrentRequests: 6,
+    requestTimeout: Duration(seconds: 15),
   );
 });
 
@@ -631,12 +631,16 @@ final performanceMonitorProvider = Provider<PerformanceMonitor>((ref) {
 /// Provides the [ImageOptimizer] for image loading optimization.
 final imageOptimizerProvider = Provider<ImageOptimizer>((ref) {
   final config = ref.watch(performanceConfigProvider);
-  return ImageOptimizer(config: config);
+  return ImageOptimizer(
+    config: config,
+    cacheManager: ref.watch(cacheManagerProvider),
+  );
 });
 
 /// Provides the [LazyLoadController] for paginated list loading.
 final lazyLoadControllerProvider = Provider<LazyLoadController>((ref) {
-  return LazyLoadController();
+  final config = ref.watch(performanceConfigProvider);
+  return LazyLoadController(config: config);
 });
 
 /// Provides the [RequestBatcher] for API request deduplication.
@@ -677,7 +681,7 @@ final performanceStatsProvider = Provider<Map<String, dynamic>>((ref) {
     'database': dbStats,
     'aiCache': aiCacheStats,
     'aiCacheEstimatedSavings': ref.read(aiCacheServiceProvider).estimatedSavings,
-    'performanceEvents': perfMonitor.eventCount,
+    'performanceEvents': perfMonitor.getMetrics()['activeTimers']?.length ?? 0,
   };
 });
 
@@ -1023,10 +1027,10 @@ final saveToQuestionBankUseCaseProvider =
 });
 
 /// Provides the [UploadDocumentUseCase].
-final uploadDocumentUseCaseProvider = Provider<UploadDocumentUseCase>((ref) {
-  final repository = ref.watch(aiGeneratorRepositoryProvider);
-  return UploadDocumentUseCase(repository);
-});
+// [DUPLICATE REMOVED] final uploadDocumentUseCaseProvider = Provider<UploadDocumentUseCase>((ref) {
+// [DUPLICATE REMOVED]   final repository = ref.watch(aiGeneratorRepositoryProvider);
+// [DUPLICATE REMOVED]   return UploadDocumentUseCase(repository);
+// [DUPLICATE REMOVED] });
 
 /// Provides the [GetGenerationHistoryUseCase].
 final getGenerationHistoryUseCaseProvider =
@@ -1089,7 +1093,7 @@ final aiReviewProvider =
 final aiDocumentProvider =
     StateNotifierProvider.autoDispose<AiDocumentNotifier, AiDocumentState>((ref) {
   return AiDocumentNotifier(
-    uploadDocumentUseCase: ref.watch(uploadDocumentUseCaseProvider),
+    uploadDocumentUseCase: ref.watch(aiUploadDocumentUseCaseProvider),
     repository: ref.watch(aiGeneratorRepositoryProvider),
   );
 });
@@ -1651,7 +1655,7 @@ final getReportExportsUseCaseProvider =
 });
 
 /// Provides the [DownloadReportUseCase].
-final downloadReportUseCaseProvider =
+final resultsDownloadReportUseCaseProvider =
     Provider<DownloadReportUseCase>((ref) {
   final repository = ref.watch(resultsRepositoryProvider);
   return DownloadReportUseCase(repository);
@@ -1711,7 +1715,6 @@ final aiGradingProvider =
     reviewAiGradingUseCase: ref.watch(reviewAiGradingUseCaseProvider),
     batchAiGradingUseCase: ref.watch(batchAiGradingUseCaseProvider),
     getPendingAiGradingsUseCase: ref.watch(getPendingAiGradingsUseCaseProvider),
-    aiGradingService: ref.watch(aiGradingServiceProvider),
   );
 });
 
@@ -1754,7 +1757,6 @@ final analyticsProvider =
         ref.watch(getDashboardConfigurationUseCaseProvider),
     saveDashboardConfigurationUseCase:
         ref.watch(saveDashboardConfigurationUseCaseProvider),
-    analyticsEngine: ref.watch(analyticsEngineProvider),
   );
 });
 
@@ -1765,13 +1767,12 @@ final reportExportProvider =
   return ReportExportNotifier(
     createReportExportUseCase: ref.watch(createReportExportUseCaseProvider),
     getReportExportsUseCase: ref.watch(getReportExportsUseCaseProvider),
-    downloadReportUseCase: ref.watch(downloadReportUseCaseProvider),
-    reportGenerator: ref.watch(reportGeneratorProvider),
+    downloadReportUseCase: ref.watch(resultsDownloadReportUseCaseProvider),
   );
 });
 
 /// Provides the [ResultManagementNotifier] for result locking and publishing.
-// PERF: autoDispose — releases memory when user navigates away from this feature
+// PERF: autoDispose
 final resultManagementProvider =
     StateNotifierProvider.autoDispose<ResultManagementNotifier, ResultManagementState>(
         (ref) {
@@ -1779,7 +1780,6 @@ final resultManagementProvider =
     lockResultsUseCase: ref.watch(lockResultsUseCaseProvider),
     publishResultsUseCase: ref.watch(publishResultsUseCaseProvider),
     recomputeResultsUseCase: ref.watch(recomputeResultsUseCaseProvider),
-    resultsRepository: ref.watch(resultsRepositoryProvider),
   );
 });
 
@@ -2174,22 +2174,13 @@ final generateQuestionsProvider =
 // PERF: autoDispose — releases memory when user navigates away from this feature
 final presentationProvider =
     StateNotifierProvider.autoDispose<PresentationNotifier, PresentationState>((ref) {
-  return PresentationNotifier(
-    getPresentationsUseCase: ref.watch(getPresentationsUseCaseProvider),
-    createPresentationUseCase: ref.watch(createPresentationUseCaseProvider),
-    generatePresentationUseCase: ref.watch(generatePresentationUseCaseProvider),
-    exportPresentationUseCase: ref.watch(exportPresentationUseCaseProvider),
-  );
+  return PresentationNotifier();
 });
 
 // PERF: autoDispose — releases memory when user navigates away from this feature
 final communicationProvider =
     StateNotifierProvider.autoDispose<CommunicationNotifier, CommunicationState>((ref) {
-  return CommunicationNotifier(
-    getCommunicationsUseCase: ref.watch(getCommunicationsUseCaseProvider),
-    createCommunicationUseCase: ref.watch(createCommunicationUseCaseProvider),
-    generateCommunicationUseCase: ref.watch(generateCommunicationUseCaseProvider),
-  );
+  return CommunicationNotifier();
 });
 
 // PERF: autoDispose — releases memory when user navigates away from this feature
@@ -2277,15 +2268,15 @@ final studentPortalRepositoryProvider =
 
 // ─── Student Portal — AI Tutor Use Cases ─────────────────────────────
 
-final createConversationUseCaseProvider =
-    Provider<CreateConversationUseCase>((ref) {
-  return CreateConversationUseCase(ref.watch(studentPortalRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final createConversationUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<CreateConversationUseCase>((ref) {
+// [DUPLICATE REMOVED]   return CreateConversationUseCase(ref.watch(studentPortalRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
-final getConversationsUseCaseProvider =
-    Provider<GetConversationsUseCase>((ref) {
-  return GetConversationsUseCase(ref.watch(studentPortalRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final getConversationsUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<GetConversationsUseCase>((ref) {
+// [DUPLICATE REMOVED]   return GetConversationsUseCase(ref.watch(studentPortalRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 final getConversationDetailUseCaseProvider =
     Provider<GetConversationDetailUseCase>((ref) {
@@ -2293,9 +2284,9 @@ final getConversationDetailUseCaseProvider =
       ref.watch(studentPortalRepositoryProvider));
 });
 
-final sendMessageUseCaseProvider = Provider<SendMessageUseCase>((ref) {
-  return SendMessageUseCase(ref.watch(studentPortalRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final sendMessageUseCaseProvider = Provider<SendMessageUseCase>((ref) {
+// [DUPLICATE REMOVED]   return SendMessageUseCase(ref.watch(studentPortalRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 final deleteConversationUseCaseProvider =
     Provider<DeleteConversationUseCase>((ref) {
@@ -2388,6 +2379,10 @@ final logResourceAccessUseCaseProvider =
 
 final uploadDocumentUseCaseProvider = Provider<UploadDocumentUseCase>((ref) {
   return UploadDocumentUseCase(ref.watch(studentPortalRepositoryProvider));
+});
+
+final aiUploadDocumentUseCaseProvider = Provider<ai_upload.UploadDocumentUseCase>((ref) {
+  return ai_upload.UploadDocumentUseCase(ref.watch(aiGeneratorRepositoryProvider));
 });
 
 final getDocumentsUseCaseProvider = Provider<GetDocumentsUseCase>((ref) {
@@ -2504,23 +2499,23 @@ final getDashboardStatsUseCaseProvider =
 
 // ─── Student Portal — Notification Use Cases ─────────────────────────
 
-final getNotificationsUseCaseProvider =
-    Provider<GetNotificationsUseCase>((ref) {
-  return GetNotificationsUseCase(
-      ref.watch(studentPortalRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final getNotificationsUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<GetNotificationsUseCase>((ref) {
+// [DUPLICATE REMOVED]   return GetNotificationsUseCase(
+// [DUPLICATE REMOVED]       ref.watch(studentPortalRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
-final markNotificationReadUseCaseProvider =
-    Provider<MarkNotificationReadUseCase>((ref) {
-  return MarkNotificationReadUseCase(
-      ref.watch(studentPortalRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final markNotificationReadUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<MarkNotificationReadUseCase>((ref) {
+// [DUPLICATE REMOVED]   return MarkNotificationReadUseCase(
+// [DUPLICATE REMOVED]       ref.watch(studentPortalRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
-final markAllNotificationsReadUseCaseProvider =
-    Provider<MarkAllNotificationsReadUseCase>((ref) {
-  return MarkAllNotificationsReadUseCase(
-      ref.watch(studentPortalRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final markAllNotificationsReadUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<MarkAllNotificationsReadUseCase>((ref) {
+// [DUPLICATE REMOVED]   return MarkAllNotificationsReadUseCase(
+// [DUPLICATE REMOVED]       ref.watch(studentPortalRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 // ═══════════════════════════════════════════════════════════════════════
 // SCHOOL MANAGEMENT MODULE
@@ -2548,9 +2543,9 @@ final schoolManagementRepositoryProvider =
 // ─── Use Cases ───────────────────────────────────────────────────────
 
 // School
-final createSchoolUseCaseProvider = Provider<CreateSchoolUseCase>((ref) {
-  return CreateSchoolUseCase(ref.watch(schoolManagementRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final createSchoolUseCaseProvider = Provider<CreateSchoolUseCase>((ref) {
+// [DUPLICATE REMOVED]   return CreateSchoolUseCase(ref.watch(schoolManagementRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 final updateSchoolUseCaseProvider = Provider<UpdateSchoolUseCase>((ref) {
   return UpdateSchoolUseCase(ref.watch(schoolManagementRepositoryProvider));
@@ -2560,9 +2555,9 @@ final getSchoolUseCaseProvider = Provider<GetSchoolUseCase>((ref) {
   return GetSchoolUseCase(ref.watch(schoolManagementRepositoryProvider));
 });
 
-final getSchoolsUseCaseProvider = Provider<GetSchoolsUseCase>((ref) {
-  return GetSchoolsUseCase(ref.watch(schoolManagementRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final getSchoolsUseCaseProvider = Provider<GetSchoolsUseCase>((ref) {
+// [DUPLICATE REMOVED]   return GetSchoolsUseCase(ref.watch(schoolManagementRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 final createBranchUseCaseProvider = Provider<CreateBranchUseCase>((ref) {
   return CreateBranchUseCase(ref.watch(schoolManagementRepositoryProvider));
@@ -2716,11 +2711,11 @@ final setCurrentTermUseCaseProvider = Provider<SetCurrentTermUseCase>((ref) {
   return SetCurrentTermUseCase(ref.watch(schoolManagementRepositoryProvider));
 });
 
-final createCalendarEventUseCaseProvider =
-    Provider<CreateCalendarEventUseCase>((ref) {
-  return CreateCalendarEventUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final createCalendarEventUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<CreateCalendarEventUseCase>((ref) {
+// [DUPLICATE REMOVED]   return CreateCalendarEventUseCase(
+// [DUPLICATE REMOVED]       ref.watch(schoolManagementRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 final updateCalendarEventUseCaseProvider =
     Provider<UpdateCalendarEventUseCase>((ref) {
@@ -2728,11 +2723,11 @@ final updateCalendarEventUseCaseProvider =
       ref.watch(schoolManagementRepositoryProvider));
 });
 
-final getCalendarEventsUseCaseProvider =
-    Provider<GetCalendarEventsUseCase>((ref) {
-  return GetCalendarEventsUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final getCalendarEventsUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<GetCalendarEventsUseCase>((ref) {
+// [DUPLICATE REMOVED]   return GetCalendarEventsUseCase(
+// [DUPLICATE REMOVED]       ref.watch(schoolManagementRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 // Timetable
 final createTimetableUseCaseProvider =
@@ -2852,11 +2847,11 @@ final getHomeworkSubmissionsUseCaseProvider =
 });
 
 // Announcements
-final createAnnouncementUseCaseProvider =
-    Provider<CreateAnnouncementUseCase>((ref) {
-  return CreateAnnouncementUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final createAnnouncementUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<CreateAnnouncementUseCase>((ref) {
+// [DUPLICATE REMOVED]   return CreateAnnouncementUseCase(
+// [DUPLICATE REMOVED]       ref.watch(schoolManagementRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 final updateAnnouncementUseCaseProvider =
     Provider<UpdateAnnouncementUseCase>((ref) {
@@ -2876,11 +2871,11 @@ final publishAnnouncementUseCaseProvider =
       ref.watch(schoolManagementRepositoryProvider));
 });
 
-final getAnnouncementsUseCaseProvider =
-    Provider<GetAnnouncementsUseCase>((ref) {
-  return GetAnnouncementsUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final getAnnouncementsUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<GetAnnouncementsUseCase>((ref) {
+// [DUPLICATE REMOVED]   return GetAnnouncementsUseCase(
+// [DUPLICATE REMOVED]       ref.watch(schoolManagementRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 // Reports
 final getSchoolOverviewUseCaseProvider =
@@ -2974,9 +2969,9 @@ final getParentNotificationsUseCaseProvider =
       ref.watch(parentPortalRepositoryProvider));
 });
 
-final markNotificationReadUseCaseProvider =
-    Provider<MarkNotificationReadUseCase>((ref) {
-  return MarkNotificationReadUseCase(
+final parentMarkNotificationReadUseCaseProvider =
+    Provider<pp_mark_notif.MarkNotificationReadUseCase>((ref) {
+  return pp_mark_notif.MarkNotificationReadUseCase(
       ref.watch(parentPortalRepositoryProvider));
 });
 
@@ -3023,8 +3018,8 @@ final askParentAssistantUseCaseProvider =
 });
 
 final downloadReportUseCaseProvider =
-    Provider<DownloadReportUseCase>((ref) {
-  return DownloadReportUseCase(
+    Provider<pp_download.DownloadReportUseCase>((ref) {
+  return pp_download.DownloadReportUseCase(
       ref.watch(parentPortalRepositoryProvider));
 });
 
@@ -3048,6 +3043,7 @@ final parentDashboardProvider =
         (ref) {
   return ParentDashboardNotifier(
     getParentDashboardUseCase: ref.watch(getParentDashboardUseCaseProvider),
+    getParentInsightsUseCase: ref.watch(getParentInsightsUseCaseProvider),
   );
 });
 
@@ -3093,7 +3089,7 @@ final parentMessagingProvider =
   return ParentMessagingNotifier(
     sendParentMessageUseCase: ref.watch(sendParentMessageUseCaseProvider),
     getParentMessagesUseCase: ref.watch(getParentMessagesUseCaseProvider),
-    getMessageThreadsUseCase: ref.watch(getMessageThreadsUseCaseProvider),
+    getParentThreadsUseCase: ref.watch(getMessageThreadsUseCaseProvider),
     markMessageReadUseCase: ref.watch(markMessageReadUseCaseProvider),
   );
 });
@@ -3106,7 +3102,7 @@ final parentNotificationProvider =
     getParentNotificationsUseCase:
         ref.watch(getParentNotificationsUseCaseProvider),
     markNotificationReadUseCase:
-        ref.watch(markNotificationReadUseCaseProvider),
+        ref.watch(parentMarkNotificationReadUseCaseProvider),
   );
 });
 
@@ -3245,12 +3241,12 @@ final acknowledgeAnnouncementUseCaseProvider =
   return AcknowledgeAnnouncementUseCase(ref.watch(communicationRepositoryProvider));
 });
 
-final getNotificationsUseCaseProvider =
+final communicationGetNotificationsUseCaseProvider =
     Provider<GetNotificationsUseCase>((ref) {
   return GetNotificationsUseCase(ref.watch(communicationRepositoryProvider));
 });
 
-final markNotificationReadUseCaseProvider =
+final communicationMarkNotificationReadUseCaseProvider =
     Provider<MarkNotificationReadUseCase>((ref) {
   return MarkNotificationReadUseCase(ref.watch(communicationRepositoryProvider));
 });
@@ -3265,10 +3261,11 @@ final getNotificationPreferencesUseCaseProvider =
   return GetNotificationPreferencesUseCase(ref.watch(communicationRepositoryProvider));
 });
 
-final updateNotificationPreferencesUseCaseProvider =
+final communicationUpdateNotificationPreferencesUseCaseProvider =
     Provider<UpdateNotificationPreferencesUseCase>((ref) {
   return UpdateNotificationPreferencesUseCase(ref.watch(communicationRepositoryProvider));
 });
+// [DUPLICATE REMOVED] });
 
 final getForumsUseCaseProvider =
     Provider<GetForumsUseCase>((ref) {
@@ -3375,10 +3372,10 @@ final archiveConversationUseCaseProvider =
   return ArchiveConversationUseCase(ref.watch(communicationRepositoryProvider));
 });
 
-final getAuditLogsUseCaseProvider =
-    Provider<GetAuditLogsUseCase>((ref) {
-  return GetAuditLogsUseCase(ref.watch(communicationRepositoryProvider));
-});
+// [DUPLICATE REMOVED] final getAuditLogsUseCaseProvider =
+// [DUPLICATE REMOVED]     Provider<GetAuditLogsUseCase>((ref) {
+// [DUPLICATE REMOVED]   return GetAuditLogsUseCase(ref.watch(communicationRepositoryProvider));
+// [DUPLICATE REMOVED] });
 
 final getCommunicationDashboardUseCaseProvider =
     Provider<GetCommunicationDashboardUseCase>((ref) {
@@ -3436,11 +3433,11 @@ final announcementProvider =
 final notificationProvider =
     StateNotifierProvider.autoDispose<NotificationNotifier, NotificationState>((ref) {
   return NotificationNotifier(
-    getNotificationsUseCase: ref.watch(getNotificationsUseCaseProvider),
-    markNotificationReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
+    getNotificationsUseCase: ref.watch(communicationGetNotificationsUseCaseProvider),
+    markNotificationReadUseCase: ref.watch(communicationMarkNotificationReadUseCaseProvider),
     markAllNotificationsReadUseCase: ref.watch(markAllNotificationsReadUseCaseProvider),
     getNotificationPreferencesUseCase: ref.watch(getNotificationPreferencesUseCaseProvider),
-    updateNotificationPreferencesUseCase: ref.watch(updateNotificationPreferencesUseCaseProvider),
+    updateNotificationPreferencesUseCase: ref.watch(communicationUpdateNotificationPreferencesUseCaseProvider),
   );
 });
 
@@ -3499,15 +3496,15 @@ final communicationDashboardProvider =
 });
 
 // PERF: autoDispose — releases memory when user navigates away from this feature
-final moderationProvider =
-    StateNotifierProvider.autoDispose<ModerationNotifier, ModerationState>((ref) {
-  return ModerationNotifier(
-    reportMessageUseCase: ref.watch(reportMessageUseCaseProvider),
-    muteConversationUseCase: ref.watch(muteConversationUseCaseProvider),
-    archiveConversationUseCase: ref.watch(archiveConversationUseCaseProvider),
-    getAuditLogsUseCase: ref.watch(getAuditLogsUseCaseProvider),
-  );
-});
+// [DUPLICATE REMOVED] final moderationProvider =
+// [DUPLICATE REMOVED]     StateNotifierProvider.autoDispose<ModerationNotifier, ModerationState>((ref) {
+// [DUPLICATE REMOVED]   return ModerationNotifier(
+// [DUPLICATE REMOVED]     reportMessageUseCase: ref.watch(reportMessageUseCaseProvider),
+// [DUPLICATE REMOVED]     muteConversationUseCase: ref.watch(muteConversationUseCaseProvider),
+// [DUPLICATE REMOVED]     archiveConversationUseCase: ref.watch(archiveConversationUseCaseProvider),
+// [DUPLICATE REMOVED]     getAuditLogsUseCase: ref.watch(getAuditLogsUseCaseProvider),
+// [DUPLICATE REMOVED]   );
+// [DUPLICATE REMOVED] });
 
 // ════════════════════════════════════════════════════════════════════════════
 // BILLING & SUBSCRIPTION
@@ -3572,20 +3569,21 @@ final getSubscriptionsUseCaseProvider = Provider<GetSubscriptionsUseCase>((ref) 
 });
 
 // Payments
-final initializePaymentUseCaseProvider = Provider<InitializePaymentUseCase>((ref) {
-  return InitializePaymentUseCase(ref.watch(billingRepositoryProvider));
+final initializePaymentUseCaseProvider = Provider<bn_payment.InitializePaymentUseCase>((ref) {
+  return bn_payment.InitializePaymentUseCase(ref.watch(billingRepositoryProvider));
 });
-final verifyPaymentUseCaseProvider = Provider<VerifyPaymentUseCase>((ref) {
-  return VerifyPaymentUseCase(ref.watch(billingRepositoryProvider));
+final billingVerifyPaymentUseCaseProvider = Provider<bn_payment.VerifyPaymentUseCase>((ref) {
+  return bn_payment.VerifyPaymentUseCase(ref.watch(billingRepositoryProvider));
 });
-final processWebhookUseCaseProvider = Provider<ProcessWebhookUseCase>((ref) {
-  return ProcessWebhookUseCase(ref.watch(billingRepositoryProvider));
+// [DUPLICATE REMOVED] });
+final processWebhookUseCaseProvider = Provider<bn_payment.ProcessWebhookUseCase>((ref) {
+  return bn_payment.ProcessWebhookUseCase(ref.watch(billingRepositoryProvider));
 });
-final requestRefundUseCaseProvider = Provider<RequestRefundUseCase>((ref) {
-  return RequestRefundUseCase(ref.watch(billingRepositoryProvider));
+final requestRefundUseCaseProvider = Provider<bn_payment.RequestRefundUseCase>((ref) {
+  return bn_payment.RequestRefundUseCase(ref.watch(billingRepositoryProvider));
 });
-final getTransactionsUseCaseProvider = Provider<GetTransactionsUseCase>((ref) {
-  return GetTransactionsUseCase(ref.watch(billingRepositoryProvider));
+final getTransactionsUseCaseProvider = Provider<bn_payment.GetTransactionsUseCase>((ref) {
+  return bn_payment.GetTransactionsUseCase(ref.watch(billingRepositoryProvider));
 });
 
 // AI Credits
@@ -3678,14 +3676,14 @@ final updateSchoolBillingProfileUseCaseProvider = Provider<UpdateSchoolBillingPr
 });
 
 // Billing Notifications
-final getBillingNotificationsUseCaseProvider = Provider<GetBillingNotificationsUseCase>((ref) {
-  return GetBillingNotificationsUseCase(ref.watch(billingRepositoryProvider));
+final getBillingNotificationsUseCaseProvider = Provider<bn.GetBillingNotificationsUseCase>((ref) {
+  return bn.GetBillingNotificationsUseCase(ref.watch(billingRepositoryProvider));
 });
-final markNotificationReadUseCaseProvider = Provider<MarkNotificationReadUseCase>((ref) {
-  return MarkNotificationReadUseCase(ref.watch(billingRepositoryProvider));
+final billingMarkNotificationReadUseCaseProvider = Provider<bn.MarkNotificationReadUseCase>((ref) {
+  return bn.MarkNotificationReadUseCase(ref.watch(billingRepositoryProvider));
 });
-final updateNotificationPreferencesUseCaseProvider = Provider<UpdateNotificationPreferencesUseCase>((ref) {
-  return UpdateNotificationPreferencesUseCase(ref.watch(billingRepositoryProvider));
+final updateNotificationPreferencesUseCaseProvider = Provider<bn.UpdateNotificationPreferencesUseCase>((ref) {
+  return bn.UpdateNotificationPreferencesUseCase(ref.watch(billingRepositoryProvider));
 });
 
 // ─── Presentation Layer (State Notifiers) ───────────────────────────────────
@@ -3711,13 +3709,13 @@ final billingPaymentProvider =
     StateNotifierProvider.autoDispose<PaymentNotifier, PaymentState>((ref) {
   return PaymentNotifier(
     initializePaymentUseCase: ref.watch(initializePaymentUseCaseProvider),
-    verifyPaymentUseCase: ref.watch(verifyPaymentUseCaseProvider),
+    verifyPaymentUseCase: ref.watch(billingVerifyPaymentUseCaseProvider),
     getTransactionsUseCase: ref.watch(getTransactionsUseCaseProvider),
     requestRefundUseCase: ref.watch(requestRefundUseCaseProvider),
   );
 });
 
-// PERF: autoDispose — releases memory when user navigates away from this feature
+// PERF: autoDispose — releases memory
 final billingAiCreditsProvider =
     StateNotifierProvider.autoDispose<AiCreditsNotifier, AiCreditsState>((ref) {
   return AiCreditsNotifier(
@@ -3796,7 +3794,7 @@ final billingNotificationProvider =
     StateNotifierProvider.autoDispose<BillingNotificationNotifier, BillingNotificationState>((ref) {
   return BillingNotificationNotifier(
     getBillingNotificationsUseCase: ref.watch(getBillingNotificationsUseCaseProvider),
-    markNotificationReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
+    markNotificationReadUseCase: ref.watch(billingMarkNotificationReadUseCaseProvider),
     updateNotificationPreferencesUseCase: ref.watch(updateNotificationPreferencesUseCaseProvider),
   );
 });
@@ -3965,12 +3963,12 @@ final featureContentUseCaseProvider = Provider<FeatureContentUseCase>((ref) {
 
 // ─── Use Cases — School Management ───────────────────────────────────────
 
-final getSchoolsUseCaseProvider = Provider<GetSchoolsUseCase>((ref) {
-  return GetSchoolsUseCase(ref.watch(superAdminRepositoryProvider));
+final getSchoolsUseCaseProvider = Provider<sa.GetSchoolsUseCase>((ref) {
+  return sa.GetSchoolsUseCase(ref.watch(superAdminRepositoryProvider));
 });
 
-final createSchoolUseCaseProvider = Provider<CreateSchoolUseCase>((ref) {
-  return CreateSchoolUseCase(ref.watch(superAdminRepositoryProvider));
+final createSchoolUseCaseProvider = Provider<sa.CreateSchoolUseCase>((ref) {
+  return sa.CreateSchoolUseCase(ref.watch(superAdminRepositoryProvider));
 });
 
 final suspendSchoolUseCaseProvider = Provider<SuspendSchoolUseCase>((ref) {
@@ -4053,8 +4051,8 @@ final unlockUserAccountUseCaseProvider = Provider<UnlockUserAccountUseCase>((ref
 
 // ─── Use Cases — Audit Logs ──────────────────────────────────────────────
 
-final getAuditLogsUseCaseProvider = Provider<GetAuditLogsUseCase>((ref) {
-  return GetAuditLogsUseCase(ref.watch(superAdminRepositoryProvider));
+final getAuditLogsUseCaseProvider = Provider<sa.GetAuditLogsUseCase>((ref) {
+  return sa.GetAuditLogsUseCase(ref.watch(superAdminRepositoryProvider));
 });
 
 final createAuditLogUseCaseProvider = Provider<CreateAuditLogUseCase>((ref) {
@@ -4063,12 +4061,12 @@ final createAuditLogUseCaseProvider = Provider<CreateAuditLogUseCase>((ref) {
 
 // ─── Use Cases — Notifications ───────────────────────────────────────────
 
-final getNotificationsUseCaseProvider = Provider<GetNotificationsUseCase>((ref) {
-  return GetNotificationsUseCase(ref.watch(superAdminRepositoryProvider));
+final superAdminGetNotificationsUseCaseProvider = Provider<sa.GetNotificationsUseCase>((ref) {
+  return sa.GetNotificationsUseCase(ref.watch(superAdminRepositoryProvider));
 });
 
-final markNotificationReadUseCaseProvider = Provider<MarkNotificationReadUseCase>((ref) {
-  return MarkNotificationReadUseCase(ref.watch(superAdminRepositoryProvider));
+final superAdminMarkNotificationReadUseCaseProvider = Provider<sa.MarkNotificationReadUseCase>((ref) {
+  return sa.MarkNotificationReadUseCase(ref.watch(superAdminRepositoryProvider));
 });
 
 final getUnreadNotificationCountUseCaseProvider = Provider<GetUnreadNotificationCountUseCase>((ref) {
@@ -4194,8 +4192,8 @@ final securityCenterProvider = StateNotifierProvider.autoDispose<SecurityCenterN
 // PERF: autoDispose — releases memory when user navigates away from this feature
 final adminNotificationProvider = StateNotifierProvider.autoDispose<AdminNotificationNotifier, AdminNotificationState>((ref) {
   return AdminNotificationNotifier(
-    getNotificationsUseCase: ref.watch(getNotificationsUseCaseProvider),
-    markReadUseCase: ref.watch(markNotificationReadUseCaseProvider),
+    getNotificationsUseCase: ref.watch(superAdminGetNotificationsUseCaseProvider),
+    markReadUseCase: ref.watch(superAdminMarkNotificationReadUseCaseProvider),
     getUnreadCountUseCase: ref.watch(getUnreadNotificationCountUseCaseProvider),
   );
 });
@@ -4358,11 +4356,11 @@ final resolveDisputeUseCaseProvider = Provider<ResolveDisputeUseCase>((ref) {
 final getDisputesUseCaseProvider = Provider<GetDisputesUseCase>((ref) {
   return GetDisputesUseCase(ref.watch(marketplaceRepositoryProvider));
 });
-final getNotificationsUseCaseProvider = Provider<GetNotificationsUseCase>((ref) {
-  return GetNotificationsUseCase(ref.watch(marketplaceRepositoryProvider));
+final getNotificationsUseCaseProvider = Provider<mp_notif.GetNotificationsUseCase>((ref) {
+  return mp_notif.GetNotificationsUseCase(ref.watch(marketplaceRepositoryProvider));
 });
-final markNotificationReadUseCaseProvider = Provider<MarkNotificationReadUseCase>((ref) {
-  return MarkNotificationReadUseCase(ref.watch(marketplaceRepositoryProvider));
+final markNotificationReadUseCaseProvider = Provider<mp_mark_notif.MarkNotificationReadUseCase>((ref) {
+  return mp_mark_notif.MarkNotificationReadUseCase(ref.watch(marketplaceRepositoryProvider));
 });
 final getRecommendationsUseCaseProvider = Provider<GetRecommendationsUseCase>((ref) {
   return GetRecommendationsUseCase(ref.watch(marketplaceRepositoryProvider));
@@ -4528,6 +4526,7 @@ final offlineRepositoryProvider = Provider<OfflineRepository>((ref) {
     remoteDataSource: ref.watch(offlineRemoteDataSourceProvider),
     networkInfo: ref.watch(coreNetworkInfoProvider),
     cacheManager: ref.watch(cacheManagerProvider),
+    syncEngine: ref.watch(syncEngineProvider.notifier),
   );
 });
 

@@ -158,7 +158,7 @@ class _AdmissionChecklistPageState
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.primary.withValues(alpha: 0.1),
+            color: AppColors.primary.withOpacity(0.1),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -220,7 +220,7 @@ class _AdmissionChecklistPageState
             gradient: LinearGradient(
               colors: [
                 AppColors.primary,
-                AppColors.primary.withValues(alpha: 0.8),
+                AppColors.primary.withOpacity(0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
@@ -396,7 +396,7 @@ class _ChecklistItemTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: isCompleted
-            ? BorderSide(color: AppColors.success.withValues(alpha: 0.5))
+            ? BorderSide(color: AppColors.success.withOpacity(0.5))
             : BorderSide.none,
       ),
       child: ListTile(
@@ -482,7 +482,7 @@ class _CategoryBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -519,7 +519,7 @@ class _DeadlineCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isPast ? AppColors.error.withValues(alpha: 0.1) : null,
+      color: isPast ? AppColors.error.withOpacity(0.1) : null,
       child: ListTile(
         leading: Icon(
           isPast ? Icons.event_busy : Icons.event_outlined,

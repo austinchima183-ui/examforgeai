@@ -23,7 +23,7 @@ class AiTutorState {
     this.isSendingMessage = false,
     this.error,
     this.hasMoreConversations = true,
-    this._currentPage = 1,
+    this.currentPage = 1,
   });
 
   /// All conversations for the current student.
@@ -49,10 +49,10 @@ class AiTutorState {
 
   /// Current page number for conversation pagination (1-based).
   // ignore: unused_field
-  final int _currentPage;
+  final int currentPage;
 
   /// Current page number for conversation pagination.
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading || isSendingMessage;
@@ -83,7 +83,7 @@ class AiTutorState {
       error: error,
       hasMoreConversations:
           hasMoreConversations ?? this.hasMoreConversations,
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
     );
   }
 

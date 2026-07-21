@@ -1,5 +1,5 @@
 import '../../../../core/utils/result.dart';
-import 'entities/ai_entities.dart';
+import '../entities/ai_entities.dart';
 
 /// Abstract contract for all AI generator operations.
 ///

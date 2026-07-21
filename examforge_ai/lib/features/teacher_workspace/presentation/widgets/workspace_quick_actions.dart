@@ -102,7 +102,7 @@ class _QuickActionCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: InkWell(
@@ -116,7 +116,7 @@ class _QuickActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: action.color.withValues(alpha: 0.12),
+                  color: action.color.withOpacity(0.12),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(action.icon, color: action.color, size: 24),

@@ -204,7 +204,7 @@ class LocalEncryptionService {
 
     if (plaintext.isEmpty) {
       // Empty string is a valid input — return a recognizable empty marker
-      return '$_versionMarkerEMPTY';
+      return '${_versionMarker}EMPTY';
     }
 
     try {
@@ -254,18 +254,18 @@ class LocalEncryptionService {
     }
 
     if (ciphertext.isEmpty) {
-      throw const DecryptionFailedException('Cannot decrypt empty string');
+      throw DecryptionFailedException('Cannot decrypt empty string');
     }
 
     // Handle empty encrypted marker
-    if (ciphertext == '$_versionMarkerEMPTY') {
+    if (ciphertext == '${_versionMarker}EMPTY') {
       return '';
     }
 
     // Check version marker
     if (!ciphertext.startsWith(_versionMarker)) {
       // This might be legacy XOR-encrypted data
-      throw const DecryptionFailedException(
+      throw DecryptionFailedException(
         'Data format not recognized — may be legacy XOR-encrypted data. '
         'Use migrateLegacyData() first.',
       );
@@ -278,7 +278,7 @@ class LocalEncryptionService {
 
       // Extract nonce from the beginning
       if (combined.length < _nonceSizeBytes + _tagSizeBytes) {
-        throw const DecryptionFailedException('Ciphertext too short');
+        throw DecryptionFailedException('Ciphertext too short');
       }
 
       final nonce = Uint8List.sublistView(combined, 0, _nonceSizeBytes);
@@ -367,7 +367,7 @@ class LocalEncryptionService {
   /// Used only for migration of existing data.
   static Uint8List deriveLegacyKey(String deviceSeed) {
     final keySource = '$deviceSeed$_legacyAppSalt';
-    final hash = Sha256Digest().process(Uint8List.fromList(utf8.encode(keySource)));
+    final hash = SHA256Digest().process(Uint8List.fromList(utf8.encode(keySource)));
     return hash;
   }
 

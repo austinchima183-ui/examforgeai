@@ -11,9 +11,9 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_stat_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../question_bank/presentation/widgets/question_type_badge.dart';
-import '../../../question_bank/presentation/widgets/difficulty_badge.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
+import '../../../../question_bank/presentation/widgets/difficulty_badge.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/exam_list_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 import '../../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
@@ -193,7 +193,7 @@ class ExamDetailPage extends ConsumerWidget {
                   vertical: Spacings.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
+                  color: statusColor.withOpacity(context.isDarkMode ? 0.25 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -328,7 +328,7 @@ class ExamDetailPage extends ConsumerWidget {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: 0.1),
+                        color: cs.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Center(

@@ -76,7 +76,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                   border:
                       Border.all(color: cs.outline, style: BorderStyle.solid),
                   borderRadius: Spacings.borderRadiusMd,
-                  color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                  color: cs.surfaceContainerHighest.withOpacity(0.3),
                 ),
                 child: Column(
                   children: [
@@ -189,10 +189,10 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
             Container(
               padding: Spacings.paddingCard,
               decoration: BoxDecoration(
-                color: AppColors.warning.withValues(alpha: 0.1),
+                color: AppColors.warning.withOpacity(0.1),
                 borderRadius: Spacings.borderRadiusMd,
                 border: Border.all(
-                    color: AppColors.warning.withValues(alpha: 0.3)),
+                    color: AppColors.warning.withOpacity(0.3)),
               ),
               child: Row(
                 children: [
@@ -305,7 +305,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
       padding: const EdgeInsets.symmetric(
           horizontal: Spacings.sm, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.15),
+        color: color.withOpacity(0.15),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(status.label,

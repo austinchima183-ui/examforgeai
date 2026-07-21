@@ -76,7 +76,7 @@ class AuditEntryTile extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+          color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
           borderRadius: Spacings.borderRadiusSm,
         ),
         child: Icon(_actionIcon(entry.action), size: Spacings.mdIcon, color: color),

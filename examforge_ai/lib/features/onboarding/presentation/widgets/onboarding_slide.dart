@@ -149,7 +149,7 @@ class _OnboardingSlideState extends State<OnboardingSlide>
                     boxShadow: [
                       BoxShadow(
                         color: widget.data.gradient.colors.first
-                            .withValues(alpha: 0.3),
+                            .withOpacity(0.3),
                         blurRadius: 32,
                         offset: const Offset(0, 16),
                       ),
@@ -160,7 +160,7 @@ class _OnboardingSlideState extends State<OnboardingSlide>
                       width: illustrationSize * 0.65,
                       height: illustrationSize * 0.65,
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withOpacity(0.2),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

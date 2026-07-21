@@ -74,7 +74,7 @@ class InsightCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
       ),
@@ -169,14 +169,14 @@ class InsightCard extends StatelessWidget {
                         Icon(
                           Icons.auto_awesome_rounded,
                           size: 12,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                          color: cs.onSurfaceVariant.withOpacity(0.6),
                         ),
                         const SizedBox(width: Spacings.xs),
                       ],
                       Text(
                         insight.createdAt.timeAgo,
                         style: tt.labelSmall?.copyWith(
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                          color: cs.onSurfaceVariant.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -204,7 +204,7 @@ class InsightCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: barColor.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: barColor.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(

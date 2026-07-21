@@ -248,7 +248,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       height: 220,
       width: double.infinity,
       decoration: BoxDecoration(
-        color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
       ),
       child: Stack(
         children: [
@@ -359,7 +359,7 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
       children: [
         CircleAvatar(
           radius: 20,
-          backgroundColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+          backgroundColor: cs.primary.withOpacity(isDark ? 0.30 : 0.15),
           child: Icon(
             Icons.person_rounded,
             size: Spacings.lgIcon,
@@ -688,10 +688,10 @@ class _ProductDetailPageState extends ConsumerState<ProductDetailPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(Spacings.lg),
           decoration: BoxDecoration(
-            color: cs.primaryContainer.withValues(alpha: isDark ? 0.2 : 0.3),
+            color: cs.primaryContainer.withOpacity(isDark ? 0.2 : 0.3),
             borderRadius: Spacings.borderRadiusMd,
             border: Border.all(
-              color: cs.primary.withValues(alpha: 0.2),
+              color: cs.primary.withOpacity(0.2),
             ),
           ),
           child: Text(

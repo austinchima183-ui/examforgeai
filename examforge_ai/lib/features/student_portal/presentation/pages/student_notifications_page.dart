@@ -80,7 +80,7 @@ class _StudentNotificationsPageState
                 horizontal: Spacings.lg,
                 vertical: Spacings.md,
               ),
-              color: cs.primaryContainer.withValues(alpha: 0.5),
+              color: cs.primaryContainer.withOpacity(0.5),
               child: Row(
                 children: [
                   Icon(
@@ -252,7 +252,7 @@ class _NotificationCard extends StatelessWidget {
 
     return AppCard(
       onTap: onTap,
-      borderColor: isUnread ? cs.primary.withValues(alpha: 0.3) : null,
+      borderColor: isUnread ? cs.primary.withOpacity(0.3) : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -260,8 +260,7 @@ class _NotificationCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: typeColor.withValues(
-                alpha: context.isDarkMode ? 0.20 : 0.12,
+              color: typeColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
@@ -323,8 +322,7 @@ class _NotificationCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: typeColor.withValues(
-                          alpha: context.isDarkMode ? 0.20 : 0.12,
+                        color: typeColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius: BorderRadius.circular(
                             Spacings.fullRadius),

@@ -213,7 +213,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -255,7 +255,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 '${state.totalCount} user${state.totalCount == 1 ? '' : 's'}',
                 style: AppTypography.wMedium.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ),
             ],
@@ -365,7 +365,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.7),
+                    .withOpacity(0.7),
               ),
             ),
             const SizedBox(height: Spacings.lg),
@@ -440,10 +440,10 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
             Container(
               padding: Spacings.paddingAll,
               decoration: BoxDecoration(
-                color: AppColors.warningLight.withValues(alpha: 0.3),
+                color: AppColors.warningLight.withOpacity(0.3),
                 borderRadius: Spacings.borderRadiusMd,
                 border:
-                    Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
+                    Border.all(color: AppColors.warning.withOpacity(0.4)),
               ),
               child: Row(
                 children: [
@@ -470,7 +470,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.7),
+                    .withOpacity(0.7),
               ),
             ),
             const SizedBox(height: Spacings.lg),
@@ -553,7 +553,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withValues(alpha: 0.7),
+                          .withOpacity(0.7),
                     ),
                   ),
                   const SizedBox(height: Spacings.lg),
@@ -654,7 +654,7 @@ class _UserManagementCard extends StatelessWidget {
                 // Avatar
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: roleClr.withValues(alpha: 0.12),
+                  backgroundColor: roleClr.withOpacity(0.12),
                   child: Icon(
                     _roleIcon(user.role),
                     size: Spacings.mdIcon,
@@ -694,7 +694,7 @@ class _UserManagementCard extends StatelessWidget {
                         user.email,
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.5),
+                          color: cs.onSurface.withOpacity(0.5),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -729,7 +729,7 @@ class _UserManagementCard extends StatelessWidget {
                   Icon(
                     Icons.domain_outlined,
                     size: Spacings.smIcon,
-                    color: cs.onSurface.withValues(alpha: 0.5),
+                    color: cs.onSurface.withOpacity(0.5),
                   ),
                   const SizedBox(width: Spacings.xs),
                   Flexible(
@@ -737,7 +737,7 @@ class _UserManagementCard extends StatelessWidget {
                       user.schoolName!,
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 12,
-                        color: cs.onSurface.withValues(alpha: 0.6),
+                        color: cs.onSurface.withOpacity(0.6),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -749,14 +749,14 @@ class _UserManagementCard extends StatelessWidget {
                 Icon(
                   Icons.access_time_rounded,
                   size: Spacings.smIcon,
-                  color: cs.onSurface.withValues(alpha: 0.5),
+                  color: cs.onSurface.withOpacity(0.5),
                 ),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   _formatLastLogin(user.lastLoginAt),
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],

@@ -61,10 +61,10 @@ class LearningObjectiveChip extends StatelessWidget {
           vertical: Spacings.xs,
         ),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+          color: color.withOpacity(isDark ? 0.15 : 0.08),
           borderRadius: Spacings.borderRadiusSm,
           border: Border.all(
-            color: color.withValues(alpha: 0.3),
+            color: color.withOpacity(0.3),
             width: 1,
           ),
         ),
@@ -81,7 +81,7 @@ class LearningObjectiveChip extends StatelessWidget {
                 color: color,
                 boxShadow: [
                   BoxShadow(
-                    color: color.withValues(alpha: 0.4),
+                    color: color.withOpacity(0.4),
                     blurRadius: 3,
                     offset: const Offset(0, 1),
                   ),
@@ -98,7 +98,7 @@ class LearningObjectiveChip extends StatelessWidget {
                   vertical: 1,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.2),
+                  color: color.withOpacity(0.2),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -187,7 +187,7 @@ class LearningObjectiveChip extends StatelessWidget {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.15),
+                color: color.withOpacity(0.15),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Text(

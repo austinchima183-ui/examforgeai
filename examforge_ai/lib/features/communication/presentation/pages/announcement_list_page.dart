@@ -161,7 +161,7 @@ class _State extends ConsumerState<AnnouncementListPage> with SingleTickerProvid
         color: cs.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
-          side: BorderSide(color: ann.priority == AnnouncementPriority.urgent ? priorityColor.withValues(alpha: 0.5) : cs.outlineVariant.withValues(alpha: 0.3)),
+          side: BorderSide(color: ann.priority == AnnouncementPriority.urgent ? priorityColor.withOpacity(0.5) : cs.outlineVariant.withOpacity(0.3)),
         ),
         child: InkWell(
           onTap: () {/* TODO: navigate to detail */},
@@ -178,7 +178,7 @@ class _State extends ConsumerState<AnnouncementListPage> with SingleTickerProvid
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
                       decoration: BoxDecoration(
-                        color: priorityColor.withValues(alpha: 0.12),
+                        color: priorityColor.withOpacity(0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(
@@ -194,7 +194,7 @@ class _State extends ConsumerState<AnnouncementListPage> with SingleTickerProvid
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
                       decoration: BoxDecoration(
-                        color: typeColor.withValues(alpha: 0.12),
+                        color: typeColor.withOpacity(0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(

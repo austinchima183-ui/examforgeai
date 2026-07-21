@@ -13,7 +13,7 @@ import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/school_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 

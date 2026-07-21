@@ -96,8 +96,8 @@ class AnswerInputWidget extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: Spacings.sm),
           child: Material(
             color: isSelected
-                ? cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.08)
-                : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                ? cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.08)
+                : cs.surfaceContainerHighest.withOpacity(0.5),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             child: InkWell(
               onTap: isEnabled
@@ -176,8 +176,8 @@ class AnswerInputWidget extends StatelessWidget {
           padding: const EdgeInsets.only(bottom: Spacings.sm),
           child: Material(
             color: isSelected
-                ? cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.08)
-                : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                ? cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.08)
+                : cs.surfaceContainerHighest.withOpacity(0.5),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             child: InkWell(
               onTap: isEnabled ? () => _toggleOption(option.id, selectedIds) : null,
@@ -293,8 +293,8 @@ class AnswerInputWidget extends StatelessWidget {
 
     return Material(
       color: isSelected
-          ? color.withValues(alpha: isDark ? 0.25 : 0.12)
-          : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+          ? color.withOpacity(isDark ? 0.25 : 0.12)
+          : cs.surfaceContainerHighest.withOpacity(0.5),
       borderRadius: BorderRadius.circular(Spacings.mdRadius),
       child: InkWell(
         onTap: onTap,
@@ -406,7 +406,7 @@ class AnswerInputWidget extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.all(Spacings.md),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+                    color: cs.primary.withOpacity(context.isDarkMode ? 0.15 : 0.08),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(
@@ -491,10 +491,10 @@ class AnswerInputWidget extends StatelessWidget {
           margin: const EdgeInsets.only(bottom: Spacings.sm),
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+            color: cs.surfaceContainerHighest.withOpacity(0.5),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
             border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
+              color: cs.outlineVariant.withOpacity(0.5),
             ),
           ),
           child: Row(
@@ -505,7 +505,7 @@ class AnswerInputWidget extends StatelessWidget {
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: 0.15),
+                  color: cs.primary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Center(

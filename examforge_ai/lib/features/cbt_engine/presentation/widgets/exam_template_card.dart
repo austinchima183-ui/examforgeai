@@ -179,7 +179,7 @@ class ExamTemplateCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.infoOf(cs.brightness)
-                        .withValues(alpha: isDark ? 0.25 : 0.10),
+                        .withOpacity(isDark ? 0.25 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Row(
@@ -252,7 +252,7 @@ class ExamTemplateCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: color.withOpacity(isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -264,7 +264,7 @@ class ExamTemplateCard extends StatelessWidget {
             template.category.label,
             style: tt.labelSmall?.copyWith(
               fontWeight: AppTypography.wSemiBold,
-              color: isDark ? color.withValues(alpha: 0.9) : color,
+              color: isDark ? color.withOpacity(0.9) : color,
             ),
           ),
         ],

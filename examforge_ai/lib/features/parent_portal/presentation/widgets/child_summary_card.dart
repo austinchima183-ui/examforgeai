@@ -43,7 +43,7 @@ class ChildSummaryCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Spacings.lgRadius),
       ),
@@ -144,7 +144,7 @@ class ChildSummaryCard extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -174,7 +174,7 @@ class ChildSummaryCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -227,7 +227,7 @@ class ChildSummaryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(Spacings.fullRadius),
           child: LinearProgressIndicator(
             value: rate.clamp(0.0, 1.0),
-            backgroundColor: barColor.withValues(alpha: isDark ? 0.15 : 0.12),
+            backgroundColor: barColor.withOpacity(isDark ? 0.15 : 0.12),
             valueColor: AlwaysStoppedAnimation<Color>(barColor),
             minHeight: 6,
           ),
@@ -324,7 +324,7 @@ class ChildSummaryCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(

@@ -43,7 +43,7 @@ class _MatchingPairItem extends StatelessWidget {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Column(
@@ -55,7 +55,7 @@ class _MatchingPairItem extends StatelessWidget {
               Icon(
                 Icons.drag_indicator_rounded,
                 size: Spacings.mdIcon,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                color: cs.onSurfaceVariant.withOpacity(0.4),
               ),
               const SizedBox(width: Spacings.sm),
               Text(
@@ -71,7 +71,7 @@ class _MatchingPairItem extends StatelessWidget {
                   icon: Icon(
                     Icons.close_rounded,
                     size: Spacings.mdIcon,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: cs.onSurfaceVariant.withOpacity(0.5),
                   ),
                   onPressed: onDelete,
                   tooltip: 'Remove pair',
@@ -108,7 +108,7 @@ class _MatchingPairItem extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
-                        color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                        color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(
@@ -198,7 +198,7 @@ class _PairSideEditor extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Spacings.smRadius),
               borderSide: BorderSide(
-                color: accentColor.withValues(alpha: 0.3),
+                color: accentColor.withOpacity(0.3),
               ),
             ),
             focusedBorder: OutlineInputBorder(
@@ -230,7 +230,7 @@ class _PairSideEditor extends StatelessWidget {
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Spacings.smRadius),
               borderSide: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.4),
+                color: cs.outlineVariant.withOpacity(0.4),
               ),
             ),
             focusedBorder: OutlineInputBorder(

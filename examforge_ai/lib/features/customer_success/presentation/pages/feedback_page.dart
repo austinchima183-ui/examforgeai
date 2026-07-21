@@ -7,14 +7,14 @@ import '../providers/customer_success_provider.dart';
 ///
 /// Allows users to submit bug reports, feature requests, and general feedback,
 /// and view the status of their previous submissions.
-class FeedbackPage extends StatefulWidget {
+class FeedbackPage extends ConsumerStatefulWidget {
   const FeedbackPage({super.key});
 
   @override
-  State<FeedbackPage> createState() => _FeedbackPageState();
+  ConsumerState<FeedbackPage> createState() => _FeedbackPageState();
 }
 
-class _FeedbackPageState extends State<FeedbackPage> with SingleTickerProviderStateMixin {
+class _FeedbackPageState extends ConsumerState<FeedbackPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   final _subjectController = TextEditingController();
   final _descriptionController = TextEditingController();
@@ -26,7 +26,7 @@ class _FeedbackPageState extends State<FeedbackPage> with SingleTickerProviderSt
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CustomerSuccessProvider>().loadFeedbackSubmissions('current-user');
+      ref.read(customerSuccessProvider).loadFeedbackSubmissions('current-user');
     });
   }
 
@@ -41,6 +41,7 @@ class _FeedbackPageState extends State<FeedbackPage> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final provider = ref.watch(customerSuccessProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Feedback'),
@@ -53,14 +54,14 @@ class _FeedbackPageState extends State<FeedbackPage> with SingleTickerProviderSt
       body: TabBarView(
         controller: _tabController,
         children: [
-          _buildSubmitTab(theme),
-          _buildSubmissionsTab(theme),
+          _buildSubmitTab(theme, provider),
+          _buildSubmissionsTab(theme, provider),
         ],
       ),
     );
   }
 
-  Widget _buildSubmitTab(ThemeData theme) {
+  Widget _buildSubmitTab(ThemeData theme, CustomerSuccessProvider provider) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16),
       child: Column(
@@ -115,55 +116,47 @@ class _FeedbackPageState extends State<FeedbackPage> with SingleTickerProviderSt
             maxLines: 6,
           ),
           const SizedBox(height: 24),
-          Consumer<CustomerSuccessProvider>(
-            builder: (context, provider, _) {
-              return SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: provider.isLoading ? null : _submitFeedback,
-                  child: provider.isLoading
-                      ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Text('Submit Feedback'),
-                ),
-              );
-            },
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: provider.isLoading ? null : _submitFeedback,
+              child: provider.isLoading
+                  ? const SizedBox(height: 20, width: 20, child: CircularProgressIndicator(strokeWidth: 2))
+                  : const Text('Submit Feedback'),
+            ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSubmissionsTab(ThemeData theme) {
-    return Consumer<CustomerSuccessProvider>(
-      builder: (context, provider, child) {
-        if (provider.isLoading && provider.feedbackSubmissions.isEmpty) {
-          return const Center(child: CircularProgressIndicator());
-        }
-        if (provider.feedbackSubmissions.isEmpty) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
-                const SizedBox(height: 16),
-                Text('No feedback submissions yet', style: theme.textTheme.bodyLarge),
-              ],
-            ),
-          );
-        }
-        return RefreshIndicator(
-          onRefresh: () => provider.loadFeedbackSubmissions('current-user'),
-          child: ListView.separated(
-            padding: const EdgeInsets.all(16),
-            itemCount: provider.feedbackSubmissions.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (context, index) {
-              final submission = provider.feedbackSubmissions[index];
-              return _buildSubmissionCard(theme, submission);
-            },
-          ),
-        );
-      },
+  Widget _buildSubmissionsTab(ThemeData theme, CustomerSuccessProvider provider) {
+    if (provider.isLoading && provider.feedbackSubmissions.isEmpty) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (provider.feedbackSubmissions.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(Icons.inbox_outlined, size: 64, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text('No feedback submissions yet', style: theme.textTheme.bodyLarge),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: () => ref.read(customerSuccessProvider).loadFeedbackSubmissions('current-user'),
+      child: ListView.separated(
+        padding: const EdgeInsets.all(16),
+        itemCount: provider.feedbackSubmissions.length,
+        separatorBuilder: (_, __) => const SizedBox(height: 8),
+        itemBuilder: (context, index) {
+          final submission = provider.feedbackSubmissions[index];
+          return _buildSubmissionCard(theme, submission);
+        },
+      ),
     );
   }
 
@@ -223,7 +216,7 @@ class _FeedbackPageState extends State<FeedbackPage> with SingleTickerProviderSt
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill in all fields.')));
       return;
     }
-    final provider = context.read<CustomerSuccessProvider>();
+    final provider = ref.read(customerSuccessProvider);
     final success = await provider.submitFeedback(
       userId: 'current-user',
       feedbackType: _selectedType,

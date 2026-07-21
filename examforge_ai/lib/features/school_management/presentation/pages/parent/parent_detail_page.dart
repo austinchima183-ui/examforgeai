@@ -13,7 +13,7 @@ import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/parent_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -98,7 +98,7 @@ class ParentDetailPage extends ConsumerWidget {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
+                    color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: parent.avatarUrl != null
@@ -146,8 +146,8 @@ class ParentDetailPage extends ConsumerWidget {
                       ),
                       decoration: BoxDecoration(
                         color: parent.isActive
-                            ? AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12)
-                            : AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
+                            ? AppColors.success.withOpacity(isDark ? 0.20 : 0.12)
+                            : AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -375,7 +375,7 @@ class _ChildCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -425,7 +425,7 @@ class _ChildCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
+                        color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Text(
@@ -445,8 +445,7 @@ class _ChildCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withValues(
-                            alpha: isDark ? 0.20 : 0.12,
+                          color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12,
                           ),
                           borderRadius: BorderRadius.circular(Spacings.fullRadius),
                         ),

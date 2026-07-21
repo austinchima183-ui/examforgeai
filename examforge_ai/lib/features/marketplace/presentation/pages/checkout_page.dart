@@ -478,7 +478,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         color: cs.surface,
         border: Border(
           top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -515,8 +515,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: AppColors.successLight.withValues(
-                      alpha: context.isDarkMode ? 0.15 : 1.0,
+                    color: AppColors.successLight.withOpacity(context.isDarkMode ? 0.15 : 1.0,
                     ),
                     shape: BoxShape.circle,
                   ),
@@ -554,7 +553,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     vertical: Spacings.md,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                    color: cs.surfaceContainerHighest.withOpacity(0.5),
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: Row(
@@ -651,13 +650,13 @@ class _PaymentMethodCard extends StatelessWidget {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: isSelected
-              ? cs.primary.withValues(alpha: isDark ? 0.15 : 0.08)
+              ? cs.primary.withOpacity(isDark ? 0.15 : 0.08)
               : Colors.transparent,
           borderRadius: Spacings.borderRadiusMd,
           border: Border.all(
             color: isSelected
                 ? cs.primary
-                : cs.outlineVariant.withValues(alpha: 0.5),
+                : cs.outlineVariant.withOpacity(0.5),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -676,7 +675,7 @@ class _PaymentMethodCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(

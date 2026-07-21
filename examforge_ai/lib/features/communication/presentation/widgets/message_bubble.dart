@@ -72,7 +72,7 @@ class MessageBubble extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: Spacings.sm),
       padding: const EdgeInsets.all(Spacings.sm),
       decoration: BoxDecoration(
-        color: textColor.withValues(alpha: 0.08),
+        color: textColor.withOpacity(0.08),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border(
           left: BorderSide(color: cs.primary, width: 3),
@@ -99,7 +99,7 @@ class MessageBubble extends StatelessWidget {
             style: TextStyle(
               fontFamily: AppTypography.fontFamily,
               fontSize: 12,
-              color: textColor.withValues(alpha: 0.7),
+              color: textColor.withOpacity(0.7),
               height: 1.3,
             ),
             maxLines: 2,
@@ -132,10 +132,10 @@ class MessageBubble extends StatelessWidget {
             vertical: 2,
           ),
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
+            color: cs.surfaceContainerHighest.withOpacity(0.7),
             borderRadius: BorderRadius.circular(Spacings.fullRadius),
             border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
+              color: cs.outlineVariant.withOpacity(0.3),
             ),
           ),
           child: Text(
@@ -336,7 +336,7 @@ class MessageBubble extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   color:
-                                      textColor.withValues(alpha: 0.6),
+                                      textColor.withOpacity(0.6),
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -346,7 +346,7 @@ class MessageBubble extends StatelessWidget {
                               _formatTime(message.createdAt),
                               style: tt.labelSmall?.copyWith(
                                 color:
-                                    textColor.withValues(alpha: 0.7),
+                                    textColor.withOpacity(0.7),
                                 fontSize: 10,
                               ),
                             ),
@@ -359,7 +359,7 @@ class MessageBubble extends StatelessWidget {
                                 size: 14,
                                 color: message.readBy.isNotEmpty
                                     ? Colors.lightBlueAccent
-                                    : textColor.withValues(alpha: 0.5),
+                                    : textColor.withOpacity(0.5),
                               ),
                             ],
                           ],

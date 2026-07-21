@@ -13,7 +13,7 @@ import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/parent_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -244,7 +244,7 @@ class _ParentCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: parent.avatarUrl != null
@@ -324,7 +324,7 @@ class _ParentCard extends StatelessWidget {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12),
+                color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.fullRadius),
               ),
               child: Text(

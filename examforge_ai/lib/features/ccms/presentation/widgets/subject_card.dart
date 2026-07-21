@@ -234,10 +234,10 @@ class SubjectCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: groupColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                    color: groupColor.withOpacity(isDark ? 0.20 : 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                     border: Border.all(
-                      color: groupColor.withValues(alpha: 0.25),
+                      color: groupColor.withOpacity(0.25),
                       width: 1,
                     ),
                   ),
@@ -325,10 +325,10 @@ class _Badge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
         border: Border.all(
-          color: color.withValues(alpha: 0.25),
+          color: color.withOpacity(0.25),
           width: 1,
         ),
       ),

@@ -518,7 +518,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
           ),
           decoration: BoxDecoration(
             color: plan.isPublished
-                ? cs.primary.withValues(alpha: isDark ? 0.20 : 0.10)
+                ? cs.primary.withOpacity(isDark ? 0.20 : 0.10)
                 : cs.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(Spacings.fullRadius),
           ),
@@ -629,7 +629,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -858,7 +858,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Column(
@@ -882,7 +882,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -974,7 +974,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -984,8 +984,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
                     width: 28,
                     height: 28,
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.10,
+                      color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
                       ),
                       shape: BoxShape.circle,
                     ),

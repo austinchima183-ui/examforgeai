@@ -137,7 +137,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+            color: cs.primary.withOpacity(context.isDarkMode ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Text(
@@ -171,13 +171,13 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
               padding: const EdgeInsets.all(Spacings.lg),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? fmt.color.withValues(alpha: isDark ? 0.15 : 0.06)
+                    ? fmt.color.withOpacity(isDark ? 0.15 : 0.06)
                     : cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
                   color: isSelected
                       ? fmt.color
-                      : cs.outlineVariant.withValues(alpha: 0.5),
+                      : cs.outlineVariant.withOpacity(0.5),
                   width: isSelected ? 2.0 : 1.0,
                 ),
               ),
@@ -186,7 +186,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
                   Container(
                     padding: const EdgeInsets.all(Spacings.md),
                     decoration: BoxDecoration(
-                      color: fmt.color.withValues(alpha: isDark ? 0.2 : 0.1),
+                      color: fmt.color.withOpacity(isDark ? 0.2 : 0.1),
                       borderRadius: BorderRadius.circular(Spacings.mdRadius),
                     ),
                     child: Icon(fmt.icon, size: Spacings.lgIcon, color: fmt.color),
@@ -243,7 +243,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: AppColors.info
-                    .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+                    .withOpacity(context.isDarkMode ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
               ),
               child: Icon(
@@ -578,13 +578,13 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? cs.primary.withValues(alpha: isDark ? 0.15 : 0.06)
+                    ? cs.primary.withOpacity(isDark ? 0.15 : 0.06)
                     : cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
                   color: isSelected
                       ? cs.primary
-                      : cs.outlineVariant.withValues(alpha: 0.5),
+                      : cs.outlineVariant.withOpacity(0.5),
                   width: isSelected ? 2.0 : 1.0,
                 ),
               ),
@@ -720,7 +720,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.successOf(cs.brightness)
-                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -751,7 +751,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
-              color: cs.primaryContainer.withValues(alpha: 0.3),
+              color: cs.primaryContainer.withOpacity(0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Column(
@@ -841,7 +841,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.errorOf(cs.brightness)
-                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

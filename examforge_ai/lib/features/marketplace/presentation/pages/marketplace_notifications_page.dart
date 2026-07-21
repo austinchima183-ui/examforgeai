@@ -453,7 +453,7 @@ class _NotificationTile extends StatelessWidget {
         padding: const EdgeInsets.only(right: Spacings.xl),
         margin: const EdgeInsets.only(bottom: Spacings.sm),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
+          color: AppColors.error.withOpacity(0.1),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
         child: Icon(
@@ -466,7 +466,7 @@ class _NotificationTile extends StatelessWidget {
         onTap: onTap,
         color: notification.isRead
             ? null
-            : context.colorScheme.primaryContainer.withValues(alpha: 0.08),
+            : context.colorScheme.primaryContainer.withOpacity(0.08),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -474,8 +474,7 @@ class _NotificationTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: visual.color.withValues(
-                  alpha: context.isDarkMode ? 0.20 : 0.12,
+                color: visual.color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                 ),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
@@ -550,8 +549,7 @@ class _NotificationTile extends StatelessWidget {
                           vertical: 1.0,
                         ),
                         decoration: BoxDecoration(
-                          color: visual.color.withValues(
-                            alpha: context.isDarkMode ? 0.20 : 0.12,
+                          color: visual.color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                           ),
                           borderRadius:
                               BorderRadius.circular(Spacings.fullRadius),

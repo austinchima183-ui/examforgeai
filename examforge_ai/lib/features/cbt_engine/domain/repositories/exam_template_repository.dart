@@ -1,6 +1,6 @@
 import '../../../../core/utils/result.dart';
-import 'entities/cbt_entities.dart';
-import 'entities/exam_template_entities.dart';
+import '../entities/cbt_entities.dart';
+import '../entities/exam_template_entities.dart';
 
 /// Abstract contract for all exam template operations.
 ///

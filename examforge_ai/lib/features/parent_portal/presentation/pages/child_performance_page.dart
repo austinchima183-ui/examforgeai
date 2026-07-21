@@ -513,7 +513,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
               Icon(
                 Icons.show_chart_outlined,
                 size: Spacings.xlIcon,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                color: cs.onSurfaceVariant.withOpacity(0.4),
               ),
               const SizedBox(height: Spacings.md),
               Text(
@@ -721,7 +721,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
         color: cs.surfaceContainerLow,
         borderRadius: Spacings.borderRadiusSm,
         border: Border.all(
-          color: cs.outline.withValues(alpha: 0.3),
+          color: cs.outline.withOpacity(0.3),
         ),
       ),
       child: Row(

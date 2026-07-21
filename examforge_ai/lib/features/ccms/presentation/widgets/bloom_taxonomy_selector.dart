@@ -125,13 +125,13 @@ class _BloomTaxonomySelectorState extends State<BloomTaxonomySelector> {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? color.withValues(alpha: isDark ? 0.25 : 0.15)
+                      ? color.withOpacity(isDark ? 0.25 : 0.15)
                       : Colors.transparent,
                   borderRadius: Spacings.borderRadiusSm,
                   border: Border.all(
                     color: isSelected
                         ? color
-                        : color.withValues(alpha: 0.4),
+                        : color.withOpacity(0.4),
                     width: isSelected ? 2 : 1,
                   ),
                 ),
@@ -154,7 +154,7 @@ class _BloomTaxonomySelectorState extends State<BloomTaxonomySelector> {
                         child: Icon(
                           _bloomIcon(level),
                           size: 14,
-                          color: color.withValues(alpha: 0.6),
+                          color: color.withOpacity(0.6),
                         ),
                       ),
                     Text(
@@ -162,7 +162,7 @@ class _BloomTaxonomySelectorState extends State<BloomTaxonomySelector> {
                       style: AppTypography.labelMedium.copyWith(
                         color: isSelected
                             ? color
-                            : color.withValues(alpha: 0.7),
+                            : color.withOpacity(0.7),
                         fontWeight: isSelected
                             ? AppTypography.wSemiBold
                             : AppTypography.wRegular,

@@ -457,7 +457,7 @@ class _RubricListPageState extends ConsumerState<RubricListPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: bgColor ?? color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: bgColor ?? color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -489,7 +489,7 @@ class _RubricListPageState extends ConsumerState<RubricListPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

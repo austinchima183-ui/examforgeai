@@ -8,11 +8,11 @@ import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/exam_taker_provider.dart';
-import '../widgets/exam_timer_widget.dart';
-import '../widgets/question_navigator.dart';
-import '../widgets/question_display_widget.dart';
+import '../../widgets/exam_timer_widget.dart';
+import '../../widgets/question_navigator.dart';
+import '../../widgets/question_display_widget.dart';
 import '../../../../../config/dependency_injection.dart';
 
 
@@ -275,7 +275,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
         color: cs.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -355,7 +355,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
               tooltip: 'Question Navigator',
               style: IconButton.styleFrom(
                 backgroundColor: _showNavigatorSheet
-                    ? cs.primary.withValues(alpha: 0.1)
+                    ? cs.primary.withOpacity(0.1)
                     : null,
               ),
             ),
@@ -389,7 +389,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
           vertical: Spacings.xs,
         ),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+          color: color.withOpacity(context.isDarkMode ? 0.20 : 0.10),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -434,7 +434,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
         color: cs.surfaceContainerLow,
         border: Border(
           top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -563,7 +563,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
                 color: AppColors.warningOf(ctx.colorScheme.brightness)
-                    .withValues(alpha: ctx.isDarkMode ? 0.15 : 0.08),
+                    .withOpacity(ctx.isDarkMode ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
@@ -589,7 +589,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
                 color: AppColors.warningOf(ctx.colorScheme.brightness)
-                    .withValues(alpha: ctx.isDarkMode ? 0.15 : 0.08),
+                    .withOpacity(ctx.isDarkMode ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
@@ -692,7 +692,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
                   height: 80,
                   decoration: BoxDecoration(
                     color: AppColors.successOf(cs.brightness)
-                        .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+                        .withOpacity(context.isDarkMode ? 0.20 : 0.10),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -758,7 +758,7 @@ class _ExamTakePageState extends ConsumerState<ExamTakePage>
                   height: 80,
                   decoration: BoxDecoration(
                     color: AppColors.errorOf(cs.brightness)
-                        .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+                        .withOpacity(context.isDarkMode ? 0.20 : 0.10),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

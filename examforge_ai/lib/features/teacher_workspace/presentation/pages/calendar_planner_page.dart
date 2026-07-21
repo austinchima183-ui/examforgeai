@@ -513,7 +513,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
         Divider(
           height: 1,
           thickness: 1,
-          color: context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+          color: context.colorScheme.outlineVariant.withOpacity(0.3),
         ),
 
         // Events for selected date
@@ -717,7 +717,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
               color: isSelected
                   ? cs.primary
                   : isToday
-                      ? cs.primary.withValues(alpha: 0.08)
+                      ? cs.primary.withOpacity(0.08)
                       : Colors.transparent,
               borderRadius: BorderRadius.circular(Spacings.smRadius),
               border: isToday && !isSelected
@@ -845,7 +845,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                             color: isSelected
                                 ? cs.primary
                                 : isToday
-                                    ? cs.primary.withValues(alpha: 0.12)
+                                    ? cs.primary.withOpacity(0.12)
                                     : Colors.transparent,
                             shape: BoxShape.circle,
                           ),
@@ -944,12 +944,12 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                                 border: Border(
                                   bottom: BorderSide(
                                     color: cs.outlineVariant
-                                        .withValues(alpha: 0.3),
+                                        .withOpacity(0.3),
                                     width: 0.5,
                                   ),
                                   right: BorderSide(
                                     color: cs.outlineVariant
-                                        .withValues(alpha: 0.3),
+                                        .withOpacity(0.3),
                                     width: 0.5,
                                   ),
                                 ),
@@ -967,15 +967,13 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                                         vertical: 1,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: eventColor.withValues(
-                                          alpha: context.isDarkMode ? 0.30 : 0.15,
+                                        color: eventColor.withOpacity(context.isDarkMode ? 0.30 : 0.15,
                                         ),
                                         borderRadius: BorderRadius.circular(
                                           Spacings.xs,
                                         ),
                                         border: Border.all(
-                                          color: eventColor.withValues(
-                                            alpha: 0.5,
+                                          color: eventColor.withOpacity(0.5,
                                           ),
                                           width: 0.5,
                                         ),
@@ -1082,7 +1080,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                         decoration: BoxDecoration(
                           color: hourEvents.isNotEmpty
                               ? cs.primary
-                              : cs.outlineVariant.withValues(alpha: 0.5),
+                              : cs.outlineVariant.withOpacity(0.5),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1090,7 +1088,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                         child: VerticalDivider(
                           width: 1,
                           thickness: 1,
-                          color: cs.outlineVariant.withValues(alpha: 0.3),
+                          color: cs.outlineVariant.withOpacity(0.3),
                         ),
                       ),
                     ],
@@ -1149,10 +1147,10 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
         margin: const EdgeInsets.only(bottom: Spacings.sm),
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: eventColor.withValues(alpha: isDark ? 0.18 : 0.08),
+          color: eventColor.withOpacity(isDark ? 0.18 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
           border: Border.all(
-            color: eventColor.withValues(alpha: 0.3),
+            color: eventColor.withOpacity(0.3),
           ),
         ),
         child: Row(
@@ -1402,7 +1400,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
         vertical: 1,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -1458,7 +1456,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                       margin: const EdgeInsets.only(bottom: Spacings.lg),
                       decoration: BoxDecoration(
                         color: ctx.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.3),
+                            .withOpacity(0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -1605,7 +1603,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: color.withValues(alpha: 0.4),
+                                      color: color.withOpacity(0.4),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),

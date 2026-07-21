@@ -169,12 +169,11 @@ class _ReadinessDashboardPageState
                           width: double.infinity,
                           padding: Spacings.paddingCard,
                           decoration: BoxDecoration(
-                            color: AppColors.errorLight.withValues(
-                              alpha: 0.3,
+                            color: AppColors.errorLight.withOpacity(0.3,
                             ),
                             borderRadius: Spacings.borderRadiusMd,
                             border: Border.all(
-                              color: AppColors.error.withValues(alpha: 0.2),
+                              color: AppColors.error.withOpacity(0.2),
                             ),
                           ),
                           child: Wrap(
@@ -213,13 +212,12 @@ class _ReadinessDashboardPageState
                           width: double.infinity,
                           padding: Spacings.paddingCard,
                           decoration: BoxDecoration(
-                            color: AppColors.successLight.withValues(
-                              alpha: 0.3,
+                            color: AppColors.successLight.withOpacity(0.3,
                             ),
                             borderRadius: Spacings.borderRadiusMd,
                             border: Border.all(
                               color:
-                                  AppColors.success.withValues(alpha: 0.2),
+                                  AppColors.success.withOpacity(0.2),
                             ),
                           ),
                           child: Wrap(
@@ -349,7 +347,7 @@ class _ReadinessDashboardPageState
                         decoration: BoxDecoration(
                           color: _readinessLevelColor(
                             assessment.readinessLevel,
-                          ).withValues(alpha: 0.1),
+                          ).withOpacity(0.1),
                           borderRadius: Spacings.borderRadiusFull,
                         ),
                         child: Text(

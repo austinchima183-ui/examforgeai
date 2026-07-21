@@ -56,7 +56,7 @@ class EngagementMetricCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
       ),
@@ -74,7 +74,7 @@ class EngagementMetricCard extends StatelessWidget {
                   width: 32,
                   height: 32,
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+                    color: color.withOpacity(isDark ? 0.20 : 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

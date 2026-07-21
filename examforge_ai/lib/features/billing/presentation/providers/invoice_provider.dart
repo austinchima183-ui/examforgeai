@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/billing_entities.dart';
@@ -133,14 +134,14 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
     );
 
     result.fold(
-      onSuccess: (paginatedResult) {
+      onSuccess: (invoices) {
         state = state.copyWith(
           isLoading: false,
-          invoices: paginatedResult.items,
+          invoices: invoices,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${paginatedResult.items.length} invoices',
+          'Loaded ${invoices.length} invoices',
         );
       },
       onFailure: (failure) {
@@ -238,14 +239,14 @@ class InvoiceNotifier extends StateNotifier<InvoiceState> {
     );
 
     result.fold(
-      onSuccess: (paginatedResult) {
+      onSuccess: (receipts) {
         state = state.copyWith(
           isLoading: false,
-          receipts: paginatedResult.items,
+          receipts: receipts,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${paginatedResult.items.length} receipts',
+          'Loaded ${receipts.length} receipts',
         );
       },
       onFailure: (failure) {

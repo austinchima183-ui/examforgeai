@@ -1,8 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
-import '../../data/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
+import '../../domain/repositories/billing_repository.dart';
 
 
 // ─── Validate Coupon ─────────────────────────────────────────────────────────
@@ -26,7 +25,7 @@ class ValidateCouponUseCase {
   Future<Result<CouponEntity>> call(ValidateCouponParams params) async {
     if (params.code.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon code cannot be empty'),
+        Failure.validation(message: 'Coupon code cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -61,12 +60,12 @@ class RedeemCouponUseCase {
   Future<Result<CouponEntity>> call(RedeemCouponParams params) async {
     if (params.couponId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon ID cannot be empty'),
+        Failure.validation(message: 'Coupon ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty'),
+        Failure.validation(message: 'User ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -97,17 +96,17 @@ class GetCouponsUseCase {
   GetCouponsUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaginatedResult<CouponEntity>>> call(
+  Future<Result<List<CouponEntity>>> call(
     GetCouponsParams params,
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1'),
+        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1'),
+        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
       );
     }
 
@@ -133,16 +132,16 @@ class CreateCouponUseCase {
   Future<Result<CouponEntity>> call(CreateCouponParams params) async {
     if (params.coupon.code.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon code cannot be empty'),
+        Failure.validation(message: 'Coupon code cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.coupon.name.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon name cannot be empty'),
+        Failure.validation(message: 'Coupon name cannot be empty', fieldErrors: const {}),
       );
     }
 
-    return _repository.createCoupon(coupon: params.coupon);
+    return _repository.createCoupon(params.coupon);
   }
 }
 
@@ -160,10 +159,10 @@ class UpdateCouponUseCase {
   Future<Result<CouponEntity>> call(UpdateCouponParams params) async {
     if (params.coupon.id.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon ID cannot be empty'),
+        Failure.validation(message: 'Coupon ID cannot be empty', fieldErrors: const {}),
       );
     }
 
-    return _repository.updateCoupon(coupon: params.coupon);
+    return _repository.updateCoupon(params.coupon);
   }
 }

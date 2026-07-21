@@ -217,7 +217,7 @@ class _GeneratedQuestionCardState extends State<GeneratedQuestionCard> {
                               decoration: BoxDecoration(
                                 color: isCorrect
                                     ? AppColors.successOf(cs.brightness)
-                                        .withValues(alpha: 0.15)
+                                        .withOpacity(0.15)
                                     : cs.surfaceContainerHighest,
                                 borderRadius: BorderRadius.circular(
                                   Spacings.xs,
@@ -420,7 +420,7 @@ class _QuestionTypeBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -453,7 +453,7 @@ class _DifficultyBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -483,7 +483,7 @@ class _BloomBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -535,7 +535,7 @@ class _ReviewStatusBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(

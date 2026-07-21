@@ -278,7 +278,7 @@ class _SecurityCenterPageState
                                         vertical: 2),
                                     decoration: BoxDecoration(
                                       color:
-                                          cs.primaryContainer.withValues(alpha: 0.3),
+                                          cs.primaryContainer.withOpacity(0.3),
                                       borderRadius:
                                           Spacings.borderRadiusSm,
                                     ),
@@ -326,7 +326,7 @@ class _SecurityCenterPageState
                                 horizontal: Spacings.sm, vertical: 2),
                             decoration: BoxDecoration(
                               color: _severityColor(event.severity)
-                                  .withValues(alpha: 0.15),
+                                  .withOpacity(0.15),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             child: Text(event.severity.label,
@@ -414,7 +414,7 @@ class _SecurityCenterPageState
                             padding: const EdgeInsets.symmetric(
                                 horizontal: Spacings.sm, vertical: 2),
                             decoration: BoxDecoration(
-                              color: cs.primaryContainer.withValues(alpha: 0.3),
+                              color: cs.primaryContainer.withOpacity(0.3),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             child: Text(config.$2.label,

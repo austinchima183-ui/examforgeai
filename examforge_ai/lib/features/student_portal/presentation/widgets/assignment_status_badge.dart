@@ -67,8 +67,8 @@ class AssignmentStatusBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = context.isDarkMode;
     final color = _statusColor();
-    final bgColor = color.withValues(alpha: isDark ? 0.25 : 0.12);
-    final fgColor = isDark ? color.withValues(alpha: 0.9) : color;
+    final bgColor = color.withOpacity(isDark ? 0.25 : 0.12);
+    final fgColor = isDark ? color.withOpacity(0.9) : color;
 
     return Container(
       padding: const EdgeInsets.symmetric(

@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/academic_session_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -392,7 +392,7 @@ class _SessionCard extends ConsumerWidget {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.success
-                          .withValues(alpha: isDark ? 0.20 : 0.12),
+                          .withOpacity(isDark ? 0.20 : 0.12),
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
                     child: Text(
@@ -600,8 +600,8 @@ class _TermItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           border: Border.all(
             color: term.isCurrent
-                ? cs.primary.withValues(alpha: 0.5)
-                : cs.outlineVariant.withValues(alpha: 0.3),
+                ? cs.primary.withOpacity(0.5)
+                : cs.outlineVariant.withOpacity(0.3),
           ),
         ),
         child: Row(
@@ -638,7 +638,7 @@ class _TermItem extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.success
-                                .withValues(alpha: isDark ? 0.20 : 0.12),
+                                .withOpacity(isDark ? 0.20 : 0.12),
                             borderRadius:
                                 BorderRadius.circular(Spacings.fullRadius),
                           ),

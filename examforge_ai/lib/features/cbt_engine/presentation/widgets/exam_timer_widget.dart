@@ -94,15 +94,15 @@ class _ExamTimerWidgetState extends State<ExamTimerWidget>
   Color _timerBgColor(BuildContext context) {
     if (_isTimeUp) {
       return AppColors.errorOf(context.colorScheme.brightness)
-          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
+          .withOpacity(context.isDarkMode ? 0.20 : 0.10);
     }
     if (_isCritical) {
       return AppColors.errorOf(context.colorScheme.brightness)
-          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
+          .withOpacity(context.isDarkMode ? 0.20 : 0.10);
     }
     if (_isWarning) {
       return AppColors.warningOf(context.colorScheme.brightness)
-          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
+          .withOpacity(context.isDarkMode ? 0.20 : 0.10);
     }
     return context.colorScheme.surfaceContainerHighest;
   }

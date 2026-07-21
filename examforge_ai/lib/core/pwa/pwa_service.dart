@@ -26,6 +26,23 @@ import 'package:web/web.dart' as web;
 import '../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// CUSTOM JS INTEROP — BeforeInstallPromptEvent
+// ═══════════════════════════════════════════════════════════════════════════════
+// The `beforeinstallprompt` event is not part of the standard `web` package.
+// We define a minimal JS interop type so we can capture and invoke it.
+
+@JS()
+extension type BeforeInstallPromptEvent._(web.Event _) implements web.Event {
+  external JSPromise<JSString> prompt();
+  external JSPromise<PromptResponse> get userChoice;
+}
+
+@JS()
+extension type PromptResponse._(JSObject _) implements JSObject {
+  external String get outcome;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // PWA INSTALL STATUS ENUM
 // ═══════════════════════════════════════════════════════════════════════════════
 
@@ -57,7 +74,7 @@ class PwaService {
   PwaService();
 
   /// The captured `beforeinstallprompt` event, if the browser fired one.
-  web.BeforeInstallPromptEvent? _installPromptEvent;
+  BeforeInstallPromptEvent? _installPromptEvent;
 
   /// Stream controller for install status changes.
   final StreamController<PwaInstallStatus> _installStatusController =
@@ -84,7 +101,7 @@ class PwaService {
     try {
       web.window.addEventListener('beforeinstallprompt', (web.Event event) {
         event.preventDefault();
-        _installPromptEvent = event as web.BeforeInstallPromptEvent;
+        _installPromptEvent = event as BeforeInstallPromptEvent;
         AppLogger.info('[PWA] beforeinstallprompt captured');
         _installStatusController.add(PwaInstallStatus.installable);
       }.toJS);
@@ -200,8 +217,11 @@ class PwaService {
     if (!kIsWeb) return false;
 
     try {
-      final permission = await web.Notification.requestPermission().toDart;
-      final granted = permission == web.NotificationPermission.granted;
+      // Notification.requestPermission() returns a JSPromise<JSString>
+      final permissionStr = await web.Notification.requestPermission().toDart;
+      // Convert JSString to Dart String and compare
+      final permission = permissionStr.toDart;
+      final granted = permission == 'granted';
       AppLogger.info('[PWA] Notification permission: $permission');
       return granted;
     } catch (e) {
@@ -227,9 +247,10 @@ class PwaService {
       final readyReg = await registration.ready.toDart;
       final pushManager = readyReg.pushManager;
 
+      // Use PushSubscriptionOptionsInit (the named constructor variant)
       final subscription = await pushManager
           .subscribe(
-            web.PushSubscriptionOptions(
+            web.PushSubscriptionOptionsInit(
               userVisibleOnly: true,
               applicationServerKey: serverPublicKey.toJS,
             ),

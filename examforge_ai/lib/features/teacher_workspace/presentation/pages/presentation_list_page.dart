@@ -303,7 +303,7 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -423,7 +423,7 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.5),
+                    color: cs.primaryContainer.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(

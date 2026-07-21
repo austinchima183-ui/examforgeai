@@ -1,0 +1,723 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../../core/core.dart';
+     5→import '../../../../../shared/widgets/widgets.dart';
+     6→import '../../domain/entities/ccms_entities.dart';
+     7→import '../providers/ccms_providers.dart';
+     8→import '../widgets/ccms_widgets.dart';
+     9→
+    10→class ContentEditorPage extends ConsumerStatefulWidget {
+    11→  const ContentEditorPage({super.key, this.contentId});
+    12→
+    13→  final String? contentId;
+    14→
+    15→  @override
+    16→  ConsumerState<ContentEditorPage> createState() =>
+    17→      _ContentEditorPageState();
+    18→}
+    19→
+    20→class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
+    21→  final _titleCtrl = TextEditingController();
+    22→  final _bodyCtrl = TextEditingController();
+    23→  final _explanationCtrl = TextEditingController();
+    24→  final _markingSchemeCtrl = TextEditingController();
+    25→  final _teacherNotesCtrl = TextEditingController();
+    26→  final _tagsCtrl = TextEditingController();
+    27→  final _markAllocationCtrl = TextEditingController();
+    28→  final _timeAllocationCtrl = TextEditingController();
+    29→  final _correctAnswerCtrl = TextEditingController();
+    30→
+    31→  ContentType _contentType = ContentType.question;
+    32→  QuestionCategory _questionCategory = QuestionCategory.multipleChoice;
+    33→  DifficultyLevel _difficulty = DifficultyLevel.intermediate;
+    34→  BloomTaxonomy _bloomLevel = BloomTaxonomy.apply;
+    35→  Set<BloomTaxonomy> _selectedBloomLevels = {BloomTaxonomy.apply};
+    36→  String? _selectedSubjectId;
+    37→  String? _selectedLevelId;
+    38→  String? _selectedTopicId;
+    39→  SourceType _sourceType = SourceType.original;
+    40→  bool _isPastQuestion = false;
+    41→  final _pastYearCtrl = TextEditingController();
+    42→  String? _selectedExamBody;
+    43→  bool _isAiGenerated = false;
+    44→  bool _licensingDeclared = false;
+    45→
+    46→  // MCQ Options
+    47→  List<_OptionItem> _options = [
+    48→    _OptionItem(label: 'A', text: '', isCorrect: true),
+    49→    _OptionItem(label: 'B', text: '', isCorrect: false),
+    50→    _OptionItem(label: 'C', text: '', isCorrect: false),
+    51→    _OptionItem(label: 'D', text: '', isCorrect: false),
+    52→  ];
+    53→
+    54→  // Tags as chips
+    55→  List<String> _tags = [];
+    56→  final _tagInputCtrl = TextEditingController();
+    57→
+    58→  // Learning objectives
+    59→  List<String> _learningObjectives = [];
+    60→  final _objectiveCtrl = TextEditingController();
+    61→
+    62→  @override
+    63→  void initState() {
+    64→    super.initState();
+    65→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    66→      ref.read(subjectProvider.notifier).loadSubjects();
+    67→      ref.read(educationalLevelProvider.notifier).loadEducationalLevels();
+    68→      if (widget.contentId != null) {
+    69→        ref
+    70→            .read(contentProvider.notifier)
+    71→            .loadContentById(widget.contentId!);
+    72→      }
+    73→    });
+    74→  }
+    75→
+    76→  @override
+    77→  void dispose() {
+    78→    _titleCtrl.dispose();
+    79→    _bodyCtrl.dispose();
+    80→    _explanationCtrl.dispose();
+    81→    _markingSchemeCtrl.dispose();
+    82→    _teacherNotesCtrl.dispose();
+    83→    _tagsCtrl.dispose();
+    84→    _markAllocationCtrl.dispose();
+    85→    _timeAllocationCtrl.dispose();
+    86→    _correctAnswerCtrl.dispose();
+    87→    _pastYearCtrl.dispose();
+    88→    _tagInputCtrl.dispose();
+    89→    _objectiveCtrl.dispose();
+    90→    super.dispose();
+    91→  }
+    92→
+    93→  @override
+    94→  Widget build(BuildContext context) {
+    95→    final subjectState = ref.watch(subjectProvider);
+    96→    final levelState = ref.watch(educationalLevelProvider);
+    97→    final topicState = ref.watch(topicProvider);
+    98→    final contentState = ref.watch(contentProvider);
+    99→    final cs = context.colorScheme;
+   100→    final tt = context.textTheme;
+   101→
+   102→    return Scaffold(
+   103→      appBar: AppAppBar(
+   104→        title: widget.contentId != null ? 'Edit Content' : 'Create Content',
+   105→        actions: [
+   106→          TextButton(
+   107→              onPressed: _saveDraft, child: const Text('Save Draft')),
+   108→          const SizedBox(width: Spacings.sm),
+   109→          AppButton(
+   110→            label: 'Submit',
+   111→            onPressed: _submitForReview,
+   112→            size: AppButtonSize.small,
+   113→          ),
+   114→        ],
+   115→      ),
+   116→      body: SingleChildScrollView(
+   117→        padding: Spacings.paddingScreen,
+   118→        child: Column(
+   119→          crossAxisAlignment: CrossAxisAlignment.start,
+   120→          children: [
+   121→            // ── Title ──────────────────────────────────────────────
+   122→            TextField(
+   123→              controller: _titleCtrl,
+   124→              decoration: const InputDecoration(
+   125→                  labelText: 'Title *', border: OutlineInputBorder()),
+   126→            ),
+   127→            Spacings.sectionGap,
+   128→
+   129→            // ── Content Type & Question Category ──────────────────
+   130→            Row(
+   131→              children: [
+   132→                Expanded(
+   133→                  child: DropdownButtonFormField<ContentType>(
+   134→                    value: _contentType,
+   135→                    decoration: const InputDecoration(
+   136→                        labelText: 'Content Type *',
+   137→                        border: OutlineInputBorder()),
+   138→                    items: ContentType.values
+   139→                        .map((t) => DropdownMenuItem(
+   140→                            value: t, child: Text(t.label)))
+   141→                        .toList(),
+   142→                    onChanged: (v) => setState(() => _contentType = v!),
+   143→                  ),
+   144→                ),
+   145→                if (_contentType == ContentType.question) ...[
+   146→                  const SizedBox(width: Spacings.md),
+   147→                  Expanded(
+   148→                    child: DropdownButtonFormField<QuestionCategory>(
+   149→                      value: _questionCategory,
+   150→                      decoration: const InputDecoration(
+   151→                          labelText: 'Question Category',
+   152→                          border: OutlineInputBorder()),
+   153→                      items: QuestionCategory.values
+   154→                          .map((c) => DropdownMenuItem(
+   155→                              value: c, child: Text(c.label)))
+   156→                          .toList(),
+   157→                      onChanged: (v) =>
+   158→                          setState(() => _questionCategory = v!),
+   159→                    ),
+   160→                  ),
+   161→                ],
+   162→              ],
+   163→            ),
+   164→            Spacings.sectionGap,
+   165→
+   166→            // ── Subject, Level, Topic ─────────────────────────────
+   167→            Row(
+   168→              children: [
+   169→                Expanded(
+   170→                  child: DropdownButtonFormField<String>(
+   171→                    value: _selectedSubjectId,
+   172→                    decoration: const InputDecoration(
+   173→                        labelText: 'Subject *',
+   174→                        border: OutlineInputBorder()),
+   175→                    items: [
+   176→                      const DropdownMenuItem(
+   177→                          value: null, child: Text('Select')),
+   178→                      ...subjectState.subjects.map((s) =>
+   179→                          DropdownMenuItem(
+   180→                              value: s.id, child: Text(s.name))),
+   181→                    ],
+   182→                    onChanged: (v) =>
+   183→                        setState(() => _selectedSubjectId = v),
+   184→                  ),
+   185→                ),
+   186→                const SizedBox(width: Spacings.md),
+   187→                Expanded(
+   188→                  child: DropdownButtonFormField<String>(
+   189→                    value: _selectedLevelId,
+   190→                    decoration: const InputDecoration(
+   191→                        labelText: 'Level *',
+   192→                        border: OutlineInputBorder()),
+   193→                    items: [
+   194→                      const DropdownMenuItem(
+   195→                          value: null, child: Text('Select')),
+   196→                      ...levelState.levels.map((l) =>
+   197→                          DropdownMenuItem(
+   198→                              value: l.id, child: Text(l.name))),
+   199→                    ],
+   200→                    onChanged: (v) =>
+   201→                        setState(() => _selectedLevelId = v),
+   202→                  ),
+   203→                ),
+   204→              ],
+   205→            ),
+   206→            const SizedBox(height: Spacings.md),
+   207→            DropdownButtonFormField<String>(
+   208→              value: _selectedTopicId,
+   209→              decoration: const InputDecoration(
+   210→                  labelText: 'Topic/Subtopic',
+   211→                  border: OutlineInputBorder()),
+   212→              items: [
+   213→                const DropdownMenuItem(
+   214→                    value: null, child: Text('Select')),
+   215→                ...topicState.topics.map((t) => DropdownMenuItem(
+   216→                    value: t.id, child: Text(t.name))),
+   217→              ],
+   218→              onChanged: (v) => setState(() => _selectedTopicId = v),
+   219→            ),
+   220→            Spacings.sectionGap,
+   221→
+   222→            // ── Difficulty & Bloom's Level ────────────────────────
+   223→            Row(
+   224→              children: [
+   225→                Expanded(
+   226→                  child: DropdownButtonFormField<DifficultyLevel>(
+   227→                    value: _difficulty,
+   228→                    decoration: const InputDecoration(
+   229→                        labelText: 'Difficulty *',
+   230→                        border: OutlineInputBorder()),
+   231→                    items: DifficultyLevel.values
+   232→                        .map((d) => DropdownMenuItem(
+   233→                            value: d, child: Text(d.label)))
+   234→                        .toList(),
+   235→                    onChanged: (v) =>
+   236→                        setState(() => _difficulty = v!),
+   237→                  ),
+   238→                ),
+   239→                const SizedBox(width: Spacings.md),
+   240→                Expanded(
+   241→                  child: DropdownButtonFormField<BloomTaxonomy>(
+   242→                    value: _bloomLevel,
+   243→                    decoration: const InputDecoration(
+   244→                        labelText: "Bloom's Level *",
+   245→                        border: OutlineInputBorder()),
+   246→                    items: BloomTaxonomy.values
+   247→                        .map((b) => DropdownMenuItem(
+   248→                            value: b, child: Text(b.label)))
+   249→                        .toList(),
+   250→                    onChanged: (v) =>
+   251→                        setState(() => _bloomLevel = v!),
+   252→                  ),
+   253→                ),
+   254→              ],
+   255→            ),
+   256→            const SizedBox(height: Spacings.md),
+   257→            Text("Bloom's Taxonomy Multi-Select",
+   258→                style: AppTypography.labelMedium.copyWith(
+   259→                    color: cs.primary,
+   260→                    fontWeight: AppTypography.wSemiBold)),
+   261→            const SizedBox(height: Spacings.sm),
+   262→            BloomTaxonomySelector(
+   263→              selectedLevels: _selectedBloomLevels,
+   264→              onChanged: (levels) =>
+   265→                  setState(() => _selectedBloomLevels = levels),
+   266→            ),
+   267→            Spacings.sectionGap,
+   268→
+   269→            // ── Body Text ─────────────────────────────────────────
+   270→            TextField(
+   271→              controller: _bodyCtrl,
+   272→              decoration: const InputDecoration(
+   273→                  labelText: 'Content Body *',
+   274→                  border: OutlineInputBorder(),
+   275→                  alignLabelWithHint: true),
+   276→              maxLines: 8,
+   277→            ),
+   278→            Spacings.sectionGap,
+   279→
+   280→            // ── Options Editor (MCQ) ──────────────────────────────
+   281→            if (_contentType == ContentType.question &&
+   282→                (_questionCategory == QuestionCategory.multipleChoice ||
+   283→                    _questionCategory ==
+   284→                        QuestionCategory.objective)) ...[
+   285→              Text('Answer Options',
+   286→                  style: tt.titleMedium?.copyWith(
+   287→                      fontWeight: AppTypography.wSemiBold,
+   288→                      color: cs.onSurface)),
+   289→              const SizedBox(height: Spacings.sm),
+   290→              ..._options.asMap().entries.map((entry) {
+   291→                final idx = entry.key;
+   292→                final opt = entry.value;
+   293→                return Padding(
+   294→                  padding: const EdgeInsets.only(bottom: Spacings.sm),
+   295→                  child: Row(
+   296→                    children: [
+   297→                      SizedBox(
+   298→                        width: 32,
+   299→                        child: Center(
+   300→                          child: Text(opt.label,
+   301→                              style: tt.labelLarge?.copyWith(
+   302→                                  fontWeight: AppTypography.wBold,
+   303→                                  color: opt.isCorrect
+   304→                                      ? AppColors.success
+   305→                                      : cs.onSurfaceVariant)),
+   306→                        ),
+   307→                      ),
+   308→                      const SizedBox(width: Spacings.sm),
+   309→                      Expanded(
+   310→                        child: TextField(
+   311→                          controller: TextEditingController(text: opt.text),
+   312→                          decoration: InputDecoration(
+   313→                            labelText: 'Option ${opt.label}',
+   314→                            border: const OutlineInputBorder(),
+   315→                            isDense: true,
+   316→                          ),
+   317→                          onChanged: (v) => opt.text = v,
+   318→                        ),
+   319→                      ),
+   320→                      const SizedBox(width: Spacings.sm),
+   321→                      IconButton(
+   322→                        icon: Icon(
+   323→                          opt.isCorrect
+   324→                              ? Icons.check_circle_rounded
+   325→                              : Icons.radio_button_unchecked_rounded,
+   326→                          color: opt.isCorrect
+   327→                              ? AppColors.success
+   328→                              : cs.onSurfaceVariant,
+   329→                        ),
+   330→                        onPressed: () {
+   331→                          setState(() {
+   332→                            for (final o in _options) {
+   333→                              o.isCorrect = false;
+   334→                            }
+   335→                            _options[idx].isCorrect = true;
+   336→                            _correctAnswerCtrl.text = opt.label;
+   337→                          });
+   338→                        },
+   339→                        tooltip: 'Mark as correct answer',
+   340→                      ),
+   341→                      if (_options.length > 2)
+   342→                        IconButton(
+   343→                          icon: Icon(Icons.remove_circle_outline_rounded,
+   344→                              color: AppColors.error, size: 20),
+   345→                          onPressed: () {
+   346→                            setState(() => _options.removeAt(idx));
+   347→                          },
+   348→                        ),
+   349→                    ],
+   350→                  ),
+   351→                );
+   352→              }),
+   353→              AppButton(
+   354→                label: 'Add Option',
+   355→                onPressed: () {
+   356→                  final nextLabel = String.fromCharCode(
+   357→                      65 + _options.length);
+   358→                  setState(() {
+   359→                    _options.add(_OptionItem(
+   360→                        label: nextLabel, text: '', isCorrect: false));
+   361→                  });
+   362→                },
+   363→                variant: AppButtonVariant.outlined,
+   364→                size: AppButtonSize.small,
+   365→                icon: Icons.add_rounded,
+   366→              ),
+   367→              Spacings.sectionGap,
+   368→            ],
+   369→
+   370→            // ── Correct Answer ────────────────────────────────────
+   371→            if (_contentType == ContentType.question) ...[
+   372→              TextField(
+   373→                controller: _correctAnswerCtrl,
+   374→                decoration: const InputDecoration(
+   375→                    labelText: 'Correct Answer',
+   376→                    border: OutlineInputBorder()),
+   377→              ),
+   378→              Spacings.sectionGap,
+   379→            ],
+   380→
+   381→            // ── Step-by-step Explanation ──────────────────────────
+   382→            TextField(
+   383→              controller: _explanationCtrl,
+   384→              decoration: const InputDecoration(
+   385→                  labelText: 'Step-by-Step Explanation',
+   386→                  border: OutlineInputBorder(),
+   387→                  alignLabelWithHint: true),
+   388→              maxLines: 5,
+   389→            ),
+   390→            const SizedBox(height: Spacings.md),
+   391→
+   392→            // ── Marking Scheme ────────────────────────────────────
+   393→            TextField(
+   394→              controller: _markingSchemeCtrl,
+   395→              decoration: const InputDecoration(
+   396→                  labelText: 'Marking Scheme',
+   397→                  border: OutlineInputBorder(),
+   398→                  alignLabelWithHint: true),
+   399→              maxLines: 4,
+   400→            ),
+   401→            const SizedBox(height: Spacings.md),
+   402→
+   403→            // ── Teacher Notes ─────────────────────────────────────
+   404→            TextField(
+   405→              controller: _teacherNotesCtrl,
+   406→              decoration: const InputDecoration(
+   407→                  labelText: 'Teacher Notes',
+   408→                  border: OutlineInputBorder(),
+   409→                  alignLabelWithHint: true),
+   410→              maxLines: 3,
+   411→            ),
+   412→            Spacings.sectionGap,
+   413→
+   414→            // ── Learning Objectives ───────────────────────────────
+   415→            Text('Learning Objectives',
+   416→                style: tt.titleSmall?.copyWith(
+   417→                    fontWeight: AppTypography.wSemiBold,
+   418→                    color: cs.onSurface)),
+   419→            const SizedBox(height: Spacings.sm),
+   420→            Wrap(
+   421→              spacing: Spacings.sm,
+   422→              runSpacing: Spacings.xs,
+   423→              children: _learningObjectives
+   424→                  .asMap()
+   425→                  .entries
+   426→                  .map((e) => Chip(
+   427→                        label: Text(e.value),
+   428→                        onDeleted: () => setState(
+   429→                            () => _learningObjectives.removeAt(e.key)),
+   430→                        deleteIconColor: cs.onSurfaceVariant,
+   431→                      ))
+   432→                  .toList(),
+   433→            ),
+   434→            const SizedBox(height: Spacings.sm),
+   435→            Row(
+   436→              children: [
+   437→                Expanded(
+   438→                  child: TextField(
+   439→                    controller: _objectiveCtrl,
+   440→                    decoration: const InputDecoration(
+   441→                        labelText: 'Add Learning Objective',
+   442→                        border: OutlineInputBorder(),
+   443→                        isDense: true),
+   444→                    onSubmitted: (v) {
+   445→                      if (v.isNotEmpty) {
+   446→                        setState(() {
+   447→                          _learningObjectives.add(v);
+   448→                        });
+   449→                        _objectiveCtrl.clear();
+   450→                      }
+   451→                    },
+   452→                  ),
+   453→                ),
+   454→                IconButton(
+   455→                  icon: const Icon(Icons.add_circle_outline),
+   456→                  onPressed: () {
+   457→                    if (_objectiveCtrl.text.isNotEmpty) {
+   458→                      setState(() {
+   459→                        _learningObjectives.add(_objectiveCtrl.text);
+   460→                      });
+   461→                      _objectiveCtrl.clear();
+   462→                    }
+   463→                  },
+   464→                ),
+   465→              ],
+   466→            ),
+   467→            Spacings.sectionGap,
+   468→
+   469→            // ── Tags (Chip Input) ─────────────────────────────────
+   470→            Text('Tags',
+   471→                style: tt.titleSmall?.copyWith(
+   472→                    fontWeight: AppTypography.wSemiBold,
+   473→                    color: cs.onSurface)),
+   474→            const SizedBox(height: Spacings.sm),
+   475→            Wrap(
+   476→              spacing: Spacings.sm,
+   477→              runSpacing: Spacings.xs,
+   478→              children: _tags
+   479→                  .asMap()
+   480→                  .entries
+   481→                  .map((e) => Chip(
+   482→                        label: Text(e.value),
+   483→                        onDeleted: () =>
+   484→                            setState(() => _tags.removeAt(e.key)),
+   485→                        deleteIconColor: cs.onSurfaceVariant,
+   486→                      ))
+   487→                  .toList(),
+   488→            ),
+   489→            const SizedBox(height: Spacings.sm),
+   490→            Row(
+   491→              children: [
+   492→                Expanded(
+   493→                  child: TextField(
+   494→                    controller: _tagInputCtrl,
+   495→                    decoration: const InputDecoration(
+   496→                        labelText: 'Add Tag',
+   497→                        border: OutlineInputBorder(),
+   498→                        isDense: true),
+   499→                    onSubmitted: (v) {
+   500→                      if (v.isNotEmpty && !_tags.contains(v)) {
+   501→                        setState(() => _tags.add(v));
+   502→                        _tagInputCtrl.clear();
+   503→                      }
+   504→                    },
+   505→                  ),
+   506→                ),
+   507→                IconButton(
+   508→                  icon: const Icon(Icons.add_circle_outline),
+   509→                  onPressed: () {
+   510→                    if (_tagInputCtrl.text.isNotEmpty &&
+   511→                        !_tags.contains(_tagInputCtrl.text)) {
+   512→                      setState(() => _tags.add(_tagInputCtrl.text));
+   513→                      _tagInputCtrl.clear();
+   514→                    }
+   515→                  },
+   516→                ),
+   517→              ],
+   518→            ),
+   519→            Spacings.sectionGap,
+   520→
+   521→            // ── Marks & Time Allocated ────────────────────────────
+   522→            Row(
+   523→              children: [
+   524→                Expanded(
+   525→                  child: TextField(
+   526→                    controller: _markAllocationCtrl,
+   527→                    decoration: const InputDecoration(
+   528→                        labelText: 'Marks Allocated',
+   529→                        border: OutlineInputBorder()),
+   530→                    keyboardType: TextInputType.number,
+   531→                  ),
+   532→                ),
+   533→                const SizedBox(width: Spacings.md),
+   534→                Expanded(
+   535→                  child: TextField(
+   536→                    controller: _timeAllocationCtrl,
+   537→                    decoration: const InputDecoration(
+   538→                        labelText: 'Time Allocated (seconds)',
+   539→                        border: OutlineInputBorder()),
+   540→                    keyboardType: TextInputType.number,
+   541→                  ),
+   542→                ),
+   543→              ],
+   544→            ),
+   545→            Spacings.sectionGap,
+   546→
+   547→            // ── Source Type ───────────────────────────────────────
+   548→            DropdownButtonFormField<SourceType>(
+   549→              value: _sourceType,
+   550→              decoration: const InputDecoration(
+   551→                  labelText: 'Source Type',
+   552→                  border: OutlineInputBorder()),
+   553→              items: SourceType.values
+   554→                  .map((s) =>
+   555→                      DropdownMenuItem(value: s, child: Text(s.label)))
+   556→                  .toList(),
+   557→              onChanged: (v) => setState(() => _sourceType = v!),
+   558→            ),
+   559→            const SizedBox(height: Spacings.md),
+   560→
+   561→            // ── Past Question Toggle ──────────────────────────────
+   562→            SwitchListTile(
+   563→              value: _isPastQuestion,
+   564→              onChanged: (v) => setState(() => _isPastQuestion = v),
+   565→              title: const Text('Past Question'),
+   566→              activeColor: cs.primary,
+   567→            ),
+   568→            if (_isPastQuestion) ...[
+   569→              Row(
+   570→                children: [
+   571→                  Expanded(
+   572→                    child: TextField(
+   573→                      controller: _pastYearCtrl,
+   574→                      decoration: const InputDecoration(
+   575→                          labelText: 'Year',
+   576→                          border: OutlineInputBorder()),
+   577→                      keyboardType: TextInputType.number,
+   578→                    ),
+   579→                  ),
+   580→                  const SizedBox(width: Spacings.md),
+   581→                  Expanded(
+   582→                    child: DropdownButtonFormField<String>(
+   583→                      value: _selectedExamBody,
+   584→                      decoration: const InputDecoration(
+   585→                          labelText: 'Exam Body',
+   586→                          border: OutlineInputBorder()),
+   587→                      items: ['WAEC', 'NECO', 'NABTEB', 'JAMB']
+   588→                          .map((b) => DropdownMenuItem(
+   589→                              value: b, child: Text(b)))
+   590→                          .toList(),
+   591→                      onChanged: (v) =>
+   592→                          setState(() => _selectedExamBody = v),
+   593→                    ),
+   594→                  ),
+   595→                ],
+   596→              ),
+   597→            ],
+   598→            Spacings.sectionGap,
+   599→
+   600→            // ── Licensing Declaration ──────────────────────────────
+   601→            Container(
+   602→              padding: Spacings.paddingCard,
+   603→              decoration: BoxDecoration(
+   604→                color: cs.surfaceContainerHighest.withOpacity(0.3),
+   605→                borderRadius: Spacings.borderRadiusMd,
+   606→              ),
+   607→              child: Row(
+   608→                children: [
+   609→                  Checkbox(
+   610→                    value: _licensingDeclared,
+   611→                    onChanged: (v) =>
+   612→                        setState(() => _licensingDeclared = v ?? false),
+   613→                    activeColor: cs.primary,
+   614→                  ),
+   615→                  Expanded(
+   616→                    child: Text(
+   617→                      'I declare that this content is original or I have the right to use it.',
+   618→                      style: AppTypography.bodySmall
+   619→                          .copyWith(color: cs.onSurfaceVariant),
+   620→                    ),
+   621→                  ),
+   622→                ],
+   623→              ),
+   624→            ),
+   625→            Spacings.sectionGap,
+   626→
+   627→            // ── Action Buttons ────────────────────────────────────
+   628→            Row(
+   629→              children: [
+   630→                Expanded(
+   631→                  child: AppButton(
+   632→                    label: 'Save Draft',
+   633→                    onPressed: _saveDraft,
+   634→                    variant: AppButtonVariant.outlined,
+   635→                    icon: Icons.save_outlined,
+   636→                  ),
+   637→                ),
+   638→                const SizedBox(width: Spacings.md),
+   639→                Expanded(
+   640→                  child: AppButton(
+   641→                    label: 'Submit for Review',
+   642→                    onPressed: _submitForReview,
+   643→                    variant: AppButtonVariant.tonal,
+   644→                    icon: Icons.send_rounded,
+   645→                  ),
+   646→                ),
+   647→                const SizedBox(width: Spacings.md),
+   648→                Expanded(
+   649→                  child: AppButton(
+   650→                    label: 'Publish',
+   651→                    onPressed: _publishDirectly,
+   652→                    icon: Icons.publish_rounded,
+   653→                  ),
+   654→                ),
+   655→              ],
+   656→            ),
+   657→          ],
+   658→        ),
+   659→      ),
+   660→    );
+   661→  }
+   662→
+   663→  ContentItem _buildContentItem(ContentStatus status) {
+   664→    return ContentItem(
+   665→      id: widget.contentId ?? '',
+   666→      title: _titleCtrl.text,
+   667→      contentType: _contentType,
+   668→      questionCategory: _questionCategory,
+   669→      subjectId: _selectedSubjectId ?? '',
+   670→      educationalLevelId: _selectedLevelId ?? '',
+   671→      topicId: _selectedTopicId,
+   672→      body: _bodyCtrl.text,
+   673→      difficultyLevel: _difficulty,
+   674→      bloomLevel: _bloomLevel,
+   675→      explanation: _explanationCtrl.text.isEmpty ? null : _explanationCtrl.text,
+   676→      markingScheme:
+   677→          _markingSchemeCtrl.text.isEmpty ? null : _markingSchemeCtrl.text,
+   678→      teacherNotes:
+   679→          _teacherNotesCtrl.text.isEmpty ? null : _teacherNotesCtrl.text,
+   680→      markAllocation: double.tryParse(_markAllocationCtrl.text),
+   681→      timeAllocationMinutes: int.tryParse(_timeAllocationCtrl.text),
+   682→      sourceType: _sourceType,
+   683→      isPastQuestion: _isPastQuestion,
+   684→      isAiGenerated: _isAiGenerated,
+   685→      status: status,
+   686→      qualityScore: 0,
+   687→      usageCount: 0,
+   688→      tags: _tags.isEmpty ? null : _tags,
+   689→      learningObjectives:
+   690→          _learningObjectives.isEmpty ? null : _learningObjectives,
+   691→      createdAt: DateTime.now(),
+   692→      updatedAt: DateTime.now(),
+   693→    );
+   694→  }
+   695→
+   696→  void _saveDraft() {
+   697→    ref.read(contentProvider.notifier).createContent(
+   698→        _buildContentItem(ContentStatus.draft));
+   699→    Navigator.pop(context);
+   700→  }
+   701→
+   702→  void _submitForReview() {
+   703→    ref.read(contentProvider.notifier).createContent(
+   704→        _buildContentItem(ContentStatus.review));
+   705→    Navigator.pop(context);
+   706→  }
+   707→
+   708→  void _publishDirectly() {
+   709→    ref.read(contentProvider.notifier).createContent(
+   710→        _buildContentItem(ContentStatus.published));
+   711→    Navigator.pop(context);
+   712→  }
+   713→}
+   714→
+   715→class _OptionItem {
+   716→  _OptionItem(
+   717→      {required this.label, required this.text, required this.isCorrect});
+   718→
+   719→  String label;
+   720→  String text;
+   721→  bool isCorrect;
+   722→}
+   723→

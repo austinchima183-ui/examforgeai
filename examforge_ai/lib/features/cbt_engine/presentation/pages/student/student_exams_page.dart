@@ -10,7 +10,7 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/student_exams_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -253,7 +253,7 @@ class _StudentExamCard extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: accentColor.withValues(alpha: isDark ? 0.25 : 0.12),
+                  color: accentColor.withOpacity(isDark ? 0.25 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Row(
@@ -297,7 +297,7 @@ class _StudentExamCard extends StatelessWidget {
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
                 color: AppColors.infoOf(cs.brightness)
-                    .withValues(alpha: isDark ? 0.15 : 0.08),
+                    .withOpacity(isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(

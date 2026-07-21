@@ -280,7 +280,7 @@ class _FlashcardPageState extends ConsumerState<FlashcardPage>
                               BorderRadius.circular(Spacings.xlRadius),
                           boxShadow: [
                             BoxShadow(
-                              color: cs.shadow.withValues(alpha: 0.1),
+                              color: cs.shadow.withOpacity(0.1),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -319,7 +319,7 @@ class _FlashcardPageState extends ConsumerState<FlashcardPage>
                                   'Hint: ${card.hint}',
                                   style: tt.bodyMedium?.copyWith(
                                     color: cs.onPrimaryContainer
-                                        .withValues(alpha: 0.7),
+                                        .withOpacity(0.7),
                                     fontStyle: FontStyle.italic,
                                   ),
                                   textAlign: TextAlign.center,

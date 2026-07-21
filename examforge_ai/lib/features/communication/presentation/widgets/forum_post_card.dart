@@ -62,7 +62,7 @@ class ForumPostCard extends StatelessWidget {
       width: 28,
       height: 28,
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
         shape: BoxShape.circle,
       ),
       child: Center(

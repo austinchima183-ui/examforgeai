@@ -75,7 +75,7 @@ class _AiCoachDashboardPageState
                     gradient: LinearGradient(
                       colors: [
                         AppColors.primary,
-                        AppColors.primary.withValues(alpha: 0.8),
+                        AppColors.primary.withOpacity(0.8),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(16),
@@ -439,7 +439,7 @@ class _ReadinessCard extends StatelessWidget {
                       CircularProgressIndicator(
                         value: score / 100,
                         backgroundColor:
-                            context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                            context.colorScheme.outlineVariant.withOpacity(0.3),
                         color: scoreColor,
                         strokeWidth: 8,
                       ),
@@ -617,7 +617,7 @@ class _QuickActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withValues(alpha: 0.1),
+      color: color.withOpacity(0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,

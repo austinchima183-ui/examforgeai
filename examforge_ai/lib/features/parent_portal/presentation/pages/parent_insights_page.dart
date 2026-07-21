@@ -225,7 +225,7 @@ class _State extends ConsumerState<ParentInsightsPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: isUnread
-            ? cs.primaryContainer.withValues(alpha: 0.08)
+            ? cs.primaryContainer.withOpacity(0.08)
             : cs.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
@@ -266,7 +266,7 @@ class _State extends ConsumerState<ParentInsightsPage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: severityColor.withValues(alpha: 0.12),
+                                color: severityColor.withOpacity(0.12),
                                 borderRadius: Spacings.borderRadiusSm,
                               ),
                               child: Text(

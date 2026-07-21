@@ -271,7 +271,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
             Text(
               collection.description!,
               style: tt.bodyMedium?.copyWith(
-                color: Colors.white.withValues(alpha: 0.85),
+                color: Colors.white.withOpacity(0.85),
                 height: 1.5,
               ),
               maxLines: 3,
@@ -298,7 +298,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Row(
@@ -329,7 +329,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withValues(alpha: 0.2),
+                    color: Colors.white.withOpacity(0.2),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Row(
@@ -420,7 +420,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
+          color: AppColors.error.withOpacity(0.1),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
         child: Column(
@@ -543,7 +543,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                       height: 4,
                       decoration: BoxDecoration(
                         color: context.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.3),
+                            .withOpacity(0.3),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                     ),

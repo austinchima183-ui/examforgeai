@@ -136,7 +136,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
             Container(
               padding: const EdgeInsets.symmetric(
                   horizontal: Spacings.lg, vertical: Spacings.sm),
-              color: cs.primaryContainer.withValues(alpha: 0.3),
+              color: cs.primaryContainer.withOpacity(0.3),
               child: Row(
                 children: [
                   Icon(Icons.account_tree_rounded,

@@ -20,6 +20,7 @@ library;
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:equatable/equatable.dart';
@@ -530,7 +531,7 @@ class AccessibleButton extends StatelessWidget {
     final colorScheme = theme.colorScheme;
 
     // Determine border for high-contrast mode
-    ShapeBorder? shape;
+    OutlinedBorder? shape;
     if (settings.isHighContrast) {
       shape = RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
@@ -598,23 +599,21 @@ class AccessibleButton extends StatelessWidget {
 
   ButtonStyle _buildButtonStyle(
     ColorScheme colorScheme,
-    ShapeBorder? highContrastShape,
+    OutlinedBorder? highContrastShape,
   ) {
     return FilledButton.styleFrom(
-      shape: highContrastShape != null
-          ? highContrastShape
-          : RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: highContrastShape ??
+          RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
     );
   }
 
   ButtonStyle _buildOutlinedButtonStyle(
     ColorScheme colorScheme,
-    ShapeBorder? highContrastShape,
+    OutlinedBorder? highContrastShape,
   ) {
     return OutlinedButton.styleFrom(
-      shape: highContrastShape != null
-          ? highContrastShape
-          : RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: highContrastShape ??
+          RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       side: highContrastShape != null
           ? const BorderSide(color: Color(0xFF000000), width: 2.0)
           : null,

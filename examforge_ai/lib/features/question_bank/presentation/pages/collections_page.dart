@@ -83,7 +83,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage>
           labelColor: cs.primary,
           unselectedLabelColor: cs.onSurfaceVariant,
           indicatorColor: cs.primary,
-          dividerColor: cs.outlineVariant.withValues(alpha: 0.3),
+          dividerColor: cs.outlineVariant.withOpacity(0.3),
         ),
       ),
       body: Column(

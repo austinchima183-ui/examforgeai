@@ -107,7 +107,7 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusXl,
       ),
@@ -119,8 +119,8 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              qualityColor.withValues(alpha: 0.1),
-              qualityColor.withValues(alpha: 0.05),
+              qualityColor.withOpacity(0.1),
+              qualityColor.withOpacity(0.05),
             ],
           ),
           borderRadius: Spacings.borderRadiusXl,
@@ -159,11 +159,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -247,11 +247,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -320,8 +320,8 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
           ),
           decoration: BoxDecoration(
             color: isActive
-                ? AppColors.warning.withValues(alpha: 0.1)
-                : AppColors.success.withValues(alpha: 0.1),
+                ? AppColors.warning.withOpacity(0.1)
+                : AppColors.success.withOpacity(0.1),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Text(
@@ -344,11 +344,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Container(
@@ -361,7 +361,7 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
             Icon(
               Icons.show_chart,
               size: Spacings.xlIcon,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+              color: cs.onSurfaceVariant.withOpacity(0.4),
             ),
             const SizedBox(height: Spacings.md),
             Text(
@@ -374,7 +374,7 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
             Text(
               'Chart will appear as data is collected',
               style: tt.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                color: cs.onSurfaceVariant.withOpacity(0.7),
               ),
             ),
           ],
@@ -392,11 +392,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(

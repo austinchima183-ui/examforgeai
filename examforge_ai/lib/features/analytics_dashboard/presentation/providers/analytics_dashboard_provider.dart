@@ -1,6 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/analytics_dashboard_entities.dart';
 import '../../domain/usecases/analytics_dashboard_usecases.dart';
+import '../../domain/repositories/analytics_dashboard_repository.dart';
+import '../../data/datasources/analytics_dashboard_remote_datasource.dart';
+import '../../data/repositories/analytics_dashboard_repository_impl.dart';
 
 /// Provider that manages Analytics Dashboard feature state.
 class AnalyticsDashboardProvider extends ChangeNotifier {
@@ -123,3 +129,70 @@ class AnalyticsDashboardProvider extends ChangeNotifier {
     _setLoading(false);
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// RIVERPOD PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+
+final analyticsDashboardRemoteDatasourceProvider = Provider<AnalyticsDashboardRemoteDatasource>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return AnalyticsDashboardRemoteDatasource(apiClient);
+});
+
+final analyticsDashboardRepositoryProvider = Provider<AnalyticsDashboardRepository>((ref) {
+  final datasource = ref.watch(analyticsDashboardRemoteDatasourceProvider);
+  return AnalyticsDashboardRepositoryImpl(datasource);
+});
+
+final getAnalyticsSummaryUseCaseProvider = Provider<GetAnalyticsSummaryUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetAnalyticsSummaryUseCase(repo);
+});
+
+final getDailyMetricsUseCaseProvider = Provider<GetDailyMetricsUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetDailyMetricsUseCase(repo);
+});
+
+final getEventCountsUseCaseProvider = Provider<GetEventCountsUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetEventCountsUseCase(repo);
+});
+
+final getFeatureAdoptionUseCaseProvider = Provider<GetFeatureAdoptionUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetFeatureAdoptionUseCase(repo);
+});
+
+final getRetentionDataUseCaseProvider = Provider<GetRetentionDataUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetRetentionDataUseCase(repo);
+});
+
+final getChurnDataUseCaseProvider = Provider<GetChurnDataUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetChurnDataUseCase(repo);
+});
+
+final getRevenueMetricsUseCaseProvider = Provider<GetRevenueMetricsUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetRevenueMetricsUseCase(repo);
+});
+
+final getReleaseNotesUseCaseProvider = Provider<GetReleaseNotesUseCase>((ref) {
+  final repo = ref.watch(analyticsDashboardRepositoryProvider);
+  return GetReleaseNotesUseCase(repo);
+});
+
+final analyticsDashboardProvider = ChangeNotifierProvider<AnalyticsDashboardProvider>((ref) {
+  return AnalyticsDashboardProvider(
+    getAnalyticsSummary: ref.watch(getAnalyticsSummaryUseCaseProvider),
+    getDailyMetrics: ref.watch(getDailyMetricsUseCaseProvider),
+    getEventCounts: ref.watch(getEventCountsUseCaseProvider),
+    getFeatureAdoption: ref.watch(getFeatureAdoptionUseCaseProvider),
+    getRetentionData: ref.watch(getRetentionDataUseCaseProvider),
+    getChurnData: ref.watch(getChurnDataUseCaseProvider),
+    getRevenueMetrics: ref.watch(getRevenueMetricsUseCaseProvider),
+    getReleaseNotes: ref.watch(getReleaseNotesUseCaseProvider),
+  );
+});

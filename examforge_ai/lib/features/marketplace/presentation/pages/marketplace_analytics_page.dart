@@ -383,10 +383,10 @@ class _ChartPlaceholder extends StatelessWidget {
           height: height,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: chartColor.withValues(alpha: context.isDarkMode ? 0.30 : 0.15),
+            color: chartColor.withOpacity(context.isDarkMode ? 0.30 : 0.15),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             border: Border.all(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
+              color: cs.outlineVariant.withOpacity(0.3),
             ),
           ),
           child: child ??
@@ -690,7 +690,7 @@ class _LicenseTypeChip extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+            color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Text(
@@ -888,7 +888,7 @@ class _StatusChip extends StatelessWidget {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -1284,7 +1284,7 @@ class _BarChartPlaceholder extends StatelessWidget {
                 width: 32,
                 height: (v * 120).clamp(8, 120).toDouble(),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.7),
+                  color: color.withOpacity(0.7),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(Spacings.smRadius),
                   ),
@@ -1447,7 +1447,7 @@ class _FrequencyBar extends StatelessWidget {
           width: 36,
           height: barHeight,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.7),
+            color: color.withOpacity(0.7),
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(Spacings.smRadius),
             ),

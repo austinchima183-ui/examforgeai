@@ -1,6 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/customer_success_entities.dart';
 import '../../domain/usecases/customer_success_usecases.dart';
+import '../../domain/repositories/customer_success_repository.dart';
+import '../../data/datasources/customer_success_remote_datasource.dart';
+import '../../data/repositories/customer_success_repository_impl.dart';
 
 /// Provider that manages Customer Success state for the entire feature.
 class CustomerSuccessProvider extends ChangeNotifier {
@@ -497,3 +503,106 @@ class CustomerSuccessProvider extends ChangeNotifier {
     );
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// RIVERPOD PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+
+final customerSuccessRemoteDatasourceProvider = Provider<CustomerSuccessRemoteDatasource>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return CustomerSuccessRemoteDatasource(apiClient);
+});
+
+final customerSuccessRepositoryProvider = Provider<CustomerSuccessRepository>((ref) {
+  final datasource = ref.watch(customerSuccessRemoteDatasourceProvider);
+  return CustomerSuccessRepositoryImpl(datasource);
+});
+
+final getOnboardingFlowsUseCaseProvider = Provider<GetOnboardingFlowsUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetOnboardingFlowsUseCase(repo);
+});
+
+final getOnboardingProgressUseCaseProvider = Provider<GetOnboardingProgressUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetOnboardingProgressUseCase(repo);
+});
+
+final completeOnboardingStepUseCaseProvider = Provider<CompleteOnboardingStepUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return CompleteOnboardingStepUseCase(repo);
+});
+
+final skipOnboardingStepUseCaseProvider = Provider<SkipOnboardingStepUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return SkipOnboardingStepUseCase(repo);
+});
+
+final getProductToursUseCaseProvider = Provider<GetProductToursUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetProductToursUseCase(repo);
+});
+
+final getHelpArticlesUseCaseProvider = Provider<GetHelpArticlesUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetHelpArticlesUseCase(repo);
+});
+
+final searchHelpArticlesUseCaseProvider = Provider<SearchHelpArticlesUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return SearchHelpArticlesUseCase(repo);
+});
+
+final getVideoTutorialsUseCaseProvider = Provider<GetVideoTutorialsUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetVideoTutorialsUseCase(repo);
+});
+
+final submitFeedbackUseCaseProvider = Provider<SubmitFeedbackUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return SubmitFeedbackUseCase(repo);
+});
+
+final getFeedbackSubmissionsUseCaseProvider = Provider<GetFeedbackSubmissionsUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetFeedbackSubmissionsUseCase(repo);
+});
+
+final getFeatureRequestsUseCaseProvider = Provider<GetFeatureRequestsUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetFeatureRequestsUseCase(repo);
+});
+
+final createFeatureRequestUseCaseProvider = Provider<CreateFeatureRequestUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return CreateFeatureRequestUseCase(repo);
+});
+
+final voteFeatureRequestUseCaseProvider = Provider<VoteFeatureRequestUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return VoteFeatureRequestUseCase(repo);
+});
+
+final getFeatureRequestVotesUseCaseProvider = Provider<GetFeatureRequestVotesUseCase>((ref) {
+  final repo = ref.watch(customerSuccessRepositoryProvider);
+  return GetFeatureRequestVotesUseCase(repo);
+});
+
+final customerSuccessProvider = ChangeNotifierProvider<CustomerSuccessProvider>((ref) {
+  return CustomerSuccessProvider(
+    getOnboardingFlows: ref.watch(getOnboardingFlowsUseCaseProvider),
+    getOnboardingProgress: ref.watch(getOnboardingProgressUseCaseProvider),
+    completeOnboardingStep: ref.watch(completeOnboardingStepUseCaseProvider),
+    skipOnboardingStep: ref.watch(skipOnboardingStepUseCaseProvider),
+    getProductTours: ref.watch(getProductToursUseCaseProvider),
+    getHelpArticles: ref.watch(getHelpArticlesUseCaseProvider),
+    searchHelpArticles: ref.watch(searchHelpArticlesUseCaseProvider),
+    getVideoTutorials: ref.watch(getVideoTutorialsUseCaseProvider),
+    submitFeedback: ref.watch(submitFeedbackUseCaseProvider),
+    getFeedbackSubmissions: ref.watch(getFeedbackSubmissionsUseCaseProvider),
+    getFeatureRequests: ref.watch(getFeatureRequestsUseCaseProvider),
+    createFeatureRequest: ref.watch(createFeatureRequestUseCaseProvider),
+    voteFeatureRequest: ref.watch(voteFeatureRequestUseCaseProvider),
+    getFeatureRequestVotes: ref.watch(getFeatureRequestVotesUseCaseProvider),
+  );
+});

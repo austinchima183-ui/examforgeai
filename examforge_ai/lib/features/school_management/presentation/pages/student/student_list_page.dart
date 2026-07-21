@@ -13,7 +13,7 @@ import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/student_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../../../../config/dependency_injection.dart';
@@ -356,7 +356,7 @@ class _StudentCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: student.avatarUrl != null
@@ -434,7 +434,7 @@ class _StudentCard extends StatelessWidget {
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.fullRadius),
             ),
             child: Text(

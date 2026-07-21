@@ -9,7 +9,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/report_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -230,7 +230,7 @@ class _ReportDashboardPageState extends ConsumerState<ReportDashboardPage> {
                   Container(
                     padding: const EdgeInsets.all(Spacings.md),
                     decoration: BoxDecoration(
-                      color: r.color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+                      color: r.color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
                       borderRadius: BorderRadius.circular(Spacings.mdRadius),
                     ),
                     child: Icon(r.icon, size: Spacings.lgIcon, color: r.color),
@@ -329,7 +329,7 @@ class _OverviewStatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: stat.color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: stat.color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(stat.icon, size: Spacings.mdIcon, color: stat.color),

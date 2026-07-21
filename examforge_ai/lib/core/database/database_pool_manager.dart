@@ -126,6 +126,12 @@ class DatabaseHealthStatus {
 class DatabasePoolManager {
   DatabasePoolManager._();
 
+  /// Singleton instance accessor.
+  static final DatabasePoolManager _instance = DatabasePoolManager._();
+
+  /// Returns the singleton instance of [DatabasePoolManager].
+  factory DatabasePoolManager() => _instance;
+
   static bool _initialized = false;
 
   /// Slow query threshold in milliseconds.

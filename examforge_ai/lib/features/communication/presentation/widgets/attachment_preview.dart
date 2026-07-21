@@ -96,7 +96,7 @@ class AttachmentPreview extends StatelessWidget {
       width: 44,
       height: 44,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: color.withOpacity(isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Center(
@@ -124,10 +124,10 @@ class AttachmentPreview extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: Spacings.xs),
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.06),
+          color: color.withOpacity(0.06),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
           border: Border.all(
-            color: color.withValues(alpha: 0.12),
+            color: color.withOpacity(0.12),
           ),
         ),
         child: Row(
@@ -170,7 +170,7 @@ class AttachmentPreview extends StatelessWidget {
                         Text(
                           ' · ${_formatFileSize(attachment.fileSizeBytes)}',
                           style: tt.labelSmall?.copyWith(
-                            color: color.withValues(alpha: 0.6),
+                            color: color.withOpacity(0.6),
                           ),
                         ),
                       ],
@@ -184,7 +184,7 @@ class AttachmentPreview extends StatelessWidget {
             Icon(
               Icons.download_rounded,
               size: Spacings.mdIcon,
-              color: color.withValues(alpha: 0.6),
+              color: color.withOpacity(0.6),
             ),
           ],
         ),

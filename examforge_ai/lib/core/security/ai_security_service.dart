@@ -46,7 +46,7 @@ class PromptInjectionPatterns {
   // ─── CRITICAL PATTERNS (Always Block) ────────────────────────────────
 
   /// High-confidence injection patterns that must always be blocked.
-  static const List<RegExp> critical = [
+  static final List<RegExp> critical = [
     // Direct instruction overrides
     RegExp(r'ignore\s+(all\s+)?previous\s+instructions', caseSensitive: false),
     RegExp(r'disregard\s+(all\s+)?previous', caseSensitive: false),
@@ -89,7 +89,7 @@ class PromptInjectionPatterns {
   // ─── SUSPICIOUS PATTERNS (Flag for Review) ───────────────────────────
 
   /// Medium-confidence injection patterns that should be flagged.
-  static const List<RegExp> suspicious = [
+  static final List<RegExp> suspicious = [
     RegExp(r'new\s+instruction', caseSensitive: false),
     RegExp(r'system\s*:', caseSensitive: false),
     RegExp(r'assistant\s*:', caseSensitive: false),
@@ -104,7 +104,7 @@ class PromptInjectionPatterns {
   // ─── UNICODE OBFUSCATION PATTERNS (NEW) ──────────────────────────────
 
   /// Patterns that detect Unicode-based obfuscation attacks.
-  static const List<RegExp> unicodeObfuscation = [
+  static final List<RegExp> unicodeObfuscation = [
     // Zero-width characters (used to hide text)
     RegExp(r'[\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF]'),
 
@@ -125,7 +125,7 @@ class PromptInjectionPatterns {
   // ─── BASE64 INJECTION PATTERNS (NEW) ─────────────────────────────────
 
   /// Patterns that detect Base64-encoded injection attempts.
-  static const List<RegExp> base64Injection = [
+  static final List<RegExp> base64Injection = [
     // Base64 strings that decode to common injection phrases
     // "SWdub3JlIGFsbCBwcmV2aW91cyBpbnN0cnVjdGlvbnM" = "Ignore all previous instructions"
     RegExp(r'SWdub3Jl\s+?\w+', caseSensitive: false),
@@ -140,7 +140,7 @@ class PromptInjectionPatterns {
   // ─── MARKDOWN INJECTION PATTERNS (NEW) ───────────────────────────────
 
   /// Patterns that detect Markdown-formatted injection attempts.
-  static const List<RegExp> markdownInjection = [
+  static final List<RegExp> markdownInjection = [
     // Markdown code blocks with system-like instructions
     RegExp(r'```(?:system|instruction|prompt|config)\s*\n', caseSensitive: false),
 
@@ -157,7 +157,7 @@ class PromptInjectionPatterns {
   // ─── JSON INJECTION PATTERNS (NEW) ───────────────────────────────────
 
   /// Patterns that detect JSON-formatted injection attempts.
-  static const List<RegExp> jsonInjection = [
+  static final List<RegExp> jsonInjection = [
     // JSON with system/instruction overrides
     RegExp(r'"(?:system|instruction|role|override)"\s*:\s*"', caseSensitive: false),
 
@@ -171,7 +171,7 @@ class PromptInjectionPatterns {
   // ─── CONTEXT LEAKAGE PATTERNS (NEW) ──────────────────────────────────
 
   /// Patterns that detect attempts to extract context or training data.
-  static const List<RegExp> contextLeakage = [
+  static final List<RegExp> contextLeakage = [
     RegExp(r'what\s+(data|information|context)\s+(were\s+you|was)\s+trained\s+on', caseSensitive: false),
     RegExp(r'(extract|leak|reveal|expose)\s+(training|internal|private|confidential)\s+data', caseSensitive: false),
     RegExp(r'(show|display|list|enumerate)\s+(all|your)\s+(knowledge|training\s+data|internal\s+state)', caseSensitive: false),
@@ -181,7 +181,7 @@ class PromptInjectionPatterns {
   // ─── NESTED INJECTION PATTERNS (NEW) ─────────────────────────────────
 
   /// Patterns that detect nested/layered injection attempts.
-  static const List<RegExp> nestedInjection = [
+  static final List<RegExp> nestedInjection = [
     // Double-encoded patterns
     RegExp(r'(?:ignore|bypass|override).{0,20}(?:ignore|bypass|override)', caseSensitive: false),
 
@@ -647,7 +647,7 @@ class AiSecurityService {
   static List<String> _checkSystemPromptLeakage(String output) {
     final leaks = <String>[];
 
-    const leakPatterns = [
+    final leakPatterns = [
       RegExp(r'You are ExamForge', caseSensitive: false),
       RegExp(r'system\s+prompt', caseSensitive: false),
       RegExp(r'###\s*system', caseSensitive: false),
@@ -704,7 +704,7 @@ class AiSecurityService {
   }) {
     final warnings = <String>[];
 
-    const placeholderPatterns = [
+    final placeholderPatterns = [
       RegExp(r'\[insert\s+\w+\]', caseSensitive: false),
       RegExp(r'\[your\s+\w+\s+here\]', caseSensitive: false),
       RegExp(r'\[teacher\s+name\]', caseSensitive: false),
@@ -747,7 +747,7 @@ class AiSecurityService {
   static bool isContentSafe(String content) {
     if (content.isEmpty) return true;
 
-    const harmfulPatterns = [
+    final harmfulPatterns = [
       RegExp(r'\b(hack|exploit|vulnerability)\s+(into|against|for)\b',
           caseSensitive: false),
       RegExp(r'\bhow\s+to\s+(cheat|hack|exploit)\b', caseSensitive: false),

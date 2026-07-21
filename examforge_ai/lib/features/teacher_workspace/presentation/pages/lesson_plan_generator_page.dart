@@ -659,7 +659,7 @@ class _LessonPlanGeneratorPageState
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -867,7 +867,7 @@ class _LessonPlanGeneratorPageState
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Column(
@@ -891,7 +891,7 @@ class _LessonPlanGeneratorPageState
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -980,7 +980,7 @@ class _LessonPlanGeneratorPageState
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -990,8 +990,7 @@ class _LessonPlanGeneratorPageState
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.10,
+                      color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
                       ),
                       shape: BoxShape.circle,
                     ),

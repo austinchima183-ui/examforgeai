@@ -5,7 +5,7 @@ import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
 import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/teacher_provider.dart';
 import '../../../../../config/dependency_injection.dart';
@@ -17,10 +17,13 @@ import '../../../../../config/dependency_injection.dart';
 
 /// Form page to create or edit a class.
 class ClassFormPage extends ConsumerStatefulWidget {
-  const ClassFormPage({super.key, this.classEntity});
+  const ClassFormPage({super.key, this.classEntity, this.classId});
 
-  /// If non-null, the form is in edit mode.
+  /// If non-null, the form is in edit mode with a full entity.
   final ClassEntity? classEntity;
+
+  /// If non-null, the form is in edit mode with just an ID (entity will be loaded).
+  final String? classId;
 
   @override
   ConsumerState<ClassFormPage> createState() => _ClassFormPageState();

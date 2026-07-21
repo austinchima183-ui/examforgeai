@@ -319,7 +319,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.12),
+            color: color.withOpacity(0.12),
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -598,7 +598,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
                 color: entry.bgColor,
                 borderRadius: Spacings.borderRadiusSm,
                 border: Border.all(
-                  color: entry.color.withValues(alpha: 0.4),
+                  color: entry.color.withOpacity(0.4),
                 ),
               ),
             ),

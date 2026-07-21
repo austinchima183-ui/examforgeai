@@ -5,7 +5,7 @@ import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
 import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/subject_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -16,10 +16,13 @@ import '../../../../../config/dependency_injection.dart';
 
 /// Form page to create or edit a subject.
 class SubjectFormPage extends ConsumerStatefulWidget {
-  const SubjectFormPage({super.key, this.subject});
+  const SubjectFormPage({super.key, this.subject, this.subjectId});
 
-  /// If non-null, the form is in edit mode.
+  /// If non-null, the form is in edit mode with a full entity.
   final SubjectEntity? subject;
+
+  /// If non-null, the form is in edit mode with just an ID (entity will be loaded).
+  final String? subjectId;
 
   @override
   ConsumerState<SubjectFormPage> createState() => _SubjectFormPageState();

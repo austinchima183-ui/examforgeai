@@ -188,7 +188,7 @@ class _AnswerRepositoryPageState
                                           const EdgeInsets.all(Spacings.xs),
                                       decoration: BoxDecoration(
                                         color: AppColors.warning
-                                            .withValues(alpha: 0.15),
+                                            .withOpacity(0.15),
                                         borderRadius:
                                             Spacings.borderRadiusSm,
                                       ),
@@ -371,7 +371,7 @@ class _AnswerSection extends StatelessWidget {
           width: double.infinity,
           padding: Spacings.paddingCard,
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: cs.surfaceContainerHighest.withOpacity(0.3),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: Text(content, style: tt.bodyMedium),

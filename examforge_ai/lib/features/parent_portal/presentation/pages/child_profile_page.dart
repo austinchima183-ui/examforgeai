@@ -376,7 +376,7 @@ class _State extends ConsumerState<ChildProfilePage> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: action.color.withValues(alpha: 0.12),
+                      color: action.color.withOpacity(0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(

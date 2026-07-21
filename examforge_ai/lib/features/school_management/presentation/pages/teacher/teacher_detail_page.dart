@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/teacher_provider.dart';
 import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
 
@@ -163,7 +163,7 @@ class _TeacherProfileHeader extends StatelessWidget {
         color: cs.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -174,7 +174,7 @@ class _TeacherProfileHeader extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: teacher.avatarUrl != null
@@ -216,8 +216,7 @@ class _TeacherProfileHeader extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.info.withValues(
-                            alpha: isDark ? 0.20 : 0.08,
+                          color: AppColors.info.withOpacity(isDark ? 0.20 : 0.08,
                           ),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -238,8 +237,7 @@ class _TeacherProfileHeader extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: cs.primary.withValues(
-                            alpha: isDark ? 0.20 : 0.08,
+                          color: cs.primary.withOpacity(isDark ? 0.20 : 0.08,
                           ),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -260,7 +258,7 @@ class _TeacherProfileHeader extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: _employmentTypeColor(teacher.employmentType)
-                            .withValues(alpha: isDark ? 0.20 : 0.12),
+                            .withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -417,8 +415,7 @@ class _AssignedSubjectsTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withValues(
-                      alpha: isDark ? 0.20 : 0.12,
+                    color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
@@ -492,8 +489,7 @@ class _AssignedClassesTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(
-                      alpha: isDark ? 0.20 : 0.12,
+                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.12,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),

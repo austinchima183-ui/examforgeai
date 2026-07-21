@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 import '../../providers/results_page_providers.dart';
 import '../../../../../features/dashboard/presentation/providers/dashboard_provider.dart';
@@ -232,7 +232,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(icon, size: Spacings.mdIcon, color: color),
@@ -370,7 +370,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: passColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                color: passColor.withOpacity(isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Text(
@@ -410,10 +410,10 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             width: double.infinity,
             height: 160,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: cs.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Center(
@@ -422,7 +422,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                 children: [
                   Icon(Icons.bar_chart_rounded,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                      color: cs.onSurfaceVariant.withOpacity(0.4)),
                   const SizedBox(height: Spacings.sm),
                   Text(
                     'Score distribution chart',
@@ -577,7 +577,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                     height: 28,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: medalColor.withValues(alpha: 0.2),
+                      color: medalColor.withOpacity(0.2),
                     ),
                     child: Center(
                       child: Text(
@@ -724,10 +724,10 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             width: double.infinity,
             height: 160,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: cs.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Center(
@@ -736,7 +736,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                 children: [
                   Icon(Icons.show_chart_rounded,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.4)),
+                      color: cs.onSurfaceVariant.withOpacity(0.4)),
                   const SizedBox(height: Spacings.sm),
                   Text(
                     'Historical trend line chart',
@@ -955,7 +955,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             width: double.infinity,
             height: 120,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: cs.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Center(

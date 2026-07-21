@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -142,7 +142,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
             vertical: Spacings.sm,
           ),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+            color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Row(
@@ -170,7 +170,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
             ),
             decoration: BoxDecoration(
               color: AppColors.successOf(cs.brightness)
-                  .withValues(alpha: isDark ? 0.15 : 0.08),
+                  .withOpacity(isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Row(
@@ -267,7 +267,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -312,7 +312,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -375,7 +375,7 @@ class _GradeScaleCard extends StatelessWidget {
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
                         color: cs.primary
-                            .withValues(alpha: isDark ? 0.20 : 0.12),
+                            .withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -439,7 +439,7 @@ class _GradeScaleCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.successOf(cs.brightness)
-                        .withValues(alpha: isDark ? 0.20 : 0.10),
+                        .withOpacity(isDark ? 0.20 : 0.10),
                     borderRadius:
                         BorderRadius.circular(Spacings.smRadius),
                   ),
@@ -506,10 +506,9 @@ class _GradeScaleCard extends StatelessWidget {
                     ),
                   ),
                   side: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                    color: cs.outlineVariant.withOpacity(0.5),
                   ),
-                  backgroundColor: entryColor.withValues(
-                      alpha: isDark ? 0.08 : 0.04),
+                  backgroundColor: entryColor.withOpacity(isDark ? 0.08 : 0.04),
                   visualDensity: VisualDensity.compact,
                 );
               }).toList(),
@@ -777,7 +776,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
                   color: (entry.isPassing
                           ? AppColors.successOf(cs.brightness)
                           : AppColors.errorOf(cs.brightness))
-                      .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+                      .withOpacity(context.isDarkMode ? 0.15 : 0.08),
                   borderRadius:
                       BorderRadius.circular(Spacings.smRadius),
                 ),

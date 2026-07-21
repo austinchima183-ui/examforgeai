@@ -43,13 +43,13 @@ class PlanCard extends StatelessWidget {
 
     return Card(
       elevation: isSelected ? Spacings.elevationMd : Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: isSelected
             ? BorderSide(color: cs.primary, width: 2)
             : BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -132,7 +132,7 @@ class PlanCard extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.success
-                          .withValues(alpha: isDark ? 0.20 : 0.10),
+                          .withOpacity(isDark ? 0.20 : 0.10),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
                     child: Text(
@@ -284,7 +284,7 @@ class CreditBalanceCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
@@ -308,7 +308,7 @@ class CreditBalanceCard extends StatelessWidget {
                             : 0,
                         strokeWidth: 6,
                         backgroundColor:
-                            progressColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                            progressColor.withOpacity(isDark ? 0.20 : 0.12),
                         valueColor: AlwaysStoppedAnimation(progressColor),
                         strokeCap: StrokeCap.round,
                       ),
@@ -378,7 +378,7 @@ class CreditBalanceCard extends StatelessWidget {
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
                   color: (balance.isExhausted ? AppColors.error : AppColors.warning)
-                      .withValues(alpha: isDark ? 0.20 : 0.10),
+                      .withOpacity(isDark ? 0.20 : 0.10),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Row(
@@ -480,7 +480,7 @@ class TransactionListTile extends StatelessWidget {
         height: 40,
         decoration: BoxDecoration(
           color: (isRefund ? AppColors.info : (isSuccessful ? AppColors.success : statusColor))
-              .withValues(alpha: isDark ? 0.20 : 0.12),
+              .withOpacity(isDark ? 0.20 : 0.12),
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Icon(
@@ -576,7 +576,7 @@ class _TransactionStatusBadge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -626,9 +626,9 @@ class InvoiceCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: isOverdue
-            ? BorderSide(color: AppColors.error.withValues(alpha: 0.5))
+            ? BorderSide(color: AppColors.error.withOpacity(0.5))
             : BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -744,7 +744,7 @@ class InvoiceCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.error
-                        .withValues(alpha: isDark ? 0.20 : 0.08),
+                        .withOpacity(isDark ? 0.20 : 0.08),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Row(
@@ -836,7 +836,7 @@ class _InvoiceStatusBadge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -1010,7 +1010,7 @@ class _CouponInputFieldState extends State<CouponInputField> {
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
               color: AppColors.success
-                  .withValues(alpha: isDark ? 0.20 : 0.10),
+                  .withOpacity(isDark ? 0.20 : 0.10),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Row(
@@ -1077,7 +1077,7 @@ class ReferralCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
@@ -1111,10 +1111,10 @@ class ReferralCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: 0.4),
+                color: cs.primaryContainer.withOpacity(0.4),
                 borderRadius: Spacings.borderRadiusMd,
                 border: Border.all(
-                  color: cs.primary.withValues(alpha: 0.3),
+                  color: cs.primary.withOpacity(0.3),
                   style: BorderStyle.solid,
                 ),
               ),
@@ -1140,7 +1140,7 @@ class ReferralCard extends StatelessWidget {
                     tooltip: 'Copy code',
                     style: IconButton.styleFrom(
                       backgroundColor:
-                          cs.primary.withValues(alpha: 0.12),
+                          cs.primary.withOpacity(0.12),
                       padding: const EdgeInsets.all(Spacings.sm),
                       minimumSize: const Size(36, 36),
                     ),
@@ -1282,8 +1282,8 @@ class LicenseCard extends StatelessWidget {
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
           color: isExpired
-              ? AppColors.error.withValues(alpha: 0.5)
-              : cs.outlineVariant.withValues(alpha: 0.5),
+              ? AppColors.error.withOpacity(0.5)
+              : cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -1297,7 +1297,7 @@ class LicenseCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.5),
+                    color: cs.primaryContainer.withOpacity(0.5),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Icon(
@@ -1326,7 +1326,7 @@ class LicenseCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: cs.surfaceContainerHighest.withOpacity(0.5),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Text(
@@ -1493,7 +1493,7 @@ class _LicenseStatusBadge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -1543,7 +1543,7 @@ class RevenueMetricCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
@@ -1561,7 +1561,7 @@ class RevenueMetricCard extends StatelessWidget {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: effectiveColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                      color: effectiveColor.withOpacity(isDark ? 0.20 : 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -1645,7 +1645,7 @@ class _TrendIndicator extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Row(
@@ -1757,7 +1757,7 @@ class SubscriptionStatusBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -1795,7 +1795,7 @@ class PlanTierBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -1835,7 +1835,7 @@ class CreditPackCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),

@@ -11,12 +11,12 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../question_bank/domain/entities/question_entities.dart';
-import '../../../question_bank/presentation/widgets/question_type_badge.dart';
-import '../../../question_bank/presentation/widgets/difficulty_badge.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../../question_bank/domain/entities/question_entities.dart';
+import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
+import '../../../../question_bank/presentation/widgets/difficulty_badge.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/exam_builder_provider.dart';
-import '../widgets/question_selector_widget.dart';
+import '../../widgets/question_selector_widget.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM BUILDER PAGE (Teacher)

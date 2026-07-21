@@ -7,7 +7,7 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entities/cbt_entities.dart';
 import '../../domain/usecases/get_live_exam_stats_usecase.dart';
 import '../../domain/repositories/cbt_repository.dart';
-import '../../../services/cbt/realtime_service.dart';
+import '../../../../services/cbt/realtime_service.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM MONITOR STATE

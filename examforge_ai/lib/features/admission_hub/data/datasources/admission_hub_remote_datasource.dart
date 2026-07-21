@@ -108,7 +108,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(message: e.message);
+        throw NotFoundException(e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -126,7 +126,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
       default:
         throw ServerException(
           message: e.message,
-          statusCode: e.statusCode ?? 500,
+          statusCode: int.tryParse(e.code ?? '') ?? 500,
         );
     }
   }
@@ -134,7 +134,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
   Never _handleGenericException(Object e, String operation) {
     AppLogger.error('Failed to $operation', error: e);
     if (e is sb.AuthException) {
-      throw UnauthorizedException(message: e.message);
+      throw UnauthorizedException(e.message);
     }
     throw ServerException(message: e.toString(), statusCode: 500);
   }

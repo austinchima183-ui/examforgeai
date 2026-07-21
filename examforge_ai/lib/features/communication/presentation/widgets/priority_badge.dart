@@ -67,7 +67,7 @@ class PriorityBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: color.withOpacity(isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -92,7 +92,7 @@ class PriorityBadge extends StatelessWidget {
               fontWeight: AppTypography.wSemiBold,
               letterSpacing: AppTypography.lsCaption,
               height: 1.4,
-              color: isDark ? color.withValues(alpha: 0.9) : color,
+              color: isDark ? color.withOpacity(0.9) : color,
             ),
           ),
           if (priority.toLowerCase() == 'urgent') ...[
@@ -100,7 +100,7 @@ class PriorityBadge extends StatelessWidget {
             Icon(
               Icons.priority_high_rounded,
               size: 10,
-              color: isDark ? color.withValues(alpha: 0.9) : color,
+              color: isDark ? color.withOpacity(0.9) : color,
             ),
           ],
         ],

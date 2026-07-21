@@ -210,7 +210,7 @@ class _ActivityTile extends StatelessWidget {
     final isDark = context.isDarkMode;
     final accentColor = item.color ?? cs.primary;
     final iconBgColor =
-        accentColor.withValues(alpha: isDark ? 0.20 : 0.12);
+        accentColor.withOpacity(isDark ? 0.20 : 0.12);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Spacings.xs),

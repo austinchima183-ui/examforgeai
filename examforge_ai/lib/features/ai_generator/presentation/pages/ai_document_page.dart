@@ -152,10 +152,10 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
           vertical: Spacings.xxl,
         ),
         decoration: BoxDecoration(
-          color: cs.primary.withValues(alpha: isDark ? 0.08 : 0.04),
+          color: cs.primary.withOpacity(isDark ? 0.08 : 0.04),
           borderRadius: BorderRadius.circular(Spacings.lgRadius),
           border: Border.all(
-            color: cs.primary.withValues(alpha: 0.3),
+            color: cs.primary.withOpacity(0.3),
             width: 2,
             strokeAlign: BorderSide.strokeAlignOutside,
           ),
@@ -165,7 +165,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
             Container(
               padding: const EdgeInsets.all(Spacings.lg),
               decoration: BoxDecoration(
-                color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.10),
+                color: cs.primary.withOpacity(isDark ? 0.15 : 0.10),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -296,7 +296,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(icon, size: Spacings.lgIcon, color: color),
@@ -324,7 +324,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
                         vertical: Spacings.xs,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+                        color: color.withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.xs),
                       ),
                       child: Text(
@@ -408,7 +408,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
             constraints: const BoxConstraints(maxHeight: 200),
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              color: cs.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: SingleChildScrollView(
@@ -569,8 +569,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(
-                    alpha: context.isDarkMode ? 0.20 : 0.10,
+                  color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),

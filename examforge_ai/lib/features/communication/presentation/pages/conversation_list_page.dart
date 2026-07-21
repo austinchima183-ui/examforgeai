@@ -180,7 +180,7 @@ class _State extends ConsumerState<ConversationListPage> with SingleTickerProvid
     return Dismissible(
       key: ValueKey(conv.id),
       background: Container(
-        color: AppColors.warningOf(cs.brightness).withValues(alpha: 0.1),
+        color: AppColors.warningOf(cs.brightness).withOpacity(0.1),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: Spacings.xl),
         child: Icon(
@@ -189,7 +189,7 @@ class _State extends ConsumerState<ConversationListPage> with SingleTickerProvid
         ),
       ),
       secondaryBackground: Container(
-        color: AppColors.infoOf(cs.brightness).withValues(alpha: 0.1),
+        color: AppColors.infoOf(cs.brightness).withOpacity(0.1),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         child: Icon(Icons.archive_outlined, color: AppColors.infoOf(cs.brightness)),

@@ -266,7 +266,7 @@ class ExamCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: color.withOpacity(isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -278,7 +278,7 @@ class ExamCard extends StatelessWidget {
             exam.status.label,
             style: tt.labelSmall?.copyWith(
               fontWeight: AppTypography.wSemiBold,
-              color: isDark ? color.withValues(alpha: 0.9) : color,
+              color: isDark ? color.withOpacity(0.9) : color,
             ),
           ),
         ],

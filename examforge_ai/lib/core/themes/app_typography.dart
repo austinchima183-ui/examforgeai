@@ -355,3 +355,89 @@ class AppTypography {
     return brightness == Brightness.dark ? darkTextTheme : lightTextTheme;
   }
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// FONTWEIGHT EXTENSION — Enables .copyWith() on FontWeight constants
+// ═══════════════════════════════════════════════════════════════════════════════
+//
+// Code throughout the app calls AppTypography.wSemiBold.copyWith(fontSize: 13).
+// FontWeight doesn't have copyWith — that's a TextStyle method. This extension
+// converts the FontWeight to a TextStyle first, then provides copyWith().
+//
+// Usage:  AppTypography.wSemiBold.copyWith(fontSize: 13)
+// Becomes: TextStyle(fontWeight: AppTypography.wSemiBold).copyWith(fontSize: 13)
+// Which is: TextStyle(fontWeight: FontWeight.w600, fontSize: 13)
+
+/// Extension on [FontWeight] that provides [copyWith] by converting to [TextStyle].
+///
+/// This allows the common pattern:
+/// ```dart
+/// style: AppTypography.wSemiBold.copyWith(fontSize: 13, color: Colors.red)
+/// ```
+/// which is equivalent to:
+/// ```dart
+/// style: TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 13, color: Colors.red)
+/// ```
+extension FontWeightTextStyle on FontWeight {
+  /// Converts this [FontWeight] to a [TextStyle] and calls [TextStyle.copyWith].
+  ///
+  /// All parameters are forwarded to [TextStyle.copyWith].
+  TextStyle copyWith({
+    Color? color,
+    Color? backgroundColor,
+    double? fontSize,
+    FontWeight? fontWeight,
+    FontStyle? fontStyle,
+    double? letterSpacing,
+    double? wordSpacing,
+    TextBaseline? textBaseline,
+    double? height,
+    TextLeadingDistribution? leadingDistribution,
+    Locale? locale,
+    Paint? foreground,
+    Paint? background,
+    List<Shadow>? shadows,
+    List<FontFeature>? fontFeatures,
+    List<FontVariation>? fontVariations,
+    TextDecoration? decoration,
+    Color? decorationColor,
+    TextDecorationStyle? decorationStyle,
+    double? decorationThickness,
+    String? debugLabel,
+    String? fontFamily,
+    List<String>? fontFamilyFallback,
+    String? package,
+    TextOverflow? overflow,
+  }) {
+    return TextStyle(
+      fontWeight: this,
+      // inherit defaults to true in TextStyle; only override when explicitly set
+      // (omit when null so TextStyle uses its own default)
+      color: color,
+      backgroundColor: backgroundColor,
+      fontSize: fontSize,
+      fontStyle: fontStyle,
+      letterSpacing: letterSpacing,
+      wordSpacing: wordSpacing,
+      textBaseline: textBaseline,
+      height: height,
+      leadingDistribution: leadingDistribution,
+      locale: locale,
+      foreground: foreground,
+      background: background,
+      shadows: shadows,
+      fontFeatures: fontFeatures,
+      fontVariations: fontVariations,
+      decoration: decoration,
+      decorationColor: decorationColor,
+      decorationStyle: decorationStyle,
+      decorationThickness: decorationThickness,
+      debugLabel: debugLabel,
+      fontFamily: fontFamily,
+      fontFamilyFallback: fontFamilyFallback,
+      package: package,
+      overflow: overflow,
+    );
+  }
+}

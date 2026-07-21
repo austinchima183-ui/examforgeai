@@ -1,0 +1,1407 @@
+     1→// =============================================================================
+     2→// ExamForge AI — Offline Exam Mode Page
+     3→// =============================================================================
+     4→//
+     5→// Full exam-taking interface that works entirely offline. When the user
+     6→// submits, the attempt is saved locally and queued for sync. If the device
+     7→// is online, the attempt is synced immediately; otherwise it is persisted
+     8→// to local storage and will be synced when connectivity is restored.
+     9→//
+    10→// Features:
+    11→//   - Question display with question number, text, options / images
+    12→//   - Answer selection (multiple choice, true/false, short answer)
+    13→//   - Navigation: Previous / Next / Jump-to-question sidebar
+    14→//   - Local countdown timer from exam duration
+    15→//   - Auto-save every 30 seconds to local storage
+    16→//   - Submit button (queues for sync if offline)
+    17→//   - Progress indicator (answered / total)
+    18→//   - Offline warning banner
+    19→//   - Integrity tracking: hash of answers + timestamps
+    20→//   - Error handling: network failure, session timeout, data corruption
+    21→// =============================================================================
+    22→
+    23→import 'dart:async';
+    24→import 'dart:convert';
+    25→
+    26→import 'package:crypto/crypto.dart';
+    27→import 'package:flutter/material.dart';
+    28→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    29→
+    30→import '../../../../core/extensions/context_extensions.dart';
+    31→import '../../../../core/network/network_info.dart';
+    32→import '../../../../core/storage/cache_manager.dart';
+    33→import '../../../../core/themes/app_colors.dart';
+    34→import '../../../../core/themes/spacings.dart';
+    35→import '../../../../core/utils/logger.dart';
+    36→import '../../../../shared/widgets/app_button.dart';
+    37→import '../../../../shared/widgets/app_card.dart';
+    38→import '../../../../shared/widgets/app_dialog.dart';
+    39→import '../../domain/entities/offline_entities.dart';
+    40→import '../providers/offline_provider.dart';
+    41→
+    42→// ═══════════════════════════════════════════════════════════════════════════════
+    43→// OFFLINE EXAM PAGE
+    44→// ═══════════════════════════════════════════════════════════════════════════════
+    45→
+    46→/// A full-screen exam-taking page that works offline.
+    47→///
+    48→/// Requires [examId] and [examTitle]. The exam data (questions, options,
+    49→/// duration) must have been previously downloaded for offline access and
+    50→/// stored in local storage via [CacheManager].
+    51→class OfflineExamPage extends ConsumerStatefulWidget {
+    52→  const OfflineExamPage({
+    53→    super.key,
+    54→    required this.examId,
+    55→    required this.examTitle,
+    56→  });
+    57→
+    58→  final String examId;
+    59→  final String examTitle;
+    60→
+    61→  @override
+    62→  ConsumerState<OfflineExamPage> createState() => _OfflineExamPageState();
+    63→}
+    64→
+    65→// ═══════════════════════════════════════════════════════════════════════════════
+    66→// STATE
+    67→// ═══════════════════════════════════════════════════════════════════════════════
+    68→
+    69→class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
+    70→    with WidgetsBindingObserver {
+    71→  // ─── Controllers / State ──────────────────────────────────────────────
+    72→
+    73→  int _currentQuestionIndex = 0;
+    74→  Map<int, Map<String, dynamic>> _answers = {};
+    75→  Map<int, bool> _flaggedQuestions = {};
+    76→  Duration _timeRemaining = Duration.zero;
+    77→  Timer? _timer;
+    78→  Timer? _autoSaveTimer;
+    79→  bool _isSubmitting = false;
+    80→  bool _isSubmitted = false;
+    81→  bool _isOnline = true;
+    82→  String? _errorMessage;
+    83→  String? _successMessage;
+    84→  DateTime? _examStartedAt;
+    85→
+    86→  // ─── Offline Exam Data (loaded from local storage) ────────────────────
+    87→
+    88→  List<Map<String, dynamic>> _questions = [];
+    89→  int _examDurationMinutes = 0;
+    90→  String? _studentId;
+    91→  String? _schoolId;
+    92→  bool _isLoading = true;
+    93→
+    94→  // ─── Integrity Tracking ──────────────────────────────────────────────
+    95→
+    96→  final List<Map<String, dynamic>> _integrityLog = [];
+    97→
+    98→  @override
+    99→  void initState() {
+   100→    super.initState();
+   101→    WidgetsBinding.instance.addObserver(this);
+   102→    _examStartedAt = DateTime.now();
+   103→    _loadOfflineExamData();
+   104→  }
+   105→
+   106→  @override
+   107→  void dispose() {
+   108→    WidgetsBinding.instance.removeObserver(this);
+   109→    _timer?.cancel();
+   110→    _autoSaveTimer?.cancel();
+   111→    super.dispose();
+   112→  }
+   113→
+   114→  @override
+   115→  void didChangeAppLifecycleState(AppLifecycleState state) {
+   116→    // Log integrity event when app goes to background during exam.
+   117→    if (state == AppLifecycleState.paused && !_isSubmitted) {
+   118→      _logIntegrityEvent('app_backgrounded');
+   119→    } else if (state == AppLifecycleState.resumed && !_isSubmitted) {
+   120→      _logIntegrityEvent('app_foregrounded');
+   121→    }
+   122→  }
+   123→
+   124→  // ═══════════════════════════════════════════════════════════════════════
+   125→  // DATA LOADING
+   126→  // ═══════════════════════════════════════════════════════════════════════
+   127→
+   128→  /// Loads the exam data from local cache that was previously downloaded
+   129→  /// for offline access.
+   130→  Future<void> _loadOfflineExamData() async {
+   131→    try {
+   132→      final cacheManager = ref.read(cacheManagerProvider);
+   133→      final userId = cacheManager.storageService.getUserId();
+   134→
+   135→      // Try to load the cached exam data.
+   136→      final cachedData = await cacheManager.getCachedData(
+   137→        key: 'offline_exam_${widget.examId}',
+   138→        userId: userId ?? '',
+   139→      );
+   140→
+   141→      if (cachedData == null) {
+   142→        if (mounted) {
+   143→          setState(() {
+   144→            _isLoading = false;
+   145→            _errorMessage = 'Exam data not found. Please download this exam '
+   146→                'for offline use while connected.';
+   147→          });
+   148→        }
+   149→        return;
+   150→      }
+   151→
+   152→      final examData = cachedData;
+   153→
+   154→      setState(() {
+   155→        _questions = List<Map<String, dynamic>>.from(
+   156→          (examData['questions'] as List?)?.cast<Map<String, dynamic>>() ?? [],
+   157→        );
+   158→        _examDurationMinutes = examData['duration_minutes'] as int? ?? 60;
+   159→        _studentId = examData['student_id'] as String? ?? userId ?? '';
+   160→        _schoolId = examData['school_id'] as String? ?? '';
+   161→        _timeRemaining = Duration(minutes: _examDurationMinutes);
+   162→        _isLoading = false;
+   163→      });
+   164→
+   165→      // Check connectivity.
+   166→      _checkConnectivity();
+   167→
+   168→      // Start the countdown timer.
+   169→      _startTimer();
+   170→
+   171→      // Start the auto-save timer (every 30 seconds).
+   172→      _startAutoSaveTimer();
+   173→
+   174→      _logIntegrityEvent('exam_started');
+   175→    } catch (e) {
+   176→      AppLogger.error('[OfflineExam] Failed to load exam data', error: e);
+   177→      if (mounted) {
+   178→        setState(() {
+   179→          _isLoading = false;
+   180→          _errorMessage = 'Failed to load exam data. The cached data may '
+   181→              'be corrupted. Please reconnect and try again.';
+   182→        });
+   183→      }
+   184→    }
+   185→  }
+   186→
+   187→  /// Checks current connectivity status.
+   188→  Future<void> _checkConnectivity() async {
+   189→    try {
+   190→      final networkInfo = ref.read(coreNetworkInfoProvider);
+   191→      _isOnline = await networkInfo.isConnected;
+   192→    } catch (_) {
+   193→      _isOnline = false;
+   194→    }
+   195→    if (mounted) setState(() {});
+   196→  }
+   197→
+   198→  // ═══════════════════════════════════════════════════════════════════════
+   199→  // TIMER
+   200→  // ═══════════════════════════════════════════════════════════════════════
+   201→
+   202→  void _startTimer() {
+   203→    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+   204→      if (_timeRemaining.inSeconds <= 0) {
+   205→        timer.cancel();
+   206→        _handleTimeUp();
+   207→        return;
+   208→      }
+   209→      if (mounted) {
+   210→        setState(() {
+   211→          _timeRemaining = _timeRemaining - const Duration(seconds: 1);
+   212→        });
+   213→      }
+   214→    });
+   215→  }
+   216→
+   217→  void _handleTimeUp() {
+   218→    _logIntegrityEvent('time_up_auto_submit');
+   219→    _submitExam();
+   220→  }
+   221→
+   222→  // ═══════════════════════════════════════════════════════════════════════
+   223→  // AUTO-SAVE
+   224→  // ═══════════════════════════════════════════════════════════════════════
+   225→
+   226→  void _startAutoSaveTimer() {
+   227→    _autoSaveTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+   228→      _autoSave();
+   229→    });
+   230→  }
+   231→
+   232→  /// Saves the current exam state to local storage.
+   233→  Future<void> _autoSave() async {
+   234→    if (_isSubmitted) return;
+   235→
+   236→    try {
+   237→      final cacheManager = ref.read(cacheManagerProvider);
+   238→      final userId = _studentId ?? '';
+   239→
+   240→      final saveData = <String, dynamic>{
+   241→        'exam_id': widget.examId,
+   242→        'current_question_index': _currentQuestionIndex,
+   243→        'answers': _answers,
+   244→        'flagged_questions': _flaggedQuestions,
+   245→        'time_remaining_seconds': _timeRemaining.inSeconds,
+   246→        'last_saved_at': DateTime.now().toIso8601String(),
+   247→      };
+   248→
+   249→      await cacheManager.cacheData(
+   250→        key: 'offline_exam_progress_${widget.examId}',
+   251→        userId: userId,
+   252→        resourceType: 'exam_progress',
+   253→        resourceId: widget.examId,
+   254→        data: saveData,
+   255→      );
+   256→
+   257→      AppLogger.debug('[OfflineExam] Auto-saved progress');
+   258→    } catch (e) {
+   259→      AppLogger.warning('[OfflineExam] Auto-save failed: $e');
+   260→    }
+   261→  }
+   262→
+   263→  // ═══════════════════════════════════════════════════════════════════════
+   264→  // INTEGRITY TRACKING
+   265→  // ═══════════════════════════════════════════════════════════════════════
+   266→
+   267→  void _logIntegrityEvent(String eventType) {
+   268→    _integrityLog.add({
+   269→      'event': eventType,
+   270→      'timestamp': DateTime.now().toIso8601String(),
+   271→      'current_question': _currentQuestionIndex,
+   272→      'answers_count': _answers.length,
+   273→    });
+   274→  }
+   275→
+   276→  /// Computes an integrity hash of the answers and timestamps.
+   277→  String _computeIntegrityHash() {
+   278→    final payload = jsonEncode({
+   279→      'exam_id': widget.examId,
+   280→      'student_id': _studentId,
+   281→      'answers': _answers,
+   282→      'integrity_log': _integrityLog,
+   283→      'started_at': _examStartedAt?.toIso8601String(),
+   284→      'submitted_at': DateTime.now().toIso8601String(),
+   285→    });
+   286→    return sha256.convert(utf8.encode(payload)).toString();
+   287→  }
+   288→
+   289→  // ═══════════════════════════════════════════════════════════════════════
+   290→  // ANSWER HANDLING
+   291→  // ═══════════════════════════════════════════════════════════════════════
+   292→
+   293→  void _selectAnswer(int questionIndex, Map<String, dynamic> answer) {
+   294→    if (_isSubmitted) return;
+   295→    setState(() {
+   296→      _answers[questionIndex] = {
+   297→        ...answer,
+   298→        'answered_at': DateTime.now().toIso8601String(),
+   299→      };
+   300→    });
+   301→  }
+   302→
+   303→  void _toggleFlag(int questionIndex) {
+   304→    if (_isSubmitted) return;
+   305→    setState(() {
+   306→      _flaggedQuestions[questionIndex] =
+   307→          !(_flaggedQuestions[questionIndex] ?? false);
+   308→    });
+   309→  }
+   310→
+   311→  // ═══════════════════════════════════════════════════════════════════════
+   312→  // NAVIGATION
+   313→  // ═══════════════════════════════════════════════════════════════════════
+   314→
+   315→  void _goToQuestion(int index) {
+   316→    if (index < 0 || index >= _questions.length) return;
+   317→    setState(() {
+   318→      _currentQuestionIndex = index;
+   319→    });
+   320→  }
+   321→
+   322→  void _goNext() => _goToQuestion(_currentQuestionIndex + 1);
+   323→  void _goPrevious() => _goToQuestion(_currentQuestionIndex - 1);
+   324→
+   325→  // ═══════════════════════════════════════════════════════════════════════
+   326→  // SUBMIT EXAM
+   327→  // ═══════════════════════════════════════════════════════════════════════
+   328→
+   329→  Future<void> _submitExam() async {
+   330→    if (_isSubmitting || _isSubmitted) return;
+   331→
+   332→    // Confirm submission (unless auto-submitted due to time-up).
+   333→    final shouldSubmit = await _showSubmitConfirmation();
+   334→    if (!shouldSubmit) return;
+   335→
+   336→    setState(() {
+   337→      _isSubmitting = true;
+   338→      _errorMessage = null;
+   339→    });
+   340→
+   341→    _logIntegrityEvent('exam_submitted');
+   342→    _timer?.cancel();
+   343→    _autoSaveTimer?.cancel();
+   344→
+   345→    final integrityHash = _computeIntegrityHash();
+   346→
+   347→    final attemptData = <String, dynamic>{
+   348→      'exam_id': widget.examId,
+   349→      'student_id': _studentId,
+   350→      'school_id': _schoolId,
+   351→      'started_at': _examStartedAt?.toIso8601String(),
+   352→      'completed_at': DateTime.now().toIso8601String(),
+   353→      'time_taken_seconds': _examDurationMinutes * 60 - _timeRemaining.inSeconds,
+   354→      'integrity_hash': integrityHash,
+   355→      'integrity_log': _integrityLog,
+   356→    };
+   357→
+   358→    final answersData = <String, dynamic>{};
+   359→    _answers.forEach((index, answer) {
+   360→      final question = index < _questions.length ? _questions[index] : null;
+   361→      final questionId = question?['id'] as String? ?? 'q_$index';
+   362→      answersData[questionId] = answer;
+   363→    });
+   364→
+   365→    final attempt = OfflineExamAttempt(
+   366→      id: '', // Will be generated by CacheManager
+   367→      examId: widget.examId,
+   368→      studentId: _studentId ?? '',
+   369→      schoolId: _schoolId ?? '',
+   370→      attemptData: attemptData,
+   371→      answers: answersData,
+   372→      startedAt: _examStartedAt ?? DateTime.now(),
+   373→      completedAt: DateTime.now(),
+   374→      timeTakenSeconds:
+   375→          _examDurationMinutes * 60 - _timeRemaining.inSeconds,
+   376→      integrityHash: integrityHash,
+   377→      syncStatus: AttemptSyncStatus.pending,
+   378→      syncAttempts: 0,
+   379→      createdAt: DateTime.now(),
+   380→    );
+   381→
+   382→    try {
+   383→      // Save locally first (always).
+   384→      final cacheManager = ref.read(cacheManagerProvider);
+   385→      await cacheManager.saveOfflineExamAttempt(
+   386→        examId: attempt.examId,
+   387→        studentId: attempt.studentId,
+   388→        schoolId: {'id': attempt.schoolId},
+   389→        attemptData: attempt.attemptData,
+   390→        answers: attempt.answers,
+   391→        startedAt: attempt.startedAt,
+   392→        completedAt: attempt.completedAt,
+   393→        timeTakenSeconds: attempt.timeTakenSeconds ?? 0,
+   394→        integrityHash: attempt.integrityHash,
+   395→      );
+   396→
+   397→      // Try to sync if online.
+   398→      await _checkConnectivity();
+   399→
+   400→      if (_isOnline) {
+   401→        // Attempt immediate sync.
+   402→        try {
+   403→          final syncResult = await ref
+   404→              .read(offlineProvider.notifier)
+   405→              .loadSyncStatus(_studentId ?? '');
+   406→
+   407→          // If sync engine is available, trigger it.
+   408→          // Otherwise, the attempt stays in pending queue and will
+   409→          // be synced when the SyncEngine processes it.
+   410→          setState(() {
+   411→            _isSubmitting = false;
+   412→            _isSubmitted = true;
+   413→            _successMessage = 'Exam submitted successfully! Your answers '
+   414→                'have been synced to the server.';
+   415→          });
+   416→
+   417→          AppLogger.info('[OfflineExam] Exam submitted and synced');
+   418→        } catch (e) {
+   419→          // Network failure during submit — save locally, queue for sync.
+   420→          setState(() {
+   421→            _isSubmitting = false;
+   422→            _isSubmitted = true;
+   423→            _successMessage = 'Exam saved locally. Your answers will be '
+   424→                'synced when you reconnect.';
+   425→          });
+   426→
+   427→          AppLogger.warning('[OfflineExam] Sync failed, saved locally: $e');
+   428→        }
+   429→      } else {
+   430→        // Offline — mark as pending sync.
+   431→        setState(() {
+   432→          _isSubmitting = false;
+   433→          _isSubmitted = true;
+   434→          _successMessage = 'You are offline. Your answers have been saved '
+   435→              'locally and will be synced when you reconnect.';
+   436→        });
+   437→
+   438→        AppLogger.info('[OfflineExam] Exam saved locally (offline)');
+   439→      }
+   440→    } catch (e) {
+   441→      AppLogger.error('[OfflineExam] Failed to save exam attempt', error: e);
+   442→
+   443→      setState(() {
+   444→        _isSubmitting = false;
+   445→        _errorMessage = 'Failed to save your exam. Please try again. '
+   446→            'If the problem persists, your progress has been auto-saved '
+   447→            'and can be recovered.';
+   448→      });
+   449→    }
+   450→  }
+   451→
+   452→  /// Shows a confirmation dialog before submitting.
+   453→  Future<bool> _showSubmitConfirmation() async {
+   454→    final unanswered = _questions.length - _answers.length;
+   455→    final flagged = _flaggedQuestions.values.where((f) => f).length;
+   456→
+   457→    final result = await showDialog<bool>(
+   458→      context: context,
+   459→      builder: (ctx) => AppDialog(
+   460→        title: 'Submit Exam?',
+   461→        content: Column(
+   462→          mainAxisSize: MainAxisSize.min,
+   463→          crossAxisAlignment: CrossAxisAlignment.start,
+   464→          children: [
+   465→            Text(
+   466→              'You are about to submit "${widget.examTitle}".',
+   467→              style: ctx.textTheme.bodyMedium,
+   468→            ),
+   469→            Spacings.itemGap,
+   470→            Text(
+   471→              'Answered: ${_answers.length} / ${_questions.length}',
+   472→              style: ctx.textTheme.bodyMedium,
+   473→            ),
+   474→            if (unanswered > 0) ...[
+   475→              Spacings.smallGap,
+   476→              Text(
+   477→                '⚠ $unanswered question${unanswered > 1 ? 's' : ''} unanswered',
+   478→                style: ctx.textTheme.bodyMedium?.copyWith(
+   479→                  color: AppColors.warning,
+   480→                ),
+   481→              ),
+   482→            ],
+   483→            if (flagged > 0) ...[
+   484→              Spacings.smallGap,
+   485→              Text(
+   486→              '🚩 $flagged question${flagged > 1 ? 's' : ''} flagged for review',
+   487→                style: ctx.textTheme.bodyMedium?.copyWith(
+   488→                  color: AppColors.info,
+   489→                ),
+   490→              ),
+   491→            ],
+   492→            Spacings.itemGap,
+   493→            Text(
+   494→              'This action cannot be undone.',
+   495→              style: ctx.textTheme.bodySmall?.copyWith(
+   496→                color: ctx.colorScheme.error,
+   497→              ),
+   498→            ),
+   499→          ],
+   500→        ),
+   501→        actions: [
+   502→          AppButton(
+   503→            label: 'Cancel',
+   504→            variant: AppButtonVariant.outlined,
+   505→            onPressed: () => Navigator.of(ctx).pop(false),
+   506→          ),
+   507→          AppButton(
+   508→            label: 'Submit',
+   509→            variant: AppButtonVariant.primary,
+   510→            onPressed: () => Navigator.of(ctx).pop(true),
+   511→          ),
+   512→        ],
+   513→      ),
+   514→    );
+   515→
+   516→    return result ?? false;
+   517→  }
+   518→
+   519→  // ═══════════════════════════════════════════════════════════════════════
+   520→  // BUILD
+   521→  // ═══════════════════════════════════════════════════════════════════════
+   522→
+   523→  @override
+   524→  Widget build(BuildContext context) {
+   525→    final cs = context.colorScheme;
+   526→    final tt = context.textTheme;
+   527→
+   528→    // ─── Loading State ────────────────────────────────────────────────
+   529→    if (_isLoading) {
+   530→      return Scaffold(
+   531→        backgroundColor: cs.surface,
+   532→        appBar: AppBar(title: Text(widget.examTitle)),
+   533→        body: const Center(child: CircularProgressIndicator()),
+   534→      );
+   535→    }
+   536→
+   537→    // ─── Error State (no exam data) ──────────────────────────────────
+   538→    if (_questions.isEmpty) {
+   539→      return Scaffold(
+   540→        backgroundColor: cs.surface,
+   541→        appBar: AppBar(title: Text(widget.examTitle)),
+   542→        body: Center(
+   543→          child: Padding(
+   544→            padding: Spacings.paddingAll,
+   545→            child: Column(
+   546→              mainAxisSize: MainAxisSize.min,
+   547→              children: [
+   548→                Icon(Icons.cloud_off, size: 64, color: cs.error),
+   549→                Spacings.sectionGap,
+   550→                Text(
+   551→                  _errorMessage ?? 'Exam data not available offline.',
+   552→                  style: tt.titleMedium?.copyWith(color: cs.error),
+   553→                  textAlign: TextAlign.center,
+   554→                ),
+   555→                Spacings.itemGap,
+   556→                AppButton(
+   557→                  label: 'Go Back',
+   558→                  variant: AppButtonVariant.outlined,
+   559→                  onPressed: () => Navigator.of(context).pop(),
+   560→                ),
+   561→              ],
+   562→            ),
+   563→          ),
+   564→        ),
+   565→      );
+   566→    }
+   567→
+   568→    // ─── Submitted State ─────────────────────────────────────────────
+   569→    if (_isSubmitted) {
+   570→      return _buildSubmittedScreen(context);
+   571→    }
+   572→
+   573→    // ─── Active Exam UI ─────────────────────────────────────────────
+   574→    final currentQuestion = _questions[_currentQuestionIndex];
+   575→    final answeredCount = _answers.length;
+   576→    final totalCount = _questions.length;
+   577→    final progress = totalCount > 0 ? answeredCount / totalCount : 0.0;
+   578→    final isFlagged = _flaggedQuestions[_currentQuestionIndex] ?? false;
+   579→
+   580→    return PopScope(
+   581→      canPop: false,
+   582→      onPopInvokedWithResult: (didPop, _) {
+   583→        if (!didPop) {
+   584→          _showExitWarning();
+   585→        }
+   586→      },
+   587→      child: Scaffold(
+   588→        backgroundColor: cs.surface,
+   589→        appBar: _buildAppBar(context, cs, tt),
+   590→        body: Column(
+   591→          children: [
+   592→            // ─── Offline Warning Banner ─────────────────────────────
+   593→            if (!_isOnline) _buildOfflineBanner(context, cs, tt),
+   594→
+   595→            // ─── Progress Bar ───────────────────────────────────────
+   596→            _buildProgressBar(context, cs, progress, answeredCount, totalCount),
+   597→
+   598→            // ─── Question Content ───────────────────────────────────
+   599→            Expanded(
+   600→              child: SingleChildScrollView(
+   601→                padding: Spacings.paddingScreen,
+   602→                child: Column(
+   603→                  crossAxisAlignment: CrossAxisAlignment.start,
+   604→                  children: [
+   605→                    // Question header
+   606→                    _buildQuestionHeader(context, cs, tt, isFlagged),
+   607→                    Spacings.itemGap,
+   608→
+   609→                    // Question text
+   610→                    _buildQuestionText(context, tt, currentQuestion),
+   611→                    Spacings.sectionGap,
+   612→
+   613→                    // Answer input area
+   614→                    _buildAnswerArea(context, cs, tt, currentQuestion),
+   615→                  ],
+   616→                ),
+   617→              ),
+   618→            ),
+   619→
+   620→            // ─── Bottom Navigation Bar ───────────────────────────────
+   621→            _buildBottomBar(context, cs, tt),
+   622→          ],
+   623→        ),
+   624→
+   625→        // ─── Question Map Sidebar (desktop) ─────────────────────────
+   626→        endDrawer: context.isDesktop
+   627→            ? null
+   628→            : _buildQuestionMapDrawer(context, cs, tt),
+   629→      ),
+   630→    );
+   631→  }
+   632→
+   633→  // ═══════════════════════════════════════════════════════════════════════
+   634→  // UI BUILDERS
+   635→  // ═══════════════════════════════════════════════════════════════════════
+   636→
+   637→  PreferredSizeWidget _buildAppBar(
+   638→    BuildContext context,
+   639→    ColorScheme cs,
+   640→    TextTheme tt,
+   641→  ) {
+   642→    final minutes = _timeRemaining.inMinutes;
+   643→    final seconds = _timeRemaining.inSeconds % 60;
+   644→    final isCritical = _timeRemaining.inMinutes < 5;
+   645→    final isWarning = _timeRemaining.inMinutes < 15 && !isCritical;
+   646→
+   647→    return AppBar(
+   648→      title: Text(
+   649→        widget.examTitle,
+   650→        style: tt.titleMedium,
+   651→        overflow: TextOverflow.ellipsis,
+   652→      ),
+   653→      centerTitle: true,
+   654→      actions: [
+   655→        // Timer
+   656→        Container(
+   657→          margin: const EdgeInsets.only(right: Spacings.sm),
+   658→          padding: const EdgeInsets.symmetric(
+   659→            horizontal: Spacings.md,
+   660→            vertical: Spacings.xs,
+   661→          ),
+   662→          decoration: BoxDecoration(
+   663→            color: isCritical
+   664→                ? AppColors.errorLight
+   665→                : isWarning
+   666→                    ? AppColors.warningLight
+   667→                    : cs.surfaceContainerHighest,
+   668→            borderRadius: Spacings.borderRadiusSm,
+   669→          ),
+   670→          child: Text(
+   671→            '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}',
+   672→            style: tt.labelLarge?.copyWith(
+   673→              color: isCritical
+   674→                  ? AppColors.error
+   675→                  : isWarning
+   676→                      ? AppColors.warningDark
+   677→                      : cs.onSurface,
+   678→              fontWeight: FontWeight.bold,
+   679→              fontFeatures: [const FontFeature.tabularFigures()],
+   680→            ),
+   681→          ),
+   682→        ),
+   683→
+   684→        // Question map button (mobile/tablet)
+   685→        if (!context.isDesktop)
+   686→          IconButton(
+   687→            icon: const Icon(Icons.grid_view),
+   688→            tooltip: 'Question Map',
+   689→            onPressed: () => Scaffold.of(context).openEndDrawer(),
+   690→          ),
+   691→      ],
+   692→    );
+   693→  }
+   694→
+   695→  Widget _buildOfflineBanner(
+   696→    BuildContext context,
+   697→    ColorScheme cs,
+   698→    TextTheme tt,
+   699→  ) {
+   700→    return Container(
+   701→      width: double.infinity,
+   702→      padding: Spacings.paddingAllMd,
+   703→      color: AppColors.warningLight,
+   704→      child: Row(
+   705→        children: [
+   706→          const Icon(Icons.wifi_off, size: Spacings.mdIcon, color: AppColors.warningDark),
+   707→          Spacings.inlineGap,
+   708→          Expanded(
+   709→            child: Text(
+   710→              'You are taking this exam offline. Your answers will be synced '
+   711→              'when you reconnect.',
+   712→              style: tt.bodySmall?.copyWith(
+   713→                color: AppColors.warningDark,
+   714→                fontWeight: FontWeight.w600,
+   715→              ),
+   716→            ),
+   717→          ),
+   718→        ],
+   719→      ),
+   720→    );
+   721→  }
+   722→
+   723→  Widget _buildProgressBar(
+   724→    BuildContext context,
+   725→    ColorScheme cs,
+   726→    double progress,
+   727→    int answered,
+   728→    int total,
+   729→  ) {
+   730→    return Column(
+   731→      children: [
+   732→        LinearProgressIndicator(
+   733→          value: progress,
+   734→          backgroundColor: cs.surfaceContainerHighest,
+   735→          valueColor: AlwaysStoppedAnimation(cs.primary),
+   736→        ),
+   737→        Padding(
+   738→          padding: const EdgeInsets.symmetric(
+   739→            horizontal: Spacings.lg,
+   740→            vertical: Spacings.xs,
+   741→          ),
+   742→          child: Row(
+   743→            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   744→            children: [
+   745→              Text(
+   746→                '$answered / $total answered',
+   747→                style: context.textTheme.labelSmall,
+   748→              ),
+   749→              Text(
+   750→                '${(progress * 100).toStringAsFixed(0)}%',
+   751→                style: context.textTheme.labelSmall?.copyWith(
+   752→                  color: cs.primary,
+   753→                  fontWeight: FontWeight.bold,
+   754→                ),
+   755→              ),
+   756→            ],
+   757→          ),
+   758→        ),
+   759→      ],
+   760→    );
+   761→  }
+   762→
+   763→  Widget _buildQuestionHeader(
+   764→    BuildContext context,
+   765→    ColorScheme cs,
+   766→    TextTheme tt,
+   767→    bool isFlagged,
+   768→  ) {
+   769→    return Row(
+   770→      children: [
+   771→        Container(
+   772→          padding: const EdgeInsets.symmetric(
+   773→            horizontal: Spacings.md,
+   774→            vertical: Spacings.xs,
+   775→          ),
+   776→          decoration: BoxDecoration(
+   777→            color: cs.primaryContainer,
+   778→            borderRadius: Spacings.borderRadiusSm,
+   779→          ),
+   780→          child: Text(
+   781→            'Question ${_currentQuestionIndex + 1} of ${_questions.length}',
+   782→            style: tt.labelLarge?.copyWith(
+   783→              color: cs.onPrimaryContainer,
+   784→              fontWeight: FontWeight.bold,
+   785→            ),
+   786→          ),
+   787→        ),
+   788→        const Spacer(),
+   789→        if (isFlagged)
+   790→          Padding(
+   791→            padding: const EdgeInsets.only(right: Spacings.sm),
+   792→            child: Icon(Icons.flag, color: AppColors.warning, size: Spacings.mdIcon),
+   793→          ),
+   794→        IconButton(
+   795→          icon: Icon(
+   796→            isFlagged ? Icons.flag : Icons.flag_outlined,
+   797→            color: isFlagged ? AppColors.warning : null,
+   798→          ),
+   799→          tooltip: isFlagged ? 'Unflag question' : 'Flag for review',
+   800→          onPressed: () => _toggleFlag(_currentQuestionIndex),
+   801→        ),
+   802→      ],
+   803→    );
+   804→  }
+   805→
+   806→  Widget _buildQuestionText(
+   807→    BuildContext context,
+   808→    TextTheme tt,
+   809→    Map<String, dynamic> question,
+   810→  ) {
+   811→    final questionText = question['text'] as String? ?? '';
+   812→    final imageUrl = question['image_url'] as String?;
+   813→
+   814→    return Column(
+   815→      crossAxisAlignment: CrossAxisAlignment.start,
+   816→      children: [
+   817→        if (imageUrl != null && imageUrl.isNotEmpty) ...[
+   818→          ClipRRect(
+   819→            borderRadius: Spacings.borderRadiusMd,
+   820→            child: Image.network(
+   821→              imageUrl,
+   822→              fit: BoxFit.contain,
+   823→              errorBuilder: (_, __, ___) => const SizedBox.shrink(),
+   824→            ),
+   825→          ),
+   826→          Spacings.itemGap,
+   827→        ],
+   828→        SelectableText(
+   829→          questionText,
+   830→          style: tt.bodyLarge,
+   831→        ),
+   832→      ],
+   833→    );
+   834→  }
+   835→
+   836→  Widget _buildAnswerArea(
+   837→    BuildContext context,
+   838→    ColorScheme cs,
+   839→    TextTheme tt,
+   840→    Map<String, dynamic> question,
+   841→  ) {
+   842→    final questionType = question['type'] as String? ?? 'multiple_choice';
+   843→    final existingAnswer = _answers[_currentQuestionIndex];
+   844→
+   845→    switch (questionType) {
+   846→      case 'multiple_choice':
+   847→        return _buildMultipleChoiceOptions(
+   848→          context,
+   849→          cs,
+   850→          tt,
+   851→          question,
+   852→          existingAnswer,
+   853→        );
+   854→
+   855→      case 'true_false':
+   856→        return _buildTrueFalseOptions(
+   857→          context,
+   858→          cs,
+   859→          tt,
+   860→          existingAnswer,
+   861→        );
+   862→
+   863→      case 'short_answer':
+   864→        return _buildShortAnswerField(
+   865→          context,
+   866→          cs,
+   867→          tt,
+   868→          existingAnswer,
+   869→        );
+   870→
+   871→      default:
+   872→        return _buildMultipleChoiceOptions(
+   873→          context,
+   874→          cs,
+   875→          tt,
+   876→          question,
+   877→          existingAnswer,
+   878→        );
+   879→    }
+   880→  }
+   881→
+   882→  Widget _buildMultipleChoiceOptions(
+   883→    BuildContext context,
+   884→    ColorScheme cs,
+   885→    TextTheme tt,
+   886→    Map<String, dynamic> question,
+   887→    Map<String, dynamic>? existingAnswer,
+   888→  ) {
+   889→    final options = List<Map<String, dynamic>>.from(
+   890→      (question['options'] as List?)?.cast<Map<String, dynamic>>() ?? [],
+   891→    );
+   892→    final selectedOption = existingAnswer?['option_id'] as String?;
+   893→
+   894→    return Column(
+   895→      children: options.map((option) {
+   896→        final optionId = option['id'] as String? ?? '';
+   897→        final optionText = option['text'] as String? ?? '';
+   898→        final isSelected = selectedOption == optionId;
+   899→
+   900→        return Padding(
+   901→          padding: const EdgeInsets.only(bottom: Spacings.sm),
+   902→          child: InkWell(
+   903→            onTap: () => _selectAnswer(
+   904→              _currentQuestionIndex,
+   905→              {'option_id': optionId, 'type': 'multiple_choice'},
+   906→            ),
+   907→            borderRadius: Spacings.borderRadiusMd,
+   908→            child: Container(
+   909→              width: double.infinity,
+   910→              padding: Spacings.paddingAll,
+   911→              decoration: BoxDecoration(
+   912→                border: Border.all(
+   913→                  color: isSelected ? cs.primary : cs.outline,
+   914→                  width: isSelected ? 2 : 1,
+   915→                ),
+   916→                borderRadius: Spacings.borderRadiusMd,
+   917→                color: isSelected ? cs.primaryContainer : null,
+   918→              ),
+   919→              child: Row(
+   920→                children: [
+   921→                  Container(
+   922→                    width: 24,
+   923→                    height: 24,
+   924→                    decoration: BoxDecoration(
+   925→                      shape: BoxShape.circle,
+   926→                      border: Border.all(
+   927→                        color: isSelected ? cs.primary : cs.outline,
+   928→                        width: 2,
+   929→                      ),
+   930→                      color: isSelected ? cs.primary : null,
+   931→                    ),
+   932→                    child: isSelected
+   933→                        ? Icon(Icons.check, size: 16, color: cs.onPrimary)
+   934→                        : null,
+   935→                  ),
+   936→                  Spacings.inlineGap,
+   937→                  Expanded(
+   938→                    child: Text(
+   939→                      optionText,
+   940→                      style: tt.bodyMedium?.copyWith(
+   941→                        color: isSelected ? cs.onPrimaryContainer : cs.onSurface,
+   942→                        fontWeight:
+   943→                            isSelected ? FontWeight.w600 : FontWeight.normal,
+   944→                      ),
+   945→                    ),
+   946→                  ),
+   947→                ],
+   948→              ),
+   949→            ),
+   950→          ),
+   951→        );
+   952→      }).toList(),
+   953→    );
+   954→  }
+   955→
+   956→  Widget _buildTrueFalseOptions(
+   957→    BuildContext context,
+   958→    ColorScheme cs,
+   959→    TextTheme tt,
+   960→    Map<String, dynamic>? existingAnswer,
+   961→  ) {
+   962→    final selectedValue = existingAnswer?['value'] as bool?;
+   963→
+   964→    return Row(
+   965→      children: [
+   966→        Expanded(
+   967→          child: InkWell(
+   968→            onTap: () => _selectAnswer(
+   969→              _currentQuestionIndex,
+   970→              {'value': true, 'type': 'true_false'},
+   971→            ),
+   972→            borderRadius: Spacings.borderRadiusMd,
+   973→            child: Container(
+   974→              padding: Spacings.paddingAll,
+   975→              decoration: BoxDecoration(
+   976→                border: Border.all(
+   977→                  color: selectedValue == true ? AppColors.success : cs.outline,
+   978→                  width: selectedValue == true ? 2 : 1,
+   979→                ),
+   980→                borderRadius: Spacings.borderRadiusMd,
+   981→                color: selectedValue == true ? AppColors.successLight : null,
+   982→              ),
+   983→              child: Center(
+   984→                child: Text(
+   985→                  'True',
+   986→                  style: tt.bodyLarge?.copyWith(
+   987→                    color: selectedValue == true
+   988→                        ? AppColors.successDark
+   989→                        : cs.onSurface,
+   990→                    fontWeight: selectedValue == true
+   991→                        ? FontWeight.bold
+   992→                        : FontWeight.normal,
+   993→                  ),
+   994→                ),
+   995→              ),
+   996→            ),
+   997→          ),
+   998→        ),
+   999→        Spacings.inlineGap,
+  1000→        Expanded(
+  1001→          child: InkWell(
+  1002→            onTap: () => _selectAnswer(
+  1003→              _currentQuestionIndex,
+  1004→              {'value': false, 'type': 'true_false'},
+  1005→            ),
+  1006→            borderRadius: Spacings.borderRadiusMd,
+  1007→            child: Container(
+  1008→              padding: Spacings.paddingAll,
+  1009→              decoration: BoxDecoration(
+  1010→                border: Border.all(
+  1011→                  color: selectedValue == false ? AppColors.error : cs.outline,
+  1012→                  width: selectedValue == false ? 2 : 1,
+  1013→                ),
+  1014→                borderRadius: Spacings.borderRadiusMd,
+  1015→                color: selectedValue == false ? AppColors.errorLight : null,
+  1016→              ),
+  1017→              child: Center(
+  1018→                child: Text(
+  1019→                  'False',
+  1020→                  style: tt.bodyLarge?.copyWith(
+  1021→                    color: selectedValue == false
+  1022→                        ? AppColors.errorDark
+  1023→                        : cs.onSurface,
+  1024→                    fontWeight: selectedValue == false
+  1025→                        ? FontWeight.bold
+  1026→                        : FontWeight.normal,
+  1027→                  ),
+  1028→                ),
+  1029→              ),
+  1030→            ),
+  1031→          ),
+  1032→        ),
+  1033→      ],
+  1034→    );
+  1035→  }
+  1036→
+  1037→  Widget _buildShortAnswerField(
+  1038→    BuildContext context,
+  1039→    ColorScheme cs,
+  1040→    TextTheme tt,
+  1041→    Map<String, dynamic>? existingAnswer,
+  1042→  ) {
+  1043→    final controller = TextEditingController(
+  1044→      text: existingAnswer?['text'] as String? ?? '',
+  1045→    );
+  1046→
+  1047→    return TextField(
+  1048→      controller: controller,
+  1049→      maxLines: 5,
+  1050→      decoration: InputDecoration(
+  1051→        hintText: 'Type your answer here…',
+  1052→        border: OutlineInputBorder(
+  1053→          borderRadius: Spacings.borderRadiusMd,
+  1054→        ),
+  1055→        focusedBorder: OutlineInputBorder(
+  1056→          borderRadius: Spacings.borderRadiusMd,
+  1057→          borderSide: BorderSide(color: cs.primary, width: 2),
+  1058→        ),
+  1059→      ),
+  1060→      onChanged: (value) {
+  1061→        _selectAnswer(
+  1062→          _currentQuestionIndex,
+  1063→          {'text': value, 'type': 'short_answer'},
+  1064→        );
+  1065→      },
+  1066→    );
+  1067→  }
+  1068→
+  1069→  Widget _buildBottomBar(
+  1070→    BuildContext context,
+  1071→    ColorScheme cs,
+  1072→    TextTheme tt,
+  1073→  ) {
+  1074→    return Container(
+  1075→      decoration: BoxDecoration(
+  1076→        color: cs.surface,
+  1077→        border: Border(top: BorderSide(color: cs.outlineVariant)),
+  1078→      ),
+  1079→      padding: Spacings.paddingAll,
+  1080→      child: SafeArea(
+  1081→        child: Row(
+  1082→          children: [
+  1083→            // Previous button
+  1084→            AppButton(
+  1085→              label: 'Previous',
+  1086→              variant: AppButtonVariant.outlined,
+  1087→              icon: Icons.arrow_back,
+  1088→              onPressed: _currentQuestionIndex > 0 ? _goPrevious : null,
+  1089→            ),
+  1090→            const Spacer(),
+  1091→
+  1092→            // Submit button
+  1093→            AppButton(
+  1094→              label: 'Submit',
+  1095→              variant: AppButtonVariant.primary,
+  1096→              icon: Icons.send,
+  1097→              isLoading: _isSubmitting,
+  1098→              onPressed: _isSubmitting ? null : _submitExam,
+  1099→            ),
+  1100→
+  1101→            const Spacer(),
+  1102→
+  1103→            // Next button
+  1104→            AppButton(
+  1105→              label: 'Next',
+  1106→              variant: AppButtonVariant.outlined,
+  1107→              icon: Icons.arrow_forward,
+  1108→              iconAlignment: IconAlignment.end,
+  1109→              onPressed:
+  1110→                  _currentQuestionIndex < _questions.length - 1 ? _goNext : null,
+  1111→            ),
+  1112→          ],
+  1113→        ),
+  1114→      ),
+  1115→    );
+  1116→  }
+  1117→
+  1118→  Widget _buildQuestionMapDrawer(
+  1119→    BuildContext context,
+  1120→    ColorScheme cs,
+  1121→    TextTheme tt,
+  1122→  ) {
+  1123→    return Drawer(
+  1124→      child: Column(
+  1125→        children: [
+  1126→          AppBar(
+  1127→            title: const Text('Questions'),
+  1128→            automaticallyImplyLeading: false,
+  1129→            actions: [
+  1130→              IconButton(
+  1131→                icon: const Icon(Icons.close),
+  1132→                onPressed: () => Navigator.of(context).pop(),
+  1133→              ),
+  1134→            ],
+  1135→          ),
+  1136→          Expanded(
+  1137→            child: GridView.builder(
+  1138→              padding: Spacings.paddingAll,
+  1139→              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+  1140→                crossAxisCount: 5,
+  1141→                mainAxisSpacing: Spacings.sm,
+  1142→                crossAxisSpacing: Spacings.sm,
+  1143→              ),
+  1144→              itemCount: _questions.length,
+  1145→              itemBuilder: (context, index) {
+  1146→                final isAnswered = _answers.containsKey(index);
+  1147→                final isFlagged = _flaggedQuestions[index] ?? false;
+  1148→                final isCurrent = index == _currentQuestionIndex;
+  1149→
+  1150→                Color bgColor;
+  1151→                Color textColor;
+  1152→                BorderSide border;
+  1153→
+  1154→                if (isCurrent) {
+  1155→                  bgColor = cs.primary;
+  1156→                  textColor = cs.onPrimary;
+  1157→                  border = BorderSide.none;
+  1158→                } else if (isFlagged) {
+  1159→                  bgColor = AppColors.warningLight;
+  1160→                  textColor = AppColors.warningDark;
+  1161→                  border = const BorderSide(color: AppColors.warning);
+  1162→                } else if (isAnswered) {
+  1163→                  bgColor = AppColors.successLight;
+  1164→                  textColor = AppColors.successDark;
+  1165→                  border = const BorderSide(color: AppColors.success);
+  1166→                } else {
+  1167→                  bgColor = cs.surfaceContainerHighest;
+  1168→                  textColor = cs.onSurface;
+  1169→                  border = BorderSide(color: cs.outline);
+  1170→                }
+  1171→
+  1172→                return InkWell(
+  1173→                  onTap: () {
+  1174→                    _goToQuestion(index);
+  1175→                    Navigator.of(context).pop(); // close drawer
+  1176→                  },
+  1177→                  borderRadius: Spacings.borderRadiusSm,
+  1178→                  child: Container(
+  1179→                    decoration: BoxDecoration(
+  1180→                      color: bgColor,
+  1181→                      borderRadius: Spacings.borderRadiusSm,
+  1182→                      border: border,
+  1183→                    ),
+  1184→                    child: Center(
+  1185→                      child: Text(
+  1186→                        '${index + 1}',
+  1187→                        style: tt.labelMedium?.copyWith(
+  1188→                          color: textColor,
+  1189→                          fontWeight: FontWeight.bold,
+  1190→                        ),
+  1191→                      ),
+  1192→                    ),
+  1193→                  ),
+  1194→                );
+  1195→              },
+  1196→            ),
+  1197→          ),
+  1198→          Padding(
+  1199→            padding: Spacings.paddingAll,
+  1200→            child: Row(
+  1201→              mainAxisAlignment: MainAxisAlignment.spaceAround,
+  1202→              children: [
+  1203→                _buildLegendItem(cs, AppColors.successLight, AppColors.successDark, 'Answered'),
+  1204→                _buildLegendItem(cs, AppColors.warningLight, AppColors.warningDark, 'Flagged'),
+  1205→                _buildLegendItem(cs, cs.surfaceContainerHighest, cs.onSurface, 'Unanswered'),
+  1206→              ],
+  1207→            ),
+  1208→          ),
+  1209→        ],
+  1210→      ),
+  1211→    );
+  1212→  }
+  1213→
+  1214→  Widget _buildLegendItem(
+  1215→    ColorScheme cs,
+  1216→    Color bgColor,
+  1217→    Color textColor,
+  1218→    String label,
+  1219→  ) {
+  1220→    return Row(
+  1221→      mainAxisSize: MainAxisSize.min,
+  1222→      children: [
+  1223→        Container(
+  1224→          width: 12,
+  1225→          height: 12,
+  1226→          decoration: BoxDecoration(
+  1227→            color: bgColor,
+  1228→            borderRadius: Spacings.borderRadiusSm,
+  1229→            border: Border.all(color: textColor, width: 1),
+  1230→          ),
+  1231→        ),
+  1232→        const SizedBox(width: 4),
+  1233→        Text(label, style: context.textTheme.labelSmall),
+  1234→      ],
+  1235→    );
+  1236→  }
+  1237→
+  1238→  Widget _buildSubmittedScreen(BuildContext context) {
+  1239→    final cs = context.colorScheme;
+  1240→    final tt = context.textTheme;
+  1241→
+  1242→    return Scaffold(
+  1243→      backgroundColor: cs.surface,
+  1244→      appBar: AppBar(title: Text(widget.examTitle)),
+  1245→      body: Center(
+  1246→        child: Padding(
+  1247→          padding: Spacings.paddingAll,
+  1248→          child: Column(
+  1249→            mainAxisSize: MainAxisSize.min,
+  1250→            children: [
+  1251→              // Success icon
+  1252→              Container(
+  1253→                width: 80,
+  1254→                height: 80,
+  1255→                decoration: BoxDecoration(
+  1256→                  color: AppColors.successLight,
+  1257→                  shape: BoxShape.circle,
+  1258→                ),
+  1259→                child: const Icon(
+  1260→                  Icons.check_circle,
+  1261→                  size: 48,
+  1262→                  color: AppColors.success,
+  1263→                ),
+  1264→              ),
+  1265→              Spacings.sectionGap,
+  1266→
+  1267→              // Title
+  1268→              Text(
+  1269→                'Exam Submitted!',
+  1270→                style: tt.headlineMedium?.copyWith(
+  1271→                  fontWeight: FontWeight.bold,
+  1272→                  color: AppColors.success,
+  1273→                ),
+  1274→              ),
+  1275→              Spacings.itemGap,
+  1276→
+  1277→              // Message
+  1278→              Text(
+  1279→                _successMessage ?? 'Your answers have been saved.',
+  1280→                style: tt.bodyLarge,
+  1281→                textAlign: TextAlign.center,
+  1282→              ),
+  1283→              Spacings.sectionGap,
+  1284→
+  1285→              // Summary stats
+  1286→              AppCard(
+  1287→                child: Column(
+  1288→                  children: [
+  1289→                    _buildStatRow('Questions answered', '${_answers.length} / ${_questions.length}'),
+  1290→                    _buildStatRow('Time taken', _formatTimeTaken()),
+  1291→                    _buildStatRow('Integrity hash', _computeIntegrityHash().substring(0, 16) + '…'),
+  1292→                  ],
+  1293→                ),
+  1294→              ),
+  1295→              Spacings.sectionGap,
+  1296→
+  1297→              // Error message if any
+  1298→              if (_errorMessage != null) ...[
+  1299→                Container(
+  1300→                  width: double.infinity,
+  1301→                  padding: Spacings.paddingAll,
+  1302→                  decoration: BoxDecoration(
+  1303→                    color: AppColors.errorLight,
+  1304→                    borderRadius: Spacings.borderRadiusMd,
+  1305→                  ),
+  1306→                  child: Text(
+  1307→                    _errorMessage!,
+  1308→                    style: tt.bodyMedium?.copyWith(color: AppColors.errorDark),
+  1309→                  ),
+  1310→                ),
+  1311→                Spacings.itemGap,
+  1312→              ],
+  1313→
+  1314→              // Done button
+  1315→              AppButton(
+  1316→                label: 'Done',
+  1317→                variant: AppButtonVariant.primary,
+  1318→                onPressed: () => Navigator.of(context).pop(),
+  1319→              ),
+  1320→            ],
+  1321→          ),
+  1322→        ),
+  1323→      ),
+  1324→    );
+  1325→  }
+  1326→
+  1327→  Widget _buildStatRow(String label, String value) {
+  1328→    return Padding(
+  1329→      padding: const EdgeInsets.symmetric(vertical: Spacings.xs),
+  1330→      child: Row(
+  1331→        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  1332→        children: [
+  1333→          Text(label, style: context.textTheme.bodyMedium),
+  1334→          Text(value, style: context.textTheme.bodyMedium?.copyWith(
+  1335→            fontWeight: FontWeight.bold,
+  1336→          )),
+  1337→        ],
+  1338→      ),
+  1339→    );
+  1340→  }
+  1341→
+  1342→  String _formatTimeTaken() {
+  1343→    final taken = _examDurationMinutes * 60 - _timeRemaining.inSeconds;
+  1344→    final minutes = taken ~/ 60;
+  1345→    final seconds = taken % 60;
+  1346→    return '${minutes}m ${seconds}s';
+  1347→  }
+  1348→
+  1349→  // ═══════════════════════════════════════════════════════════════════════
+  1350→  // DIALOGS
+  1351→  // ═══════════════════════════════════════════════════════════════════════
+  1352→
+  1353→  Future<void> _showExitWarning() async {
+  1354→    final result = await showDialog<bool>(
+  1355→      context: context,
+  1356→      builder: (ctx) => AppDialog(
+  1357→        title: 'Leave Exam?',
+  1358→        content: Text(
+  1359→          'Are you sure you want to leave? Your progress has been '
+  1360→          'auto-saved and you can resume later.',
+  1361→          style: ctx.textTheme.bodyMedium,
+  1362→        ),
+  1363→        actions: [
+  1364→          AppButton(
+  1365→            label: 'Stay',
+  1366→            variant: AppButtonVariant.outlined,
+  1367→            onPressed: () => Navigator.of(ctx).pop(false),
+  1368→          ),
+  1369→          AppButton(
+  1370→            label: 'Leave',
+  1371→            variant: AppButtonVariant.primary,
+  1372→            onPressed: () => Navigator.of(ctx).pop(true),
+  1373→          ),
+  1374→        ],
+  1375→      ),
+  1376→    );
+  1377→
+  1378→    if (result == true && mounted) {
+  1379→      await _autoSave();
+  1380→      Navigator.of(context).pop();
+  1381→    }
+  1382→  }
+  1383→}
+  1384→
+  1385→// ═══════════════════════════════════════════════════════════════════════════════
+  1386→// EXTENSION HELPERS (json conversion for OfflineExamAttempt)
+  1387→// ═══════════════════════════════════════════════════════════════════════════════
+  1388→
+  1389→extension _OfflineExamAttemptJson on OfflineExamAttempt {
+  1390→  Map<String, dynamic> toJson() => {
+  1391→        'id': id,
+  1392→        'exam_id': examId,
+  1393→        'student_id': studentId,
+  1394→        'school_id': schoolId,
+  1395→        'attempt_data': attemptData,
+  1396→        'answers': answers,
+  1397→        'started_at': startedAt.toIso8601String(),
+  1398→        'completed_at': completedAt?.toIso8601String(),
+  1399→        'time_taken_seconds': timeTakenSeconds,
+  1400→        'integrity_hash': integrityHash,
+  1401→        'sync_status': syncStatus.value,
+  1402→        'sync_attempts': syncAttempts,
+  1403→        'synced_at': syncedAt?.toIso8601String(),
+  1404→        'created_at': createdAt.toIso8601String(),
+  1405→      };
+  1406→}
+  1407→

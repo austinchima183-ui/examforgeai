@@ -1,5 +1,5 @@
 import '../../../../core/utils/result.dart';
-import 'entities/question_entities.dart';
+import '../entities/question_entities.dart';
 
 /// Abstract contract for all question bank operations.
 ///

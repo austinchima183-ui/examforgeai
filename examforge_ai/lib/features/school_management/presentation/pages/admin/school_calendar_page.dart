@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/academic_session_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -228,7 +228,7 @@ class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
                   }
                 });
               },
-              selectedColor: color.withValues(alpha: 0.12),
+              selectedColor: color.withOpacity(0.12),
               checkmarkColor: color,
               labelStyle: TextStyle(
                 color: isSelected ? color : cs.onSurfaceVariant,
@@ -306,7 +306,7 @@ class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: isToday
-                          ? cs.primary.withValues(alpha: isDark ? 0.20 : 0.08)
+                          ? cs.primary.withOpacity(isDark ? 0.20 : 0.08)
                           : null,
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
@@ -741,7 +741,7 @@ class _EventListItem extends StatelessWidget {
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
         decoration: BoxDecoration(
-          color: eventColor.withValues(alpha: isDark ? 0.20 : 0.12),
+          color: eventColor.withOpacity(isDark ? 0.20 : 0.12),
           borderRadius: BorderRadius.circular(Spacings.fullRadius),
         ),
         child: Text(

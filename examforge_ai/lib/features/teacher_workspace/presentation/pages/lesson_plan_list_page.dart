@@ -479,7 +479,7 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Row(
@@ -626,7 +626,7 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

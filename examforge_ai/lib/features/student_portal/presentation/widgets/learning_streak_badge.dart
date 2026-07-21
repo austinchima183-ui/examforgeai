@@ -119,7 +119,7 @@ class _LearningStreakBadgeState extends State<LearningStreakBadge>
             boxShadow: _isHighStreak
                 ? [
                     BoxShadow(
-                      color: streakColor.withValues(alpha: 0.4 + 0.3 * _glowController.value),
+                      color: streakColor.withOpacity(0.4 + 0.3 * _glowController.value),
                       blurRadius: glowRadius,
                       spreadRadius: 2.0,
                     ),

@@ -52,7 +52,7 @@ class MetricCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
-                        color: effectiveColor.withValues(alpha: 0.1),
+                        color: effectiveColor.withOpacity(0.1),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Icon(icon, color: effectiveColor, size: Spacings.mdIcon),
@@ -62,7 +62,7 @@ class MetricCard extends StatelessWidget {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
                       decoration: BoxDecoration(
-                        color: (trendIsUp == true ? AppColors.success : AppColors.error).withValues(alpha: 0.1),
+                        color: (trendIsUp == true ? AppColors.success : AppColors.error).withOpacity(0.1),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Row(
@@ -99,7 +99,7 @@ class MetricCard extends StatelessWidget {
                 title,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ),
               if (subtitle != null) ...[
@@ -108,7 +108,7 @@ class MetricCard extends StatelessWidget {
                   subtitle!,
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 11,
-                    color: cs.onSurface.withValues(alpha: 0.4),
+                    color: cs.onSurface.withOpacity(0.4),
                   ),
                 ),
               ],
@@ -135,7 +135,7 @@ class StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
+        color: color.withOpacity(0.12),
         borderRadius: Spacings.borderRadiusFull,
       ),
       child: Row(
@@ -280,7 +280,7 @@ class IntelligenceAlertCard extends StatelessWidget {
               const SizedBox(height: Spacings.sm),
               Text(
                 alert.description,
-                style: AppTypography.wRegular.copyWith(fontSize: 13, color: cs.onSurface.withValues(alpha: 0.7)),
+                style: AppTypography.wRegular.copyWith(fontSize: 13, color: cs.onSurface.withOpacity(0.7)),
                 maxLines: 3,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -288,7 +288,7 @@ class IntelligenceAlertCard extends StatelessWidget {
                 const SizedBox(height: Spacings.sm),
                 Row(
                   children: [
-                    Text('Confidence: ', style: AppTypography.wRegular.copyWith(fontSize: 11, color: cs.onSurface.withValues(alpha: 0.5))),
+                    Text('Confidence: ', style: AppTypography.wRegular.copyWith(fontSize: 11, color: cs.onSurface.withOpacity(0.5))),
                     Text('${alert.confidenceScore!.toStringAsFixed(0)}%',
                       style: AppTypography.wSemiBold.copyWith(fontSize: 11, color: cs.primary)),
                   ],
@@ -342,7 +342,7 @@ class SectionHeader extends StatelessWidget {
             children: [
               Text(title, style: AppTypography.wBold.copyWith(fontSize: 18)),
               if (subtitle != null)
-                Text(subtitle!, style: AppTypography.wRegular.copyWith(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6))),
+                Text(subtitle!, style: AppTypography.wRegular.copyWith(fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6))),
             ],
           ),
         ),
@@ -436,9 +436,9 @@ class AdminEmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon ?? Icons.inbox_outlined, size: 64, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.2)),
+            Icon(icon ?? Icons.inbox_outlined, size: 64, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.2)),
             const SizedBox(height: Spacings.lg),
-            Text(message, style: AppTypography.wRegular.copyWith(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5)), textAlign: TextAlign.center),
+            Text(message, style: AppTypography.wRegular.copyWith(fontSize: 14, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.5)), textAlign: TextAlign.center),
             if (action != null) ...[const SizedBox(height: Spacings.lg), action!],
           ],
         ),

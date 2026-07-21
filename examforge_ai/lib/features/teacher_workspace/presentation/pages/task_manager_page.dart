@@ -382,10 +382,10 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
         vertical: Spacings.md,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
+        color: color.withOpacity(isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: color.withValues(alpha: 0.3),
+          color: color.withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -586,7 +586,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
                     ),
                     decoration: BoxDecoration(
                       color: isOverdue
-                          ? AppColors.error.withValues(alpha: isDark ? 0.20 : 0.10)
+                          ? AppColors.error.withOpacity(isDark ? 0.20 : 0.10)
                           : cs.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
@@ -623,7 +623,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.secondaryContainer.withValues(alpha: 0.5),
+                    color: cs.secondaryContainer.withOpacity(0.5),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -644,7 +644,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.tertiaryContainer.withValues(alpha: 0.5),
+                      color: cs.tertiaryContainer.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
                     child: Row(
@@ -923,7 +923,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

@@ -384,7 +384,7 @@ class CacheManager {
             LocalSyncQueueTableCompanion.insert(
               id: _uuid.v4(),
               userId: userId,
-              tableName: tableName,
+              targetTable: tableName,
               recordId: Value(recordId),
               operation: operation,
               payload: jsonEncode(payload),
@@ -423,7 +423,7 @@ class CacheManager {
       return rows.map((row) => {
             'id': row.id,
             'userId': row.userId,
-            'tableName': row.tableName,
+            'targetTable': row.targetTable,
             'recordId': row.recordId,
             'operation': row.operation,
             'payload': jsonDecode(row.payload),

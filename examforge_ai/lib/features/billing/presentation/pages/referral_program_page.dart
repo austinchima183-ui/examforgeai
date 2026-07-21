@@ -205,7 +205,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
     return Expanded(
       child: Card(
         elevation: Spacings.elevationSm,
-        shadowColor: cs.shadow.withValues(alpha: 0.06),
+        shadowColor: cs.shadow.withOpacity(0.06),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
@@ -218,7 +218,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: color.withOpacity(isDark ? 0.20 : 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 18, color: color),
@@ -291,7 +291,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: ListTile(
@@ -303,7 +303,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12),
+            color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: const Icon(

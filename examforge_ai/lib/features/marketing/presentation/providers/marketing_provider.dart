@@ -1,6 +1,12 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/network/api_client.dart';
 import '../../domain/entities/marketing_entities.dart';
 import '../../domain/usecases/marketing_usecases.dart';
+import '../../domain/repositories/marketing_repository.dart';
+import '../../data/datasources/marketing_remote_datasource.dart';
+import '../../data/repositories/marketing_repository_impl.dart';
 
 /// Provider that manages Marketing feature state.
 class MarketingProvider extends ChangeNotifier {
@@ -86,3 +92,52 @@ class MarketingProvider extends ChangeNotifier {
     await Future.wait([loadBlogPosts(), loadEmailCampaigns(), loadReferralPrograms(), loadAffiliates(), loadLandingPages()]);
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════
+// RIVERPOD PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+
+final marketingRemoteDatasourceProvider = Provider<MarketingRemoteDatasource>((ref) {
+  final apiClient = ref.watch(apiClientProvider);
+  return MarketingRemoteDatasource(apiClient);
+});
+
+final marketingRepositoryProvider = Provider<MarketingRepository>((ref) {
+  final datasource = ref.watch(marketingRemoteDatasourceProvider);
+  return MarketingRepositoryImpl(datasource);
+});
+
+final getBlogPostsUseCaseProvider = Provider<GetBlogPostsUseCase>((ref) {
+  final repo = ref.watch(marketingRepositoryProvider);
+  return GetBlogPostsUseCase(repo);
+});
+
+final getEmailCampaignsUseCaseProvider = Provider<GetEmailCampaignsUseCase>((ref) {
+  final repo = ref.watch(marketingRepositoryProvider);
+  return GetEmailCampaignsUseCase(repo);
+});
+
+final getReferralProgramsUseCaseProvider = Provider<GetReferralProgramsUseCase>((ref) {
+  final repo = ref.watch(marketingRepositoryProvider);
+  return GetReferralProgramsUseCase(repo);
+});
+
+final getAffiliatesUseCaseProvider = Provider<GetAffiliatesUseCase>((ref) {
+  final repo = ref.watch(marketingRepositoryProvider);
+  return GetAffiliatesUseCase(repo);
+});
+
+final getLandingPagesUseCaseProvider = Provider<GetLandingPagesUseCase>((ref) {
+  final repo = ref.watch(marketingRepositoryProvider);
+  return GetLandingPagesUseCase(repo);
+});
+
+final marketingProvider = ChangeNotifierProvider<MarketingProvider>((ref) {
+  return MarketingProvider(
+    getBlogPosts: ref.watch(getBlogPostsUseCaseProvider),
+    getEmailCampaigns: ref.watch(getEmailCampaignsUseCaseProvider),
+    getReferralPrograms: ref.watch(getReferralProgramsUseCaseProvider),
+    getAffiliates: ref.watch(getAffiliatesUseCaseProvider),
+    getLandingPages: ref.watch(getLandingPagesUseCaseProvider),
+  );
+});

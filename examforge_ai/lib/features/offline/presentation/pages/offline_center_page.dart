@@ -183,11 +183,11 @@ class _OverviewTab extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -242,11 +242,11 @@ class _OverviewTab extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shadowColor: cs.shadow.withOpacity(0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -487,7 +487,7 @@ class _ResourcesTab extends ConsumerWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: ListTile(
@@ -732,11 +732,11 @@ class _SyncTab extends ConsumerWidget {
             const SizedBox(height: Spacings.sm),
             Card(
               elevation: Spacings.elevationSm,
-              shadowColor: cs.shadow.withValues(alpha: 0.08),
+              shadowColor: cs.shadow.withOpacity(0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -778,11 +778,11 @@ class _SyncTab extends ConsumerWidget {
               const SizedBox(height: Spacings.sm),
               Card(
                 elevation: Spacings.elevationSm,
-                shadowColor: cs.shadow.withValues(alpha: 0.08),
+                shadowColor: cs.shadow.withOpacity(0.08),
                 shape: RoundedRectangleBorder(
                   borderRadius: Spacings.borderRadiusLg,
                   side: BorderSide(
-                    color: AppColors.error.withValues(alpha: 0.3),
+                    color: AppColors.error.withOpacity(0.3),
                   ),
                 ),
                 child: Padding(
@@ -902,7 +902,7 @@ class _SyncTab extends ConsumerWidget {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: 0.1),
+            color: color.withOpacity(0.1),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Text(

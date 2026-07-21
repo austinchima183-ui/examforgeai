@@ -183,7 +183,7 @@ class TeacherWorkspaceRemoteDataSourceImpl
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(message: e.message);
+        throw NotFoundException(e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -195,13 +195,11 @@ class TeacherWorkspaceRemoteDataSourceImpl
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException(
-          message: 'You do not have permission for this action.',
-        );
+        throw ForbiddenException('You do not have permission for this action.');
       default:
         throw ServerException(
           message: e.message,
-          statusCode: e.statusCode ?? 500,
+          statusCode: int.tryParse(e.code ?? '') ?? 500,
         );
     }
   }
@@ -343,15 +341,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.overlaps('tags', filters['tags']);
       }
 
-      // Ordering
-      query = query.order('created_at', ascending: false);
-
-      // Pagination
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} lesson plans');
       return response.map(LessonPlanModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -466,13 +458,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.overlaps('tags', filters['tags']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} schemes of work');
       return response.map(SchemeOfWorkModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -585,13 +573,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.overlaps('tags', filters['tags']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} worksheets');
       return response.map(WorksheetModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -708,13 +692,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('status', filters['status']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} assignments');
       return response.map(WorkspaceAssignmentModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -812,13 +792,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('is_ai_generated', filters['is_ai_generated']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} report comments');
       return response.map(ReportCommentModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -939,13 +915,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.overlaps('tags', filters['tags']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} teaching resources');
       return response.map(TeachingResourceModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -1026,9 +998,7 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.isFilter('parent_folder_id', null);
       }
 
-      query = query.order('name', ascending: true);
-
-      final response = await query;
+      final response = await query.order('name', ascending: true);
       AppLogger.info('Fetched ${response.length} resource folders');
       return response.map(ResourceFolderModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -1106,13 +1076,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('subject_id', filters['subject_id']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} AI content history records');
       return response.map(AiContentHistoryModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -1205,13 +1171,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.lte('end_time', filters['endDate']);
       }
 
-      query = query.order('start_time', ascending: true);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('start_time', ascending: true).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} calendar events');
       return response.map(CalendarEventModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -1476,13 +1438,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.overlaps('tags', filters['tags']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} presentations');
       return response.map(PresentationModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -1642,13 +1600,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('is_ai_generated', filters['is_ai_generated']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} communications');
       return response.map(CommunicationModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -1782,13 +1736,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.lte('due_date', filters['due_date_to']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} tasks');
       return response.map(TaskModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -1902,13 +1852,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('is_published', filters['is_published']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} rubrics');
       return response.map(RubricModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -2021,13 +1967,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('is_published', filters['is_published']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} oral questions');
       return response.map(OralQuestionModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -2142,13 +2084,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('is_published', filters['is_published']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} practical assessments');
       return response.map(PracticalAssessmentModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {
@@ -2222,13 +2160,9 @@ class TeacherWorkspaceRemoteDataSourceImpl
         query = query.eq('status', filters['status']);
       }
 
-      query = query.order('created_at', ascending: false);
-
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['perPage'] as int? ?? 20;
-      query = query.range((page - 1) * perPage, page * perPage - 1);
-
-      final response = await query;
+      final response = await query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} shared resources');
       return response.map(SharedResourceModel.fromJson).toList();
     } on sb.PostgrestException catch (e) {

@@ -837,7 +837,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
                 vertical: Spacings.sm,
               ),
               decoration: BoxDecoration(
-                color: eventColor.withValues(alpha: 0.1),
+                color: eventColor.withOpacity(0.1),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Column(
@@ -1033,7 +1033,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
                           color: _priorityColor(
                             announcement.priority,
                             cs.brightness,
-                          ).withValues(alpha: 0.15),
+                          ).withOpacity(0.15),
                           borderRadius: Spacings.borderRadiusSm,
                         ),
                         child: Text(
@@ -1113,7 +1113,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
                     leading: CircleAvatar(
                       radius: 16,
                       backgroundColor: AppColors.warningOf(cs.brightness)
-                          .withValues(alpha: 0.15),
+                          .withOpacity(0.15),
                       child: Text(
                         '${child.pendingAssignmentsCount}',
                         style: tt.labelLarge?.copyWith(

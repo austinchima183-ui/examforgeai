@@ -10,7 +10,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/class_provider.dart';
 import 'attendance_report_page.dart';
@@ -594,7 +594,7 @@ class _AttendanceEntryCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(_statusIcon(currentStatus), color: statusColor, size: 22),
@@ -675,7 +675,7 @@ class _StatusToggleGroup extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? color.withValues(alpha: isDark ? 0.30 : 0.15)
+                    ? color.withOpacity(isDark ? 0.30 : 0.15)
                     : Colors.transparent,
                 borderRadius: BorderRadius.horizontal(
                   left: status == AttendanceStatus.present
@@ -758,7 +758,7 @@ class _SummaryChip extends StatelessWidget {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+            color: color.withOpacity(isDark ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Text(

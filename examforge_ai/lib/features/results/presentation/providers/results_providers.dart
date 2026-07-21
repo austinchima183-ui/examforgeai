@@ -2,9 +2,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../../core/utils/result.dart';
 import '../../domain/entities/results_entities.dart';
 import '../../domain/usecases/results_usecases.dart';
-import '../../../../features/results/domain/entities/results_entities.dart';
+import '../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2191,9 +2192,9 @@ final resultsDashboardProvider =
     StateNotifierProvider<ResultsDashboardNotifier, ResultsDashboardState>(
   (ref) {
     return ResultsDashboardNotifier(
-      getGradeScalesUseCase: GetGradeScalesUseCase(null),
-      getClassPerformanceUseCase: GetClassPerformanceUseCase(null),
-      getSchoolPerformanceUseCase: GetSchoolPerformanceUseCase(null),
+      getGradeScalesUseCase: ref.watch(getGradeScalesUseCaseProvider),
+      getClassPerformanceUseCase: ref.watch(getClassPerformanceUseCaseProvider),
+      getSchoolPerformanceUseCase: ref.watch(getSchoolPerformanceUseCaseProvider),
     );
   },
 );
@@ -2205,10 +2206,10 @@ final gradeScaleProvider =
     StateNotifierProvider<GradeScaleNotifier, GradeScaleState>(
   (ref) {
     return GradeScaleNotifier(
-      getGradeScalesUseCase: GetGradeScalesUseCase(null),
-      createGradeScaleUseCase: CreateGradeScaleUseCase(null),
-      updateGradeScaleUseCase: UpdateGradeScaleUseCase(null),
-      applyGradeScaleUseCase: ApplyGradeScaleUseCase(null),
+      getGradeScalesUseCase: ref.watch(getGradeScalesUseCaseProvider),
+      createGradeScaleUseCase: ref.watch(createGradeScaleUseCaseProvider),
+      updateGradeScaleUseCase: ref.watch(updateGradeScaleUseCaseProvider),
+      applyGradeScaleUseCase: ref.watch(applyGradeScaleUseCaseProvider),
     );
   },
 );
@@ -2220,10 +2221,10 @@ final aiGradingProvider =
     StateNotifierProvider<AiGradingNotifier, AiGradingState>(
   (ref) {
     return AiGradingNotifier(
-      requestAiGradingUseCase: RequestAiGradingUseCase(null),
-      reviewAiGradingUseCase: ReviewAiGradingUseCase(null),
-      batchAiGradingUseCase: BatchAiGradingUseCase(null),
-      getPendingAiGradingsUseCase: GetPendingAiGradingsUseCase(null),
+      requestAiGradingUseCase: ref.watch(requestAiGradingUseCaseProvider),
+      reviewAiGradingUseCase: ref.watch(reviewAiGradingUseCaseProvider),
+      batchAiGradingUseCase: ref.watch(batchAiGradingUseCaseProvider),
+      getPendingAiGradingsUseCase: ref.watch(getPendingAiGradingsUseCaseProvider),
     );
   },
 );
@@ -2235,9 +2236,9 @@ final teacherGradingProvider =
     StateNotifierProvider<TeacherGradingNotifier, TeacherGradingState>(
   (ref) {
     return TeacherGradingNotifier(
-      saveTeacherFeedbackUseCase: SaveTeacherFeedbackUseCase(null),
-      getTeacherFeedbackUseCase: GetTeacherFeedbackUseCase(null),
-      reviewAiGradingUseCase: ReviewAiGradingUseCase(null),
+      saveTeacherFeedbackUseCase: ref.watch(saveTeacherFeedbackUseCaseProvider),
+      getTeacherFeedbackUseCase: ref.watch(getTeacherFeedbackUseCaseProvider),
+      reviewAiGradingUseCase: ref.watch(reviewAiGradingUseCaseProvider),
     );
   },
 );
@@ -2249,9 +2250,9 @@ final reportExportProvider =
     StateNotifierProvider<ReportExportNotifier, ReportExportState>(
   (ref) {
     return ReportExportNotifier(
-      createReportExportUseCase: CreateReportExportUseCase(null),
-      getReportExportsUseCase: GetReportExportsUseCase(null),
-      downloadReportUseCase: DownloadReportUseCase(null),
+      createReportExportUseCase: ref.watch(createReportExportUseCaseProvider),
+      getReportExportsUseCase: ref.watch(getReportExportsUseCaseProvider),
+      downloadReportUseCase: ref.watch(resultsDownloadReportUseCaseProvider),
     );
   },
 );
@@ -2263,9 +2264,9 @@ final resultManagementProvider =
     StateNotifierProvider<ResultManagementNotifier, ResultManagementState>(
   (ref) {
     return ResultManagementNotifier(
-      lockResultsUseCase: LockResultsUseCase(null),
-      publishResultsUseCase: PublishResultsUseCase(null),
-      recomputeResultsUseCase: RecomputeResultsUseCase(null),
+      lockResultsUseCase: ref.watch(lockResultsUseCaseProvider),
+      publishResultsUseCase: ref.watch(publishResultsUseCaseProvider),
+      recomputeResultsUseCase: ref.watch(recomputeResultsUseCaseProvider),
     );
   },
 );

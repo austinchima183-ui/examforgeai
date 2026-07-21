@@ -1218,6 +1218,7 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
           if (item.recordId == null) {
             return FailureResult(Failure.validation(
               message: 'Cannot update without a recordId',
+              fieldErrors: {},
             ));
           }
           await table.update(item.payload).eq('id', item.recordId!);
@@ -1229,6 +1230,7 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
           if (item.recordId == null) {
             return FailureResult(Failure.validation(
               message: 'Cannot delete without a recordId',
+              fieldErrors: {},
             ));
           }
           await table.delete().eq('id', item.recordId!);
@@ -1262,6 +1264,7 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
       if (e.code == '422' || e.code == '400') {
         return FailureResult(Failure.validation(
           message: e.message,
+          fieldErrors: {},
         ));
       }
       if (e.code == '401') {

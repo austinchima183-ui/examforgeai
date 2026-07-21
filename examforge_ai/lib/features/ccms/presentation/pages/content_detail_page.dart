@@ -5,9 +5,12 @@ import '../../../../../core/core.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ccms_entities.dart';
 import '../providers/ccms_providers.dart';
+import '../providers/content_provider.dart';
+import '../providers/content_review_provider.dart';
+import '../providers/content_collection_provider.dart';
+import '../providers/deployment_provider.dart';
 import '../widgets/ccms_widgets.dart';
-
-export 'content_editor_page.dart';
+import 'content_editor_page.dart';
 
 class ContentDetailPage extends ConsumerStatefulWidget {
   const ContentDetailPage({super.key, required this.contentId});
@@ -31,10 +34,10 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
     WidgetsBinding.instance.addPostFrameCallback((_) {
       ref
           .read(contentProvider.notifier)
-          .loadContentWithDetails(widget.contentId);
+          .loadContentById(widget.contentId);
       ref
           .read(contentProvider.notifier)
-          .loadContentVersions(widget.contentId);
+          .loadVersions(widget.contentId);
       ref
           .read(contentReviewProvider.notifier)
           .loadContentReviews(widget.contentId);
@@ -58,7 +61,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final content =
-        contentState.contentWithDetails ?? contentState.selectedContent;
+        contentState.selectedContent;
 
     return Scaffold(
       appBar: AppAppBar(
@@ -190,12 +193,12 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           Row(children: [
             ContentTypeBadge(contentType: content.contentType),
             const SizedBox(width: Spacings.sm),
-            DifficultyIndicator(level: content.difficultyLevel),
+            DifficultyIndicator(level: content.difficultyLevel ?? DifficultyLevel.intermediate),
             const Spacer(),
-            if (content.isAiGenerated)
+            if (content.isAiGenerated == true)
               Icon(Icons.auto_awesome_rounded,
                   color: cs.primary, size: Spacings.mdIcon),
-            if (content.isPastQuestion)
+            if (content.isPastQuestion == true)
               Padding(
                 padding: const EdgeInsets.only(left: Spacings.xs),
                 child: Icon(Icons.history_edu_rounded,
@@ -215,16 +218,16 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                   horizontal: Spacings.sm, vertical: 2),
               decoration: BoxDecoration(
                   color:
-                      _statusColor(content.status).withValues(alpha: 0.15),
+                      _statusColor(content.status).withOpacity(0.15),
                   borderRadius: Spacings.borderRadiusSm),
               child: Text(content.status.label,
-                  style: AppTypography.labelSmall.copyWith(
+                  style: tt.labelSmall!.copyWith(
                       color: _statusColor(content.status),
                       fontWeight: AppTypography.wSemiBold)),
             ),
             const SizedBox(width: Spacings.md),
-            if (content.qualityScore != null)
-              QualityScoreIndicator(score: content.qualityScore!),
+            if (content.averageQualityScore != null)
+              QualityScoreIndicator(score: content.averageQualityScore!),
           ]),
           Spacings.sectionGap,
 
@@ -234,22 +237,21 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           Spacings.sectionGap,
 
           // Explanation
-          if (content.explanation != null &&
-              content.explanation!.isNotEmpty) ...[
+          if (content.stepByStepExplanation != null &&
+              content.stepByStepExplanation!.isNotEmpty) ...[
             _DetailSection(
                 title: 'Explanation',
                 icon: Icons.lightbulb_outline_rounded,
-                content: content.explanation!),
+                content: content.stepByStepExplanation!),
             Spacings.sectionGap,
           ],
 
           // Marking Scheme
-          if (content.markingScheme != null &&
-              content.markingScheme!.isNotEmpty) ...[
+          if (content.markingScheme != null) ...[
             _DetailSection(
                 title: 'Marking Scheme',
                 icon: Icons.grading_rounded,
-                content: content.markingScheme!),
+                content: content.markingScheme!.toString()),
             Spacings.sectionGap,
           ],
 
@@ -268,8 +270,8 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           Spacings.sectionGap,
 
           // Learning Objectives
-          if (content.learningObjectives != null &&
-              content.learningObjectives!.isNotEmpty) ...[
+          if (content.learningObjectiveIds != null &&
+              content.learningObjectiveIds!.isNotEmpty) ...[
             Text('Learning Objectives',
                 style: tt.titleMedium?.copyWith(
                     fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
@@ -277,8 +279,12 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             Wrap(
               spacing: Spacings.sm,
               runSpacing: Spacings.xs,
-              children: content.learningObjectives!
-                  .map((obj) => LearningObjectiveChip(objective: obj))
+              children: content.learningObjectiveIds!
+                  .map((id) => Chip(
+                        label: Text(id),
+                        materialTapTargetSize:
+                            MaterialTapTargetSize.shrinkWrap,
+                      ))
                   .toList(),
             ),
             Spacings.sectionGap,
@@ -342,18 +348,18 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           _metaRow('Level ID', content.educationalLevelId, cs, tt),
           if (content.topicId != null)
             _metaRow('Topic ID', content.topicId!, cs, tt),
-          _metaRow('Difficulty', content.difficultyLevel.label, cs, tt),
-          _metaRow("Bloom's Level", content.bloomLevel.label, cs, tt),
-          _metaRow('Source Type', content.sourceType.label, cs, tt),
-          if (content.markAllocation != null)
-            _metaRow('Marks', '${content.markAllocation}', cs, tt),
-          if (content.timeAllocationMinutes != null)
-            _metaRow('Time', '${content.timeAllocationMinutes} min', cs, tt),
-          if (content.isPastQuestion) ...[
+          _metaRow('Difficulty', content.difficultyLevel?.label ?? 'N/A', cs, tt),
+          _metaRow("Bloom's Level", content.bloomLevel?.label ?? 'N/A', cs, tt),
+          _metaRow('Source Type', content.sourceType ?? 'N/A', cs, tt),
+          if (content.marksAllocated != null)
+            _metaRow('Marks', '${content.marksAllocated}', cs, tt),
+          if (content.timeAllocatedSeconds != null)
+            _metaRow('Time', '${content.timeAllocatedSeconds} min', cs, tt),
+          if (content.isPastQuestion == true) ...[
             _metaRow('Past Question', 'Yes', cs, tt),
           ],
           _metaRow('AI Generated',
-              content.isAiGenerated ? 'Yes' : 'No', cs, tt),
+              (content.isAiGenerated == true) ? 'Yes' : 'No', cs, tt),
         ],
       ),
     );
@@ -383,33 +389,33 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
 
   Widget _buildVersionHistoryTab(
       ContentState contentState, ColorScheme cs, TextTheme tt) {
-    if (contentState.contentVersions.isEmpty) {
+    if (contentState.versions.isEmpty) {
       return AppEmptyState.noData(subtitle: 'No version history');
     }
     return ListView.builder(
       padding: Spacings.paddingScreen,
-      itemCount: contentState.contentVersions.length,
+      itemCount: contentState.versions.length,
       itemBuilder: (context, index) {
-        final v = contentState.contentVersions[index];
+        final v = contentState.versions[index];
         return Card(
           child: ListTile(
             leading: Icon(
-              v.isCurrent ? Icons.new_releases_rounded : Icons.history_rounded,
-              color: v.isCurrent ? cs.primary : cs.onSurfaceVariant,
+              (v.versionNumber == contentState.selectedContent?.version) ? Icons.new_releases_rounded : Icons.history_rounded,
+              color: (v.versionNumber == contentState.selectedContent?.version) ? cs.primary : cs.onSurfaceVariant,
             ),
             title: Text('v${v.versionNumber}'),
             subtitle: Text(
-                'By ${v.changedBy} · ${_formatDate(v.changedAt)}'),
-            trailing: v.isCurrent
+                'By ${v.createdBy ?? 'Unknown'} · ${_formatDate(v.createdAt)}'),
+            trailing: (v.versionNumber == contentState.selectedContent?.version)
                 ? Container(
                     padding: const EdgeInsets.symmetric(
                         horizontal: Spacings.sm, vertical: 2),
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.15),
+                      color: cs.primary.withOpacity(0.15),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
                     child: Text('Current',
-                        style: AppTypography.labelSmall.copyWith(
+                        style: tt.labelSmall!.copyWith(
                             color: cs.primary,
                             fontWeight: AppTypography.wSemiBold)),
                   )
@@ -441,7 +447,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                       style: tt.labelMedium?.copyWith(
                           fontWeight: AppTypography.wSemiBold)),
                   const Spacer(),
-                  Text(_formatDate(r.createdAt),
+                  Text(_formatDate(r.reviewedAt),
                       style: tt.bodySmall?.copyWith(
                           color: cs.onSurfaceVariant)),
                 ]),
@@ -450,7 +456,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                   QualityScoreIndicator(score: r.qualityScore!),
                 ],
                 const SizedBox(height: Spacings.xs),
-                Text(r.comments, style: tt.bodyMedium),
+                Text(r.comment ?? '', style: tt.bodyMedium),
               ],
             ),
           ),
@@ -469,7 +475,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           width: double.maxFinite,
           child: collectionState.collections.isEmpty
               ? Text('No collections available. Create one first.',
-                  style: AppTypography.bodyMedium.copyWith(
+                  style: Theme.of(context).textTheme.bodyMedium!.copyWith(
                       color: Theme.of(context).colorScheme.onSurfaceVariant))
               : ListView.builder(
                   shrinkWrap: true,
@@ -479,13 +485,17 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                     return ListTile(
                       leading: const Icon(Icons.collections_bookmark_rounded),
                       title: Text(collection.name),
-                      subtitle: Text('${collection.itemCount} items'),
+                      subtitle: Text('${collection.contentCount} items'),
                       onTap: () {
                         ref
                             .read(contentCollectionProvider.notifier)
-                            .addCollectionItem(
+                            .addCollectionItem(ContentCollectionItem(
+                                id: '',
                                 collectionId: collection.id,
-                                contentItemId: widget.contentId);
+                                contentItemId: widget.contentId,
+                                sortOrder: 0,
+                                addedAt: DateTime.now(),
+                              ));
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
@@ -552,7 +562,7 @@ class _DetailSection extends StatelessWidget {
           width: double.infinity,
           padding: Spacings.paddingCard,
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+            color: cs.surfaceContainerHighest.withOpacity(0.3),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: Text(content, style: tt.bodyMedium),

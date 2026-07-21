@@ -375,8 +375,7 @@ class _OverviewTab extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: isHighest
                                     ? cs.primary
-                                    : cs.primary.withValues(
-                                        alpha: isDark ? 0.30 : 0.20,
+                                    : cs.primary.withOpacity(isDark ? 0.30 : 0.20,
                                       ),
                                 borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(Spacings.smRadius),
@@ -561,7 +560,7 @@ class _SellerProfileHeader extends StatelessWidget {
             backgroundImage:
                 avatarUrl != null ? NetworkImage(avatarUrl) : null,
             backgroundColor:
-                cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                cs.primary.withOpacity(isDark ? 0.20 : 0.12),
             child: avatarUrl == null
                 ? Text(
                     displayName.substring(0, 1).toUpperCase(),
@@ -772,7 +771,7 @@ class _SellerProductCard extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: ProductTypeIcon(
@@ -809,7 +808,7 @@ class _SellerProductCard extends ConsumerWidget {
                         vertical: Spacings.xs,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                        color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(
@@ -1146,8 +1145,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                             decoration: BoxDecoration(
                               color: heights[index] >= 0.9
                                   ? cs.primary
-                                  : cs.primary.withValues(
-                                      alpha: isDark ? 0.30 : 0.20,
+                                  : cs.primary.withOpacity(isDark ? 0.30 : 0.20,
                                     ),
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(Spacings.smRadius),
@@ -1399,7 +1397,7 @@ class _EarningsTab extends StatelessWidget {
               Text(
                 'Total Earnings',
                 style: tt.titleMedium?.copyWith(
-                  color: Colors.white.withValues(alpha: 0.9),
+                  color: Colors.white.withOpacity(0.9),
                 ),
               ),
               const SizedBox(height: Spacings.sm),
@@ -1423,8 +1421,7 @@ class _EarningsTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withValues(
-                    alpha: isDark ? 0.20 : 0.12,
+                  color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12,
                   ),
                   borderRadius: Spacings.borderRadiusMd,
                 ),

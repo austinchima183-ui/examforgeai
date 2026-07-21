@@ -76,7 +76,7 @@ class _QuestionFilterPanelState extends ConsumerState<QuestionFilterPanel> {
         color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Column(

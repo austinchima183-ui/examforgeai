@@ -228,11 +228,11 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                   width: double.infinity,
                   padding: Spacings.paddingCard,
                   decoration: BoxDecoration(
-                    color: AppColors.error.withValues(alpha: 0.05),
+                    color: AppColors.error.withOpacity(0.05),
                     borderRadius: Spacings.borderRadiusMd,
                     border: Border.all(
                         color:
-                            AppColors.error.withValues(alpha: 0.2)),
+                            AppColors.error.withOpacity(0.2)),
                   ),
                   child: Text(entry.oldValues.toString(),
                       style: AppTypography.bodySmall),
@@ -248,11 +248,11 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                   width: double.infinity,
                   padding: Spacings.paddingCard,
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.05),
+                    color: AppColors.success.withOpacity(0.05),
                     borderRadius: Spacings.borderRadiusMd,
                     border: Border.all(
                         color: AppColors.success
-                            .withValues(alpha: 0.2)),
+                            .withOpacity(0.2)),
                   ),
                   child: Text(entry.newValues.toString(),
                       style: AppTypography.bodySmall),

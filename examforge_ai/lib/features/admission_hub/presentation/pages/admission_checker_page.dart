@@ -104,7 +104,7 @@ class _AdmissionCheckerPageState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
+                  color: AppColors.primary.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
@@ -290,7 +290,7 @@ class _AdmissionCheckerPageState
                             ),
                             decoration: BoxDecoration(
                               color: _getGradeColor(result['grade'] as String)
-                                  .withValues(alpha: 0.15),
+                                  .withOpacity(0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(

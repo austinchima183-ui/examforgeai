@@ -206,8 +206,7 @@ class _AssignmentPortalPageState
                         vertical: Spacings.md,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withValues(
-                          alpha: context.isDarkMode ? 0.20 : 0.10,
+                        color: AppColors.success.withOpacity(context.isDarkMode ? 0.20 : 0.10,
                         ),
                         borderRadius:
                             BorderRadius.circular(Spacings.mdRadius),
@@ -403,7 +402,7 @@ class _AssignmentPortalPageState
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -474,8 +473,7 @@ class _AssignmentCard extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(
-                    alpha: context.isDarkMode ? 0.20 : 0.12,
+                  color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.fullRadius),

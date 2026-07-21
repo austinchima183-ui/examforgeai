@@ -15,7 +15,7 @@ import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../../../routing/route_names.dart';
 import '../../../../../shared/models/user_role.dart';
 import '../../../../../shared/providers/auth_state_provider.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/homework_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/subject_provider.dart';
@@ -501,7 +501,7 @@ class _HomeworkCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: subjectBadgeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: subjectBadgeColor.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -610,7 +610,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(

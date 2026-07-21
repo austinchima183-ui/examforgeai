@@ -179,7 +179,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.xs),
           decoration: BoxDecoration(
-            color: priorityColor.withValues(alpha: 0.12),
+            color: priorityColor.withOpacity(0.12),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Text(
@@ -190,7 +190,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.xs),
           decoration: BoxDecoration(
-            color: typeColor.withValues(alpha: 0.12),
+            color: typeColor.withOpacity(0.12),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Text(
@@ -202,7 +202,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.xs),
             decoration: BoxDecoration(
-              color: cs.primaryContainer.withValues(alpha: 0.2),
+              color: cs.primaryContainer.withOpacity(0.2),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: Row(

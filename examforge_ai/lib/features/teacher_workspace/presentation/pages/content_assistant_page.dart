@@ -376,7 +376,7 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
                   : cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: SelectableText(
@@ -475,8 +475,7 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: _actionColor(entry.actionType).withValues(
-                          alpha: isDark ? 0.20 : 0.10,
+                        color: _actionColor(entry.actionType).withOpacity(isDark ? 0.20 : 0.10,
                         ),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),

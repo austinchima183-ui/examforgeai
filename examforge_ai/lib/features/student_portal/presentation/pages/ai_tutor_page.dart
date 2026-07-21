@@ -298,7 +298,7 @@ class _AiTutorPageState extends ConsumerState<AiTutorPage> {
         color: cs.surface,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -375,7 +375,7 @@ class _AiTutorPageState extends ConsumerState<AiTutorPage> {
             Icon(
               Icons.auto_awesome_outlined,
               size: Spacings.xlIcon,
-              color: cs.primary.withValues(alpha: 0.5),
+              color: cs.primary.withOpacity(0.5),
             ),
             const SizedBox(height: Spacings.lg),
             Text(
@@ -446,7 +446,7 @@ class _AiTutorPageState extends ConsumerState<AiTutorPage> {
         color: cs.surface,
         border: Border(
           top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -650,10 +650,10 @@ class _ConversationTile extends StatelessWidget {
 
     return ListTile(
       selected: isSelected,
-      selectedTileColor: cs.primaryContainer.withValues(alpha: 0.3),
+      selectedTileColor: cs.primaryContainer.withOpacity(0.3),
       leading: CircleAvatar(
         backgroundColor:
-            cs.primaryContainer.withValues(alpha: isSelected ? 1.0 : 0.5),
+            cs.primaryContainer.withOpacity(isSelected ? 1.0 : 0.5),
         child: Icon(
           Icons.chat_bubble_outline_rounded,
           size: Spacings.mdIcon,

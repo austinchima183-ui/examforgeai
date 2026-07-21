@@ -370,7 +370,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
             ),
             selected: state.selectedFolderId == null,
             selectedTileColor:
-                cs.primary.withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+                cs.primary.withOpacity(context.isDarkMode ? 0.15 : 0.08),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
@@ -400,7 +400,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
               ),
               selected: isSelected,
               selectedTileColor: cs.primary
-                  .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+                  .withOpacity(context.isDarkMode ? 0.15 : 0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
@@ -739,7 +739,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -833,7 +833,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: cs.outlineVariant.withValues(alpha: 0.3),
+                          color: cs.outlineVariant.withOpacity(0.3),
                           borderRadius:
                               BorderRadius.circular(Spacings.fullRadius),
                         ),
@@ -907,7 +907,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -1011,7 +1011,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
 
   // ─── Filter Sheet (comprehensive) ────────────────────────────────────
 
-  void _showFilterSheet() {
+  void _showSimpleFilterSheet() {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,

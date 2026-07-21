@@ -239,7 +239,7 @@ class _State extends ConsumerState<ChatPage> {
                     Text(
                       ' (edited)',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: isSent ? cs.onPrimary.withValues(alpha: 0.7) : cs.onSurfaceVariant,
+                        color: isSent ? cs.onPrimary.withOpacity(0.7) : cs.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -252,7 +252,7 @@ class _State extends ConsumerState<ChatPage> {
                       Text(
                         _formatMessageTime(message.createdAt),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isSent ? cs.onPrimary.withValues(alpha: 0.7) : cs.onSurfaceVariant,
+                          color: isSent ? cs.onPrimary.withOpacity(0.7) : cs.onSurfaceVariant,
                         ),
                       ),
                       if (isSent) ...[
@@ -260,7 +260,7 @@ class _State extends ConsumerState<ChatPage> {
                         Icon(
                           message.readBy.length > 1 ? Icons.done_all : Icons.done,
                           size: Spacings.smIcon,
-                          color: isSent ? cs.onPrimary.withValues(alpha: 0.7) : cs.onSurfaceVariant,
+                          color: isSent ? cs.onPrimary.withOpacity(0.7) : cs.onSurfaceVariant,
                         ),
                       ],
                     ],
@@ -313,7 +313,7 @@ class _State extends ConsumerState<ChatPage> {
       margin: const EdgeInsets.only(bottom: Spacings.xs),
       padding: const EdgeInsets.all(Spacings.sm),
       decoration: BoxDecoration(
-        color: (isSent ? cs.onPrimary : cs.primary).withValues(alpha: 0.1),
+        color: (isSent ? cs.onPrimary : cs.primary).withOpacity(0.1),
         borderRadius: Spacings.borderRadiusSm,
         border: Border(left: BorderSide(color: isSent ? cs.onPrimary : cs.primary, width: 3)),
       ),
@@ -322,7 +322,7 @@ class _State extends ConsumerState<ChatPage> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: isSent ? cs.onPrimary.withValues(alpha: 0.8) : cs.onSurfaceVariant,
+          color: isSent ? cs.onPrimary.withOpacity(0.8) : cs.onSurfaceVariant,
         ),
       ),
     );
@@ -339,7 +339,7 @@ class _State extends ConsumerState<ChatPage> {
           decoration: BoxDecoration(
             borderRadius: Spacings.borderRadiusSm,
             border: Border.all(
-              color: (isSent ? AppColors.seed : AppColors.info).withValues(alpha: 0.3),
+              color: (isSent ? AppColors.seed : AppColors.info).withOpacity(0.3),
             ),
           ),
           child: Row(

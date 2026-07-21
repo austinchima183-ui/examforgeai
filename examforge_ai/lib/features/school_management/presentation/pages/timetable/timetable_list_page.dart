@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/timetable_provider.dart';
 import '../../providers/academic_session_provider.dart';
 import 'timetable_builder_page.dart';
@@ -398,7 +398,7 @@ class _TimetableCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(
@@ -433,7 +433,7 @@ class _TimetableCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                        color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -501,7 +501,7 @@ class _TimetableCard extends StatelessWidget {
               color: (timetable.isPublished
                       ? AppColors.success
                       : cs.outline)
-                  .withValues(alpha: isDark ? 0.20 : 0.12),
+                  .withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.fullRadius),
             ),
             child: Text(

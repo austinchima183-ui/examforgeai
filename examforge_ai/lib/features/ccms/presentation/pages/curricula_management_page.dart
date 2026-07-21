@@ -287,7 +287,7 @@ class _CurriculaManagementPageState
                                       vertical: 2),
                                   decoration: BoxDecoration(
                                     color: AppColors.success
-                                        .withValues(alpha: 0.15),
+                                        .withOpacity(0.15),
                                     borderRadius:
                                         Spacings.borderRadiusSm,
                                   ),

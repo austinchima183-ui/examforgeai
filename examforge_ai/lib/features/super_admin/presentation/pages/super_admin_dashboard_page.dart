@@ -157,7 +157,7 @@ class _SuperAdminDashboardPageState
               state.error ?? 'An unexpected error occurred.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -363,7 +363,7 @@ class _SuperAdminDashboardPageState
       _NavItem(
         title: 'Settings',
         icon: Icons.settings,
-        color: cs.onSurface.withValues(alpha: 0.6),
+        color: cs.onSurface.withOpacity(0.6),
         route: RouteNames.superAdminSettings,
       ),
     ];
@@ -546,7 +546,7 @@ class _NavigationCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.1),
+                  color: color.withOpacity(0.1),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(icon, color: color, size: Spacings.lgIcon),
@@ -614,7 +614,7 @@ class _ActivityTile extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: 0.08),
+            color: cs.primary.withOpacity(0.08),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Icon(_iconFor(type), size: Spacings.mdIcon, color: cs.primary),
@@ -639,7 +639,7 @@ class _ActivityTile extends StatelessWidget {
                   description,
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -654,7 +654,7 @@ class _ActivityTile extends StatelessWidget {
             timestamp,
             style: AppTypography.wRegular.copyWith(
               fontSize: 11,
-              color: cs.onSurface.withValues(alpha: 0.4),
+              color: cs.onSurface.withOpacity(0.4),
             ),
           ),
         ],

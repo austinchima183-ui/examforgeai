@@ -81,7 +81,7 @@ class TaskCard extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
+          color: AppColors.error.withOpacity(0.1),
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Icon(Icons.delete, color: AppColors.error),
@@ -102,8 +102,8 @@ class TaskCard extends ConsumerWidget {
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
           color: isOverdue
-              ? AppColors.error.withValues(alpha: 0.5)
-              : colorScheme.outlineVariant.withValues(alpha: 0.5),
+              ? AppColors.error.withOpacity(0.5)
+              : colorScheme.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: InkWell(
@@ -246,7 +246,7 @@ class _CategoryChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Row(

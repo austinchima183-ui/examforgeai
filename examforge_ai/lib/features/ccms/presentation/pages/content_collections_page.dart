@@ -120,7 +120,7 @@ class _ContentCollectionsPageState
                                   ],
                                 ),
                                 const SizedBox(height: Spacings.sm),
-                                Text('${collection.itemCount} items',
+                                Text('${collection.contentCount} items',
                                     style: tt.bodyMedium?.copyWith(
                                         color: cs.onSurfaceVariant)),
                                 if (collection.description != null) ...[
@@ -216,8 +216,12 @@ class _ContentCollectionsPageState
                       description: descCtrl.text.isEmpty
                           ? null
                           : descCtrl.text,
+                      subjectId: '',
+                      educationalLevelId: '',
+                      collectionType: 'custom',
                       isPublic: isPublic,
-                      itemCount: 0,
+                      sortOrder: 0,
+                      contentCount: 0,
                       createdAt: DateTime.now(),
                       updatedAt: DateTime.now(),
                     ));
@@ -283,8 +287,12 @@ class _ContentCollectionsPageState
                       description: descCtrl.text.isEmpty
                           ? null
                           : descCtrl.text,
+                      subjectId: collection.subjectId,
+                      educationalLevelId: collection.educationalLevelId,
+                      collectionType: collection.collectionType,
                       isPublic: isPublic,
-                      itemCount: collection.itemCount,
+                      sortOrder: collection.sortOrder,
+                      contentCount: collection.contentCount,
                       createdAt: collection.createdAt,
                       updatedAt: DateTime.now(),
                     ));
@@ -361,7 +369,7 @@ class _ContentCollectionsPageState
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
-                      '${collection.itemCount} items in this collection',
+                      '${collection.contentCount} items in this collection',
                       style: context.textTheme.bodyLarge),
                   AppButton(
                     label: 'Add Item',
@@ -376,7 +384,7 @@ class _ContentCollectionsPageState
               ),
               const SizedBox(height: Spacings.md),
               // Placeholder for content items list with reorder support
-              if (collection.itemCount == 0)
+              if (collection.contentCount == 0)
                 AppEmptyState.noData(
                     subtitle: 'No items in this collection')
               else

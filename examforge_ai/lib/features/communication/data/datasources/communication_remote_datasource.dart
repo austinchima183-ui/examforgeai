@@ -285,7 +285,7 @@ class CommunicationRemoteDataSourceImpl
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(message: e.message);
+        throw NotFoundException(e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -303,7 +303,7 @@ class CommunicationRemoteDataSourceImpl
       default:
         throw ServerException(
           message: e.message,
-          statusCode: e.statusCode ?? 500,
+          statusCode: int.tryParse(e.code ?? '') ?? 500,
         );
     }
   }
@@ -1013,7 +1013,7 @@ class CommunicationRemoteDataSourceImpl
       return DiscussionForumModel.fromJson(response);
     } on sb.PostgrestException catch (e) {
       if (e.code == 'PGRST116') {
-        throw NotFoundException(message: 'Forum not found: $forumId');
+        throw NotFoundException('Forum not found: $forumId');
       }
       _mapPostgrestException(e);
     } catch (e) {

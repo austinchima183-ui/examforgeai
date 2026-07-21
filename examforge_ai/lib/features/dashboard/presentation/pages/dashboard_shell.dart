@@ -481,7 +481,7 @@ class _UserAvatarDropdown extends StatelessWidget {
                     vertical: Spacings.xs / 2,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.5),
+                    color: cs.primaryContainer.withOpacity(0.5),
                     borderRadius:
                         BorderRadius.circular(Spacings.smRadius),
                   ),

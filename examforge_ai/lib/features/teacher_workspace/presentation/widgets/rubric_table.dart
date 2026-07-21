@@ -68,7 +68,7 @@ class _RubricTableState extends State<RubricTable> {
           scrollDirection: Axis.horizontal,
           child: DataTable(
             headingRowColor: WidgetStatePropertyAll(
-              colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
+              colorScheme.surfaceContainerHighest.withOpacity(0.5),
             ),
             dataRowMinHeight: 56,
             dataRowMaxHeight: 120,
@@ -144,7 +144,7 @@ class _RubricTableState extends State<RubricTable> {
             Icon(
               Icons.table_chart_outlined,
               size: Spacings.xlIcon,
-              color: context.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+              color: context.colorScheme.onSurfaceVariant.withOpacity(0.5),
             ),
             const SizedBox(height: Spacings.md),
             Text(
@@ -274,7 +274,7 @@ class _RubricTableState extends State<RubricTable> {
         vertical: Spacings.md,
       ),
       decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: context.colorScheme.surfaceContainerHighest.withOpacity(0.3),
         borderRadius: Spacings.borderRadiusMd,
       ),
       child: Row(
@@ -308,7 +308,7 @@ class _RubricTableState extends State<RubricTable> {
       style: OutlinedButton.styleFrom(
         foregroundColor: context.colorScheme.primary,
         side: BorderSide(
-          color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: context.colorScheme.outlineVariant.withOpacity(0.5),
         ),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
@@ -427,13 +427,13 @@ class _EditableText extends StatelessWidget {
         border: OutlineInputBorder(
           borderRadius: Spacings.borderRadiusSm,
           borderSide: BorderSide(
-            color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color: context.colorScheme.outlineVariant.withOpacity(0.5),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: Spacings.borderRadiusSm,
           borderSide: BorderSide(
-            color: context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+            color: context.colorScheme.outlineVariant.withOpacity(0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -487,14 +487,14 @@ class _LevelCellEditor extends StatelessWidget {
                 borderRadius: Spacings.borderRadiusSm,
                 borderSide: BorderSide(
                   color:
-                      context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      context.colorScheme.outlineVariant.withOpacity(0.3),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: Spacings.borderRadiusSm,
                 borderSide: BorderSide(
                   color:
-                      context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      context.colorScheme.outlineVariant.withOpacity(0.3),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -530,14 +530,14 @@ class _LevelCellEditor extends StatelessWidget {
                   borderRadius: Spacings.borderRadiusSm,
                   borderSide: BorderSide(
                     color: context.colorScheme.outlineVariant
-                        .withValues(alpha: 0.3),
+                        .withOpacity(0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: Spacings.borderRadiusSm,
                   borderSide: BorderSide(
                     color: context.colorScheme.outlineVariant
-                        .withValues(alpha: 0.3),
+                        .withOpacity(0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(

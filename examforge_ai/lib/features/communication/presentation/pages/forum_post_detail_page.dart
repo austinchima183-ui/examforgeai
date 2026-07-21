@@ -165,7 +165,7 @@ class _State extends ConsumerState<ForumPostDetailPage> {
             if (post.isPinned)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
-                decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.3), borderRadius: Spacings.borderRadiusSm),
+                decoration: BoxDecoration(color: cs.primaryContainer.withOpacity(0.3), borderRadius: Spacings.borderRadiusSm),
                 child: Row(children: [Icon(Icons.push_pin, size: Spacings.smIcon, color: cs.primary), const SizedBox(width: Spacings.xs), Text('Pinned', style: tt.labelSmall?.copyWith(color: cs.primary))]),
               ),
           ],

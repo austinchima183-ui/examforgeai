@@ -715,7 +715,7 @@ class _PresentationGeneratorPageState
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -772,7 +772,7 @@ class _PresentationGeneratorPageState
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Text(
@@ -813,7 +813,7 @@ class _PresentationGeneratorPageState
                 width: double.infinity,
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: cs.tertiaryContainer.withValues(alpha: 0.3),
+                  color: cs.tertiaryContainer.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -843,7 +843,7 @@ class _PresentationGeneratorPageState
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

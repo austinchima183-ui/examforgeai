@@ -439,7 +439,7 @@ class _CommunicationGeneratorPageState
                       color: cs.surfaceContainerLow,
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                       border: Border.all(
-                        color: cs.outlineVariant.withValues(alpha: 0.5),
+                        color: cs.outlineVariant.withOpacity(0.5),
                       ),
                     ),
                     child: SelectableText(
@@ -617,7 +617,7 @@ class _CommunicationGeneratorPageState
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

@@ -14,7 +14,7 @@ import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/student_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../../../../config/dependency_injection.dart';
@@ -165,7 +165,7 @@ class _PromotionPageState extends ConsumerState<PromotionPage> {
             child: Row(
               children: [
                 Expanded(
-                  child: AppDropdownField<String>(
+                  child: AppDropdownField<ClassEntity>(
                     label: 'Source Class',
                     items: classState.classes,
                     selectedItem: _sourceClassId != null
@@ -176,20 +176,13 @@ class _PromotionPageState extends ConsumerState<PromotionPage> {
                     onChanged: (c) => _onSourceClassChanged(c?.id),
                     isRequired: true,
                     itemLabel: (c) => c.name,
-                    itemBuilder: (c) => DropdownMenuItem<String>(
-                      value: c.id,
-                      child: Text(
-                        c.name,
-                        style: tt.bodyLarge?.copyWith(color: cs.onSurface),
-                      ),
-                    ),
                   ),
                 ),
                 const SizedBox(width: Spacings.md),
                 Icon(Icons.arrow_forward_rounded, color: cs.primary),
                 const SizedBox(width: Spacings.md),
                 Expanded(
-                  child: AppDropdownField<String>(
+                  child: AppDropdownField<ClassEntity>(
                     label: 'Target Class',
                     items: classState.classes
                         .where((c) => c.id != _sourceClassId)
@@ -202,13 +195,6 @@ class _PromotionPageState extends ConsumerState<PromotionPage> {
                     onChanged: (c) => setState(() => _targetClassId = c?.id),
                     isRequired: true,
                     itemLabel: (c) => c.name,
-                    itemBuilder: (c) => DropdownMenuItem<String>(
-                      value: c.id,
-                      child: Text(
-                        c.name,
-                        style: tt.bodyLarge?.copyWith(color: cs.onSurface),
-                      ),
-                    ),
                   ),
                 ),
               ],
@@ -258,7 +244,7 @@ class _PromotionPageState extends ConsumerState<PromotionPage> {
                 color: cs.surface,
                 border: Border(
                   top: BorderSide(
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                    color: cs.outlineVariant.withOpacity(0.5),
                   ),
                 ),
               ),

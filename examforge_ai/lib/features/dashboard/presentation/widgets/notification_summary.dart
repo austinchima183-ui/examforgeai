@@ -231,7 +231,7 @@ class _NotificationTile extends StatelessWidget {
               margin: const EdgeInsets.only(right: Spacings.md),
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: accentColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                color: accentColor.withOpacity(isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Icon(

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/marketplace_entities.dart';
@@ -305,7 +306,7 @@ class ModerationNotifier extends StateNotifier<ModerationState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getDisputesUseCase(
-      GetDisputesParams(status: status, limit: limit, offset: offset),
+      GetDisputesParams(status: status),
     );
 
     result.fold(

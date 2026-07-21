@@ -260,7 +260,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
-        color: AppColors.errorOf(context.colorScheme.brightness).withValues(alpha: 0.1),
+        color: AppColors.errorOf(context.colorScheme.brightness).withOpacity(0.1),
         child: Icon(
           Icons.archive_outlined,
           color: AppColors.errorOf(context.colorScheme.brightness),
@@ -287,7 +287,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: isUnread
-            ? cs.primaryContainer.withValues(alpha: 0.1)
+            ? cs.primaryContainer.withOpacity(0.1)
             : cs.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
@@ -330,7 +330,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: categoryColor.withValues(alpha: 0.12),
+                    color: categoryColor.withOpacity(0.12),
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: Icon(

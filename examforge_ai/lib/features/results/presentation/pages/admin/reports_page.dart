@@ -10,7 +10,7 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 import '../../providers/results_page_providers.dart' hide reportExportProvider;
 import '../../../../../features/results/domain/entities/results_entities.dart';
@@ -182,7 +182,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: AppColors.errorOf(cs.brightness)
-                    .withValues(alpha: isDark ? 0.15 : 0.08),
+                    .withOpacity(isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
@@ -212,7 +212,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: AppColors.successOf(cs.brightness)
-                    .withValues(alpha: isDark ? 0.15 : 0.08),
+                    .withOpacity(isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
@@ -260,12 +260,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               _selectedReportType = type;
             });
           },
-          selectedColor: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
-          backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+          selectedColor: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+          backgroundColor: cs.surfaceContainerHighest.withOpacity(0.3),
           side: BorderSide(
             color: isSelected
                 ? cs.primary
-                : cs.outlineVariant.withValues(alpha: 0.5),
+                : cs.outlineVariant.withOpacity(0.5),
           ),
           labelStyle: tt.bodySmall?.copyWith(
             fontWeight:
@@ -312,12 +312,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               _selectedFormat = format;
             });
           },
-          selectedColor: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
-          backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+          selectedColor: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+          backgroundColor: cs.surfaceContainerHighest.withOpacity(0.3),
           side: BorderSide(
             color: isSelected
                 ? cs.primary
-                : cs.outlineVariant.withValues(alpha: 0.5),
+                : cs.outlineVariant.withOpacity(0.5),
           ),
           labelStyle: tt.bodySmall?.copyWith(
             fontWeight:
@@ -585,7 +585,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: formatColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: formatColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Center(
@@ -627,7 +627,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       ),
                       decoration: BoxDecoration(
                         color: cs.primary
-                            .withValues(alpha: isDark ? 0.15 : 0.08),
+                            .withOpacity(isDark ? 0.15 : 0.08),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -648,7 +648,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       ),
                       decoration: BoxDecoration(
                         color:
-                            formatColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                            formatColor.withOpacity(isDark ? 0.15 : 0.08),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -669,7 +669,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       ),
                       decoration: BoxDecoration(
                         color:
-                            statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                            statusColor.withOpacity(isDark ? 0.15 : 0.08),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),

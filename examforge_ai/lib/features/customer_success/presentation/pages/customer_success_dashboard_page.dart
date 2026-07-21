@@ -10,19 +10,19 @@ import 'feature_requests_page.dart';
 ///
 /// Shows overview cards for onboarding status, help articles,
 /// video tutorials, feedback, and feature requests.
-class CustomerSuccessDashboardPage extends StatefulWidget {
+class CustomerSuccessDashboardPage extends ConsumerStatefulWidget {
   const CustomerSuccessDashboardPage({super.key});
 
   @override
-  State<CustomerSuccessDashboardPage> createState() => _CustomerSuccessDashboardPageState();
+  ConsumerState<CustomerSuccessDashboardPage> createState() => _CustomerSuccessDashboardPageState();
 }
 
-class _CustomerSuccessDashboardPageState extends State<CustomerSuccessDashboardPage> {
+class _CustomerSuccessDashboardPageState extends ConsumerState<CustomerSuccessDashboardPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<CustomerSuccessProvider>();
+      final provider = ref.read(customerSuccessProvider);
       provider.loadOnboardingFlows('teacher');
       provider.loadHelpArticles();
       provider.loadVideoTutorials();
@@ -32,75 +32,74 @@ class _CustomerSuccessDashboardPageState extends State<CustomerSuccessDashboardP
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final provider = ref.watch(customerSuccessProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Customer Success'),
         centerTitle: true,
       ),
-      body: Consumer<CustomerSuccessProvider>(
-        builder: (context, provider, child) {
-          if (provider.isLoading) {
-            return const Center(child: CircularProgressIndicator());
-          }
-          if (provider.error != null) {
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
-                  const SizedBox(height: 16),
-                  Text(provider.error!, style: theme.textTheme.bodyLarge),
-                  const SizedBox(height: 16),
-                  ElevatedButton(onPressed: () => _refresh(provider), child: const Text('Retry')),
-                ],
-              ),
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () => _refresh(provider),
-            child: ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                Text('Welcome to ExamForge AI', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                Text('Get started with your learning journey', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                const SizedBox(height: 24),
-                _buildOnboardingCard(context, provider),
-                const SizedBox(height: 16),
-                Row(
-                  children: [
-                    Expanded(child: _buildStatCard(context, 'Help Articles', '${provider.helpArticles.length}', Icons.article_outlined, Colors.teal)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildStatCard(context, 'Video Tutorials', '${provider.videoTutorials.length}', Icons.play_circle_outline, Colors.orange)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(child: _buildStatCard(context, 'Feedback', '${provider.feedbackSubmissions.length}', Icons.feedback_outlined, Colors.purple)),
-                    const SizedBox(width: 12),
-                    Expanded(child: _buildStatCard(context, 'Feature Requests', '${provider.featureRequests.length}', Icons.lightbulb_outline, Colors.amber)),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                Text('Quick Actions', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                const SizedBox(height: 12),
-                _buildActionTile(context, 'Start Onboarding', 'Complete your setup wizard', Icons.rocket_launch_outlined, () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OnboardingWizardPage()));
-                }),
-                _buildActionTile(context, 'Help Center', 'Browse knowledge base', Icons.help_outline, () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpCenterPage()));
-                }),
-                _buildActionTile(context, 'Submit Feedback', 'Share your thoughts', Icons.rate_review_outlined, () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeedbackPage()));
-                }),
-                _buildActionTile(context, 'Feature Requests', 'Vote and suggest features', Icons.lightbulb_outline, () {
-                  Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeatureRequestsPage()));
-                }),
-              ],
-            ),
-          );
-        },
+      body: provider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : provider.error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.error_outline, size: 48, color: theme.colorScheme.error),
+                      const SizedBox(height: 16),
+                      Text(provider.error!, style: theme.textTheme.bodyLarge),
+                      const SizedBox(height: 16),
+                      ElevatedButton(onPressed: () => _refresh(provider), child: const Text('Retry')),
+                    ],
+                  ),
+                )
+              : _buildContent(context, theme, provider),
+    );
+  }
+
+  Widget _buildContent(BuildContext context, ThemeData theme, CustomerSuccessProvider provider) {
+    return RefreshIndicator(
+      onRefresh: () => _refresh(provider),
+      child: ListView(
+        padding: const EdgeInsets.all(16),
+        children: [
+          Text('Welcome to ExamForge AI', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          Text('Get started with your learning journey', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+          const SizedBox(height: 24),
+          _buildOnboardingCard(context, provider),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: _buildStatCard(context, 'Help Articles', '${provider.helpArticles.length}', Icons.article_outlined, Colors.teal)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatCard(context, 'Video Tutorials', '${provider.videoTutorials.length}', Icons.play_circle_outline, Colors.orange)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(child: _buildStatCard(context, 'Feedback', '${provider.feedbackSubmissions.length}', Icons.feedback_outlined, Colors.purple)),
+              const SizedBox(width: 12),
+              Expanded(child: _buildStatCard(context, 'Feature Requests', '${provider.featureRequests.length}', Icons.lightbulb_outline, Colors.amber)),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Text('Quick Actions', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: 12),
+          _buildActionTile(context, 'Start Onboarding', 'Complete your setup wizard', Icons.rocket_launch_outlined, () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const OnboardingWizardPage()));
+          }),
+          _buildActionTile(context, 'Help Center', 'Browse knowledge base', Icons.help_outline, () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const HelpCenterPage()));
+          }),
+          _buildActionTile(context, 'Submit Feedback', 'Share your thoughts', Icons.rate_review_outlined, () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeedbackPage()));
+          }),
+          _buildActionTile(context, 'Feature Requests', 'Vote and suggest features', Icons.lightbulb_outline, () {
+            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const FeatureRequestsPage()));
+          }),
+        ],
       ),
     );
   }

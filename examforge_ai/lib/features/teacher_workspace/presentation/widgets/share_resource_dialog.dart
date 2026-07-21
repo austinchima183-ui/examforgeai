@@ -238,7 +238,7 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
             leading: CircleAvatar(
               radius: 16,
               backgroundColor:
-                  context.colorScheme.primary.withValues(alpha: 0.12),
+                  context.colorScheme.primary.withOpacity(0.12),
               child: Text(
                 (teacher.fullName ?? '?').substring(0, 1).toUpperCase(),
                 style: context.textTheme.labelMedium?.copyWith(
@@ -278,7 +278,7 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
       avatar: CircleAvatar(
         radius: 12,
         backgroundColor:
-            context.colorScheme.primary.withValues(alpha: 0.12),
+            context.colorScheme.primary.withOpacity(0.12),
         child: Text(
           (_selectedTeacher!.fullName ?? '?').substring(0, 1).toUpperCase(),
           style: context.textTheme.labelSmall?.copyWith(
@@ -300,7 +300,7 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: context.colorScheme.outlineVariant.withOpacity(0.5),
         ),
       ),
     );

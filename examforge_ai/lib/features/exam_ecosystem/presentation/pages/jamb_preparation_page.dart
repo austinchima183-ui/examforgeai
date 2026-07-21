@@ -153,7 +153,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                     Container(
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
-                        color: Colors.white.withValues(alpha: 0.2),
+                        color: Colors.white.withOpacity(0.2),
                         borderRadius: Spacings.borderRadiusMd,
                       ),
                       child: const Icon(
@@ -177,7 +177,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                           Text(
                             'Unified Tertiary Matriculation Examination',
                             style: tt.bodySmall?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.8),
+                              color: Colors.white.withOpacity(0.8),
                             ),
                           ),
                         ],
@@ -454,7 +454,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: combo.color.withValues(alpha: 0.1),
+                      color: combo.color.withOpacity(0.1),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
@@ -574,7 +574,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor:
-                          AppColors.info.withValues(alpha: 0.1),
+                          AppColors.info.withOpacity(0.1),
                       child: const Icon(
                         Icons.assignment_rounded,
                         color: AppColors.info,
@@ -622,7 +622,7 @@ class _JambStat extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Colors.white.withValues(alpha: 0.7),
+                color: Colors.white.withOpacity(0.7),
               ),
         ),
       ],
@@ -648,7 +648,7 @@ class _PracticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withValues(alpha: 0.08),
+      color: color.withOpacity(0.08),
       borderRadius: Spacings.borderRadiusMd,
       child: InkWell(
         onTap: onTap,

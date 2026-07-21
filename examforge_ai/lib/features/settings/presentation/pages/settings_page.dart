@@ -11,7 +11,7 @@ import '../../../../core/themes/theme_provider.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/widgets.dart';
-import 'providers/settings_provider.dart';
+import '../providers/settings_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // SETTINGS PAGE
@@ -405,7 +405,7 @@ class SettingsPage extends ConsumerWidget {
             ),
             const SizedBox(height: Spacings.sm),
             AppCard(
-              borderColor: AppColors.error.withValues(alpha: 0.3),
+              borderColor: AppColors.error.withOpacity(0.3),
               child: Column(
                 children: [
                   ListTile(

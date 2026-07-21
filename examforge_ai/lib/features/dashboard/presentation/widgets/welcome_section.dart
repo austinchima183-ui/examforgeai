@@ -113,8 +113,8 @@ class _WelcomeSectionState extends State<WelcomeSection>
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                     colors: [
-                      cs.primaryContainer.withValues(alpha: 0.4),
-                      cs.tertiaryContainer.withValues(alpha: 0.3),
+                      cs.primaryContainer.withOpacity(0.4),
+                      cs.tertiaryContainer.withOpacity(0.3),
                     ],
                   )
                 : AppColors.brandGradient,
@@ -138,7 +138,7 @@ class _WelcomeSectionState extends State<WelcomeSection>
                           style: tt.titleMedium?.copyWith(
                             color: isDark
                                 ? cs.onSurface
-                                : Colors.white.withValues(alpha: 0.85),
+                                : Colors.white.withOpacity(0.85),
                             fontWeight: AppTypography.wMedium,
                           ),
                         ),
@@ -166,14 +166,14 @@ class _WelcomeSectionState extends State<WelcomeSection>
                       ),
                       decoration: BoxDecoration(
                         color: isDark
-                            ? cs.primaryContainer.withValues(alpha: 0.4)
-                            : Colors.white.withValues(alpha: 0.2),
+                            ? cs.primaryContainer.withOpacity(0.4)
+                            : Colors.white.withOpacity(0.2),
                         borderRadius:
                             BorderRadius.circular(Spacings.fullRadius),
                         border: Border.all(
                           color: isDark
-                              ? cs.outline.withValues(alpha: 0.3)
-                              : Colors.white.withValues(alpha: 0.3),
+                              ? cs.outline.withOpacity(0.3)
+                              : Colors.white.withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -208,7 +208,7 @@ class _WelcomeSectionState extends State<WelcomeSection>
                 style: tt.bodySmall?.copyWith(
                   color: isDark
                       ? cs.onSurfaceVariant
-                      : Colors.white.withValues(alpha: 0.7),
+                      : Colors.white.withOpacity(0.7),
                 ),
               ),
             ],

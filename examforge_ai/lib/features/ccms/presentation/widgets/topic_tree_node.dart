@@ -107,7 +107,7 @@ class _TopicTreeNodeState extends State<TopicTreeNode> {
                     height: 20,
                     margin: const EdgeInsets.only(right: Spacings.sm),
                     decoration: BoxDecoration(
-                      color: depthColor.withValues(alpha: 0.3),
+                      color: depthColor.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(1),
                     ),
                   ),
@@ -307,7 +307,7 @@ class _SubtopicRow extends StatelessWidget {
           Icon(
             Icons.subdirectory_arrow_right_rounded,
             size: Spacings.mdIcon,
-            color: depthColor.withValues(alpha: 0.6),
+            color: depthColor.withOpacity(0.6),
           ),
           const SizedBox(width: Spacings.sm),
           Expanded(

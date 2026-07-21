@@ -172,7 +172,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
             height: 96,
             decoration: BoxDecoration(
               color: AppColors.success
-                  .withValues(alpha: isDark ? 0.20 : 0.12),
+                  .withOpacity(isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -209,7 +209,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -288,7 +288,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
           height: 96,
           decoration: BoxDecoration(
             color: AppColors.error
-                .withValues(alpha: isDark ? 0.20 : 0.12),
+                .withOpacity(isDark ? 0.20 : 0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(

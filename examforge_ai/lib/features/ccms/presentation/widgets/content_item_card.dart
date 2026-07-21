@@ -120,10 +120,10 @@ class ContentItemCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                   border: Border.all(
-                    color: statusColor.withValues(alpha: 0.25),
+                    color: statusColor.withOpacity(0.25),
                     width: 1,
                   ),
                 ),
@@ -158,7 +158,7 @@ class ContentItemCard extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.seed.withValues(alpha: 0.12),
+                      color: AppColors.seed.withOpacity(0.12),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
                     child: Row(
@@ -196,7 +196,7 @@ class ContentItemCard extends StatelessWidget {
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.12),
+                      color: AppColors.warning.withOpacity(0.12),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
                     child: Row(
@@ -319,7 +319,7 @@ class ContentItemCard extends StatelessWidget {
               Icon(
                 Icons.calendar_today_outlined,
                 size: 12,
-                color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                color: cs.onSurfaceVariant.withOpacity(0.6),
               ),
               const SizedBox(width: 2),
               Text(

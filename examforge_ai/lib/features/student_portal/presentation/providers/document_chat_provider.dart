@@ -25,7 +25,7 @@ class DocumentChatState {
     this.isUploading = false,
     this.error,
     this.uploadProgress = 0,
-    this._currentPage = 1,
+    this.currentPage = 1,
     this.hasMore = true,
   });
 
@@ -55,13 +55,13 @@ class DocumentChatState {
 
   /// Current page number for document pagination (1-based).
   // ignore: unused_field
-  final int _currentPage;
+  final int currentPage;
 
   /// Whether there are more document pages to load.
   final bool hasMore;
 
   /// Current page number for document pagination.
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading || isSending || isUploading;
@@ -98,7 +98,7 @@ class DocumentChatState {
       isUploading: isUploading ?? this.isUploading,
       error: error,
       uploadProgress: uploadProgress ?? this.uploadProgress,
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
       hasMore: hasMore ?? this.hasMore,
     );
   }

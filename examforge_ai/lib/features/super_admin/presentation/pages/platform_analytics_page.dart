@@ -342,7 +342,7 @@ class _UserGrowthChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.08),
+          color: color.withOpacity(0.08),
           borderRadius: Spacings.borderRadiusSm,
         ),
         child: Column(
@@ -387,7 +387,7 @@ class _FeatureUsageTab extends StatelessWidget {
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withValues(alpha: 0.1),
+                    color: AppColors.info.withOpacity(0.1),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Text('$usage uses', style: AppTypography.wSemiBold.copyWith(color: AppColors.info, fontSize: 13)),
@@ -460,7 +460,7 @@ class _RetentionTab extends StatelessWidget {
                       child: LinearProgressIndicator(
                         value: retention / 100,
                         minHeight: 8,
-                        backgroundColor: color.withValues(alpha: 0.15),
+                        backgroundColor: color.withOpacity(0.15),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                       ),
                     ),

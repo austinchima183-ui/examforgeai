@@ -108,7 +108,7 @@ class AppLoadingOverlay extends StatelessWidget {
       onTap: isDismissible ? onDismiss : null,
       child: Container(
         constraints: const BoxConstraints.expand(),
-        color: Colors.black.withValues(alpha: 0.4),
+        color: Colors.black.withOpacity(0.4),
         child: Center(
           child: Card(
             elevation: Spacings.elevationLg,

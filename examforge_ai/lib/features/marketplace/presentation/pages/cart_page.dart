@@ -294,10 +294,10 @@ class _CartPageState extends ConsumerState<CartPage> {
             Container(
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: AppColors.successLight.withValues(alpha: isDark ? 0.15 : 1.0),
+                color: AppColors.successLight.withOpacity(isDark ? 0.15 : 1.0),
                 borderRadius: Spacings.borderRadiusSm,
                 border: Border.all(
-                  color: AppColors.success.withValues(alpha: 0.3),
+                  color: AppColors.success.withOpacity(0.3),
                 ),
               ),
               child: Row(
@@ -468,7 +468,7 @@ class _CartPageState extends ConsumerState<CartPage> {
         color: cs.surface,
         border: Border(
           top: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -541,7 +541,7 @@ class _CartItemTile extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
+          color: AppColors.error.withOpacity(0.1),
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Icon(
@@ -560,8 +560,7 @@ class _CartItemTile extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: context.colorScheme.primary.withValues(
-                  alpha: context.isDarkMode ? 0.20 : 0.12,
+                color: context.colorScheme.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                 ),
                 borderRadius: Spacings.borderRadiusSm,
               ),

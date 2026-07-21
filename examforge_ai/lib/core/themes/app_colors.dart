@@ -154,17 +154,17 @@ class AppColors {
 
   /// Returns the success container (light bg) color for [brightness].
   static Color successContainerOf(Brightness brightness) =>
-      brightness == Brightness.dark ? successDark.withValues(alpha: 0.15) : successLight;
+      brightness == Brightness.dark ? successDark.withOpacity(0.15) : successLight;
 
   /// Returns the warning container (light bg) color for [brightness].
   static Color warningContainerOf(Brightness brightness) =>
-      brightness == Brightness.dark ? warningDark.withValues(alpha: 0.15) : warningLight;
+      brightness == Brightness.dark ? warningDark.withOpacity(0.15) : warningLight;
 
   /// Returns the error container (light bg) color for [brightness].
   static Color errorContainerOf(Brightness brightness) =>
-      brightness == Brightness.dark ? errorDark.withValues(alpha: 0.15) : errorLight;
+      brightness == Brightness.dark ? errorDark.withOpacity(0.15) : errorLight;
 
   /// Returns the info container (light bg) color for [brightness].
   static Color infoContainerOf(Brightness brightness) =>
-      brightness == Brightness.dark ? infoDark.withValues(alpha: 0.15) : infoLight;
+      brightness == Brightness.dark ? infoDark.withOpacity(0.15) : infoLight;
 }

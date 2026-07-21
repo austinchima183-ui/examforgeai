@@ -114,7 +114,7 @@ class ConversationTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: isGroup
                 ? cs.tertiaryContainer
-                : cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+                : cs.primary.withOpacity(isDark ? 0.25 : 0.12),
             shape: BoxShape.circle,
           ),
           child: Center(

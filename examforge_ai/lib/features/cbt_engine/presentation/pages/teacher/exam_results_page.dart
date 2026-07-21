@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_stat_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/exam_results_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -116,7 +116,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
                             padding: const EdgeInsets.all(Spacings.md),
                             decoration: BoxDecoration(
                               color: AppColors.successOf(cs.brightness)
-                                  .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+                                  .withOpacity(context.isDarkMode ? 0.15 : 0.08),
                               borderRadius:
                                   BorderRadius.circular(Spacings.smRadius),
                             ),
@@ -345,7 +345,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
+              color: cs.outlineVariant.withOpacity(0.3),
             ),
           ),
         ),
@@ -406,7 +406,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
                   color: (result.grade != null
                           ? cs.primary
                           : cs.onSurfaceVariant)
-                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+                      .withOpacity(context.isDarkMode ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -453,7 +453,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -567,7 +567,7 @@ class _ResultDetailSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                color: cs.onSurfaceVariant.withOpacity(0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -611,7 +611,7 @@ class _ResultDetailSheet extends StatelessWidget {
                       vertical: Spacings.sm,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: 0.1),
+                      color: cs.primary.withOpacity(0.1),
                       borderRadius: BorderRadius.circular(Spacings.mdRadius),
                     ),
                     child: Text(

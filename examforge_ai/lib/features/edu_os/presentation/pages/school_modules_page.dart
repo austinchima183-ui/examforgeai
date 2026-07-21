@@ -9,19 +9,19 @@ import '../widgets/module_tier_badge.dart';
 class SchoolModulesPage extends StatelessWidget {
   const SchoolModulesPage({
     super.key,
-    required this.schoolId,
-    required this.subscriptions,
-    required this.allModules,
+    this.schoolId,
+    this.subscriptions,
+    this.allModules,
   });
 
-  final String schoolId;
-  final List<EduosModuleSubscription> subscriptions;
-  final List<EduosModule> allModules;
+  final String? schoolId;
+  final List<EduosModuleSubscription>? subscriptions;
+  final List<EduosModule>? allModules;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    if (subscriptions.isEmpty) {
+    if (subscriptions == null || subscriptions!.isEmpty) {
       return Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -37,11 +37,11 @@ class SchoolModulesPage extends StatelessWidget {
     }
     return ListView.separated(
       padding: const EdgeInsets.all(16),
-      itemCount: subscriptions.length,
+      itemCount: subscriptions!.length,
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (context, index) {
-        final sub = subscriptions[index];
-        final module = allModules.where((m) => m.id == sub.moduleId).firstOrNull;
+        final sub = subscriptions![index];
+        final module = allModules?.where((m) => m.id == sub.moduleId).firstOrNull;
         return _buildSubscriptionCard(context, sub, module, theme);
       },
     );

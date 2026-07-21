@@ -6,8 +6,8 @@ import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import 'providers/notification_provider.dart';
-import 'widgets/notification_item.dart';
+import '../providers/notification_provider.dart';
+import '../widgets/notification_item.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // NOTIFICATIONS PAGE
@@ -199,7 +199,7 @@ class _FilterTabs extends StatelessWidget {
       decoration: BoxDecoration(
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
             width: 1,
           ),
         ),
@@ -262,7 +262,7 @@ class _FilterChip extends StatelessWidget {
         decoration: BoxDecoration(
           color: isSelected
               ? cs.primary
-              : cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              : cs.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(Spacings.xxxl),
         ),
         child: Row(
@@ -288,8 +288,8 @@ class _FilterChip extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? cs.onPrimary.withValues(alpha: 0.2)
-                      : cs.primary.withValues(alpha: 0.15),
+                      ? cs.onPrimary.withOpacity(0.2)
+                      : cs.primary.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(Spacings.xxxl),
                 ),
                 constraints: const BoxConstraints(minWidth: 18),

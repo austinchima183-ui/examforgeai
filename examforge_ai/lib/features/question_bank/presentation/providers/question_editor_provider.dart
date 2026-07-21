@@ -29,6 +29,7 @@ class QuestionEditorState {
     this.isSaving = false,
     this.isLoading = false,
     this.error,
+    this.successMessage,
     this.isPreviewMode = false,
     // Form fields
     this.content = '',
@@ -82,6 +83,9 @@ class QuestionEditorState {
 
   /// The most recent error message, or `null`.
   final String? error;
+
+  /// A success message after a save operation, or `null`.
+  final String? successMessage;
 
   /// Whether the editor is in preview mode.
   final bool isPreviewMode;
@@ -179,6 +183,7 @@ class QuestionEditorState {
     bool? isSaving,
     bool? isLoading,
     String? error,
+    String? successMessage,
     bool? isPreviewMode,
     String? content,
     String? explanation,
@@ -211,6 +216,7 @@ class QuestionEditorState {
       isSaving: isSaving ?? this.isSaving,
       isLoading: isLoading ?? this.isLoading,
       error: error,
+      successMessage: successMessage,
       isPreviewMode: isPreviewMode ?? this.isPreviewMode,
       content: content ?? this.content,
       explanation: explanation ?? this.explanation,
@@ -337,6 +343,11 @@ class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
   /// Sets the teacher-only notes.
   void setTeacherNotes(String notes) {
     state = state.copyWith(teacherNotes: notes);
+  }
+
+  /// Sets the reference materials.
+  void setReferenceMaterials(String materials) {
+    state = state.copyWith(referenceMaterials: materials);
   }
 
   /// Sets the question type and resets type-specific fields.
@@ -639,12 +650,30 @@ class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
     );
   }
 
-  /// Removes the attachment at [index].
-  void removeAttachment(int index) {
-    if (index < 0 || index >= state.attachments.length) return;
-    final updated = [...state.attachments];
-    updated.removeAt(index);
+  /// Removes an attachment by its [attachmentId].
+  void removeAttachment(String attachmentId) {
+    final updated = state.attachments.where((a) => a.id != attachmentId).toList();
     state = state.copyWith(attachments: updated);
+  }
+
+  /// Replaces the entire answer options list.
+  void updateAnswerOptions(List<AnswerOptionEntity> options) {
+    state = state.copyWith(answerOptions: options);
+  }
+
+  /// Replaces the entire matching pairs list.
+  void updateMatchingPairs(List<MatchingPairEntity> pairs) {
+    state = state.copyWith(matchingPairs: pairs);
+  }
+
+  /// Replaces the entire ordering items list.
+  void updateOrderingItems(List<OrderingItemEntity> items) {
+    state = state.copyWith(orderingItems: items);
+  }
+
+  /// Replaces the entire fill-in-blank answers list.
+  void updateFillInBlankAnswers(List<FillInBlankAnswerEntity> answers) {
+    state = state.copyWith(fillInBlankAnswers: answers);
   }
 
   // ─── Tags Management ────────────────────────────────────────────────
@@ -731,6 +760,7 @@ class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
             isSaving: false,
             question: updatedQuestion,
             error: null,
+            successMessage: 'Question updated successfully',
           );
           AppLogger.info('Question updated: ${updatedQuestion.id}');
         },
@@ -761,6 +791,7 @@ class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
             isSaving: false,
             question: createdQuestion,
             error: null,
+            successMessage: 'Question created successfully',
           );
           AppLogger.info('Question created: ${createdQuestion.id}');
         },
@@ -773,6 +804,11 @@ class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
         },
       );
     }
+  }
+
+  /// Saves the question as a draft (not published).
+  Future<void> saveAsDraft() async {
+    await saveQuestion();
   }
 
   // ─── Save and Publish ───────────────────────────────────────────────

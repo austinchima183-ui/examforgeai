@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/homework_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/subject_provider.dart';
@@ -498,7 +498,7 @@ class _FormSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: cs.primary),

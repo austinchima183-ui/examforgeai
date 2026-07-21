@@ -155,7 +155,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -197,7 +197,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
                 '${state.totalCount} school${state.totalCount == 1 ? '' : 's'}',
                 style: AppTypography.wMedium.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ),
             ],
@@ -348,7 +348,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withValues(alpha: 0.7),
+                    .withOpacity(0.7),
               ),
             ),
             const SizedBox(height: Spacings.lg),
@@ -517,7 +517,7 @@ class _SchoolManagementCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
+                    color: cs.primary.withOpacity(0.1),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Center(
@@ -550,7 +550,7 @@ class _SchoolManagementCard extends StatelessWidget {
                           school.domain!,
                           style: AppTypography.wRegular.copyWith(
                             fontSize: 12,
-                            color: cs.onSurface.withValues(alpha: 0.5),
+                            color: cs.onSurface.withOpacity(0.5),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -585,12 +585,12 @@ class _SchoolManagementCard extends StatelessWidget {
                 _infoItem(
                   icon: Icons.school_outlined,
                   label: '${school.studentCount} students',
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
                 _infoItem(
                   icon: Icons.person_outline_rounded,
                   label: '${school.teacherCount} teachers',
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ],
             ),
@@ -608,7 +608,7 @@ class _SchoolManagementCard extends StatelessWidget {
                         'Subscription',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 11,
-                          color: cs.onSurface.withValues(alpha: 0.5),
+                          color: cs.onSurface.withOpacity(0.5),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -628,7 +628,7 @@ class _SchoolManagementCard extends StatelessWidget {
                         'Storage',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 11,
-                          color: cs.onSurface.withValues(alpha: 0.5),
+                          color: cs.onSurface.withOpacity(0.5),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -726,7 +726,7 @@ class _SchoolManagementCard extends StatelessWidget {
           '${school.storageUsedMb.toInt()} / ${school.storageLimitMb.toInt()} MB',
           style: AppTypography.wRegular.copyWith(
             fontSize: 10,
-            color: cs.onSurface.withValues(alpha: 0.5),
+            color: cs.onSurface.withOpacity(0.5),
           ),
         ),
       ],

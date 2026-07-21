@@ -53,7 +53,7 @@ class _DashboardRedirectorState extends ConsumerState<DashboardRedirector> {
                   padding: const EdgeInsets.all(Spacings.lg),
                   decoration: BoxDecoration(
                     color: AppColors.errorOf(
-                        context.colorScheme.brightness).withValues(alpha: 0.1),
+                        context.colorScheme.brightness).withOpacity(0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

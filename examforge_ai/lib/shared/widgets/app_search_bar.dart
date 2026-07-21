@@ -205,7 +205,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
                 side: BorderSide(
                   color: _isFocused
                       ? cs.primary
-                      : cs.outlineVariant.withValues(alpha: 0.5),
+                      : cs.outlineVariant.withOpacity(0.5),
                   width: _isFocused ? 2.0 : 1.0,
                 ),
               ),
@@ -267,7 +267,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.08),
+                  color: Colors.black.withOpacity(0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),

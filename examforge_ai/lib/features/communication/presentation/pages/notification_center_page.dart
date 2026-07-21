@@ -223,7 +223,7 @@ class _State extends ConsumerState<NotificationCenterPage> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: categoryColor.withValues(alpha: 0.12),
+              color: categoryColor.withOpacity(0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Icon(categoryIcon, color: categoryColor, size: Spacings.mdIcon),

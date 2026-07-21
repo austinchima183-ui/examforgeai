@@ -295,7 +295,7 @@ class _AdmissionHubDashboardPageState
         selected: isSelected,
         onSelected: (_) => onSelected(),
         backgroundColor: context.colorScheme.surface,
-        selectedColor: AppColors.primary.withValues(alpha: 0.15),
+        selectedColor: AppColors.primary.withOpacity(0.15),
         checkmarkColor: AppColors.primary,
         labelStyle: TextStyle(
           color: isSelected ? AppColors.primary : context.colorScheme.onSurface,
@@ -355,7 +355,7 @@ class _QuickActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withValues(alpha: 0.1),
+      color: color.withOpacity(0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,

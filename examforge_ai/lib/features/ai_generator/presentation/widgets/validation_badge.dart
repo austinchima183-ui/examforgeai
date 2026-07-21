@@ -115,7 +115,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: dominantColor.withValues(alpha: isDark ? 0.20 : 0.12),
+            color: dominantColor.withOpacity(isDark ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Row(
@@ -141,8 +141,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
                     horizontal: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.errorOf(cs.brightness).withValues(
-                      alpha: isDark ? 0.25 : 0.15,
+                    color: AppColors.errorOf(cs.brightness).withOpacity(isDark ? 0.25 : 0.15,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.xs),
                   ),
@@ -202,8 +201,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: dominantColor.withValues(
-                    alpha: isDark ? 0.20 : 0.12,
+                  color: dominantColor.withOpacity(isDark ? 0.20 : 0.12,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
@@ -223,8 +221,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.successOf(cs.brightness).withValues(
-                      alpha: isDark ? 0.20 : 0.12,
+                    color: AppColors.successOf(cs.brightness).withOpacity(isDark ? 0.20 : 0.12,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
@@ -265,7 +262,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
           const SizedBox(height: Spacings.sm),
           Container(
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              color: cs.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Column(
@@ -279,7 +276,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
                   decoration: BoxDecoration(
                     border: Border(
                       bottom: BorderSide(
-                        color: cs.outlineVariant.withValues(alpha: 0.3),
+                        color: cs.outlineVariant.withOpacity(0.3),
                       ),
                     ),
                   ),
@@ -290,8 +287,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
                       Container(
                         padding: const EdgeInsets.all(Spacings.xs),
                         decoration: BoxDecoration(
-                          color: severityColor.withValues(
-                            alpha: isDark ? 0.20 : 0.12,
+                          color: severityColor.withOpacity(isDark ? 0.20 : 0.12,
                           ),
                           borderRadius: BorderRadius.circular(
                             Spacings.xs,
@@ -318,8 +314,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
                                     vertical: 1,
                                   ),
                                   decoration: BoxDecoration(
-                                    color: severityColor.withValues(
-                                      alpha: isDark ? 0.20 : 0.12,
+                                    color: severityColor.withOpacity(isDark ? 0.20 : 0.12,
                                     ),
                                     borderRadius: BorderRadius.circular(
                                       Spacings.xs,
@@ -393,7 +388,7 @@ class _ValidationBadgeState extends State<ValidationBadge> {
                         Icon(
                           Icons.radio_button_unchecked_rounded,
                           size: Spacings.mdIcon,
-                          color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                          color: cs.onSurfaceVariant.withOpacity(0.4),
                         ),
                     ],
                   ),

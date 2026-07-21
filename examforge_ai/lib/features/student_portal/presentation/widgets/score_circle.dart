@@ -131,8 +131,7 @@ class _ScoreCircleState extends State<ScoreCircle>
                 painter: _ScoreRingPainter(
                   progress: currentPct / 100.0,
                   foregroundColor: fgColor,
-                  backgroundColor: fgColor.withValues(
-                    alpha: context.isDarkMode ? 0.15 : 0.08,
+                  backgroundColor: fgColor.withOpacity(context.isDarkMode ? 0.15 : 0.08,
                   ),
                   strokeWidth: widget.strokeWidth,
                 ),

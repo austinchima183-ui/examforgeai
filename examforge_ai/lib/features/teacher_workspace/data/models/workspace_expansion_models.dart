@@ -506,6 +506,21 @@ class PresentationVersionModel {
   @override
   String toString() =>
       'PresentationVersionModel(id: $id, presentationId: $presentationId, versionNumber: $versionNumber)';
+
+  // ─── Entity Conversion ─────────────────────────────────────────────
+
+  WorkspaceVersionEntity toEntity() {
+    return WorkspaceVersionEntity(
+      id: id,
+      teacherId: createdBy ?? '',
+      resourceType: 'presentation',
+      resourceId: presentationId,
+      versionNumber: versionNumber,
+      snapshot: snapshot,
+      changeSummary: changeSummary,
+      createdAt: createdAt,
+    );
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════

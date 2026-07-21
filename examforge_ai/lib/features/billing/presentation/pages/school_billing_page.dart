@@ -145,7 +145,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
     if (subscription == null) {
       return Card(
         elevation: Spacings.elevationSm,
-        shadowColor: cs.shadow.withValues(alpha: 0.06),
+        shadowColor: cs.shadow.withOpacity(0.06),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
@@ -198,7 +198,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
@@ -455,7 +455,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -542,7 +542,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
+              color: cs.outlineVariant.withOpacity(0.5),
             ),
           ),
           child: Padding(
@@ -659,7 +659,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
             shape: RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusLg,
               side: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Padding(
@@ -682,7 +682,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: ListTile(
@@ -715,7 +715,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withValues(alpha: 0.12),
+                          color: AppColors.success.withOpacity(0.12),
                           borderRadius: Spacings.borderRadiusSm,
                         ),
                         child: Text(
@@ -758,7 +758,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.5),
+              color: cs.outlineVariant.withOpacity(0.5),
             ),
           ),
           child: Padding(
@@ -854,7 +854,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
             shape: RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusLg,
               side: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Padding(

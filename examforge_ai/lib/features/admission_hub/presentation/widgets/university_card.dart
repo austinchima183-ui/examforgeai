@@ -67,7 +67,7 @@ class UniversityCard extends StatelessWidget {
 
     return Material(
       color: isSelected
-          ? AppColors.primary.withValues(alpha: 0.08)
+          ? AppColors.primary.withOpacity(0.08)
           : context.colorScheme.surface,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -81,7 +81,7 @@ class UniversityCard extends StatelessWidget {
             border: isSelected
                 ? Border.all(color: AppColors.primary, width: 2)
                 : Border.all(
-                    color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+                    color: context.colorScheme.outlineVariant.withOpacity(0.5),
                   ),
           ),
           child: Row(
@@ -91,7 +91,7 @@ class UniversityCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: typeColor.withValues(alpha: 0.1),
+                  color: typeColor.withOpacity(0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: university.logoUrl != null
@@ -149,7 +149,7 @@ class UniversityCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: typeColor.withValues(alpha: 0.1),
+                            color: typeColor.withOpacity(0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(

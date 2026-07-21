@@ -22,7 +22,7 @@ class StudyPlannerState {
     this.isLoading = false,
     this.error,
     this.selectedDate,
-    this._isSuggesting = false,
+    this.isSuggesting = false,
   });
 
   /// All study plans for the current student.
@@ -45,13 +45,13 @@ class StudyPlannerState {
 
   /// Whether an AI suggestion operation is in progress.
   // ignore: unused_field
-  final bool _isSuggesting;
+  final bool isSuggesting;
 
   /// Whether an AI suggestion operation is in progress.
-  bool get isSuggesting => _isSuggesting;
+  bool get isSuggesting => isSuggesting;
 
   /// Whether any async operation is in progress.
-  bool get isBusy => isLoading || _isSuggesting;
+  bool get isBusy => isLoading || isSuggesting;
 
   /// Number of plans loaded.
   int get planCount => plans.length;
@@ -93,7 +93,7 @@ class StudyPlannerState {
       error: error,
       selectedDate:
           clearSelectedDate ? null : (selectedDate ?? this.selectedDate),
-      _isSuggesting: isSuggesting ?? _isSuggesting,
+      isSuggesting: isSuggesting ?? isSuggesting,
     );
   }
 

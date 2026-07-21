@@ -191,7 +191,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
                   vertical: Spacings.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -225,7 +225,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
                   Icon(
                     Icons.search_off_rounded,
                     size: Spacings.xlIcon,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: cs.onSurfaceVariant.withOpacity(0.5),
                   ),
                   const SizedBox(height: Spacings.md),
                   Text(
@@ -380,7 +380,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+        color: cs.surfaceContainerHighest.withOpacity(0.5),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
       ),
       child: Row(
@@ -439,7 +439,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
       padding: const EdgeInsets.only(bottom: Spacings.sm),
       child: Material(
         color: isSelected
-            ? cs.primary.withValues(alpha: context.isDarkMode ? 0.12 : 0.06)
+            ? cs.primary.withOpacity(context.isDarkMode ? 0.12 : 0.06)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         child: InkWell(

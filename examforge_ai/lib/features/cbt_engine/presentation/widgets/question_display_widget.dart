@@ -136,7 +136,7 @@ class QuestionDisplayWidget extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Center(
@@ -172,7 +172,7 @@ class QuestionDisplayWidget extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.infoOf(cs.brightness)
-                          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+                          .withOpacity(context.isDarkMode ? 0.20 : 0.10),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -205,7 +205,7 @@ class QuestionDisplayWidget extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.warningOf(cs.brightness)
-                            .withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
+                            .withOpacity(context.isDarkMode ? 0.25 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Row(
@@ -250,7 +250,7 @@ class QuestionDisplayWidget extends StatelessWidget {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: SelectableText(
@@ -300,7 +300,7 @@ class QuestionDisplayWidget extends StatelessWidget {
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(

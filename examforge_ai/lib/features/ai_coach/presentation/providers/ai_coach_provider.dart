@@ -31,7 +31,7 @@ class AiCoachState {
     this.isLoadingMessage = false,
     this.error,
     this.hasMoreSessions = true,
-    this._currentPage = 1,
+    this.currentPage = 1,
   });
 
   final List<AiCoachSession> sessions;
@@ -52,9 +52,9 @@ class AiCoachState {
 
   final String? error;
   final bool hasMoreSessions;
-  final int _currentPage;
+  final int currentPage;
 
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
   bool get isBusy =>
       isLoading ||
       isSendingMessage ||
@@ -119,7 +119,7 @@ class AiCoachState {
       isLoadingMessage: isLoadingMessage ?? this.isLoadingMessage,
       error: error,
       hasMoreSessions: hasMoreSessions ?? this.hasMoreSessions,
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
     );
   }
 

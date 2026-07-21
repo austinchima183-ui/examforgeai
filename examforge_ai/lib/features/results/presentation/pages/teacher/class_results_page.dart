@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 import '../../../../../features/results/domain/entities/results_entities.dart';
 
@@ -173,7 +173,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
       ),
       style: FilledButton.styleFrom(
         backgroundColor: _isPublished
-            ? AppColors.warningOf(cs.brightness).withValues(alpha: 0.15)
+            ? AppColors.warningOf(cs.brightness).withOpacity(0.15)
             : cs.primaryContainer,
         foregroundColor: _isPublished
             ? AppColors.warningOf(cs.brightness)
@@ -396,7 +396,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: cs.outlineVariant.withValues(alpha: 0.3),
+              color: cs.outlineVariant.withOpacity(0.3),
             ),
           ),
         ),
@@ -442,8 +442,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(
-                      alpha: context.isDarkMode ? 0.20 : 0.10),
+                  color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -481,7 +480,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -526,10 +525,10 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
             height: 200,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+              color: cs.surfaceContainerHighest.withOpacity(0.5),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
                 strokeAlign: BorderSide.strokeAlignOutside,
               ),
             ),
@@ -539,7 +538,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
                 children: [
                   Icon(Icons.bar_chart_rounded,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
+                      color: cs.onSurfaceVariant.withOpacity(0.5)),
                   const SizedBox(height: Spacings.sm),
                   Text(
                     'Subject comparison chart will render here',
@@ -589,7 +588,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -636,7 +635,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(

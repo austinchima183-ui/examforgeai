@@ -71,7 +71,7 @@ class ProductCard extends StatelessWidget {
                 height: 140,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(Spacings.mdRadius),
                   ),
@@ -125,8 +125,8 @@ class ProductCard extends StatelessWidget {
                     padding: const EdgeInsets.all(Spacings.xs),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? AppColors.surfaceCardDark.withValues(alpha: 0.8)
-                          : Colors.white.withValues(alpha: 0.9),
+                          ? AppColors.surfaceCardDark.withOpacity(0.8)
+                          : Colors.white.withOpacity(0.9),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -475,19 +475,19 @@ class LicenseBadge extends StatelessWidget {
           isDark ? Colors.grey.shade300 : Colors.grey.shade700,
         ),
       MarketplaceLicenseType.teacher => (
-          isDark ? AppColors.infoDark.withValues(alpha: 0.4) : AppColors.infoLight,
+          isDark ? AppColors.infoDark.withOpacity(0.4) : AppColors.infoLight,
           isDark ? AppColors.infoLight : AppColors.info,
         ),
       MarketplaceLicenseType.school => (
-          isDark ? Colors.indigo.shade900.withValues(alpha: 0.5) : Colors.indigo.shade100,
+          isDark ? Colors.indigo.shade900.withOpacity(0.5) : Colors.indigo.shade100,
           isDark ? Colors.indigo.shade200 : Colors.indigo.shade700,
         ),
       MarketplaceLicenseType.department => (
-          isDark ? Colors.purple.shade900.withValues(alpha: 0.5) : Colors.purple.shade100,
+          isDark ? Colors.purple.shade900.withOpacity(0.5) : Colors.purple.shade100,
           isDark ? Colors.purple.shade200 : Colors.purple.shade700,
         ),
       MarketplaceLicenseType.enterprise => (
-          isDark ? AppColors.warningDark.withValues(alpha: 0.4) : AppColors.warningLight,
+          isDark ? AppColors.warningDark.withOpacity(0.4) : AppColors.warningLight,
           isDark ? AppColors.warningLight : AppColors.warning,
         ),
     };
@@ -684,7 +684,7 @@ class ReviewCard extends StatelessWidget {
               // Avatar placeholder
               CircleAvatar(
                 radius: 18,
-                backgroundColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+                backgroundColor: cs.primary.withOpacity(isDark ? 0.30 : 0.15),
                 child: Text(
                   review.buyerId.isNotEmpty ? review.buyerId[0].toUpperCase() : '?',
                   style: tt.labelLarge?.copyWith(
@@ -795,10 +795,10 @@ class ReviewCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: cs.primaryContainer.withValues(alpha: isDark ? 0.2 : 0.3),
+                color: cs.primaryContainer.withOpacity(isDark ? 0.2 : 0.3),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.primary.withValues(alpha: 0.2),
+                  color: cs.primary.withOpacity(0.2),
                 ),
               ),
               child: Column(
@@ -1041,8 +1041,7 @@ class QualityScoreCard extends StatelessWidget {
                     size: Spacings.smIcon,
                     color: AppColors.errorOf(cs.brightness),
                   ),
-                  backgroundColor: AppColors.errorOf(cs.brightness).withValues(
-                    alpha: isDark ? 0.15 : 0.1,
+                  backgroundColor: AppColors.errorOf(cs.brightness).withOpacity(isDark ? 0.15 : 0.1,
                   ),
                   side: BorderSide.none,
                   padding: EdgeInsets.zero,
@@ -1265,7 +1264,7 @@ class SellerInfoCard extends StatelessWidget {
           // ── Avatar ───────────────────────────────────────────────────
           CircleAvatar(
             radius: 28,
-            backgroundColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+            backgroundColor: cs.primary.withOpacity(isDark ? 0.30 : 0.15),
             child: seller.avatarUrl != null
                 ? ClipOval(
                     child: Icon(
@@ -1552,7 +1551,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                  color: cs.onSurfaceVariant.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
               ),

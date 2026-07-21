@@ -8,14 +8,14 @@ import '../widgets/feature_request_card.dart';
 ///
 /// Displays a list of feature requests that users can upvote,
 /// and allows users to submit new feature requests.
-class FeatureRequestsPage extends StatefulWidget {
+class FeatureRequestsPage extends ConsumerStatefulWidget {
   const FeatureRequestsPage({super.key});
 
   @override
-  State<FeatureRequestsPage> createState() => _FeatureRequestsPageState();
+  ConsumerState<FeatureRequestsPage> createState() => _FeatureRequestsPageState();
 }
 
-class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
+class _FeatureRequestsPageState extends ConsumerState<FeatureRequestsPage> {
   String? _selectedStatus;
   String _sortBy = 'upvotes';
 
@@ -23,7 +23,7 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<CustomerSuccessProvider>();
+      final provider = ref.read(customerSuccessProvider);
       provider.loadFeatureRequests(sortBy: _sortBy);
       provider.loadUserVotes('current-user');
     });
@@ -32,6 +32,7 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final provider = ref.watch(customerSuccessProvider);
     return Scaffold(
       appBar: AppBar(
         title: const Text('Feature Requests'),
@@ -48,8 +49,8 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
         icon: const Icon(Icons.add),
         label: const Text('New Request'),
       ),
-      body: Consumer<CustomerSuccessProvider>(
-        builder: (context, provider, child) {
+      body: Builder(
+        builder: (context) {
           if (provider.isLoading && provider.featureRequests.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -68,7 +69,7 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
             );
           }
           return RefreshIndicator(
-            onRefresh: () => provider.loadFeatureRequests(status: _selectedStatus, sortBy: _sortBy),
+            onRefresh: () => ref.read(customerSuccessProvider).loadFeatureRequests(status: _selectedStatus, sortBy: _sortBy),
             child: Column(
               children: [
                 Padding(
@@ -94,7 +95,7 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
                       return FeatureRequestCard(
                         request: request,
                         hasVoted: hasVoted,
-                        onVote: () => provider.voteForFeatureRequest(request.id, 'current-user'),
+                        onVote: () => ref.read(customerSuccessProvider).voteForFeatureRequest(request.id, 'current-user'),
                       );
                     },
                   ),
@@ -109,7 +110,7 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
 
   void _changeSortBy(String sortBy) {
     setState(() => _sortBy = sortBy);
-    context.read<CustomerSuccessProvider>().loadFeatureRequests(status: _selectedStatus, sortBy: sortBy);
+    ref.read(customerSuccessProvider).loadFeatureRequests(status: _selectedStatus, sortBy: sortBy);
   }
 
   void _showFilterDialog(BuildContext context) {
@@ -118,11 +119,11 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
       builder: (context) => SimpleDialog(
         title: const Text('Filter by Status'),
         children: [
-          SimpleDialogOption(child: const Text('All'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = null); context.read<CustomerSuccessProvider>().loadFeatureRequests(sortBy: _sortBy); }),
-          SimpleDialogOption(child: const Text('Open'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'open'); context.read<CustomerSuccessProvider>().loadFeatureRequests(status: 'open', sortBy: _sortBy); }),
-          SimpleDialogOption(child: const Text('Under Consideration'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'under_consideration'); context.read<CustomerSuccessProvider>().loadFeatureRequests(status: 'under_consideration', sortBy: _sortBy); }),
-          SimpleDialogOption(child: const Text('Planned'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'planned'); context.read<CustomerSuccessProvider>().loadFeatureRequests(status: 'planned', sortBy: _sortBy); }),
-          SimpleDialogOption(child: const Text('Implemented'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'implemented'); context.read<CustomerSuccessProvider>().loadFeatureRequests(status: 'implemented', sortBy: _sortBy); }),
+          SimpleDialogOption(child: const Text('All'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = null); ref.read(customerSuccessProvider).loadFeatureRequests(sortBy: _sortBy); }),
+          SimpleDialogOption(child: const Text('Open'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'open'); ref.read(customerSuccessProvider).loadFeatureRequests(status: 'open', sortBy: _sortBy); }),
+          SimpleDialogOption(child: const Text('Under Consideration'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'under_consideration'); ref.read(customerSuccessProvider).loadFeatureRequests(status: 'under_consideration', sortBy: _sortBy); }),
+          SimpleDialogOption(child: const Text('Planned'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'planned'); ref.read(customerSuccessProvider).loadFeatureRequests(status: 'planned', sortBy: _sortBy); }),
+          SimpleDialogOption(child: const Text('Implemented'), onPressed: () { Navigator.pop(context); setState(() => _selectedStatus = 'implemented'); ref.read(customerSuccessProvider).loadFeatureRequests(status: 'implemented', sortBy: _sortBy); }),
         ],
       ),
     );
@@ -161,8 +162,8 @@ class _FeatureRequestsPageState extends State<FeatureRequestsPage> {
               onPressed: () async {
                 if (titleController.text.trim().isEmpty) return;
                 Navigator.pop(context);
-                final provider = context.read<CustomerSuccessProvider>();
-                final success = await provider.createFeatureRequest(
+                final csProvider = ref.read(customerSuccessProvider);
+                final success = await csProvider.createFeatureRequest(
                   userId: 'current-user',
                   title: titleController.text.trim(),
                   description: descController.text.trim(),

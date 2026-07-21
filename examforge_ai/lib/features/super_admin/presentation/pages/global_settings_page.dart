@@ -126,7 +126,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
 
   // Mock data for Policies, Email Templates, and Maintenance
   // (these would come from providers in a production build)
-  final List<PlatformPolicy> _policies = const [
+  final List<PlatformPolicy> _policies = [
     PlatformPolicy(
       id: 'pol_1',
       policyKey: 'terms_of_service',
@@ -173,7 +173,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
     ),
   ];
 
-  final List<EmailTemplate> _emailTemplates = const [
+  final List<EmailTemplate> _emailTemplates = [
     EmailTemplate(
       id: 'tmpl_1',
       templateKey: 'welcome_email',
@@ -224,7 +224,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
     ),
   ];
 
-  final List<MaintenanceWindow> _maintenanceWindows = const [
+  final List<MaintenanceWindow> _maintenanceWindows = [
     MaintenanceWindow(
       id: 'mw_1',
       title: 'Database Migration',
@@ -402,7 +402,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -506,7 +506,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     const SizedBox(width: Spacings.sm),
                     StatusBadge(
                       label: 'Readonly',
-                      color: cs.onSurface.withValues(alpha: 0.4),
+                      color: cs.onSurface.withOpacity(0.4),
                       icon: Icons.lock_outline,
                     ),
                   ],
@@ -529,7 +529,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     'Current Value: ',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 13,
-                      color: cs.onSurface.withValues(alpha: 0.5),
+                      color: cs.onSurface.withOpacity(0.5),
                     ),
                   ),
                   Expanded(
@@ -538,7 +538,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                       style: AppTypography.wMedium.copyWith(
                         fontSize: 13,
                         color: setting.isReadonly
-                            ? cs.onSurface.withValues(alpha: 0.4)
+                            ? cs.onSurface.withOpacity(0.4)
                             : cs.primary,
                       ),
                       maxLines: 1,
@@ -557,7 +557,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   setting.description!,
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.5),
+                    color: cs.onSurface.withOpacity(0.5),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -607,7 +607,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     setting.description!,
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 13,
-                      color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
+                      color: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.6),
                     ),
                   ),
                   const SizedBox(height: Spacings.lg),
@@ -717,7 +717,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -784,7 +784,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
         borderRadius: Spacings.borderRadiusMd,
         side: flag.isActive
             ? BorderSide.none
-            : BorderSide(color: cs.outline.withValues(alpha: 0.3)),
+            : BorderSide(color: cs.outline.withOpacity(0.3)),
       ),
       child: Padding(
         padding: Spacings.paddingAll,
@@ -801,7 +801,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                       fontSize: 14,
                       color: flag.isActive
                           ? cs.onSurface
-                          : cs.onSurface.withValues(alpha: 0.5),
+                          : cs.onSurface.withOpacity(0.5),
                     ),
                   ),
                 ),
@@ -824,7 +824,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
               flag.key,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withValues(alpha: 0.5),
+                color: cs.onSurface.withOpacity(0.5),
                 fontFamily: 'monospace',
               ),
             ),
@@ -836,7 +836,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 flag.description!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -853,7 +853,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     'Rollout: ',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.5),
+                      color: cs.onSurface.withOpacity(0.5),
                     ),
                   ),
                   Expanded(
@@ -893,13 +893,13 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   if (flag.startsAt != null) ...[
                     Icon(Icons.play_arrow_outlined,
                         size: Spacings.smIcon,
-                        color: cs.onSurface.withValues(alpha: 0.4)),
+                        color: cs.onSurface.withOpacity(0.4)),
                     const SizedBox(width: Spacings.xs),
                     Text(
                       'Starts: ${_formatDate(flag.startsAt)}',
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.5),
+                        color: cs.onSurface.withOpacity(0.5),
                       ),
                     ),
                     const SizedBox(width: Spacings.md),
@@ -907,13 +907,13 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   if (flag.expiresAt != null) ...[
                     Icon(Icons.event_outlined,
                         size: Spacings.smIcon,
-                        color: cs.onSurface.withValues(alpha: 0.4)),
+                        color: cs.onSurface.withOpacity(0.4)),
                     const SizedBox(width: Spacings.xs),
                     Text(
                       'Expires: ${_formatDate(flag.expiresAt)}',
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 11,
-                        color: cs.onSurface.withValues(alpha: 0.5),
+                        color: cs.onSurface.withOpacity(0.5),
                       ),
                     ),
                   ],
@@ -1125,7 +1125,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 12,
                           fontFamily: 'monospace',
-                          color: cs.onSurface.withValues(alpha: 0.5),
+                          color: cs.onSurface.withOpacity(0.5),
                         ),
                       ),
                       const SizedBox(width: Spacings.lg),
@@ -1138,7 +1138,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                         'Effective: ${_formatDate(policy.effectiveDate)}',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 11,
-                          color: cs.onSurface.withValues(alpha: 0.5),
+                          color: cs.onSurface.withOpacity(0.5),
                         ),
                       ),
                     ],
@@ -1267,7 +1267,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     'Subject: ${template.subject}',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.7),
+                      color: cs.onSurface.withOpacity(0.7),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1366,7 +1366,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     color: Theme.of(ctx)
                         .colorScheme
                         .onSurface
-                        .withValues(alpha: 0.5),
+                        .withOpacity(0.5),
                   ),
                 ),
               ],
@@ -1423,7 +1423,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   : 'Platform is running normally.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.6),
+                color: cs.onSurface.withOpacity(0.6),
               ),
             ),
             secondary: Icon(
@@ -1513,7 +1513,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 window.description!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ),
             ],
@@ -1522,13 +1522,13 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
               children: [
                 Icon(Icons.access_time,
                     size: Spacings.smIcon,
-                    color: cs.onSurface.withValues(alpha: 0.4)),
+                    color: cs.onSurface.withOpacity(0.4)),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   '${_formatDate(window.startAt)} – ${_formatDate(window.endAt)}',
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.5),
+                    color: cs.onSurface.withOpacity(0.5),
                   ),
                 ),
                 if (window.affectedServices != null &&

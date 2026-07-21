@@ -6,7 +6,11 @@ import '../widgets/module_tier_badge.dart';
 
 /// Module detail page with pricing, features, and subscription actions.
 class ModuleDetailPage extends StatefulWidget {
-  const ModuleDetailPage({super.key});
+  const ModuleDetailPage({super.key, this.moduleCode});
+  
+  /// Module code used to load the module from the provider.
+  final String? moduleCode;
+
   @override
   State<ModuleDetailPage> createState() => _ModuleDetailPageState();
 }

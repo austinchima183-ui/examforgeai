@@ -346,7 +346,7 @@ class _State extends ConsumerState<ParentEngagementDashboardPage>
                         width: 36,
                         height: 36,
                         decoration: BoxDecoration(
-                          color: entry.color.withValues(alpha: 0.12),
+                          color: entry.color.withOpacity(0.12),
                           borderRadius: Spacings.borderRadiusSm,
                         ),
                         child: Icon(
@@ -403,11 +403,11 @@ class _State extends ConsumerState<ParentEngagementDashboardPage>
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: Card(
         elevation: Spacings.elevationNone,
-        color: AppColors.warningOf(cs.brightness).withValues(alpha: 0.08),
+        color: AppColors.warningOf(cs.brightness).withOpacity(0.08),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
           side: BorderSide(
-            color: AppColors.warningOf(cs.brightness).withValues(alpha: 0.3),
+            color: AppColors.warningOf(cs.brightness).withOpacity(0.3),
           ),
         ),
         child: Padding(
@@ -489,7 +489,7 @@ class _State extends ConsumerState<ParentEngagementDashboardPage>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: AppColors.infoOf(cs.brightness).withValues(alpha: 0.12),
+                  color: AppColors.infoOf(cs.brightness).withOpacity(0.12),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -555,7 +555,7 @@ class _State extends ConsumerState<ParentEngagementDashboardPage>
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: const Color(0xFF7C3AED).withValues(alpha: 0.12),
+                  color: const Color(0xFF7C3AED).withOpacity(0.12),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -690,7 +690,7 @@ class _State extends ConsumerState<ParentEngagementDashboardPage>
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: engagementColor.withValues(alpha: 0.12),
+                      color: engagementColor.withOpacity(0.12),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
                     child: Text(

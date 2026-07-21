@@ -121,7 +121,7 @@ class ExamBodyCard extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Center(
@@ -147,7 +147,7 @@ class ExamBodyCard extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: Spacings.borderRadiusFull,
       ),
       child: Row(

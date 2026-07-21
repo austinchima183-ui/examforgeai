@@ -172,8 +172,7 @@ class _AppErrorStateState extends State<AppErrorState>
                     child: Container(
                       padding: const EdgeInsets.all(Spacings.lg),
                       decoration: BoxDecoration(
-                        color: AppColors.errorOf(cs.brightness).withValues(
-                          alpha: context.isDarkMode ? 0.20 : 0.10,
+                        color: AppColors.errorOf(cs.brightness).withOpacity(context.isDarkMode ? 0.20 : 0.10,
                         ),
                         shape: BoxShape.circle,
                       ),

@@ -99,7 +99,7 @@ class ChatMessageBubble extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
+        color: cs.primary.withOpacity(context.isDarkMode ? 0.25 : 0.12),
         shape: BoxShape.circle,
       ),
       child: Icon(
@@ -257,7 +257,7 @@ class ChatMessageBubble extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 13,
-            backgroundColor: baseColor.withValues(alpha: 0.12),
+            backgroundColor: baseColor.withOpacity(0.12),
             color: baseColor,
           ),
         ));

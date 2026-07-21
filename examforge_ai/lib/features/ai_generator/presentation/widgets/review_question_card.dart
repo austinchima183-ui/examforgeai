@@ -105,7 +105,7 @@ class _ReviewQuestionCardState extends State<ReviewQuestionCard> {
           Container(
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: cs.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: const BorderRadius.only(
                 topLeft: Radius.circular(Spacings.mdRadius),
                 topRight: Radius.circular(Spacings.mdRadius),
@@ -130,8 +130,7 @@ class _ReviewQuestionCardState extends State<ReviewQuestionCard> {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.infoOf(cs.brightness).withValues(
-                        alpha: isDark ? 0.20 : 0.12,
+                      color: AppColors.infoOf(cs.brightness).withOpacity(isDark ? 0.20 : 0.12,
                       ),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
@@ -206,7 +205,7 @@ class _ReviewQuestionCardState extends State<ReviewQuestionCard> {
                     width: double.infinity,
                     padding: const EdgeInsets.all(Spacings.md),
                     decoration: BoxDecoration(
-                      color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                      color: cs.surfaceContainerHighest.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -236,17 +235,15 @@ class _ReviewQuestionCardState extends State<ReviewQuestionCard> {
                         padding: const EdgeInsets.all(Spacings.md),
                         decoration: BoxDecoration(
                           color: isCorrect
-                              ? AppColors.successOf(cs.brightness).withValues(
-                                  alpha: isDark ? 0.15 : 0.08,
+                              ? AppColors.successOf(cs.brightness).withOpacity(isDark ? 0.15 : 0.08,
                                 )
-                              : cs.surfaceContainerHighest.withValues(
-                                  alpha: 0.4,
+                              : cs.surfaceContainerHighest.withOpacity(0.4,
                                 ),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                           border: isCorrect
                               ? Border.all(
                                   color: AppColors.successOf(cs.brightness)
-                                      .withValues(alpha: 0.5),
+                                      .withOpacity(0.5),
                                 )
                               : null,
                         ),
@@ -259,7 +256,7 @@ class _ReviewQuestionCardState extends State<ReviewQuestionCard> {
                                 shape: BoxShape.circle,
                                 color: isCorrect
                                     ? AppColors.successOf(cs.brightness)
-                                    : cs.outlineVariant.withValues(alpha: 0.3),
+                                    : cs.outlineVariant.withOpacity(0.3),
                               ),
                               child: Center(
                                 child: isCorrect
@@ -319,7 +316,7 @@ class _ReviewQuestionCardState extends State<ReviewQuestionCard> {
                       width: double.infinity,
                       padding: const EdgeInsets.all(Spacings.md),
                       decoration: BoxDecoration(
-                        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                        color: cs.surfaceContainerHighest.withOpacity(0.5),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Text(
@@ -336,7 +333,7 @@ class _ReviewQuestionCardState extends State<ReviewQuestionCard> {
                 Container(
                   padding: const EdgeInsets.all(Spacings.md),
                   decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                    color: cs.surfaceContainerHighest.withOpacity(0.3),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Column(
@@ -538,7 +535,7 @@ class _ReviewStatusChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -622,10 +619,10 @@ class _ImprovementPreview extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.infoOf(cs.brightness).withValues(alpha: isDark ? 0.10 : 0.06),
+        color: AppColors.infoOf(cs.brightness).withOpacity(isDark ? 0.10 : 0.06),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border.all(
-          color: AppColors.infoOf(cs.brightness).withValues(alpha: 0.3),
+          color: AppColors.infoOf(cs.brightness).withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -650,7 +647,7 @@ class _ImprovementPreview extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: Spacings.xs),
                 decoration: BoxDecoration(
-                  color: AppColors.infoOf(cs.brightness).withValues(alpha: 0.15),
+                  color: AppColors.infoOf(cs.brightness).withOpacity(0.15),
                   borderRadius: BorderRadius.circular(Spacings.xs),
                 ),
                 child: Text(

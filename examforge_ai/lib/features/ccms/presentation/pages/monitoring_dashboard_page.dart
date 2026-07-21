@@ -115,12 +115,14 @@ class _MonitoringDashboardPageState
                               color: cs.onSurfaceVariant))
                     else
                       ...state.alertRules.map((rule) => Card(
-                            child: SwitchListTile(
-                              value: rule.isActive,
-                              onChanged: (_) {},
+                            child: ListTile(
+                              leading: Switch(
+                                value: rule.isActive,
+                                onChanged: (_) {},
+                              ),
                               title: Text(rule.name),
                               subtitle: Text(
-                                  '${rule.severity.label} · ${rule.metricName} ${rule.condition} ${rule.threshold}'),
+                                  '${rule.severity.label} · ${rule.metricName} ${rule.conditionOperator} ${rule.thresholdValue}'),
                               trailing: AppIconButton(
                                 icon: Icons.edit_outlined,
                                 onPressed: () =>
@@ -150,7 +152,7 @@ class _MonitoringDashboardPageState
                               title: Text(
                                   '${log.operationType}: ${log.operationName}'),
                               subtitle: Text(
-                                  'Duration: ${log.durationMs}ms · ${_formatDate(log.timestamp)}'),
+                                  'Duration: ${log.durationMs}ms · ${_formatDate(log.createdAt)}'),
                             ),
                           )),
                     Spacings.sectionGap,
@@ -176,7 +178,7 @@ class _MonitoringDashboardPageState
                                       ? AppColors.success
                                       : AppColors.error),
                               title: Text(report.errorType),
-                              subtitle: Text(report.message,
+                              subtitle: Text(report.errorMessage,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis),
                               trailing: report.isResolved
@@ -293,7 +295,7 @@ class _MonitoringDashboardPageState
         ),
         StatOverviewCard(
           title: 'AI Quality Avg',
-          value: state.ccmsStats?.averageQualityScore.toStringAsFixed(1) ?? '0.0',
+          value: state.ccmsStats?.avgQualityScore.toStringAsFixed(1) ?? '0.0',
           icon: Icons.star_rounded,
           color: AppColors.warning,
         ),
@@ -332,7 +334,7 @@ class _MonitoringDashboardPageState
             color: const Color(0xFF7C3AED)),
         StatOverviewCard(
             title: 'Avg Quality',
-            value: stats.averageQualityScore.toStringAsFixed(1),
+            value: stats.avgQualityScore.toStringAsFixed(1),
             icon: Icons.star_rounded,
             color: AppColors.warning),
       ],
@@ -454,8 +456,8 @@ class _MonitoringDashboardPageState
                         id: '',
                         name: nameCtrl.text,
                         metricName: metricCtrl.text,
-                        condition: condition,
-                        threshold:
+                        conditionOperator: condition,
+                        thresholdValue:
                             double.tryParse(thresholdCtrl.text) ?? 0,
                         severity: severity,
                         isActive: true,
@@ -475,7 +477,7 @@ class _MonitoringDashboardPageState
   void _showEditAlertRuleDialog(AlertRule rule) {
     final nameCtrl = TextEditingController(text: rule.name);
     final thresholdCtrl =
-        TextEditingController(text: '${rule.threshold}');
+        TextEditingController(text: '${rule.thresholdValue}');
     var severity = rule.severity;
 
     showDialog(

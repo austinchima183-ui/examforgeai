@@ -373,7 +373,7 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage>
                       height: 4,
                       decoration: BoxDecoration(
                         color: context.colorScheme.onSurfaceVariant
-                            .withValues(alpha: 0.3),
+                            .withOpacity(0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),

@@ -21,7 +21,7 @@ class StudentNotificationState {
     this.error,
     this.hasMore = true,
     this.unreadCount = 0,
-    this._currentPage = 1,
+    this.currentPage = 1,
   });
 
   /// All notifications for the current student.
@@ -41,10 +41,10 @@ class StudentNotificationState {
 
   /// Current page number for notification pagination (1-based).
   // ignore: unused_field
-  final int _currentPage;
+  final int currentPage;
 
   /// Current page number for notification pagination.
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading;
@@ -67,7 +67,7 @@ class StudentNotificationState {
       error: error,
       hasMore: hasMore ?? this.hasMore,
       unreadCount: unreadCount ?? this.unreadCount,
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
     );
   }
 

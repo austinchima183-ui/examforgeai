@@ -412,7 +412,7 @@ class AppNavigationDrawer extends StatelessWidget {
                       vertical: Spacings.xs / 2,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.primaryContainer.withValues(alpha: 0.5),
+                      color: cs.primaryContainer.withOpacity(0.5),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -699,7 +699,7 @@ class _DesktopSidebar extends StatelessWidget {
       ),
       child: ListTile(
         selected: isSelected,
-        selectedTileColor: cs.primaryContainer.withValues(alpha: 0.3),
+        selectedTileColor: cs.primaryContainer.withOpacity(0.3),
         leading: Icon(
           isSelected ? (item.selectedIcon ?? item.icon) : item.icon,
           color: isSelected ? cs.primary : cs.onSurfaceVariant,

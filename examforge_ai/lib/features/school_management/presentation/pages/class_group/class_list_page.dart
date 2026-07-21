@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/teacher_provider.dart';
 import 'class_detail_page.dart';
@@ -380,7 +380,7 @@ class _ClassCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 ),
                 child: Icon(Icons.class_rounded, color: cs.primary, size: 20),
@@ -417,7 +417,7 @@ class _ClassCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: (classEntity.isActive ? AppColors.success : AppColors.warning)
-                      .withValues(alpha: isDark ? 0.20 : 0.12),
+                      .withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -525,7 +525,7 @@ class _ClassListTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(Icons.class_rounded, color: cs.primary),
@@ -629,7 +629,7 @@ class _ClassListTile extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: (classEntity.isActive ? AppColors.success : AppColors.warning)
-                      .withValues(alpha: isDark ? 0.20 : 0.12),
+                      .withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(

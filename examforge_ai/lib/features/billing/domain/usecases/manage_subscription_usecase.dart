@@ -1,8 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
-import '../../data/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
+import '../../domain/repositories/billing_repository.dart';
 
 
 // ─── Create Subscription ─────────────────────────────────────────────────────
@@ -19,9 +18,9 @@ class CreateSubscriptionParams {
   });
 
   final String subscriberId;
-  final SubscriberType subscriberType;
+  final BillingModel subscriberType;
   final String planId;
-  final BillingCycle billingCycle;
+  final String billingCycle;
   final String? couponCode;
   final int seats;
   final String? schoolId;
@@ -36,17 +35,17 @@ class CreateSubscriptionUseCase {
   ) async {
     if (params.subscriberId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscriber ID cannot be empty'),
+        Failure.validation(message: 'Subscriber ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.planId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Plan ID cannot be empty'),
+        Failure.validation(message: 'Plan ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.seats < 1) {
       return FailureResult(
-        Failure.validation(message: 'Seats must be at least 1'),
+        Failure.validation(message: 'Seats must be at least 1', fieldErrors: const {}),
       );
     }
 
@@ -73,7 +72,7 @@ class UpgradeSubscriptionParams {
 
   final String subscriptionId;
   final String newPlanId;
-  final BillingCycle? billingCycle;
+  final String? billingCycle;
 }
 
 class UpgradeSubscriptionUseCase {
@@ -85,12 +84,12 @@ class UpgradeSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty'),
+        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.newPlanId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'New plan ID cannot be empty'),
+        Failure.validation(message: 'New plan ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -123,12 +122,12 @@ class DowngradeSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty'),
+        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.newPlanId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'New plan ID cannot be empty'),
+        Failure.validation(message: 'New plan ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -162,7 +161,7 @@ class CancelSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty'),
+        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -190,7 +189,7 @@ class RenewSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty'),
+        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -216,7 +215,7 @@ class PauseSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty'),
+        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -242,7 +241,7 @@ class ResumeSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty'),
+        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -261,19 +260,19 @@ class GetCurrentSubscriptionParams {
   });
 
   final String subscriberId;
-  final SubscriberType subscriberType;
+  final BillingModel subscriberType;
 }
 
 class GetCurrentSubscriptionUseCase {
   GetCurrentSubscriptionUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<SubscriptionEntity?>> call(
+  Future<Result<SubscriptionEntity>> call(
     GetCurrentSubscriptionParams params,
   ) async {
     if (params.subscriberId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscriber ID cannot be empty'),
+        Failure.validation(message: 'Subscriber ID cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -296,7 +295,7 @@ class GetSubscriptionsParams {
   });
 
   final String? schoolId;
-  final SubscriberType? subscriberType;
+  final BillingModel? subscriberType;
   final SubscriptionStatus? status;
   final int page;
   final int perPage;
@@ -306,17 +305,17 @@ class GetSubscriptionsUseCase {
   GetSubscriptionsUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaginatedResult<SubscriptionEntity>>> call(
+  Future<Result<List<SubscriptionEntity>>> call(
     GetSubscriptionsParams params,
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1'),
+        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1'),
+        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
       );
     }
 

@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/subject_provider.dart';
 import 'subject_form_page.dart';
 import '../../../../../config/dependency_injection.dart';
@@ -524,7 +524,7 @@ class _SubjectCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: catColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: catColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(
@@ -585,7 +585,7 @@ class _SubjectCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color:
-                              catColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                              catColor.withOpacity(isDark ? 0.20 : 0.12),
                           borderRadius:
                               BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -616,7 +616,7 @@ class _SubjectCard extends StatelessWidget {
                   color: (subject.isCompulsory
                           ? AppColors.success
                           : AppColors.warning)
-                      .withValues(alpha: isDark ? 0.20 : 0.12),
+                      .withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -679,7 +679,7 @@ class _StatChip extends StatelessWidget {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

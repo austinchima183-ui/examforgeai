@@ -227,9 +227,9 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.errorLight.withValues(alpha: 0.5),
+        color: AppColors.errorLight.withOpacity(0.5),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
-        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
+        border: Border.all(color: cs.error.withOpacity(0.3)),
       ),
       child: Row(
         children: [

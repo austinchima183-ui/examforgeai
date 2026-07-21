@@ -247,7 +247,7 @@ class _ExamEcosystemDashboardPageState
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Spacings.xs),
             child: Material(
-              color: action.color.withValues(alpha: 0.1),
+              color: action.color.withOpacity(0.1),
               borderRadius: Spacings.borderRadiusMd,
               child: InkWell(
                 onTap: action.onTap,
@@ -289,7 +289,7 @@ class _ExamEcosystemDashboardPageState
       margin: const EdgeInsets.only(bottom: Spacings.sm),
       child: ListTile(
         leading: CircleAvatar(
-          backgroundColor: AppColors.info.withValues(alpha: 0.1),
+          backgroundColor: AppColors.info.withOpacity(0.1),
           child: Icon(
             Icons.quiz_rounded,
             color: AppColors.info,
@@ -340,7 +340,7 @@ class _ExamEcosystemDashboardPageState
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: Spacings.borderRadiusFull,
       ),
       child: Text(

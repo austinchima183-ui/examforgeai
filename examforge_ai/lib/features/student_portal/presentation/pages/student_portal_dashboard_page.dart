@@ -208,7 +208,7 @@ class _StudentPortalDashboardPageState
                   Text(
                     'Day Streak 🔥',
                     style: tt.bodySmall?.copyWith(
-                      color: Colors.white.withValues(alpha: 0.9),
+                      color: Colors.white.withOpacity(0.9),
                       fontWeight: AppTypography.wSemiBold,
                     ),
                   ),
@@ -563,8 +563,7 @@ class _StudentPortalDashboardPageState
                   Container(
                     padding: const EdgeInsets.all(Spacings.md),
                     decoration: BoxDecoration(
-                      color: suggestion.color.withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.12,
+                      color: suggestion.color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                       ),
                       borderRadius:
                           BorderRadius.circular(Spacings.mdRadius),
@@ -653,7 +652,7 @@ class _StudentPortalDashboardPageState
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -736,7 +735,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(icon, size: Spacings.mdIcon, color: color),
@@ -799,7 +798,7 @@ class _QuickActionCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: action.color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: action.color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(

@@ -9,31 +9,31 @@ import 'affiliate_program_page.dart';
 ///
 /// Shows summary cards for blog posts, campaigns, referral programs,
 /// and affiliate activity with quick navigation.
-class MarketingDashboardPage extends StatefulWidget {
+class MarketingDashboardPage extends ConsumerStatefulWidget {
   const MarketingDashboardPage({super.key});
   @override
-  State<MarketingDashboardPage> createState() => _MarketingDashboardPageState();
+  ConsumerState<MarketingDashboardPage> createState() => _MarketingDashboardPageState();
 }
 
-class _MarketingDashboardPageState extends State<MarketingDashboardPage> {
+class _MarketingDashboardPageState extends ConsumerState<MarketingDashboardPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MarketingProvider>().loadAll();
+      ref.read(marketingProvider).loadAll();
     });
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final provider = ref.watch(marketingProvider);
     return Scaffold(
       appBar: AppBar(title: const Text('Marketing Hub'), centerTitle: true),
-      body: Consumer<MarketingProvider>(
-        builder: (context, provider, _) {
-          if (provider.isLoading) return const Center(child: CircularProgressIndicator());
-          return RefreshIndicator(
-            onRefresh: () => provider.loadAll(),
+      body: provider.isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : RefreshIndicator(
+            onRefresh: () => ref.read(marketingProvider).loadAll(),
             child: ListView(
               padding: const EdgeInsets.all(16),
               children: [
@@ -94,9 +94,7 @@ class _MarketingDashboardPageState extends State<MarketingDashboardPage> {
                 ],
               ],
             ),
-          );
-        },
-      ),
+          ),
     );
   }
 

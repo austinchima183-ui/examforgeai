@@ -13,7 +13,7 @@ import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/school_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -438,8 +438,8 @@ class _SchoolCard extends StatelessWidget {
                 height: 48,
                 decoration: BoxDecoration(
                   color: school.isActive
-                      ? cs.primary.withValues(alpha: isDark ? 0.20 : 0.12)
-                      : cs.onSurface.withValues(alpha: 0.08),
+                      ? cs.primary.withOpacity(isDark ? 0.20 : 0.12)
+                      : cs.onSurface.withOpacity(0.08),
                   borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 ),
                 child: school.logoUrl != null
@@ -521,7 +521,7 @@ class _SchoolCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: subscriptionColor(school.subscriptionStatus)
-                      .withValues(alpha: isDark ? 0.20 : 0.12),
+                      .withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -624,7 +624,7 @@ class _StatPill extends StatelessWidget {
           vertical: Spacings.sm,
         ),
         decoration: BoxDecoration(
-          color: color.withValues(alpha: isDark ? 0.12 : 0.06),
+          color: color.withOpacity(isDark ? 0.12 : 0.06),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -647,7 +647,7 @@ class _StatPill extends StatelessWidget {
                   Text(
                     label,
                     style: tt.labelSmall?.copyWith(
-                      color: color.withValues(alpha: 0.7),
+                      color: color.withOpacity(0.7),
                       fontSize: 10,
                     ),
                     overflow: TextOverflow.ellipsis,
@@ -680,7 +680,7 @@ class _FilterChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
-      selectedColor: cs.primary.withValues(alpha: 0.12),
+      selectedColor: cs.primary.withOpacity(0.12),
       checkmarkColor: cs.primary,
       labelStyle: TextStyle(
         color: selected ? cs.primary : cs.onSurfaceVariant,

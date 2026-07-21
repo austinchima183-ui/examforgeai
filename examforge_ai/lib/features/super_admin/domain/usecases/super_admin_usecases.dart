@@ -46,7 +46,7 @@ class UpdatePlatformSettingUseCase {
   UpdatePlatformSettingUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<PlatformSetting>> call(UpdatePlatformSettingParams params) {
+  Future<Result<PlatformSetting>> call(UpdatePlatformSettingParams params) async {
     if (params.setting.key.isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Setting key is required',
@@ -72,14 +72,15 @@ class BulkUpdateSettingsUseCase {
   BulkUpdateSettingsUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<List<PlatformSetting>>> call(BulkUpdateSettingsParams params) {
+  Future<Result<List<PlatformSetting>>> call(BulkUpdateSettingsParams params) async {
     if (params.settings.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'No settings provided'));
+      return const FailureResult(Failure.validation(message: 'No settings provided', fieldErrors: const {}));
     }
     final readonlySettings = params.settings.where((s) => s.isReadonly).toList();
     if (readonlySettings.isNotEmpty) {
       return FailureResult(Failure.validation(
         message: 'Cannot modify readonly settings: ${readonlySettings.map((s) => s.key).join(', ')}',
+        fieldErrors: const {},
       ));
     }
     return _repository.bulkUpdateSettings(params.settings);
@@ -112,7 +113,7 @@ class CreateFeatureFlagUseCase {
   CreateFeatureFlagUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<FeatureFlag>> call(CreateFeatureFlagParams params) {
+  Future<Result<FeatureFlag>> call(CreateFeatureFlagParams params) async {
     if (params.flag.key.isEmpty || params.flag.name.isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Feature flag key and name are required',
@@ -146,9 +147,9 @@ class ToggleFeatureFlagUseCase {
   ToggleFeatureFlagUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<FeatureFlag>> call(ToggleFeatureFlagParams params) {
+  Future<Result<FeatureFlag>> call(ToggleFeatureFlagParams params) async {
     if (params.flagId.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'Flag ID is required'));
+      return const FailureResult(Failure.validation(message: 'Flag ID is required', fieldErrors: const {}));
     }
     return _repository.toggleFeatureFlag(params.flagId, params.isActive);
   }
@@ -198,9 +199,9 @@ class CreateAuditLogUseCase {
   CreateAuditLogUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<AuditLog>> call(CreateAuditLogParams params) {
+  Future<Result<AuditLog>> call(CreateAuditLogParams params) async {
     if (params.log.action.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'Audit action is required'));
+      return const FailureResult(Failure.validation(message: 'Audit action is required', fieldErrors: const {}));
     }
     return _repository.createAuditLog(params.log);
   }
@@ -244,9 +245,9 @@ class SuspendSchoolUseCase {
   SuspendSchoolUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(ManageSchoolParams params) {
+  Future<Result<void>> call(ManageSchoolParams params) async {
     if (params.schoolId.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'School ID is required'));
+      return const FailureResult(Failure.validation(message: 'School ID is required', fieldErrors: const {}));
     }
     if (params.reason == null || params.reason!.isEmpty) {
       return const FailureResult(Failure.validation(
@@ -262,9 +263,9 @@ class ReactivateSchoolUseCase {
   ReactivateSchoolUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(ManageSchoolParams params) {
+  Future<Result<void>> call(ManageSchoolParams params) async {
     if (params.schoolId.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'School ID is required'));
+      return const FailureResult(Failure.validation(message: 'School ID is required', fieldErrors: const {}));
     }
     return _repository.reactivateSchool(params.schoolId);
   }
@@ -274,9 +275,9 @@ class VerifySchoolUseCase {
   VerifySchoolUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(ManageSchoolParams params) {
+  Future<Result<void>> call(ManageSchoolParams params) async {
     if (params.schoolId.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'School ID is required'));
+      return const FailureResult(Failure.validation(message: 'School ID is required', fieldErrors: const {}));
     }
     return _repository.verifySchool(params.schoolId);
   }
@@ -291,7 +292,7 @@ class CreateSchoolUseCase {
   CreateSchoolUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<SchoolManagementDetail>> call(CreateSchoolParams params) {
+  Future<Result<SchoolManagementDetail>> call(CreateSchoolParams params) async {
     final name = params.schoolData['name'] as String? ?? '';
     if (name.isEmpty) {
       return const FailureResult(Failure.validation(
@@ -342,8 +343,8 @@ class SuspendUserUseCase {
   SuspendUserUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(ManageUserParams params) {
-    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required'));
+  Future<Result<void>> call(ManageUserParams params) async {
+    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required', fieldErrors: const {}));
     if (params.reason == null || params.reason!.isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Suspension reason is required',
@@ -358,8 +359,8 @@ class ActivateUserUseCase {
   ActivateUserUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(ManageUserParams params) {
-    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required'));
+  Future<Result<void>> call(ManageUserParams params) async {
+    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required', fieldErrors: const {}));
     return _repository.activateUser(params.userId);
   }
 }
@@ -368,8 +369,8 @@ class ResetUserPasswordUseCase {
   ResetUserPasswordUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(ManageUserParams params) {
-    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required'));
+  Future<Result<void>> call(ManageUserParams params) async {
+    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required', fieldErrors: const {}));
     return _repository.resetUserPassword(params.userId);
   }
 }
@@ -378,10 +379,10 @@ class ChangeUserRoleUseCase {
   ChangeUserRoleUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(ManageUserParams params) {
-    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required'));
+  Future<Result<void>> call(ManageUserParams params) async {
+    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required', fieldErrors: const {}));
     if (params.newRole == null || params.newRole!.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'New role is required'));
+      return const FailureResult(Failure.validation(message: 'New role is required', fieldErrors: const {}));
     }
     return _repository.changeUserRole(params.userId, params.newRole!);
   }
@@ -397,9 +398,9 @@ class StartImpersonationUseCase {
   StartImpersonationUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<ImpersonationSession>> call(StartImpersonationParams params) {
+  Future<Result<ImpersonationSession>> call(StartImpersonationParams params) async {
     if (params.targetUserId.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'Target user ID is required'));
+      return const FailureResult(Failure.validation(message: 'Target user ID is required', fieldErrors: const {}));
     }
     if (params.reason.isEmpty) {
       return const FailureResult(Failure.validation(
@@ -420,8 +421,8 @@ class EndImpersonationUseCase {
   EndImpersonationUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(EndImpersonationParams params) {
-    if (params.sessionId.isEmpty) return const FailureResult(Failure.validation(message: 'Session ID is required'));
+  Future<Result<void>> call(EndImpersonationParams params) async {
+    if (params.sessionId.isEmpty) return const FailureResult(Failure.validation(message: 'Session ID is required', fieldErrors: const {}));
     return _repository.endImpersonation(params.sessionId);
   }
 }
@@ -447,10 +448,11 @@ class CreateAIProviderUseCase {
   CreateAIProviderUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<AIProvider>> call(UpsertAIProviderParams params) {
+  Future<Result<AIProvider>> call(UpsertAIProviderParams params) async {
     if (params.provider.name.isEmpty || params.provider.slug.isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Provider name and slug are required',
+        fieldErrors: const {},
       ));
     }
     return _repository.createAIProvider(params.provider);
@@ -474,8 +476,8 @@ class SetDefaultProviderUseCase {
   SetDefaultProviderUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<AIProvider>> call(SetDefaultProviderParams params) {
-    if (params.providerId.isEmpty) return const FailureResult(Failure.validation(message: 'Provider ID is required'));
+  Future<Result<AIProvider>> call(SetDefaultProviderParams params) async {
+    if (params.providerId.isEmpty) return const FailureResult(Failure.validation(message: 'Provider ID is required', fieldErrors: const {}));
     return _repository.setDefaultProvider(params.providerId);
   }
 }
@@ -490,8 +492,8 @@ class ToggleProviderUseCase {
   ToggleProviderUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<AIProvider>> call(ToggleProviderParams params) {
-    if (params.providerId.isEmpty) return const FailureResult(Failure.validation(message: 'Provider ID is required'));
+  Future<Result<AIProvider>> call(ToggleProviderParams params) async {
+    if (params.providerId.isEmpty) return const FailureResult(Failure.validation(message: 'Provider ID is required', fieldErrors: const {}));
     return _repository.toggleProvider(params.providerId, params.isActive);
   }
 }
@@ -564,9 +566,9 @@ class AssignTicketUseCase {
   AssignTicketUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<SupportTicket>> call(AssignTicketParams params) {
+  Future<Result<SupportTicket>> call(AssignTicketParams params) async {
     if (params.ticketId.isEmpty || params.assignToUserId.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'Ticket ID and assignee are required'));
+      return const FailureResult(Failure.validation(message: 'Ticket ID and assignee are required', fieldErrors: const {}));
     }
     return _repository.assignTicket(params.ticketId, params.assignToUserId);
   }
@@ -582,8 +584,8 @@ class ResolveTicketUseCase {
   ResolveTicketUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<SupportTicket>> call(ResolveTicketParams params) {
-    if (params.ticketId.isEmpty) return const FailureResult(Failure.validation(message: 'Ticket ID is required'));
+  Future<Result<SupportTicket>> call(ResolveTicketParams params) async {
+    if (params.ticketId.isEmpty) return const FailureResult(Failure.validation(message: 'Ticket ID is required', fieldErrors: const {}));
     if (params.resolutionNotes.isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Resolution notes are required',
@@ -605,9 +607,9 @@ class EscalateTicketUseCase {
   EscalateTicketUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<SupportTicket>> call(EscalateTicketParams params) {
+  Future<Result<SupportTicket>> call(EscalateTicketParams params) async {
     if (params.ticketId.isEmpty || params.escalateToUserId.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'Ticket ID and escalation target are required'));
+      return const FailureResult(Failure.validation(message: 'Ticket ID and escalation target are required', fieldErrors: const {}));
     }
     return _repository.escalateTicket(params.ticketId, params.escalateToUserId, params.reason);
   }
@@ -651,8 +653,8 @@ class ApproveContentUseCase {
   ApproveContentUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<MarketplaceContent>> call(ModerateContentParams params) {
-    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(message: 'Content ID is required'));
+  Future<Result<MarketplaceContent>> call(ModerateContentParams params) async {
+    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(message: 'Content ID is required', fieldErrors: const {}));
     return _repository.approveMarketplaceContent(params.contentId, notes: params.notes);
   }
 }
@@ -661,8 +663,8 @@ class RejectContentUseCase {
   RejectContentUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<MarketplaceContent>> call(ModerateContentParams params) {
-    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(message: 'Content ID is required'));
+  Future<Result<MarketplaceContent>> call(ModerateContentParams params) async {
+    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(message: 'Content ID is required', fieldErrors: const {}));
     if (params.reason == null || params.reason!.isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Rejection reason is required',
@@ -677,8 +679,8 @@ class FeatureContentUseCase {
   FeatureContentUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<MarketplaceContent>> call(ModerateContentParams params) {
-    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(message: 'Content ID is required'));
+  Future<Result<MarketplaceContent>> call(ModerateContentParams params) async {
+    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(message: 'Content ID is required', fieldErrors: const {}));
     return _repository.featureMarketplaceContent(params.contentId, params.featuredUntil);
   }
 }
@@ -722,8 +724,8 @@ class AcknowledgeAlertUseCase {
   AcknowledgeAlertUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<IntelligenceAlert>> call(AcknowledgeAlertParams params) {
-    if (params.alertId.isEmpty) return const FailureResult(Failure.validation(message: 'Alert ID is required'));
+  Future<Result<IntelligenceAlert>> call(AcknowledgeAlertParams params) async {
+    if (params.alertId.isEmpty) return const FailureResult(Failure.validation(message: 'Alert ID is required', fieldErrors: const {}));
     return _repository.acknowledgeAlert(params.alertId);
   }
 }
@@ -738,8 +740,8 @@ class ResolveAlertUseCase {
   ResolveAlertUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<IntelligenceAlert>> call(ResolveAlertParams params) {
-    if (params.alertId.isEmpty) return const FailureResult(Failure.validation(message: 'Alert ID is required'));
+  Future<Result<IntelligenceAlert>> call(ResolveAlertParams params) async {
+    if (params.alertId.isEmpty) return const FailureResult(Failure.validation(message: 'Alert ID is required', fieldErrors: const {}));
     return _repository.resolveAlert(params.alertId, params.resolutionNotes);
   }
 }
@@ -838,8 +840,8 @@ class LockUserAccountUseCase {
   LockUserAccountUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(LockUserAccountParams params) {
-    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required'));
+  Future<Result<void>> call(LockUserAccountParams params) async {
+    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required', fieldErrors: const {}));
     return _repository.lockUserAccount(params.userId, params.reason);
   }
 }
@@ -853,8 +855,8 @@ class UnlockUserAccountUseCase {
   UnlockUserAccountUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<void>> call(UnlockUserAccountParams params) {
-    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required'));
+  Future<Result<void>> call(UnlockUserAccountParams params) async {
+    if (params.userId.isEmpty) return const FailureResult(Failure.validation(message: 'User ID is required', fieldErrors: const {}));
     return _repository.unlockUserAccount(params.userId);
   }
 }
@@ -892,8 +894,8 @@ class MarkNotificationReadUseCase {
   MarkNotificationReadUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<PlatformNotification>> call(String notificationId) {
-    if (notificationId.isEmpty) return const FailureResult(Failure.validation(message: 'Notification ID is required'));
+  Future<Result<PlatformNotification>> call(String notificationId) async {
+    if (notificationId.isEmpty) return const FailureResult(Failure.validation(message: 'Notification ID is required', fieldErrors: const {}));
     return _repository.markNotificationRead(notificationId);
   }
 }
@@ -1005,12 +1007,12 @@ class CreateMaintenanceWindowUseCase {
   CreateMaintenanceWindowUseCase(this._repository);
   final SuperAdminRepository _repository;
 
-  Future<Result<MaintenanceWindow>> call(CreateMaintenanceWindowParams params) {
+  Future<Result<MaintenanceWindow>> call(CreateMaintenanceWindowParams params) async {
     if (params.window.title.isEmpty) {
-      return const FailureResult(Failure.validation(message: 'Title is required'));
+      return const FailureResult(Failure.validation(message: 'Title is required', fieldErrors: const {}));
     }
     if (params.window.endAt.isBefore(params.window.startAt)) {
-      return const FailureResult(Failure.validation(message: 'End time must be after start time'));
+      return const FailureResult(Failure.validation(message: 'End time must be after start time', fieldErrors: const {}));
     }
     return _repository.createMaintenanceWindow(params.window);
   }

@@ -227,7 +227,7 @@ class _MarketplaceManagementPageState
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -289,14 +289,14 @@ class _MarketplaceManagementPageState
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Icon(
                               Icons.image_outlined,
-                              color: cs.onSurface.withValues(alpha: 0.3),
+                              color: cs.onSurface.withOpacity(0.3),
                             ),
                           ),
                         )
                       : Icon(
                           Icons.inventory_2_outlined,
                           size: Spacings.lgIcon,
-                          color: cs.onSurface.withValues(alpha: 0.3),
+                          color: cs.onSurface.withOpacity(0.3),
                         ),
                 ),
                 const SizedBox(width: Spacings.md),
@@ -327,7 +327,7 @@ class _MarketplaceManagementPageState
                         'Author: ${content.authorId}',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.6),
+                          color: cs.onSurface.withOpacity(0.6),
                         ),
                       ),
                     ],
@@ -374,7 +374,7 @@ class _MarketplaceManagementPageState
               content.description,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.7),
+                color: cs.onSurface.withOpacity(0.7),
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -477,7 +477,7 @@ class _MarketplaceManagementPageState
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -646,7 +646,7 @@ class _MarketplaceManagementPageState
                                   ' (${content.ratingCount})',
                                   style: AppTypography.wRegular.copyWith(
                                     fontSize: 11,
-                                    color: cs.onSurface.withValues(alpha: 0.5),
+                                    color: cs.onSurface.withOpacity(0.5),
                                   ),
                                 ),
                               ],
@@ -660,7 +660,7 @@ class _MarketplaceManagementPageState
                                 fontSize: 12,
                                 color: content.reviewedBy != null
                                     ? cs.onSurface
-                                    : cs.onSurface.withValues(alpha: 0.4),
+                                    : cs.onSurface.withOpacity(0.4),
                               ),
                             )),
                             // Created
@@ -983,7 +983,7 @@ class _MarketplaceManagementPageState
                 content.description,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withValues(alpha: 0.7),
+                  color: cs.onSurface.withOpacity(0.7),
                 ),
               ),
 
@@ -1016,10 +1016,10 @@ class _MarketplaceManagementPageState
                 Container(
                   padding: Spacings.paddingAllMd,
                   decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.1),
+                    color: Colors.orange.withOpacity(0.1),
                     borderRadius: Spacings.borderRadiusSm,
                     border: Border.all(
-                        color: Colors.orange.withValues(alpha: 0.3)),
+                        color: Colors.orange.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
@@ -1073,7 +1073,7 @@ class _MarketplaceManagementPageState
               label,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withValues(alpha: 0.5),
+                color: cs.onSurface.withOpacity(0.5),
               ),
             ),
           ),

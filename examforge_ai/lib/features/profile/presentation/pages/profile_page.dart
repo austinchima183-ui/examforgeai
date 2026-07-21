@@ -11,7 +11,7 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_guards.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/widgets.dart';
-import 'providers/profile_provider.dart';
+import '../providers/profile_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // PROFILE PAGE
@@ -245,7 +245,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           gradient: AppColors.brandGradient,
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.seed.withValues(alpha: 0.3),
+                              color: AppColors.seed.withOpacity(0.3),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -674,7 +674,7 @@ class _ActivityStat extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+            color: color.withOpacity(isDark ? 0.20 : 0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: color),

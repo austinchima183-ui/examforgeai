@@ -195,7 +195,7 @@ class _StrengthBar extends StatelessWidget {
             ),
             height: 4,
             decoration: BoxDecoration(
-              color: isFilled ? activeColor : cs.outlineVariant.withValues(alpha: 0.3),
+              color: isFilled ? activeColor : cs.outlineVariant.withOpacity(0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -295,13 +295,13 @@ class _CriteriaChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: isMet
-            ? AppColors.successLight.withValues(alpha: 0.5)
+            ? AppColors.successLight.withOpacity(0.5)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border.all(
           color: isMet
-              ? AppColors.success.withValues(alpha: 0.3)
-              : colorScheme.outlineVariant.withValues(alpha: 0.3),
+              ? AppColors.success.withOpacity(0.3)
+              : colorScheme.outlineVariant.withOpacity(0.3),
         ),
       ),
       child: Row(

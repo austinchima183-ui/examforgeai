@@ -388,19 +388,19 @@ class _StatusBadge extends StatelessWidget {
 
     final (bgColor, fgColor) = switch (status) {
       AssignmentStatus.draft => (
-          cs.onSurfaceVariant.withValues(alpha: isDark ? 0.25 : 0.12),
+          cs.onSurfaceVariant.withOpacity(isDark ? 0.25 : 0.12),
           cs.onSurfaceVariant,
         ),
       AssignmentStatus.published => (
-          cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+          cs.primary.withOpacity(isDark ? 0.25 : 0.12),
           cs.primary,
         ),
       AssignmentStatus.closed => (
-          cs.error.withValues(alpha: isDark ? 0.25 : 0.12),
+          cs.error.withOpacity(isDark ? 0.25 : 0.12),
           cs.error,
         ),
       AssignmentStatus.graded => (
-          cs.tertiary.withValues(alpha: isDark ? 0.25 : 0.12),
+          cs.tertiary.withOpacity(isDark ? 0.25 : 0.12),
           cs.tertiary,
         ),
     };

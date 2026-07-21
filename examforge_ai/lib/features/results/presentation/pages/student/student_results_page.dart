@@ -9,7 +9,7 @@ import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 import '../../providers/results_page_providers.dart';
 
@@ -164,7 +164,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: Spacings.sm),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
+              color: statusColor.withOpacity(isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Text(
@@ -190,7 +190,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.08),
+                  color: cs.primary.withOpacity(isDark ? 0.15 : 0.08),
                   border: Border.all(color: cs.primary, width: 3),
                 ),
                 child: Center(
@@ -362,7 +362,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                 height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: passColor.withValues(alpha: isDark ? 0.15 : 0.08),
+                  color: passColor.withOpacity(isDark ? 0.15 : 0.08),
                   border: Border.all(color: passColor, width: 2),
                 ),
                 child: Center(
@@ -392,7 +392,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                             ),
                             decoration: BoxDecoration(
                               color:
-                                  cs.primary.withValues(alpha: 0.1),
+                                  cs.primary.withOpacity(0.1),
                               borderRadius:
                                   BorderRadius.circular(Spacings.smRadius),
                             ),
@@ -454,9 +454,9 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                         decoration: BoxDecoration(
                           color: subject.deviationFromClassAverage! >= 0
                               ? AppColors.successOf(cs.brightness)
-                                  .withValues(alpha: isDark ? 0.15 : 0.08)
+                                  .withOpacity(isDark ? 0.15 : 0.08)
                               : AppColors.errorOf(cs.brightness)
-                                  .withValues(alpha: isDark ? 0.15 : 0.08),
+                                  .withOpacity(isDark ? 0.15 : 0.08),
                           borderRadius:
                               BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -512,10 +512,10 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             width: double.infinity,
             height: 180,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+              color: cs.surfaceContainerHighest.withOpacity(0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
                 style: BorderStyle.solid,
               ),
             ),
@@ -526,7 +526,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                   Icon(
                     Icons.insert_chart_outlined_rounded,
                     size: Spacings.xlIcon,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                    color: cs.onSurfaceVariant.withOpacity(0.4),
                   ),
                   const SizedBox(height: Spacings.sm),
                   Text(
@@ -759,10 +759,10 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.tertiary.withValues(alpha: isDark ? 0.10 : 0.05),
+              color: cs.tertiary.withOpacity(isDark ? 0.10 : 0.05),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.tertiary.withValues(alpha: 0.2),
+                color: cs.tertiary.withOpacity(0.2),
               ),
             ),
             child: Text(

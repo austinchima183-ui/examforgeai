@@ -35,7 +35,7 @@ class AdmissionHubState {
     this.selectedUniversityType,
     this.selectedState,
     this.hasMoreUniversities = true,
-    this._currentPage = 1,
+    this.currentPage = 1,
   });
 
   final List<University> universities;
@@ -61,9 +61,9 @@ class AdmissionHubState {
   final String? selectedState;
 
   final bool hasMoreUniversities;
-  final int _currentPage;
+  final int currentPage;
 
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
   bool get isBusy =>
       isLoading ||
       isSearching ||
@@ -129,7 +129,7 @@ class AdmissionHubState {
       selectedState: selectedState ?? this.selectedState,
       hasMoreUniversities:
           hasMoreUniversities ?? this.hasMoreUniversities,
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
     );
   }
 

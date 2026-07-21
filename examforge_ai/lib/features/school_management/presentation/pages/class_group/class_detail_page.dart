@@ -10,7 +10,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/student_provider.dart';
 import '../../providers/subject_provider.dart';
@@ -303,7 +303,7 @@ class _HeaderChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.2),
+        color: Colors.white.withOpacity(0.2),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -445,7 +445,7 @@ class _StudentsTabState extends ConsumerState<_StudentsTab> {
                         height: 40,
                         decoration: BoxDecoration(
                           color:
-                              cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                              cs.primary.withOpacity(isDark ? 0.20 : 0.12),
                           borderRadius:
                               BorderRadius.circular(Spacings.mdRadius),
                         ),
@@ -594,7 +594,7 @@ class _SubjectsTab extends ConsumerWidget {
                           color: (subject.isCompulsory
                                   ? AppColors.info
                                   : AppColors.warning)
-                              .withValues(alpha: isDark ? 0.20 : 0.12),
+                              .withOpacity(isDark ? 0.20 : 0.12),
                           borderRadius:
                               BorderRadius.circular(Spacings.mdRadius),
                         ),
@@ -630,7 +630,7 @@ class _SubjectsTab extends ConsumerWidget {
                                     color: (subject.isCompulsory
                                             ? AppColors.success
                                             : AppColors.warning)
-                                        .withValues(alpha: isDark ? 0.20 : 0.12),
+                                        .withOpacity(isDark ? 0.20 : 0.12),
                                     borderRadius: BorderRadius.circular(
                                         Spacings.fullRadius),
                                   ),
@@ -737,7 +737,7 @@ class _TimetableTab extends ConsumerWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.12),
+                    color: AppColors.success.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -882,7 +882,7 @@ class TimetableWeeklyView extends StatelessWidget {
     if (slot.isBreak) {
       return Container(
         padding: const EdgeInsets.all(Spacings.xs),
-        color: AppColors.warning.withValues(alpha: 0.12),
+        color: AppColors.warning.withOpacity(0.12),
         child: Center(
           child: Text(
             slot.breakLabel ?? 'Break',
@@ -900,7 +900,7 @@ class TimetableWeeklyView extends StatelessWidget {
 
     return Container(
       padding: const EdgeInsets.all(Spacings.xs),
-      color: cs.primaryContainer.withValues(alpha: 0.3),
+      color: cs.primaryContainer.withOpacity(0.3),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [

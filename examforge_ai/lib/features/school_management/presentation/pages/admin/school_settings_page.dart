@@ -13,7 +13,7 @@ import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/school_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -577,10 +577,10 @@ class _SchoolSettingsPageState extends ConsumerState<SchoolSettingsPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.info.withValues(alpha: isDark ? 0.10 : 0.06),
+        color: AppColors.info.withOpacity(isDark ? 0.10 : 0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
+          color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
         ),
       ),
       child: Row(
@@ -617,7 +617,7 @@ class _SchoolSettingsPageState extends ConsumerState<SchoolSettingsPage> {
             Container(
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: planColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                color: planColor.withOpacity(isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
               ),
               child: Icon(
@@ -672,10 +672,10 @@ class _SchoolSettingsPageState extends ConsumerState<SchoolSettingsPage> {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: AppColors.warning.withValues(alpha: isDark ? 0.10 : 0.06),
+              color: AppColors.warning.withOpacity(isDark ? 0.10 : 0.06),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
+                color: AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
               ),
             ),
             child: Row(
@@ -852,7 +852,7 @@ class _ToggleRow extends StatelessWidget {
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
             color: (isDestructive ? AppColors.error : cs.primary)
-                .withValues(alpha: isDark ? 0.20 : 0.12),
+                .withOpacity(isDark ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(

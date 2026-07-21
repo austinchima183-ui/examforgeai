@@ -10,7 +10,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/homework_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -333,7 +333,7 @@ class _HomeworkSubmissionsPageState
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.12),
+                        color: AppColors.warning.withOpacity(0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -451,7 +451,7 @@ class _InfoChip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -562,7 +562,7 @@ class _SubmissionCard extends StatelessWidget {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: submission.studentAvatarUrl != null
@@ -604,7 +604,7 @@ class _SubmissionCard extends StatelessWidget {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
+                          color: AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
                           borderRadius: BorderRadius.circular(Spacings.fullRadius),
                         ),
                         child: Text(
@@ -647,7 +647,7 @@ class _SubmissionCard extends StatelessWidget {
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.fullRadius),
             ),
             child: Text(

@@ -72,8 +72,7 @@ class PerformanceIndicator extends StatelessWidget {
             painter: _PerformanceArcPainter(
               progress: score.clamp(0.0, 100.0) / 100.0,
               foregroundColor: fgColor,
-              backgroundColor: fgColor.withValues(
-                alpha: isDark ? 0.15 : 0.10,
+              backgroundColor: fgColor.withOpacity(isDark ? 0.15 : 0.10,
               ),
               classAverageProgress: classAverage != null
                   ? (classAverage!.clamp(0.0, 100.0) / 100.0)

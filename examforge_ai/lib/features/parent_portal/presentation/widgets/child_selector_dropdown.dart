@@ -131,10 +131,10 @@ class ChildSelectorDropdown extends StatelessWidget {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.08),
+        color: cs.primary.withOpacity(isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
         border: Border.all(
-          color: cs.primary.withValues(alpha: 0.2),
+          color: cs.primary.withOpacity(0.2),
         ),
       ),
       child: Row(
@@ -191,7 +191,7 @@ class ChildSelectorDropdown extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: isDark ? 0.25 : 0.15),
+        color: cs.primary.withOpacity(isDark ? 0.25 : 0.15),
         shape: BoxShape.circle,
       ),
       child: Center(

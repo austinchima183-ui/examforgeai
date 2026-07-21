@@ -18,6 +18,7 @@ import 'dart:io';
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -231,7 +232,7 @@ class DeviceService {
           'osVersion': webInfo.platform ?? 'unknown',
           'appVersion': packageInfo.version,
           'deviceId': webInfo.userAgent ?? 'web-unknown',
-          'screenResolution': '${webInfo.screen?.width ?? 0}x${webInfo.screen?.height ?? 0}',
+          'screenResolution': 'N/A (web)',
         };
       }
 
@@ -339,7 +340,7 @@ class DeviceService {
   Future<bool> isCameraAvailable() async {
     if (kIsWeb) return false;
     try {
-      return await _imagePicker.isSourceTypeAvailable(ImageSource.camera);
+      return await _imagePicker.supportsImageSource(ImageSource.camera);
     } catch (e) {
       AppLogger.warning('Camera availability check failed', error: e);
       return false;

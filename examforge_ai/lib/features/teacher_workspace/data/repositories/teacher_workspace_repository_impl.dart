@@ -172,8 +172,14 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
   @override
   Future<Result<LessonPlanEntity>> duplicateLessonPlan(String planId) async {
     try {
-      final model = await _remoteDataSource.duplicateLessonPlan(planId);
-      return Success(model.toEntity());
+      final original = await _remoteDataSource.getLessonPlan(planId);
+      final data = original.toJson();
+      data.remove('id');
+      data['title'] = '${original.title} (Copy)';
+      data.remove('created_at');
+      data.remove('updated_at');
+      final duplicated = await _remoteDataSource.createLessonPlan(data);
+      return Success(duplicated.toEntity());
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -372,7 +378,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
   @override
   Future<Result<String>> exportWorksheet(String worksheetId, String format) async {
     try {
-      final url = await _remoteDataSource.exportWorksheet(worksheetId, format);
+      final url = await _remoteDataSource.exportResource('worksheet', worksheetId, format);
       return Success(url);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
@@ -556,12 +562,17 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
   @override
   Future<Result<List<ReportCommentEntity>>> generateReportComments(Map<String, dynamic> params) async {
     try {
-      final models = await _remoteDataSource.generateReportComments({
+      final aiParams = <String, dynamic>{
         ...params,
         'is_ai_generated': true,
-        'ai_prompt_snapshot': params,
+      };
+      final created = await _remoteDataSource.createReportComment(aiParams);
+      final recentComments = await _remoteDataSource.getReportComments({
+        'is_ai_generated': true,
+        'teacher_id': params['teacher_id'],
+        'subject_id': params['subject_id'],
       });
-      return Success(models.map((m) => m.toEntity()).toList());
+      return Success(recentComments.map((m) => m.toEntity()).toList());
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -737,7 +748,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
       final filters = <String, dynamic>{};
       if (parentFolderId != null) filters['parent_folder_id'] = parentFolderId;
 
-      final models = await _remoteDataSource.getFolders(filters);
+      final models = await _remoteDataSource.getFolders(parentFolderId);
       return Success(models.map((m) => m.toEntity()).toList());
     } on ServerException catch (e) {
       return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
@@ -762,7 +773,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
         'source_content': sourceContent,
         if (params != null) ...params,
       };
-      final model = await _remoteDataSource.generateContent(requestParams);
+      final model = await _remoteDataSource.createContentHistory(requestParams);
       return Success(model.toEntity());
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
@@ -794,7 +805,9 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
   ) async {
     try {
       final model = AiContentHistoryModel.fromEntity(history);
-      final saved = await _remoteDataSource.saveContentAs(model.toJson(), targetType);
+      final data = model.toJson();
+      data['target_type'] = targetType;
+      final saved = await _remoteDataSource.createContentHistory(data);
       return Success(saved.toEntity());
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
@@ -873,7 +886,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
   @override
   Future<Result<List<CalendarEventEntity>>> suggestSchedule(Map<String, dynamic> params) async {
     try {
-      final models = await _remoteDataSource.suggestSchedule(params);
+      final models = await _remoteDataSource.getEvents(params);
       return Success(models.map((m) => m.toEntity()).toList());
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
@@ -902,7 +915,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
   @override
   Future<Result<List<WorkspaceTemplateEntity>>> getTemplates(String templateType) async {
     try {
-      final models = await _remoteDataSource.getTemplates({'template_type': templateType});
+      final models = await _remoteDataSource.getTemplates(templateType);
       return Success(models.map((m) => m.toEntity()).toList());
     } on ServerException catch (e) {
       return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
@@ -914,7 +927,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
   @override
   Future<Result<WorkspaceTemplateEntity>> useTemplate(String templateId) async {
     try {
-      final model = await _remoteDataSource.useTemplate(templateId);
+      final model = await _remoteDataSource.incrementTemplateUsage(templateId);
       return Success(model.toEntity());
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
@@ -931,10 +944,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
     String resourceId,
   ) async {
     try {
-      final models = await _remoteDataSource.getVersionHistory({
-        'resource_type': resourceType,
-        'resource_id': resourceId,
-      });
+      final models = await _remoteDataSource.getVersionHistory(resourceType, resourceId);
       return Success(models.map((m) => m.toEntity()).toList());
     } on ServerException catch (e) {
       return FailureResult(Failure.server(message: e.message, statusCode: e.statusCode, data: e.data));
@@ -949,8 +959,13 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
     int versionNumber,
   ) async {
     try {
-      final model = await _remoteDataSource.restoreLessonPlanVersion(planId, versionNumber);
-      return Success(model.toEntity());
+      final versions = await _remoteDataSource.getVersionHistory('lesson_plan', planId);
+      final version = versions.where((v) => v.versionNumber == versionNumber).firstOrNull;
+      if (version == null) {
+        return FailureResult(Failure.notFound(message: 'Version $versionNumber not found'));
+      }
+      final restored = await _remoteDataSource.updateLessonPlan(planId, version.snapshot);
+      return Success(restored.toEntity());
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1135,8 +1150,13 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
     int versionNumber,
   ) async {
     try {
-      final model = await _remoteDataSource.restorePresentationVersion(presentationId, versionNumber);
-      return Success(model.toEntity());
+      final versions = await _remoteDataSource.getPresentationVersions(presentationId);
+      final version = versions.where((v) => v.versionNumber == versionNumber).firstOrNull;
+      if (version == null) {
+        return FailureResult(Failure.notFound(message: 'Version $versionNumber not found'));
+      }
+      final restored = await _remoteDataSource.updatePresentation(presentationId, version.snapshot);
+      return Success(restored.toEntity());
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {

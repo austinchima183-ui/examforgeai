@@ -90,7 +90,7 @@ class AppCard extends StatelessWidget {
     final shape = RoundedRectangleBorder(
       borderRadius: BorderRadius.circular(radius),
       side: BorderSide(
-        color: borderColor ?? cs.outlineVariant.withValues(alpha: 0.5),
+        color: borderColor ?? cs.outlineVariant.withOpacity(0.5),
       ),
     );
 
@@ -183,7 +183,7 @@ class AppStatCard extends StatelessWidget {
     final isDark = context.isDarkMode;
 
     final accentColor = color ?? cs.primary;
-    final iconBgColor = accentColor.withValues(alpha: isDark ? 0.20 : 0.12);
+    final iconBgColor = accentColor.withOpacity(isDark ? 0.20 : 0.12);
 
     // Trend colour
     final trendColor = switch (trend) {
@@ -331,8 +331,7 @@ class AppInfoCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: (iconColor ?? cs.primary).withValues(
-                  alpha: context.isDarkMode ? 0.20 : 0.12,
+                color: (iconColor ?? cs.primary).withOpacity(context.isDarkMode ? 0.20 : 0.12,
                 ),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
@@ -436,7 +435,7 @@ class AppActionCard extends StatelessWidget {
     final isDark = context.isDarkMode;
 
     final accentColor = color ?? cs.primary;
-    final iconBgColor = accentColor.withValues(alpha: isDark ? 0.20 : 0.12);
+    final iconBgColor = accentColor.withOpacity(isDark ? 0.20 : 0.12);
 
     return AppCard(
       onTap: onTap,

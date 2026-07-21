@@ -370,7 +370,7 @@ class _CouponListTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -387,10 +387,10 @@ class _CouponListTile extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withValues(alpha: 0.4),
+                    color: cs.primaryContainer.withOpacity(0.4),
                     borderRadius: Spacings.borderRadiusSm,
                     border: Border.all(
-                      color: cs.primary.withValues(alpha: 0.3),
+                      color: cs.primary.withOpacity(0.3),
                     ),
                   ),
                   child: Text(
@@ -410,7 +410,7 @@ class _CouponListTile extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                    color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Text(

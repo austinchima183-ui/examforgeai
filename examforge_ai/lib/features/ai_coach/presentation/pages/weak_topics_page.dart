@@ -77,10 +77,10 @@ class _WeakTopicsPageState extends ConsumerState<WeakTopicsPage> {
                       margin: const EdgeInsets.all(16),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.warning.withValues(alpha: 0.1),
+                        color: AppColors.warning.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.warning.withValues(alpha: 0.3),
+                          color: AppColors.warning.withOpacity(0.3),
                         ),
                       ),
                       child: Row(
@@ -231,7 +231,7 @@ class _SeverityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -293,7 +293,7 @@ class _WeakTopicCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(
-          color: severityColor.withValues(alpha: 0.3),
+          color: severityColor.withOpacity(0.3),
         ),
       ),
       child: Padding(
@@ -317,7 +317,7 @@ class _WeakTopicCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: severityColor.withValues(alpha: 0.1),
+                    color: severityColor.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -349,7 +349,7 @@ class _WeakTopicCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: topic.accuracy / 100,
                       backgroundColor:
-                          context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                          context.colorScheme.outlineVariant.withOpacity(0.3),
                       color: severityColor,
                       minHeight: 6,
                     ),

@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -174,7 +174,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
     final tt = context.textTheme;
 
     return AppCard(
-      color: cs.primaryContainer.withValues(alpha: 0.3),
+      color: cs.primaryContainer.withOpacity(0.3),
       child: Column(
         children: [
           Row(
@@ -266,7 +266,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
       ),
       child: Row(
@@ -305,7 +305,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -346,7 +346,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -519,10 +519,10 @@ class _GradingCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.primaryContainer.withValues(alpha: 0.3),
+              color: cs.primaryContainer.withOpacity(0.3),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Row(
@@ -617,7 +617,7 @@ class _GradingCard extends StatelessWidget {
                             color: AppColors.successOf(cs.brightness))),
                     side: BorderSide.none,
                     backgroundColor: AppColors.successOf(cs.brightness)
-                        .withValues(alpha: isDark ? 0.15 : 0.08),
+                        .withOpacity(isDark ? 0.15 : 0.08),
                   ),
                 ),
                 ...result.weaknesses.map(
@@ -630,7 +630,7 @@ class _GradingCard extends StatelessWidget {
                             color: AppColors.warningOf(cs.brightness))),
                     side: BorderSide.none,
                     backgroundColor: AppColors.warningOf(cs.brightness)
-                        .withValues(alpha: isDark ? 0.15 : 0.08),
+                        .withOpacity(isDark ? 0.15 : 0.08),
                   ),
                 ),
               ],
@@ -761,7 +761,7 @@ class _GradingCard extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(

@@ -362,11 +362,11 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
             ),
             decoration: BoxDecoration(
               color: isSelected
-                  ? cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.08)
+                  ? cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.08)
                   : cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: isSelected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
+                color: isSelected ? cs.primary : cs.outlineVariant.withOpacity(0.5),
                 width: isSelected ? 2.0 : 1.0,
               ),
             ),
@@ -413,25 +413,9 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
       case QuestionType.videoBased:
         return AnswerOptionsEditor(
           options: editorState.answerOptions,
-          isMultipleChoice: type == QuestionType.multipleChoice,
-          onAddOption: () {
-            ref.read(questionEditorProvider.notifier).addAnswerOption();
-            _markUnsaved();
-          },
-          onRemoveOption: (index) {
-            ref.read(questionEditorProvider.notifier).removeAnswerOption(index);
-            _markUnsaved();
-          },
-          onUpdateOption: (index, option) {
-            ref.read(questionEditorProvider.notifier).updateAnswerOption(index, option);
-            _markUnsaved();
-          },
-          onSetCorrectAnswer: (index) {
-            ref.read(questionEditorProvider.notifier).setCorrectAnswer(index);
-            _markUnsaved();
-          },
-          onSetCorrectAnswers: (indices) {
-            ref.read(questionEditorProvider.notifier).setCorrectAnswers(indices);
+          isMultiSelect: type == QuestionType.multipleResponse,
+          onOptionsChanged: (newOptions) {
+            ref.read(questionEditorProvider.notifier).updateAnswerOptions(newOptions);
             _markUnsaved();
           },
         );
@@ -442,16 +426,8 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
       case QuestionType.matching:
         return MatchingPairsEditor(
           pairs: editorState.matchingPairs,
-          onAddPair: () {
-            ref.read(questionEditorProvider.notifier).addMatchingPair();
-            _markUnsaved();
-          },
-          onRemovePair: (index) {
-            ref.read(questionEditorProvider.notifier).removeMatchingPair(index);
-            _markUnsaved();
-          },
-          onUpdatePair: (index, pair) {
-            ref.read(questionEditorProvider.notifier).updateMatchingPair(index, pair);
+          onPairsChanged: (newPairs) {
+            ref.read(questionEditorProvider.notifier).updateMatchingPairs(newPairs);
             _markUnsaved();
           },
         );
@@ -459,37 +435,17 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
       case QuestionType.ordering:
         return OrderingItemsEditor(
           items: editorState.orderingItems,
-          onAddItem: () {
-            ref.read(questionEditorProvider.notifier).addOrderingItem();
-            _markUnsaved();
-          },
-          onRemoveItem: (index) {
-            ref.read(questionEditorProvider.notifier).removeOrderingItem(index);
-            _markUnsaved();
-          },
-          onUpdateItem: (index, item) {
-            ref.read(questionEditorProvider.notifier).updateOrderingItem(index, item);
-            _markUnsaved();
-          },
-          onReorder: (oldIndex, newIndex) {
-            ref.read(questionEditorProvider.notifier).reorderOrderingItems(oldIndex, newIndex);
+          onItemsChanged: (newItems) {
+            ref.read(questionEditorProvider.notifier).updateOrderingItems(newItems);
             _markUnsaved();
           },
         );
 
       case QuestionType.fillInBlank:
         return FillInBlankEditor(
-          answers: editorState.fillInBlankAnswers,
-          onAddBlank: () {
-            ref.read(questionEditorProvider.notifier).addFillInBlankAnswer();
-            _markUnsaved();
-          },
-          onRemoveBlank: (index) {
-            ref.read(questionEditorProvider.notifier).removeFillInBlankAnswer(index);
-            _markUnsaved();
-          },
-          onUpdateBlank: (index, answer) {
-            ref.read(questionEditorProvider.notifier).updateFillInBlankAnswer(index, answer);
+          blanks: editorState.fillInBlankAnswers,
+          onBlanksChanged: (newBlanks) {
+            ref.read(questionEditorProvider.notifier).updateFillInBlankAnswers(newBlanks);
             _markUnsaved();
           },
         );
@@ -564,6 +520,7 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
               _markUnsaved();
             },
             prefixIcon: Icons.book_outlined,
+            itemLabel: (id) => id,
           ),
           AppDropdownField<String>(
             label: 'Topic',
@@ -614,6 +571,7 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
               _markUnsaved();
             },
             prefixIcon: Icons.school_outlined,
+            itemLabel: (id) => id,
           ),
         ]),
         const SizedBox(height: Spacings.md),
@@ -627,6 +585,7 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
             _markUnsaved();
           },
           prefixIcon: Icons.category_outlined,
+          itemLabel: (id) => id,
         ),
       ],
     );
@@ -785,12 +744,11 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
               child: Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: color.withValues(
-                    alpha: context.isDarkMode ? 0.15 : 0.06,
+                  color: color.withOpacity(context.isDarkMode ? 0.15 : 0.06,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: color.withValues(alpha: 0.3),
+                    color: color.withOpacity(0.3),
                   ),
                 ),
                 child: Row(

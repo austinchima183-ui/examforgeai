@@ -236,7 +236,7 @@ class _SupportCenterPageState extends ConsumerState<SupportCenterPage>
                         tabs: _tabs,
                         labelColor: cs.primary,
                         unselectedLabelColor:
-                            cs.onSurface.withValues(alpha: 0.6),
+                            cs.onSurface.withOpacity(0.6),
                         indicatorColor: cs.primary,
                         indicatorSize: TabBarIndicatorSize.tab,
                       ),
@@ -296,7 +296,7 @@ class _SupportCenterPageState extends ConsumerState<SupportCenterPage>
               error,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: cs.onSurface.withValues(alpha: 0.7),
+                color: cs.onSurface.withOpacity(0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -370,7 +370,7 @@ class _TicketsTab extends StatelessWidget {
                   '${state.tickets.length} ${state.tickets.length == 1 ? 'ticket' : 'tickets'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -426,7 +426,7 @@ class _TicketsTab extends StatelessWidget {
                 'Status',
                 style: AppTypography.wSemiBold.copyWith(
                   fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: Spacings.xs),
@@ -465,7 +465,7 @@ class _TicketsTab extends StatelessWidget {
                 'Priority',
                 style: AppTypography.wSemiBold.copyWith(
                   fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: Spacings.xs),
@@ -504,7 +504,7 @@ class _TicketsTab extends StatelessWidget {
                 'Category',
                 style: AppTypography.wSemiBold.copyWith(
                   fontSize: 12,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ),
               const SizedBox(height: Spacings.xs),
@@ -559,7 +559,7 @@ class _TicketCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: ticket.isEscalated
-            ? BorderSide(color: AppColors.error.withValues(alpha: 0.4))
+            ? BorderSide(color: AppColors.error.withOpacity(0.4))
             : BorderSide.none,
       ),
       child: InkWell(
@@ -614,37 +614,37 @@ class _TicketCard extends StatelessWidget {
               Row(
                 children: [
                   Icon(Icons.person_outline_rounded,
-                      size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+                      size: 14, color: cs.onSurface.withOpacity(0.5)),
                   const SizedBox(width: Spacings.xs),
                   Text(
                     ticket.reporterId,
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.6),
+                      color: cs.onSurface.withOpacity(0.6),
                     ),
                   ),
                   const SizedBox(width: Spacings.lg),
                   Icon(Icons.assignment_ind_outlined,
-                      size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+                      size: 14, color: cs.onSurface.withOpacity(0.5)),
                   const SizedBox(width: Spacings.xs),
                   Text(
                     ticket.assignedTo ?? 'Unassigned',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
                       color: ticket.assignedTo != null
-                          ? cs.onSurface.withValues(alpha: 0.6)
+                          ? cs.onSurface.withOpacity(0.6)
                           : AppColors.warning,
                     ),
                   ),
                   const Spacer(),
                   Icon(Icons.schedule_rounded,
-                      size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
+                      size: 14, color: cs.onSurface.withOpacity(0.4)),
                   const SizedBox(width: Spacings.xs),
                   Text(
                     _formatTimeAgo(ticket.createdAt),
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 11,
-                      color: cs.onSurface.withValues(alpha: 0.5),
+                      color: cs.onSurface.withOpacity(0.5),
                     ),
                   ),
                 ],
@@ -712,7 +712,7 @@ class _TicketCard extends StatelessWidget {
                         color: Theme.of(context)
                             .colorScheme
                             .onSurface
-                            .withValues(alpha: 0.7),
+                            .withOpacity(0.7),
                       ),
                     ),
                     const SizedBox(height: Spacings.lg),
@@ -787,7 +787,7 @@ class _TicketCard extends StatelessWidget {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withValues(alpha: 0.7),
+                        .withOpacity(0.7),
                   ),
                 ),
                 const SizedBox(height: Spacings.lg),
@@ -882,7 +882,7 @@ class _TicketCard extends StatelessWidget {
                     color: Theme.of(context)
                         .colorScheme
                         .onSurface
-                        .withValues(alpha: 0.8),
+                        .withOpacity(0.8),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -990,7 +990,7 @@ class _FeedbackTab extends StatelessWidget {
                         'Feedback Type',
                         style: AppTypography.wSemiBold.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.6),
+                          color: cs.onSurface.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -1038,7 +1038,7 @@ class _FeedbackTab extends StatelessWidget {
                   '${filteredItems.length} ${filteredItems.length == 1 ? 'item' : 'items'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -1136,13 +1136,13 @@ class _FeedbackCard extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.person_outline_rounded,
-                    size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+                    size: 14, color: cs.onSurface.withOpacity(0.5)),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   ticket.reporterId,
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
                 const Spacer(),
@@ -1159,7 +1159,7 @@ class _FeedbackCard extends StatelessWidget {
               ticket.description,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 13,
-                color: cs.onSurface.withValues(alpha: 0.7),
+                color: cs.onSurface.withOpacity(0.7),
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -1171,7 +1171,7 @@ class _FeedbackCard extends StatelessWidget {
               _formatTimeAgo(ticket.createdAt),
               style: AppTypography.wRegular.copyWith(
                 fontSize: 11,
-                color: cs.onSurface.withValues(alpha: 0.4),
+                color: cs.onSurface.withOpacity(0.4),
               ),
             ),
           ],

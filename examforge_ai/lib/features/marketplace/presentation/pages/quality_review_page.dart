@@ -253,7 +253,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
             Icon(
               Icons.inventory_2_outlined,
               size: Spacings.xlIcon,
-              color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+              color: cs.onSurfaceVariant.withOpacity(0.5),
             ),
             const SizedBox(height: Spacings.md),
             Text(
@@ -316,7 +316,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
           Icon(
             Icons.search_off,
             size: Spacings.xlIcon,
-            color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+            color: cs.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: Spacings.md),
           Text(
@@ -341,7 +341,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
           Icon(
             Icons.fact_check_outlined,
             size: Spacings.xlIcon,
-            color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+            color: cs.onSurfaceVariant.withOpacity(0.5),
           ),
           const SizedBox(height: Spacings.md),
           Text(
@@ -423,8 +423,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
                         vertical: Spacings.sm,
                       ),
                       decoration: BoxDecoration(
-                        color: scoreColor.withValues(
-                          alpha: context.isDarkMode ? 0.20 : 0.12,
+                        color: scoreColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -661,7 +660,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+              color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(icon, size: Spacings.mdIcon, color: color),
@@ -790,8 +789,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
                           vertical: Spacings.xs,
                         ),
                         decoration: BoxDecoration(
-                          color: similarityColor.withValues(
-                            alpha: context.isDarkMode ? 0.20 : 0.12,
+                          color: similarityColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                           ),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -947,7 +945,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
           return Padding(
             padding: const EdgeInsets.only(bottom: Spacings.sm),
             child: AppCard(
-              borderColor: severityColor.withValues(alpha: 0.5),
+              borderColor: severityColor.withOpacity(0.5),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -955,8 +953,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
                   Container(
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
-                      color: severityColor.withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.12,
+                      color: severityColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                       ),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
@@ -987,8 +984,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
                                 vertical: Spacings.xs,
                               ),
                               decoration: BoxDecoration(
-                                color: severityColor.withValues(
-                                  alpha: context.isDarkMode ? 0.20 : 0.12,
+                                color: severityColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                                 ),
                                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                               ),
@@ -1057,8 +1053,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
                   Container(
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
-                      color: AppColors.info.withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.12,
+                      color: AppColors.info.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                       ),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
@@ -1174,7 +1169,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
                       Expanded(
                         child: Container(
                           width: 2,
-                          color: cs.outlineVariant.withValues(alpha: 0.5),
+                          color: cs.outlineVariant.withOpacity(0.5),
                         ),
                       ),
                     ],
@@ -1203,8 +1198,7 @@ class _QualityReviewPageState extends ConsumerState<QualityReviewPage> {
                                   vertical: Spacings.xs,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: scoreColor.withValues(
-                                    alpha: context.isDarkMode ? 0.20 : 0.12,
+                                  color: scoreColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                                   ),
                                   borderRadius:
                                       BorderRadius.circular(Spacings.smRadius),

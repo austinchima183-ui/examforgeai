@@ -97,7 +97,7 @@ class _AiHistoryPageState extends ConsumerState<AiHistoryPage> {
 
     return Container(
       padding: const EdgeInsets.all(Spacings.lg),
-      color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+      color: cs.surfaceContainerHighest.withOpacity(0.3),
       child: Row(
         children: [
           _SummaryStat(
@@ -302,7 +302,7 @@ class _AiHistoryPageState extends ConsumerState<AiHistoryPage> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(statusIcon, size: Spacings.mdIcon, color: statusColor),

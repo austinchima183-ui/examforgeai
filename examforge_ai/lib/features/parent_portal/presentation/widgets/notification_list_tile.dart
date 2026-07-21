@@ -88,7 +88,7 @@ class NotificationListTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: notification.isRead
               ? Colors.transparent
-              : cs.primary.withValues(alpha: isDark ? 0.08 : 0.05),
+              : cs.primary.withOpacity(isDark ? 0.08 : 0.05),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
         child: Padding(
@@ -110,8 +110,7 @@ class NotificationListTile extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: typeColor.withValues(
-                            alpha: isDark ? 0.20 : 0.12,
+                          color: typeColor.withOpacity(isDark ? 0.20 : 0.12,
                           ),
                           shape: BoxShape.circle,
                         ),
@@ -181,7 +180,7 @@ class NotificationListTile extends StatelessWidget {
                         Text(
                           notification.createdAt.timeAgo,
                           style: tt.labelSmall?.copyWith(
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.7),
+                            color: cs.onSurfaceVariant.withOpacity(0.7),
                           ),
                         ),
                         const Spacer(),
@@ -209,7 +208,7 @@ class NotificationListTile extends StatelessWidget {
         padding: const EdgeInsets.only(right: Spacings.xl),
         margin: const EdgeInsets.symmetric(vertical: Spacings.xs),
         decoration: BoxDecoration(
-          color: AppColors.error.withValues(alpha: 0.1),
+          color: AppColors.error.withOpacity(0.1),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
         child: Icon(
@@ -231,7 +230,7 @@ class NotificationListTile extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: cs.primary.withValues(alpha: 0.1),
+        color: cs.primary.withOpacity(0.1),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

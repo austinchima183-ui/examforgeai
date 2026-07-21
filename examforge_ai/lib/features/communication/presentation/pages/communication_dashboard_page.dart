@@ -171,7 +171,7 @@ class _State extends ConsumerState<CommunicationDashboardPage> {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: Spacings.borderRadiusMd,
-        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
+        border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -247,7 +247,7 @@ class _State extends ConsumerState<CommunicationDashboardPage> {
     final tt = Theme.of(context).textTheme;
 
     return Material(
-      color: cs.primaryContainer.withValues(alpha: 0.15),
+      color: cs.primaryContainer.withOpacity(0.15),
       borderRadius: Spacings.borderRadiusMd,
       child: InkWell(
         onTap: action.onTap,

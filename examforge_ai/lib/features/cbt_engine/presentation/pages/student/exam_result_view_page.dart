@@ -10,8 +10,8 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../question_bank/presentation/widgets/question_type_badge.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/exam_results_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -107,7 +107,7 @@ class ExamResultViewPage extends ConsumerWidget {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: Spacings.sm),
             decoration: BoxDecoration(
-              color: passColor.withValues(alpha: isDark ? 0.15 : 0.08),
+              color: passColor.withOpacity(isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Text(
@@ -129,7 +129,7 @@ class ExamResultViewPage extends ConsumerWidget {
             height: 140,
             decoration: BoxDecoration(
               shape: BoxShape.circle,
-              color: passColor.withValues(alpha: isDark ? 0.15 : 0.08),
+              color: passColor.withOpacity(isDark ? 0.15 : 0.08),
               border: Border.all(color: passColor, width: 4),
             ),
             child: Center(
@@ -175,7 +175,7 @@ class ExamResultViewPage extends ConsumerWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: 0.1),
+                    color: cs.primary.withOpacity(0.1),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(
@@ -300,9 +300,9 @@ class ExamResultViewPage extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: diff >= 0
                           ? AppColors.successOf(cs.brightness)
-                              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08)
+                              .withOpacity(context.isDarkMode ? 0.15 : 0.08)
                           : AppColors.errorOf(cs.brightness)
-                              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+                              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -372,7 +372,7 @@ class ExamResultViewPage extends ConsumerWidget {
                   Icon(
                     Icons.checklist_rounded,
                     size: Spacings.xlIcon,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: cs.onSurfaceVariant.withOpacity(0.5),
                   ),
                   const SizedBox(height: Spacings.md),
                   Text(
@@ -404,7 +404,7 @@ class ExamResultViewPage extends ConsumerWidget {
             width: 56,
             height: 56,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+              color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Center(

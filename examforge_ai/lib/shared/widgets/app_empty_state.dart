@@ -156,7 +156,7 @@ class AppEmptyState extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: iconSize,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                    color: cs.onSurfaceVariant.withOpacity(0.5),
                   ),
                 ),
 

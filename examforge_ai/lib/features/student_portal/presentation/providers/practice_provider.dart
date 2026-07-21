@@ -28,7 +28,7 @@ class PracticeState {
     this.error,
     this.hasMore = true,
     this.remainingTime,
-    this._currentPage = 1,
+    this.currentPage = 1,
   });
 
   /// All practice sessions for the current student.
@@ -60,10 +60,10 @@ class PracticeState {
 
   /// Current page number for session pagination (1-based).
   // ignore: unused_field
-  final int _currentPage;
+  final int currentPage;
 
   /// Current page number for session pagination.
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading || isSubmitting;
@@ -120,7 +120,7 @@ class PracticeState {
       error: error,
       hasMore: hasMore ?? this.hasMore,
       remainingTime: clearRemainingTime ? null : (remainingTime ?? this.remainingTime),
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
     );
   }
 

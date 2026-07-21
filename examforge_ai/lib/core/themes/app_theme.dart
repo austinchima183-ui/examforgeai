@@ -68,14 +68,14 @@ class AppTheme {
       ),
 
       // ── Card ────────────────────────────────────────────────────────────
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         elevation: 0,
         clipBehavior: Clip.antiAlias,
         margin: EdgeInsets.zero,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+            color: colorScheme.outlineVariant.withOpacity(0.5),
           ),
         ),
         color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
@@ -88,8 +88,8 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
-          disabledBackgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
-          disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
+          disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),
+          disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
           elevation: 0,
           shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(
@@ -110,7 +110,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: colorScheme.primary,
-          disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
+          disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
           padding: const EdgeInsets.symmetric(
             horizontal: Spacings.xl,
             vertical: Spacings.md,
@@ -130,7 +130,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colorScheme.primary,
-          disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
+          disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
           padding: const EdgeInsets.symmetric(
             horizontal: Spacings.lg,
             vertical: Spacings.md,
@@ -178,7 +178,7 @@ class AppTheme {
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           borderSide: BorderSide(
-            color: colorScheme.onSurface.withValues(alpha: 0.12),
+            color: colorScheme.onSurface.withOpacity(0.12),
           ),
         ),
         hintStyle: textTheme.bodyMedium?.copyWith(
@@ -198,7 +198,7 @@ class AppTheme {
       ),
 
       // ── Dialog ──────────────────────────────────────────────────────────
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         elevation: 0,
         backgroundColor: colorScheme.surface,
         surfaceTintColor: colorScheme.surfaceTint,
@@ -230,7 +230,7 @@ class AppTheme {
           ),
         ),
         showDragHandle: true,
-        dragHandleColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
+        dragHandleColor: colorScheme.onSurfaceVariant.withOpacity(0.4),
         dragHandleSize: const Size(32, 4),
       ),
 
@@ -272,31 +272,8 @@ class AppTheme {
         elevation: 0,
         backgroundColor: colorScheme.surface,
         indicatorColor: colorScheme.primaryContainer,
-        minHeight: 80,
         labelType: NavigationRailLabelType.all,
-        iconTheme: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return IconThemeData(
-              color: colorScheme.onSecondaryContainer,
-              size: Spacings.mdIcon,
-            );
-          }
-          return IconThemeData(
-            color: colorScheme.onSurfaceVariant,
-            size: Spacings.mdIcon,
-          );
-        }),
-        labelTextStyle: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) {
-            return AppTypography.navLabel.copyWith(
-              color: colorScheme.onSurface,
-              fontWeight: AppTypography.wSemiBold,
-            );
-          }
-          return AppTypography.navLabel.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          );
-        }),
+        minExtendedWidth: 80,
         selectedIconTheme: IconThemeData(
           color: colorScheme.onSecondaryContainer,
           size: Spacings.mdIcon,
@@ -304,6 +281,13 @@ class AppTheme {
         unselectedIconTheme: IconThemeData(
           color: colorScheme.onSurfaceVariant,
           size: Spacings.mdIcon,
+        ),
+        selectedLabelTextStyle: AppTypography.navLabel.copyWith(
+          color: colorScheme.onSurface,
+          fontWeight: AppTypography.wSemiBold,
+        ),
+        unselectedLabelTextStyle: AppTypography.navLabel.copyWith(
+          color: colorScheme.onSurfaceVariant,
         ),
       ),
 
@@ -326,9 +310,6 @@ class AppTheme {
         backgroundColor: isDark
             ? colorScheme.surfaceContainerHigh
             : colorScheme.onSurface,
-        foregroundColor: isDark
-            ? colorScheme.onSurface
-            : colorScheme.surface,
         elevation: 4,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Spacings.smRadius),
@@ -350,7 +331,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.surfaceContainerLow,
         deleteIconColor: colorScheme.onSurfaceVariant,
-        disabledColor: colorScheme.onSurface.withValues(alpha: 0.12),
+        disabledColor: colorScheme.onSurface.withOpacity(0.12),
         selectedColor: colorScheme.secondaryContainer,
         secondarySelectedColor: colorScheme.primaryContainer,
         labelStyle: textTheme.labelLarge?.copyWith(
@@ -368,7 +349,6 @@ class AppTheme {
           side: BorderSide(color: colorScheme.outlineVariant),
         ),
         side: BorderSide(color: colorScheme.outlineVariant),
-        selectedSide: BorderSide(color: colorScheme.outline),
         checkmarkColor: colorScheme.primary,
       ),
 
@@ -390,7 +370,7 @@ class AppTheme {
       ),
 
       // ── Tab Bar ─────────────────────────────────────────────────────────
-      tabBarTheme: TabBarTheme(
+      tabBarTheme: TabBarThemeData(
         labelColor: colorScheme.primary,
         unselectedLabelColor: colorScheme.onSurfaceVariant,
         labelStyle: textTheme.titleSmall?.copyWith(
@@ -405,10 +385,10 @@ class AppTheme {
         dividerHeight: 1,
         overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
           if (states.contains(WidgetState.pressed)) {
-            return colorScheme.primary.withValues(alpha: 0.12);
+            return colorScheme.primary.withOpacity(0.12);
           }
           if (states.contains(WidgetState.hovered)) {
-            return colorScheme.primary.withValues(alpha: 0.08);
+            return colorScheme.primary.withOpacity(0.08);
           }
           return null;
         }),
@@ -493,7 +473,7 @@ class AppTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return colorScheme.onSurface.withValues(alpha: 0.12);
+            return colorScheme.onSurface.withOpacity(0.12);
           }
           if (states.contains(WidgetState.selected)) {
             return colorScheme.primary;
@@ -507,7 +487,7 @@ class AppTheme {
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
             if (states.contains(WidgetState.selected)) {
-              return colorScheme.onSurface.withValues(alpha: 0.38);
+              return colorScheme.onSurface.withOpacity(0.38);
             }
             return Colors.transparent;
           }
@@ -521,7 +501,7 @@ class AppTheme {
             if (states.contains(WidgetState.selected)) {
               return colorScheme.surface;
             }
-            return colorScheme.onSurface.withValues(alpha: 0.38);
+            return colorScheme.onSurface.withOpacity(0.38);
           }
           return colorScheme.onPrimary;
         }),
@@ -536,9 +516,9 @@ class AppTheme {
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
             if (states.contains(WidgetState.selected)) {
-              return colorScheme.onSurface.withValues(alpha: 0.38);
+              return colorScheme.onSurface.withOpacity(0.38);
             }
-            return colorScheme.onSurfaceVariant.withValues(alpha: 0.38);
+            return colorScheme.onSurfaceVariant.withOpacity(0.38);
           }
           if (states.contains(WidgetState.selected)) {
             return colorScheme.primary;
@@ -577,9 +557,9 @@ class AppTheme {
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.dragged)) {
-            return colorScheme.primary.withValues(alpha: 0.6);
+            return colorScheme.primary.withOpacity(0.6);
           }
-          return colorScheme.onSurfaceVariant.withValues(alpha: 0.3);
+          return colorScheme.onSurfaceVariant.withOpacity(0.3);
         }),
         radius: const Radius.circular(Spacings.smRadius),
         thickness: WidgetStateProperty.all(6),
@@ -602,9 +582,7 @@ class AppTheme {
   // ─── Transition Helpers ───────────────────────────────────────────────────
 
   static PageTransitionsBuilder _buildAndroidTransition() {
-    // Material 3 shared-axis transition on Android
-    return const SharedAxisPageTransitionsBuilder(
-      transitionType: SharedAxisTransitionType.horizontal,
-    );
+    // Material 3 zoom transition on Android (shared-axis removed from Flutter)
+    return const ZoomPageTransitionsBuilder();
   }
 }

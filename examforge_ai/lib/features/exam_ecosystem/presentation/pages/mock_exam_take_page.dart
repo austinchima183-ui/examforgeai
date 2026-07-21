@@ -22,12 +22,19 @@ import '../providers/exam_ecosystem_provider.dart';
 class MockExamTakePage extends ConsumerStatefulWidget {
   const MockExamTakePage({
     super.key,
-    required this.mockExam,
-    required this.attempt,
+    this.mockExam,
+    this.attempt,
+    this.examId,
   });
 
-  final MockExam mockExam;
-  final MockExamAttempt attempt;
+  /// Full mock exam object. If null, will be loaded from [examId].
+  final MockExam? mockExam;
+
+  /// Full attempt object. If null, will be loaded from [examId].
+  final MockExamAttempt? attempt;
+
+  /// Exam ID used to load mock exam and attempt when the full objects are not provided.
+  final String? examId;
 
   @override
   ConsumerState<MockExamTakePage> createState() => _MockExamTakePageState();
@@ -43,26 +50,41 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
   // Simulated question list for the mock exam
   late List<_MockQuestion> _questions;
 
+  /// The resolved mock exam, either from widget or loaded from provider.
+  MockExam? _loadedMockExam;
+  MockExamAttempt? _loadedAttempt;
+
+  /// Get the effective mock exam.
+  MockExam get _effectiveMockExam => widget.mockExam ?? _loadedMockExam!;
+  MockExamAttempt get _effectiveAttempt => widget.attempt ?? _loadedAttempt!;
+
   @override
   void initState() {
     super.initState();
-    _remainingSeconds = widget.mockExam.durationMinutes * 60;
-    _questions = _generateQuestions(widget.mockExam.totalQuestions);
-    _startTimer();
+    if (widget.mockExam != null && widget.attempt != null) {
+      _remainingSeconds = _effectiveMockExam.durationMinutes * 60;
+      _questions = _generateQuestions(_effectiveMockExam.totalQuestions);
+      _startTimer();
+    } else if (widget.examId != null) {
+      // Load the exam data from the provider using examId.
+      Future.microtask(() {
+        ref.read(examEcosystemProvider.notifier).loadMockExams();
+      });
+    }
   }
 
   List<_MockQuestion> _generateQuestions(int count) {
     return List.generate(count, (index) {
       return _MockQuestion(
         number: index + 1,
-        text: 'Question ${index + 1}: This is a sample question for the ${widget.mockExam.title} exam. Select the correct answer from the options below.',
+        text: 'Question ${index + 1}: This is a sample question for the ${_effectiveMockExam.title} exam. Select the correct answer from the options below.',
         options: [
           'Option A - First possible answer',
           'Option B - Second possible answer',
           'Option C - Third possible answer',
           'Option D - Fourth possible answer',
         ],
-        marksAllocated: (widget.mockExam.totalMarks / count).round(),
+        marksAllocated: (_effectiveMockExam.totalMarks / count).round(),
       );
     });
   }
@@ -90,11 +112,11 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
 
     if (shouldSubmit == true) {
       final timeTaken =
-          widget.mockExam.durationMinutes * 60 - _remainingSeconds;
+          _effectiveMockExam.durationMinutes * 60 - _remainingSeconds;
 
       final repository = ref.read(examEcosystemRepositoryProvider);
       final result = await repository.submitMockExamAttempt(
-        attemptId: widget.attempt.id,
+        attemptId: _effectiveAttempt.id,
         answers: _answers.map((k, v) => MapEntry(k.toString(), v)),
         timeTakenSeconds: timeTaken,
       );
@@ -194,7 +216,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
       },
       child: Scaffold(
         appBar: AppBar(
-          title: Text(widget.mockExam.title),
+          title: Text(_effectiveMockExam.title),
           centerTitle: true,
           actions: [
             // Question navigator toggle
@@ -290,7 +312,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                             const EdgeInsets.only(bottom: Spacings.md),
                         child: Material(
                           color: isSelected
-                              ? AppColors.info.withValues(alpha: 0.1)
+                              ? AppColors.info.withOpacity(0.1)
                               : cs.surfaceContainerLow,
                           borderRadius: Spacings.borderRadiusMd,
                           child: InkWell(
@@ -311,8 +333,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                                         width: 2,
                                       )
                                     : Border.all(
-                                        color: cs.outline.withValues(
-                                          alpha: 0.3,
+                                        color: cs.outline.withOpacity(0.3,
                                         ),
                                       ),
                               ),
@@ -393,9 +414,9 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
       ),
       decoration: BoxDecoration(
         color: isCritical
-            ? AppColors.error.withValues(alpha: 0.1)
+            ? AppColors.error.withOpacity(0.1)
             : isLow
-                ? AppColors.warning.withValues(alpha: 0.1)
+                ? AppColors.warning.withOpacity(0.1)
                 : cs.surfaceContainerLow,
       ),
       child: Row(
@@ -448,7 +469,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
         color: Theme.of(context).colorScheme.surfaceContainerHigh,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
+            color: Colors.black.withOpacity(0.05),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -567,10 +588,10 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                         bgColor = AppColors.info;
                         textColor = Colors.white;
                       } else if (isFlagged) {
-                        bgColor = AppColors.warning.withValues(alpha: 0.2);
+                        bgColor = AppColors.warning.withOpacity(0.2);
                         textColor = AppColors.warning;
                       } else if (isAnswered) {
-                        bgColor = AppColors.success.withValues(alpha: 0.2);
+                        bgColor = AppColors.success.withOpacity(0.2);
                         textColor = AppColors.success;
                       } else {
                         bgColor = Theme.of(context)

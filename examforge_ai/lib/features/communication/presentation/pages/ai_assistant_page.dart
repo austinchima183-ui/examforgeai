@@ -289,9 +289,9 @@ class _State extends ConsumerState<AiAssistantPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(Spacings.lg),
           decoration: BoxDecoration(
-            color: cs.primaryContainer.withValues(alpha: 0.1),
+            color: cs.primaryContainer.withOpacity(0.1),
             borderRadius: Spacings.borderRadiusMd,
-            border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
+            border: Border.all(color: cs.primary.withOpacity(0.2)),
           ),
           child: SelectableText(
             response.content,
@@ -353,7 +353,7 @@ class _State extends ConsumerState<AiAssistantPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
-                        decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.3), borderRadius: Spacings.borderRadiusSm),
+                        decoration: BoxDecoration(color: cs.primaryContainer.withOpacity(0.3), borderRadius: Spacings.borderRadiusSm),
                         child: Text(toolLabel, style: tt.labelSmall?.copyWith(color: cs.primary, fontWeight: AppTypography.wMedium)),
                       ),
                       const Spacer(),

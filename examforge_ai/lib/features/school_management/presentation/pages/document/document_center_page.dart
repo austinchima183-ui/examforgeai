@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../../../shared/models/user_role.dart';
 import '../../../../../shared/providers/auth_state_provider.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/document_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -389,7 +389,7 @@ class _DocumentCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: iconColor.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(
@@ -425,7 +425,7 @@ class _DocumentCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: (document.isPublic ? AppColors.success : AppColors.warning)
-                            .withValues(alpha: isDark ? 0.20 : 0.12),
+                            .withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(

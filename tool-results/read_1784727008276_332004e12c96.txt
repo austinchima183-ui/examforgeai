@@ -1,0 +1,1360 @@
+     1→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     2→import '../../../../../config/dependency_injection.dart';
+     3→import '../../../../core/errors/failures.dart';
+     4→import '../../../../core/utils/logger.dart';
+     5→import '../../domain/entities/super_admin_entities.dart';
+     6→import '../../domain/usecases/super_admin_usecases.dart';
+     7→
+     8→// ═══════════════════════════════════════════════════════════════════════════════
+     9→// DASHBOARD PROVIDER
+    10→// ═══════════════════════════════════════════════════════════════════════════════
+    11→
+    12→class DashboardState {
+    13→  const DashboardState({
+    14→    this.isLoading = false,
+    15→    this.metrics,
+    16→    this.error,
+    17→  });
+    18→  final bool isLoading;
+    19→  final DashboardMetrics? metrics;
+    20→  final String? error;
+    21→
+    22→  DashboardState copyWith({bool? isLoading, DashboardMetrics? metrics, String? error}) =>
+    23→      DashboardState(isLoading: isLoading ?? this.isLoading, metrics: metrics ?? this.metrics, error: error);
+    24→  DashboardState clearError() => DashboardState(isLoading: isLoading, metrics: metrics);
+    25→}
+    26→
+    27→class DashboardNotifier extends StateNotifier<DashboardState> {
+    28→  DashboardNotifier({required GetDashboardMetricsUseCase getDashboardMetricsUseCase})
+    29→      : _getDashboardMetricsUseCase = getDashboardMetricsUseCase, super(const DashboardState());
+    30→
+    31→  final GetDashboardMetricsUseCase _getDashboardMetricsUseCase;
+    32→
+    33→  Future<void> loadMetrics({bool forceRefresh = false}) async {
+    34→    state = state.copyWith(isLoading: true, error: null);
+    35→    final result = await _getDashboardMetricsUseCase(GetDashboardMetricsParams(forceRefresh: forceRefresh));
+    36→    result.fold(
+    37→      onSuccess: (metrics) => state = state.copyWith(isLoading: false, metrics: metrics),
+    38→      onFailure: (failure) => state = state.copyWith(isLoading: false, error: _mapFailure(failure)),
+    39→    );
+    40→  }
+    41→
+    42→  String _mapFailure(Failure f) => f.when(
+    43→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+    44→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+    45→    unauthorized: (m) => m, forbidden: (m) => m,
+    46→  );
+    47→}
+    48→
+    49→// ═══════════════════════════════════════════════════════════════════════════════
+    50→// PLATFORM SETTINGS PROVIDER
+    51→// ═══════════════════════════════════════════════════════════════════════════════
+    52→
+    53→class PlatformSettingsState {
+    54→  const PlatformSettingsState({
+    55→    this.isLoading = false, this.settings = const [], this.error, this.successMessage,
+    56→  });
+    57→  final bool isLoading;
+    58→  final List<PlatformSetting> settings;
+    59→  final String? error;
+    60→  final String? successMessage;
+    61→
+    62→  PlatformSettingsState copyWith({
+    63→    bool? isLoading, List<PlatformSetting>? settings, String? error, String? successMessage,
+    64→  }) => PlatformSettingsState(
+    65→    isLoading: isLoading ?? this.isLoading, settings: settings ?? this.settings,
+    66→    error: error, successMessage: successMessage,
+    67→  );
+    68→  PlatformSettingsState clearError() => copyWith(error: null);
+    69→  PlatformSettingsState clearSuccess() => copyWith(successMessage: null);
+    70→}
+    71→
+    72→class PlatformSettingsNotifier extends StateNotifier<PlatformSettingsState> {
+    73→  PlatformSettingsNotifier({
+    74→    required GetPlatformSettingsUseCase getSettingsUseCase,
+    75→    required UpdatePlatformSettingUseCase updateSettingUseCase,
+    76→    required BulkUpdateSettingsUseCase bulkUpdateUseCase,
+    77→  })  : _getSettingsUseCase = getSettingsUseCase,
+    78→        _updateSettingUseCase = updateSettingUseCase,
+    79→        _bulkUpdateUseCase = bulkUpdateUseCase,
+    80→        super(const PlatformSettingsState());
+    81→
+    82→  final GetPlatformSettingsUseCase _getSettingsUseCase;
+    83→  final UpdatePlatformSettingUseCase _updateSettingUseCase;
+    84→  final BulkUpdateSettingsUseCase _bulkUpdateUseCase;
+    85→
+    86→  Future<void> loadSettings({SettingScope? scope}) async {
+    87→    state = state.copyWith(isLoading: true, error: null);
+    88→    final result = await _getSettingsUseCase(GetPlatformSettingsParams(scope: scope));
+    89→    result.fold(
+    90→      onSuccess: (settings) => state = state.copyWith(isLoading: false, settings: settings),
+    91→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+    92→    );
+    93→  }
+    94→
+    95→  Future<void> updateSetting(PlatformSetting setting) async {
+    96→    final result = await _updateSettingUseCase(UpdatePlatformSettingParams(setting: setting));
+    97→    result.fold(
+    98→      onSuccess: (updated) {
+    99→        final newList = state.settings.map((s) => s.id == updated.id ? updated : s).toList();
+   100→        state = state.copyWith(settings: newList, successMessage: 'Setting updated successfully');
+   101→      },
+   102→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   103→    );
+   104→  }
+   105→
+   106→  Future<void> bulkUpdate(List<PlatformSetting> settings) async {
+   107→    final result = await _bulkUpdateUseCase(BulkUpdateSettingsParams(settings: settings));
+   108→    result.fold(
+   109→      onSuccess: (updated) => state = state.copyWith(settings: updated, successMessage: 'Settings updated successfully'),
+   110→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   111→    );
+   112→  }
+   113→
+   114→  String _mapFailure(Failure f) => f.when(
+   115→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   116→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   117→    unauthorized: (m) => m, forbidden: (m) => m,
+   118→  );
+   119→}
+   120→
+   121→// ═══════════════════════════════════════════════════════════════════════════════
+   122→// FEATURE FLAGS PROVIDER
+   123→// ═══════════════════════════════════════════════════════════════════════════════
+   124→
+   125→class FeatureFlagsState {
+   126→  const FeatureFlagsState({
+   127→    this.isLoading = false, this.flags = const [], this.error, this.successMessage,
+   128→  });
+   129→  final bool isLoading;
+   130→  final List<FeatureFlag> flags;
+   131→  final String? error;
+   132→  final String? successMessage;
+   133→
+   134→  FeatureFlagsState copyWith({
+   135→    bool? isLoading, List<FeatureFlag>? flags, String? error, String? successMessage,
+   136→  }) => FeatureFlagsState(
+   137→    isLoading: isLoading ?? this.isLoading, flags: flags ?? this.flags,
+   138→    error: error, successMessage: successMessage,
+   139→  );
+   140→  FeatureFlagsState clearError() => copyWith(error: null);
+   141→  FeatureFlagsState clearSuccess() => copyWith(successMessage: null);
+   142→}
+   143→
+   144→class FeatureFlagsNotifier extends StateNotifier<FeatureFlagsState> {
+   145→  FeatureFlagsNotifier({
+   146→    required GetFeatureFlagsUseCase getFlagsUseCase,
+   147→    required CreateFeatureFlagUseCase createFlagUseCase,
+   148→    required UpdateFeatureFlagUseCase updateFlagUseCase,
+   149→    required ToggleFeatureFlagUseCase toggleFlagUseCase,
+   150→  })  : _getFlagsUseCase = getFlagsUseCase, _createFlagUseCase = createFlagUseCase,
+   151→        _updateFlagUseCase = updateFlagUseCase, _toggleFlagUseCase = toggleFlagUseCase,
+   152→        super(const FeatureFlagsState());
+   153→
+   154→  final GetFeatureFlagsUseCase _getFlagsUseCase;
+   155→  final CreateFeatureFlagUseCase _createFlagUseCase;
+   156→  final UpdateFeatureFlagUseCase _updateFlagUseCase;
+   157→  final ToggleFeatureFlagUseCase _toggleFlagUseCase;
+   158→
+   159→  Future<void> loadFlags({bool? isActive}) async {
+   160→    state = state.copyWith(isLoading: true, error: null);
+   161→    final result = await _getFlagsUseCase(GetFeatureFlagsParams(isActive: isActive));
+   162→    result.fold(
+   163→      onSuccess: (flags) => state = state.copyWith(isLoading: false, flags: flags),
+   164→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+   165→    );
+   166→  }
+   167→
+   168→  Future<void> createFlag(FeatureFlag flag) async {
+   169→    final result = await _createFlagUseCase(CreateFeatureFlagParams(flag: flag));
+   170→    result.fold(
+   171→      onSuccess: (newFlag) => state = state.copyWith(flags: [...state.flags, newFlag], successMessage: 'Flag created'),
+   172→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   173→    );
+   174→  }
+   175→
+   176→  Future<void> toggleFlag(String flagId, bool isActive) async {
+   177→    final result = await _toggleFlagUseCase(ToggleFeatureFlagParams(flagId: flagId, isActive: isActive));
+   178→    result.fold(
+   179→      onSuccess: (updated) {
+   180→        final newList = state.flags.map((f) => f.id == updated.id ? updated : f).toList();
+   181→        state = state.copyWith(flags: newList, successMessage: 'Flag ${isActive ? "enabled" : "disabled"}');
+   182→      },
+   183→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   184→    );
+   185→  }
+   186→
+   187→  String _mapFailure(Failure f) => f.when(
+   188→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   189→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   190→    unauthorized: (m) => m, forbidden: (m) => m,
+   191→  );
+   192→}
+   193→
+   194→// ═══════════════════════════════════════════════════════════════════════════════
+   195→// SCHOOL MANAGEMENT PROVIDER
+   196→// ═══════════════════════════════════════════════════════════════════════════════
+   197→
+   198→class SchoolManagementState {
+   199→  const SchoolManagementState({
+   200→    this.isLoading = false, this.schools = const [], this.selectedSchool,
+   201→    this.totalCount = 0, this.error, this.successMessage,
+   202→  });
+   203→  final bool isLoading;
+   204→  final List<SchoolManagementDetail> schools;
+   205→  final SchoolManagementDetail? selectedSchool;
+   206→  final int totalCount;
+   207→  final String? error;
+   208→  final String? successMessage;
+   209→
+   210→  SchoolManagementState copyWith({
+   211→    bool? isLoading, List<SchoolManagementDetail>? schools,
+   212→    SchoolManagementDetail? selectedSchool, int? totalCount,
+   213→    String? error, String? successMessage,
+   214→  }) => SchoolManagementState(
+   215→    isLoading: isLoading ?? this.isLoading, schools: schools ?? this.schools,
+   216→    selectedSchool: selectedSchool ?? this.selectedSchool, totalCount: totalCount ?? this.totalCount,
+   217→    error: error, successMessage: successMessage,
+   218→  );
+   219→  SchoolManagementState clearError() => copyWith(error: null);
+   220→  SchoolManagementState clearSuccess() => copyWith(successMessage: null);
+   221→}
+   222→
+   223→class SchoolManagementNotifier extends StateNotifier<SchoolManagementState> {
+   224→  SchoolManagementNotifier({
+   225→    required GetSchoolsUseCase getSchoolsUseCase,
+   226→    required CreateSchoolUseCase createSchoolUseCase,
+   227→    required SuspendSchoolUseCase suspendSchoolUseCase,
+   228→    required ReactivateSchoolUseCase reactivateSchoolUseCase,
+   229→    required VerifySchoolUseCase verifySchoolUseCase,
+   230→  })  : _getSchoolsUseCase = getSchoolsUseCase, _createSchoolUseCase = createSchoolUseCase,
+   231→        _suspendSchoolUseCase = suspendSchoolUseCase, _reactivateSchoolUseCase = reactivateSchoolUseCase,
+   232→        _verifySchoolUseCase = verifySchoolUseCase, super(const SchoolManagementState());
+   233→
+   234→  final GetSchoolsUseCase _getSchoolsUseCase;
+   235→  final CreateSchoolUseCase _createSchoolUseCase;
+   236→  final SuspendSchoolUseCase _suspendSchoolUseCase;
+   237→  final ReactivateSchoolUseCase _reactivateSchoolUseCase;
+   238→  final VerifySchoolUseCase _verifySchoolUseCase;
+   239→
+   240→  Future<void> loadSchools({bool? isActive, bool? isVerified, String? search, String? subscriptionStatus, int limit = 50, int offset = 0}) async {
+   241→    state = state.copyWith(isLoading: true, error: null);
+   242→    final result = await _getSchoolsUseCase(GetSchoolsParams(
+   243→      isActive: isActive, isVerified: isVerified, search: search,
+   244→      subscriptionStatus: subscriptionStatus, limit: limit, offset: offset,
+   245→    ));
+   246→    result.fold(
+   247→      onSuccess: (schools) => state = state.copyWith(isLoading: false, schools: schools),
+   248→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+   249→    );
+   250→  }
+   251→
+   252→  Future<void> createSchool(Map<String, dynamic> data) async {
+   253→    final result = await _createSchoolUseCase(CreateSchoolParams(schoolData: data));
+   254→    result.fold(
+   255→      onSuccess: (school) => state = state.copyWith(schools: [school, ...state.schools], successMessage: 'School created successfully'),
+   256→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   257→    );
+   258→  }
+   259→
+   260→  Future<void> suspendSchool(String schoolId, String reason) async {
+   261→    final result = await _suspendSchoolUseCase(ManageSchoolParams(schoolId: schoolId, reason: reason));
+   262→    result.fold(
+   263→      onSuccess: (_) {
+   264→        final updated = state.schools.map((s) => s.id == schoolId ? s.copyWith(isActive: false) : s).toList();
+   265→        state = state.copyWith(schools: updated, successMessage: 'School suspended');
+   266→      },
+   267→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   268→    );
+   269→  }
+   270→
+   271→  Future<void> reactivateSchool(String schoolId) async {
+   272→    final result = await _reactivateSchoolUseCase(ManageSchoolParams(schoolId: schoolId));
+   273→    result.fold(
+   274→      onSuccess: (_) {
+   275→        final updated = state.schools.map((s) => s.id == schoolId ? s.copyWith(isActive: true) : s).toList();
+   276→        state = state.copyWith(schools: updated, successMessage: 'School reactivated');
+   277→      },
+   278→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   279→    );
+   280→  }
+   281→
+   282→  Future<void> verifySchool(String schoolId) async {
+   283→    final result = await _verifySchoolUseCase(ManageSchoolParams(schoolId: schoolId));
+   284→    result.fold(
+   285→      onSuccess: (_) {
+   286→        final updated = state.schools.map((s) => s.id == schoolId ? s.copyWith(isVerified: true) : s).toList();
+   287→        state = state.copyWith(schools: updated, successMessage: 'School verified');
+   288→      },
+   289→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   290→    );
+   291→  }
+   292→
+   293→  String _mapFailure(Failure f) => f.when(
+   294→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   295→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   296→    unauthorized: (m) => m, forbidden: (m) => m,
+   297→  );
+   298→}
+   299→
+   300→// ═══════════════════════════════════════════════════════════════════════════════
+   301→// USER MANAGEMENT PROVIDER
+   302→// ═══════════════════════════════════════════════════════════════════════════════
+   303→
+   304→class UserManagementState {
+   305→  const UserManagementState({
+   306→    this.isLoading = false, this.users = const [], this.totalCount = 0,
+   307→    this.error, this.successMessage, this.impersonationSession,
+   308→  });
+   309→  final bool isLoading;
+   310→  final List<UserManagementDetail> users;
+   311→  final int totalCount;
+   312→  final String? error;
+   313→  final String? successMessage;
+   314→  final ImpersonationSession? impersonationSession;
+   315→
+   316→  UserManagementState copyWith({
+   317→    bool? isLoading, List<UserManagementDetail>? users, int? totalCount,
+   318→    String? error, String? successMessage, ImpersonationSession? impersonationSession,
+   319→  }) => UserManagementState(
+   320→    isLoading: isLoading ?? this.isLoading, users: users ?? this.users,
+   321→    totalCount: totalCount ?? this.totalCount, error: error,
+   322→    successMessage: successMessage, impersonationSession: impersonationSession ?? this.impersonationSession,
+   323→  );
+   324→  UserManagementState clearError() => copyWith(error: null);
+   325→  UserManagementState clearSuccess() => copyWith(successMessage: null);
+   326→}
+   327→
+   328→class UserManagementNotifier extends StateNotifier<UserManagementState> {
+   329→  UserManagementNotifier({
+   330→    required GetUsersUseCase getUsersUseCase,
+   331→    required SuspendUserUseCase suspendUserUseCase,
+   332→    required ActivateUserUseCase activateUserUseCase,
+   333→    required ResetUserPasswordUseCase resetPasswordUseCase,
+   334→    required ChangeUserRoleUseCase changeRoleUseCase,
+   335→    required StartImpersonationUseCase startImpersonationUseCase,
+   336→    required EndImpersonationUseCase endImpersonationUseCase,
+   337→  })  : _getUsersUseCase = getUsersUseCase, _suspendUserUseCase = suspendUserUseCase,
+   338→        _activateUserUseCase = activateUserUseCase, _resetPasswordUseCase = resetPasswordUseCase,
+   339→        _changeRoleUseCase = changeRoleUseCase, _startImpersonationUseCase = startImpersonationUseCase,
+   340→        _endImpersonationUseCase = endImpersonationUseCase, super(const UserManagementState());
+   341→
+   342→  final GetUsersUseCase _getUsersUseCase;
+   343→  final SuspendUserUseCase _suspendUserUseCase;
+   344→  final ActivateUserUseCase _activateUserUseCase;
+   345→  final ResetUserPasswordUseCase _resetPasswordUseCase;
+   346→  final ChangeUserRoleUseCase _changeRoleUseCase;
+   347→  final StartImpersonationUseCase _startImpersonationUseCase;
+   348→  final EndImpersonationUseCase _endImpersonationUseCase;
+   349→
+   350→  Future<void> loadUsers({String? role, String? schoolId, bool? isActive, String? search, int limit = 50, int offset = 0}) async {
+   351→    state = state.copyWith(isLoading: true, error: null);
+   352→    final result = await _getUsersUseCase(GetUsersParams(role: role, schoolId: schoolId, isActive: isActive, search: search, limit: limit, offset: offset));
+   353→    result.fold(
+   354→      onSuccess: (users) => state = state.copyWith(isLoading: false, users: users),
+   355→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+   356→    );
+   357→  }
+   358→
+   359→  Future<void> suspendUser(String userId, String reason) async {
+   360→    final result = await _suspendUserUseCase(ManageUserParams(userId: userId, reason: reason));
+   361→    result.fold(
+   362→      onSuccess: (_) {
+   363→        final updated = state.users.map((u) => u.id == userId ? u.copyWith(isActive: false) : u).toList();
+   364→        state = state.copyWith(users: updated, successMessage: 'User suspended');
+   365→      },
+   366→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   367→    );
+   368→  }
+   369→
+   370→  Future<void> activateUser(String userId) async {
+   371→    final result = await _activateUserUseCase(ManageUserParams(userId: userId));
+   372→    result.fold(
+   373→      onSuccess: (_) {
+   374→        final updated = state.users.map((u) => u.id == userId ? u.copyWith(isActive: true) : u).toList();
+   375→        state = state.copyWith(users: updated, successMessage: 'User activated');
+   376→      },
+   377→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   378→    );
+   379→  }
+   380→
+   381→  Future<void> resetPassword(String userId) async {
+   382→    final result = await _resetPasswordUseCase(ManageUserParams(userId: userId));
+   383→    result.fold(
+   384→      onSuccess: (_) => state = state.copyWith(successMessage: 'Password reset email sent'),
+   385→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   386→    );
+   387→  }
+   388→
+   389→  Future<void> changeRole(String userId, String newRole) async {
+   390→    final result = await _changeRoleUseCase(ManageUserParams(userId: userId, newRole: newRole));
+   391→    result.fold(
+   392→      onSuccess: (_) {
+   393→        final updated = state.users.map((u) => u.id == userId ? u.copyWith(role: newRole) : u).toList();
+   394→        state = state.copyWith(users: updated, successMessage: 'Role updated');
+   395→      },
+   396→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   397→    );
+   398→  }
+   399→
+   400→  Future<void> startImpersonation(String targetUserId, String reason) async {
+   401→    final result = await _startImpersonationUseCase(StartImpersonationParams(targetUserId: targetUserId, reason: reason));
+   402→    result.fold(
+   403→      onSuccess: (session) => state = state.copyWith(impersonationSession: session, successMessage: 'Impersonation started'),
+   404→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   405→    );
+   406→  }
+   407→
+   408→  Future<void> endImpersonation(String sessionId) async {
+   409→    final result = await _endImpersonationUseCase(EndImpersonationParams(sessionId: sessionId));
+   410→    result.fold(
+   411→      onSuccess: (_) => state = state.copyWith(impersonationSession: null, successMessage: 'Impersonation ended'),
+   412→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   413→    );
+   414→  }
+   415→
+   416→  String _mapFailure(Failure f) => f.when(
+   417→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   418→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   419→    unauthorized: (m) => m, forbidden: (m) => m,
+   420→  );
+   421→}
+   422→
+   423→// ═══════════════════════════════════════════════════════════════════════════════
+   424→// AI MANAGEMENT PROVIDER
+   425→// ═══════════════════════════════════════════════════════════════════════════════
+   426→
+   427→class AIManagementState {
+   428→  const AIManagementState({
+   429→    this.isLoading = false, this.providers = const [], this.requestLogs = const [],
+   430→    this.usageAnalytics, this.error, this.successMessage,
+   431→  });
+   432→  final bool isLoading;
+   433→  final List<AIProvider> providers;
+   434→  final List<AIRequestLog> requestLogs;
+   435→  final Map<String, dynamic>? usageAnalytics;
+   436→  final String? error;
+   437→  final String? successMessage;
+   438→
+   439→  AIManagementState copyWith({
+   440→    bool? isLoading, List<AIProvider>? providers, List<AIRequestLog>? requestLogs,
+   441→    Map<String, dynamic>? usageAnalytics, String? error, String? successMessage,
+   442→  }) => AIManagementState(
+   443→    isLoading: isLoading ?? this.isLoading, providers: providers ?? this.providers,
+   444→    requestLogs: requestLogs ?? this.requestLogs, usageAnalytics: usageAnalytics ?? this.usageAnalytics,
+   445→    error: error, successMessage: successMessage,
+   446→  );
+   447→  AIManagementState clearError() => copyWith(error: null);
+   448→  AIManagementState clearSuccess() => copyWith(successMessage: null);
+   449→}
+   450→
+   451→class AIManagementNotifier extends StateNotifier<AIManagementState> {
+   452→  AIManagementNotifier({
+   453→    required GetAIProvidersUseCase getProvidersUseCase,
+   454→    required CreateAIProviderUseCase createProviderUseCase,
+   455→    required UpdateAIProviderUseCase updateProviderUseCase,
+   456→    required SetDefaultProviderUseCase setDefaultUseCase,
+   457→    required ToggleProviderUseCase toggleProviderUseCase,
+   458→    required GetAIRequestLogsUseCase getRequestLogsUseCase,
+   459→  })  : _getProvidersUseCase = getProvidersUseCase, _createProviderUseCase = createProviderUseCase,
+   460→        _updateProviderUseCase = updateProviderUseCase, _setDefaultUseCase = setDefaultUseCase,
+   461→        _toggleProviderUseCase = toggleProviderUseCase, _getRequestLogsUseCase = getRequestLogsUseCase,
+   462→        super(const AIManagementState());
+   463→
+   464→  final GetAIProvidersUseCase _getProvidersUseCase;
+   465→  final CreateAIProviderUseCase _createProviderUseCase;
+   466→  final UpdateAIProviderUseCase _updateProviderUseCase;
+   467→  final SetDefaultProviderUseCase _setDefaultUseCase;
+   468→  final ToggleProviderUseCase _toggleProviderUseCase;
+   469→  final GetAIRequestLogsUseCase _getRequestLogsUseCase;
+   470→
+   471→  Future<void> loadProviders({bool? isActive}) async {
+   472→    state = state.copyWith(isLoading: true, error: null);
+   473→    final result = await _getProvidersUseCase(isActive: isActive);
+   474→    result.fold(
+   475→      onSuccess: (providers) => state = state.copyWith(isLoading: false, providers: providers),
+   476→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+   477→    );
+   478→  }
+   479→
+   480→  Future<void> createProvider(AIProvider provider) async {
+   481→    final result = await _createProviderUseCase(UpsertAIProviderParams(provider: provider));
+   482→    result.fold(
+   483→      onSuccess: (p) => state = state.copyWith(providers: [...state.providers, p], successMessage: 'Provider created'),
+   484→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   485→    );
+   486→  }
+   487→
+   488→  Future<void> updateProvider(AIProvider provider) async {
+   489→    final result = await _updateProviderUseCase(UpsertAIProviderParams(provider: provider));
+   490→    result.fold(
+   491→      onSuccess: (updated) {
+   492→        final newList = state.providers.map((p) => p.id == updated.id ? updated : p).toList();
+   493→        state = state.copyWith(providers: newList, successMessage: 'Provider updated');
+   494→      },
+   495→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   496→    );
+   497→  }
+   498→
+   499→  Future<void> setDefault(String providerId) async {
+   500→    final result = await _setDefaultUseCase(SetDefaultProviderParams(providerId: providerId));
+   501→    result.fold(
+   502→      onSuccess: (updated) {
+   503→        final newList = state.providers.map((p) => p.id == updated.id ? updated : p.copyWith(isDefault: false)).toList();
+   504→        state = state.copyWith(providers: newList, successMessage: 'Default provider set');
+   505→      },
+   506→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   507→    );
+   508→  }
+   509→
+   510→  Future<void> toggleProvider(String providerId, bool isActive) async {
+   511→    final result = await _toggleProviderUseCase(ToggleProviderParams(providerId: providerId, isActive: isActive));
+   512→    result.fold(
+   513→      onSuccess: (updated) {
+   514→        final newList = state.providers.map((p) => p.id == updated.id ? updated : p).toList();
+   515→        state = state.copyWith(providers: newList, successMessage: 'Provider ${isActive ? "enabled" : "disabled"}');
+   516→      },
+   517→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   518→    );
+   519→  }
+   520→
+   521→  Future<void> loadRequestLogs({String? providerId, DateTime? startDate, DateTime? endDate, int limit = 50}) async {
+   522→    final result = await _getRequestLogsUseCase(GetAIRequestLogsParams(
+   523→      providerId: providerId, startDate: startDate, endDate: endDate, limit: limit,
+   524→    ));
+   525→    result.fold(
+   526→      onSuccess: (logs) => state = state.copyWith(requestLogs: logs),
+   527→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   528→    );
+   529→  }
+   530→
+   531→  String _mapFailure(Failure f) => f.when(
+   532→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   533→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   534→    unauthorized: (m) => m, forbidden: (m) => m,
+   535→  );
+   536→}
+   537→
+   538→// ═══════════════════════════════════════════════════════════════════════════════
+   539→// SUPPORT CENTER PROVIDER
+   540→// ═══════════════════════════════════════════════════════════════════════════════
+   541→
+   542→class SupportCenterState {
+   543→  const SupportCenterState({
+   544→    this.isLoading = false, this.tickets = const [], this.selectedTicket,
+   545→    this.comments = const [], this.error, this.successMessage,
+   546→  });
+   547→  final bool isLoading;
+   548→  final List<SupportTicket> tickets;
+   549→  final SupportTicket? selectedTicket;
+   550→  final List<TicketComment> comments;
+   551→  final String? error;
+   552→  final String? successMessage;
+   553→
+   554→  SupportCenterState copyWith({
+   555→    bool? isLoading, List<SupportTicket>? tickets, SupportTicket? selectedTicket,
+   556→    List<TicketComment>? comments, String? error, String? successMessage,
+   557→  }) => SupportCenterState(
+   558→    isLoading: isLoading ?? this.isLoading, tickets: tickets ?? this.tickets,
+   559→    selectedTicket: selectedTicket ?? this.selectedTicket, comments: comments ?? this.comments,
+   560→    error: error, successMessage: successMessage,
+   561→  );
+   562→  SupportCenterState clearError() => copyWith(error: null);
+   563→  SupportCenterState clearSuccess() => copyWith(successMessage: null);
+   564→}
+   565→
+   566→class SupportCenterNotifier extends StateNotifier<SupportCenterState> {
+   567→  SupportCenterNotifier({
+   568→    required GetSupportTicketsUseCase getTicketsUseCase,
+   569→    required AssignTicketUseCase assignTicketUseCase,
+   570→    required EscalateTicketUseCase escalateTicketUseCase,
+   571→    required ResolveTicketUseCase resolveTicketUseCase,
+   572→  })  : _getTicketsUseCase = getTicketsUseCase, _assignTicketUseCase = assignTicketUseCase,
+   573→        _escalateTicketUseCase = escalateTicketUseCase, _resolveTicketUseCase = resolveTicketUseCase,
+   574→        super(const SupportCenterState());
+   575→
+   576→  final GetSupportTicketsUseCase _getTicketsUseCase;
+   577→  final AssignTicketUseCase _assignTicketUseCase;
+   578→  final EscalateTicketUseCase _escalateTicketUseCase;
+   579→  final ResolveTicketUseCase _resolveTicketUseCase;
+   580→
+   581→  Future<void> loadTickets({TicketStatus? status, TicketPriority? priority, String? search, int limit = 50}) async {
+   582→    state = state.copyWith(isLoading: true, error: null);
+   583→    final result = await _getTicketsUseCase(GetSupportTicketsParams(status: status, priority: priority, search: search, limit: limit));
+   584→    result.fold(
+   585→      onSuccess: (tickets) => state = state.copyWith(isLoading: false, tickets: tickets),
+   586→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+   587→    );
+   588→  }
+   589→
+   590→  Future<void> assignTicket(String ticketId, String assignToUserId) async {
+   591→    final result = await _assignTicketUseCase(AssignTicketParams(ticketId: ticketId, assignToUserId: assignToUserId));
+   592→    result.fold(
+   593→      onSuccess: (updated) {
+   594→        final newList = state.tickets.map((t) => t.id == updated.id ? updated : t).toList();
+   595→        state = state.copyWith(tickets: newList, successMessage: 'Ticket assigned');
+   596→      },
+   597→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   598→    );
+   599→  }
+   600→
+   601→  Future<void> resolveTicket(String ticketId, String resolutionNotes) async {
+   602→    final result = await _resolveTicketUseCase(ResolveTicketParams(ticketId: ticketId, resolutionNotes: resolutionNotes));
+   603→    result.fold(
+   604→      onSuccess: (updated) {
+   605→        final newList = state.tickets.map((t) => t.id == updated.id ? updated : t).toList();
+   606→        state = state.copyWith(tickets: newList, successMessage: 'Ticket resolved');
+   607→      },
+   608→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   609→    );
+   610→  }
+   611→
+   612→  String _mapFailure(Failure f) => f.when(
+   613→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   614→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   615→    unauthorized: (m) => m, forbidden: (m) => m,
+   616→  );
+   617→}
+   618→
+   619→// ═══════════════════════════════════════════════════════════════════════════════
+   620→// INTELLIGENCE PROVIDER
+   621→// ═══════════════════════════════════════════════════════════════════════════════
+   622→
+   623→class IntelligenceState {
+   624→  const IntelligenceState({
+   625→    this.isLoading = false, this.alerts = const [], this.churnPredictions,
+   626→    this.revenueForecast, this.costOptimizations, this.engagementInsights,
+   627→    this.error, this.successMessage,
+   628→  });
+   629→  final bool isLoading;
+   630→  final List<IntelligenceAlert> alerts;
+   631→  final Map<String, dynamic>? churnPredictions;
+   632→  final Map<String, dynamic>? revenueForecast;
+   633→  final Map<String, dynamic>? costOptimizations;
+   634→  final Map<String, dynamic>? engagementInsights;
+   635→  final String? error;
+   636→  final String? successMessage;
+   637→
+   638→  IntelligenceState copyWith({
+   639→    bool? isLoading, List<IntelligenceAlert>? alerts,
+   640→    Map<String, dynamic>? churnPredictions, Map<String, dynamic>? revenueForecast,
+   641→    Map<String, dynamic>? costOptimizations, Map<String, dynamic>? engagementInsights,
+   642→    String? error, String? successMessage,
+   643→  }) => IntelligenceState(
+   644→    isLoading: isLoading ?? this.isLoading, alerts: alerts ?? this.alerts,
+   645→    churnPredictions: churnPredictions ?? this.churnPredictions,
+   646→    revenueForecast: revenueForecast ?? this.revenueForecast,
+   647→    costOptimizations: costOptimizations ?? this.costOptimizations,
+   648→    engagementInsights: engagementInsights ?? this.engagementInsights,
+   649→    error: error, successMessage: successMessage,
+   650→  );
+   651→  IntelligenceState clearError() => copyWith(error: null);
+   652→  IntelligenceState clearSuccess() => copyWith(successMessage: null);
+   653→}
+   654→
+   655→class IntelligenceNotifier extends StateNotifier<IntelligenceState> {
+   656→  IntelligenceNotifier({
+   657→    required GetIntelligenceAlertsUseCase getAlertsUseCase,
+   658→    required AcknowledgeAlertUseCase acknowledgeAlertUseCase,
+   659→    required ResolveAlertUseCase resolveAlertUseCase,
+   660→    required GenerateIntelligenceInsightsUseCase generateInsightsUseCase,
+   661→    required GetChurnPredictionsUseCase getChurnPredictionsUseCase,
+   662→    required GetRevenueForecastUseCase getRevenueForecastUseCase,
+   663→    required GetCostOptimizationsUseCase getCostOptimizationsUseCase,
+   664→  })  : _getAlertsUseCase = getAlertsUseCase, _acknowledgeAlertUseCase = acknowledgeAlertUseCase,
+   665→        _resolveAlertUseCase = resolveAlertUseCase, _generateInsightsUseCase = generateInsightsUseCase,
+   666→        _getChurnPredictionsUseCase = getChurnPredictionsUseCase,
+   667→        _getRevenueForecastUseCase = getRevenueForecastUseCase,
+   668→        _getCostOptimizationsUseCase = getCostOptimizationsUseCase,
+   669→        super(const IntelligenceState());
+   670→
+   671→  final GetIntelligenceAlertsUseCase _getAlertsUseCase;
+   672→  final AcknowledgeAlertUseCase _acknowledgeAlertUseCase;
+   673→  final ResolveAlertUseCase _resolveAlertUseCase;
+   674→  final GenerateIntelligenceInsightsUseCase _generateInsightsUseCase;
+   675→  final GetChurnPredictionsUseCase _getChurnPredictionsUseCase;
+   676→  final GetRevenueForecastUseCase _getRevenueForecastUseCase;
+   677→  final GetCostOptimizationsUseCase _getCostOptimizationsUseCase;
+   678→
+   679→  Future<void> loadAlerts({IntelligenceAlertType? type, IntelligenceSeverity? severity, bool unresolvedOnly = true}) async {
+   680→    state = state.copyWith(isLoading: true, error: null);
+   681→    final result = await _getAlertsUseCase(GetIntelligenceAlertsParams(
+   682→      alertType: type, severity: severity, unresolvedOnly: unresolvedOnly,
+   683→    ));
+   684→    result.fold(
+   685→      onSuccess: (alerts) => state = state.copyWith(isLoading: false, alerts: alerts),
+   686→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+   687→    );
+   688→  }
+   689→
+   690→  Future<void> acknowledgeAlert(String alertId) async {
+   691→    final result = await _acknowledgeAlertUseCase(AcknowledgeAlertParams(alertId: alertId));
+   692→    result.fold(
+   693→      onSuccess: (updated) {
+   694→        final newList = state.alerts.map((a) => a.id == updated.id ? updated : a).toList();
+   695→        state = state.copyWith(alerts: newList, successMessage: 'Alert acknowledged');
+   696→      },
+   697→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   698→    );
+   699→  }
+   700→
+   701→  Future<void> resolveAlert(String alertId, String notes) async {
+   702→    final result = await _resolveAlertUseCase(ResolveAlertParams(alertId: alertId, resolutionNotes: notes));
+   703→    result.fold(
+   704→      onSuccess: (updated) {
+   705→        final newList = state.alerts.map((a) => a.id == updated.id ? updated : a).toList();
+   706→        state = state.copyWith(alerts: newList, successMessage: 'Alert resolved');
+   707→      },
+   708→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   709→    );
+   710→  }
+   711→
+   712→  Future<void> generateInsights() async {
+   713→    state = state.copyWith(isLoading: true, error: null);
+   714→    final result = await _generateInsightsUseCase();
+   715→    result.fold(
+   716→      onSuccess: (alerts) => state = state.copyWith(isLoading: false, alerts: alerts, successMessage: 'Insights generated'),
+   717→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+   718→    );
+   719→  }
+   720→
+   721→  Future<void> loadChurnPredictions({int limit = 20}) async {
+   722→    final result = await _getChurnPredictionsUseCase(GetChurnPredictionsParams(limit: limit));
+   723→    result.fold(
+   724→      onSuccess: (data) => state = state.copyWith(churnPredictions: data),
+   725→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   726→    );
+   727→  }
+   728→
+   729→  Future<void> loadRevenueForecast({int monthsAhead = 6}) async {
+   730→    final result = await _getRevenueForecastUseCase(GetRevenueForecastParams(monthsAhead: monthsAhead));
+   731→    result.fold(
+   732→      onSuccess: (data) => state = state.copyWith(revenueForecast: data),
+   733→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   734→    );
+   735→  }
+   736→
+   737→  Future<void> loadCostOptimizations() async {
+   738→    final result = await _getCostOptimizationsUseCase();
+   739→    result.fold(
+   740→      onSuccess: (data) => state = state.copyWith(costOptimizations: data),
+   741→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   742→    );
+   743→  }
+   744→
+   745→  String _mapFailure(Failure f) => f.when(
+   746→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   747→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   748→    unauthorized: (m) => m, forbidden: (m) => m,
+   749→  );
+   750→}
+   751→
+   752→// ═══════════════════════════════════════════════════════════════════════════════
+   753→// RIVERPOD PROVIDER DECLARATIONS — DASHBOARD
+   754→// ═══════════════════════════════════════════════════════════════════════════════
+   755→
+   756→/// Dashboard provider — loads and exposes platform-wide metrics.
+   757→final dashboardProvider =
+   758→    StateNotifierProvider<DashboardNotifier, DashboardState>((ref) {
+   759→  return DashboardNotifier(
+   760→    getDashboardMetricsUseCase: ref.watch(getDashboardMetricsUseCaseProvider),
+   761→  );
+   762→});
+   763→
+   764→// ═══════════════════════════════════════════════════════════════════════════════
+   765→// RIVERPOD PROVIDER DECLARATIONS — AI MANAGEMENT & INTELLIGENCE
+   766→// ═══════════════════════════════════════════════════════════════════════════════
+   767→
+   768→/// AI Management provider — monitors and controls AI providers.
+   769→final aiManagementProvider =
+   770→    StateNotifierProvider<AIManagementNotifier, AIManagementState>((ref) {
+   771→  return AIManagementNotifier(
+   772→    getProvidersUseCase: ref.watch(getAIProvidersUseCaseProvider),
+   773→    createProviderUseCase: ref.watch(createAIProviderUseCaseProvider),
+   774→    updateProviderUseCase: ref.watch(updateAIProviderUseCaseProvider),
+   775→    setDefaultUseCase: ref.watch(setDefaultProviderUseCaseProvider),
+   776→    toggleProviderUseCase: ref.watch(toggleProviderUseCaseProvider),
+   777→    getRequestLogsUseCase: ref.watch(getAIRequestLogsUseCaseProvider),
+   778→  );
+   779→});
+   780→
+   781→/// Intelligence provider — alerts, churn prediction, revenue forecast, cost optimization.
+   782→final intelligenceProvider =
+   783→    StateNotifierProvider<IntelligenceNotifier, IntelligenceState>((ref) {
+   784→  return IntelligenceNotifier(
+   785→    getAlertsUseCase: ref.watch(getIntelligenceAlertsUseCaseProvider),
+   786→    acknowledgeAlertUseCase: ref.watch(acknowledgeAlertUseCaseProvider),
+   787→    resolveAlertUseCase: ref.watch(resolveAlertUseCaseProvider),
+   788→    generateInsightsUseCase: ref.watch(generateIntelligenceInsightsUseCaseProvider),
+   789→    getChurnPredictionsUseCase: ref.watch(getChurnPredictionsUseCaseProvider),
+   790→    getRevenueForecastUseCase: ref.watch(getRevenueForecastUseCaseProvider),
+   791→    getCostOptimizationsUseCase: ref.watch(getCostOptimizationsUseCaseProvider),
+   792→  );
+   793→});
+   794→
+   795→// ═══════════════════════════════════════════════════════════════════════════════
+   796→// SECURITY CENTER PROVIDER
+   797→// ═══════════════════════════════════════════════════════════════════════════════
+   798→
+   799→class SecurityCenterState {
+   800→  const SecurityCenterState({
+   801→    this.isLoading = false, this.loginEntries = const [], this.activeSessions = const [],
+   802→    this.suspiciousActivity = const [], this.auditLogs = const [],
+   803→    this.error, this.successMessage,
+   804→  });
+   805→  final bool isLoading;
+   806→  final List<LoginMonitoringEntry> loginEntries;
+   807→  final List<ActiveSession> activeSessions;
+   808→  final List<Map<String, dynamic>> suspiciousActivity;
+   809→  final List<AuditLog> auditLogs;
+   810→  final String? error;
+   811→  final String? successMessage;
+   812→
+   813→  SecurityCenterState copyWith({
+   814→    bool? isLoading, List<LoginMonitoringEntry>? loginEntries,
+   815→    List<ActiveSession>? activeSessions, List<Map<String, dynamic>>? suspiciousActivity,
+   816→    List<AuditLog>? auditLogs, String? error, String? successMessage,
+   817→  }) => SecurityCenterState(
+   818→    isLoading: isLoading ?? this.isLoading, loginEntries: loginEntries ?? this.loginEntries,
+   819→    activeSessions: activeSessions ?? this.activeSessions,
+   820→    suspiciousActivity: suspiciousActivity ?? this.suspiciousActivity,
+   821→    auditLogs: auditLogs ?? this.auditLogs, error: error, successMessage: successMessage,
+   822→  );
+   823→  SecurityCenterState clearError() => copyWith(error: null);
+   824→  SecurityCenterState clearSuccess() => copyWith(successMessage: null);
+   825→}
+   826→
+   827→class SecurityCenterNotifier extends StateNotifier<SecurityCenterState> {
+   828→  SecurityCenterNotifier({
+   829→    required GetLoginMonitoringUseCase getLoginMonitoringUseCase,
+   830→    required DetectSuspiciousActivityUseCase detectSuspiciousUseCase,
+   831→    required LockUserAccountUseCase lockAccountUseCase,
+   832→    required UnlockUserAccountUseCase unlockAccountUseCase,
+   833→    required GetAuditLogsUseCase getAuditLogsUseCase,
+   834→  })  : _getLoginMonitoringUseCase = getLoginMonitoringUseCase,
+   835→        _detectSuspiciousUseCase = detectSuspiciousUseCase,
+   836→        _lockAccountUseCase = lockAccountUseCase,
+   837→        _unlockAccountUseCase = unlockAccountUseCase,
+   838→        _getAuditLogsUseCase = getAuditLogsUseCase,
+   839→        super(const SecurityCenterState());
+   840→
+   841→  final GetLoginMonitoringUseCase _getLoginMonitoringUseCase;
+   842→  final DetectSuspiciousActivityUseCase _detectSuspiciousUseCase;
+   843→  final LockUserAccountUseCase _lockAccountUseCase;
+   844→  final UnlockUserAccountUseCase _unlockAccountUseCase;
+   845→  final GetAuditLogsUseCase _getAuditLogsUseCase;
+   846→
+   847→  Future<void> loadLoginMonitoring({bool failedOnly = false, int limit = 50}) async {
+   848→    final result = await _getLoginMonitoringUseCase(GetLoginMonitoringParams(failedOnly: failedOnly, limit: limit));
+   849→    result.fold(
+   850→      onSuccess: (entries) => state = state.copyWith(loginEntries: entries),
+   851→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   852→    );
+   853→  }
+   854→
+   855→  Future<void> detectSuspicious({int lookbackHours = 24}) async {
+   856→    final result = await _detectSuspiciousUseCase(DetectSuspiciousActivityParams(lookbackHours: lookbackHours));
+   857→    result.fold(
+   858→      onSuccess: (data) => state = state.copyWith(suspiciousActivity: data),
+   859→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   860→    );
+   861→  }
+   862→
+   863→  Future<void> lockAccount(String userId, String reason) async {
+   864→    final result = await _lockAccountUseCase(LockUserAccountParams(userId: userId, reason: reason));
+   865→    result.fold(
+   866→      onSuccess: (_) => state = state.copyWith(successMessage: 'Account locked'),
+   867→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   868→    );
+   869→  }
+   870→
+   871→  Future<void> unlockAccount(String userId) async {
+   872→    final result = await _unlockAccountUseCase(UnlockUserAccountParams(userId: userId));
+   873→    result.fold(
+   874→      onSuccess: (_) => state = state.copyWith(successMessage: 'Account unlocked'),
+   875→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   876→    );
+   877→  }
+   878→
+   879→  Future<void> loadAuditLogs({AuditCategory? category, int limit = 50}) async {
+   880→    final result = await _getAuditLogsUseCase(GetAuditLogsParams(category: category, limit: limit));
+   881→    result.fold(
+   882→      onSuccess: (logs) => state = state.copyWith(auditLogs: logs),
+   883→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+   884→    );
+   885→  }
+   886→
+   887→  String _mapFailure(Failure f) => f.when(
+   888→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   889→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   890→    unauthorized: (m) => m, forbidden: (m) => m,
+   891→  );
+   892→}
+   893→
+   894→// ═══════════════════════════════════════════════════════════════════════════════
+   895→// NOTIFICATION PROVIDER
+   896→// ═══════════════════════════════════════════════════════════════════════════════
+   897→
+   898→class AdminNotificationState {
+   899→  const AdminNotificationState({
+   900→    this.isLoading = false, this.notifications = const [], this.unreadCount = 0, this.error,
+   901→  });
+   902→  final bool isLoading;
+   903→  final List<PlatformNotification> notifications;
+   904→  final int unreadCount;
+   905→  final String? error;
+   906→
+   907→  AdminNotificationState copyWith({
+   908→    bool? isLoading, List<PlatformNotification>? notifications, int? unreadCount, String? error,
+   909→  }) => AdminNotificationState(
+   910→    isLoading: isLoading ?? this.isLoading, notifications: notifications ?? this.notifications,
+   911→    unreadCount: unreadCount ?? this.unreadCount, error: error,
+   912→  );
+   913→}
+   914→
+   915→class AdminNotificationNotifier extends StateNotifier<AdminNotificationState> {
+   916→  AdminNotificationNotifier({
+   917→    required GetNotificationsUseCase getNotificationsUseCase,
+   918→    required MarkNotificationReadUseCase markReadUseCase,
+   919→    required GetUnreadNotificationCountUseCase getUnreadCountUseCase,
+   920→  })  : _getNotificationsUseCase = getNotificationsUseCase,
+   921→        _markReadUseCase = markReadUseCase,
+   922→        _getUnreadCountUseCase = getUnreadCountUseCase,
+   923→        super(const AdminNotificationState());
+   924→
+   925→  final GetNotificationsUseCase _getNotificationsUseCase;
+   926→  final MarkNotificationReadUseCase _markReadUseCase;
+   927→  final GetUnreadNotificationCountUseCase _getUnreadCountUseCase;
+   928→
+   929→  Future<void> loadNotifications({bool unreadOnly = false, int limit = 50}) async {
+   930→    state = state.copyWith(isLoading: true);
+   931→    final result = await _getNotificationsUseCase(GetNotificationsParams(unreadOnly: unreadOnly, limit: limit));
+   932→    result.fold(
+   933→      onSuccess: (notifs) => state = state.copyWith(isLoading: false, notifications: notifs),
+   934→      onFailure: (f) => state = state.copyWith(isLoading: false, error: f.when(
+   935→        server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+   936→        network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+   937→        unauthorized: (m) => m, forbidden: (m) => m,
+   938→      )),
+   939→    );
+   940→  }
+   941→
+   942→  Future<void> markRead(String notificationId) async {
+   943→    final result = await _markReadUseCase(notificationId);
+   944→    result.fold(
+   945→      onSuccess: (updated) {
+   946→        final newList = state.notifications.map((n) => n.id == updated.id ? updated : n).toList();
+   947→        state = state.copyWith(notifications: newList, unreadCount: state.unreadCount > 0 ? state.unreadCount - 1 : 0);
+   948→      },
+   949→      onFailure: (_) {},
+   950→    );
+   951→  }
+   952→
+   953→  Future<void> loadUnreadCount() async {
+   954→    final result = await _getUnreadCountUseCase();
+   955→    result.fold(
+   956→      onSuccess: (count) => state = state.copyWith(unreadCount: count),
+   957→      onFailure: (_) {},
+   958→    );
+   959→  }
+   960→}
+   961→
+   962→// ═══════════════════════════════════════════════════════════════════════════════
+   963→// INFRASTRUCTURE MONITORING PROVIDER
+   964→// ═══════════════════════════════════════════════════════════════════════════════
+   965→
+   966→class InfrastructureMonitoringState {
+   967→  const InfrastructureMonitoringState({
+   968→    this.isLoading = false,
+   969→    this.services = const [],
+   970→    this.maintenanceWindows = const [],
+   971→    this.error,
+   972→    this.successMessage,
+   973→    this.runningHealthCheckFor,
+   974→  });
+   975→  final bool isLoading;
+   976→  final List<InfrastructureService> services;
+   977→  final List<MaintenanceWindow> maintenanceWindows;
+   978→  final String? error;
+   979→  final String? successMessage;
+   980→  final String? runningHealthCheckFor; // serviceId currently being checked
+   981→
+   982→  InfrastructureMonitoringState copyWith({
+   983→    bool? isLoading,
+   984→    List<InfrastructureService>? services,
+   985→    List<MaintenanceWindow>? maintenanceWindows,
+   986→    String? error,
+   987→    String? successMessage,
+   988→    String? runningHealthCheckFor,
+   989→  }) =>
+   990→      InfrastructureMonitoringState(
+   991→        isLoading: isLoading ?? this.isLoading,
+   992→        services: services ?? this.services,
+   993→        maintenanceWindows: maintenanceWindows ?? this.maintenanceWindows,
+   994→        error: error,
+   995→        successMessage: successMessage,
+   996→        runningHealthCheckFor: runningHealthCheckFor,
+   997→      );
+   998→  InfrastructureMonitoringState clearError() => copyWith(error: null);
+   999→  InfrastructureMonitoringState clearSuccess() => copyWith(successMessage: null);
+  1000→}
+  1001→
+  1002→class InfrastructureMonitoringNotifier
+  1003→    extends StateNotifier<InfrastructureMonitoringState> {
+  1004→  InfrastructureMonitoringNotifier({
+  1005→    required GetInfrastructureServicesUseCase getServicesUseCase,
+  1006→    required RunHealthCheckUseCase runHealthCheckUseCase,
+  1007→    required GetMaintenanceWindowsUseCase getMaintenanceWindowsUseCase,
+  1008→    required CreateMaintenanceWindowUseCase createMaintenanceWindowUseCase,
+  1009→    required CancelMaintenanceWindowUseCase cancelMaintenanceWindowUseCase,
+  1010→  })  : _getServicesUseCase = getServicesUseCase,
+  1011→        _runHealthCheckUseCase = runHealthCheckUseCase,
+  1012→        _getMaintenanceWindowsUseCase = getMaintenanceWindowsUseCase,
+  1013→        _createMaintenanceWindowUseCase = createMaintenanceWindowUseCase,
+  1014→        _cancelMaintenanceWindowUseCase = cancelMaintenanceWindowUseCase,
+  1015→        super(const InfrastructureMonitoringState());
+  1016→
+  1017→  final GetInfrastructureServicesUseCase _getServicesUseCase;
+  1018→  final RunHealthCheckUseCase _runHealthCheckUseCase;
+  1019→  final GetMaintenanceWindowsUseCase _getMaintenanceWindowsUseCase;
+  1020→  final CreateMaintenanceWindowUseCase _createMaintenanceWindowUseCase;
+  1021→  final CancelMaintenanceWindowUseCase _cancelMaintenanceWindowUseCase;
+  1022→
+  1023→  Future<void> loadServices() async {
+  1024→    state = state.copyWith(isLoading: true, error: null);
+  1025→    final result = await _getServicesUseCase();
+  1026→    result.fold(
+  1027→      onSuccess: (services) =>
+  1028→          state = state.copyWith(isLoading: false, services: services),
+  1029→      onFailure: (f) =>
+  1030→          state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+  1031→    );
+  1032→  }
+  1033→
+  1034→  Future<void> loadMaintenanceWindows({MaintenanceStatus? status}) async {
+  1035→    final result =
+  1036→        await _getMaintenanceWindowsUseCase(GetMaintenanceWindowsParams(status: status));
+  1037→    result.fold(
+  1038→      onSuccess: (windows) =>
+  1039→          state = state.copyWith(maintenanceWindows: windows),
+  1040→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+  1041→    );
+  1042→  }
+  1043→
+  1044→  Future<void> runHealthCheck({String? serviceId}) async {
+  1045→    state = state.copyWith(runningHealthCheckFor: serviceId ?? '__all__');
+  1046→    final result = await _runHealthCheckUseCase(
+  1047→        RunHealthCheckParams(serviceId: serviceId));
+  1048→    state = state.copyWith(runningHealthCheckFor: null);
+  1049→    result.fold(
+  1050→      onSuccess: (_) {
+  1051→        state = state.copyWith(successMessage: serviceId != null
+  1052→            ? 'Health check completed'
+  1053→            : 'All health checks completed');
+  1054→        // Refresh services after health check
+  1055→        loadServices();
+  1056→      },
+  1057→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+  1058→    );
+  1059→  }
+  1060→
+  1061→  Future<void> createMaintenanceWindow(MaintenanceWindow window) async {
+  1062→    final result = await _createMaintenanceWindowUseCase(
+  1063→        CreateMaintenanceWindowParams(window: window));
+  1064→    result.fold(
+  1065→      onSuccess: (newWindow) => state = state.copyWith(
+  1066→        maintenanceWindows: [newWindow, ...state.maintenanceWindows],
+  1067→        successMessage: 'Maintenance window scheduled',
+  1068→      ),
+  1069→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+  1070→    );
+  1071→  }
+  1072→
+  1073→  Future<void> cancelMaintenanceWindow(String windowId) async {
+  1074→    final result = await _cancelMaintenanceWindowUseCase(
+  1075→        CancelMaintenanceWindowParams(windowId: windowId));
+  1076→    result.fold(
+  1077→      onSuccess: (_) {
+  1078→        final updated = state.maintenanceWindows
+  1079→            .map((w) => w.id == windowId
+  1080→                ? w.copyWith(status: MaintenanceStatus.cancelled)
+  1081→                : w)
+  1082→            .toList();
+  1083→        state = state.copyWith(
+  1084→          maintenanceWindows: updated,
+  1085→          successMessage: 'Maintenance window cancelled',
+  1086→        );
+  1087→      },
+  1088→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+  1089→    );
+  1090→  }
+  1091→
+  1092→  String _mapFailure(Failure f) => f.when(
+  1093→        server: (m, _, __) => m,
+  1094→        cache: (m) => m,
+  1095→        auth: (m, _) => m,
+  1096→        network: (m) => m,
+  1097→        validation: (m, _) => m,
+  1098→        notFound: (m) => m,
+  1099→        unauthorized: (m) => m,
+  1100→        forbidden: (m) => m,
+  1101→      );
+  1102→}
+  1103→
+  1104→/// Infrastructure monitoring provider.
+  1105→final infrastructureMonitoringProvider = StateNotifierProvider<
+  1106→    InfrastructureMonitoringNotifier, InfrastructureMonitoringState>((ref) {
+  1107→  return InfrastructureMonitoringNotifier(
+  1108→    getServicesUseCase:
+  1109→        ref.watch(getInfrastructureServicesUseCaseProvider),
+  1110→    runHealthCheckUseCase: ref.watch(runHealthCheckUseCaseProvider),
+  1111→    getMaintenanceWindowsUseCase:
+  1112→        ref.watch(getMaintenanceWindowsUseCaseProvider),
+  1113→    createMaintenanceWindowUseCase:
+  1114→        ref.watch(createMaintenanceWindowUseCaseProvider),
+  1115→    cancelMaintenanceWindowUseCase:
+  1116→        ref.watch(cancelMaintenanceWindowUseCaseProvider),
+  1117→  );
+  1118→});
+  1119→
+  1120→// ═══════════════════════════════════════════════════════════════════════════════
+  1121→// BILLING MANAGEMENT PROVIDER
+  1122→// ═══════════════════════════════════════════════════════════════════════════════
+  1123→
+  1124→class BillingManagementState {
+  1125→  const BillingManagementState({
+  1126→    this.isLoading = false,
+  1127→    this.revenueAnalytics,
+  1128→    this.error,
+  1129→    this.successMessage,
+  1130→  });
+  1131→  final bool isLoading;
+  1132→  final RevenueAnalytics? revenueAnalytics;
+  1133→  final String? error;
+  1134→  final String? successMessage;
+  1135→
+  1136→  BillingManagementState copyWith({
+  1137→    bool? isLoading,
+  1138→    RevenueAnalytics? revenueAnalytics,
+  1139→    String? error,
+  1140→    String? successMessage,
+  1141→  }) =>
+  1142→      BillingManagementState(
+  1143→        isLoading: isLoading ?? this.isLoading,
+  1144→        revenueAnalytics: revenueAnalytics ?? this.revenueAnalytics,
+  1145→        error: error,
+  1146→        successMessage: successMessage,
+  1147→      );
+  1148→  BillingManagementState clearError() => copyWith(error: null);
+  1149→  BillingManagementState clearSuccess() => copyWith(successMessage: null);
+  1150→}
+  1151→
+  1152→class BillingManagementNotifier
+  1153→    extends StateNotifier<BillingManagementState> {
+  1154→  BillingManagementNotifier({
+  1155→    required GetRevenueAnalyticsUseCase getRevenueAnalyticsUseCase,
+  1156→  })  : _getRevenueAnalyticsUseCase = getRevenueAnalyticsUseCase,
+  1157→        super(const BillingManagementState());
+  1158→
+  1159→  final GetRevenueAnalyticsUseCase _getRevenueAnalyticsUseCase;
+  1160→
+  1161→  Future<void> loadRevenueAnalytics({
+  1162→    DateTime? startDate,
+  1163→    DateTime? endDate,
+  1164→  }) async {
+  1165→    state = state.copyWith(isLoading: true, error: null);
+  1166→    final result = await _getRevenueAnalyticsUseCase(
+  1167→      GetRevenueAnalyticsParams(startDate: startDate, endDate: endDate),
+  1168→    );
+  1169→    result.fold(
+  1170→      onSuccess: (analytics) =>
+  1171→          state = state.copyWith(isLoading: false, revenueAnalytics: analytics),
+  1172→      onFailure: (f) =>
+  1173→          state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+  1174→    );
+  1175→  }
+  1176→
+  1177→  String _mapFailure(Failure f) => f.when(
+  1178→        server: (m, _, __) => m,
+  1179→        cache: (m) => m,
+  1180→        auth: (m, _) => m,
+  1181→        network: (m) => m,
+  1182→        validation: (m, _) => m,
+  1183→        notFound: (m) => m,
+  1184→        unauthorized: (m) => m,
+  1185→        forbidden: (m) => m,
+  1186→      );
+  1187→}
+  1188→
+  1189→/// Billing management provider.
+  1190→final billingManagementProvider = StateNotifierProvider<
+  1191→    BillingManagementNotifier, BillingManagementState>((ref) {
+  1192→  return BillingManagementNotifier(
+  1193→    getRevenueAnalyticsUseCase:
+  1194→        ref.watch(getRevenueAnalyticsUseCaseProvider),
+  1195→  );
+  1196→});
+  1197→
+  1198→// ═══════════════════════════════════════════════════════════════════════════════
+  1199→// MARKETPLACE MANAGEMENT PROVIDER
+  1200→// ═══════════════════════════════════════════════════════════════════════════════
+  1201→
+  1202→class MarketplaceManagementState {
+  1203→  const MarketplaceManagementState({
+  1204→    this.isLoading = false,
+  1205→    this.pendingContent = const [],
+  1206→    this.allContent = const [],
+  1207→    this.totalCount = 0,
+  1208→    this.error,
+  1209→    this.successMessage,
+  1210→  });
+  1211→  final bool isLoading;
+  1212→  final List<MarketplaceContent> pendingContent;
+  1213→  final List<MarketplaceContent> allContent;
+  1214→  final int totalCount;
+  1215→  final String? error;
+  1216→  final String? successMessage;
+  1217→
+  1218→  MarketplaceManagementState copyWith({
+  1219→    bool? isLoading,
+  1220→    List<MarketplaceContent>? pendingContent,
+  1221→    List<MarketplaceContent>? allContent,
+  1222→    int? totalCount,
+  1223→    String? error,
+  1224→    String? successMessage,
+  1225→  }) => MarketplaceManagementState(
+  1226→    isLoading: isLoading ?? this.isLoading,
+  1227→    pendingContent: pendingContent ?? this.pendingContent,
+  1228→    allContent: allContent ?? this.allContent,
+  1229→    totalCount: totalCount ?? this.totalCount,
+  1230→    error: error,
+  1231→    successMessage: successMessage,
+  1232→  );
+  1233→  MarketplaceManagementState clearError() => copyWith(error: null);
+  1234→  MarketplaceManagementState clearSuccess() => copyWith(successMessage: null);
+  1235→}
+  1236→
+  1237→class MarketplaceManagementNotifier extends StateNotifier<MarketplaceManagementState> {
+  1238→  MarketplaceManagementNotifier({
+  1239→    required GetMarketplaceContentUseCase getContentUseCase,
+  1240→    required ApproveContentUseCase approveContentUseCase,
+  1241→    required RejectContentUseCase rejectContentUseCase,
+  1242→    required FeatureContentUseCase featureContentUseCase,
+  1243→  })  : _getContentUseCase = getContentUseCase,
+  1244→        _approveContentUseCase = approveContentUseCase,
+  1245→        _rejectContentUseCase = rejectContentUseCase,
+  1246→        _featureContentUseCase = featureContentUseCase,
+  1247→        super(const MarketplaceManagementState());
+  1248→
+  1249→  final GetMarketplaceContentUseCase _getContentUseCase;
+  1250→  final ApproveContentUseCase _approveContentUseCase;
+  1251→  final RejectContentUseCase _rejectContentUseCase;
+  1252→  final FeatureContentUseCase _featureContentUseCase;
+  1253→
+  1254→  Future<void> loadPendingContent() async {
+  1255→    state = state.copyWith(isLoading: true, error: null);
+  1256→    final result = await _getContentUseCase(
+  1257→      GetMarketplaceContentParams(status: 'pending_review', limit: 100),
+  1258→    );
+  1259→    result.fold(
+  1260→      onSuccess: (content) => state = state.copyWith(isLoading: false, pendingContent: content),
+  1261→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+  1262→    );
+  1263→  }
+  1264→
+  1265→  Future<void> loadAllContent({MarketplaceStatus? status, MarketplaceContentType? contentType, String? search, int limit = 50, int offset = 0}) async {
+  1266→    state = state.copyWith(isLoading: true, error: null);
+  1267→    final result = await _getContentUseCase(
+  1268→      GetMarketplaceContentParams(
+  1269→        status: status?.value,
+  1270→        contentType: contentType?.value,
+  1271→        search: search,
+  1272→        limit: limit,
+  1273→        offset: offset,
+  1274→      ),
+  1275→    );
+  1276→    result.fold(
+  1277→      onSuccess: (content) => state = state.copyWith(isLoading: false, allContent: content),
+  1278→      onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
+  1279→    );
+  1280→  }
+  1281→
+  1282→  Future<void> approveContent(String contentId) async {
+  1283→    final result = await _approveContentUseCase(ModerateContentParams(contentId: contentId));
+  1284→    result.fold(
+  1285→      onSuccess: (updated) {
+  1286→        final newPending = state.pendingContent.where((c) => c.id != contentId).toList();
+  1287→        final newAll = state.allContent.map((c) => c.id == updated.id ? updated : c).toList();
+  1288→        state = state.copyWith(pendingContent: newPending, allContent: newAll, successMessage: 'Content approved');
+  1289→      },
+  1290→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+  1291→    );
+  1292→  }
+  1293→
+  1294→  Future<void> rejectContent(String contentId, String reason) async {
+  1295→    final result = await _rejectContentUseCase(ModerateContentParams(contentId: contentId, reason: reason));
+  1296→    result.fold(
+  1297→      onSuccess: (updated) {
+  1298→        final newPending = state.pendingContent.where((c) => c.id != contentId).toList();
+  1299→        final newAll = state.allContent.map((c) => c.id == updated.id ? updated : c).toList();
+  1300→        state = state.copyWith(pendingContent: newPending, allContent: newAll, successMessage: 'Content rejected');
+  1301→      },
+  1302→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+  1303→    );
+  1304→  }
+  1305→
+  1306→  Future<void> featureContent(String contentId) async {
+  1307→    final result = await _featureContentUseCase(ModerateContentParams(contentId: contentId));
+  1308→    result.fold(
+  1309→      onSuccess: (updated) {
+  1310→        final newPending = state.pendingContent.where((c) => c.id != contentId).toList();
+  1311→        final newAll = state.allContent.map((c) => c.id == updated.id ? updated : c).toList();
+  1312→        state = state.copyWith(pendingContent: newPending, allContent: newAll, successMessage: 'Content featured');
+  1313→      },
+  1314→      onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
+  1315→    );
+  1316→  }
+  1317→
+  1318→  String _mapFailure(Failure f) => f.when(
+  1319→    server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
+  1320→    network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
+  1321→    unauthorized: (m) => m, forbidden: (m) => m,
+  1322→  );
+  1323→}
+  1324→
+  1325→// ═══════════════════════════════════════════════════════════════════════════════
+  1326→// RIVERPOD PROVIDER DECLARATIONS — SETTINGS, FLAGS, MARKETPLACE
+  1327→// ═══════════════════════════════════════════════════════════════════════════════
+  1328→
+  1329→/// Platform Settings provider — manages global configuration values.
+  1330→final platformSettingsProvider =
+  1331→    StateNotifierProvider<PlatformSettingsNotifier, PlatformSettingsState>((ref) {
+  1332→  return PlatformSettingsNotifier(
+  1333→    getSettingsUseCase: ref.watch(getPlatformSettingsUseCaseProvider),
+  1334→    updateSettingUseCase: ref.watch(updatePlatformSettingUseCaseProvider),
+  1335→    bulkUpdateUseCase: ref.watch(bulkUpdateSettingsUseCaseProvider),
+  1336→  );
+  1337→});
+  1338→
+  1339→/// Feature Flags provider — manages feature flag toggles and rollout.
+  1340→final featureFlagsProvider =
+  1341→    StateNotifierProvider<FeatureFlagsNotifier, FeatureFlagsState>((ref) {
+  1342→  return FeatureFlagsNotifier(
+  1343→    getFlagsUseCase: ref.watch(getFeatureFlagsUseCaseProvider),
+  1344→    createFlagUseCase: ref.watch(createFeatureFlagUseCaseProvider),
+  1345→    updateFlagUseCase: ref.watch(updateFeatureFlagUseCaseProvider),
+  1346→    toggleFlagUseCase: ref.watch(toggleFeatureFlagUseCaseProvider),
+  1347→  );
+  1348→});
+  1349→
+  1350→/// Marketplace Management provider — moderates marketplace content.
+  1351→final marketplaceManagementProvider =
+  1352→    StateNotifierProvider<MarketplaceManagementNotifier, MarketplaceManagementState>((ref) {
+  1353→  return MarketplaceManagementNotifier(
+  1354→    getContentUseCase: ref.watch(getMarketplaceContentUseCaseProvider),
+  1355→    approveContentUseCase: ref.watch(approveContentUseCaseProvider),
+  1356→    rejectContentUseCase: ref.watch(rejectContentUseCaseProvider),
+  1357→    featureContentUseCase: ref.watch(featureContentUseCaseProvider),
+  1358→  );
+  1359→});
+  1360→

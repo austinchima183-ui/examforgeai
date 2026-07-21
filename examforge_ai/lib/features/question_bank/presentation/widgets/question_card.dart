@@ -152,7 +152,7 @@ class QuestionCard extends StatelessWidget {
                 vertical: 2.0,
               ),
               decoration: BoxDecoration(
-                color: cs.secondaryContainer.withValues(alpha: 0.6),
+                color: cs.secondaryContainer.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Text(
@@ -316,7 +316,7 @@ class QuestionCard extends StatelessWidget {
                   size: Spacings.mdIcon,
                   color: isFavorited
                       ? const Color(0xFFE11D48)
-                      : cs.onSurfaceVariant.withValues(alpha: 0.5),
+                      : cs.onSurfaceVariant.withOpacity(0.5),
                 ),
               ),
               const SizedBox(width: Spacings.xs),
@@ -387,7 +387,7 @@ class QuestionCard extends StatelessWidget {
                 Icon(
                   Icons.person_outline_rounded,
                   size: Spacings.smIcon,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                  color: cs.onSurfaceVariant.withOpacity(0.6),
                 ),
                 const SizedBox(width: Spacings.xs),
                 Text(
@@ -400,7 +400,7 @@ class QuestionCard extends StatelessWidget {
                 Icon(
                   Icons.access_time_rounded,
                   size: Spacings.smIcon,
-                  color: cs.onSurfaceVariant.withValues(alpha: 0.6),
+                  color: cs.onSurfaceVariant.withOpacity(0.6),
                 ),
                 const SizedBox(width: Spacings.xs),
                 Text(
@@ -439,7 +439,7 @@ class _StatusChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: color.withOpacity(isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -450,7 +450,7 @@ class _StatusChip extends StatelessWidget {
           fontWeight: AppTypography.wSemiBold,
           letterSpacing: AppTypography.lsCaption,
           height: 1.40,
-          color: isDark ? color.withValues(alpha: 0.9) : color,
+          color: isDark ? color.withOpacity(0.9) : color,
         ),
       ),
     );
@@ -474,7 +474,7 @@ class _MetadataChip extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 13.0, color: cs.onSurfaceVariant.withValues(alpha: 0.7)),
+        Icon(icon, size: 13.0, color: cs.onSurfaceVariant.withOpacity(0.7)),
         const SizedBox(width: Spacings.xs),
         Text(
           label,

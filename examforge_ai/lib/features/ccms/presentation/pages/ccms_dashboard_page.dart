@@ -390,7 +390,7 @@ class _CcmsDashboardPageState extends ConsumerState<CcmsDashboardPage> {
                   Icon(
                     icon,
                     size: 48,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.3),
+                    color: cs.onSurfaceVariant.withOpacity(0.3),
                   ),
                   const SizedBox(height: Spacings.sm),
                   Text(
@@ -433,7 +433,7 @@ class _QuickAction extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Icon(icon, size: Spacings.lgIcon, color: color),

@@ -1,8 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
-import '../../data/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
+import '../../domain/repositories/billing_repository.dart';
 
 
 // ─── Initialize Payment ──────────────────────────────────────────────────────
@@ -33,22 +32,22 @@ class InitializePaymentUseCase {
   InitializePaymentUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaymentInitializationEntity>> call(
+  Future<Result<Map<String, dynamic>>> call(
     InitializePaymentParams params,
   ) async {
     if (params.amount <= 0) {
       return FailureResult(
-        Failure.validation(message: 'Amount must be greater than 0'),
+        Failure.validation(message: 'Amount must be greater than 0', fieldErrors: const {}),
       );
     }
     if (params.email.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Email cannot be empty'),
+        Failure.validation(message: 'Email cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.txRef.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Transaction reference cannot be empty'),
+        Failure.validation(message: 'Transaction reference cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -76,16 +75,16 @@ class VerifyPaymentUseCase {
   VerifyPaymentUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaymentVerificationEntity>> call(
+  Future<Result<TransactionEntity>> call(
     VerifyPaymentParams params,
   ) async {
     if (params.txRef.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Transaction reference cannot be empty'),
+        Failure.validation(message: 'Transaction reference cannot be empty', fieldErrors: const {}),
       );
     }
 
-    return _repository.verifyPayment(txRef: params.txRef);
+    return _repository.verifyPayment(params.txRef);
   }
 }
 
@@ -100,14 +99,14 @@ class ProcessWebhookUseCase {
   ProcessWebhookUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<void>> call(ProcessWebhookParams params) async {
+  Future<Result<bool>> call(ProcessWebhookParams params) async {
     if (params.payload.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Webhook payload cannot be empty'),
+        Failure.validation(message: 'Webhook payload cannot be empty', fieldErrors: const {}),
       );
     }
 
-    return _repository.processWebhook(payload: params.payload);
+    return _repository.processWebhookEvent(params.payload);
   }
 }
 
@@ -129,15 +128,15 @@ class RequestRefundUseCase {
   RequestRefundUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<RefundEntity>> call(RequestRefundParams params) async {
+  Future<Result<TransactionEntity>> call(RequestRefundParams params) async {
     if (params.transactionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Transaction ID cannot be empty'),
+        Failure.validation(message: 'Transaction ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.amount <= 0) {
       return FailureResult(
-        Failure.validation(message: 'Refund amount must be greater than 0'),
+        Failure.validation(message: 'Refund amount must be greater than 0', fieldErrors: const {}),
       );
     }
 
@@ -171,17 +170,17 @@ class GetTransactionsUseCase {
   GetTransactionsUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaginatedResult<TransactionEntity>>> call(
+  Future<Result<List<TransactionEntity>>> call(
     GetTransactionsParams params,
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1'),
+        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1'),
+        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
       );
     }
 

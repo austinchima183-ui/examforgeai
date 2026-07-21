@@ -124,7 +124,7 @@ class _TypeGridItem extends StatelessWidget {
         side: BorderSide(
           color: isSelected
               ? colorScheme.primary
-              : colorScheme.outlineVariant.withValues(alpha: 0.5),
+              : colorScheme.outlineVariant.withOpacity(0.5),
           width: isSelected ? 2.0 : 1.0,
         ),
       ),
@@ -140,9 +140,9 @@ class _TypeGridItem extends StatelessWidget {
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
                   color: isSelected
-                      ? colorScheme.primary.withValues(alpha: 0.12)
+                      ? colorScheme.primary.withOpacity(0.12)
                       : colorScheme.surfaceContainerHighest
-                          .withValues(alpha: 0.5),
+                          .withOpacity(0.5),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -218,7 +218,7 @@ class _TypeChip extends StatelessWidget {
       side: isSelected
           ? BorderSide.none
           : BorderSide(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+              color: colorScheme.outlineVariant.withOpacity(0.5),
             ),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,

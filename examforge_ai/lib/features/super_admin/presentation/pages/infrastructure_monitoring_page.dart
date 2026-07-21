@@ -164,7 +164,7 @@ class _InfrastructureMonitoringPageState
               state.error ?? 'An unexpected error occurred.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
+                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -267,7 +267,7 @@ class _InfrastructureMonitoringPageState
       padding: const EdgeInsets.symmetric(
           horizontal: Spacings.md, vertical: Spacings.sm),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
+        color: color.withOpacity(0.1),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Row(
@@ -643,7 +643,7 @@ class _ServiceStatusCard extends StatelessWidget {
   final ColorScheme cs;
 
   Color _responseTimeColor(int? ms) {
-    if (ms == null) return cs.onSurface.withValues(alpha: 0.4);
+    if (ms == null) return cs.onSurface.withOpacity(0.4);
     if (ms < 500) return AppColors.success;
     if (ms < 2000) return AppColors.warning;
     return AppColors.error;
@@ -753,7 +753,7 @@ class _ServiceStatusCard extends StatelessWidget {
               icon: Icons.schedule,
               label: 'Last Check',
               value: _formatLastCheck(service.lastCheckAt),
-              valueColor: cs.onSurface.withValues(alpha: 0.6),
+              valueColor: cs.onSurface.withOpacity(0.6),
             ),
 
             const Spacer(),
@@ -794,13 +794,13 @@ class _ServiceStatusCard extends StatelessWidget {
   }) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
+        Icon(icon, size: 14, color: cs.onSurface.withOpacity(0.4)),
         const SizedBox(width: Spacings.sm),
         Text(
           label,
           style: AppTypography.wRegular.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withValues(alpha: 0.6),
+            color: cs.onSurface.withOpacity(0.6),
           ),
         ),
         const Spacer(),
@@ -840,7 +840,7 @@ class _MaintenanceWindowTile extends StatelessWidget {
       case MaintenanceStatus.completed:
         return AppColors.success;
       case MaintenanceStatus.cancelled:
-        return cs.onSurface.withValues(alpha: 0.4);
+        return cs.onSurface.withOpacity(0.4);
     }
   }
 
@@ -898,7 +898,7 @@ class _MaintenanceWindowTile extends StatelessWidget {
             window.description!,
             style: AppTypography.wRegular.copyWith(
               fontSize: 13,
-              color: cs.onSurface.withValues(alpha: 0.7),
+              color: cs.onSurface.withOpacity(0.7),
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -908,24 +908,24 @@ class _MaintenanceWindowTile extends StatelessWidget {
         Row(
           children: [
             Icon(Icons.play_arrow, size: 14,
-                color: cs.onSurface.withValues(alpha: 0.5)),
+                color: cs.onSurface.withOpacity(0.5)),
             const SizedBox(width: Spacings.xs),
             Text(
               _formatDateTime(window.startAt),
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withValues(alpha: 0.6),
+                color: cs.onSurface.withOpacity(0.6),
               ),
             ),
             const SizedBox(width: Spacings.lg),
             Icon(Icons.stop, size: 14,
-                color: cs.onSurface.withValues(alpha: 0.5)),
+                color: cs.onSurface.withOpacity(0.5)),
             const SizedBox(width: Spacings.xs),
             Text(
               _formatDateTime(window.endAt),
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withValues(alpha: 0.6),
+                color: cs.onSurface.withOpacity(0.6),
               ),
             ),
           ],

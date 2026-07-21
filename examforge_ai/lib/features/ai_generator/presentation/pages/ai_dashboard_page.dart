@@ -314,7 +314,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
                     shape: BoxShape.circle,
                     color: hasUsage
                         ? AppColors.successOf(cs.brightness)
-                        : cs.onSurfaceVariant.withValues(alpha: 0.3),
+                        : cs.onSurfaceVariant.withOpacity(0.3),
                   ),
                 ),
                 const SizedBox(width: Spacings.md),
@@ -349,7 +349,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
                     color: (hasUsage
                             ? AppColors.successOf(cs.brightness)
                             : cs.onSurfaceVariant)
-                        .withValues(alpha: isDark ? 0.20 : 0.10),
+                        .withOpacity(isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(

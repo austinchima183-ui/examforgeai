@@ -130,7 +130,7 @@ class _State extends ConsumerState<ParentAssistantPage> {
         horizontal: Spacings.lg,
         vertical: Spacings.sm,
       ),
-      color: AppColors.warningOf(cs.brightness).withValues(alpha: 0.1),
+      color: AppColors.warningOf(cs.brightness).withOpacity(0.1),
       child: Row(
         children: [
           Icon(
@@ -426,7 +426,7 @@ class _State extends ConsumerState<ParentAssistantPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusSm,
                 side: BorderSide(
-                  color: cs.primary.withValues(alpha: 0.3),
+                  color: cs.primary.withOpacity(0.3),
                 ),
               ),
             ),

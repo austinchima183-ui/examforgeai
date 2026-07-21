@@ -572,8 +572,8 @@ class RouteNames {
   /// Create conversation page.
   static const String createConversation = '/communication/conversations/create';
 
-  /// Announcement list page.
-  static const String announcementList = '/communication/announcements';
+  /// Communication announcement list page.
+  static const String communicationAnnouncementList = '/communication/announcements';
 
   /// Announcement detail page.
   static const String announcementDetail = '/communication/announcements/detail';
@@ -773,7 +773,7 @@ class RouteNames {
   static const String mockExamList = '/exams/mock';
   static const String mockExamTake = '/exams/mock/take';
   static const String readinessDashboard = '/exams/readiness';
-  static const String studyPlanner = '/exams/study-planner';
+  static const String examStudyPlanner = '/exams/study-planner';
   static const String jambPreparation = '/exams/jamb';
 
   // ═══════════════════════════════════════════════════════════════════════

@@ -158,13 +158,13 @@ class _FlashcardFlipCardState extends State<FlashcardFlipCard>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            cs.primary.withValues(alpha: context.isDarkMode ? 0.25 : 0.08),
-            cs.secondaryContainer.withValues(alpha: context.isDarkMode ? 0.15 : 0.05),
+            cs.primary.withOpacity(context.isDarkMode ? 0.25 : 0.08),
+            cs.secondaryContainer.withOpacity(context.isDarkMode ? 0.15 : 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(Spacings.lgRadius),
         border: Border.all(
-          color: cs.primary.withValues(alpha: 0.3),
+          color: cs.primary.withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -177,7 +177,7 @@ class _FlashcardFlipCardState extends State<FlashcardFlipCard>
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
+              color: cs.primary.withOpacity(context.isDarkMode ? 0.25 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Row(
@@ -246,13 +246,13 @@ class _FlashcardFlipCardState extends State<FlashcardFlipCard>
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: [
-            AppColors.success.withValues(alpha: context.isDarkMode ? 0.20 : 0.08),
-            AppColors.successLight.withValues(alpha: context.isDarkMode ? 0.10 : 0.05),
+            AppColors.success.withOpacity(context.isDarkMode ? 0.20 : 0.08),
+            AppColors.successLight.withOpacity(context.isDarkMode ? 0.10 : 0.05),
           ],
         ),
         borderRadius: BorderRadius.circular(Spacings.lgRadius),
         border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.3),
+          color: AppColors.success.withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -265,7 +265,7 @@ class _FlashcardFlipCardState extends State<FlashcardFlipCard>
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: AppColors.success.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
+              color: AppColors.success.withOpacity(context.isDarkMode ? 0.25 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Row(
@@ -328,10 +328,10 @@ class _FlashcardFlipCardState extends State<FlashcardFlipCard>
       width: double.infinity,
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.warningLight.withValues(alpha: context.isDarkMode ? 0.25 : 1.0),
+        color: AppColors.warningLight.withOpacity(context.isDarkMode ? 0.25 : 1.0),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.warning.withValues(alpha: 0.4),
+          color: AppColors.warning.withOpacity(0.4),
         ),
       ),
       child: Row(

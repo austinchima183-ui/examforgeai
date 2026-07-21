@@ -159,39 +159,36 @@ class SupabaseConfig {
 
     final channel = client.channel(channelName);
 
-    var postgresChangeConfig = sb.PostgresChangeEventConfig(
+    final sb.PostgresChangeFilter? changeFilter = filter != null
+        ? sb.PostgresChangeFilter(
+            type: sb.PostgresChangeFilterType.eq,
+            column: filter.split('=eq.').first,
+            value: filter.split('=eq.').last,
+          )
+        : null;
+
+    channel.onPostgresChanges(
+      event: sb.PostgresChangeEvent.insert,
       schema: schema,
       table: table,
-    );
-
-    if (filter != null) {
-      postgresChangeConfig = sb.PostgresChangeEventConfig(
-        schema: schema,
-        table: table,
-        filter: sb.PostgresChangeFilter(
-          type: sb.PostgresChangeFilterType.eq,
-          column: filter.split('=eq.').first,
-          value: filter.split('=eq.').last,
-        ),
-      );
-    }
-
-    channel.onPostgresChanges(
-      sb.PostgresChangeEvent.insert,
-      postgresChangeConfig,
-      (payload) => onInsert?.call(payload),
+      filter: changeFilter,
+      callback: (payload) => onInsert?.call(payload),
     );
 
     channel.onPostgresChanges(
-      sb.PostgresChangeEvent.update,
-      postgresChangeConfig,
-      (payload) => onUpdate?.call(payload),
+      event: sb.PostgresChangeEvent.update,
+      schema: schema,
+      table: table,
+      filter: changeFilter,
+      callback: (payload) => onUpdate?.call(payload),
     );
 
     channel.onPostgresChanges(
-      sb.PostgresChangeEvent.delete,
-      postgresChangeConfig,
-      (payload) => onDelete?.call(payload),
+      event: sb.PostgresChangeEvent.delete,
+      schema: schema,
+      table: table,
+      filter: changeFilter,
+      callback: (payload) => onDelete?.call(payload),
     );
 
     channel.subscribe();
@@ -212,9 +209,12 @@ class SupabaseConfig {
 
     final channel = client.channel(channelName);
 
-    channel.onBroadcastMessage(event, (payload) {
-      onMessage(payload);
-    });
+    channel.onBroadcast(
+      event: event,
+      callback: (payload) {
+        onMessage(payload);
+      },
+    );
 
     channel.subscribe();
 
@@ -227,7 +227,7 @@ class SupabaseConfig {
   /// Use for tracking online/offline status of users.
   static sb.RealtimeChannel subscribeToPresence({
     required String channelName,
-    required void Function(sb.PresenceState) onSync,
+    required void Function(sb.RealtimePresenceSyncPayload) onSync,
     Map<String, dynamic>? presenceData,
   }) {
     _assertInitialized();
@@ -239,8 +239,8 @@ class SupabaseConfig {
     });
 
     channel.subscribe(
-      (event, state) {
-        if (state == sb.RealtimeSubscribeState.subscribed && presenceData != null) {
+      (status, error) {
+        if (status == sb.RealtimeSubscribeStatus.subscribed && presenceData != null) {
           channel.track(presenceData);
         }
       },
@@ -254,7 +254,7 @@ class SupabaseConfig {
   static Future<void> unsubscribeChannel(sb.RealtimeChannel channel) async {
     _assertInitialized();
     await client.removeChannel(channel);
-    AppLogger.info('Unsubscribed from channel: ${channel.topic}');
+    AppLogger.info('Unsubscribed from channel');
   }
 
   /// Unsubscribes all active real-time channels.

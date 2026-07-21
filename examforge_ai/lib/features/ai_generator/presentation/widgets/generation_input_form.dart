@@ -329,8 +329,7 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
                     ));
                   }
                 },
-                selectedColor: cs.primary.withValues(
-                  alpha: context.isDarkMode ? 0.25 : 0.15,
+                selectedColor: cs.primary.withOpacity(context.isDarkMode ? 0.25 : 0.15,
                 ),
               );
             }).toList(),
@@ -382,8 +381,7 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(
-                    alpha: context.isDarkMode ? 0.20 : 0.10,
+                  color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),

@@ -280,7 +280,7 @@ class _PurchaseCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(
@@ -312,8 +312,7 @@ class _PurchaseCard extends ConsumerWidget {
                             vertical: Spacings.xs,
                           ),
                           decoration: BoxDecoration(
-                            color: licenseBadgeColor.withValues(
-                              alpha: isDark ? 0.20 : 0.12,
+                            color: licenseBadgeColor.withOpacity(isDark ? 0.20 : 0.12,
                             ),
                             borderRadius: Spacings.borderRadiusSm,
                           ),
@@ -399,10 +398,10 @@ class _PurchaseCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+                color: cs.surfaceContainerHighest.withOpacity(0.5),
                 borderRadius: Spacings.borderRadiusSm,
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -712,7 +711,7 @@ class _DownloadItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: Icon(
@@ -881,7 +880,7 @@ class _SavedSearchCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Icon(

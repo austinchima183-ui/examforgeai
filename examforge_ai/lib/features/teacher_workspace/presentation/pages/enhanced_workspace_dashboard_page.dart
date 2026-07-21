@@ -513,7 +513,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -657,7 +657,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -776,7 +776,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -844,7 +844,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -912,7 +912,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -965,7 +965,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
             shape: RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusLg,
               side: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: InkWell(
@@ -1052,7 +1052,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Padding(
@@ -1312,7 +1312,7 @@ class _QuickStatCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: InkWell(
@@ -1327,7 +1327,7 @@ class _QuickStatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: stat.color.withValues(alpha: 0.12),
+                  color: stat.color.withOpacity(0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(stat.icon, color: stat.color, size: 18),
@@ -1392,7 +1392,7 @@ class _QuickActionCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: InkWell(
@@ -1406,7 +1406,7 @@ class _QuickActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: action.color.withValues(alpha: 0.12),
+                  color: action.color.withOpacity(0.12),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(action.icon, color: action.color, size: 24),
@@ -1454,7 +1454,7 @@ class _TodayClassCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Container(
@@ -1469,7 +1469,7 @@ class _TodayClassCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.xs),
                   decoration: BoxDecoration(
-                    color: typeColor.withValues(alpha: 0.12),
+                    color: typeColor.withOpacity(0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Icon(typeIcon, color: typeColor, size: 16),
@@ -1564,7 +1564,7 @@ class _AssignmentCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -1610,7 +1610,7 @@ class _AssignmentCard extends StatelessWidget {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: priorityColor.withValues(alpha: 0.12),
+                color: priorityColor.withOpacity(0.12),
                 borderRadius: Spacings.borderRadiusFull,
               ),
               child: Text(
@@ -1672,7 +1672,7 @@ class _TeachingStatCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Container(
@@ -1685,7 +1685,7 @@ class _TeachingStatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: stat.color.withValues(alpha: 0.12),
+                color: stat.color.withOpacity(0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(stat.icon, color: stat.color, size: 20),
@@ -1737,7 +1737,7 @@ class _RecentDocumentCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Container(
@@ -1752,7 +1752,7 @@ class _RecentDocumentCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: typeColor.withValues(alpha: 0.12),
+                    color: typeColor.withOpacity(0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Icon(typeIcon, color: typeColor, size: 18),
@@ -1765,7 +1765,7 @@ class _RecentDocumentCard extends StatelessWidget {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: typeColor.withValues(alpha: 0.08),
+                      color: typeColor.withOpacity(0.08),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
@@ -1900,7 +1900,7 @@ class _TemplateCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Container(
@@ -1919,7 +1919,7 @@ class _TemplateCard extends StatelessWidget {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: typeColor.withValues(alpha: 0.08),
+                      color: typeColor.withOpacity(0.08),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
@@ -2038,7 +2038,7 @@ class _UpcomingEventCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -2048,7 +2048,7 @@ class _UpcomingEventCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: typeColor.withValues(alpha: 0.12),
+                color: typeColor.withOpacity(0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(typeIcon, color: typeColor, size: 20),
@@ -2153,7 +2153,7 @@ class _AiContentCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -2163,7 +2163,7 @@ class _AiContentCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: typeColor.withValues(alpha: 0.12),
+                color: typeColor.withOpacity(0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(typeIcon, color: typeColor, size: 20),
@@ -2197,7 +2197,7 @@ class _AiContentCard extends StatelessWidget {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: typeColor.withValues(alpha: 0.08),
+                color: typeColor.withOpacity(0.08),
                 borderRadius: Spacings.borderRadiusFull,
               ),
               child: Text(

@@ -60,7 +60,7 @@ class AnnouncementCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: color.withOpacity(isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -70,7 +70,7 @@ class AnnouncementCard extends StatelessWidget {
           fontSize: 10,
           fontWeight: AppTypography.wSemiBold,
           letterSpacing: AppTypography.lsCaption,
-          color: isDark ? color.withValues(alpha: 0.9) : color,
+          color: isDark ? color.withOpacity(0.9) : color,
         ),
       ),
     );

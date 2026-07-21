@@ -287,7 +287,7 @@ class _AssignmentGeneratorPageState
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Icon(
@@ -379,7 +379,7 @@ class _AssignmentGeneratorPageState
 
   Widget _buildDivider(BuildContext context) {
     return Divider(
-      color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+      color: context.colorScheme.outlineVariant.withOpacity(0.5),
       thickness: 1,
     );
   }
@@ -496,8 +496,7 @@ class _AssignmentGeneratorPageState
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: cs.primary.withValues(
-                          alpha: context.isDarkMode ? 0.20 : 0.12,
+                        color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),

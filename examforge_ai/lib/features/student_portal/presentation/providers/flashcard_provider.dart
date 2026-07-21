@@ -28,7 +28,7 @@ class FlashcardState {
     this.error,
     this.cardsStudied = 0,
     this.cardsCorrect = 0,
-    this._currentPage = 1,
+    this.currentPage = 1,
     this.hasMoreDecks = true,
   });
 
@@ -67,13 +67,13 @@ class FlashcardState {
 
   /// Current page number for deck pagination (1-based).
   // ignore: unused_field
-  final int _currentPage;
+  final int currentPage;
 
   /// Whether there are more deck pages to load.
   final bool hasMoreDecks;
 
   /// Current page number for deck pagination.
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading;
@@ -130,7 +130,7 @@ class FlashcardState {
       error: error,
       cardsStudied: cardsStudied ?? this.cardsStudied,
       cardsCorrect: cardsCorrect ?? this.cardsCorrect,
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
       hasMoreDecks: hasMoreDecks ?? this.hasMoreDecks,
     );
   }

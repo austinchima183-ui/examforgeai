@@ -27,7 +27,8 @@ import '../widgets/billing_widgets.dart';
 class CheckoutPage extends ConsumerStatefulWidget {
   const CheckoutPage({
     super.key,
-    required this.plan,
+    this.plan,
+    this.planId,
     this.billingCycle = 'monthly',
     this.email,
     this.userId,
@@ -35,7 +36,12 @@ class CheckoutPage extends ConsumerStatefulWidget {
     this.schoolId,
   });
 
-  final SubscriptionPlanEntity plan;
+  /// The full plan object. If null, the page will load it from [planId].
+  final SubscriptionPlanEntity? plan;
+
+  /// Plan ID used to look up the plan when [plan] is not provided.
+  final String? planId;
+
   final String billingCycle;
   final String? email;
   final String? userId;
@@ -52,20 +58,47 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
   double _discountAmount = 0;
   CouponEntity? _appliedCoupon;
 
+  /// Resolved plan: either provided directly or loaded from planId via provider.
+  SubscriptionPlanEntity? _resolvedPlan;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.plan != null) {
+      _resolvedPlan = widget.plan;
+    } else if (widget.planId != null) {
+      // Load plans from the subscription provider and resolve by ID.
+      Future.microtask(() {
+        ref.read(subscriptionProvider.notifier).loadPlans();
+      });
+    }
+  }
+
   @override
   void dispose() {
     super.dispose();
   }
 
+  /// Get the resolved plan, either from widget or from the subscription provider.
+  SubscriptionPlanEntity? get _plan {
+    if (_resolvedPlan != null) return _resolvedPlan;
+    // Try to find the plan by planId from the provider state.
+    final plans = ref.read(subscriptionProvider).plans;
+    if (widget.planId != null) {
+      _resolvedPlan = plans.where((p) => p.id == widget.planId).firstOrNull;
+    }
+    return _resolvedPlan;
+  }
+
   // ─── Computed Properties ─────────────────────────────────────────────
 
   double get _basePrice =>
-      widget.plan.priceForCycle(widget.billingCycle);
+      _plan!.priceForCycle(widget.billingCycle);
 
   double get _totalPrice => _basePrice - _discountAmount;
 
   String get _currencySymbol =>
-      widget.plan.currency == 'NGN' ? '\u20A6' : '\$';
+      _plan!.currency == 'NGN' ? '\u20A6' : '\$';
 
   // ─── Handlers ────────────────────────────────────────────────────────
 
@@ -75,7 +108,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     await ref.read(couponProvider.notifier).validateCoupon(
           code: code,
           billingModel: widget.subscriberType,
-          planId: widget.plan.id,
+          planId: _plan!.id,
         );
 
     final couponState = ref.read(couponProvider);
@@ -145,13 +178,13 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     await ref.read(paymentProvider.notifier).initializePayment(
           amount: _totalPrice,
-          currency: widget.plan.currency,
+          currency: _plan!.currency,
           email: widget.email!,
           txRef: txRef,
-          planId: widget.plan.id,
+          planId: _plan!.id,
           couponCode: _appliedCoupon?.code,
           metadata: {
-            'plan_id': widget.plan.id,
+            'plan_id': _plan!.id,
             'billing_cycle': widget.billingCycle,
             'subscriber_type': widget.subscriberType.value,
             if (widget.schoolId != null) 'school_id': widget.schoolId,
@@ -314,7 +347,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shadowColor: cs.shadow.withOpacity(0.06),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
@@ -342,7 +375,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             _summaryRow(
               context,
               label: 'Plan',
-              value: widget.plan.name,
+              value: _plan!.name,
             ),
             const SizedBox(height: Spacings.sm),
 
@@ -350,7 +383,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             _summaryRow(
               context,
               label: 'Tier',
-              value: widget.plan.tier.label,
+              value: _plan!.tier.label,
             ),
             const SizedBox(height: Spacings.sm),
 
@@ -368,14 +401,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
             _summaryRow(
               context,
               label: 'Price',
-              value: widget.plan.isFree
+              value: _plan!.isFree
                   ? 'Free'
                   : '$_currencySymbol${_basePrice.toStringAsFixed(0)}/${widget.billingCycle == 'annual' ? 'yr' : 'mo'}',
               isBold: true,
             ),
 
             if (widget.billingCycle == 'annual' &&
-                widget.plan.annualSavingsPercent > 0) ...[
+                _plan!.annualSavingsPercent > 0) ...[
               const SizedBox(height: Spacings.sm),
               Container(
                 padding: const EdgeInsets.symmetric(
@@ -384,11 +417,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.success
-                      .withValues(alpha: isDark ? 0.20 : 0.10),
+                      .withOpacity(isDark ? 0.20 : 0.10),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Text(
-                  'Save ${widget.plan.annualSavingsPercent.toStringAsFixed(0)}% with annual billing',
+                  'Save ${_plan!.annualSavingsPercent.toStringAsFixed(0)}% with annual billing',
                   style: tt.labelSmall?.copyWith(
                     color: isDark ? AppColors.successDark : AppColors.success,
                     fontWeight: AppTypography.wSemiBold,
@@ -413,7 +446,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Padding(
@@ -454,7 +487,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   ),
                 ),
                 Text(
-                  widget.plan.isFree && _discountAmount >= _basePrice
+                  _plan!.isFree && _discountAmount >= _basePrice
                       ? 'Free'
                       : '$_currencySymbol${_totalPrice.toStringAsFixed(2)}',
                   style: tt.headlineSmall?.copyWith(

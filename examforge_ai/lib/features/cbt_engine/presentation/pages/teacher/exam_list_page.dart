@@ -9,9 +9,9 @@ import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/exam_list_provider.dart';
-import '../widgets/exam_card.dart';
+import '../../widgets/exam_card.dart';
 import '../../../../../config/dependency_injection.dart';
 import '../../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
 

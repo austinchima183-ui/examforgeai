@@ -89,7 +89,7 @@ class ParentPortalRemoteDataSourceImpl
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(message: e.message);
+        throw NotFoundException(e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -101,13 +101,11 @@ class ParentPortalRemoteDataSourceImpl
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException(
-          message: 'You do not have permission for this action.',
-        );
+        throw ForbiddenException('You do not have permission for this action.');
       default:
         throw ServerException(
           message: e.message,
-          statusCode: e.statusCode ?? 500,
+          statusCode: int.tryParse(e.code ?? '') ?? 500,
         );
     }
   }
@@ -165,9 +163,7 @@ class ParentPortalRemoteDataSourceImpl
       return response;
     } on sb.PostgrestException catch (e) {
       if (e.code == 'PGRST116') {
-        throw NotFoundException(
-          message: 'Child profile not found for student: $studentId',
-        );
+        throw NotFoundException('Child profile not found for student: $studentId');
       }
       _mapPostgrestException(e);
     } catch (e) {
@@ -239,8 +235,7 @@ class ParentPortalRemoteDataSourceImpl
             check_out_time,
             remarks
           ''')
-          .eq('student_id', studentId)
-          .order('date', ascending: false);
+          .eq('student_id', studentId);
 
       if (startDate != null) {
         query = query.gte('date', startDate.toIso8601String().split('T').first);
@@ -249,7 +244,7 @@ class ParentPortalRemoteDataSourceImpl
         query = query.lte('date', endDate.toIso8601String().split('T').first);
       }
 
-      final response = await query;
+      final response = await query.order('date', ascending: false);
       AppLogger.info('Child attendance fetched successfully');
       return {
         'student_id': studentId,
@@ -299,15 +294,14 @@ class ParentPortalRemoteDataSourceImpl
               subjects(name)
             )
           ''')
-          .eq('student_id', studentId)
-          .order('submitted_at', ascending: false);
+          .eq('student_id', studentId);
 
       if (status != null) {
         query = query.eq('status', status);
       }
 
       // PERF: Added range-based pagination to prevent unbounded query
-      final response = await query.range(offset, offset + limit - 1);
+      final response = await query.order('submitted_at', ascending: false).range(offset, offset + limit - 1);
       AppLogger.info(
         'Child assignments fetched: ${response.length} records',
       );
@@ -354,8 +348,7 @@ class ParentPortalRemoteDataSourceImpl
       AppLogger.info('Fetching parent messages with params: $params');
       var query = _supabase
           .from(_messagesTable)
-          .select()
-          .order('created_at', ascending: false);
+          .select();
 
       // Apply filters from params
       if (params.containsKey('thread_id')) {
@@ -373,10 +366,10 @@ class ParentPortalRemoteDataSourceImpl
       if (params.containsKey('page') && params.containsKey('per_page')) {
         final page = params['page'] as int;
         final perPage = params['per_page'] as int;
-        query = query.range((page - 1) * perPage, page * perPage - 1);
+        query = query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       } else {
         // PERF: Default pagination to prevent unbounded query on parent_messages
-        query = query.limit(PaginatedQueryMixin.defaultPageSize);
+        query = query.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
       }
 
       final response = await query;

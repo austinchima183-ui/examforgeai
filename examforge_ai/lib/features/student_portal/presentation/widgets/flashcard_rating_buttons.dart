@@ -98,12 +98,12 @@ class FlashcardRatingButtons extends StatelessWidget {
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: Spacings.xs),
             child: Material(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.08),
+              color: color.withOpacity(isDark ? 0.20 : 0.08),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               child: InkWell(
                 onTap: () => onRate(rating),
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
-                splashColor: color.withValues(alpha: 0.2),
+                splashColor: color.withOpacity(0.2),
                 child: Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: Spacings.xs,
@@ -112,7 +112,7 @@ class FlashcardRatingButtons extends StatelessWidget {
                   decoration: BoxDecoration(
                     borderRadius: BorderRadius.circular(Spacings.mdRadius),
                     border: Border.all(
-                      color: color.withValues(alpha: 0.4),
+                      color: color.withOpacity(0.4),
                     ),
                   ),
                   child: Column(
@@ -121,14 +121,14 @@ class FlashcardRatingButtons extends StatelessWidget {
                       Icon(
                         _ratingIcon(rating),
                         size: Spacings.mdIcon,
-                        color: isDark ? color.withValues(alpha: 0.9) : color,
+                        color: isDark ? color.withOpacity(0.9) : color,
                       ),
                       const SizedBox(height: Spacings.xs),
                       Text(
                         rating.label,
                         style: tt.labelMedium?.copyWith(
                           fontWeight: AppTypography.wBold,
-                          color: isDark ? color.withValues(alpha: 0.9) : color,
+                          color: isDark ? color.withOpacity(0.9) : color,
                         ),
                       ),
                       const SizedBox(height: 2),
@@ -136,8 +136,8 @@ class FlashcardRatingButtons extends StatelessWidget {
                         _formatInterval(interval),
                         style: tt.labelSmall?.copyWith(
                           color: isDark
-                              ? color.withValues(alpha: 0.7)
-                              : color.withValues(alpha: 0.8),
+                              ? color.withOpacity(0.7)
+                              : color.withOpacity(0.8),
                           fontWeight: AppTypography.wMedium,
                         ),
                       ),

@@ -10,7 +10,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/report_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/academic_session_provider.dart';
@@ -569,7 +569,7 @@ class _ClassBreakdownCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Icon(Icons.class_rounded, size: Spacings.mdIcon, color: cs.primary),

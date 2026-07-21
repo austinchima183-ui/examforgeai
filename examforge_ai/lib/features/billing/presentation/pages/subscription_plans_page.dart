@@ -267,7 +267,7 @@ class _SubscriptionPlansPageState
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.successLight.withValues(alpha: 0.2),
+                color: AppColors.successLight.withOpacity(0.2),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Text(
@@ -350,11 +350,11 @@ class _SubscriptionPlansPageState
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: Card(
         elevation: Spacings.elevationSm,
-        shadowColor: cs.shadow.withValues(alpha: 0.08),
+        shadowColor: cs.shadow.withOpacity(0.08),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
           side: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -364,16 +364,16 @@ class _SubscriptionPlansPageState
             gradient: isDark
                 ? LinearGradient(
                     colors: [
-                      cs.primaryContainer.withValues(alpha: 0.3),
-                      cs.tertiaryContainer.withValues(alpha: 0.15),
+                      cs.primaryContainer.withOpacity(0.3),
+                      cs.tertiaryContainer.withOpacity(0.15),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
                 : LinearGradient(
                     colors: [
-                      cs.primaryContainer.withValues(alpha: 0.5),
-                      cs.tertiaryContainer.withValues(alpha: 0.3),
+                      cs.primaryContainer.withOpacity(0.5),
+                      cs.tertiaryContainer.withOpacity(0.3),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,

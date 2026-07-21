@@ -212,7 +212,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
               error,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: cs.onSurface.withValues(alpha: 0.7),
+                color: cs.onSurface.withOpacity(0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -292,7 +292,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
           decoration: BoxDecoration(
-            border: Border.all(color: cs.outline.withValues(alpha: 0.3)),
+            border: Border.all(color: cs.outline.withOpacity(0.3)),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: DropdownButton<String?>(
@@ -443,7 +443,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
       text,
       style: AppTypography.wSemiBold.copyWith(
         fontSize: 12,
-        color: cs.onSurface.withValues(alpha: 0.7),
+        color: cs.onSurface.withOpacity(0.7),
       ),
     );
   }
@@ -814,7 +814,7 @@ class _ProviderCard extends StatelessWidget {
                                       vertical: Spacings.xs,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: cs.primary.withValues(alpha: 0.1),
+                                      color: cs.primary.withOpacity(0.1),
                                       borderRadius: Spacings.borderRadiusSm,
                                     ),
                                     child: Text(
@@ -833,7 +833,7 @@ class _ProviderCard extends StatelessWidget {
                               provider.slug,
                               style: AppTypography.wRegular.copyWith(
                                 fontSize: 12,
-                                color: cs.onSurface.withValues(alpha: 0.5),
+                                color: cs.onSurface.withOpacity(0.5),
                               ),
                             ),
                           ],
@@ -860,7 +860,7 @@ class _ProviderCard extends StatelessWidget {
                     'Monthly Budget',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.6),
+                      color: cs.onSurface.withOpacity(0.6),
                     ),
                   ),
                   const Spacer(),
@@ -900,7 +900,7 @@ class _ProviderCard extends StatelessWidget {
                     'Current Spend: ',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withValues(alpha: 0.6),
+                      color: cs.onSurface.withOpacity(0.6),
                     ),
                   ),
                   Text(
@@ -912,7 +912,7 @@ class _ProviderCard extends StatelessWidget {
                     '(No budget set)',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 11,
-                      color: cs.onSurface.withValues(alpha: 0.4),
+                      color: cs.onSurface.withOpacity(0.4),
                     ),
                   ),
                 ],
@@ -1004,13 +1004,13 @@ class _ProviderCard extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
+        Icon(icon, size: 14, color: cs.onSurface.withOpacity(0.5)),
         const SizedBox(width: Spacings.xs),
         Text(
           label,
           style: AppTypography.wRegular.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withValues(alpha: 0.7),
+            color: cs.onSurface.withOpacity(0.7),
           ),
         ),
       ],

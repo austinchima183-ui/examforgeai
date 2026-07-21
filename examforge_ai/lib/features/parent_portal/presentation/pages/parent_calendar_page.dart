@@ -354,7 +354,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
               color: isSelected
                   ? cs.primary
                   : isToday
-                      ? cs.primaryContainer.withValues(alpha: 0.3)
+                      ? cs.primaryContainer.withOpacity(0.3)
                       : Colors.transparent,
               shape: BoxShape.circle,
             ),
@@ -470,7 +470,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
                     color: isSelected
                         ? cs.primary
                         : isToday
-                            ? cs.primaryContainer.withValues(alpha: 0.3)
+                            ? cs.primaryContainer.withOpacity(0.3)
                             : Colors.transparent,
                     borderRadius: Spacings.borderRadiusMd,
                   ),
@@ -588,7 +588,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
           side: BorderSide(
-            color: typeColor.withValues(alpha: 0.3),
+            color: typeColor.withOpacity(0.3),
             width: 1,
           ),
         ),
@@ -606,7 +606,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: typeColor.withValues(alpha: 0.12),
+                    color: typeColor.withOpacity(0.12),
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: Icon(

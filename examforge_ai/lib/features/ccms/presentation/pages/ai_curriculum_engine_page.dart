@@ -163,7 +163,7 @@ class _AiCurriculumEnginePageState
             const SizedBox(height: Spacings.sm),
             BloomTaxonomySelector(
               selectedLevels: _selectedBloomLevels,
-              onChanged: (levels) =>
+              onSelectionChanged: (levels) =>
                   setState(() => _selectedBloomLevels = levels),
             ),
             Spacings.sectionGap,
@@ -375,7 +375,7 @@ class _AiCurriculumEnginePageState
               ...aiState.generationRules.map((rule) => Card(
                     child: ListTile(
                       title: Text(rule.ruleName),
-                      subtitle: Text(rule.description ?? ''),
+                      subtitle: Text(rule.conditions?.toString() ?? rule.ruleType),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
@@ -430,11 +430,9 @@ class _AiCurriculumEnginePageState
       schoolId: _selectedSchoolId ?? 'school_1',
       subjectId: _selectedSubjectId ?? '',
       educationalLevelId: _selectedLevelId ?? '',
-      curriculumId: _selectedCurriculumId,
+      curriculumId: _selectedCurriculumId ?? '',
       preferredDifficulty: _difficultyPreference,
-      bloomLevels: _selectedBloomLevels
-          .map((b) => b.value)
-          .toList(),
+      preferredBloomLevels: _selectedBloomLevels.toList(),
       questionTypeDistribution: _questionTypeDistribution
           .map((k, v) => MapEntry(k.value, v)),
       languageStyle: _languageStyle,
@@ -495,14 +493,19 @@ class _AiCurriculumEnginePageState
           AppButton(
             label: 'Add',
             onPressed: () {
-              ref.read(aiCurriculumProvider.notifier).createRule(
+              ref.read(aiCurriculumProvider.notifier).createGenerationRule(
                     AiGenerationRule(
                       id: '',
+                      educationalLevelId: _selectedLevelId ?? '',
+                      subjectId: _selectedSubjectId ?? '',
                       ruleName: nameCtrl.text,
-                      description: descCtrl.text.isEmpty
+                      ruleType: 'content_generation',
+                      conditions: conditionCtrl.text.isEmpty
                           ? null
-                          : descCtrl.text,
-                      condition: conditionCtrl.text,
+                          : {'expression': conditionCtrl.text},
+                      actions: descCtrl.text.isEmpty
+                          ? null
+                          : {'description': descCtrl.text},
                       isActive: true,
                       priority: 0,
                       createdAt: DateTime.now(),
@@ -520,9 +523,9 @@ class _AiCurriculumEnginePageState
   void _showEditRuleDialog(AiGenerationRule rule) {
     final nameCtrl = TextEditingController(text: rule.ruleName);
     final descCtrl =
-        TextEditingController(text: rule.description ?? '');
+        TextEditingController(text: rule.conditions?.toString() ?? '');
     final conditionCtrl =
-        TextEditingController(text: rule.condition);
+        TextEditingController(text: rule.conditions?.toString() ?? '');
 
     showDialog(
       context: context,
@@ -560,14 +563,20 @@ class _AiCurriculumEnginePageState
           AppButton(
             label: 'Save',
             onPressed: () {
-              ref.read(aiCurriculumProvider.notifier).updateRule(
+              ref.read(aiCurriculumProvider.notifier).updateGenerationRule(
+                    rule.id,
                     AiGenerationRule(
                       id: rule.id,
+                      educationalLevelId: rule.educationalLevelId,
+                      subjectId: rule.subjectId,
                       ruleName: nameCtrl.text,
-                      description: descCtrl.text.isEmpty
+                      ruleType: rule.ruleType,
+                      conditions: conditionCtrl.text.isEmpty
                           ? null
-                          : descCtrl.text,
-                      condition: conditionCtrl.text,
+                          : {'expression': conditionCtrl.text},
+                      actions: descCtrl.text.isEmpty
+                          ? null
+                          : {'description': descCtrl.text},
                       isActive: rule.isActive,
                       priority: rule.priority,
                       createdAt: rule.createdAt,

@@ -151,7 +151,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
             color: cs.surfaceContainerLow,
             border: Border(
               bottom: BorderSide(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
           ),
@@ -296,7 +296,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
                                   Icons.description_outlined,
                                   size: Spacings.xlIcon,
                                   color: cs.primary
-                                      .withValues(alpha: 0.5),
+                                      .withOpacity(0.5),
                                 ),
                                 const SizedBox(height: Spacings.lg),
                                 Text(
@@ -335,7 +335,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
               color: cs.surface,
               border: Border(
                 top: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
             ),
@@ -406,7 +406,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -476,7 +476,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
               Icon(
                 Icons.cloud_upload_outlined,
                 size: Spacings.xlIcon,
-                color: cs.primary.withValues(alpha: 0.5),
+                color: cs.primary.withOpacity(0.5),
               ),
               const SizedBox(height: Spacings.lg),
               Text(
@@ -548,8 +548,7 @@ class _DocumentCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: statusColor.withValues(
-                alpha: context.isDarkMode ? 0.20 : 0.12,
+              color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
@@ -582,8 +581,7 @@ class _DocumentCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withValues(
-                          alpha: context.isDarkMode ? 0.20 : 0.12,
+                        color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius:
                             BorderRadius.circular(Spacings.fullRadius),

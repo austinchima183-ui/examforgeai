@@ -430,8 +430,8 @@ class _AiResourceGeneratorPageState
 
   Widget _buildDisclaimerBanner(ColorScheme cs, TextTheme tt) {
     return AppCard(
-      color: AppColors.infoLight.withValues(alpha: context.isDarkMode ? 0.15 : 1.0),
-      borderColor: AppColors.info.withValues(alpha: 0.3),
+      color: AppColors.infoLight.withOpacity(context.isDarkMode ? 0.15 : 1.0),
+      borderColor: AppColors.info.withOpacity(0.3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -495,7 +495,7 @@ class _AiResourceGeneratorPageState
             return AppCard(
               borderColor: isSelected ? cs.primary : null,
               color: isSelected
-                  ? cs.primary.withValues(alpha: 0.05)
+                  ? cs.primary.withOpacity(0.05)
                   : null,
               onTap: () => setState(() {
                 _selectedType = type;
@@ -509,7 +509,7 @@ class _AiResourceGeneratorPageState
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
                       color: (isSelected ? cs.primary : type.color)
-                          .withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+                          .withOpacity(context.isDarkMode ? 0.20 : 0.12),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Icon(
@@ -826,7 +826,7 @@ class _AiResourceGeneratorPageState
                               Icon(
                                 Icons.history,
                                 size: Spacings.xlIcon,
-                                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                                color: cs.onSurfaceVariant.withOpacity(0.5),
                               ),
                               const SizedBox(height: Spacings.md),
                               Text(
@@ -861,8 +861,7 @@ class _AiResourceGeneratorPageState
                                   vertical: Spacings.xs,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.successLight.withValues(
-                                    alpha: context.isDarkMode ? 0.15 : 1.0,
+                                  color: AppColors.successLight.withOpacity(context.isDarkMode ? 0.15 : 1.0,
                                   ),
                                   borderRadius:
                                       BorderRadius.circular(Spacings.smRadius),

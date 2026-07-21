@@ -120,7 +120,7 @@ class _LicenseManagementPageState
         color: cs.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
           ),
         ),
       ),
@@ -148,7 +148,7 @@ class _LicenseManagementPageState
                       value: totalSeats > 0 ? usedSeats / totalSeats : 0,
                       strokeWidth: 5,
                       backgroundColor:
-                          progressColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                          progressColor.withOpacity(isDark ? 0.20 : 0.12),
                       valueColor: AlwaysStoppedAnimation(progressColor),
                       strokeCap: StrokeCap.round,
                     ),

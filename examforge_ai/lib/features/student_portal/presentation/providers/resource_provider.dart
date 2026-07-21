@@ -24,7 +24,7 @@ class ResourceState {
     this.filterType,
     this.filterSubjectId,
     this.searchQuery,
-    this._currentPage = 1,
+    this.currentPage = 1,
   });
 
   /// All learning resources matching the current filter.
@@ -53,10 +53,10 @@ class ResourceState {
 
   /// Current page number for resource pagination (1-based).
   // ignore: unused_field
-  final int _currentPage;
+  final int currentPage;
 
   /// Current page number for resource pagination.
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading;
@@ -99,7 +99,7 @@ class ResourceState {
           ? null
           : (filterSubjectId ?? this.filterSubjectId),
       searchQuery: clearSearchQuery ? null : (searchQuery ?? this.searchQuery),
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
     );
   }
 

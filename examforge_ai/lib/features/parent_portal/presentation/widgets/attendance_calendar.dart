@@ -69,7 +69,7 @@ class AttendanceCalendar extends StatelessWidget {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: Column(
@@ -108,7 +108,7 @@ class AttendanceCalendar extends StatelessWidget {
                     style: tt.labelSmall?.copyWith(
                       fontWeight: AppTypography.wSemiBold,
                       color: isWeekend
-                          ? cs.onSurfaceVariant.withValues(alpha: 0.6)
+                          ? cs.onSurfaceVariant.withOpacity(0.6)
                           : cs.onSurfaceVariant,
                     ),
                   ),
@@ -220,7 +220,7 @@ class AttendanceCalendar extends StatelessWidget {
         height: 40,
         margin: const EdgeInsets.all(1.5),
         decoration: BoxDecoration(
-          color: bgColor.withValues(alpha: bgColor.a * opacity),
+          color: bgColor.withOpacity(bgColor.a * opacity),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
           border: isToday
               ? Border.all(color: cs.primary, width: 2)
@@ -231,7 +231,7 @@ class AttendanceCalendar extends StatelessWidget {
             '$day',
             style: tt.labelMedium?.copyWith(
               fontWeight: isToday ? AppTypography.wBold : AppTypography.wMedium,
-              color: textColor.withValues(alpha: opacity),
+              color: textColor.withOpacity(opacity),
             ),
           ),
         ),
@@ -261,7 +261,7 @@ class AttendanceCalendar extends StatelessWidget {
         ),
       _ => (
           Colors.transparent,
-          cs.onSurface.withValues(alpha: isDark ? 0.5 : 0.35),
+          cs.onSurface.withOpacity(isDark ? 0.5 : 0.35),
         ),
     };
   }

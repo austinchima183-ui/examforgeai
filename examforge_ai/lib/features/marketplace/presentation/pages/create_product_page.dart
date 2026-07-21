@@ -457,7 +457,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
-          bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+          bottom: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
         ),
       ),
       child: Row(
@@ -532,7 +532,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                       width: 24,
                       color: isCompleted
                           ? AppColors.success
-                          : cs.outlineVariant.withValues(alpha: 0.5),
+                          : cs.outlineVariant.withOpacity(0.5),
                     ),
                     const SizedBox(width: Spacings.sm),
                   ],
@@ -827,7 +827,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
               child: AppCard(
                 borderColor: isSelected ? cs.primary : null,
                 color: isSelected
-                    ? cs.primary.withValues(alpha: 0.05)
+                    ? cs.primary.withOpacity(0.05)
                     : null,
                 onTap: () => setState(() => _selectedLicenseType = type),
                 child: Row(
@@ -907,8 +907,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withValues(
-                      alpha: context.isDarkMode ? 0.20 : 0.12,
+                    color: AppColors.info.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
@@ -1024,7 +1023,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                         color: cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(Spacings.mdRadius),
                         border: Border.all(
-                          color: cs.outlineVariant.withValues(alpha: 0.5),
+                          color: cs.outlineVariant.withOpacity(0.5),
                         ),
                       ),
                       child: Column(
@@ -1246,10 +1245,10 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
+          color: cs.surfaceContainerHighest.withOpacity(0.5),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           border: Border.all(
-            color: cs.outlineVariant.withValues(alpha: 0.5),
+            color: cs.outlineVariant.withOpacity(0.5),
             strokeAlign: BorderSide.strokeAlignOutside,
           ),
         ),
@@ -1283,7 +1282,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
             : AppColors.error;
 
     return AppCard(
-      color: statusColor.withValues(alpha: 0.05),
+      color: statusColor.withOpacity(0.05),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1323,7 +1322,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
-          top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
+          top: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
         ),
       ),
       child: SafeArea(

@@ -64,13 +64,13 @@ class QuestionTypeBadge extends StatelessWidget {
   Color _backgroundColor(BuildContext context) {
     final isDark = context.isDarkMode;
     final color = _typeColor();
-    return color.withValues(alpha: isDark ? 0.25 : 0.12);
+    return color.withOpacity(isDark ? 0.25 : 0.12);
   }
 
   Color _foregroundColor(BuildContext context) {
     final isDark = context.isDarkMode;
     final color = _typeColor();
-    return isDark ? color.withValues(alpha: 0.9) : color;
+    return isDark ? color.withOpacity(0.9) : color;
   }
 
   Color _typeColor() {

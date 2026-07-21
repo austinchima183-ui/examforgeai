@@ -657,9 +657,7 @@ class QuestionBankRemoteDataSourceImpl
       }
 
       // PERF: Use PaginatedQueryMixin constant instead of magic number
-      query = query.order('usage_count', ascending: false).limit(PaginatedQueryMixin.dropdownPageSize);
-
-      final response = await query;
+      final response = await query.order('usage_count', ascending: false).limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) =>
               QuestionTagModel.fromJson(json as Map<String, dynamic>))

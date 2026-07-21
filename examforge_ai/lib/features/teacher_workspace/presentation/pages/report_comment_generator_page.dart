@@ -38,7 +38,7 @@ class _ReportCommentGeneratorPageState
   final _formKey = GlobalKey<FormState>();
 
   // Sample data – in production, these would be fetched from the backend.
-  final List<_DropdownOption> _classOptions = const [
+  final List<_DropdownOption> _classOptions = [
     _DropdownOption(id: 'class-1', label: 'JSS 1A'),
     _DropdownOption(id: 'class-2', label: 'JSS 1B'),
     _DropdownOption(id: 'class-3', label: 'JSS 2A'),
@@ -47,7 +47,7 @@ class _ReportCommentGeneratorPageState
     _DropdownOption(id: 'class-6', label: 'SSS 1B'),
   ];
 
-  final List<_DropdownOption> _subjectOptions = const [
+  final List<_DropdownOption> _subjectOptions = [
     _DropdownOption(id: 'subj-1', label: 'Mathematics'),
     _DropdownOption(id: 'subj-2', label: 'English Language'),
     _DropdownOption(id: 'subj-3', label: 'Physics'),
@@ -56,7 +56,7 @@ class _ReportCommentGeneratorPageState
     _DropdownOption(id: 'subj-6', label: 'History'),
   ];
 
-  final List<_DropdownOption> _sessionOptions = const [
+  final List<_DropdownOption> _sessionOptions = [
     _DropdownOption(id: 'sess-1', label: '2024/2025'),
     _DropdownOption(id: 'sess-2', label: '2023/2024'),
   ];
@@ -315,7 +315,7 @@ class _ReportCommentGeneratorPageState
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Icon(
@@ -466,7 +466,7 @@ class _ReportCommentGeneratorPageState
 
   Widget _buildDivider(BuildContext context) {
     return Divider(
-      color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
+      color: context.colorScheme.outlineVariant.withOpacity(0.5),
       thickness: 1,
     );
   }
@@ -565,7 +565,7 @@ class _StudentCommentCard extends StatelessWidget {
               CircleAvatar(
                 radius: 20,
                 backgroundColor:
-                    cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
+                    cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
                 child: Text(
                   studentName.isNotEmpty ? studentName[0].toUpperCase() : '?',
                   style: tt.titleMedium?.copyWith(
@@ -605,8 +605,7 @@ class _StudentCommentCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.tertiary.withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.12),
+                    color: cs.tertiary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Row(
@@ -634,8 +633,7 @@ class _StudentCommentCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withValues(
-                        alpha: context.isDarkMode ? 0.20 : 0.12),
+                    color: Colors.green.withOpacity(context.isDarkMode ? 0.20 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -701,7 +699,7 @@ class _StudentCommentCard extends StatelessWidget {
                 return Chip(
                   label: Text(s, style: tt.bodySmall),
                   backgroundColor: Colors.green
-                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+                      .withOpacity(context.isDarkMode ? 0.20 : 0.10),
                   side: BorderSide.none,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
@@ -721,7 +719,7 @@ class _StudentCommentCard extends StatelessWidget {
                 return Chip(
                   label: Text(s, style: tt.bodySmall),
                   backgroundColor: Colors.orange
-                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+                      .withOpacity(context.isDarkMode ? 0.20 : 0.10),
                   side: BorderSide.none,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,

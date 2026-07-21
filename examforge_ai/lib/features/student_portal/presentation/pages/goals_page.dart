@@ -463,8 +463,7 @@ class _GoalCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(
-                    alpha: context.isDarkMode ? 0.20 : 0.12,
+                  color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.fullRadius),
@@ -484,8 +483,7 @@ class _GoalCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: priorityColor.withValues(
-                    alpha: context.isDarkMode ? 0.20 : 0.12,
+                  color: priorityColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.fullRadius),

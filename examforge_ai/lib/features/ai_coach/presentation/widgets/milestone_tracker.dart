@@ -52,7 +52,7 @@ class MilestoneTracker extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: progressPct / 100,
                   backgroundColor:
-                      context.colorScheme.outlineVariant.withValues(alpha: 0.3),
+                      context.colorScheme.outlineVariant.withOpacity(0.3),
                   color: AppColors.primary,
                   minHeight: 8,
                 ),
@@ -174,7 +174,7 @@ class _MilestoneTile extends StatelessWidget {
                       color: isCompleted
                           ? AppColors.success
                           : context.colorScheme.outlineVariant
-                              .withValues(alpha: 0.5),
+                              .withOpacity(0.5),
                     ),
                   ),
               ],
@@ -237,7 +237,7 @@ class _MilestoneTile extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withValues(alpha: 0.1),
+                        color: AppColors.primary.withOpacity(0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(

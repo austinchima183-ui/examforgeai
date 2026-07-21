@@ -601,7 +601,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             Container(
               padding: Spacings.paddingCard,
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
+                color: cs.surfaceContainerHighest.withOpacity(0.3),
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Row(

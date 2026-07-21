@@ -145,7 +145,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+            color: cs.primary.withOpacity(context.isDarkMode ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Text(
@@ -169,9 +169,9 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
 
     final borderColor = _isDragging
         ? cs.primary
-        : cs.outlineVariant.withValues(alpha: 0.6);
+        : cs.outlineVariant.withOpacity(0.6);
     final bgColor = _isDragging
-        ? cs.primary.withValues(alpha: isDark ? 0.15 : 0.06)
+        ? cs.primary.withOpacity(isDark ? 0.15 : 0.06)
         : cs.surfaceContainerLow;
 
     return GestureDetector(
@@ -200,7 +200,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.lg),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.08),
+                  color: cs.primary.withOpacity(isDark ? 0.15 : 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -519,7 +519,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           headingRowColor: WidgetStatePropertyAll(
-            cs.primary.withValues(alpha: isDark ? 0.15 : 0.06),
+            cs.primary.withOpacity(isDark ? 0.15 : 0.06),
           ),
           columns: columns
               .map((col) => DataColumn(
@@ -674,7 +674,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
         ),
         Text(
           label,
-          style: tt.bodySmall?.copyWith(color: color.withValues(alpha: 0.7)),
+          style: tt.bodySmall?.copyWith(color: color.withOpacity(0.7)),
         ),
       ],
     );
@@ -700,7 +700,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.successOf(cs.brightness)
-                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -808,7 +808,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
         ),
         Text(
           label,
-          style: tt.bodySmall?.copyWith(color: color.withValues(alpha: 0.7)),
+          style: tt.bodySmall?.copyWith(color: color.withOpacity(0.7)),
         ),
       ],
     );
@@ -917,7 +917,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.errorOf(cs.brightness)
-                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
+                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

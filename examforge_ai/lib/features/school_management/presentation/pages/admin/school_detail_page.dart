@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../routing/route_names.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/school_provider.dart';
 import '../../../../../config/dependency_injection.dart';
 
@@ -233,7 +233,7 @@ class _OverviewTab extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.lgRadius),
             ),
             child: school.logoUrl != null
@@ -299,8 +299,8 @@ class _OverviewTab extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: school.isActive
-                            ? AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12)
-                            : AppColors.error.withValues(alpha: isDark ? 0.20 : 0.12),
+                            ? AppColors.success.withOpacity(isDark ? 0.20 : 0.12)
+                            : AppColors.error.withOpacity(isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -512,8 +512,7 @@ class _BranchesTab extends ConsumerWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.warning.withValues(
-                                    alpha: context.isDarkMode ? 0.20 : 0.12,
+                                  color: AppColors.warning.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                                   ),
                                   borderRadius:
                                       BorderRadius.circular(Spacings.fullRadius),
@@ -673,9 +672,8 @@ class _DepartmentsTab extends ConsumerWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: dept.isActive
-                                    ? AppColors.success.withValues(
-                                        alpha: context.isDarkMode ? 0.20 : 0.12)
-                                    : cs.onSurface.withValues(alpha: 0.08),
+                                    ? AppColors.success.withOpacity(context.isDarkMode ? 0.20 : 0.12)
+                                    : cs.onSurface.withOpacity(0.08),
                                 borderRadius:
                                     BorderRadius.circular(Spacings.fullRadius),
                               ),
@@ -957,7 +955,7 @@ class _StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+                color: color.withOpacity(isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Icon(icon, size: Spacings.mdIcon, color: color),

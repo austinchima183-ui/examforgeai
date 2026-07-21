@@ -1,8 +1,7 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
-import '../../data/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
+import '../../domain/repositories/billing_repository.dart';
 
 
 // ─── Get Invoices ────────────────────────────────────────────────────────────
@@ -27,17 +26,17 @@ class GetInvoicesUseCase {
   GetInvoicesUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaginatedResult<InvoiceEntity>>> call(
+  Future<Result<List<InvoiceEntity>>> call(
     GetInvoicesParams params,
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1'),
+        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1'),
+        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
       );
     }
 
@@ -65,11 +64,11 @@ class GetInvoiceUseCase {
   Future<Result<InvoiceEntity>> call(GetInvoiceParams params) async {
     if (params.invoiceId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Invoice ID cannot be empty'),
+        Failure.validation(message: 'Invoice ID cannot be empty', fieldErrors: const {}),
       );
     }
 
-    return _repository.getInvoice(invoiceId: params.invoiceId);
+    return _repository.getInvoice(params.invoiceId);
   }
 }
 
@@ -92,12 +91,12 @@ class GenerateInvoiceUseCase {
   Future<Result<InvoiceEntity>> call(GenerateInvoiceParams params) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty'),
+        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.lineItems.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Line items cannot be empty'),
+        Failure.validation(message: 'Line items cannot be empty', fieldErrors: const {}),
       );
     }
 
@@ -122,11 +121,11 @@ class GetInvoicePdfUrlUseCase {
   Future<Result<String>> call(GetInvoicePdfUrlParams params) async {
     if (params.invoiceId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Invoice ID cannot be empty'),
+        Failure.validation(message: 'Invoice ID cannot be empty', fieldErrors: const {}),
       );
     }
 
-    return _repository.getInvoicePdfUrl(invoiceId: params.invoiceId);
+    return _repository.getInvoicePdfUrl(params.invoiceId);
   }
 }
 
@@ -148,22 +147,22 @@ class GetReceiptsUseCase {
   GetReceiptsUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaginatedResult<ReceiptEntity>>> call(
+  Future<Result<List<ReceiptEntity>>> call(
     GetReceiptsParams params,
   ) async {
     if (params.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty'),
+        Failure.validation(message: 'User ID cannot be empty', fieldErrors: const {}),
       );
     }
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1'),
+        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1'),
+        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
       );
     }
 
@@ -189,10 +188,10 @@ class GetReceiptPdfUrlUseCase {
   Future<Result<String>> call(GetReceiptPdfUrlParams params) async {
     if (params.receiptId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Receipt ID cannot be empty'),
+        Failure.validation(message: 'Receipt ID cannot be empty', fieldErrors: const {}),
       );
     }
 
-    return _repository.getReceiptPdfUrl(receiptId: params.receiptId);
+    return _repository.getReceiptPdfUrl(params.receiptId);
   }
 }

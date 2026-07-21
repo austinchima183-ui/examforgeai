@@ -39,7 +39,7 @@ class _TeachingResourcesPageState
   bool _favoritesOnly = false;
 
   // Folder tree sample data (in production this would come from provider)
-  final List<_FolderNode> _folders = const [
+  final List<_FolderNode> _folders = [
     _FolderNode(id: 'all', name: 'All Resources', icon: Icons.folder_outlined),
     _FolderNode(id: 'notes', name: 'Notes', icon: Icons.note_outlined),
     _FolderNode(id: 'slides', name: 'Slides', icon: Icons.slideshow_outlined),
@@ -322,7 +322,7 @@ class _TeachingResourcesPageState
         ),
       ),
       selected: isSelected,
-      selectedTileColor: cs.primary.withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+      selectedTileColor: cs.primary.withOpacity(context.isDarkMode ? 0.15 : 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
@@ -579,7 +579,7 @@ class _TeachingResourcesPageState
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -748,7 +748,7 @@ class _TeachingResourcesPageState
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: color.withOpacity(isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

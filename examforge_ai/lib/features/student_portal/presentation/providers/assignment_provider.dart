@@ -23,7 +23,7 @@ class AssignmentState {
     this.error,
     this.hasMore = true,
     this.filterStatus,
-    this._currentPage = 1,
+    this.currentPage = 1,
   });
 
   /// All assignment submissions for the current student.
@@ -49,10 +49,10 @@ class AssignmentState {
 
   /// Current page number for submission pagination (1-based).
   // ignore: unused_field
-  final int _currentPage;
+  final int currentPage;
 
   /// Current page number for submission pagination.
-  int get currentPage => _currentPage;
+  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading || isSubmitting;
@@ -84,7 +84,7 @@ class AssignmentState {
       hasMore: hasMore ?? this.hasMore,
       filterStatus:
           clearFilterStatus ? null : (filterStatus ?? this.filterStatus),
-      _currentPage: currentPage ?? _currentPage,
+      currentPage: currentPage ?? currentPage,
     );
   }
 

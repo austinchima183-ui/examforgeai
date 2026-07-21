@@ -275,7 +275,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: hasUnread
-            ? cs.primaryContainer.withValues(alpha: 0.15)
+            ? cs.primaryContainer.withOpacity(0.15)
             : cs.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
@@ -541,7 +541,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
                       _formatMessageTime(message.createdAt),
                       style: tt.labelSmall?.copyWith(
                         color: isSent
-                            ? cs.onPrimary.withValues(alpha: 0.7)
+                            ? cs.onPrimary.withOpacity(0.7)
                             : cs.onSurfaceVariant,
                       ),
                     ),
@@ -553,8 +553,8 @@ class _State extends ConsumerState<ParentMessagingPage> {
                             : Icons.done,
                         size: Spacings.smIcon,
                         color: isRead
-                            ? cs.onPrimary.withValues(alpha: 0.7)
-                            : cs.onPrimary.withValues(alpha: 0.5),
+                            ? cs.onPrimary.withOpacity(0.7)
+                            : cs.onPrimary.withOpacity(0.5),
                       ),
                     ],
                   ],

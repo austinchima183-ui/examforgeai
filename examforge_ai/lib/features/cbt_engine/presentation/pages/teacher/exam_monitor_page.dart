@@ -14,10 +14,10 @@ import '../../../../../shared/widgets/app_stat_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/cbt_entities.dart';
+import '../../../domain/entities/cbt_entities.dart';
 import '../../providers/exam_monitor_provider.dart';
-import '../widgets/exam_timer_widget.dart';
-import '../widgets/student_progress_card.dart';
+import '../../widgets/exam_timer_widget.dart';
+import '../../widgets/student_progress_card.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM MONITOR PAGE (Teacher) - Live monitoring dashboard
@@ -79,7 +79,7 @@ class _ExamMonitorPageState extends ConsumerState<ExamMonitorPage> {
               ),
               decoration: BoxDecoration(
                 color: AppColors.successOf(cs.brightness)
-                    .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
+                    .withOpacity(context.isDarkMode ? 0.20 : 0.10),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(

@@ -204,7 +204,7 @@ class _SecurityCenterPageState extends ConsumerState<SecurityCenterPage>
                         tabs: _tabs,
                         labelColor: cs.primary,
                         unselectedLabelColor:
-                            cs.onSurface.withValues(alpha: 0.6),
+                            cs.onSurface.withOpacity(0.6),
                         indicatorColor: cs.primary,
                         indicatorSize: TabBarIndicatorSize.tab,
                         isScrollable: true,
@@ -268,7 +268,7 @@ class _SecurityCenterPageState extends ConsumerState<SecurityCenterPage>
               error,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: cs.onSurface.withValues(alpha: 0.7),
+                color: cs.onSurface.withOpacity(0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -330,7 +330,7 @@ class _AuditLogsTab extends StatelessWidget {
                         'Category',
                         style: AppTypography.wSemiBold.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.6),
+                          color: cs.onSurface.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -369,7 +369,7 @@ class _AuditLogsTab extends StatelessWidget {
                         'Severity',
                         style: AppTypography.wSemiBold.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withValues(alpha: 0.6),
+                          color: cs.onSurface.withOpacity(0.6),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -411,7 +411,7 @@ class _AuditLogsTab extends StatelessWidget {
                   '${logs.length} log ${logs.length == 1 ? 'entry' : 'entries'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -453,11 +453,11 @@ class _AuditLogDataTable extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: Spacings.xl),
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(
-            cs.surfaceContainerHighest.withValues(alpha: 0.5),
+            cs.surfaceContainerHighest.withOpacity(0.5),
           ),
           headingTextStyle: AppTypography.wSemiBold.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withValues(alpha: 0.7),
+            color: cs.onSurface.withOpacity(0.7),
           ),
           dataTextStyle: AppTypography.wRegular.copyWith(
             fontSize: 13,
@@ -558,7 +558,7 @@ class _LoginMonitoringTab extends StatelessWidget {
                   '${state.loginEntries.length} ${state.loginEntries.length == 1 ? 'entry' : 'entries'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -599,11 +599,11 @@ class _LoginMonitoringDataTable extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: Spacings.xl),
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(
-            cs.surfaceContainerHighest.withValues(alpha: 0.5),
+            cs.surfaceContainerHighest.withOpacity(0.5),
           ),
           headingTextStyle: AppTypography.wSemiBold.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withValues(alpha: 0.7),
+            color: cs.onSurface.withOpacity(0.7),
           ),
           dataTextStyle: AppTypography.wRegular.copyWith(
             fontSize: 13,
@@ -625,7 +625,7 @@ class _LoginMonitoringDataTable extends StatelessWidget {
             return DataRow(
               color: WidgetStateProperty.all(
                 !isSuccess
-                    ? AppColors.error.withValues(alpha: 0.06)
+                    ? AppColors.error.withOpacity(0.06)
                     : null,
               ),
               cells: [
@@ -693,7 +693,7 @@ class _ActiveSessionsTab extends StatelessWidget {
                   '${state.activeSessions.length} active ${state.activeSessions.length == 1 ? 'session' : 'sessions'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
               ],
@@ -945,7 +945,7 @@ class _SuspiciousActivityTab extends StatelessWidget {
                   '${state.suspiciousActivity.length} ${state.suspiciousActivity.length == 1 ? 'alert' : 'alerts'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withValues(alpha: 0.6),
+                    color: cs.onSurface.withOpacity(0.6),
                   ),
                 ),
                 const Spacer(),
@@ -1016,7 +1016,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: isLocked
-            ? BorderSide(color: AppColors.error.withValues(alpha: 0.4))
+            ? BorderSide(color: AppColors.error.withOpacity(0.4))
             : BorderSide.none,
       ),
       child: Padding(
@@ -1078,7 +1078,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
                   icon: Icons.schedule_rounded,
                   label: 'Last Attempt',
                   value: lastAttempt,
-                  color: cs.onSurface.withValues(alpha: 0.6),
+                  color: cs.onSurface.withOpacity(0.6),
                 ),
               ],
             ),
@@ -1089,7 +1089,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withValues(alpha: 0.08),
+                  color: AppColors.error.withOpacity(0.08),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Text(

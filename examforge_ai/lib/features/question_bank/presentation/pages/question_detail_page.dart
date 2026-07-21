@@ -323,7 +323,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
+        color: color.withOpacity(isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -332,7 +332,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           fontFamily: AppTypography.fontFamily,
           fontSize: 11.0,
           fontWeight: AppTypography.wSemiBold,
-          color: isDark ? color.withValues(alpha: 0.9) : color,
+          color: isDark ? color.withOpacity(0.9) : color,
         ),
       ),
     );
@@ -361,8 +361,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(
-                  alpha: context.isDarkMode ? 0.25 : 0.08,
+                color: AppColors.error.withOpacity(context.isDarkMode ? 0.25 : 0.08,
                 ),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
@@ -469,15 +468,14 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
               color: isCorrect
-                  ? AppColors.success.withValues(
-                      alpha: context.isDarkMode ? 0.15 : 0.06,
+                  ? AppColors.success.withOpacity(context.isDarkMode ? 0.15 : 0.06,
                     )
                   : cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
                 color: isCorrect
-                    ? AppColors.success.withValues(alpha: 0.4)
-                    : cs.outlineVariant.withValues(alpha: 0.5),
+                    ? AppColors.success.withOpacity(0.4)
+                    : cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Row(
@@ -505,7 +503,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   height: 24.0,
                   decoration: BoxDecoration(
                     color: isCorrect
-                        ? AppColors.success.withValues(alpha: 0.15)
+                        ? AppColors.success.withOpacity(0.15)
                         : cs.secondaryContainer,
                     shape: BoxShape.circle,
                   ),
@@ -558,7 +556,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Row(
@@ -567,7 +565,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   child: Container(
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                      color: const Color(0xFF2563EB).withOpacity(0.08),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -590,7 +588,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   child: Container(
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.08),
+                      color: AppColors.success.withOpacity(0.08),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -628,7 +626,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Row(
@@ -637,7 +635,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   width: 28.0,
                   height: 28.0,
                   decoration: BoxDecoration(
-                    color: AppColors.success.withValues(alpha: 0.12),
+                    color: AppColors.success.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -679,7 +677,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.5),
+                color: cs.outlineVariant.withOpacity(0.5),
               ),
             ),
             child: Row(
@@ -690,7 +688,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD97706).withValues(alpha: 0.12),
+                    color: const Color(0xFFD97706).withOpacity(0.12),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(
@@ -714,12 +712,12 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                               ),
                               decoration: BoxDecoration(
                                 color: AppColors.success
-                                    .withValues(alpha: 0.08),
+                                    .withOpacity(0.08),
                                 borderRadius:
                                     BorderRadius.circular(Spacings.smRadius),
                                 border: Border.all(
                                   color: AppColors.success
-                                      .withValues(alpha: 0.3),
+                                      .withOpacity(0.3),
                                 ),
                               ),
                               child: Text(
@@ -750,10 +748,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.lg),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.06),
+        color: AppColors.success.withOpacity(0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.3),
+          color: AppColors.success.withOpacity(0.3),
         ),
       ),
       child: Row(
@@ -784,10 +782,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(Spacings.lg),
       decoration: BoxDecoration(
-        color: AppColors.success.withValues(alpha: 0.06),
+        color: AppColors.success.withOpacity(0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.success.withValues(alpha: 0.3),
+          color: AppColors.success.withOpacity(0.3),
         ),
       ),
       child: Column(
@@ -896,7 +894,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 
     return AppCard(
       padding: const EdgeInsets.all(Spacings.lg),
-      borderColor: AppColors.warningOf(cs.brightness).withValues(alpha: 0.3),
+      borderColor: AppColors.warningOf(cs.brightness).withOpacity(0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1046,7 +1044,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: cs.secondaryContainer.withValues(alpha: 0.6),
+                color: cs.secondaryContainer.withOpacity(0.6),
                 borderRadius: BorderRadius.circular(Spacings.fullRadius),
               ),
               child: Text(
@@ -1108,7 +1106,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   color: cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: cs.outlineVariant.withValues(alpha: 0.5),
+                    color: cs.outlineVariant.withOpacity(0.5),
                   ),
                 ),
                 child: Column(
@@ -1117,7 +1115,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                     Icon(
                       Icons.image_outlined,
                       size: 28.0,
-                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
+                      color: cs.onSurfaceVariant.withOpacity(0.5),
                     ),
                     const SizedBox(height: Spacings.xs),
                     Text(
@@ -1148,12 +1146,11 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   vertical: Spacings.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withValues(
-                    alpha: context.isDarkMode ? 0.20 : 0.08,
+                  color: color.withOpacity(context.isDarkMode ? 0.20 : 0.08,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: color.withValues(alpha: 0.3),
+                    color: color.withOpacity(0.3),
                   ),
                 ),
                 child: Row(
@@ -1423,7 +1420,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   Expanded(
                     child: Container(
                       width: 2.0,
-                      color: cs.outlineVariant.withValues(alpha: 0.5),
+                      color: cs.outlineVariant.withOpacity(0.5),
                     ),
                   ),
                 ],

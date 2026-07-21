@@ -181,7 +181,7 @@ class _State extends ConsumerState<ParentReportsPage> {
       ),
       child: Card(
         elevation: Spacings.elevationNone,
-        color: AppColors.infoOf(cs.brightness).withValues(alpha: 0.08),
+        color: AppColors.infoOf(cs.brightness).withOpacity(0.08),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
@@ -232,7 +232,7 @@ class _State extends ConsumerState<ParentReportsPage> {
       ),
       child: Card(
         elevation: Spacings.elevationNone,
-        color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.08),
+        color: AppColors.errorOf(cs.brightness).withOpacity(0.08),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
@@ -332,7 +332,7 @@ class _State extends ConsumerState<ParentReportsPage> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: cs.primaryContainer.withValues(alpha: 0.3),
+                  color: cs.primaryContainer.withOpacity(0.3),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(

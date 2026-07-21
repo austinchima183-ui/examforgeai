@@ -2,7 +2,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/utils/logger.dart';
-import 'models/user_model.dart';
+import '../models/user_model.dart';
 
 /// Abstract interface for remote authentication data operations.
 ///

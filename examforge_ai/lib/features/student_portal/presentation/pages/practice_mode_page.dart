@@ -102,7 +102,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
                         Text(
                           'Configure your practice session below',
                           style: tt.bodyMedium?.copyWith(
-                            color: Colors.white.withValues(alpha: 0.9),
+                            color: Colors.white.withOpacity(0.9),
                           ),
                         ),
                       ],
@@ -305,7 +305,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
                   ),
                   decoration: BoxDecoration(
                     color: state.remainingTime!.inMinutes < 5
-                        ? AppColors.error.withValues(alpha: 0.1)
+                        ? AppColors.error.withOpacity(0.1)
                         : cs.primaryContainer,
                     borderRadius:
                         BorderRadius.circular(Spacings.fullRadius),
@@ -462,7 +462,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
               color: cs.surface,
               border: Border(
                 top: BorderSide(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
             ),
@@ -547,7 +547,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
                           Text(
                             'Score',
                             style: tt.bodySmall?.copyWith(
-                              color: Colors.white.withValues(alpha: 0.9),
+                              color: Colors.white.withOpacity(0.9),
                             ),
                           ),
                         ],
@@ -742,7 +742,7 @@ class _AnswerOption extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             color: isSelected
-                ? cs.primaryContainer.withValues(alpha: 0.3)
+                ? cs.primaryContainer.withOpacity(0.3)
                 : null,
           ),
           child: Row(
@@ -835,8 +835,8 @@ class _QuestionReviewCard extends StatelessWidget {
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
                 color: isCorrect
-                    ? AppColors.success.withValues(alpha: 0.1)
-                    : AppColors.error.withValues(alpha: 0.1),
+                    ? AppColors.success.withOpacity(0.1)
+                    : AppColors.error.withOpacity(0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

@@ -111,15 +111,15 @@ class _DifficultyChip extends StatelessWidget {
 
     final bgColor = isSelected
         ? option.color
-        : option.color.withValues(alpha: isDark ? 0.20 : 0.10);
+        : option.color.withOpacity(isDark ? 0.20 : 0.10);
     final fgColor = isSelected
         ? Colors.white
         : isDark
-            ? option.color.withValues(alpha: 0.9)
+            ? option.color.withOpacity(0.9)
             : option.color;
     final borderColor = isSelected
         ? option.color
-        : option.color.withValues(alpha: 0.3);
+        : option.color.withOpacity(0.3);
 
     return GestureDetector(
       onTap: onTap,

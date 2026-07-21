@@ -141,7 +141,7 @@ class _GenerateQuestionsButtonState extends State<GenerateQuestionsButton> {
             vertical: Spacings.sm,
           ),
           decoration: BoxDecoration(
-            color: AppColors.success.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
+            color: AppColors.success.withOpacity(context.isDarkMode ? 0.25 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Row(

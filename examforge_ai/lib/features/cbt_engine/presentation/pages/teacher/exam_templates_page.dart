@@ -12,9 +12,9 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/exam_template_entities.dart';
+import '../../../domain/entities/exam_template_entities.dart';
 import '../../providers/exam_template_provider.dart';
-import '../widgets/exam_template_card.dart';
+import '../../widgets/exam_template_card.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM TEMPLATES PAGE (Teacher)

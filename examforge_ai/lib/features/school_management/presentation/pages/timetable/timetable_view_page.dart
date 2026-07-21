@@ -8,7 +8,7 @@ import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/timetable_provider.dart';
 import '../../providers/subject_provider.dart';
 import '../../../../../config/dependency_injection.dart';
@@ -163,7 +163,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12),
+                      color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12),
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
                     child: Row(
@@ -288,7 +288,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Row(
@@ -443,7 +443,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
     if (slot.isBreak) {
       return Container(
         padding: const EdgeInsets.all(Spacings.sm),
-        color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -473,7 +473,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.xs),
       decoration: BoxDecoration(
-        color: subjectColor.withValues(alpha: isDark ? 0.20 : 0.10),
+        color: subjectColor.withOpacity(isDark ? 0.20 : 0.10),
         border: Border(
           left: BorderSide(color: subjectColor, width: 3),
         ),

@@ -335,7 +335,7 @@ class _AiCreditsPageState extends ConsumerState<AiCreditsPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withValues(alpha: 0.5),
+          color: cs.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: ListTile(
@@ -347,7 +347,7 @@ class _AiCreditsPageState extends ConsumerState<AiCreditsPage> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
+            color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: Icon(

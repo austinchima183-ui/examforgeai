@@ -229,7 +229,7 @@ class _StatChip extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.xs),
           decoration: BoxDecoration(
-            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+            color: color.withOpacity(isDark ? 0.20 : 0.12),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Icon(icon, size: Spacings.smIcon, color: color),
@@ -394,7 +394,7 @@ class _PendingProductCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: ProductTypeIcon(
@@ -467,7 +467,7 @@ class _PendingProductCard extends ConsumerWidget {
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: AppColors.infoLight.withValues(alpha: isDark ? 0.15 : 1.0),
+              color: AppColors.infoLight.withOpacity(isDark ? 0.15 : 1.0),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: Text(
@@ -661,7 +661,7 @@ class _ReportedReviewCard extends ConsumerWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor:
-                    cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+                    cs.primary.withOpacity(isDark ? 0.30 : 0.15),
                 child: Text(
                   review.buyerId.isNotEmpty
                       ? review.buyerId[0].toUpperCase()
@@ -699,7 +699,7 @@ class _ReportedReviewCard extends ConsumerWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.errorLight.withValues(alpha: isDark ? 0.15 : 1.0),
+                  color: AppColors.errorLight.withOpacity(isDark ? 0.15 : 1.0),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Row(
@@ -959,7 +959,7 @@ class _SellerCard extends ConsumerWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor:
-                cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
+                cs.primary.withOpacity(isDark ? 0.30 : 0.15),
             child: seller.displayName.isNotEmpty
                 ? Text(
                     seller.displayName[0].toUpperCase(),
@@ -1080,7 +1080,7 @@ class _StatusBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -1161,7 +1161,7 @@ class _DisputeCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(
@@ -1384,7 +1384,7 @@ class _DisputeStatusBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+        color: color.withOpacity(isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(

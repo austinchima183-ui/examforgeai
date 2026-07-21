@@ -7,7 +7,7 @@ import '../../domain/entities/ccms_entities.dart';
 import '../providers/ccms_providers.dart';
 import '../widgets/ccms_widgets.dart';
 
-export 'content_editor_page.dart';
+import 'content_editor_page.dart';
 
 class ContentLibraryPage extends ConsumerStatefulWidget {
   const ContentLibraryPage({super.key});
@@ -54,9 +54,9 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
     items.sort((a, b) {
       switch (_sortBy) {
         case 'quality':
-          return (b.qualityScore ?? 0).compareTo(a.qualityScore ?? 0);
+          return ((b.averageQualityScore ?? 0) - (a.averageQualityScore ?? 0)).sign.toInt();
         case 'usage':
-          return b.usageCount.compareTo(a.usageCount);
+          return (b.usageCount ?? 0).compareTo(a.usageCount ?? 0);
         default:
           return b.createdAt.compareTo(a.createdAt);
       }
@@ -99,10 +99,10 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
             levels: levelState.levels,
             topics: topicState.topics,
             selectedSubjectId: contentState.filters.subjectId,
-            selectedLevelId: contentState.filters.levelId,
+            selectedLevelId: contentState.filters.educationalLevelId,
             selectedTopicId: contentState.filters.topicId,
             selectedContentType: contentState.filters.contentType,
-            selectedDifficulty: contentState.filters.difficulty,
+            selectedDifficulty: contentState.filters.difficultyLevel,
             selectedStatus: contentState.filters.status,
             onSubjectChanged: (v) => _applyFilters(subjectId: v),
             onLevelChanged: (v) => _applyFilters(levelId: v),
@@ -159,7 +159,7 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
                     label: 'Load More',
                     onPressed: () => ref
                         .read(contentProvider.notifier)
-                        .loadNextPage(),
+                        .loadContentItems(),
                     variant: AppButtonVariant.outlined,
                     size: AppButtonSize.small,
                   ),
@@ -229,7 +229,7 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
                 children: [
                   ContentTypeBadge(contentType: item.contentType),
                   const Spacer(),
-                  DifficultyIndicator(level: item.difficultyLevel),
+                  DifficultyIndicator(level: item.difficultyLevel ?? DifficultyLevel.beginner),
                 ],
               ),
               const SizedBox(height: Spacings.sm),
@@ -251,8 +251,8 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  if (item.qualityScore != null)
-                    QualityScoreIndicator(score: item.qualityScore!),
+                  if (item.averageQualityScore != null)
+                    QualityScoreIndicator(score: item.averageQualityScore!),
                   Text(
                     '${item.usageCount} views',
                     style: tt.bodySmall?.copyWith(
@@ -276,13 +276,13 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
     ContentStatus? status,
   }) {
     final current = ref.read(contentProvider).filters;
-    ref.read(contentProvider.notifier).setFilters(ContentFilterState(
-      subjectId: subjectId ?? current.subjectId,
-      levelId: levelId ?? current.levelId,
-      topicId: topicId ?? current.topicId,
-      contentType: contentType ?? current.contentType,
-      difficulty: difficulty ?? current.difficulty,
-      status: status ?? current.status,
+    ref.read(contentProvider.notifier).setFilters(current.copyWith(
+      subjectId: subjectId,
+      educationalLevelId: levelId,
+      topicId: topicId,
+      contentType: contentType,
+      difficultyLevel: difficulty,
+      status: status,
     ));
     ref.read(contentProvider.notifier).loadContentItems();
   }

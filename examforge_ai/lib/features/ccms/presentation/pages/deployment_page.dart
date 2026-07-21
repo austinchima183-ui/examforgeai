@@ -5,6 +5,8 @@ import '../../../../../core/core.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ccms_entities.dart';
 import '../providers/ccms_providers.dart';
+import '../providers/deployment_provider.dart';
+import '../widgets/ccms_widgets.dart';
 
 class DeploymentPage extends ConsumerStatefulWidget {
   const DeploymentPage({super.key});
@@ -105,14 +107,13 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                           decoration: BoxDecoration(
                                             color: _statusColor(
                                                     deployment.status)
-                                                .withValues(alpha: 0.15),
+                                                .withOpacity(0.15),
                                             borderRadius:
                                                 Spacings.borderRadiusSm,
                                           ),
                                           child: Text(
                                             deployment.status.label,
-                                            style: AppTypography.labelSmall
-                                                .copyWith(
+                                            style: tt.labelSmall!.copyWith(
                                                     color: _statusColor(
                                                         deployment.status),
                                                     fontWeight:
@@ -126,12 +127,12 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                     Row(
                                       children: [
                                         Text(
-                                            'Deployed by: ${deployment.deployedBy}',
+                                            'Deployed by: ${deployment.deployerId ?? 'Unknown'}',
                                             style: tt.bodySmall?.copyWith(
                                                 color:
                                                     cs.onSurfaceVariant)),
                                         const Spacer(),
-                                        Text(_formatDate(deployment.deployedAt),
+                                        Text(_formatDate(deployment.startedAt),
                                             style: tt.bodySmall?.copyWith(
                                                 color:
                                                     cs.onSurfaceVariant)),
@@ -203,16 +204,16 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                             Card(
                               child: ListTile(
                                 leading: Icon(
-                                    result.passed
+                                    result.status == 'passed'
                                         ? Icons.check_circle_rounded
                                         : Icons.cancel_rounded,
-                                    color: result.passed
+                                    color: result.status == 'passed'
                                         ? AppColors.success
                                         : AppColors.error),
                                 title: Text(
                                     '${result.testType.label}: ${result.testName}'),
                                 subtitle: Text(
-                                    'Duration: ${result.durationMs}ms · ${_formatDate(result.executedAt)}'),
+                                    'Duration: ${result.durationMs}ms · ${_formatDate(result.createdAt)}'),
                                 dense: true,
                               ),
                             )),
@@ -233,7 +234,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                   color: cs.primary),
                               title: const Text('Migration Status'),
                               subtitle: Text(
-                                  'Last applied: ${state.deployments.isNotEmpty ? _formatDate(state.deployments.first.deployedAt) : "N/A"}'),
+                                  'Last applied: ${state.deployments.isNotEmpty ? _formatDate(state.deployments.first.startedAt) : "N/A"}'),
                             ),
                             const Divider(),
                             ListTile(
@@ -278,7 +279,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: statusColor.withValues(alpha: 0.15),
+                  color: statusColor.withOpacity(0.15),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -322,9 +323,9 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
 
   Widget _buildTestResultsSummary(
       List<TestResult> results, bool isDesktop) {
-    final passed = results.where((r) => r.passed).length;
-    final failed = results.where((r) => !r.passed).length;
-    final skipped = results.where((r) => !r.passed && r.durationMs == 0).length;
+    final passed = results.where((r) => r.status == 'passed').length;
+    final failed = results.where((r) => r.status == 'failed').length;
+    final skipped = results.where((r) => r.status != 'passed' && r.durationMs == 0).length;
     final total = results.length;
 
     return GridView.count(
@@ -417,12 +418,12 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                     id: '',
                     environment: environment,
                     version: versionCtrl.text,
+                    commitHash: '',
+                    branch: '',
                     status: DeploymentStatus.pending,
-                    deployedBy: 'current_user',
+                    deployerId: 'current_user',
+                    startedAt: DateTime.now(),
                     notes: notesCtrl.text.isEmpty ? null : notesCtrl.text,
-                    deployedAt: DateTime.now(),
-                    createdAt: DateTime.now(),
-                    updatedAt: DateTime.now(),
                   ),
                 );
                 Navigator.pop(context);

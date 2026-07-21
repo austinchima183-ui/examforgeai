@@ -98,7 +98,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.error.withValues(alpha: isDark ? 0.25 : 0.08),
+                color: AppColors.error.withOpacity(isDark ? 0.25 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Text(
@@ -140,7 +140,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withValues(alpha: 0.3),
+                color: cs.outlineVariant.withOpacity(0.3),
               ),
             ),
             child: QuestionContentRenderer(
@@ -215,7 +215,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -299,7 +299,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -308,7 +308,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                     child: Container(
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF2563EB).withValues(alpha: 0.08),
+                        color: const Color(0xFF2563EB).withOpacity(0.08),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Text(
@@ -331,7 +331,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                     child: Container(
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
-                        color: const Color(0xFF059669).withValues(alpha: 0.08),
+                        color: const Color(0xFF059669).withOpacity(0.08),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Text(
@@ -381,7 +381,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -389,7 +389,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                   Icon(
                     Icons.drag_indicator_rounded,
                     size: Spacings.mdIcon,
-                    color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                    color: cs.onSurfaceVariant.withOpacity(0.4),
                   ),
                   const SizedBox(width: Spacings.sm),
                   Expanded(
@@ -433,7 +433,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withValues(alpha: 0.5),
+                  color: cs.outlineVariant.withOpacity(0.5),
                 ),
               ),
               child: Row(
@@ -444,7 +444,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: const Color(0xFFD97706).withValues(alpha: 0.12),
+                      color: const Color(0xFFD97706).withOpacity(0.12),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -462,7 +462,7 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
                       decoration: BoxDecoration(
                         border: Border(
                           bottom: BorderSide(
-                            color: cs.onSurfaceVariant.withValues(alpha: 0.4),
+                            color: cs.onSurfaceVariant.withOpacity(0.4),
                             width: 1.5,
                           ),
                         ),
@@ -487,10 +487,10 @@ class _QuestionPreviewCardState extends State<QuestionPreviewCard> {
 
     return Container(
       decoration: BoxDecoration(
-        color: AppColors.warning.withValues(alpha: isDark ? 0.12 : 0.06),
+        color: AppColors.warning.withOpacity(isDark ? 0.12 : 0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.warning.withValues(alpha: 0.3),
+          color: AppColors.warning.withOpacity(0.3),
         ),
       ),
       child: Column(

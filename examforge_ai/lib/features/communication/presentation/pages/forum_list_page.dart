@@ -201,7 +201,7 @@ class _State extends ConsumerState<ForumListPage> {
                     // Avatar
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: typeColor.withValues(alpha: 0.12),
+                      backgroundColor: typeColor.withOpacity(0.12),
                       child: Icon(_forumTypeIcon(forum.forumType), color: typeColor, size: Spacings.mdIcon),
                     ),
                     const SizedBox(width: Spacings.md),
@@ -223,7 +223,7 @@ class _State extends ConsumerState<ForumListPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
                             decoration: BoxDecoration(
-                              color: typeColor.withValues(alpha: 0.12),
+                              color: typeColor.withOpacity(0.12),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             child: Text(

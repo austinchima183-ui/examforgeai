@@ -431,8 +431,7 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withValues(
-                          alpha: context.isDarkMode ? 0.20 : 0.12,
+                        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius: BorderRadius.circular(
                             Spacings.fullRadius),
@@ -597,7 +596,7 @@ class _BarChartPainter extends CustomPainter {
 
       canvas.drawRRect(
         rect,
-        Paint()..color = primaryColor.withValues(alpha: 0.8),
+        Paint()..color = primaryColor.withOpacity(0.8),
       );
 
       // Score label

@@ -44,7 +44,7 @@ class TeachingStatsCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: colorScheme.outlineVariant.withValues(alpha: 0.5),
+          color: colorScheme.outlineVariant.withOpacity(0.5),
         ),
       ),
       child: InkWell(
@@ -59,7 +59,7 @@ class TeachingStatsCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: effectiveColor.withValues(alpha: 0.12),
+                  color: effectiveColor.withOpacity(0.12),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(

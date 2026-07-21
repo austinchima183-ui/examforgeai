@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/results_entities.dart';
+import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -190,7 +190,7 @@ class _ResultManagementPageState
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+                  color: color.withOpacity(isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(icon, size: Spacings.mdIcon, color: color),
@@ -384,7 +384,7 @@ class _ResultManagementPageState
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
               color:
-                  event.color.withValues(alpha: isDark ? 0.20 : 0.12),
+                  event.color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(event.icon,
@@ -541,7 +541,7 @@ class _ResultManagementPageState
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -585,7 +585,7 @@ class _ResultManagementPageState
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
+              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
@@ -668,7 +668,7 @@ class _ActionTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: iconColor.withValues(alpha: isDark ? 0.20 : 0.12),
+                color: iconColor.withOpacity(isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: isLoading

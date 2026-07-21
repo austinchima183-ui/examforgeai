@@ -122,7 +122,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.school_outlined, size: Spacings.xlIcon, color: cs.primary.withValues(alpha: 0.5)),
+            Icon(Icons.school_outlined, size: Spacings.xlIcon, color: cs.primary.withOpacity(0.5)),
             const SizedBox(height: Spacings.lg),
             Text('School Knowledge Assistant', style: tt.headlineSmall?.copyWith(fontWeight: AppTypography.wBold, color: cs.onSurface)),
             const SizedBox(height: Spacings.sm),
@@ -270,7 +270,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
                       decoration: BoxDecoration(
-                        color: resp.isGrounded ? AppColors.successOf(cs.brightness).withValues(alpha: 0.12) : AppColors.warningOf(cs.brightness).withValues(alpha: 0.12),
+                        color: resp.isGrounded ? AppColors.successOf(cs.brightness).withOpacity(0.12) : AppColors.warningOf(cs.brightness).withOpacity(0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(
@@ -299,7 +299,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                   ...resp.sources.map((src) => Container(
                     margin: const EdgeInsets.only(bottom: Spacings.xs),
                     padding: const EdgeInsets.all(Spacings.sm),
-                    decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: Spacings.borderRadiusSm),
+                    decoration: BoxDecoration(color: cs.surfaceContainerHighest.withOpacity(0.5), borderRadius: Spacings.borderRadiusSm),
                     child: Row(
                       children: [
                         Icon(Icons.description_outlined, size: Spacings.smIcon, color: cs.primary),
@@ -444,7 +444,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
-                        decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: Spacings.borderRadiusSm),
+                        decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: Spacings.borderRadiusSm),
                         child: Text(doc.status, style: tt.labelSmall?.copyWith(color: statusColor, fontWeight: AppTypography.wMedium)),
                       ),
                       const SizedBox(width: Spacings.sm),

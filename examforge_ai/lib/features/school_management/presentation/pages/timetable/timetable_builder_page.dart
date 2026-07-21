@@ -6,7 +6,7 @@ import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
 import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/timetable_provider.dart';
 import '../../providers/subject_provider.dart';
 import '../../providers/teacher_provider.dart';
@@ -125,7 +125,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
                   color: AppColors.error,
                   fontWeight: AppTypography.wSemiBold,
                 ),
-                backgroundColor: AppColors.error.withValues(alpha: 0.1),
+                backgroundColor: AppColors.error.withOpacity(0.1),
                 side: BorderSide.none,
                 padding: EdgeInsets.zero,
               ),
@@ -339,7 +339,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
         child: Container(
           padding: const EdgeInsets.all(Spacings.xs),
           decoration: BoxDecoration(
-            color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
+            color: AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
             border: hasConflict
                 ? Border.all(color: AppColors.error, width: 2)
                 : null,
@@ -375,11 +375,11 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
         child: Container(
           padding: const EdgeInsets.all(Spacings.xs),
           decoration: BoxDecoration(
-            color: subjectColor.withValues(alpha: isDark ? 0.20 : 0.10),
+            color: subjectColor.withOpacity(isDark ? 0.20 : 0.10),
             border: hasConflict
                 ? Border.all(color: AppColors.error, width: 2)
                 : Border.all(
-                    color: subjectColor.withValues(alpha: 0.3), width: 1),
+                    color: subjectColor.withOpacity(0.3), width: 1),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -431,7 +431,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
           child: Icon(
             Icons.add_rounded,
             size: 20,
-            color: cs.outline.withValues(alpha: 0.5),
+            color: cs.outline.withOpacity(0.5),
           ),
         ),
       ),

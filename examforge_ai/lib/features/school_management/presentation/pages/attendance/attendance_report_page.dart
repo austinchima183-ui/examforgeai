@@ -10,7 +10,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/school_management_entities.dart';
+import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/class_provider.dart';
 import '../../../../../config/dependency_injection.dart';
@@ -388,7 +388,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                           Expanded(
                             flex: (absentRate * 100).round().clamp(1, 100),
                             child: Container(
-                              color: AppColors.error.withValues(alpha: 0.7),
+                              color: AppColors.error.withOpacity(0.7),
                             ),
                           ),
                         ],
@@ -533,7 +533,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                        color: cs.outlineVariant.withValues(alpha: 0.3), width: 0.5),
+                        color: cs.outlineVariant.withOpacity(0.3), width: 0.5),
                   ),
                 ),
                 child: Row(
@@ -601,7 +601,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                         ),
                         decoration: BoxDecoration(
                           color: _rateColor(row.rate)
-                              .withValues(alpha: isDark ? 0.20 : 0.12),
+                              .withOpacity(isDark ? 0.20 : 0.12),
                           borderRadius:
                               BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -713,7 +713,7 @@ class _SummaryCard extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
+              color: color.withOpacity(isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(icon, color: color, size: 18),

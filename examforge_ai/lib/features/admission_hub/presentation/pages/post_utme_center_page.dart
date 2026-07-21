@@ -53,7 +53,7 @@ class _PostUtmeCenterPageState extends ConsumerState<PostUtmeCenterPage> {
               color: context.colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
+                  color: Colors.black.withOpacity(0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -268,7 +268,7 @@ class _PostUtmeProductCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withValues(alpha: 0.15),
+                      color: AppColors.warning.withOpacity(0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(

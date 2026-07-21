@@ -169,7 +169,7 @@ class _FilterPanelState extends State<FilterPanel> {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
+                      color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
