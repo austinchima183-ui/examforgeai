@@ -83,7 +83,7 @@ class CurriculumTypeBadge extends StatelessWidget {
             SizedBox(width: small ? 2 : Spacings.xs),
             Text(
               type.label,
-              style: AppTypography.labelSmall.copyWith(
+              style: AppTypography.labelSmall!.copyWith(
                 color: color,
                 fontWeight: AppTypography.wSemiBold,
                 fontSize: fontSize,

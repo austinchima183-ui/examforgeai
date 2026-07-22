@@ -205,7 +205,7 @@ class _CcmsDashboardPageState extends ConsumerState<CcmsDashboardPage> {
       ),
       StatOverviewCard(
         title: 'Avg Quality',
-        value: stats?.averageQualityScore.toStringAsFixed(1) ?? '0.0',
+        value: stats?.avgQualityScore.toStringAsFixed(1) ?? '0.0',
         icon: Icons.star_rounded,
         color: const Color(0xFFF59E0B),
       ),
@@ -441,7 +441,7 @@ class _QuickAction extends StatelessWidget {
           const SizedBox(height: Spacings.sm),
           Text(
             label,
-            style: AppTypography.labelMedium.copyWith(
+            style: AppTypography.labelMedium!.copyWith(
               color: context.colorScheme.onSurface,
               fontWeight: AppTypography.wMedium,
             ),

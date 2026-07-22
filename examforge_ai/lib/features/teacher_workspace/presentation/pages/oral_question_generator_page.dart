@@ -316,7 +316,7 @@ class _OralQuestionGeneratorPageState
               value: _curriculum,
               items: CurriculumType.values,
               itemLabel: (c) => c.label,
-              prefixIcon: Icons.curriculum_outlined,
+              prefixIcon: Icons.school_outlined,
               onChanged: (v) {
                 if (v != null) setState(() => _curriculum = v);
               },

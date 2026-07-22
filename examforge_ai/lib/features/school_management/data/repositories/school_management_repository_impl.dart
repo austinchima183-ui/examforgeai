@@ -1332,8 +1332,8 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
   ) async {
     try {
       final conflicts = await _remoteDataSource.checkSlotConflicts(
-        teacherId: slot.teacherId,
-        classId: slot.classId,
+        teacherId: slot.teacherId!,
+        classId: slot.classId!,
         dayOfWeek: slot.dayOfWeek.value,
         periodNumber: slot.periodNumber,
         excludeSlotId: slot.id.isNotEmpty ? slot.id : null,

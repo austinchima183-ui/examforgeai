@@ -46,8 +46,8 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
               .toLowerCase()
               .contains(_filterUserId!.toLowerCase())) return false;
       if (_dateRange != null) {
-        if (entry.timestamp.isBefore(_dateRange!.start) ||
-            entry.timestamp.isAfter(_dateRange!.end)) return false;
+        if (entry.createdAt.isBefore(_dateRange!.start) ||
+            entry.createdAt.isAfter(_dateRange!.end)) return false;
       }
       return true;
     }).toList();
@@ -214,9 +214,8 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               _detailRow('User', entry.userId),
-              _detailRow('Resource ID', entry.resourceId),
-              _detailRow(
-                  'Timestamp', _formatDateTime(entry.timestamp)),
+              _detailRow('Resource ID', entry.resourceId ?? '—'),
+              _detailRow('Timestamp', _formatDateTime(entry.createdAt)),
               _detailRow('Action', entry.action.label),
               if (entry.oldValues != null) ...[
                 const SizedBox(height: Spacings.md),
@@ -235,7 +234,7 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                             AppColors.error.withOpacity(0.2)),
                   ),
                   child: Text(entry.oldValues.toString(),
-                      style: AppTypography.bodySmall),
+                      style: AppTypography.bodySmall!),
                 ),
               ],
               if (entry.newValues != null) ...[
@@ -255,7 +254,7 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                             .withOpacity(0.2)),
                   ),
                   child: Text(entry.newValues.toString(),
-                      style: AppTypography.bodySmall),
+                      style: AppTypography.bodySmall!),
                 ),
               ],
             ],
@@ -281,11 +280,10 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
           SizedBox(
             width: 100,
             child: Text(label,
-                style: AppTypography.bodySmall.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+            style: TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 12)),
           ),
           Expanded(
-              child: Text(value, style: AppTypography.bodySmall)),
+              child: Text(value, style: AppTypography.bodySmall!)),
         ],
       ),
     );

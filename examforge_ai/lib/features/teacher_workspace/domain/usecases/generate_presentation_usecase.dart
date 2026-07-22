@@ -38,6 +38,19 @@ class GeneratePresentationParams extends Equatable {
         customInstructions,
         slideCount,
       ];
+
+  /// Converts these params into a [Map<String, dynamic>] suitable for
+  /// passing to [TeacherWorkspaceRepository.generatePresentation].
+  Map<String, dynamic> toMap() => {
+    'subjectId': subjectId,
+    'className': className,
+    'topic': topic,
+    'presentationType': presentationType,
+    'curriculum': curriculum,
+    'difficulty': difficulty,
+    'customInstructions': customInstructions,
+    'slideCount': slideCount,
+  };
 }
 
 /// Use case for generating a presentation using AI.
@@ -62,6 +75,6 @@ class GeneratePresentationUseCase {
         fieldErrors: {'subjectId': 'Subject ID cannot be empty'},
       ));
     }
-    return _repository.generatePresentation(params);
+    return _repository.generatePresentation(params.toMap());
   }
 }

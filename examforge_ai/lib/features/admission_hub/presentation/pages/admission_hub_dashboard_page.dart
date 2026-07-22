@@ -7,6 +7,10 @@ import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/admission_hub_entities.dart';
 import '../providers/admission_hub_provider.dart';
 import '../widgets/admission_hub_widgets.dart';
+import 'university_search_page.dart';
+import 'admission_checker_page.dart';
+import 'post_utme_center_page.dart';
+import 'admission_checklist_page.dart';
 
 /// Dashboard page for the Admission Hub feature.
 ///

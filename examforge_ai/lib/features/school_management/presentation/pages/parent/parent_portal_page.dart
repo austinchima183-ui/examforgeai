@@ -114,6 +114,8 @@ class _ParentPortalPageState extends ConsumerState<ParentPortalPage> {
   }
 
   Widget _buildPortalContent(BuildContext context, ParentProfileEntity parent) {
+    final cs = context.colorScheme;
+    final tt = context.textTheme;
     return RefreshIndicator(
       onRefresh: () => ref.read(parentListProvider.notifier).refresh(),
       child: SingleChildScrollView(
@@ -252,7 +254,7 @@ class _ParentPortalPageState extends ConsumerState<ParentPortalPage> {
               title: 'Parent-Teacher Conference',
               subtitle: 'Scheduled for March 22, 2026. Please attend.',
               date: 'Mar 8, 2026',
-              type: AnnouncementType.parentTeacherConference,
+              type: AnnouncementType.event,
             ),
             const SizedBox(height: Spacings.md),
             _AnnouncementCard(

@@ -135,7 +135,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
       // Try to load the cached exam data.
       final cachedData = await cacheManager.getCachedData(
         key: 'offline_exam_${widget.examId}',
-        userId: userId ?? '',
+        userId: (userId as String?) ?? '',
       );
 
       if (cachedData == null) {
@@ -156,7 +156,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
           (examData['questions'] as List?)?.cast<Map<String, dynamic>>() ?? [],
         );
         _examDurationMinutes = examData['duration_minutes'] as int? ?? 60;
-        _studentId = examData['student_id'] as String? ?? userId ?? '';
+        _studentId = (examData['student_id'] as String?) ?? (userId as String?) ?? '';
         _schoolId = examData['school_id'] as String? ?? '';
         _timeRemaining = Duration(minutes: _examDurationMinutes);
         _isLoading = false;
@@ -454,60 +454,76 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
     final unanswered = _questions.length - _answers.length;
     final flagged = _flaggedQuestions.values.where((f) => f).length;
 
-    final result = await showDialog<bool>(
+    final result = await AppDialog.showCustom<bool>(
       context: context,
-      builder: (ctx) => AppDialog(
-        title: 'Submit Exam?',
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'You are about to submit "${widget.examTitle}".',
-              style: ctx.textTheme.bodyMedium,
+      builder: (ctx) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Submit Exam?',
+            style: ctx.textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.w600,
+              color: ctx.colorScheme.onSurface,
             ),
-            Spacings.itemGap,
-            Text(
-              'Answered: ${_answers.length} / ${_questions.length}',
-              style: ctx.textTheme.bodyMedium,
-            ),
-            if (unanswered > 0) ...[
-              Spacings.smallGap,
-              Text(
-                '⚠ $unanswered question${unanswered > 1 ? 's' : ''} unanswered',
-                style: ctx.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.warning,
-                ),
-              ),
-            ],
-            if (flagged > 0) ...[
-              Spacings.smallGap,
-              Text(
-              '🚩 $flagged question${flagged > 1 ? 's' : ''} flagged for review',
-                style: ctx.textTheme.bodyMedium?.copyWith(
-                  color: AppColors.info,
-                ),
-              ),
-            ],
-            Spacings.itemGap,
-            Text(
-              'This action cannot be undone.',
-              style: ctx.textTheme.bodySmall?.copyWith(
-                color: ctx.colorScheme.error,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          AppButton(
-            label: 'Cancel',
-            variant: AppButtonVariant.outlined,
-            onPressed: () => Navigator.of(ctx).pop(false),
           ),
-          AppButton(
-            label: 'Submit',
-            variant: AppButtonVariant.elevated,
-            onPressed: () => Navigator.of(ctx).pop(true),
+          const SizedBox(height: Spacings.md),
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'You are about to submit "${widget.examTitle}".',
+                style: ctx.textTheme.bodyMedium,
+              ),
+              Spacings.itemGap,
+              Text(
+                'Answered: ${_answers.length} / ${_questions.length}',
+                style: ctx.textTheme.bodyMedium,
+              ),
+              if (unanswered > 0) ...[
+                Spacings.smallGap,
+                Text(
+                  '⚠ $unanswered question${unanswered > 1 ? 's' : ''} unanswered',
+                  style: ctx.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.warning,
+                  ),
+                ),
+              ],
+              if (flagged > 0) ...[
+                Spacings.smallGap,
+                Text(
+                '🚩 $flagged question${flagged > 1 ? 's' : ''} flagged for review',
+                  style: ctx.textTheme.bodyMedium?.copyWith(
+                    color: AppColors.info,
+                  ),
+                ),
+              ],
+              Spacings.itemGap,
+              Text(
+                'This action cannot be undone.',
+                style: ctx.textTheme.bodySmall?.copyWith(
+                  color: ctx.colorScheme.error,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: Spacings.lg),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              AppButton(
+                label: 'Cancel',
+                variant: AppButtonVariant.outlined,
+                onPressed: () => Navigator.of(ctx).pop(false),
+              ),
+              const SizedBox(width: Spacings.sm),
+              AppButton(
+                label: 'Submit',
+                variant: AppButtonVariant.elevated,
+                onPressed: () => Navigator.of(ctx).pop(true),
+              ),
+            ],
           ),
         ],
       ),
@@ -1149,24 +1165,24 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
 
                 Color bgColor;
                 Color textColor;
-                BorderSide border;
+                BoxBorder? border;
 
                 if (isCurrent) {
                   bgColor = cs.primary;
                   textColor = cs.onPrimary;
-                  border = BorderSide.none;
+                  border = null;
                 } else if (isFlagged) {
                   bgColor = AppColors.warningLight;
                   textColor = AppColors.warningDark;
-                  border = const BorderSide(color: AppColors.warning);
+                  border = Border.all(color: AppColors.warning);
                 } else if (isAnswered) {
                   bgColor = AppColors.successLight;
                   textColor = AppColors.successDark;
-                  border = const BorderSide(color: AppColors.success);
+                  border = Border.all(color: AppColors.success);
                 } else {
                   bgColor = cs.surfaceContainerHighest;
                   textColor = cs.onSurface;
-                  border = BorderSide(color: cs.outline);
+                  border = Border.all(color: cs.outline);
                 }
 
                 return InkWell(
@@ -1351,28 +1367,13 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
   // ═══════════════════════════════════════════════════════════════════════
 
   Future<void> _showExitWarning() async {
-    final result = await showDialog<bool>(
+    final result = await AppDialog.showConfirm(
       context: context,
-      builder: (ctx) => AppDialog(
-        title: 'Leave Exam?',
-        content: Text(
-          'Are you sure you want to leave? Your progress has been '
+      title: 'Leave Exam?',
+      message: 'Are you sure you want to leave? Your progress has been '
           'auto-saved and you can resume later.',
-          style: ctx.textTheme.bodyMedium,
-        ),
-        actions: [
-          AppButton(
-            label: 'Stay',
-            variant: AppButtonVariant.outlined,
-            onPressed: () => Navigator.of(ctx).pop(false),
-          ),
-          AppButton(
-            label: 'Leave',
-            variant: AppButtonVariant.elevated,
-            onPressed: () => Navigator.of(ctx).pop(true),
-          ),
-        ],
-      ),
+      confirmText: 'Leave',
+      cancelText: 'Stay',
     );
 
     if (result == true && mounted) {

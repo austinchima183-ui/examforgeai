@@ -440,7 +440,13 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
           const SizedBox(width: Spacings.sm),
           AppIconButton(
             icon: Icons.filter_list_rounded,
-            onPressed: _showFilterSheet,
+            onPressed: () => _showFilterSheet<ResourceType>(
+              label: 'Content Type',
+              items: ResourceType.values,
+              itemLabel: (t) => t.label,
+              selectedValue: _filterContentType,
+              onSelected: (v) => setState(() => _filterContentType = v),
+            ),
             tooltip: 'Filters',
             variant: AppIconButtonVariant.outlined,
           ),

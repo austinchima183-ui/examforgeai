@@ -2842,7 +2842,7 @@ class QuestionModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         subjectId,
@@ -2868,7 +2868,7 @@ class QuestionModel {
         avgScore,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>

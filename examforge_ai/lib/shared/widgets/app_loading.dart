@@ -103,7 +103,6 @@ class AppLoadingOverlay extends StatelessWidget {
 
     return Semantics(
       label: message ?? 'Loading',
-      busy: true,
       child: GestureDetector(
       onTap: isDismissible ? onDismiss : null,
       child: Container(

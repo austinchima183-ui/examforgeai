@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/student_portal_entities.dart';
@@ -83,7 +84,7 @@ class AssignmentState {
       hasMore: hasMore ?? this.hasMore,
       filterStatus:
           clearFilterStatus ? null : (filterStatus ?? this.filterStatus),
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 

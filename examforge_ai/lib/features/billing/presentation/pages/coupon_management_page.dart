@@ -86,7 +86,7 @@ class _CouponManagementPageState extends ConsumerState<CouponManagementPage> {
       body: Column(
         children: [
           // ── Search & Filter Bar ────────────────────────────────────
-          _buildSearchBar(),
+          _buildSearchBar(filtered),
 
           // ── Coupon List ────────────────────────────────────────────
           Expanded(
@@ -108,7 +108,7 @@ class _CouponManagementPageState extends ConsumerState<CouponManagementPage> {
 
   // ─── Search Bar ──────────────────────────────────────────────────────
 
-  Widget _buildSearchBar() {
+  Widget _buildSearchBar(List<CouponEntity> filtered) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -156,7 +156,7 @@ class _CouponManagementPageState extends ConsumerState<CouponManagementPage> {
           // Active only toggle
           Row(
             children: [
-              Switch.adapted(
+              Switch(
                 value: _activeOnly,
                 onChanged: (value) {
                   setState(() => _activeOnly = value);

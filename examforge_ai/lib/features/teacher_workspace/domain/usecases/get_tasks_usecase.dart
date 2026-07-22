@@ -35,9 +35,9 @@ class GetTasksUseCase {
   /// encounters an error.
   Future<Result<List<TaskEntity>>> call(GetTasksParams params) {
     return _repository.getTasks(
-      params.status,
-      params.category,
-      params.dueBefore,
+      status: params.status,
+      category: params.category,
+      dueBefore: params.dueBefore,
     );
   }
 }

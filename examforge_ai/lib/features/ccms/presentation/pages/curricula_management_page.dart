@@ -112,7 +112,7 @@ class _CurriculaManagementPageState
                                           ref
                                               .read(
                                                   curriculumProvider.notifier)
-                                              .updateCurriculum(Curriculum(
+                                              .updateCurriculum(curriculum.id, Curriculum(
                                                 id: curriculum.id,
                                                 name: curriculum.name,
                                                 code: curriculum.code,
@@ -292,7 +292,7 @@ class _CurriculaManagementPageState
                                         Spacings.borderRadiusSm,
                                   ),
                                   child: Text('Current',
-                                      style: AppTypography.labelSmall
+                                      style: AppTypography.labelSmall!
                                           .copyWith(
                                               color: AppColors.success,
                                               fontWeight:
@@ -514,6 +514,7 @@ class _CurriculaManagementPageState
               label: 'Save',
               onPressed: () {
                 ref.read(curriculumProvider.notifier).updateCurriculum(
+                  curriculum.id,
                   Curriculum(
                     id: curriculum.id,
                     name: nameCtrl.text,

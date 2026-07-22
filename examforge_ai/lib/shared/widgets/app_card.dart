@@ -7,20 +7,6 @@ import '../../core/extensions/context_extensions.dart';
 import '../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 
 
-// ─── Trend Direction ──────────────────────────────────────────────────────────
-
-/// Direction of a statistic trend for [AppStatCard].
-enum TrendDirection {
-  /// Value is trending upward.
-  up,
-
-  /// Value is trending downward.
-  down,
-
-  /// Value is flat / no significant change.
-  neutral,
-}
-
 // ─── AppCard ──────────────────────────────────────────────────────────────────
 
 /// A configurable card widget following Material 3 styling with support for

@@ -50,6 +50,29 @@ class QuestionFilterState {
   /// Whether filter metadata is currently being loaded.
   final bool isLoadingMetadata;
 
+  /// Whether any filter field is set to a non-default value.
+  bool get hasActiveFilters {
+    final f = filter;
+    return f.subjectId != null ||
+        f.topicId != null ||
+        f.subtopicId != null ||
+        f.classId != null ||
+        f.categoryId != null ||
+        f.difficulty != null ||
+        f.questionType != null ||
+        f.examType != null ||
+        f.academicSessionId != null ||
+        f.isPublished != null ||
+        f.isArchived != null ||
+        f.isFeatured != null ||
+        f.createdBy != null ||
+        (f.searchQuery != null && f.searchQuery!.isNotEmpty) ||
+        f.tags.isNotEmpty ||
+        f.sortBy != 'newest' ||
+        f.page != 1 ||
+        f.perPage != 20;
+  }
+
   /// Creates a copy of this state with the given fields replaced.
   QuestionFilterState copyWith({
     QuestionFilterEntity? filter,

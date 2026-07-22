@@ -87,7 +87,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
 
     // Type filter
     if (_typeFilter != null) {
-      questions = questions.where((q) => q.type == _typeFilter).toList();
+      questions = questions.where((q) => q.questionType == _typeFilter).toList();
     }
 
     // Difficulty filter
@@ -463,7 +463,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
                       Row(
                         children: [
                           QuestionTypeBadge(
-                            type: question.type,
+                            type: question.questionType,
                             variant: QuestionTypeBadgeVariant.iconOnly,
                             size: QuestionTypeBadgeSize.small,
                           ),
@@ -471,7 +471,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
                           DifficultyBadge(difficulty: question.difficulty),
                           const Spacer(),
                           Text(
-                            '${question.options.length} options',
+                            '${question.answerOptions.length} options',
                             style: tt.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant,
                             ),

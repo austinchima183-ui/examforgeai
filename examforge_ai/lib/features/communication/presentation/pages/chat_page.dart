@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/send_message_usecase.dart';
 import '../providers/message_provider.dart';
 import '../providers/conversation_provider.dart';
 
@@ -577,7 +578,7 @@ class _State extends ConsumerState<ChatPage> {
     ref.read(messageProvider.notifier).sendMessage(
       SendMessageParams(
         conversationId: widget.conversationId,
-        type: 'text',
+        type: MessageType.text,
         body: text,
         replyToId: _replyTo?.id,
       ),

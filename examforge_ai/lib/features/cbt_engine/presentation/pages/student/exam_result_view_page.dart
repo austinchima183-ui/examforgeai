@@ -12,7 +12,7 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../providers/exam_results_provider.dart';
+import '../../../../../config/dependency_injection.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM RESULT VIEW PAGE (Student)

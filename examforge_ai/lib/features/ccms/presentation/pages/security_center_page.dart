@@ -5,6 +5,7 @@ import '../../../../../core/core.dart';
 import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ccms_entities.dart';
 import '../providers/ccms_providers.dart';
+import '../providers/enterprise_provider.dart';
 
 class SecurityCenterPage extends ConsumerStatefulWidget {
   const SecurityCenterPage({super.key});
@@ -105,7 +106,7 @@ class _SecurityCenterPageState
                   },
                   title: const Text('Enable MFA'),
                   subtitle: Text(
-                      state.mfaConfig?.method.label ?? 'Not configured'),
+                      state.mfaConfig?.mfaMethod.label ?? 'Not configured'),
                   activeColor: cs.primary,
                 ),
                 if (state.mfaConfig?.isEnabled ?? false) ...[
@@ -115,7 +116,7 @@ class _SecurityCenterPageState
                     title: const Text('SMS'),
                     trailing: Radio<MfaMethod>(
                       value: MfaMethod.sms,
-                      groupValue: state.mfaConfig?.method,
+                      groupValue: state.mfaConfig?.mfaMethod,
                       onChanged: (v) {
                         if (v != null) {
                           ref
@@ -130,7 +131,7 @@ class _SecurityCenterPageState
                     title: const Text('Email'),
                     trailing: Radio<MfaMethod>(
                       value: MfaMethod.email,
-                      groupValue: state.mfaConfig?.method,
+                      groupValue: state.mfaConfig?.mfaMethod,
                       onChanged: (v) {
                         if (v != null) {
                           ref
@@ -145,7 +146,7 @@ class _SecurityCenterPageState
                     title: const Text('Authenticator App'),
                     trailing: Radio<MfaMethod>(
                       value: MfaMethod.authenticatorApp,
-                      groupValue: state.mfaConfig?.method,
+                      groupValue: state.mfaConfig?.mfaMethod,
                       onChanged: (v) {
                         if (v != null) {
                           ref
@@ -160,7 +161,7 @@ class _SecurityCenterPageState
                     title: const Text('Hardware Key'),
                     trailing: Radio<MfaMethod>(
                       value: MfaMethod.hardwareKey,
-                      groupValue: state.mfaConfig?.method,
+                      groupValue: state.mfaConfig?.mfaMethod,
                       onChanged: (v) {
                         if (v != null) {
                           ref
@@ -271,7 +272,7 @@ class _SecurityCenterPageState
                         Wrap(
                           spacing: Spacings.xs,
                           runSpacing: Spacings.xs,
-                          children: key.scopes
+                          children: (key.scopes ?? <String>[])
                               .map((s) => Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: Spacings.sm,
@@ -330,13 +331,13 @@ class _SecurityCenterPageState
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             child: Text(event.severity.label,
-                                style: AppTypography.labelSmall.copyWith(
+                                style: AppTypography.labelSmall!.copyWith(
                                     color: _severityColor(event.severity),
                                     fontWeight: AppTypography.wSemiBold)),
                           ),
                           const SizedBox(width: Spacings.sm),
                           Expanded(
-                            child: Text(event.description,
+                            child: Text(event.eventType,
                                 style: tt.bodyMedium,
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis),
@@ -350,7 +351,7 @@ class _SecurityCenterPageState
                               style: tt.bodySmall?.copyWith(
                                   color: cs.onSurfaceVariant)),
                           const Spacer(),
-                          Text(_formatDate(event.timestamp),
+                          Text(_formatDate(event.createdAt),
                               style: tt.bodySmall?.copyWith(
                                   color: cs.onSurfaceVariant)),
                         ],
@@ -464,19 +465,19 @@ class _SecurityCenterPageState
           child: AppCard(
             child: Row(
               children: [
-                Icon(_deviceIcon(session.deviceInfo),
+                Icon(_deviceIcon(session.deviceName ?? session.deviceType ?? 'Unknown'),
                     color: cs.onSurfaceVariant, size: Spacings.lgIcon),
                 const SizedBox(width: Spacings.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(session.deviceInfo,
+                      Text(session.deviceName ?? 'Unknown device',
                           style: tt.bodyMedium?.copyWith(
                               fontWeight: AppTypography.wSemiBold)),
                       const SizedBox(height: Spacings.xs),
                       Text(
-                          'IP: ${session.ipAddress} · ${_formatDate(session.lastActivity)}',
+                          'IP: ${session.ipAddress} · ${_formatDate(session.lastActivityAt)}',
                           style: tt.bodySmall?.copyWith(
                               color: cs.onSurfaceVariant)),
                     ],
@@ -514,7 +515,7 @@ class _SecurityCenterPageState
             Text(
               'Enter your verification code to disable MFA. '
               'This will make your account less secure.',
-              style: AppTypography.bodyMedium.copyWith(
+              style: AppTypography.bodyMedium!.copyWith(
                   color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
             const SizedBox(height: Spacings.md),
@@ -563,7 +564,7 @@ class _SecurityCenterPageState
                         border: OutlineInputBorder())),
                 const SizedBox(height: Spacings.md),
                 Text('Scopes',
-                    style: AppTypography.labelMedium.copyWith(
+                    style: AppTypography.labelMedium!.copyWith(
                         fontWeight: AppTypography.wSemiBold)),
                 const SizedBox(height: Spacings.sm),
                 Wrap(

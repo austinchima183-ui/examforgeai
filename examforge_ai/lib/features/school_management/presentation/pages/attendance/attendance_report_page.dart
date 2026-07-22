@@ -347,7 +347,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(
-                        stats.className,
+                        stats.className ?? '',
                         style: tt.bodySmall?.copyWith(
                           fontWeight: AppTypography.wSemiBold,
                           color: cs.onSurface,

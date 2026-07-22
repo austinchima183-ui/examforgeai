@@ -197,7 +197,7 @@ class _VerificationBadge extends StatelessWidget {
           const SizedBox(width: Spacings.xs),
           Text(
             isVerified ? 'Verified' : 'Unverified',
-            style: AppTypography.labelSmall.copyWith(
+            style: AppTypography.labelSmall!.copyWith(
               color: color,
               fontWeight: AppTypography.wSemiBold,
             ),
@@ -276,7 +276,7 @@ class _CorrectAnswersSection extends StatelessWidget {
                       child: Center(
                         child: Text(
                           '${answers.indexOf(answer) + 1}',
-                          style: AppTypography.labelSmall.copyWith(
+                          style: AppTypography.labelSmall!.copyWith(
                             color: AppColors.success,
                             fontWeight: AppTypography.wBold,
                             fontSize: 10,

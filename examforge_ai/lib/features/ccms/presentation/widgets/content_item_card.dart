@@ -138,7 +138,7 @@ class ContentItemCard extends StatelessWidget {
                     const SizedBox(width: 2),
                     Text(
                       content.status.label,
-                      style: AppTypography.labelSmall.copyWith(
+                      style: AppTypography.labelSmall!.copyWith(
                         color: statusColor,
                         fontWeight: AppTypography.wSemiBold,
                       ),
@@ -172,7 +172,7 @@ class ContentItemCard extends StatelessWidget {
                         const SizedBox(width: 2),
                         Text(
                           'AI',
-                          style: AppTypography.labelSmall.copyWith(
+                          style: AppTypography.labelSmall!.copyWith(
                             color: AppColors.seed,
                             fontWeight: AppTypography.wSemiBold,
                             fontSize: 9,
@@ -211,7 +211,7 @@ class ContentItemCard extends StatelessWidget {
                           const SizedBox(width: 2),
                           Text(
                             content.pastExamYear!,
-                            style: AppTypography.labelSmall.copyWith(
+                            style: AppTypography.labelSmall!.copyWith(
                               color: AppColors.warning,
                               fontWeight: AppTypography.wSemiBold,
                               fontSize: 9,

@@ -44,7 +44,7 @@ class GetChildAttendanceUseCase {
       ));
     }
     return _repository.getChildAttendance(
-      params.studentId,
+      studentId: params.studentId,
       startDate: params.startDate,
       endDate: params.endDate,
     );

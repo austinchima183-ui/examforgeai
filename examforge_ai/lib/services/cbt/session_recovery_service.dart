@@ -111,13 +111,13 @@ class SessionRecoveryService {
       // instance's toString hash as a proxy since we don't have direct
       // device ID access here. In production, pass the device ID from
       // the main app initialization.
-      final deviceSeed = _prefs.getString('_device_seed') ?? 
+      final deviceSeed = _prefs!.getString('_device_seed') ?? 
           DateTime.now().microsecondsSinceEpoch.toString();
-      LocalEncryptionService.initialize(deviceSeed);
+      await LocalEncryptionService.initialize(deviceSeed: deviceSeed);
 
       // Persist the device seed for consistent encryption across sessions
-      if (!_prefs.containsKey('_device_seed')) {
-        await _prefs.setString('_device_seed', deviceSeed);
+      if (!_prefs!.containsKey('_device_seed')) {
+        await _prefs!.setString('_device_seed', deviceSeed);
       }
     }
   }
@@ -127,12 +127,12 @@ class SessionRecoveryService {
     _prefs = await SharedPreferences.getInstance();
 
     if (!LocalEncryptionService.isInitialized) {
-      LocalEncryptionService.initialize(deviceSeed);
+      await LocalEncryptionService.initialize(deviceSeed: deviceSeed);
     }
 
     // Persist for future sessions
-    if (!_prefs.containsKey('_device_seed')) {
-      await _prefs.setString('_device_seed', deviceSeed);
+    if (!_prefs!.containsKey('_device_seed')) {
+      await _prefs!.setString('_device_seed', deviceSeed);
     }
   }
 

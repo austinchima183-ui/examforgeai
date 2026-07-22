@@ -100,7 +100,7 @@ class _BloomTaxonomySelectorState extends State<BloomTaxonomySelector> {
         // Label
         Text(
           "Bloom's Taxonomy",
-          style: AppTypography.labelMedium.copyWith(
+          style: AppTypography.labelMedium!.copyWith(
             color: context.colorScheme.onSurfaceVariant,
             fontWeight: AppTypography.wSemiBold,
           ),
@@ -159,7 +159,7 @@ class _BloomTaxonomySelectorState extends State<BloomTaxonomySelector> {
                       ),
                     Text(
                       level.label,
-                      style: AppTypography.labelMedium.copyWith(
+                      style: AppTypography.labelMedium!.copyWith(
                         color: isSelected
                             ? color
                             : color.withOpacity(0.7),
@@ -179,7 +179,7 @@ class _BloomTaxonomySelectorState extends State<BloomTaxonomySelector> {
           const SizedBox(height: Spacings.xs),
           Text(
             '${_selected.length} level${_selected.length == 1 ? '' : 's'} selected',
-            style: AppTypography.bodySmall.copyWith(
+            style: AppTypography.bodySmall!.copyWith(
               color: context.colorScheme.onSurfaceVariant,
             ),
           ),

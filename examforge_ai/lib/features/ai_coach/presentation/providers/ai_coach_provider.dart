@@ -117,7 +117,7 @@ class AiCoachState {
       isLoadingMessage: isLoadingMessage ?? this.isLoadingMessage,
       error: error,
       hasMoreSessions: hasMoreSessions ?? this.hasMoreSessions,
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 

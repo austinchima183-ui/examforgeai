@@ -1,0 +1,794 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../shared/widgets/app_app_bar.dart';
+     8→import '../../../../shared/widgets/app_loading.dart';
+     9→import '../../../../routing/route_names.dart';
+    10→import '../../domain/entities/super_admin_entities.dart';
+    11→import '../providers/super_admin_providers.dart';
+    12→import '../widgets/super_admin_widgets.dart';
+    13→import '../../../../config/dependency_injection.dart';
+    14→
+    15→
+    16→// ═══════════════════════════════════════════════════════════════════════════════
+    17→// SCHOOL MANAGEMENT PAGE
+    18→// ═══════════════════════════════════════════════════════════════════════════════
+    19→
+    20→/// Super Admin page for managing all schools on the platform.
+    21→///
+    22→/// Features:
+    23→/// - Search bar for filtering schools by name/domain
+    24→/// - Filter chips: Active/Inactive, Verified/Unverified, Subscription status
+    25→/// - DataTable showing: Name, Domain, Status, Verified, Students, Teachers,
+    26→///   Subscription, Storage, Actions
+    27→/// - Actions per school: View, Suspend/Reactivate, Verify, Edit
+    28→/// - FAB for "Create School" with dialog
+    29→/// - Suspend dialog with reason text field
+    30→class SchoolManagementPage extends ConsumerStatefulWidget {
+    31→  const SchoolManagementPage({super.key});
+    32→
+    33→  @override
+    34→  ConsumerState<SchoolManagementPage> createState() =>
+    35→      _SchoolManagementPageState();
+    36→}
+    37→
+    38→class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
+    39→  // ─── Controllers & State ─────────────────────────────────────────────────
+    40→
+    41→  final _searchController = TextEditingController();
+    42→  final _suspendReasonController = TextEditingController();
+    43→  final _createSchoolNameController = TextEditingController();
+    44→  final _createSchoolDomainController = TextEditingController();
+    45→
+    46→  bool? _activeFilter;
+    47→  bool? _verifiedFilter;
+    48→  String? _subscriptionFilter;
+    49→
+    50→  // ─── Lifecycle ───────────────────────────────────────────────────────────
+    51→
+    52→  @override
+    53→  void initState() {
+    54→    super.initState();
+    55→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    56→      _loadData();
+    57→    });
+    58→  }
+    59→
+    60→  @override
+    61→  void dispose() {
+    62→    _searchController.dispose();
+    63→    _suspendReasonController.dispose();
+    64→    _createSchoolNameController.dispose();
+    65→    _createSchoolDomainController.dispose();
+    66→    super.dispose();
+    67→  }
+    68→
+    69→  void _loadData() {
+    70→    ref.read(schoolManagementProvider.notifier).loadSchools(
+    71→          isActive: _activeFilter,
+    72→          isVerified: _verifiedFilter,
+    73→          search: _searchController.text.trim().isEmpty
+    74→              ? null
+    75→              : _searchController.text.trim(),
+    76→          subscriptionStatus: _subscriptionFilter,
+    77→        );
+    78→  }
+    79→
+    80→  // ─── Build ───────────────────────────────────────────────────────────────
+    81→
+    82→  @override
+    83→  Widget build(BuildContext context) {
+    84→    final state = ref.watch(schoolManagementProvider);
+    85→    final cs = Theme.of(context).colorScheme;
+    86→
+    87→    // Success snackbar
+    88→    ref.listen<SchoolManagementState>(schoolManagementProvider, (prev, next) {
+    89→      if (next.successMessage != null &&
+    90→          prev?.successMessage != next.successMessage) {
+    91→        ScaffoldMessenger.of(context).showSnackBar(
+    92→          SnackBar(
+    93→            content: Text(next.successMessage!),
+    94→            backgroundColor: AppColors.success,
+    95→            behavior: SnackBarBehavior.floating,
+    96→          ),
+    97→        );
+    98→        ref.read(schoolManagementProvider.notifier).state =
+    99→            ref.read(schoolManagementProvider).clearSuccess();
+   100→      }
+   101→      if (next.error != null && prev?.error != next.error) {
+   102→        ScaffoldMessenger.of(context).showSnackBar(
+   103→          SnackBar(
+   104→            content: Text(next.error!),
+   105→            backgroundColor: AppColors.error,
+   106→            behavior: SnackBarBehavior.floating,
+   107→          ),
+   108→        );
+   109→        ref.read(schoolManagementProvider.notifier).state =
+   110→            ref.read(schoolManagementProvider).clearError();
+   111→      }
+   112→    });
+   113→
+   114→    return Scaffold(
+   115→      appBar: AppAppBar(
+   116→        title: 'School Management',
+   117→        actions: [
+   118→          IconButton(
+   119→            icon: const Icon(Icons.refresh_rounded),
+   120→            tooltip: 'Refresh',
+   121→            onPressed: _loadData,
+   122→          ),
+   123→        ],
+   124→      ),
+   125→      body: _buildBody(context, state, cs),
+   126→      floatingActionButton: FloatingActionButton.extended(
+   127→        onPressed: _showCreateSchoolDialog,
+   128→        icon: const Icon(Icons.add_rounded),
+   129→        label: Text(
+   130→          'Create School',
+   131→          style: AppTypography.wSemiBold.copyWith(fontSize: 14),
+   132→        ),
+   133→      ),
+   134→    );
+   135→  }
+   136→
+   137→  // ─── Body ────────────────────────────────────────────────────────────────
+   138→
+   139→  Widget _buildBody(
+   140→      BuildContext context, SchoolManagementState state, ColorScheme cs) {
+   141→    if (state.isLoading && state.schools.isEmpty) {
+   142→      return const Center(child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+   143→    }
+   144→
+   145→    if (state.error != null && state.schools.isEmpty) {
+   146→      return Center(
+   147→        child: Padding(
+   148→          padding: Spacings.paddingAll,
+   149→          child: Column(
+   150→            mainAxisSize: MainAxisSize.min,
+   151→            children: [
+   152→              Icon(Icons.error_outline_rounded, size: 48, color: cs.error),
+   153→              const SizedBox(height: Spacings.lg),
+   154→              Text(
+   155→                state.error!,
+   156→                style: AppTypography.wRegular.copyWith(
+   157→                  fontSize: 14,
+   158→                  color: cs.onSurface.withOpacity(0.7),
+   159→                ),
+   160→                textAlign: TextAlign.center,
+   161→              ),
+   162→              const SizedBox(height: Spacings.lg),
+   163→              FilledButton.tonal(
+   164→                onPressed: _loadData,
+   165→                child: const Text('Retry'),
+   166→              ),
+   167→            ],
+   168→          ),
+   169→        ),
+   170→      );
+   171→    }
+   172→
+   173→    return Column(
+   174→      children: [
+   175→        // ─── Search & Filters ────────────────────────────────────────────
+   176→        Padding(
+   177→          padding: Spacings.paddingScreen,
+   178→          child: Column(
+   179→            children: [
+   180→              AdminSearchBar(
+   181→                controller: _searchController,
+   182→                hint: 'Search schools by name or domain...',
+   183→                onChanged: (value) => _loadData(),
+   184→              ),
+   185→              const SizedBox(height: Spacings.md),
+   186→              _buildFilterChips(cs),
+   187→            ],
+   188→          ),
+   189→        ),
+   190→
+   191→        // ─── Count Label ─────────────────────────────────────────────────
+   192→        Padding(
+   193→          padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+   194→          child: Row(
+   195→            children: [
+   196→              Text(
+   197→                '${state.totalCount} school${state.totalCount == 1 ? '' : 's'}',
+   198→                style: AppTypography.wMedium.copyWith(
+   199→                  fontSize: 13,
+   200→                  color: cs.onSurface.withOpacity(0.6),
+   201→                ),
+   202→              ),
+   203→            ],
+   204→          ),
+   205→        ),
+   206→        const SizedBox(height: Spacings.sm),
+   207→
+   208→        // ─── School List ─────────────────────────────────────────────────
+   209→        Expanded(
+   210→          child: state.schools.isEmpty
+   211→              ? AdminEmptyState(
+   212→                  message: 'No schools found',
+   213→                  icon: Icons.domain_outlined,
+   214→                  action: FilledButton.tonal(
+   215→                    onPressed: _showCreateSchoolDialog,
+   216→                    child: const Text('Create School'),
+   217→                  ),
+   218→                )
+   219→              : _buildSchoolList(context, state, cs),
+   220→        ),
+   221→      ],
+   222→    );
+   223→  }
+   224→
+   225→  // ─── Filter Chips ────────────────────────────────────────────────────────
+   226→
+   227→  Widget _buildFilterChips(ColorScheme cs) {
+   228→    return Wrap(
+   229→      spacing: Spacings.sm,
+   230→      runSpacing: Spacings.sm,
+   231→      children: [
+   232→        // Active / Inactive
+   233→        FilterChip(
+   234→          label: const Text('Active'),
+   235→          selected: _activeFilter == true,
+   236→          onSelected: (selected) {
+   237→            setState(() => _activeFilter = selected ? true : null);
+   238→            _loadData();
+   239→          },
+   240→        ),
+   241→        FilterChip(
+   242→          label: const Text('Inactive'),
+   243→          selected: _activeFilter == false,
+   244→          onSelected: (selected) {
+   245→            setState(() => _activeFilter = selected ? false : null);
+   246→            _loadData();
+   247→          },
+   248→        ),
+   249→        const SizedBox(width: Spacings.xs),
+   250→        // Verified / Unverified
+   251→        FilterChip(
+   252→          label: const Text('Verified'),
+   253→          selected: _verifiedFilter == true,
+   254→          onSelected: (selected) {
+   255→            setState(() => _verifiedFilter = selected ? true : null);
+   256→            _loadData();
+   257→          },
+   258→        ),
+   259→        FilterChip(
+   260→          label: const Text('Unverified'),
+   261→          selected: _verifiedFilter == false,
+   262→          onSelected: (selected) {
+   263→            setState(() => _verifiedFilter = selected ? false : null);
+   264→            _loadData();
+   265→          },
+   266→        ),
+   267→        const SizedBox(width: Spacings.xs),
+   268→        // Subscription status
+   269→        FilterChip(
+   270→          label: const Text('Active Subscription'),
+   271→          selected: _subscriptionFilter == 'active',
+   272→          onSelected: (selected) {
+   273→            setState(() =>
+   274→                _subscriptionFilter = selected ? 'active' : null);
+   275→            _loadData();
+   276→          },
+   277→        ),
+   278→        FilterChip(
+   279→          label: const Text('Trial'),
+   280→          selected: _subscriptionFilter == 'trial',
+   281→          onSelected: (selected) {
+   282→            setState(() =>
+   283→                _subscriptionFilter = selected ? 'trial' : null);
+   284→            _loadData();
+   285→          },
+   286→        ),
+   287→        FilterChip(
+   288→          label: const Text('Expired'),
+   289→          selected: _subscriptionFilter == 'expired',
+   290→          onSelected: (selected) {
+   291→            setState(() =>
+   292→                _subscriptionFilter = selected ? 'expired' : null);
+   293→            _loadData();
+   294→          },
+   295→        ),
+   296→      ],
+   297→    );
+   298→  }
+   299→
+   300→  // ─── School List ─────────────────────────────────────────────────────────
+   301→
+   302→  Widget _buildSchoolList(
+   303→      BuildContext context, SchoolManagementState state, ColorScheme cs) {
+   304→    return RefreshIndicator(
+   305→      onRefresh: () async => _loadData(),
+   306→      child: ListView.separated(
+   307→        physics: const AlwaysScrollableScrollPhysics(),
+   308→        padding: Spacings.paddingScreen,
+   309→        itemCount: state.schools.length,
+   310→        separatorBuilder: (_, __) => const SizedBox(height: Spacings.sm),
+   311→        itemBuilder: (context, index) {
+   312→          final school = state.schools[index];
+   313→          return _SchoolManagementCard(
+   314→            school: school,
+   315→            onView: () => context.push(RouteNames.schoolDetail),
+   316→            onSuspend: school.isActive
+   317→                ? () => _showSuspendDialog(school)
+   318→                : () => _reactivateSchool(school.id),
+   319→            onVerify: !school.isVerified
+   320→                ? () => _verifySchool(school.id)
+   321→                : null,
+   322→            onEdit: () => context.push(RouteNames.schoolForm),
+   323→          );
+   324→        },
+   325→      ),
+   326→    );
+   327→  }
+   328→
+   329→  // ─── Suspend Dialog ─────────────────────────────────────────────────────
+   330→
+   331→  void _showSuspendDialog(SchoolManagementDetail school) {
+   332→    _suspendReasonController.clear();
+   333→    showDialog(
+   334→      context: context,
+   335→      builder: (dialogContext) => AlertDialog(
+   336→        title: Text(
+   337→          'Suspend School',
+   338→          style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   339→        ),
+   340→        content: Column(
+   341→          mainAxisSize: MainAxisSize.min,
+   342→          crossAxisAlignment: CrossAxisAlignment.start,
+   343→          children: [
+   344→            Text(
+   345→              'You are about to suspend "${school.name}". This will deactivate the school and restrict access for all its users.',
+   346→              style: AppTypography.wRegular.copyWith(
+   347→                fontSize: 14,
+   348→                color: Theme.of(context)
+   349→                    .colorScheme
+   350→                    .onSurface
+   351→                    .withOpacity(0.7),
+   352→              ),
+   353→            ),
+   354→            const SizedBox(height: Spacings.lg),
+   355→            TextField(
+   356→              controller: _suspendReasonController,
+   357→              maxLines: 3,
+   358→              decoration: InputDecoration(
+   359→                labelText: 'Reason for suspension',
+   360→                hintText: 'Provide a reason...',
+   361→                border: OutlineInputBorder(
+   362→                  borderRadius: Spacings.borderRadiusMd,
+   363→                ),
+   364→                alignLabelWithHint: true,
+   365→              ),
+   366→            ),
+   367→          ],
+   368→        ),
+   369→        actions: [
+   370→          TextButton(
+   371→            onPressed: () => Navigator.of(dialogContext).pop(),
+   372→            child: const Text('Cancel'),
+   373→          ),
+   374→          FilledButton(
+   375→            onPressed: () {
+   376→              final reason = _suspendReasonController.text.trim();
+   377→              if (reason.isEmpty) {
+   378→                ScaffoldMessenger.of(context).showSnackBar(
+   379→                  const SnackBar(
+   380→                    content: Text('Please provide a reason for suspension'),
+   381→                    backgroundColor: AppColors.warning,
+   382→                  ),
+   383→                );
+   384→                return;
+   385→              }
+   386→              Navigator.of(dialogContext).pop();
+   387→              ref
+   388→                  .read(schoolManagementProvider.notifier)
+   389→                  .suspendSchool(school.id, reason);
+   390→            },
+   391→            style: FilledButton.styleFrom(
+   392→              backgroundColor: AppColors.error,
+   393→            ),
+   394→            child: const Text('Suspend'),
+   395→          ),
+   396→        ],
+   397→      ),
+   398→    );
+   399→  }
+   400→
+   401→  // ─── Create School Dialog ────────────────────────────────────────────────
+   402→
+   403→  void _showCreateSchoolDialog() {
+   404→    _createSchoolNameController.clear();
+   405→    _createSchoolDomainController.clear();
+   406→    showDialog(
+   407→      context: context,
+   408→      builder: (dialogContext) => AlertDialog(
+   409→        title: Text(
+   410→          'Create New School',
+   411→          style: AppTypography.wSemiBold.copyWith(fontSize: 18),
+   412→        ),
+   413→        content: Column(
+   414→          mainAxisSize: MainAxisSize.min,
+   415→          crossAxisAlignment: CrossAxisAlignment.start,
+   416→          children: [
+   417→            TextField(
+   418→              controller: _createSchoolNameController,
+   419→              decoration: InputDecoration(
+   420→                labelText: 'School Name',
+   421→                hintText: 'Enter school name',
+   422→                border: OutlineInputBorder(
+   423→                  borderRadius: Spacings.borderRadiusMd,
+   424→                ),
+   425→              ),
+   426→            ),
+   427→            const SizedBox(height: Spacings.md),
+   428→            TextField(
+   429→              controller: _createSchoolDomainController,
+   430→              decoration: InputDecoration(
+   431→                labelText: 'Domain',
+   432→                hintText: 'e.g. school.examforge.ai',
+   433→                border: OutlineInputBorder(
+   434→                  borderRadius: Spacings.borderRadiusMd,
+   435→                ),
+   436→              ),
+   437→            ),
+   438→          ],
+   439→        ),
+   440→        actions: [
+   441→          TextButton(
+   442→            onPressed: () => Navigator.of(dialogContext).pop(),
+   443→            child: const Text('Cancel'),
+   444→          ),
+   445→          FilledButton(
+   446→            onPressed: () {
+   447→              final name = _createSchoolNameController.text.trim();
+   448→              if (name.isEmpty) {
+   449→                ScaffoldMessenger.of(context).showSnackBar(
+   450→                  const SnackBar(
+   451→                    content: Text('School name is required'),
+   452→                    backgroundColor: AppColors.warning,
+   453→                  ),
+   454→                );
+   455→                return;
+   456→              }
+   457→              Navigator.of(dialogContext).pop();
+   458→              ref.read(schoolManagementProvider.notifier).createSchool({
+   459→                'name': name,
+   460→                'domain': _createSchoolDomainController.text.trim(),
+   461→              });
+   462→            },
+   463→            child: const Text('Create'),
+   464→          ),
+   465→        ],
+   466→      ),
+   467→    );
+   468→  }
+   469→
+   470→  // ─── Actions ─────────────────────────────────────────────────────────────
+   471→
+   472→  void _reactivateSchool(String schoolId) {
+   473→    ref.read(schoolManagementProvider.notifier).reactivateSchool(schoolId);
+   474→  }
+   475→
+   476→  void _verifySchool(String schoolId) {
+   477→    ref.read(schoolManagementProvider.notifier).verifySchool(schoolId);
+   478→  }
+   479→}
+   480→
+   481→// ═══════════════════════════════════════════════════════════════════════════════
+   482→// SCHOOL MANAGEMENT CARD
+   483→// ═══════════════════════════════════════════════════════════════════════════════
+   484→
+   485→class _SchoolManagementCard extends StatelessWidget {
+   486→  const _SchoolManagementCard({
+   487→    required this.school,
+   488→    required this.onView,
+   489→    required this.onSuspend,
+   490→    this.onVerify,
+   491→    required this.onEdit,
+   492→  });
+   493→
+   494→  final SchoolManagementDetail school;
+   495→  final VoidCallback onView;
+   496→  final VoidCallback onSuspend;
+   497→  final VoidCallback? onVerify;
+   498→  final VoidCallback onEdit;
+   499→
+   500→  @override
+   501→  Widget build(BuildContext context) {
+   502→    final cs = Theme.of(context).colorScheme;
+   503→
+   504→    return Card(
+   505→      elevation: Spacings.elevationSm,
+   506→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   507→      child: Padding(
+   508→        padding: Spacings.paddingAll,
+   509→        child: Column(
+   510→          crossAxisAlignment: CrossAxisAlignment.start,
+   511→          children: [
+   512→            // ─── Header Row ────────────────────────────────────────────────
+   513→            Row(
+   514→              children: [
+   515→                // School icon
+   516→                Container(
+   517→                  width: 40,
+   518→                  height: 40,
+   519→                  decoration: BoxDecoration(
+   520→                    color: cs.primary.withOpacity(0.1),
+   521→                    borderRadius: Spacings.borderRadiusSm,
+   522→                  ),
+   523→                  child: Center(
+   524→                    child: Text(
+   525→                      school.name.substring(0, 1).toUpperCase(),
+   526→                      style: AppTypography.wBold.copyWith(
+   527→                        fontSize: 18,
+   528→                        color: cs.primary,
+   529→                      ),
+   530→                    ),
+   531→                  ),
+   532→                ),
+   533→                const SizedBox(width: Spacings.md),
+   534→                // Name & domain
+   535→                Expanded(
+   536→                  child: Column(
+   537→                    crossAxisAlignment: CrossAxisAlignment.start,
+   538→                    children: [
+   539→                      Text(
+   540→                        school.name,
+   541→                        style: AppTypography.wSemiBold.copyWith(
+   542→                          fontSize: 15,
+   543→                          color: cs.onSurface,
+   544→                        ),
+   545→                        maxLines: 1,
+   546→                        overflow: TextOverflow.ellipsis,
+   547→                      ),
+   548→                      if (school.domain != null)
+   549→                        Text(
+   550→                          school.domain!,
+   551→                          style: AppTypography.wRegular.copyWith(
+   552→                            fontSize: 12,
+   553→                            color: cs.onSurface.withOpacity(0.5),
+   554→                          ),
+   555→                          maxLines: 1,
+   556→                          overflow: TextOverflow.ellipsis,
+   557→                        ),
+   558→                    ],
+   559→                  ),
+   560→                ),
+   561→                // Status badge
+   562→                StatusBadge(
+   563→                  label: school.isActive ? 'Active' : 'Inactive',
+   564→                  color: school.isActive ? AppColors.success : AppColors.error,
+   565→                  icon: school.isActive
+   566→                      ? Icons.check_circle_outline
+   567→                      : Icons.cancel_outlined,
+   568→                ),
+   569→              ],
+   570→            ),
+   571→            const SizedBox(height: Spacings.md),
+   572→
+   573→            // ─── Info Row: Verified, Students, Teachers ───────────────────
+   574→            Wrap(
+   575→              spacing: Spacings.lg,
+   576→              runSpacing: Spacings.sm,
+   577→              children: [
+   578→                _infoItem(
+   579→                  icon: school.isVerified
+   580→                      ? Icons.verified_rounded
+   581→                      : Icons.verified_outlined,
+   582→                  label: school.isVerified ? 'Verified' : 'Unverified',
+   583→                  color: school.isVerified ? AppColors.success : AppColors.warning,
+   584→                ),
+   585→                _infoItem(
+   586→                  icon: Icons.school_outlined,
+   587→                  label: '${school.studentCount} students',
+   588→                  color: cs.onSurface.withOpacity(0.6),
+   589→                ),
+   590→                _infoItem(
+   591→                  icon: Icons.person_outline_rounded,
+   592→                  label: '${school.teacherCount} teachers',
+   593→                  color: cs.onSurface.withOpacity(0.6),
+   594→                ),
+   595→              ],
+   596→            ),
+   597→            const SizedBox(height: Spacings.md),
+   598→
+   599→            // ─── Subscription & Storage ────────────────────────────────────
+   600→            Row(
+   601→              children: [
+   602→                // Subscription status
+   603→                Expanded(
+   604→                  child: Column(
+   605→                    crossAxisAlignment: CrossAxisAlignment.start,
+   606→                    children: [
+   607→                      Text(
+   608→                        'Subscription',
+   609→                        style: AppTypography.wRegular.copyWith(
+   610→                          fontSize: 11,
+   611→                          color: cs.onSurface.withOpacity(0.5),
+   612→                        ),
+   613→                      ),
+   614→                      const SizedBox(height: Spacings.xs),
+   615→                      StatusBadge(
+   616→                        label: _subscriptionLabel(school.subscriptionStatus),
+   617→                        color: _subscriptionColor(school.subscriptionStatus),
+   618→                      ),
+   619→                    ],
+   620→                  ),
+   621→                ),
+   622→                // Storage usage
+   623→                Expanded(
+   624→                  child: Column(
+   625→                    crossAxisAlignment: CrossAxisAlignment.start,
+   626→                    children: [
+   627→                      Text(
+   628→                        'Storage',
+   629→                        style: AppTypography.wRegular.copyWith(
+   630→                          fontSize: 11,
+   631→                          color: cs.onSurface.withOpacity(0.5),
+   632→                        ),
+   633→                      ),
+   634→                      const SizedBox(height: Spacings.xs),
+   635→                      _buildStorageBar(school, cs),
+   636→                    ],
+   637→                  ),
+   638→                ),
+   639→              ],
+   640→            ),
+   641→            const SizedBox(height: Spacings.md),
+   642→
+   643→            // ─── Action Buttons ────────────────────────────────────────────
+   644→            Row(
+   645→              mainAxisAlignment: MainAxisAlignment.end,
+   646→              children: [
+   647→                _actionButton(
+   648→                  label: 'View',
+   649→                  icon: Icons.visibility_outlined,
+   650→                  onPressed: onView,
+   651→                ),
+   652→                const SizedBox(width: Spacings.sm),
+   653→                _actionButton(
+   654→                  label: school.isActive ? 'Suspend' : 'Reactivate',
+   655→                  icon: school.isActive
+   656→                      ? Icons.block_outlined
+   657→                      : Icons.play_arrow_outlined,
+   658→                  onPressed: onSuspend,
+   659→                  color: school.isActive ? AppColors.error : AppColors.success,
+   660→                ),
+   661→                if (onVerify != null) ...[
+   662→                  const SizedBox(width: Spacings.sm),
+   663→                  _actionButton(
+   664→                    label: 'Verify',
+   665→                    icon: Icons.verified_outlined,
+   666→                    onPressed: onVerify,
+   667→                    color: AppColors.info,
+   668→                  ),
+   669→                ],
+   670→                const SizedBox(width: Spacings.sm),
+   671→                _actionButton(
+   672→                  label: 'Edit',
+   673→                  icon: Icons.edit_outlined,
+   674→                  onPressed: onEdit,
+   675→                ),
+   676→              ],
+   677→            ),
+   678→          ],
+   679→        ),
+   680→      ),
+   681→    );
+   682→  }
+   683→
+   684→  // ─── Helper Widgets ──────────────────────────────────────────────────────
+   685→
+   686→  Widget _infoItem({
+   687→    required IconData icon,
+   688→    required String label,
+   689→    required Color color,
+   690→  }) {
+   691→    return Row(
+   692→      mainAxisSize: MainAxisSize.min,
+   693→      children: [
+   694→        Icon(icon, size: Spacings.smIcon, color: color),
+   695→        const SizedBox(width: Spacings.xs),
+   696→        Text(
+   697→          label,
+   698→          style: AppTypography.wMedium.copyWith(fontSize: 12, color: color),
+   699→        ),
+   700→      ],
+   701→    );
+   702→  }
+   703→
+   704→  Widget _buildStorageBar(SchoolManagementDetail school, ColorScheme cs) {
+   705→    final utilization = school.storageUtilization;
+   706→    final color = utilization > 90
+   707→        ? AppColors.error
+   708→        : utilization > 70
+   709→            ? AppColors.warning
+   710→            : AppColors.success;
+   711→
+   712→    return Column(
+   713→      crossAxisAlignment: CrossAxisAlignment.start,
+   714→      children: [
+   715→        ClipRRect(
+   716→          borderRadius: Spacings.borderRadiusSm,
+   717→          child: LinearProgressIndicator(
+   718→            value: utilization / 100,
+   719→            minHeight: 6,
+   720→            backgroundColor: cs.surfaceContainerHighest,
+   721→            color: color,
+   722→          ),
+   723→        ),
+   724→        const SizedBox(height: Spacings.xs),
+   725→        Text(
+   726→          '${school.storageUsedMb.toInt()} / ${school.storageLimitMb.toInt()} MB',
+   727→          style: AppTypography.wRegular.copyWith(
+   728→            fontSize: 10,
+   729→            color: cs.onSurface.withOpacity(0.5),
+   730→          ),
+   731→        ),
+   732→      ],
+   733→    );
+   734→  }
+   735→
+   736→  Widget _actionButton({
+   737→    required String label,
+   738→    required IconData icon,
+   739→    required VoidCallback? onPressed,
+   740→    Color? color,
+   741→  }) {
+   742→    return TextButton.icon(
+   743→      onPressed: onPressed,
+   744→      icon: Icon(icon, size: Spacings.smIcon, color: color),
+   745→      label: Text(
+   746→        label,
+   747→        style: AppTypography.wMedium.copyWith(fontSize: 12, color: color),
+   748→      ),
+   749→      style: TextButton.styleFrom(
+   750→        padding: const EdgeInsets.symmetric(
+   751→          horizontal: Spacings.sm,
+   752→          vertical: Spacings.xs,
+   753→        ),
+   754→        minimumSize: Size.zero,
+   755→        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   756→      ),
+   757→    );
+   758→  }
+   759→
+   760→  // ─── Helpers ─────────────────────────────────────────────────────────────
+   761→
+   762→  String _subscriptionLabel(String? status) {
+   763→    if (status == null) return 'None';
+   764→    switch (status.toLowerCase()) {
+   765→      case 'active':
+   766→        return 'Active';
+   767→      case 'trial':
+   768→        return 'Trial';
+   769→      case 'expired':
+   770→        return 'Expired';
+   771→      case 'cancelled':
+   772→        return 'Cancelled';
+   773→      default:
+   774→        return status;
+   775→    }
+   776→  }
+   777→
+   778→  Color _subscriptionColor(String? status) {
+   779→    if (status == null) return AppColors.error;
+   780→    switch (status.toLowerCase()) {
+   781→      case 'active':
+   782→        return AppColors.success;
+   783→      case 'trial':
+   784→        return AppColors.info;
+   785→      case 'expired':
+   786→        return AppColors.warning;
+   787→      case 'cancelled':
+   788→        return AppColors.error;
+   789→      default:
+   790→        return AppColors.warning;
+   791→    }
+   792→  }
+   793→}
+   794→

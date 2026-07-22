@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/billing_entities.dart';
@@ -102,14 +103,14 @@ class BillingNotificationNotifier
     );
 
     result.fold(
-      onSuccess: (paginatedResult) {
+      onSuccess: (notifications) {
         state = state.copyWith(
           isLoading: false,
-          notifications: paginatedResult.items,
+          notifications: notifications,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${paginatedResult.items.length} billing notifications',
+          'Loaded ${notifications.length} billing notifications',
         );
       },
       onFailure: (failure) {
@@ -252,7 +253,7 @@ final billingNotificationProvider = StateNotifierProvider<
     getBillingNotificationsUseCase:
         ref.watch(getBillingNotificationsUseCaseProvider),
     markNotificationReadUseCase:
-        ref.watch(markNotificationReadUseCaseProvider),
+        ref.watch(billingMarkNotificationReadUseCaseProvider),
     updateNotificationPreferencesUseCase:
         ref.watch(updateNotificationPreferencesUseCaseProvider),
   ),

@@ -17,7 +17,8 @@ export 'student_dashboard_provider.dart'
         currentStudentIdProvider,
         studentDashboardProvider,
         StudentDashboardNotifier,
-        StudentDashboardState;
+        StudentDashboardState,
+        studentSchoolIdProvider;
 
 // ─── AI Tutor ────────────────────────────────────────────────────────
 export 'ai_tutor_provider.dart'
@@ -36,8 +37,7 @@ export 'resource_provider.dart'
     show
         resourceProvider,
         ResourceNotifier,
-        ResourceState,
-        studentSchoolIdProvider;
+        ResourceState;
 
 // ─── Document Chat ───────────────────────────────────────────────────
 export 'document_chat_provider.dart'

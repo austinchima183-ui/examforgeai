@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/billing_entities.dart';
@@ -29,7 +30,7 @@ class ReferralState {
   final ReferralCodeEntity? referralCode;
 
   /// The list of referral tracking entries.
-  final List<ReferralEntity> referralTracking;
+  final List<Map<String, dynamic>> referralTracking;
 
   /// The most recent error message, or `null`.
   final String? error;
@@ -52,7 +53,7 @@ class ReferralState {
   ReferralState copyWith({
     bool? isLoading,
     ReferralCodeEntity? referralCode,
-    List<ReferralEntity>? referralTracking,
+    List<Map<String, dynamic>>? referralTracking,
     String? error,
     String? successMessage,
   }) {
@@ -191,14 +192,14 @@ class ReferralNotifier extends StateNotifier<ReferralState> {
     );
 
     result.fold(
-      onSuccess: (paginatedResult) {
+      onSuccess: (trackingData) {
         state = state.copyWith(
           isLoading: false,
-          referralTracking: paginatedResult.items,
+          referralTracking: trackingData,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${paginatedResult.items.length} referral tracking entries',
+          'Loaded ${trackingData.length} referral tracking entries',
         );
       },
       onFailure: (failure) {

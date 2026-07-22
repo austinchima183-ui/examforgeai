@@ -21,6 +21,15 @@ class AddCommentParams extends Equatable {
 
   @override
   List<Object?> get props => [resourceType, resourceId, content, parentCommentId];
+
+  /// Converts these params into a [Map<String, dynamic>] suitable for
+  /// passing to [TeacherWorkspaceRepository.addComment].
+  Map<String, dynamic> toMap() => {
+    'resourceType': resourceType,
+    'resourceId': resourceId,
+    'content': content,
+    'parentCommentId': parentCommentId,
+  };
 }
 
 /// Use case for adding a comment to a workspace resource.
@@ -33,16 +42,16 @@ class AddCommentUseCase {
 
   /// Adds a comment to a resource based on the provided [params].
   ///
-  /// Returns a [Result] containing the created [CommentEntity]
+  /// Returns a [Result] containing the created [CollaborationCommentEntity]
   /// on success, or a [FailureResult] if validation fails or the
   /// repository encounters an error.
-  Future<Result<CommentEntity>> call(AddCommentParams params) async {
+  Future<Result<CollaborationCommentEntity>> call(AddCommentParams params) async {
     if (params.content.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Comment content is required',
         fieldErrors: {'content': 'Content cannot be empty'},
       ));
     }
-    return _repository.addComment(params);
+    return _repository.addComment(params.toMap());
   }
 }

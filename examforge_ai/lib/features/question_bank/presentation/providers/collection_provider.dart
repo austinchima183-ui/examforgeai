@@ -288,7 +288,7 @@ class CollectionNotifier extends StateNotifier<CollectionState> {
         if (data is List<QuestionEntity>) {
           final current = state.collections.firstWhere(
             (c) => c.id == collectionId,
-            orElse: () => state.currentCollection ?? const QuestionCollectionEntity(
+            orElse: () => state.currentCollection ?? QuestionCollectionEntity(
                   id: '',
                   name: '',
                   createdAt: DateTime.now(),

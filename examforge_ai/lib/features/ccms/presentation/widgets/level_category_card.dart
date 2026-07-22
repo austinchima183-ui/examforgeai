@@ -143,7 +143,7 @@ class LevelCategoryCard extends StatelessWidget {
                 ),
                 child: Text(
                   '${schoolLevels.where((c) => c.isEnabled).length}',
-                  style: AppTypography.labelSmall.copyWith(
+                  style: AppTypography.labelSmall!.copyWith(
                     color: accent,
                     fontWeight: AppTypography.wBold,
                   ),
@@ -287,7 +287,7 @@ class _LevelRow extends StatelessWidget {
                             ),
                             child: Text(
                               'Custom',
-                              style: AppTypography.caption.copyWith(
+                              style: AppTypography.caption!.copyWith(
                                 color: accent,
                                 fontWeight: AppTypography.wSemiBold,
                               ),

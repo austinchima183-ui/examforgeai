@@ -151,6 +151,8 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
   }
 
   Widget _buildBody(BuildContext context, ReportState state) {
+    final cs = context.colorScheme;
+    final tt = context.textTheme;
     if (state.isLoading && !state.hasAttendanceReport) {
       return const Center(
         child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),

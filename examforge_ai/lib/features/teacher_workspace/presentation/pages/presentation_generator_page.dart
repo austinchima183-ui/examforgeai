@@ -334,7 +334,7 @@ class _PresentationGeneratorPageState
                 if (v != null) setState(() => _curriculum = v);
               },
               itemLabel: (c) => c.label,
-              prefixIcon: Icons.curriculum_outlined,
+              prefixIcon: Icons.school_outlined,
               isRequired: true,
             ),
             Spacings.itemGap,
@@ -680,7 +680,7 @@ class _PresentationGeneratorPageState
                 ),
               if (presentation.curriculum != null)
                 _buildMetaChip(
-                  icon: Icons.curriculum_outlined,
+                  icon: Icons.school_outlined,
                   label: presentation.curriculum!.label,
                   color: cs.secondary,
                 ),

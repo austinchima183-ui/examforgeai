@@ -84,7 +84,7 @@ class _BlankEntryRow extends StatelessWidget {
                     children: [
                       Icon(
                         blank.isCaseSensitive
-                            ? Icons.match_case_rounded
+                            ? Icons.text_fields
                             : Icons.text_fields_rounded,
                         size: Spacings.mdIcon,
                         color: blank.isCaseSensitive

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_client.dart';
 import '../../domain/entities/analytics_dashboard_entities.dart';
 import '../../domain/usecases/analytics_dashboard_usecases.dart';

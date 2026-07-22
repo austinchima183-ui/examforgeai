@@ -220,7 +220,7 @@ class CustomerSuccessRepositoryImpl implements CustomerSuccessRepository {
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
-      return FailureResult(Failure.validation(fieldErrors: const {}, message: e.message, fieldErrors: e.fieldErrors));
+      return FailureResult(Failure.validation(message: e.message, fieldErrors: e.fieldErrors));
     } catch (e) {
       return FailureResult(Failure.server(message: e.toString(), statusCode: 0));
     }
@@ -298,7 +298,7 @@ class CustomerSuccessRepositoryImpl implements CustomerSuccessRepository {
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
-      return FailureResult(Failure.validation(fieldErrors: const {}, message: e.message, fieldErrors: e.fieldErrors));
+      return FailureResult(Failure.validation(message: e.message, fieldErrors: e.fieldErrors));
     } catch (e) {
       return FailureResult(Failure.server(message: e.toString(), statusCode: 0));
     }

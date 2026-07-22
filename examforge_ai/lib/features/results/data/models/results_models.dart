@@ -675,7 +675,7 @@ class AiGradingResultModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         answerId,
         examId,
@@ -701,7 +701,7 @@ class AiGradingResultModel {
         isAccepted,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -1222,7 +1222,7 @@ class StudentSubjectResultModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         studentId,
         schoolId,
@@ -1247,7 +1247,7 @@ class StudentSubjectResultModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -1571,7 +1571,7 @@ class StudentOverallResultModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         studentId,
         schoolId,
@@ -1597,7 +1597,7 @@ class StudentOverallResultModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>

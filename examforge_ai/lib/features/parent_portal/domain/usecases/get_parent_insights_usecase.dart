@@ -28,13 +28,13 @@ class GetParentInsightsUseCase {
 
   /// Retrieves insights for the current parent.
   ///
-  /// Returns a [Result] containing a list of [ParentInsightEntity]
+  /// Returns a [Result] containing a list of [ParentAiInsightEntity]
   /// on success, or a [FailureResult] if the repository encounters
   /// an error.
-  Future<Result<List<ParentInsightEntity>>> call(
+  Future<Result<List<ParentAiInsightEntity>>> call(
     GetParentInsightsParams params,
   ) {
-    return _repository.getParentInsights(
+    return _repository.getInsights(
       studentId: params.studentId,
       isRead: params.isRead,
     );

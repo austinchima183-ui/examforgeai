@@ -419,9 +419,9 @@ class _ResourcesTab extends ConsumerWidget {
     }
 
     if (resources.isEmpty) {
-      return AppEmptyState.generic(
+      return AppEmptyState(
         icon: Icons.folder_off_outlined,
-        message: 'No offline resources',
+        title: 'No offline resources',
         subtitle: 'Download resources to access them without internet',
         onAction: onRefresh,
         actionLabel: 'Refresh',
@@ -452,7 +452,7 @@ class _ResourcesTab extends ConsumerWidget {
             children: [
               // Section header
               Padding(
-                padding: const EdgeInsets.only(
+                padding: EdgeInsets.only(
                   bottom: Spacings.sm,
                   top: index == 0 ? 0 : Spacings.lg,
                 ),
@@ -560,9 +560,9 @@ class _DownloadsTab extends ConsumerWidget {
     }
 
     if (downloads.isEmpty) {
-      return AppEmptyState.generic(
+      return AppEmptyState(
         icon: Icons.download_outlined,
-        message: 'No downloads',
+        title: 'No downloads',
         subtitle: 'Files you download for offline use will appear here',
         onAction: onRefresh,
         actionLabel: 'Refresh',
@@ -662,9 +662,9 @@ class _DraftsTab extends ConsumerWidget {
     }
 
     if (drafts.isEmpty) {
-      return AppEmptyState.generic(
+      return AppEmptyState(
         icon: Icons.edit_note_outlined,
-        message: 'No drafts',
+        title: 'No drafts',
         subtitle: 'Drafts you create while offline will appear here',
         onAction: onRefresh,
         actionLabel: 'Refresh',

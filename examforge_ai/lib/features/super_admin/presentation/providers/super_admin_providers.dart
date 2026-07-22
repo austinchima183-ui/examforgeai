@@ -1254,7 +1254,7 @@ class MarketplaceManagementNotifier extends StateNotifier<MarketplaceManagementS
   Future<void> loadPendingContent() async {
     state = state.copyWith(isLoading: true, error: null);
     final result = await _getContentUseCase(
-      GetMarketplaceContentParams(status: 'pending_review', limit: 100),
+      GetMarketplaceContentParams(status: MarketplaceStatus.pendingReview, limit: 100),
     );
     result.fold(
       onSuccess: (content) => state = state.copyWith(isLoading: false, pendingContent: content),
@@ -1266,8 +1266,8 @@ class MarketplaceManagementNotifier extends StateNotifier<MarketplaceManagementS
     state = state.copyWith(isLoading: true, error: null);
     final result = await _getContentUseCase(
       GetMarketplaceContentParams(
-        status: status?.value,
-        contentType: contentType?.value,
+        status: status,
+        contentType: contentType,
         search: search,
         limit: limit,
         offset: offset,

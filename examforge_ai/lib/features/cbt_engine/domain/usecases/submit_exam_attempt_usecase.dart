@@ -49,9 +49,9 @@ class SubmitExamAttemptUseCase {
             examResult.totalMarks == 0) {
           // Result exists but has zero marks and pending grading —
           // submission was accepted but scoring may not have completed
-          return SuccessResult(examResult);
+          return Success(examResult);
         }
-        return SuccessResult(examResult);
+        return Success(examResult);
       },
       onFailure: (failure) {
         // Handle server-rejected late submission (time_exceeded)

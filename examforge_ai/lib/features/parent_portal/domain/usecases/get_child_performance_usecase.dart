@@ -42,7 +42,7 @@ class GetChildPerformanceUseCase {
       ));
     }
     return _repository.getChildPerformance(
-      params.studentId,
+      studentId: params.studentId,
       academicSessionId: params.academicSessionId,
     );
   }

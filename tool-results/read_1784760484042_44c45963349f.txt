@@ -1,0 +1,843 @@
+     1→import 'dart:convert';
+     2→
+     3→import '../../../core/security/ai_security_service.dart';
+     4→import '../../core/utils/logger.dart';
+     5→import '../../features/ai_generator/domain/entities/ai_entities.dart';
+     6→import '../../features/question_bank/domain/entities/question_entities.dart';
+     7→
+     8→// ═══════════════════════════════════════════════════════════════════════
+     9→// PROMPT RESOLUTION
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→
+    12→/// Result of resolving a prompt template with input variables.
+    13→class PromptResolution {
+    14→  const PromptResolution({
+    15→    required this.systemPrompt,
+    16→    required this.userPrompt,
+    17→    this.templateUsed,
+    18→    this.resolvedVariables = const {},
+    19→  });
+    20→
+    21→  /// The fully-resolved system prompt.
+    22→  final String systemPrompt;
+    23→
+    24→  /// The fully-resolved user prompt.
+    25→  final String userPrompt;
+    26→
+    27→  /// The template that was used (null if using a built-in default).
+    28→  final PromptTemplateEntity? templateUsed;
+    29→
+    30→  /// The variables that were resolved and substituted.
+    31→  final Map<String, dynamic> resolvedVariables;
+    32→}
+    33→
+    34→// ═══════════════════════════════════════════════════════════════════════
+    35→// PROMPT ENGINE
+    36→// ═══════════════════════════════════════════════════════════════════════
+    37→
+    38→/// The Prompt Engine is the brain of the AI question generation system.
+    39→///
+    40→/// It is responsible for:
+    41→/// - Resolving prompt templates with input variables
+    42→/// - Selecting the best template for a given generation request
+    43→/// - Building generation, improvement, validation, and extraction prompts
+    44→/// - Parsing AI responses into structured domain entities
+    45→class PromptEngine {
+    46→  // ─── Template Resolution ──────────────────────────────────────────
+    47→
+    48→  /// Resolve a prompt template by replacing `{{variable_name}}` placeholders
+    49→  /// with actual values from [variables].
+    50→  ///
+    51→  /// Required variables that are missing will produce a warning log but
+    52→  /// will be replaced with an empty string so generation can continue.
+    53→  String resolvePrompt(
+    54→    PromptTemplateEntity template,
+    55→    Map<String, dynamic> variables,
+    56→  ) {
+    57→    String resolved = template.userPromptTemplate;
+    58→
+    59→    // Replace all {{variable_name}} occurrences
+    60→    final variablePattern = RegExp(r'\{\{(\w+)\}\}');
+    61→    resolved = resolved.replaceAllMapped(variablePattern, (match) {
+    62→      final varName = match.group(1)!;
+    63→      if (variables.containsKey(varName)) {
+    64→        return variables[varName].toString();
+    65→      }
+    66→      // Check if template declares this variable with a default
+    67→      final templateVar = template.variables
+    68→          .where((v) => v.name == varName)
+    69→          .firstOrNull;
+    70→      if (templateVar?.defaultValue != null) {
+    71→        return templateVar!.defaultValue!;
+    72→      }
+    73→      if (templateVar?.isRequired ?? false) {
+    74→        AppLogger.warning('Missing required variable: $varName in template '
+    75→            '"${template.name}"');
+    76→      }
+    77→      return '';
+    78→    });
+    79→
+    80→    return resolved;
+    81→  }
+    82→
+    83→  /// Build a generation prompt from teacher inputs.
+    84→  ///
+    85→  /// Selects the best matching template from [templates] based on
+    86→  /// subject, question type, difficulty, curriculum, and language.
+    87→  /// If no suitable template is found, falls back to the built-in
+    88→  /// default generation prompt.
+    89→  PromptResolution resolveGenerationPrompt(
+    90→    GenerationInputEntity input,
+    91→    List<PromptTemplateEntity> templates,
+    92→  ) {
+    93→    // ─── AI SECURITY: Check user inputs for prompt injection ──────────
+    94→    // Validate the topic, custom instructions, and other user-supplied
+    95→    // fields before incorporating them into the prompt.
+    96→    final topicCheck = AiSecurityService.checkInput(input.topic);
+    97→    if (!topicCheck.isSafe) {
+    98→      AppLogger.error(
+    99→        'AI SECURITY: Prompt injection detected in topic. '
+   100→        'Blocking generation request.',
+   101→      );
+   102→      // Return a safe resolution that will result in an error message
+   103→      return PromptResolution(
+   104→        systemPrompt: 'You are a helpful educational assistant.',
+   105→        userPrompt: 'The provided topic contains potentially unsafe content. '
+   106→            'Please revise and try again.',
+   107→        templateUsed: null,
+   108→        resolvedVariables: {},
+   109→      );
+   110→    }
+   111→
+   112→    final instructionsCheck = AiSecurityService.checkInput(
+   113→      input.customInstructions ?? '',
+   114→    );
+   115→    if (!instructionsCheck.isSafe && instructionsCheck.sanitizedInput != null) {
+   116→      AppLogger.warning(
+   117→        'AI SECURITY: Sanitizing custom instructions due to injection patterns.',
+   118→      );
+   119→      // Use sanitized version instead of blocking
+   120→    }
+   121→
+   122→    final activeTemplates = templates
+   123→        .where((t) =>
+   124→            t.isActive &&
+   125→            t.promptType == PromptType.questionGeneration)
+   126→        .toList();
+   127→
+   128→    // Score each template based on how well it matches the input
+   129→    PromptTemplateEntity? bestMatch;
+   130→    int bestScore = -1;
+   131→
+   132→    for (final template in activeTemplates) {
+   133→      int score = 0;
+   134→
+   135→      // Match on question type (high weight)
+   136→      if (template.questionType == input.questionType) {
+   137→        score += 50;
+   138→      }
+   139→
+   140→      // Match on difficulty (medium weight)
+   141→      if (template.difficulty == input.difficulty) {
+   142→        score += 20;
+   143→      }
+   144→
+   145→      // Match on subject (high weight)
+   146→      if (template.subjectId == input.subjectId) {
+   147→        score += 30;
+   148→      }
+   149→
+   150→      // Match on curriculum (medium weight)
+   151→      if (template.curriculum == input.curriculum) {
+   152→        score += 15;
+   153→      }
+   154→
+   155→      // Match on Bloom's level (medium weight)
+   156→      if (template.bloomLevel == input.bloomLevel) {
+   157→        score += 15;
+   158→      }
+   159→
+   160→      // Match on language (low weight)
+   161→      if (template.language == input.language) {
+   162→        score += 10;
+   163→      }
+   164→
+   165→      // Match on provider preference (low weight)
+   166→      if (template.provider == input.provider) {
+   167→        score += 5;
+   168→      }
+   169→
+   170→      // Default templates get a small bonus
+   171→      if (template.isDefault) {
+   172→        score += 3;
+   173→      }
+   174→
+   175→      // Higher quality score gets a bonus
+   176→      if (template.qualityScore != null) {
+   177→        score += (template.qualityScore! * 10).round();
+   178→      }
+   179→
+   180→      // Higher success rate gets a bonus
+   181→      if (template.successRate != null) {
+   182→        score += (template.successRate! * 10).round();
+   183→      }
+   184→
+   185→      if (score > bestScore) {
+   186→        bestScore = score;
+   187→        bestMatch = template;
+   188→      }
+   189→    }
+   190→
+   191→    // Build resolved variables from input
+   192→    final resolvedVariables = _buildGenerationVariables(input);
+   193→
+   194→    if (bestMatch != null) {
+   195→      final systemPrompt = bestMatch.systemPrompt;
+   196→      final userPrompt = resolvePrompt(bestMatch, resolvedVariables);
+   197→
+   198→      // Append few-shot examples if available
+   199→      final fullUserPrompt = _appendFewShotExamples(userPrompt, bestMatch);
+   200→
+   201→      // Append chain-of-thought instruction if enabled
+   202→      final finalUserPrompt = bestMatch.chainOfThought
+   203→          ? '$fullUserPrompt\n\nThink through this step by step before generating the questions.'
+   204→          : fullUserPrompt;
+   205→
+   206→      return PromptResolution(
+   207→        systemPrompt: systemPrompt,
+   208→        userPrompt: finalUserPrompt,
+   209→        templateUsed: bestMatch,
+   210→        resolvedVariables: resolvedVariables,
+   211→      );
+   212→    }
+   213→
+   214→    // Fallback to built-in default prompt
+   215→    return PromptResolution(
+   216→      systemPrompt: _defaultSystemPrompt,
+   217→      userPrompt: _buildDefaultUserPrompt(input),
+   218→      templateUsed: null,
+   219→      resolvedVariables: resolvedVariables,
+   220→    );
+   221→  }
+   222→
+   223→  // ─── Improvement Prompt ───────────────────────────────────────────
+   224→
+   225→  /// Build an improvement prompt for a generated question.
+   226→  ///
+   227→  /// [improvementType] can be: "clarity", "distractors", "difficulty",
+   228→  /// "explanation", "curriculum_alignment", "grammar", "general".
+   229→  String buildImprovementPrompt(
+   230→    String improvementType,
+   231→    GeneratedQuestionEntity question, {
+   232→    String? customInstructions,
+   233→  }) {
+   234→    final buffer = StringBuffer();
+   235→
+   236→    buffer.writeln('You are an expert educational content improver. '
+   237→        'Your task is to improve the following question.');
+   238→
+   239→    // Add improvement-specific instructions
+   240→    switch (improvementType) {
+   241→      case 'clarity':
+   242→        buffer.writeln(
+   243→            'Focus on making the question clearer and more unambiguous.');
+   244→        buffer.writeln('- Remove any confusing wording');
+   245→        buffer.writeln('- Ensure the question has a single correct interpretation');
+   246→        buffer.writeln('- Simplify complex sentence structures while preserving meaning');
+   247→      case 'distractors':
+   248→        buffer.writeln(
+   249→            'Focus on improving the answer options/distractors.');
+   250→        buffer.writeln('- Make incorrect options (distractors) more plausible');
+   251→        buffer.writeln('- Ensure distractors represent common misconceptions');
+   252→        buffer.writeln('- Make all options roughly the same length');
+   253→        buffer.writeln('- Avoid obviously wrong distractors');
+   254→      case 'difficulty':
+   255→        buffer.writeln(
+   256→            'Focus on adjusting the difficulty level of the question.');
+   257→        buffer.writeln(
+   258→            '- Current difficulty: ${question.difficulty.label}');
+   259→        buffer.writeln(
+   260→            '- Adjust cognitive demand appropriately');
+   261→        buffer.writeln(
+   262→            '- Align with Bloom\'s taxonomy level if specified');
+   263→      case 'explanation':
+   264→        buffer.writeln(
+   265→            'Focus on creating or improving the explanation for this question.');
+   266→        buffer.writeln('- Provide a clear, step-by-step explanation');
+   267→        buffer.writeln('- Explain why the correct answer is right');
+   268→        buffer.writeln('- Explain why each distractor is wrong');
+   269→        buffer.writeln(
+   270→            '- Include relevant references or learning resources');
+   271→      case 'curriculum_alignment':
+   272→        buffer.writeln(
+   273→            'Focus on improving curriculum alignment.');
+   274→        buffer.writeln(
+   275→            '- Ensure the question directly assesses a learning objective');
+   276→        buffer.writeln('- Use curriculum-appropriate terminology');
+   277→        buffer.writeln(
+   278→            '- Align the difficulty with the expected level for this class');
+   279→      case 'grammar':
+   280→        buffer.writeln(
+   281→            'Focus on correcting grammar and spelling errors.');
+   282→        buffer.writeln('- Fix any grammatical errors');
+   283→        buffer.writeln('- Correct spelling mistakes');
+   284→        buffer.writeln(
+   285→            '- Improve sentence structure while preserving meaning');
+   286→      default:
+   287→        buffer.writeln(
+   288→            'Improve this question in any way that enhances its quality.');
+   289→    }
+   290→
+   291→    if (customInstructions != null && customInstructions.isNotEmpty) {
+   292→      buffer.writeln();
+   293→      buffer.writeln('Additional instructions from the teacher:');
+   294→      buffer.writeln(customInstructions);
+   295→    }
+   296→
+   297→    buffer.writeln();
+   298→    buffer.writeln('--- ORIGINAL QUESTION ---');
+   299→    buffer.writeln('Question Type: ${question.questionType.label}');
+   300→    buffer.writeln('Difficulty: ${question.difficulty.label}');
+   301→    buffer.writeln('Bloom\'s Level: ${question.bloomLevel?.label ?? "Not specified"}');
+   302→    buffer.writeln();
+   303→    buffer.writeln('Content: ${question.content}');
+   304→
+   305→    if (question.answerOptions.isNotEmpty) {
+   306→      buffer.writeln();
+   307→      buffer.writeln('Answer Options:');
+   308→      for (int i = 0; i < question.answerOptions.length; i++) {
+   309→        final option = question.answerOptions[i];
+   310→        final label = option['label'] as String? ?? String.fromCharCode(65 + i);
+   311→        final text = option['text'] as String? ?? option['content'] as String? ?? '';
+   312→        final isCorrect = option['is_correct'] as bool? ?? option['isCorrect'] as bool? ?? false;
+   313→        buffer.writeln('  $label. $text ${isCorrect ? "✓ (correct)" : ""}');
+   314→      }
+   315→    }
+   316→
+   317→    if (question.explanation != null) {
+   318→      buffer.writeln();
+   319→      buffer.writeln('Current Explanation: ${question.explanation}');
+   320→    }
+   321→
+   322→    buffer.writeln();
+   323→    buffer.writeln('--- END ORIGINAL QUESTION ---');
+   324→    buffer.writeln();
+   325→    buffer.writeln('Return a JSON object with the following structure:');
+   326→    buffer.writeln('{');
+   327→    buffer.writeln('  "improved_content": "The improved question text",');
+   328→    buffer.writeln('  "improved_answer_options": [');
+   329→    buffer.writeln(
+   330→        '    {"label": "A", "text": "option text", "is_correct": false},');
+   331→    buffer.writeln('    ...');
+   332→    buffer.writeln('  ],');
+   333→    buffer.writeln('  "improved_explanation": "The improved explanation",');
+   334→    buffer.writeln(
+   335→        '  "improvement_notes": "Description of changes made"');
+   336→    buffer.writeln('}');
+   337→
+   338→    return buffer.toString();
+   339→  }
+   340→
+   341→  // ─── Validation Prompt ────────────────────────────────────────────
+   342→
+   343→  /// Build a validation prompt for a generated question.
+   344→  String buildValidationPrompt(GeneratedQuestionEntity question) {
+   345→    final buffer = StringBuffer();
+   346→
+   347→    buffer.writeln('You are an expert educational content validator. '
+   348→        'Analyze the following question for quality issues.');
+   349→    buffer.writeln();
+   350→    buffer.writeln('Check for:');
+   351→    buffer.writeln('1. Grammar and spelling errors');
+   352→    buffer.writeln('2. Ambiguous or unclear wording');
+   353→    buffer.writeln('3. Answer accuracy (correct answer must be clearly correct, '
+   354→        'distractors must be clearly wrong)');
+   355→    buffer.writeln('4. Plausible distractors (incorrect options should be '
+   356→        'reasonable but definitively wrong)');
+   357→    buffer.writeln('5. Difficulty level consistency (does the question match '
+   358→        'its stated difficulty?)');
+   359→    buffer.writeln('6. Curriculum alignment (is the question appropriate for '
+   360→        'the stated class level and subject?)');
+   361→    buffer.writeln('7. Clarity of the question (is there only one correct '
+   362→        'interpretation?)');
+   363→    buffer.writeln();
+   364→    buffer.writeln('--- QUESTION TO VALIDATE ---');
+   365→    buffer.writeln('Question Type: ${question.questionType.label}');
+   366→    buffer.writeln('Difficulty: ${question.difficulty.label}');
+   367→    buffer.writeln('Bloom\'s Level: ${question.bloomLevel?.label ?? "Not specified"}');
+   368→    buffer.writeln();
+   369→    buffer.writeln('Content: ${question.content}');
+   370→
+   371→    if (question.answerOptions.isNotEmpty) {
+   372→      buffer.writeln();
+   373→      buffer.writeln('Answer Options:');
+   374→      for (int i = 0; i < question.answerOptions.length; i++) {
+   375→        final option = question.answerOptions[i];
+   376→        final label = option['label'] as String? ?? String.fromCharCode(65 + i);
+   377→        final text = option['text'] as String? ?? option['content'] as String? ?? '';
+   378→        final isCorrect = option['is_correct'] as bool? ?? option['isCorrect'] as bool? ?? false;
+   379→        buffer.writeln('  $label. $text ${isCorrect ? "✓ (correct)" : ""}');
+   380→      }
+   381→    }
+   382→
+   383→    if (question.explanation != null) {
+   384→      buffer.writeln();
+   385→      buffer.writeln('Explanation: ${question.explanation}');
+   386→    }
+   387→
+   388→    buffer.writeln();
+   389→    buffer.writeln('--- END QUESTION ---');
+   390→    buffer.writeln();
+   391→    buffer.writeln('Return a JSON object with the following structure:');
+   392→    buffer.writeln('{');
+   393→    buffer.writeln('  "is_valid": true/false,');
+   394→    buffer.writeln('  "overall_quality_score": 0.0-1.0,');
+   395→    buffer.writeln('  "validation_results": [');
+   396→    buffer.writeln('    {');
+   397→    buffer.writeln('      "type": "grammar|ambiguity|answer_accuracy|'
+   398→        'distractor_quality|difficulty_consistency|curriculum_alignment|clarity",');
+   399→    buffer.writeln('      "severity": "info|warning|error|critical",');
+   400→    buffer.writeln('      "message": "Description of the issue",');
+   401→    buffer.writeln('      "suggestion": "How to fix the issue (optional)"');
+   402→    buffer.writeln('    }');
+   403→    buffer.writeln('  ]');
+   404→    buffer.writeln('}');
+   405→
+   406→    return buffer.toString();
+   407→  }
+   408→
+   409→  // ─── Document Extraction Prompt ───────────────────────────────────
+   410→
+   411→  /// Build a document extraction prompt.
+   412→  ///
+   413→  /// Used to extract questions, topics, and learning objectives from
+   414→  /// a document's text content.
+   415→  String buildDocumentExtractionPrompt(
+   416→    String extractedText,
+   417→    GenerationInputEntity input,
+   418→  ) {
+   419→    final buffer = StringBuffer();
+   420→
+   421→    buffer.writeln('You are an expert educational content analyst. '
+   422→        'Analyze the following document and extract information useful '
+   423→        'for generating exam questions.');
+   424→    buffer.writeln();
+   425→    buffer.writeln('Subject: ${input.subjectId}');
+   426→    buffer.writeln('Topic: ${input.topicId}');
+   427→    if (input.curriculum != null) {
+   428→      buffer.writeln('Curriculum: ${input.curriculum!.label}');
+   429→    }
+   430→    if (input.classId != null) {
+   431→      buffer.writeln('Class Level: ${input.classId}');
+   432→    }
+   433→    buffer.writeln();
+   434→    buffer.writeln('--- DOCUMENT TEXT ---');
+   435→    // Truncate very long documents to avoid token limits
+   436→    final maxChars = 50000;
+   437→    if (extractedText.length > maxChars) {
+   438→      buffer.writeln(extractedText.substring(0, maxChars));
+   439→      buffer.writeln();
+   440→      buffer.writeln('[Document truncated - showing first $maxChars characters]');
+   441→    } else {
+   442→      buffer.writeln(extractedText);
+   443→    }
+   444→    buffer.writeln('--- END DOCUMENT TEXT ---');
+   445→    buffer.writeln();
+   446→    buffer.writeln('Return a JSON object with the following structure:');
+   447→    buffer.writeln('{');
+   448→    buffer.writeln('  "identified_topics": [');
+   449→    buffer.writeln('    {');
+   450→    buffer.writeln('      "name": "Topic name",');
+   451→    buffer.writeln('      "confidence": 0.0-1.0,');
+   452→    buffer.writeln('      "subtopics": ["Subtopic 1", "Subtopic 2"]');
+   453→    buffer.writeln('    }');
+   454→    buffer.writeln('  ],');
+   455→    buffer.writeln('  "suggested_objectives": [');
+   456→    buffer.writeln('    {');
+   457→    buffer.writeln('      "objective": "Learning objective text",');
+   458→    buffer.writeln('      "bloom_level": "remember|understand|apply|analyze|evaluate|create",');
+   459→    buffer.writeln('      "suggested_difficulty": "easy|medium|hard|expert",');
+   460→    buffer.writeln('      "suggested_question_types": ["multiple_choice", "short_answer"]');
+   461→    buffer.writeln('    }');
+   462→    buffer.writeln('  ],');
+   463→    buffer.writeln('  "key_concepts": ["Concept 1", "Concept 2"],');
+   464→    buffer.writeln('  "summary": "Brief summary of the document content"');
+   465→    buffer.writeln('}');
+   466→
+   467→    return buffer.toString();
+   468→  }
+   469→
+   470→  // ─── Response Parsing ─────────────────────────────────────────────
+   471→
+   472→  /// Parse AI response into structured generated questions.
+   473→  ///
+   474→  /// The response should be a JSON object or a list of question objects.
+   475→  /// This method handles multiple response formats:
+   476→  /// 1. `{ "questions": [...] }` — standard format
+   477→  /// 2. `[...]` — direct list of questions
+   478→  /// 3. `{ "question": {...} }` — single question wrapper
+   479→  List<GeneratedQuestionEntity> parseGeneratedQuestions(
+   480→    Map<String, dynamic> response,
+   481→    GenerationRequestEntity request,
+   482→  ) {
+   483→    try {
+   484→      List<dynamic> questionsList;
+   485→
+   486→      if (response.containsKey('questions')) {
+   487→        questionsList = response['questions'] as List<dynamic>;
+   488→      } else if (response.containsKey('question')) {
+   489→        questionsList = [response['question']];
+   490→      } else if (response.values.any((v) => v is List)) {
+   491→        // Try to find the list of questions
+   492→        final listEntry = response.entries
+   493→            .firstWhere((e) => e.value is List && (e.value as List).isNotEmpty);
+   494→        questionsList = listEntry.value as List<dynamic>;
+   495→      } else {
+   496→        // Assume the entire response is a single question
+   497→        questionsList = [response];
+   498→      }
+   499→
+   500→      return questionsList
+   501→          .whereType<Map<String, dynamic>>()
+   502→          .map((q) => _mapToGeneratedQuestion(q, request))
+   503→          .toList();
+   504→    } catch (e) {
+   505→      AppLogger.error('Failed to parse generated questions from response', error: e);
+   506→      return [];
+   507→    }
+   508→  }
+   509→
+   510→  /// Parse AI improvement response.
+   511→  QuestionImprovementEntity parseImprovementResponse(
+   512→    Map<String, dynamic> response,
+   513→    GeneratedQuestionEntity original,
+   514→    String improvementType,
+   515→  ) {
+   516→    return QuestionImprovementEntity(
+   517→      id: '',
+   518→      generatedQuestionId: original.id,
+   519→      improvementType: improvementType,
+   520→      provider: AiProvider.openai, // Will be overwritten by caller
+   521→      originalContent: original.content,
+   522→      improvedContent: response['improved_content'] as String? ??
+   523→          original.content,
+   524→      originalAnswerOptions: original.answerOptions.isNotEmpty
+   525→          ? List<Map<String, dynamic>>.from(original.answerOptions)
+   526→          : null,
+   527→      improvedAnswerOptions: response['improved_answer_options'] != null
+   528→          ? List<Map<String, dynamic>>.from(
+   529→              response['improved_answer_options'] as List)
+   530→          : null,
+   531→      improvementPrompt: null,
+   532→      inputTokens: null,
+   533→      outputTokens: null,
+   534→      cost: null,
+   535→      isAccepted: false,
+   536→      createdBy: null,
+   537→      createdAt: DateTime.now(),
+   538→    );
+   539→  }
+   540→
+   541→  /// Parse validation results from AI response.
+   542→  List<ValidationResultEntity> parseValidationResults(
+   543→    Map<String, dynamic> response,
+   544→    String questionId,
+   545→  ) {
+   546→    try {
+   547→      final results = <ValidationResultEntity>[];
+   548→
+   549→      // If response has validation_results array
+   550→      if (response.containsKey('validation_results')) {
+   551→        final validationResults =
+   552→            response['validation_results'] as List<dynamic>;
+   553→        for (int i = 0; i < validationResults.length; i++) {
+   554→          final result = validationResults[i] as Map<String, dynamic>;
+   555→          results.add(ValidationResultEntity(
+   556→            id: '',
+   557→            generatedQuestionId: questionId,
+   558→            validationType: result['type'] as String? ?? 'general',
+   559→            severity: ValidationSeverity.fromString(
+   560→                    result['severity'] as String?) ??
+   561→                ValidationSeverity.info,
+   562→            message: result['message'] as String? ?? 'No message provided',
+   563→            suggestion: result['suggestion'] as String?,
+   564→            isResolved: false,
+   565→            resolvedBy: null,
+   566→            resolvedAt: null,
+   567→            createdAt: DateTime.now(),
+   568→          ));
+   569→        }
+   570→      }
+   571→
+   572→      // If no structured results, create one from the overall validity
+   573→      if (results.isEmpty) {
+   574→        final isValid = response['is_valid'] as bool? ?? true;
+   575→        results.add(ValidationResultEntity(
+   576→          id: '',
+   577→          generatedQuestionId: questionId,
+   578→          validationType: 'overall',
+   579→          severity: isValid ? ValidationSeverity.info : ValidationSeverity.error,
+   580→          message: isValid
+   581→              ? 'Question passed validation'
+   582→              : 'Question failed validation',
+   583→          suggestion: response['suggestion'] as String?,
+   584→          isResolved: false,
+   585→          resolvedBy: null,
+   586→          resolvedAt: null,
+   587→          createdAt: DateTime.now(),
+   588→        ));
+   589→      }
+   590→
+   591→      return results;
+   592→    } catch (e) {
+   593→      AppLogger.error('Failed to parse validation results', error: e);
+   594→      return [
+   595→        ValidationResultEntity(
+   596→          id: '',
+   597→          generatedQuestionId: questionId,
+   598→          validationType: 'parse_error',
+   599→          severity: ValidationSeverity.warning,
+   600→          message: 'Could not parse validation results from AI response',
+   601→          isResolved: false,
+   602→          resolvedBy: null,
+   603→          resolvedAt: null,
+   604→          createdAt: DateTime.now(),
+   605→        ),
+   606→      ];
+   607→    }
+   608→  }
+   609→
+   610→  // ─── Private Helpers ──────────────────────────────────────────────
+   611→
+   612→  /// Build the variable map from a [GenerationInputEntity].
+   613→  Map<String, dynamic> _buildGenerationVariables(GenerationInputEntity input) {
+   614→    return {
+   615→      'subject_id': input.subjectId,
+   616→      'topic_id': input.topicId,
+   617→      'subtopic_id': input.subtopicId ?? '',
+   618→      'class_id': input.classId ?? '',
+   619→      'curriculum': input.curriculum?.label ?? '',
+   620→      'difficulty': input.difficulty.label,
+   621→      'bloom_level': input.bloomLevel?.label ?? '',
+   622→      'question_type': input.questionType?.label ?? 'Any',
+   623→      'num_questions': input.numQuestions.toString(),
+   624→      'language': input.language,
+   625→      'exam_type': input.examType?.label ?? '',
+   626→      'keywords': input.keywords.join(', '),
+   627→      'custom_instructions': input.customInstructions ?? '',
+   628→    };
+   629→  }
+   630→
+   631→  /// Append few-shot examples to the user prompt.
+   632→  String _appendFewShotExamples(String userPrompt, PromptTemplateEntity template) {
+   633→    if (template.fewShotExamples.isEmpty) return userPrompt;
+   634→
+   635→    final buffer = StringBuffer(userPrompt);
+   636→    buffer.writeln();
+   637→    buffer.writeln();
+   638→    buffer.writeln('Here are some examples:');
+   639→    buffer.writeln();
+   640→
+   641→    for (int i = 0; i < template.fewShotExamples.length; i++) {
+   642→      final example = template.fewShotExamples[i];
+   643→      buffer.writeln('Example ${i + 1}:');
+   644→      buffer.writeln('Input: ${jsonEncode(example.input)}');
+   645→      buffer.writeln('Output: ${jsonEncode(example.output)}');
+   646→      buffer.writeln();
+   647→    }
+   648→
+   649→    return buffer.toString();
+   650→  }
+   651→
+   652→  /// Maps a raw question JSON object to a [GeneratedQuestionEntity].
+   653→  GeneratedQuestionEntity _mapToGeneratedQuestion(
+   654→    Map<String, dynamic> q,
+   655→    GenerationRequestEntity request,
+   656→  ) {
+   657→    // Determine question type
+   658→    final questionTypeStr = q['question_type'] as String? ??
+   659→        q['type'] as String? ??
+   660→        request.inputParams['question_type'] as String? ??
+   661→        'multiple_choice';
+   662→    final questionType = QuestionType.values.cast<QuestionType?>().firstWhere(
+   663→          (t) => t?.value == questionTypeStr,
+   664→          orElse: () => QuestionType.multipleChoice,
+   665→        ) ?? QuestionType.multipleChoice;
+   666→
+   667→    // Determine difficulty
+   668→    final difficultyStr = q['difficulty'] as String? ??
+   669→        request.inputParams['difficulty'] as String? ??
+   670→        'medium';
+   671→    final difficulty = DifficultyLevel.values.cast<DifficultyLevel?>().firstWhere(
+   672→          (d) => d?.value == difficultyStr,
+   673→          orElse: () => DifficultyLevel.medium,
+   674→        ) ?? DifficultyLevel.medium;
+   675→
+   676→    // Determine Bloom's level
+   677→    final bloomStr = q['bloom_level'] as String? ??
+   678→        request.inputParams['bloom_level'] as String?;
+   679→    final bloomLevel = BloomTaxonomy.fromString(bloomStr);
+   680→
+   681→    // Parse answer options
+   682→    List<Map<String, dynamic>> answerOptions = [];
+   683→    if (q['answer_options'] != null) {
+   684→      answerOptions = (q['answer_options'] as List<dynamic>)
+   685→          .whereType<Map<String, dynamic>>()
+   686→          .toList();
+   687→    } else if (q['options'] != null) {
+   688→      answerOptions = (q['options'] as List<dynamic>)
+   689→          .whereType<Map<String, dynamic>>()
+   690→          .toList();
+   691→    }
+   692→
+   693→    // Parse matching pairs
+   694→    List<Map<String, dynamic>> matchingPairs = [];
+   695→    if (q['matching_pairs'] != null) {
+   696→      matchingPairs = (q['matching_pairs'] as List<dynamic>)
+   697→          .whereType<Map<String, dynamic>>()
+   698→          .toList();
+   699→    }
+   700→
+   701→    // Parse ordering items
+   702→    List<Map<String, dynamic>> orderingItems = [];
+   703→    if (q['ordering_items'] != null) {
+   704→      orderingItems = (q['ordering_items'] as List<dynamic>)
+   705→          .whereType<Map<String, dynamic>>()
+   706→          .toList();
+   707→    }
+   708→
+   709→    // Parse fill-in-blank answers
+   710→    List<Map<String, dynamic>> fillInBlankAnswers = [];
+   711→    if (q['fill_in_blank_answers'] != null) {
+   712→      fillInBlankAnswers = (q['fill_in_blank_answers'] as List<dynamic>)
+   713→          .whereType<Map<String, dynamic>>()
+   714→          .toList();
+   715→    }
+   716→
+   717→    // Parse suggested references
+   718→    List<String> references = [];
+   719→    if (q['references'] != null) {
+   720→      references = (q['references'] as List<dynamic>)
+   721→          .whereType<String>()
+   722→          .toList();
+   723→    } else if (q['suggested_references'] != null) {
+   724→      references = (q['suggested_references'] as List<dynamic>)
+   725→          .whereType<String>()
+   726→          .toList();
+   727→    }
+   728→
+   729→    return GeneratedQuestionEntity(
+   730→      id: '',
+   731→      generationRequestId: request.id,
+   732→      questionBankId: null,
+   733→      schoolId: request.schoolId,
+   734→      questionType: questionType,
+   735→      difficulty: difficulty,
+   736→      bloomLevel: bloomLevel,
+   737→      content: q['content'] as String? ?? q['question'] as String? ?? '',
+   738→      contentJson: q['content_json'] as Map<String, dynamic>?,
+   739→      answerOptions: answerOptions,
+   740→      matchingPairs: matchingPairs,
+   741→      orderingItems: orderingItems,
+   742→      fillInBlankAnswers: fillInBlankAnswers,
+   743→      explanation: q['explanation'] as String?,
+   744→      suggestedReferences: references,
+   745→      marks: q['marks'] as int? ?? 1,
+   746→      estimatedTimeSeconds: q['estimated_time_seconds'] as int?,
+   747→      confidenceScore: (q['confidence_score'] as num?)?.toDouble(),
+   748→      curriculumAlignment: q['curriculum_alignment'] as Map<String, dynamic>?,
+   749→      reviewStatus: ReviewStatus.pending,
+   750→      reviewedBy: null,
+   751→      reviewedAt: null,
+   752→      reviewNotes: null,
+   753→      teacherEdits: null,
+   754→      isEdited: false,
+   755→      isApproved: false,
+   756→      metadata: q['metadata'] as Map<String, dynamic>?,
+   757→      createdAt: DateTime.now(),
+   758→      updatedAt: DateTime.now(),
+   759→    );
+   760→  }
+   761→
+   762→  // ─── Built-in Default Prompts ─────────────────────────────────────
+   763→
+   764→  static const String _defaultSystemPrompt = '''You are an expert educational content creator specializing in generating high-quality exam questions. Your task is to generate questions that:
+   765→
+   766→1. Are pedagogically sound and test meaningful understanding
+   767→2. Have clear, unambiguous wording
+   768→3. Include plausible distractors for multiple-choice questions
+   769→4. Align with the specified difficulty level and Bloom's taxonomy level
+   770→5. Include helpful explanations for the correct answer
+   771→6. Are culturally sensitive and inclusive
+   772→7. Follow the specified curriculum standards
+   773→
+   774→Always return your response as a valid JSON object matching the requested format.''';
+   775→
+   776→  String _buildDefaultUserPrompt(GenerationInputEntity input) {
+   777→    final buffer = StringBuffer();
+   778→
+   779→    buffer.writeln('Generate ${input.numQuestions} exam question(s) with the '
+   780→        'following specifications:');
+   781→    buffer.writeln();
+   782→    buffer.writeln('- Subject: ${input.subjectId}');
+   783→    buffer.writeln('- Topic: ${input.topicId}');
+   784→    if (input.subtopicId != null) {
+   785→      buffer.writeln('- Subtopic: ${input.subtopicId}');
+   786→    }
+   787→    if (input.classId != null) {
+   788→      buffer.writeln('- Class Level: ${input.classId}');
+   789→    }
+   790→    if (input.curriculum != null) {
+   791→      buffer.writeln('- Curriculum: ${input.curriculum!.label}');
+   792→    }
+   793→    buffer.writeln('- Difficulty: ${input.difficulty.label}');
+   794→    if (input.bloomLevel != null) {
+   795→      buffer.writeln(
+   796→          "- Bloom's Taxonomy Level: ${input.bloomLevel!.label}");
+   797→    }
+   798→    buffer.writeln(
+   799→        '- Question Type: ${input.questionType?.label ?? "Mixed"}');
+   800→    buffer.writeln('- Language: ${input.language}');
+   801→    if (input.examType != null) {
+   802→      buffer.writeln('- Exam Type: ${input.examType!.label}');
+   803→    }
+   804→    if (input.keywords.isNotEmpty) {
+   805→      buffer.writeln('- Keywords: ${input.keywords.join(", ")}');
+   806→    }
+   807→    if (input.customInstructions != null &&
+   808→        input.customInstructions!.isNotEmpty) {
+   809→      buffer.writeln('- Additional Instructions: ${input.customInstructions}');
+   810→    }
+   811→
+   812→    buffer.writeln();
+   813→    buffer.writeln('Return a JSON object with the following structure:');
+   814→    buffer.writeln('{');
+   815→    buffer.writeln('  "questions": [');
+   816→    buffer.writeln('    {');
+   817→    buffer.writeln('      "question_type": "multiple_choice",');
+   818→    buffer.writeln('      "content": "The question text",');
+   819→    buffer.writeln('      "difficulty": "medium",');
+   820→    buffer.writeln('      "bloom_level": "apply",');
+   821→    buffer.writeln('      "answer_options": [');
+   822→    buffer.writeln('        {"label": "A", "text": "First option", '
+   823→        '"is_correct": false},');
+   824→    buffer.writeln('        {"label": "B", "text": "Second option", '
+   825→        '"is_correct": true},');
+   826→    buffer.writeln('        {"label": "C", "text": "Third option", '
+   827→        '"is_correct": false},');
+   828→    buffer.writeln('        {"label": "D", "text": "Fourth option", '
+   829→        '"is_correct": false}');
+   830→    buffer.writeln('      ],');
+   831→    buffer.writeln('      "explanation": "Why B is correct and others are not",');
+   832→    buffer.writeln('      "marks": 1,');
+   833→    buffer.writeln('      "estimated_time_seconds": 60,');
+   834→    buffer.writeln('      "confidence_score": 0.9,');
+   835→    buffer.writeln('      "references": ["Reference 1"]');
+   836→    buffer.writeln('    }');
+   837→    buffer.writeln('  ]');
+   838→    buffer.writeln('}');
+   839→
+   840→    return buffer.toString();
+   841→  }
+   842→}
+   843→

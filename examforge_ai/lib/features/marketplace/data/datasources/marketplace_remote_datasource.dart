@@ -672,7 +672,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
       // Standard query builder when no search
       var filterQuery = _supabase.from(_productsTable).select();
 
-      filterQuery = filterQuery.filter('deleted_at', 'is.null'); // exclude soft-deleted
+      filterQuery = filterQuery.filter('deleted_at', 'is', null); // exclude soft-deleted
 
       if (status != null) {
         filterQuery = filterQuery.eq('status', status);
@@ -973,7 +973,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .from(_productsTable)
           .select()
           .eq('seller_id', sellerId)
-          .filter('deleted_at', 'is.null')
+          .filter('deleted_at', 'is', null)
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 
@@ -1006,7 +1006,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .select()
           .eq('is_featured', true)
           .eq('status', 'published')
-          .filter('deleted_at', 'is.null')
+          .filter('deleted_at', 'is', null)
           .order('created_at', ascending: false)
           .limit(limit);
 
@@ -1053,7 +1053,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .eq('category_id', categoryId)
           .eq('status', 'published')
           .neq('id', productId)
-          .filter('deleted_at', 'is.null')
+          .filter('deleted_at', 'is', null)
           .order('total_sales', ascending: false)
           .limit(limit);
 
@@ -2838,7 +2838,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .from(_productsTable)
           .select()
           .eq('status', 'published')
-          .filter('deleted_at', 'is.null')
+          .filter('deleted_at', 'is', null)
           .order('total_sales', ascending: false)
           .limit(limit);
 
@@ -2873,7 +2873,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .from(_productsTable)
           .select()
           .eq('status', 'pending_review')
-          .filter('deleted_at', 'is.null')
+          .filter('deleted_at', 'is', null)
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/billing_entities.dart';
@@ -188,14 +189,14 @@ class CouponNotifier extends StateNotifier<CouponState> {
     );
 
     result.fold(
-      onSuccess: (paginatedResult) {
+      onSuccess: (coupons) {
         state = state.copyWith(
           isLoading: false,
-          coupons: paginatedResult.items,
+          coupons: coupons,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${paginatedResult.items.length} coupons',
+          'Loaded ${coupons.length} coupons',
         );
       },
       onFailure: (failure) {

@@ -247,7 +247,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         reviewedAt: null,
         finalScore: null,
         reviewComment: null,
-        isAccepted: null,
+        isAccepted: false,
         createdAt: now,
         updatedAt: now,
       );

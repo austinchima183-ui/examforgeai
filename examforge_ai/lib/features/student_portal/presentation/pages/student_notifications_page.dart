@@ -201,7 +201,7 @@ class _StudentNotificationsPageState
       StudentNotificationType.newAssignment =>
         Icons.assignment_outlined,
       StudentNotificationType.upcomingExam =>
-        Icons.event_upcoming_outlined,
+        Icons.event_outlined,
       StudentNotificationType.resultPublished =>
         Icons.assessment_outlined,
       StudentNotificationType.teacherAnnouncement =>
@@ -357,7 +357,7 @@ class _NotificationCard extends StatelessWidget {
       StudentNotificationType.newAssignment =>
         Icons.assignment_outlined,
       StudentNotificationType.upcomingExam =>
-        Icons.event_upcoming_outlined,
+        Icons.event_outlined,
       StudentNotificationType.resultPublished =>
         Icons.assessment_outlined,
       StudentNotificationType.teacherAnnouncement =>

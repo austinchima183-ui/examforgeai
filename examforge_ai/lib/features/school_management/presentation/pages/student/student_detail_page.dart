@@ -151,6 +151,7 @@ class _StudentDetailPageState extends ConsumerState<StudentDetailPage>
   }
 
   void _showLinkParentDialog() {
+    final cs = context.colorScheme;
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
@@ -222,7 +223,7 @@ class _StudentDetailPageState extends ConsumerState<StudentDetailPage>
               Navigator.pop(ctx);
               ref.read(studentDetailProvider.notifier).unlinkParent(
                     linkId,
-                    state.student!.userId,
+                    ref.read(studentDetailProvider).student!.userId,
                   );
             },
             style: FilledButton.styleFrom(

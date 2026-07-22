@@ -336,7 +336,7 @@ class HomeworkDetailNotifier extends StateNotifier<HomeworkDetailState> {
         // Load submissions for this homework
         final submissionsResult =
             await _repository.getHomeworkSubmissions(homeworkId);
-        final submissions = submissionsResult.getOrElse(() => []);
+        final submissions = submissionsResult.getOrElse(<HomeworkSubmissionEntity>[]);
 
         state = state.copyWith(
           isLoading: false,

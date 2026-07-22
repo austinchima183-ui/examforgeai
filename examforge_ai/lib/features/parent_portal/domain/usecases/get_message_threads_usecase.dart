@@ -29,10 +29,10 @@ class GetMessageThreadsUseCase {
 
   /// Retrieves message threads for the current parent.
   ///
-  /// Returns a [Result] containing a list of [MessageThreadEntity]
+  /// Returns a [Result] containing a list of [ParentMessageThreadEntity]
   /// on success, or a [FailureResult] if validation fails or the
   /// repository encounters an error.
-  Future<Result<List<MessageThreadEntity>>> call(
+  Future<Result<List<ParentMessageThreadEntity>>> call(
     GetMessageThreadsParams params,
   ) async {
     if (params.page < 1) {

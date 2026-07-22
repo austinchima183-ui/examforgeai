@@ -1,6 +1,20 @@
 import 'package:equatable/equatable.dart';
 
 // ============================================================================
+// ENUMS
+// ============================================================================
+
+/// Direction of a metric trend.
+enum TrendDirection {
+  /// Value is trending upward.
+  up,
+  /// Value is trending downward.
+  down,
+  /// Value is flat / no significant change.
+  neutral,
+}
+
+// ============================================================================
 // ENTITIES
 // ============================================================================
 

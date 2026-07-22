@@ -95,7 +95,7 @@ class AuditEntryTile extends StatelessWidget {
         ],
       ),
       subtitle: Text(
-        '${entry.userId} · ${_formatDate(entry.timestamp)}',
+        '${entry.userId} · ${_formatDate(entry.createdAt)}',
         style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
       ),
       trailing: onTap != null ? Icon(Icons.chevron_right_rounded, color: cs.onSurfaceVariant) : null,

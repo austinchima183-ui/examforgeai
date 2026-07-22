@@ -43,10 +43,10 @@ class AskParentAssistantUseCase {
         fieldErrors: {'question': 'Question cannot be empty'},
       ));
     }
-    return _repository.askParentAssistant(
-      question: params.question,
-      studentId: params.studentId,
-      context: params.context,
-    );
+    return _repository.askAssistant({
+      'question': params.question,
+      'studentId': params.studentId,
+      'context': params.context,
+    });
   }
 }

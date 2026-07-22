@@ -66,16 +66,16 @@ class SaveAnswerUseCase {
     }
 
     final attempt = attemptResult.getOrElse(
-      const ExamAttemptEntity(
+      ExamAttemptEntity(
         id: '',
         examId: '',
         studentId: '',
         attemptNumber: 0,
         status: AttemptStatus.notStarted,
-        startedAt: DateTime(2000),
+        startedAt: DateTime.utc(2000),
         gradingStatus: GradingStatus.pending,
-        createdAt: DateTime(2000),
-        updatedAt: DateTime(2000),
+        createdAt: DateTime.utc(2000),
+        updatedAt: DateTime.utc(2000),
       ),
     );
 

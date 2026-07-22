@@ -794,6 +794,7 @@ class _WorksheetGeneratorPageState
           GenerateQuestionsButton(
             resourceType: 'worksheet',
             resourceId: worksheet.id,
+            resourceName: worksheet.title,
           ),
 
         // New / Reset

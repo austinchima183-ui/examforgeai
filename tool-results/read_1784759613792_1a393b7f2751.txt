@@ -1,0 +1,920 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../core/extensions/context_extensions.dart';
+     8→import '../../../../shared/widgets/app_app_bar.dart';
+     9→import '../../../../shared/widgets/app_loading.dart';
+    10→import '../../../../shared/widgets/app_error_state.dart';
+    11→import '../../../../shared/widgets/app_empty_state.dart';
+    12→import '../../../../shared/providers/auth_state_provider.dart';
+    13→import '../../domain/entities/offline_entities.dart';
+    14→import '../providers/offline_provider.dart';
+    15→import '../widgets/offline_widgets.dart';
+    16→
+    17→// ═══════════════════════════════════════════════════════════════════════
+    18→// OFFLINE CENTER PAGE
+    19→// ═══════════════════════════════════════════════════════════════════════
+    20→
+    21→/// The main offline management page with tabbed navigation.
+    22→///
+    23→/// Provides a central hub for managing offline content including:
+    24→/// - **Overview**: Connectivity status, sync health, storage usage
+    25→/// - **Resources**: Offline-available resources by type
+    26→/// - **Downloads**: Active, completed, and failed downloads
+    27→/// - **Drafts**: Saved draft work with edit/delete actions
+    28→/// - **Sync**: Pending/failed sync items with retry controls
+    29→class OfflineCenterPage extends ConsumerStatefulWidget {
+    30→  const OfflineCenterPage({super.key});
+    31→
+    32→  @override
+    33→  ConsumerState<OfflineCenterPage> createState() => _State();
+    34→}
+    35→
+    36→class _State extends ConsumerState<OfflineCenterPage>
+    37→    with SingleTickerProviderStateMixin {
+    38→  late final TabController _tabController;
+    39→
+    40→  static const _tabs = [
+    41→    Tab(icon: Icon(Icons.dashboard_outlined), text: 'Overview'),
+    42→    Tab(icon: Icon(Icons.folder_outlined), text: 'Resources'),
+    43→    Tab(icon: Icon(Icons.download_outlined), text: 'Downloads'),
+    44→    Tab(icon: Icon(Icons.edit_note_outlined), text: 'Drafts'),
+    45→    Tab(icon: Icon(Icons.sync_outlined), text: 'Sync'),
+    46→  ];
+    47→
+    48→  @override
+    49→  void initState() {
+    50→    super.initState();
+    51→    _tabController = TabController(length: _tabs.length, vsync: this);
+    52→    WidgetsBinding.instance.addPostFrameCallback((_) {
+    53→      _loadData();
+    54→    });
+    55→  }
+    56→
+    57→  @override
+    58→  void dispose() {
+    59→    _tabController.dispose();
+    60→    super.dispose();
+    61→  }
+    62→
+    63→  /// Loads all offline data in parallel.
+    64→  void _loadData() {
+    65→    final userId = ref.read(userIdProvider);
+    66→    if (userId == null) return;
+    67→
+    68→    ref.read(offlineProvider.notifier).loadSyncStatus(userId);
+    69→    ref.read(offlineProvider.notifier).loadOfflineResources(userId);
+    70→    ref.read(offlineProvider.notifier).loadDrafts(userId);
+    71→    ref.read(offlineProvider.notifier).loadConnectivityInfo();
+    72→    ref.read(offlineProvider.notifier).loadDownloads(userId);
+    73→  }
+    74→
+    75→  @override
+    76→  Widget build(BuildContext context) {
+    77→    final offlineState = ref.watch(offlineProvider);
+    78→
+    79→    return Scaffold(
+    80→      appBar: AppAppBar(
+    81→        title: 'Offline Center',
+    82→        bottom: TabBar(
+    83→          controller: _tabController,
+    84→          tabs: _tabs,
+    85→          isScrollable: context.isMobile,
+    86→          labelStyle: context.textTheme.labelLarge,
+    87→          unselectedLabelStyle: context.textTheme.labelMedium,
+    88→          indicatorSize: TabBarIndicatorSize.label,
+    89→        ),
+    90→      ),
+    91→      body: TabBarView(
+    92→        controller: _tabController,
+    93→        children: [
+    94→          _OverviewTab(state: offlineState, onRefresh: _loadData),
+    95→          _ResourcesTab(state: offlineState, onRefresh: _loadData),
+    96→          _DownloadsTab(state: offlineState, onRefresh: _loadData),
+    97→          _DraftsTab(state: offlineState, onRefresh: _loadData),
+    98→          _SyncTab(state: offlineState, onRefresh: _loadData),
+    99→        ],
+   100→      ),
+   101→    );
+   102→  }
+   103→}
+   104→
+   105→// ═══════════════════════════════════════════════════════════════════════
+   106→// OVERVIEW TAB
+   107→// ═══════════════════════════════════════════════════════════════════════
+   108→
+   109→class _OverviewTab extends StatelessWidget {
+   110→  const _OverviewTab({required this.state, required this.onRefresh});
+   111→
+   112→  final OfflineState state;
+   113→  final VoidCallback onRefresh;
+   114→
+   115→  @override
+   116→  Widget build(BuildContext context) {
+   117→    final cs = context.colorScheme;
+   118→    final tt = context.textTheme;
+   119→
+   120→    return RefreshIndicator(
+   121→      onRefresh: () async => onRefresh(),
+   122→      child: SingleChildScrollView(
+   123→        physics: const AlwaysScrollableScrollPhysics(),
+   124→        padding: const EdgeInsets.symmetric(
+   125→          horizontal: Spacings.lg,
+   126→          vertical: Spacings.md,
+   127→        ),
+   128→        child: Column(
+   129→          crossAxisAlignment: CrossAxisAlignment.start,
+   130→          children: [
+   131→            // ─── Connectivity Status ──────────────────────────────────
+   132→            _buildSectionHeader(context, 'Connection Status'),
+   133→            const SizedBox(height: Spacings.sm),
+   134→            _buildConnectivityCard(context),
+   135→            const SizedBox(height: Spacings.lg),
+   136→
+   137→            // ─── Sync Status ──────────────────────────────────────────
+   138→            _buildSectionHeader(context, 'Sync Status'),
+   139→            const SizedBox(height: Spacings.sm),
+   140→            _buildSyncStatusCard(context),
+   141→            const SizedBox(height: Spacings.lg),
+   142→
+   143→            // ─── Storage Usage ────────────────────────────────────────
+   144→            _buildSectionHeader(context, 'Storage Usage'),
+   145→            const SizedBox(height: Spacings.sm),
+   146→            StorageUsageBar(
+   147→              usedBytes: state.totalOfflineSizeBytes,
+   148→              totalBytes: 500 * 1024 * 1024, // 500 MB limit placeholder
+   149→              label: '${_formatBytes(state.totalOfflineSizeBytes)} of 500 MB',
+   150→            ),
+   151→            const SizedBox(height: Spacings.lg),
+   152→
+   153→            // ─── Quick Actions ────────────────────────────────────────
+   154→            _buildSectionHeader(context, 'Quick Actions'),
+   155→            const SizedBox(height: Spacings.sm),
+   156→            _buildQuickActions(context),
+   157→            const SizedBox(height: Spacings.xxl),
+   158→          ],
+   159→        ),
+   160→      ),
+   161→    );
+   162→  }
+   163→
+   164→  Widget _buildSectionHeader(BuildContext context, String title) {
+   165→    final tt = context.textTheme;
+   166→    return Text(
+   167→      title,
+   168→      style: tt.titleMedium?.copyWith(
+   169→        fontWeight: AppTypography.wSemiBold,
+   170→        color: context.colorScheme.onSurface,
+   171→      ),
+   172→    );
+   173→  }
+   174→
+   175→  Widget _buildConnectivityCard(BuildContext context) {
+   176→    final cs = context.colorScheme;
+   177→    final tt = context.textTheme;
+   178→    final info = state.connectivityInfo;
+   179→
+   180→    final qualityColor = _qualityColor(info?.connectionQuality);
+   181→    final qualityLabel = info?.connectionQuality.label ?? 'Unknown';
+   182→    final isOnline = info?.isOnline ?? false;
+   183→
+   184→    return Card(
+   185→      elevation: Spacings.elevationSm,
+   186→      shadowColor: cs.shadow.withOpacity(0.08),
+   187→      shape: RoundedRectangleBorder(
+   188→        borderRadius: Spacings.borderRadiusLg,
+   189→        side: BorderSide(
+   190→          color: cs.outlineVariant.withOpacity(0.5),
+   191→        ),
+   192→      ),
+   193→      child: Padding(
+   194→        padding: const EdgeInsets.all(Spacings.lg),
+   195→        child: Row(
+   196→          children: [
+   197→            ConnectionQualityIndicator(
+   198→              quality: info?.connectionQuality,
+   199→              size: 48,
+   200→            ),
+   201→            const SizedBox(width: Spacings.lg),
+   202→            Expanded(
+   203→              child: Column(
+   204→                crossAxisAlignment: CrossAxisAlignment.start,
+   205→                children: [
+   206→                  Text(
+   207→                    isOnline ? 'Online' : 'Offline',
+   208→                    style: tt.titleMedium?.copyWith(
+   209→                      fontWeight: AppTypography.wSemiBold,
+   210→                      color: cs.onSurface,
+   211→                    ),
+   212→                  ),
+   213→                  const SizedBox(height: Spacings.xs),
+   214→                  Text(
+   215→                    '$qualityLabel · ${info?.connectionType.label ?? "—"}'
+   216→                    '${info?.latencyMs != null ? " · ${info!.latencyMs}ms" : ""}',
+   217→                    style: tt.bodySmall?.copyWith(
+   218→                      color: cs.onSurfaceVariant,
+   219→                    ),
+   220→                  ),
+   221→                ],
+   222→              ),
+   223→            ),
+   224→            Container(
+   225→              width: 12,
+   226→              height: 12,
+   227→              decoration: BoxDecoration(
+   228→                color: qualityColor,
+   229→                shape: BoxShape.circle,
+   230→              ),
+   231→            ),
+   232→          ],
+   233→        ),
+   234→      ),
+   235→    );
+   236→  }
+   237→
+   238→  Widget _buildSyncStatusCard(BuildContext context) {
+   239→    final cs = context.colorScheme;
+   240→    final tt = context.textTheme;
+   241→    final sync = state.syncStatus;
+   242→
+   243→    return Card(
+   244→      elevation: Spacings.elevationSm,
+   245→      shadowColor: cs.shadow.withOpacity(0.08),
+   246→      shape: RoundedRectangleBorder(
+   247→        borderRadius: Spacings.borderRadiusLg,
+   248→        side: BorderSide(
+   249→          color: cs.outlineVariant.withOpacity(0.5),
+   250→        ),
+   251→      ),
+   252→      child: Padding(
+   253→        padding: const EdgeInsets.all(Spacings.lg),
+   254→        child: Column(
+   255→          crossAxisAlignment: CrossAxisAlignment.start,
+   256→          children: [
+   257→            Row(
+   258→              children: [
+   259→                SyncStatusChip(
+   260→                  syncStatus: sync?.syncHealth == SyncHealth.good
+   261→                      ? SyncChipStatus.synced
+   262→                      : sync?.hasIssues == true
+   263→                          ? SyncChipStatus.conflict
+   264→                          : SyncChipStatus.pending,
+   265→                ),
+   266→                const SizedBox(width: Spacings.sm),
+   267→                Text(
+   268→                  sync?.isSyncing == true ? 'Syncing…' : 'Up to date',
+   269→                  style: tt.bodyMedium?.copyWith(
+   270→                    color: cs.onSurface,
+   271→                    fontWeight: AppTypography.wMedium,
+   272→                  ),
+   273→                ),
+   274→              ],
+   275→            ),
+   276→            const SizedBox(height: Spacings.md),
+   277→            Row(
+   278→              children: [
+   279→                _buildSyncCount(context, 'Pending', sync?.pendingCount ?? 0, AppColors.warning),
+   280→                const SizedBox(width: Spacings.lg),
+   281→                _buildSyncCount(context, 'Failed', sync?.failedCount ?? 0, AppColors.error),
+   282→                const SizedBox(width: Spacings.lg),
+   283→                _buildSyncCount(context, 'Done', sync?.completedCount ?? 0, AppColors.success),
+   284→              ],
+   285→            ),
+   286→            if (sync?.lastSyncAt != null) ...[
+   287→              const SizedBox(height: Spacings.md),
+   288→              Text(
+   289→                'Last synced: ${_formatDateTime(sync!.lastSyncAt!)}',
+   290→                style: tt.bodySmall?.copyWith(
+   291→                  color: cs.onSurfaceVariant,
+   292→                ),
+   293→              ),
+   294→            ],
+   295→          ],
+   296→        ),
+   297→      ),
+   298→    );
+   299→  }
+   300→
+   301→  Widget _buildSyncCount(
+   302→    BuildContext context,
+   303→    String label,
+   304→    int count,
+   305→    Color color,
+   306→  ) {
+   307→    final tt = context.textTheme;
+   308→    return Column(
+   309→      children: [
+   310→        Text(
+   311→          '$count',
+   312→          style: tt.headlineSmall?.copyWith(
+   313→            fontWeight: AppTypography.wBold,
+   314→            color: color,
+   315→          ),
+   316→        ),
+   317→        const SizedBox(height: Spacings.xs),
+   318→        Text(
+   319→          label,
+   320→          style: tt.labelSmall?.copyWith(
+   321→            color: context.colorScheme.onSurfaceVariant,
+   322→          ),
+   323→        ),
+   324→      ],
+   325→    );
+   326→  }
+   327→
+   328→  Widget _buildQuickActions(BuildContext context) {
+   329→    return Row(
+   330→      children: [
+   331→        Expanded(
+   332→          child: FilledButton.icon(
+   333→            onPressed: () {
+   334→              final userId = context.widget.toString();
+   335→              // Trigger sync via provider — handled by parent
+   336→            },
+   337→            icon: const Icon(Icons.sync, size: Spacings.mdIcon),
+   338→            label: const Text('Sync Now'),
+   339→            style: FilledButton.styleFrom(
+   340→              padding: Spacings.paddingButton,
+   341→              shape: RoundedRectangleBorder(
+   342→                borderRadius: Spacings.borderRadiusMd,
+   343→              ),
+   344→            ),
+   345→          ),
+   346→        ),
+   347→        const SizedBox(width: Spacings.sm),
+   348→        Expanded(
+   349→          child: OutlinedButton.icon(
+   350→            onPressed: () {
+   351→              // Clear cache action
+   352→            },
+   353→            icon: const Icon(Icons.cleaning_services_outlined, size: Spacings.mdIcon),
+   354→            label: const Text('Clear Cache'),
+   355→            style: OutlinedButton.styleFrom(
+   356→              padding: Spacings.paddingButton,
+   357→              shape: RoundedRectangleBorder(
+   358→                borderRadius: Spacings.borderRadiusMd,
+   359→              ),
+   360→            ),
+   361→          ),
+   362→        ),
+   363→      ],
+   364→    );
+   365→  }
+   366→
+   367→  Color _qualityColor(ConnectionQuality? quality) {
+   368→    switch (quality) {
+   369→      case ConnectionQuality.excellent:
+   370→        return AppColors.success;
+   371→      case ConnectionQuality.good:
+   372→        return AppColors.info;
+   373→      case ConnectionQuality.limited:
+   374→        return AppColors.warning;
+   375→      case ConnectionQuality.offline:
+   376→        return AppColors.error;
+   377→      case null:
+   378→        return AppColors.error;
+   379→    }
+   380→  }
+   381→
+   382→  String _formatDateTime(DateTime dt) {
+   383→    final now = DateTime.now();
+   384→    final diff = now.difference(dt);
+   385→    if (diff.inMinutes < 1) return 'Just now';
+   386→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+   387→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+   388→    return '${dt.day}/${dt.month}/${dt.year}';
+   389→  }
+   390→
+   391→  String _formatBytes(int bytes) {
+   392→    if (bytes < 1024) return '$bytes B';
+   393→    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+   394→    if (bytes < 1024 * 1024 * 1024) {
+   395→      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+   396→    }
+   397→    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+   398→  }
+   399→}
+   400→
+   401→// ═══════════════════════════════════════════════════════════════════════
+   402→// RESOURCES TAB
+   403→// ═══════════════════════════════════════════════════════════════════════
+   404→
+   405→class _ResourcesTab extends ConsumerWidget {
+   406→  const _ResourcesTab({required this.state, required this.onRefresh});
+   407→
+   408→  final OfflineState state;
+   409→  final VoidCallback onRefresh;
+   410→
+   411→  @override
+   412→  Widget build(BuildContext context, WidgetRef ref) {
+   413→    final cs = context.colorScheme;
+   414→    final tt = context.textTheme;
+   415→    final resources = state.offlineResources;
+   416→
+   417→    if (state.isLoading && resources.isEmpty) {
+   418→      return const Center(child: AppLoadingSpinner());
+   419→    }
+   420→
+   421→    if (resources.isEmpty) {
+   422→      return AppEmptyState.generic(
+   423→        icon: Icons.folder_off_outlined,
+   424→        message: 'No offline resources',
+   425→        subtitle: 'Download resources to access them without internet',
+   426→        onAction: onRefresh,
+   427→        actionLabel: 'Refresh',
+   428→      );
+   429→    }
+   430→
+   431→    // Group resources by type
+   432→    final grouped = <String, List<OfflineResource>>{};
+   433→    for (final r in resources) {
+   434→      grouped.putIfAbsent(r.resourceType, () => []).add(r);
+   435→    }
+   436→
+   437→    return RefreshIndicator(
+   438→      onRefresh: () async => onRefresh(),
+   439→      child: ListView.builder(
+   440→        physics: const AlwaysScrollableScrollPhysics(),
+   441→        padding: const EdgeInsets.symmetric(
+   442→          horizontal: Spacings.lg,
+   443→          vertical: Spacings.md,
+   444→        ),
+   445→        itemCount: grouped.length,
+   446→        itemBuilder: (context, index) {
+   447→          final type = grouped.keys.elementAt(index);
+   448→          final items = grouped[type]!;
+   449→
+   450→          return Column(
+   451→            crossAxisAlignment: CrossAxisAlignment.start,
+   452→            children: [
+   453→              // Section header
+   454→              Padding(
+   455→                padding: const EdgeInsets.only(
+   456→                  bottom: Spacings.sm,
+   457→                  top: index == 0 ? 0 : Spacings.lg,
+   458→                ),
+   459→                child: Text(
+   460→                  _resourceTypeLabel(type),
+   461→                  style: tt.titleSmall?.copyWith(
+   462→                    fontWeight: AppTypography.wSemiBold,
+   463→                    color: cs.primary,
+   464→                  ),
+   465→                ),
+   466→              ),
+   467→              // Resource cards
+   468→              ...items.map((resource) => _buildResourceCard(context, ref, resource)),
+   469→            ],
+   470→          );
+   471→        },
+   472→      ),
+   473→    );
+   474→  }
+   475→
+   476→  Widget _buildResourceCard(
+   477→    BuildContext context,
+   478→    WidgetRef ref,
+   479→    OfflineResource resource,
+   480→  ) {
+   481→    final cs = context.colorScheme;
+   482→    final tt = context.textTheme;
+   483→
+   484→    return Card(
+   485→      margin: const EdgeInsets.only(bottom: Spacings.sm),
+   486→      elevation: Spacings.elevationNone,
+   487→      shape: RoundedRectangleBorder(
+   488→        borderRadius: Spacings.borderRadiusMd,
+   489→        side: BorderSide(
+   490→          color: cs.outlineVariant.withOpacity(0.5),
+   491→        ),
+   492→      ),
+   493→      child: ListTile(
+   494→        leading: OfflineIndicator(isAvailable: resource.isAvailable),
+   495→        title: Text(
+   496→          resource.title,
+   497→          style: tt.bodyMedium?.copyWith(
+   498→            fontWeight: AppTypography.wMedium,
+   499→            color: cs.onSurface,
+   500→          ),
+   501→          maxLines: 1,
+   502→          overflow: TextOverflow.ellipsis,
+   503→        ),
+   504→        subtitle: Text(
+   505→          '${resource.fileSizeDisplay}'
+   506→          '${resource.isLicenseExpired ? " · License expired" : ""}',
+   507→          style: tt.bodySmall?.copyWith(
+   508→            color: resource.isLicenseExpired
+   509→                ? AppColors.error
+   510→                : cs.onSurfaceVariant,
+   511→          ),
+   512→        ),
+   513→        trailing: IconButton(
+   514→          icon: Icon(
+   515→            Icons.delete_outline,
+   516→            color: cs.error,
+   517→            size: Spacings.mdIcon,
+   518→          ),
+   519→          onPressed: () {
+   520→            ref.read(offlineProvider.notifier).removeResource(resource.id);
+   521→          },
+   522→          tooltip: 'Remove from offline',
+   523→        ),
+   524→      ),
+   525→    );
+   526→  }
+   527→
+   528→  String _resourceTypeLabel(String type) {
+   529→    const labels = {
+   530→      'lesson_note': 'Lesson Notes',
+   531→      'worksheet': 'Worksheets',
+   532→      'study_guide': 'Study Guides',
+   533→      'textbook': 'Textbooks',
+   534→      'video': 'Videos',
+   535→      'audio': 'Audio',
+   536→      'document': 'Documents',
+   537→    };
+   538→    return labels[type] ?? type.replaceAll('_', ' ').split(' ').map(
+   539→      (w) => w.isEmpty ? '' : '${w[0].toUpperCase()}${w.substring(1)}',
+   540→    ).join(' ');
+   541→  }
+   542→}
+   543→
+   544→// ═══════════════════════════════════════════════════════════════════════
+   545→// DOWNLOADS TAB
+   546→// ═══════════════════════════════════════════════════════════════════════
+   547→
+   548→class _DownloadsTab extends ConsumerWidget {
+   549→  const _DownloadsTab({required this.state, required this.onRefresh});
+   550→
+   551→  final OfflineState state;
+   552→  final VoidCallback onRefresh;
+   553→
+   554→  @override
+   555→  Widget build(BuildContext context, WidgetRef ref) {
+   556→    final downloads = state.downloads;
+   557→
+   558→    if (state.isLoading && downloads.isEmpty) {
+   559→      return const Center(child: AppLoadingSpinner());
+   560→    }
+   561→
+   562→    if (downloads.isEmpty) {
+   563→      return AppEmptyState.generic(
+   564→        icon: Icons.download_outlined,
+   565→        message: 'No downloads',
+   566→        subtitle: 'Files you download for offline use will appear here',
+   567→        onAction: onRefresh,
+   568→        actionLabel: 'Refresh',
+   569→      );
+   570→    }
+   571→
+   572→    // Separate downloads by status
+   573→    final active = downloads.where((d) => d.isDownloading || d.downloadStatus == DownloadStatus.pending).toList();
+   574→    final completed = downloads.where((d) => d.isComplete).toList();
+   575→    final failed = downloads.where((d) => d.canRetry).toList();
+   576→    final expired = downloads.where((d) => d.downloadStatus == DownloadStatus.expired).toList();
+   577→
+   578→    return RefreshIndicator(
+   579→      onRefresh: () async => onRefresh(),
+   580→      child: SingleChildScrollView(
+   581→        physics: const AlwaysScrollableScrollPhysics(),
+   582→        padding: const EdgeInsets.symmetric(
+   583→          horizontal: Spacings.lg,
+   584→          vertical: Spacings.md,
+   585→        ),
+   586→        child: Column(
+   587→          crossAxisAlignment: CrossAxisAlignment.start,
+   588→          children: [
+   589→            if (active.isNotEmpty) ...[
+   590→              _buildDownloadSection(context, 'Active Downloads', active),
+   591→              const SizedBox(height: Spacings.lg),
+   592→            ],
+   593→            if (completed.isNotEmpty) ...[
+   594→              _buildDownloadSection(context, 'Completed', completed),
+   595→              const SizedBox(height: Spacings.lg),
+   596→            ],
+   597→            if (failed.isNotEmpty) ...[
+   598→              _buildDownloadSection(context, 'Failed', failed),
+   599→              const SizedBox(height: Spacings.lg),
+   600→            ],
+   601→            if (expired.isNotEmpty) ...[
+   602→              _buildDownloadSection(context, 'Expired', expired),
+   603→            ],
+   604→            const SizedBox(height: Spacings.xxl),
+   605→          ],
+   606→        ),
+   607→      ),
+   608→    );
+   609→  }
+   610→
+   611→  Widget _buildDownloadSection(
+   612→    BuildContext context,
+   613→    String title,
+   614→    List<FileDownload> items,
+   615→  ) {
+   616→    final tt = context.textTheme;
+   617→    final cs = context.colorScheme;
+   618→
+   619→    return Column(
+   620→      crossAxisAlignment: CrossAxisAlignment.start,
+   621→      children: [
+   622→        Text(
+   623→          title,
+   624→          style: tt.titleSmall?.copyWith(
+   625→            fontWeight: AppTypography.wSemiBold,
+   626→            color: cs.onSurface,
+   627→          ),
+   628→        ),
+   629→        const SizedBox(height: Spacings.sm),
+   630→        ...items.map((download) => DownloadProgressCard(
+   631→          download: download,
+   632→          onCancel: () {
+   633→            // Cancel download action
+   634→          },
+   635→          onRetry: download.canRetry
+   636→              ? () {
+   637→                  // Retry download action
+   638→                }
+   639→              : null,
+   640→        )),
+   641→      ],
+   642→    );
+   643→  }
+   644→}
+   645→
+   646→// ═══════════════════════════════════════════════════════════════════════
+   647→// DRAFTS TAB
+   648→// ═══════════════════════════════════════════════════════════════════════
+   649→
+   650→class _DraftsTab extends ConsumerWidget {
+   651→  const _DraftsTab({required this.state, required this.onRefresh});
+   652→
+   653→  final OfflineState state;
+   654→  final VoidCallback onRefresh;
+   655→
+   656→  @override
+   657→  Widget build(BuildContext context, WidgetRef ref) {
+   658→    final drafts = state.drafts;
+   659→
+   660→    if (state.isLoading && drafts.isEmpty) {
+   661→      return const Center(child: AppLoadingSpinner());
+   662→    }
+   663→
+   664→    if (drafts.isEmpty) {
+   665→      return AppEmptyState.generic(
+   666→        icon: Icons.edit_note_outlined,
+   667→        message: 'No drafts',
+   668→        subtitle: 'Drafts you create while offline will appear here',
+   669→        onAction: onRefresh,
+   670→        actionLabel: 'Refresh',
+   671→      );
+   672→    }
+   673→
+   674→    return RefreshIndicator(
+   675→      onRefresh: () async => onRefresh(),
+   676→      child: ListView.builder(
+   677→        physics: const AlwaysScrollableScrollPhysics(),
+   678→        padding: const EdgeInsets.symmetric(
+   679→          horizontal: Spacings.lg,
+   680→          vertical: Spacings.md,
+   681→        ),
+   682→        itemCount: drafts.length,
+   683→        itemBuilder: (context, index) {
+   684→          final draft = drafts[index];
+   685→          return Padding(
+   686→            padding: const EdgeInsets.only(bottom: Spacings.sm),
+   687→            child: DraftCard(
+   688→              draft: draft,
+   689→              onEdit: () {
+   690→                // Navigate to draft editor
+   691→              },
+   692→              onDelete: () {
+   693→                ref.read(offlineProvider.notifier).deleteDraft(draft.id);
+   694→              },
+   695→            ),
+   696→          );
+   697→        },
+   698→      ),
+   699→    );
+   700→  }
+   701→}
+   702→
+   703→// ═══════════════════════════════════════════════════════════════════════
+   704→// SYNC TAB
+   705→// ═══════════════════════════════════════════════════════════════════════
+   706→
+   707→class _SyncTab extends ConsumerWidget {
+   708→  const _SyncTab({required this.state, required this.onRefresh});
+   709→
+   710→  final OfflineState state;
+   711→  final VoidCallback onRefresh;
+   712→
+   713→  @override
+   714→  Widget build(BuildContext context, WidgetRef ref) {
+   715→    final cs = context.colorScheme;
+   716→    final tt = context.textTheme;
+   717→    final sync = state.syncStatus;
+   718→
+   719→    return RefreshIndicator(
+   720→      onRefresh: () async => onRefresh(),
+   721→      child: SingleChildScrollView(
+   722→        physics: const AlwaysScrollableScrollPhysics(),
+   723→        padding: const EdgeInsets.symmetric(
+   724→          horizontal: Spacings.lg,
+   725→          vertical: Spacings.md,
+   726→        ),
+   727→        child: Column(
+   728→          crossAxisAlignment: CrossAxisAlignment.start,
+   729→          children: [
+   730→            // ─── Pending Items ────────────────────────────────────────
+   731→            _buildSectionHeader(context, 'Pending Sync Items'),
+   732→            const SizedBox(height: Spacings.sm),
+   733→            Card(
+   734→              elevation: Spacings.elevationSm,
+   735→              shadowColor: cs.shadow.withOpacity(0.08),
+   736→              shape: RoundedRectangleBorder(
+   737→                borderRadius: Spacings.borderRadiusLg,
+   738→                side: BorderSide(
+   739→                  color: cs.outlineVariant.withOpacity(0.5),
+   740→                ),
+   741→              ),
+   742→              child: Padding(
+   743→                padding: const EdgeInsets.all(Spacings.lg),
+   744→                child: Column(
+   745→                  children: [
+   746→                    _buildSyncItemRow(
+   747→                      context,
+   748→                      icon: Icons.description_outlined,
+   749→                      label: 'Exam Attempts',
+   750→                      count: sync?.pendingCount ?? 0,
+   751→                      color: AppColors.warning,
+   752→                    ),
+   753→                    const SizedBox(height: Spacings.md),
+   754→                    _buildSyncItemRow(
+   755→                      context,
+   756→                      icon: Icons.edit_note_outlined,
+   757→                      label: 'Drafts',
+   758→                      count: state.drafts.where((d) => !d.isSynced).length,
+   759→                      color: AppColors.info,
+   760→                    ),
+   761→                    const SizedBox(height: Spacings.md),
+   762→                    _buildSyncItemRow(
+   763→                      context,
+   764→                      icon: Icons.analytics_outlined,
+   765→                      label: 'Analytics Events',
+   766→                      count: 0,
+   767→                      color: cs.onSurfaceVariant,
+   768→                    ),
+   769→                  ],
+   770→                ),
+   771→              ),
+   772→            ),
+   773→            const SizedBox(height: Spacings.lg),
+   774→
+   775→            // ─── Failed Items ─────────────────────────────────────────
+   776→            if (sync?.failedCount != null && sync!.failedCount > 0) ...[
+   777→              _buildSectionHeader(context, 'Failed Items'),
+   778→              const SizedBox(height: Spacings.sm),
+   779→              Card(
+   780→                elevation: Spacings.elevationSm,
+   781→                shadowColor: cs.shadow.withOpacity(0.08),
+   782→                shape: RoundedRectangleBorder(
+   783→                  borderRadius: Spacings.borderRadiusLg,
+   784→                  side: BorderSide(
+   785→                    color: AppColors.error.withOpacity(0.3),
+   786→                  ),
+   787→                ),
+   788→                child: Padding(
+   789→                  padding: const EdgeInsets.all(Spacings.lg),
+   790→                  child: Column(
+   791→                    crossAxisAlignment: CrossAxisAlignment.start,
+   792→                    children: [
+   793→                      Row(
+   794→                        children: [
+   795→                          Icon(
+   796→                            Icons.error_outline,
+   797→                            color: AppColors.error,
+   798→                            size: Spacings.mdIcon,
+   799→                          ),
+   800→                          const SizedBox(width: Spacings.sm),
+   801→                          Text(
+   802→                            '${sync.failedCount} items failed to sync',
+   803→                            style: tt.bodyMedium?.copyWith(
+   804→                              fontWeight: AppTypography.wSemiBold,
+   805→                              color: AppColors.error,
+   806→                            ),
+   807→                          ),
+   808→                        ],
+   809→                      ),
+   810→                      const SizedBox(height: Spacings.md),
+   811→                      Text(
+   812→                        'These items will be retried automatically. You can also retry them manually.',
+   813→                        style: tt.bodySmall?.copyWith(
+   814→                          color: cs.onSurfaceVariant,
+   815→                        ),
+   816→                      ),
+   817→                    ],
+   818→                  ),
+   819→                ),
+   820→              ),
+   821→              const SizedBox(height: Spacings.lg),
+   822→            ],
+   823→
+   824→            // ─── Action Buttons ───────────────────────────────────────
+   825→            Row(
+   826→              children: [
+   827→                Expanded(
+   828→                  child: FilledButton.icon(
+   829→                    onPressed: () {
+   830→                      final userId = ref.read(userIdProvider);
+   831→                      if (userId != null) {
+   832→                        ref.read(offlineProvider.notifier).loadSyncStatus(userId);
+   833→                      }
+   834→                    },
+   835→                    icon: const Icon(Icons.sync),
+   836→                    label: const Text('Sync All'),
+   837→                    style: FilledButton.styleFrom(
+   838→                      padding: Spacings.paddingButton,
+   839→                      shape: RoundedRectangleBorder(
+   840→                        borderRadius: Spacings.borderRadiusMd,
+   841→                      ),
+   842→                    ),
+   843→                  ),
+   844→                ),
+   845→                const SizedBox(width: Spacings.sm),
+   846→                Expanded(
+   847→                  child: OutlinedButton.icon(
+   848→                    onPressed: onRefresh,
+   849→                    icon: const Icon(Icons.refresh),
+   850→                    label: const Text('Retry Failed'),
+   851→                    style: OutlinedButton.styleFrom(
+   852→                      padding: Spacings.paddingButton,
+   853→                      shape: RoundedRectangleBorder(
+   854→                        borderRadius: Spacings.borderRadiusMd,
+   855→                      ),
+   856→                    ),
+   857→                  ),
+   858→                ),
+   859→              ],
+   860→            ),
+   861→            const SizedBox(height: Spacings.xxl),
+   862→          ],
+   863→        ),
+   864→      ),
+   865→    );
+   866→  }
+   867→
+   868→  Widget _buildSectionHeader(BuildContext context, String title) {
+   869→    final tt = context.textTheme;
+   870→    return Text(
+   871→      title,
+   872→      style: tt.titleMedium?.copyWith(
+   873→        fontWeight: AppTypography.wSemiBold,
+   874→        color: context.colorScheme.onSurface,
+   875→      ),
+   876→    );
+   877→  }
+   878→
+   879→  Widget _buildSyncItemRow(
+   880→    BuildContext context, {
+   881→    required IconData icon,
+   882→    required String label,
+   883→    required int count,
+   884→    required Color color,
+   885→  }) {
+   886→    final tt = context.textTheme;
+   887→    return Row(
+   888→      children: [
+   889→        Icon(icon, size: Spacings.mdIcon, color: color),
+   890→        const SizedBox(width: Spacings.sm),
+   891→        Expanded(
+   892→          child: Text(
+   893→            label,
+   894→            style: tt.bodyMedium?.copyWith(
+   895→              color: context.colorScheme.onSurface,
+   896→            ),
+   897→          ),
+   898→        ),
+   899→        Container(
+   900→          padding: const EdgeInsets.symmetric(
+   901→            horizontal: Spacings.sm,
+   902→            vertical: Spacings.xs,
+   903→          ),
+   904→          decoration: BoxDecoration(
+   905→            color: color.withOpacity(0.1),
+   906→            borderRadius: Spacings.borderRadiusSm,
+   907→          ),
+   908→          child: Text(
+   909→            '$count',
+   910→            style: tt.labelMedium?.copyWith(
+   911→              fontWeight: AppTypography.wSemiBold,
+   912→              color: color,
+   913→            ),
+   914→          ),
+   915→        ),
+   916→      ],
+   917→    );
+   918→  }
+   919→}
+   920→

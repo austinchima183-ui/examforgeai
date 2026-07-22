@@ -9,6 +9,12 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/ai_adjust_tone_usecase.dart';
+import '../../domain/usecases/ai_correct_grammar_usecase.dart';
+import '../../domain/usecases/ai_draft_announcement_usecase.dart';
+import '../../domain/usecases/ai_rewrite_message_usecase.dart';
+import '../../domain/usecases/ai_suggest_reply_usecase.dart';
+import '../../domain/usecases/ai_translate_message_usecase.dart';
 import '../providers/ai_assistant_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -396,7 +402,7 @@ class _State extends ConsumerState<AiAssistantPage> {
       case 'translate':
         notifier.translateMessage(AiTranslateMessageParams(text: input, targetLanguage: _selectedLanguage));
       case 'suggest_reply':
-        notifier.suggestReply(AiSuggestReplyParams(messageId: input, tone: _selectedTone.toLowerCase()));
+        notifier.suggestReply(AiSuggestReplyParams(conversationId: '', messageId: input));
       case 'grammar':
         notifier.correctGrammar(AiCorrectGrammarParams(text: input));
       case 'tone_adjust':

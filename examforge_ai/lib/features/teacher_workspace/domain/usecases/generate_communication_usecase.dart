@@ -35,6 +35,18 @@ class GenerateCommunicationParams extends Equatable {
         recipientType,
         customInstructions,
       ];
+
+  /// Converts these params into a [Map<String, dynamic>] suitable for
+  /// passing to [TeacherWorkspaceRepository.generateCommunication].
+  Map<String, dynamic> toMap() => {
+    'communicationType': communicationType,
+    'subjectId': subjectId,
+    'classId': classId,
+    'purpose': purpose,
+    'tone': tone,
+    'recipientType': recipientType,
+    'customInstructions': customInstructions,
+  };
 }
 
 /// Use case for generating a communication using AI.
@@ -59,6 +71,6 @@ class GenerateCommunicationUseCase {
         fieldErrors: {'purpose': 'Purpose cannot be empty'},
       ));
     }
-    return _repository.generateCommunication(params);
+    return _repository.generateCommunication(params.toMap());
   }
 }

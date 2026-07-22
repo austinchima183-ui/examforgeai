@@ -275,10 +275,10 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                           const SizedBox(height: Spacings.sm),
                           ImportProgressIndicator(
                               importEntry: importEntry),
-                          if (importEntry.errorCount > 0) ...[
+                          if (importEntry.failedItems > 0) ...[
                             const SizedBox(height: Spacings.sm),
                             Text(
-                              '${importEntry.errorCount} errors · Tap to view details',
+                              '${importEntry.failedItems} errors · Tap to view details',
                               style: tt.bodySmall?.copyWith(
                                   color: AppColors.error),
                             ),
@@ -309,7 +309,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(status.label,
-          style: AppTypography.labelSmall.copyWith(
+          style: AppTypography.labelSmall!.copyWith(
               color: color, fontWeight: AppTypography.wSemiBold)),
     );
   }
@@ -335,7 +335,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
     });
   }
 
-  void _showImportDetail(ContentImportEntry importEntry) {
+  void _showImportDetail(ContentImport importEntry) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     showModalBottomSheet(
@@ -383,20 +383,20 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                   const SizedBox(width: Spacings.md),
                   StatOverviewCard(
                     title: 'Imported',
-                    value: '${importEntry.successCount}',
+                    value: '${importEntry.successfulItems}',
                     icon: Icons.check_circle_rounded,
                     color: AppColors.success,
                   ),
                   const SizedBox(width: Spacings.md),
                   StatOverviewCard(
                     title: 'Errors',
-                    value: '${importEntry.errorCount}',
+                    value: '${importEntry.failedItems}',
                     icon: Icons.error_rounded,
                     color: AppColors.error,
                   ),
                 ],
               ),
-              if (importEntry.errorCount > 0) ...[
+              if (importEntry.failedItems > 0) ...[
                 const SizedBox(height: Spacings.lg),
                 Text('Error Log',
                     style: tt.titleMedium?.copyWith(

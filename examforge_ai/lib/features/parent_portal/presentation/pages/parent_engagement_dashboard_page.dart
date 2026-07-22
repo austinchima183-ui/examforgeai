@@ -632,7 +632,6 @@ class _State extends ConsumerState<ParentEngagementDashboardPage>
                   title: 'No Students Needing Support',
                   subtitle:
                       'All parents are actively engaged with the portal.',
-                  icon: Icons.check_circle_outline,
                 )
               : ListView.separated(
                   padding: const EdgeInsets.only(bottom: Spacings.xxl),

@@ -8,6 +8,7 @@ import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/create_forum_comment_usecase.dart';
 import '../providers/forum_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

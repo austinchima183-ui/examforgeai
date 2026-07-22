@@ -364,7 +364,7 @@ class ExamDetailPage extends ConsumerWidget {
                             children: [
                               if (question != null)
                                 QuestionTypeBadge(
-                                  type: question.type,
+                                  type: question.questionType,
                                   variant: QuestionTypeBadgeVariant.labelOnly,
                                 ),
                               const SizedBox(width: Spacings.sm),

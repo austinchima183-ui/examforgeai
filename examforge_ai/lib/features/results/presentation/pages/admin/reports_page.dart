@@ -294,7 +294,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         final icon = switch (format) {
           ReportFormat.pdf => Icons.picture_as_pdf_rounded,
           ReportFormat.excel => Icons.table_chart_rounded,
-          ReportFormat.csv => Icons.data_table_rounded,
+          ReportFormat.csv => Icons.table_chart,
         };
         return FilterChip(
           label: Row(
@@ -593,7 +593,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 switch (report.reportFormat) {
                   ReportFormat.pdf => Icons.picture_as_pdf_rounded,
                   ReportFormat.excel => Icons.table_chart_rounded,
-                  ReportFormat.csv => Icons.data_table_rounded,
+                  ReportFormat.csv => Icons.table_chart,
                 },
                 size: Spacings.mdIcon,
                 color: formatColor,

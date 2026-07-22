@@ -15,7 +15,8 @@ import '../../../../question_bank/domain/entities/question_entities.dart';
 import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
 import '../../../../question_bank/presentation/widgets/difficulty_badge.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../providers/exam_builder_provider.dart';
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../widgets/question_selector_widget.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -87,7 +88,7 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
     if (widget.examId != null) {
       // Load existing exam for editing
       Future.microtask(() {
-        ref.read(examBuilderProvider.notifier).loadExamForEditing(widget.examId!);
+        ref.read(examBuilderProvider.notifier).loadExamForEdit(widget.examId!);
       });
     }
   }
@@ -765,7 +766,7 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
       return;
     }
 
-    await ref.read(examBuilderProvider.notifier).saveDraft();
+    await ref.read(examBuilderProvider.notifier).saveExam();
     if (mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Draft saved successfully')),

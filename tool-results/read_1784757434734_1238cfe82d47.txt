@@ -1,0 +1,1091 @@
+     1→import 'package:flutter/material.dart';
+     2→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     3→import 'package:go_router/go_router.dart';
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/spacings.dart';
+     6→import '../../../../core/themes/app_typography.dart';
+     7→import '../../../../shared/widgets/app_app_bar.dart';
+     8→import '../../../../shared/widgets/app_loading.dart';
+     9→import '../../domain/entities/super_admin_entities.dart';
+    10→import '../providers/super_admin_providers.dart';
+    11→import '../widgets/super_admin_widgets.dart';
+    12→
+    13→// ═══════════════════════════════════════════════════════════════════════════════
+    14→// HELPER FUNCTIONS
+    15→// ═══════════════════════════════════════════════════════════════════════════════
+    16→
+    17→Color _statusColor(MarketplaceStatus status) {
+    18→  switch (status) {
+    19→    case MarketplaceStatus.pendingReview:
+    20→      return AppColors.info;
+    21→    case MarketplaceStatus.approved:
+    22→      return AppColors.success;
+    23→    case MarketplaceStatus.rejected:
+    24→      return AppColors.error;
+    25→    case MarketplaceStatus.featured:
+    26→      return const Color(0xFFD97706); // Gold/Amber
+    27→    case MarketplaceStatus.archived:
+    28→      return Colors.grey;
+    29→    case MarketplaceStatus.flagged:
+    30→      return Colors.orange;
+    31→    case MarketplaceStatus.suspended:
+    32→      return Colors.blueGrey;
+    33→  }
+    34→}
+    35→
+    36→Color _contentTypeColor(MarketplaceContentType type) {
+    37→  switch (type) {
+    38→    case MarketplaceContentType.resource:
+    39→      return AppColors.info;
+    40→    case MarketplaceContentType.lessonNote:
+    41→      return AppColors.success;
+    42→    case MarketplaceContentType.worksheet:
+    43→      return const Color(0xFF7C3AED);
+    44→    case MarketplaceContentType.questionBank:
+    45→      return AppColors.warning;
+    46→    case MarketplaceContentType.template:
+    47→      return const Color(0xFFEA580C);
+    48→    case MarketplaceContentType.examFormat:
+    49→      return const Color(0xFF06B6D4);
+    50→    case MarketplaceContentType.video:
+    51→      return AppColors.error;
+    52→    case MarketplaceContentType.document:
+    53→      return Colors.blueGrey;
+    54→  }
+    55→}
+    56→
+    57→String _formatDate(DateTime dt) {
+    58→  return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
+    59→}
+    60→
+    61→String _formatRating(double rating) {
+    62→  return rating.toStringAsFixed(1);
+    63→}
+    64→
+    65→String _formatPrice(double price) {
+    66→  if (price == 0) return 'Free';
+    67→  return '\$${price.toStringAsFixed(2)}';
+    68→}
+    69→
+    70→// ═══════════════════════════════════════════════════════════════════════════════
+    71→// MARKETPLACE MANAGEMENT PAGE
+    72→// ═══════════════════════════════════════════════════════════════════════════════
+    73→
+    74→/// Super Admin page for moderating marketplace content.
+    75→///
+    76→/// Features:
+    77→/// - 2-tab interface: Pending Review, All Content
+    78→/// - Pending Review: cards with Approve/Reject/Feature actions
+    79→/// - All Content: searchable DataTable with status/type filters and actions
+    80→/// - Status badges with distinct colors per status
+    81→/// - Reject and Flag dialogs require reason input
+    82→class MarketplaceManagementPage extends ConsumerStatefulWidget {
+    83→  const MarketplaceManagementPage({super.key});
+    84→
+    85→  @override
+    86→  ConsumerState<MarketplaceManagementPage> createState() =>
+    87→      _MarketplaceManagementPageState();
+    88→}
+    89→
+    90→class _MarketplaceManagementPageState
+    91→    extends ConsumerState<MarketplaceManagementPage>
+    92→    with SingleTickerProviderStateMixin {
+    93→  // ─── Controllers & State ─────────────────────────────────────────────────
+    94→
+    95→  late final TabController _tabController;
+    96→  final _searchController = TextEditingController();
+    97→  final _rejectReasonController = TextEditingController();
+    98→  final _flagReasonController = TextEditingController();
+    99→
+   100→  MarketplaceStatus? _statusFilter;
+   101→  MarketplaceContentType? _contentTypeFilter;
+   102→
+   103→  // ─── Lifecycle ───────────────────────────────────────────────────────────
+   104→
+   105→  @override
+   106→  void initState() {
+   107→    super.initState();
+   108→    _tabController = TabController(length: 2, vsync: this);
+   109→    WidgetsBinding.instance.addPostFrameCallback((_) {
+   110→      _loadData();
+   111→    });
+   112→  }
+   113→
+   114→  @override
+   115→  void dispose() {
+   116→    _tabController.dispose();
+   117→    _searchController.dispose();
+   118→    _rejectReasonController.dispose();
+   119→    _flagReasonController.dispose();
+   120→    super.dispose();
+   121→  }
+   122→
+   123→  void _loadData() {
+   124→    ref.read(marketplaceManagementProvider.notifier).loadPendingContent();
+   125→    ref.read(marketplaceManagementProvider.notifier).loadAllContent(
+   126→          status: _statusFilter,
+   127→          contentType: _contentTypeFilter,
+   128→          search: _searchController.text.trim().isEmpty
+   129→              ? null
+   130→              : _searchController.text.trim(),
+   131→        );
+   132→  }
+   133→
+   134→  // ─── Build ───────────────────────────────────────────────────────────────
+   135→
+   136→  @override
+   137→  Widget build(BuildContext context) {
+   138→    final state = ref.watch(marketplaceManagementProvider);
+   139→    final cs = Theme.of(context).colorScheme;
+   140→
+   141→    // Listen for success/error messages
+   142→    ref.listen<MarketplaceManagementState>(marketplaceManagementProvider,
+   143→        (prev, next) {
+   144→      if (next.successMessage != null &&
+   145→          prev?.successMessage != next.successMessage) {
+   146→        ScaffoldMessenger.of(context).showSnackBar(
+   147→          SnackBar(
+   148→            content: Text(next.successMessage!),
+   149→            backgroundColor: AppColors.success,
+   150→            behavior: SnackBarBehavior.floating,
+   151→          ),
+   152→        );
+   153→        ref.read(marketplaceManagementProvider.notifier).state =
+   154→            ref.read(marketplaceManagementProvider).clearSuccess();
+   155→      }
+   156→      if (next.error != null && prev?.error != next.error) {
+   157→        ScaffoldMessenger.of(context).showSnackBar(
+   158→          SnackBar(
+   159→            content: Text(next.error!),
+   160→            backgroundColor: AppColors.error,
+   161→            behavior: SnackBarBehavior.floating,
+   162→          ),
+   163→        );
+   164→        ref.read(marketplaceManagementProvider.notifier).state =
+   165→            ref.read(marketplaceManagementProvider).clearError();
+   166→      }
+   167→    });
+   168→
+   169→    return Scaffold(
+   170→      appBar: AppAppBar(
+   171→        title: 'Marketplace Management',
+   172→        actions: [
+   173→          IconButton(
+   174→            icon: const Icon(Icons.refresh_rounded),
+   175→            tooltip: 'Refresh',
+   176→            onPressed: _loadData,
+   177→          ),
+   178→        ],
+   179→        bottom: TabBar(
+   180→          controller: _tabController,
+   181→          tabs: [
+   182→            Tab(
+   183→              text: 'Pending Review',
+   184→              icon: Badge(
+   185→                isLabelVisible: state.pendingContent.isNotEmpty,
+   186→                label: Text('${state.pendingContent.length}'),
+   187→                child: const Icon(Icons.pending_actions_outlined),
+   188→              ),
+   189→            ),
+   190→            const Tab(
+   191→              text: 'All Content',
+   192→              icon: Icon(Icons.inventory_2_outlined),
+   193→            ),
+   194→          ],
+   195→        ),
+   196→      ),
+   197→      body: TabBarView(
+   198→        controller: _tabController,
+   199→        children: [
+   200→          _buildPendingReviewTab(state, cs),
+   201→          _buildAllContentTab(state, cs),
+   202→        ],
+   203→      ),
+   204→    );
+   205→  }
+   206→
+   207→  // ═══════════════════════════════════════════════════════════════════════════════
+   208→  // PENDING REVIEW TAB
+   209→  // ═══════════════════════════════════════════════════════════════════════════════
+   210→
+   211→  Widget _buildPendingReviewTab(MarketplaceManagementState state, ColorScheme cs) {
+   212→    if (state.isLoading && state.pendingContent.isEmpty) {
+   213→      return const Center(
+   214→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+   215→    }
+   216→
+   217→    if (state.error != null && state.pendingContent.isEmpty) {
+   218→      return Center(
+   219→        child: Padding(
+   220→          padding: Spacings.paddingAll,
+   221→          child: Column(
+   222→            mainAxisSize: MainAxisSize.min,
+   223→            children: [
+   224→              Icon(Icons.error_outline_rounded, size: 48, color: cs.error),
+   225→              const SizedBox(height: Spacings.lg),
+   226→              Text(
+   227→                state.error!,
+   228→                style: AppTypography.wRegular.copyWith(
+   229→                  fontSize: 14,
+   230→                  color: cs.onSurface.withOpacity(0.7),
+   231→                ),
+   232→                textAlign: TextAlign.center,
+   233→              ),
+   234→              const SizedBox(height: Spacings.lg),
+   235→              FilledButton.tonal(
+   236→                onPressed: _loadData,
+   237→                child: const Text('Retry'),
+   238→              ),
+   239→            ],
+   240→          ),
+   241→        ),
+   242→      );
+   243→    }
+   244→
+   245→    if (state.pendingContent.isEmpty) {
+   246→      return const AdminEmptyState(
+   247→        message: 'No content pending review.',
+   248→        icon: Icons.check_circle_outline,
+   249→      );
+   250→    }
+   251→
+   252→    return ListView.separated(
+   253→      padding: Spacings.paddingScreen,
+   254→      itemCount: state.pendingContent.length,
+   255→      separatorBuilder: (_, __) => const SizedBox(height: Spacings.md),
+   256→      itemBuilder: (context, index) =>
+   257→          _buildPendingContentCard(state.pendingContent[index], cs),
+   258→    );
+   259→  }
+   260→
+   261→  Widget _buildPendingContentCard(MarketplaceContent content, ColorScheme cs) {
+   262→    final typeColor = _contentTypeColor(content.contentType);
+   263→
+   264→    return Card(
+   265→      elevation: Spacings.elevationSm,
+   266→      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   267→      child: Padding(
+   268→        padding: Spacings.paddingAll,
+   269→        child: Column(
+   270→          crossAxisAlignment: CrossAxisAlignment.start,
+   271→          children: [
+   272→            // ─── Row 1: Thumbnail + Title/Author ────────────────────────
+   273→            Row(
+   274→              crossAxisAlignment: CrossAxisAlignment.start,
+   275→              children: [
+   276→                // Thumbnail placeholder
+   277→                Container(
+   278→                  width: 72,
+   279→                  height: 72,
+   280→                  decoration: BoxDecoration(
+   281→                    color: cs.surfaceContainerHighest,
+   282→                    borderRadius: Spacings.borderRadiusMd,
+   283→                  ),
+   284→                  child: content.thumbnailUrl != null
+   285→                      ? ClipRRect(
+   286→                          borderRadius: Spacings.borderRadiusMd,
+   287→                          child: Image.network(
+   288→                            content.thumbnailUrl!,
+   289→                            fit: BoxFit.cover,
+   290→                            errorBuilder: (_, __, ___) => Icon(
+   291→                              Icons.image_outlined,
+   292→                              color: cs.onSurface.withOpacity(0.3),
+   293→                            ),
+   294→                          ),
+   295→                        )
+   296→                      : Icon(
+   297→                          Icons.inventory_2_outlined,
+   298→                          size: Spacings.lgIcon,
+   299→                          color: cs.onSurface.withOpacity(0.3),
+   300→                        ),
+   301→                ),
+   302→                const SizedBox(width: Spacings.md),
+   303→                Expanded(
+   304→                  child: Column(
+   305→                    crossAxisAlignment: CrossAxisAlignment.start,
+   306→                    children: [
+   307→                      Row(
+   308→                        children: [
+   309→                          Expanded(
+   310→                            child: Text(
+   311→                              content.title,
+   312→                              style: AppTypography.wSemiBold.copyWith(
+   313→                                fontSize: 15,
+   314→                              ),
+   315→                              maxLines: 2,
+   316→                              overflow: TextOverflow.ellipsis,
+   317→                            ),
+   318→                          ),
+   319→                          StatusBadge(
+   320→                            label: content.contentType.label,
+   321→                            color: typeColor,
+   322→                          ),
+   323→                        ],
+   324→                      ),
+   325→                      const SizedBox(height: Spacings.xs),
+   326→                      Text(
+   327→                        'Author: ${content.authorId}',
+   328→                        style: AppTypography.wRegular.copyWith(
+   329→                          fontSize: 12,
+   330→                          color: cs.onSurface.withOpacity(0.6),
+   331→                        ),
+   332→                      ),
+   333→                    ],
+   334→                  ),
+   335→                ),
+   336→              ],
+   337→            ),
+   338→            const SizedBox(height: Spacings.md),
+   339→
+   340→            // ─── Row 2: Subject, Class Level, Curriculum ────────────────
+   341→            Wrap(
+   342→              spacing: Spacings.sm,
+   343→              runSpacing: Spacings.sm,
+   344→              children: [
+   345→                if (content.subject != null)
+   346→                  StatusBadge(
+   347→                    label: content.subject!,
+   348→                    color: cs.primary,
+   349→                    icon: Icons.subject_outlined,
+   350→                  ),
+   351→                if (content.classLevel != null)
+   352→                  StatusBadge(
+   353→                    label: content.classLevel!,
+   354→                    color: AppColors.info,
+   355→                    icon: Icons.school_outlined,
+   356→                  ),
+   357→                if (content.curriculum != null)
+   358→                  StatusBadge(
+   359→                    label: content.curriculum!,
+   360→                    color: AppColors.success,
+   361→                    icon: Icons.menu_book_outlined,
+   362→                  ),
+   363→                StatusBadge(
+   364→                  label: _formatPrice(content.price),
+   365→                  color: content.isFree ? AppColors.success : AppColors.warning,
+   366→                  icon: content.isFree ? Icons.card_giftcard : Icons.attach_money,
+   367→                ),
+   368→              ],
+   369→            ),
+   370→            const SizedBox(height: Spacings.md),
+   371→
+   372→            // ─── Row 3: Description Preview ─────────────────────────────
+   373→            Text(
+   374→              content.description,
+   375→              style: AppTypography.wRegular.copyWith(
+   376→                fontSize: 13,
+   377→                color: cs.onSurface.withOpacity(0.7),
+   378→              ),
+   379→              maxLines: 3,
+   380→              overflow: TextOverflow.ellipsis,
+   381→            ),
+   382→
+   383→            // ─── Row 4: Tags ────────────────────────────────────────────
+   384→            if (content.tags != null && content.tags!.isNotEmpty) ...[
+   385→              const SizedBox(height: Spacings.sm),
+   386→              Wrap(
+   387→                spacing: Spacings.xs,
+   388→                runSpacing: Spacings.xs,
+   389→                children: content.tags!
+   390→                    .map((tag) => Chip(
+   391→                          label: Text(
+   392→                            tag,
+   393→                            style: AppTypography.wRegular.copyWith(fontSize: 11),
+   394→                          ),
+   395→                          visualDensity: VisualDensity.compact,
+   396→                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   397→                          padding: const EdgeInsets.symmetric(
+   398→                              horizontal: Spacings.sm),
+   399→                        ))
+   400→                    .toList(),
+   401→              ),
+   402→            ],
+   403→            const SizedBox(height: Spacings.lg),
+   404→
+   405→            // ─── Row 5: Action Buttons ──────────────────────────────────
+   406→            Row(
+   407→              mainAxisAlignment: MainAxisAlignment.end,
+   408→              children: [
+   409→                // Approve (green)
+   410→                FilledButton.icon(
+   411→                  onPressed: () => _approveContent(content.id),
+   412→                  icon: const Icon(Icons.check_circle_outline, size: Spacings.mdIcon),
+   413→                  label: const Text('Approve'),
+   414→                  style: FilledButton.styleFrom(
+   415→                    backgroundColor: AppColors.success,
+   416→                    foregroundColor: Colors.white,
+   417→                  ),
+   418→                ),
+   419→                const SizedBox(width: Spacings.sm),
+   420→
+   421→                // Reject (red)
+   422→                FilledButton.icon(
+   423→                  onPressed: () => _showRejectDialog(content),
+   424→                  icon: const Icon(Icons.cancel_outlined, size: Spacings.mdIcon),
+   425→                  label: const Text('Reject'),
+   426→                  style: FilledButton.styleFrom(
+   427→                    backgroundColor: AppColors.error,
+   428→                    foregroundColor: Colors.white,
+   429→                  ),
+   430→                ),
+   431→                const SizedBox(width: Spacings.sm),
+   432→
+   433→                // Feature (gold)
+   434→                FilledButton.tonal(
+   435→                  onPressed: () => _featureContent(content.id),
+   436→                  style: FilledButton.styleFrom(
+   437→                    foregroundColor: const Color(0xFFD97706),
+   438→                  ),
+   439→                  child: Row(
+   440→                    mainAxisSize: MainAxisSize.min,
+   441→                    children: [
+   442→                      Icon(Icons.star_outline,
+   443→                          size: Spacings.mdIcon, color: const Color(0xFFD97706)),
+   444→                      const SizedBox(width: Spacings.xs),
+   445→                      const Text('Feature'),
+   446→                    ],
+   447→                  ),
+   448→                ),
+   449→              ],
+   450→            ),
+   451→          ],
+   452→        ),
+   453→      ),
+   454→    );
+   455→  }
+   456→
+   457→  // ═══════════════════════════════════════════════════════════════════════════════
+   458→  // ALL CONTENT TAB
+   459→  // ═══════════════════════════════════════════════════════════════════════════════
+   460→
+   461→  Widget _buildAllContentTab(MarketplaceManagementState state, ColorScheme cs) {
+   462→    if (state.isLoading && state.allContent.isEmpty) {
+   463→      return const Center(
+   464→          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+   465→    }
+   466→
+   467→    if (state.error != null && state.allContent.isEmpty) {
+   468→      return Center(
+   469→        child: Padding(
+   470→          padding: Spacings.paddingAll,
+   471→          child: Column(
+   472→            mainAxisSize: MainAxisSize.min,
+   473→            children: [
+   474→              Icon(Icons.error_outline_rounded, size: 48, color: cs.error),
+   475→              const SizedBox(height: Spacings.lg),
+   476→              Text(
+   477→                state.error!,
+   478→                style: AppTypography.wRegular.copyWith(
+   479→                  fontSize: 14,
+   480→                  color: cs.onSurface.withOpacity(0.7),
+   481→                ),
+   482→                textAlign: TextAlign.center,
+   483→              ),
+   484→              const SizedBox(height: Spacings.lg),
+   485→              FilledButton.tonal(
+   486→                onPressed: _loadData,
+   487→                child: const Text('Retry'),
+   488→              ),
+   489→            ],
+   490→          ),
+   491→        ),
+   492→      );
+   493→    }
+   494→
+   495→    return Column(
+   496→      children: [
+   497→        // ─── Search & Filters ───────────────────────────────────────────
+   498→        Padding(
+   499→          padding: Spacings.paddingScreen,
+   500→          child: Column(
+   501→            children: [
+   502→              AdminSearchBar(
+   503→                controller: _searchController,
+   504→                hint: 'Search by title, author...',
+   505→                onChanged: (_) => _loadData(),
+   506→              ),
+   507→              const SizedBox(height: Spacings.md),
+   508→              Row(
+   509→                children: [
+   510→                  Text(
+   511→                    'Status:',
+   512→                    style: AppTypography.wMedium.copyWith(fontSize: 13),
+   513→                  ),
+   514→                  const SizedBox(width: Spacings.sm),
+   515→                  Expanded(
+   516→                    child: FilterChipGroup<MarketplaceStatus>(
+   517→                      items: MarketplaceStatus.values,
+   518→                      selected: _statusFilter,
+   519→                      onSelected: (status) {
+   520→                        setState(() => _statusFilter = status);
+   521→                        _loadData();
+   522→                      },
+   523→                      labelBuilder: (status) => status.label,
+   524→                    ),
+   525→                  ),
+   526→                ],
+   527→              ),
+   528→              const SizedBox(height: Spacings.sm),
+   529→              Row(
+   530→                children: [
+   531→                  Text(
+   532→                    'Type:',
+   533→                    style: AppTypography.wMedium.copyWith(fontSize: 13),
+   534→                  ),
+   535→                  const SizedBox(width: Spacings.sm),
+   536→                  Expanded(
+   537→                    child: FilterChipGroup<MarketplaceContentType>(
+   538→                      items: MarketplaceContentType.values,
+   539→                      selected: _contentTypeFilter,
+   540→                      onSelected: (type) {
+   541→                        setState(() => _contentTypeFilter = type);
+   542→                        _loadData();
+   543→                      },
+   544→                      labelBuilder: (type) => type.label,
+   545→                    ),
+   546→                  ),
+   547→                ],
+   548→              ),
+   549→            ],
+   550→          ),
+   551→        ),
+   552→        const Divider(height: 1),
+   553→
+   554→        // ─── Data Table ─────────────────────────────────────────────────
+   555→        Expanded(
+   556→          child: state.allContent.isEmpty
+   557→              ? const AdminEmptyState(
+   558→                  message: 'No content matches your filters.',
+   559→                  icon: Icons.inventory_2_outlined,
+   560→                )
+   561→              : SingleChildScrollView(
+   562→                  scrollDirection: Axis.vertical,
+   563→                  child: SingleChildScrollView(
+   564→                    scrollDirection: Axis.horizontal,
+   565→                    child: DataTable(
+   566→                      headingRowColor: WidgetStatePropertyAll(
+   567→                        cs.surfaceContainerLow,
+   568→                      ),
+   569→                      headingTextStyle: AppTypography.wSemiBold.copyWith(
+   570→                        fontSize: 12,
+   571→                        color: cs.onSurface,
+   572→                      ),
+   573→                      dataTextStyle: AppTypography.wRegular.copyWith(
+   574→                        fontSize: 13,
+   575→                        color: cs.onSurface,
+   576→                      ),
+   577→                      columnSpacing: Spacings.lg,
+   578→                      horizontalMargin: Spacings.lg,
+   579→                      columns: const [
+   580→                        DataColumn(label: Text('Title')),
+   581→                        DataColumn(label: Text('Author')),
+   582→                        DataColumn(label: Text('Type')),
+   583→                        DataColumn(label: Text('Status')),
+   584→                        DataColumn(label: Text('Downloads')),
+   585→                        DataColumn(label: Text('Rating')),
+   586→                        DataColumn(label: Text('Price')),
+   587→                        DataColumn(label: Text('Reviewed By')),
+   588→                        DataColumn(label: Text('Created')),
+   589→                        DataColumn(label: Text('Actions')),
+   590→                      ],
+   591→                      rows: state.allContent.map((content) {
+   592→                        return DataRow(
+   593→                          cells: [
+   594→                            // Title
+   595→                            DataCell(
+   596→                              SizedBox(
+   597→                                width: 180,
+   598→                                child: Text(
+   599→                                  content.title,
+   600→                                  maxLines: 1,
+   601→                                  overflow: TextOverflow.ellipsis,
+   602→                                  style: AppTypography.wMedium.copyWith(
+   603→                                    fontSize: 13,
+   604→                                  ),
+   605→                                ),
+   606→                              ),
+   607→                            ),
+   608→                            // Author
+   609→                            DataCell(
+   610→                              SizedBox(
+   611→                                width: 100,
+   612→                                child: Text(
+   613→                                  content.authorId,
+   614→                                  maxLines: 1,
+   615→                                  overflow: TextOverflow.ellipsis,
+   616→                                ),
+   617→                              ),
+   618→                            ),
+   619→                            // Type
+   620→                            DataCell(
+   621→                              StatusBadge(
+   622→                                label: content.contentType.label,
+   623→                                color: _contentTypeColor(content.contentType),
+   624→                              ),
+   625→                            ),
+   626→                            // Status
+   627→                            DataCell(
+   628→                              StatusBadge(
+   629→                                label: content.status.label,
+   630→                                color: _statusColor(content.status),
+   631→                              ),
+   632→                            ),
+   633→                            // Downloads
+   634→                            DataCell(Text('${content.downloadCount}')),
+   635→                            // Rating
+   636→                            DataCell(Row(
+   637→                              mainAxisSize: MainAxisSize.min,
+   638→                              children: [
+   639→                                Icon(Icons.star, size: 14, color: AppColors.warning),
+   640→                                const SizedBox(width: Spacings.xs),
+   641→                                Text(
+   642→                                  _formatRating(content.ratingAverage),
+   643→                                  style: AppTypography.wMedium.copyWith(fontSize: 12),
+   644→                                ),
+   645→                                Text(
+   646→                                  ' (${content.ratingCount})',
+   647→                                  style: AppTypography.wRegular.copyWith(
+   648→                                    fontSize: 11,
+   649→                                    color: cs.onSurface.withOpacity(0.5),
+   650→                                  ),
+   651→                                ),
+   652→                              ],
+   653→                            )),
+   654→                            // Price
+   655→                            DataCell(Text(_formatPrice(content.price))),
+   656→                            // Reviewed By
+   657→                            DataCell(Text(
+   658→                              content.reviewedBy ?? '—',
+   659→                              style: AppTypography.wRegular.copyWith(
+   660→                                fontSize: 12,
+   661→                                color: content.reviewedBy != null
+   662→                                    ? cs.onSurface
+   663→                                    : cs.onSurface.withOpacity(0.4),
+   664→                              ),
+   665→                            )),
+   666→                            // Created
+   667→                            DataCell(Text(_formatDate(content.createdAt))),
+   668→                            // Actions
+   669→                            DataCell(_buildActionButtons(content, cs)),
+   670→                          ],
+   671→                        );
+   672→                      }).toList(),
+   673→                    ),
+   674→                  ),
+   675→                ),
+   676→        ),
+   677→      ],
+   678→    );
+   679→  }
+   680→
+   681→  Widget _buildActionButtons(MarketplaceContent content, ColorScheme cs) {
+   682→    return PopupMenuButton<String>(
+   683→      icon: const Icon(Icons.more_vert),
+   684→      tooltip: 'Actions',
+   685→      onSelected: (action) => _handleAction(action, content),
+   686→      itemBuilder: (ctx) => [
+   687→        const PopupMenuItem(value: 'view', child: Text('View Details')),
+   688→        if (content.status == MarketplaceStatus.pendingReview)
+   689→          const PopupMenuItem(value: 'approve', child: Text('Approve')),
+   690→        if (content.status == MarketplaceStatus.pendingReview)
+   691→          const PopupMenuItem(value: 'reject', child: Text('Reject')),
+   692→        if (content.status == MarketplaceStatus.approved)
+   693→          const PopupMenuItem(value: 'feature', child: Text('Feature')),
+   694→        if (!content.isFlagged)
+   695→          const PopupMenuItem(value: 'flag', child: Text('Flag')),
+   696→        const PopupMenuItem(value: 'remove', child: Text('Remove')),
+   697→      ],
+   698→    );
+   699→  }
+   700→
+   701→  void _handleAction(String action, MarketplaceContent content) {
+   702→    switch (action) {
+   703→      case 'view':
+   704→        _showContentDetailDialog(content);
+   705→      case 'approve':
+   706→        _approveContent(content.id);
+   707→      case 'reject':
+   708→        _showRejectDialog(content);
+   709→      case 'feature':
+   710→        _featureContent(content.id);
+   711→      case 'flag':
+   712→        _showFlagDialog(content);
+   713→      case 'remove':
+   714→        _showRemoveConfirmDialog(content);
+   715→    }
+   716→  }
+   717→
+   718→  // ═══════════════════════════════════════════════════════════════════════════════
+   719→  // ACTIONS
+   720→  // ═══════════════════════════════════════════════════════════════════════════════
+   721→
+   722→  void _approveContent(String contentId) {
+   723→    ref.read(marketplaceManagementProvider.notifier).approveContent(contentId);
+   724→  }
+   725→
+   726→  void _featureContent(String contentId) {
+   727→    ref.read(marketplaceManagementProvider.notifier).featureContent(contentId);
+   728→  }
+   729→
+   730→  void _showRejectDialog(MarketplaceContent content) {
+   731→    _rejectReasonController.clear();
+   732→
+   733→    showDialog(
+   734→      context: context,
+   735→      builder: (ctx) => AlertDialog(
+   736→        title: const Text('Reject Content'),
+   737→        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+   738→        content: SizedBox(
+   739→          width: 440,
+   740→          child: Column(
+   741→            mainAxisSize: MainAxisSize.min,
+   742→            crossAxisAlignment: CrossAxisAlignment.start,
+   743→            children: [
+   744→              Text(
+   745→                'Rejecting: "${content.title}"',
+   746→                style: AppTypography.wMedium.copyWith(fontSize: 14),
+   747→                maxLines: 1,
+   748→                overflow: TextOverflow.ellipsis,
+   749→              ),
+   750→              const SizedBox(height: Spacings.lg),
+   751→              TextField(
+   752→                controller: _rejectReasonController,
+   753→                maxLines: 4,
+   754→                decoration: const InputDecoration(
+   755→                  labelText: 'Reason for rejection *',
+   756→                  border: OutlineInputBorder(),
+   757→                  alignLabelWithHint: true,
+   758→                  hintText: 'Provide a clear reason for the content author...',
+   759→                ),
+   760→              ),
+   761→            ],
+   762→          ),
+   763→        ),
+   764→        actions: [
+   765→          TextButton(
+   766→            onPressed: () => Navigator.of(ctx).pop(),
+   767→            child: const Text('Cancel'),
+   768→          ),
+   769→          FilledButton(
+   770→            onPressed: () {
+   771→              if (_rejectReasonController.text.trim().isEmpty) {
+   772→                ScaffoldMessenger.of(context).showSnackBar(
+   773→                  const SnackBar(
+   774→                    content: Text('Please provide a reason for rejection'),
+   775→                    backgroundColor: AppColors.error,
+   776→                    behavior: SnackBarBehavior.floating,
+   777→                  ),
+   778→                );
+   779→                return;
+   780→              }
+   781→              ref
+   782→                  .read(marketplaceManagementProvider.notifier)
+   783→                  .rejectContent(
+   784→                      content.id, _rejectReasonController.text.trim());
+   785→              Navigator.of(ctx).pop();
+   786→            },
+   787→            style: FilledButton.styleFrom(
+   788→              backgroundColor: AppColors.error,
+   789→              foregroundColor: Colors.white,
+   790→            ),
+   791→            child: const Text('Reject'),
+   792→          ),
+   793→        ],
+   794→      ),
+   795→    );
+   796→  }
+   797→
+   798→  void _showFlagDialog(MarketplaceContent content) {
+   799→    _flagReasonController.clear();
+   800→
+   801→    showDialog(
+   802→      context: context,
+   803→      builder: (ctx) => AlertDialog(
+   804→        title: Row(
+   805→          children: [
+   806→            Icon(Icons.flag_outlined, color: Colors.orange, size: Spacings.lgIcon),
+   807→            const SizedBox(width: Spacings.sm),
+   808→            const Text('Flag Content'),
+   809→          ],
+   810→        ),
+   811→        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+   812→        content: SizedBox(
+   813→          width: 440,
+   814→          child: Column(
+   815→            mainAxisSize: MainAxisSize.min,
+   816→            crossAxisAlignment: CrossAxisAlignment.start,
+   817→            children: [
+   818→              Text(
+   819→                'Flagging: "${content.title}"',
+   820→                style: AppTypography.wMedium.copyWith(fontSize: 14),
+   821→                maxLines: 1,
+   822→                overflow: TextOverflow.ellipsis,
+   823→              ),
+   824→              const SizedBox(height: Spacings.lg),
+   825→              TextField(
+   826→                controller: _flagReasonController,
+   827→                maxLines: 4,
+   828→                decoration: const InputDecoration(
+   829→                  labelText: 'Reason for flagging *',
+   830→                  border: OutlineInputBorder(),
+   831→                  alignLabelWithHint: true,
+   832→                  hintText: 'Describe the issue with this content...',
+   833→                ),
+   834→              ),
+   835→            ],
+   836→          ),
+   837→        ),
+   838→        actions: [
+   839→          TextButton(
+   840→            onPressed: () => Navigator.of(ctx).pop(),
+   841→            child: const Text('Cancel'),
+   842→          ),
+   843→          FilledButton(
+   844→            onPressed: () {
+   845→              if (_flagReasonController.text.trim().isEmpty) {
+   846→                ScaffoldMessenger.of(context).showSnackBar(
+   847→                  const SnackBar(
+   848→                    content: Text('Please provide a reason for flagging'),
+   849→                    backgroundColor: AppColors.error,
+   850→                    behavior: SnackBarBehavior.floating,
+   851→                  ),
+   852→                );
+   853→                return;
+   854→              }
+   855→              // In production, would call a flag content use case
+   856→              Navigator.of(ctx).pop();
+   857→              ScaffoldMessenger.of(context).showSnackBar(
+   858→                const SnackBar(
+   859→                  content: Text('Content flagged (mock)'),
+   860→                  backgroundColor: Colors.orange,
+   861→                  behavior: SnackBarBehavior.floating,
+   862→                ),
+   863→              );
+   864→            },
+   865→            style: FilledButton.styleFrom(
+   866→              backgroundColor: Colors.orange,
+   867→              foregroundColor: Colors.white,
+   868→            ),
+   869→            child: const Text('Flag'),
+   870→          ),
+   871→        ],
+   872→      ),
+   873→    );
+   874→  }
+   875→
+   876→  void _showRemoveConfirmDialog(MarketplaceContent content) {
+   877→    showDialog(
+   878→      context: context,
+   879→      builder: (ctx) => AlertDialog(
+   880→        title: Row(
+   881→          children: [
+   882→            Icon(Icons.delete_outline,
+   883→                color: AppColors.error, size: Spacings.lgIcon),
+   884→            const SizedBox(width: Spacings.sm),
+   885→            const Text('Remove Content'),
+   886→          ],
+   887→        ),
+   888→        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+   889→        content: Text(
+   890→          'Are you sure you want to permanently remove "${content.title}"? '
+   891→          'This action cannot be undone.',
+   892→          style: AppTypography.wRegular.copyWith(fontSize: 14),
+   893→        ),
+   894→        actions: [
+   895→          TextButton(
+   896→            onPressed: () => Navigator.of(ctx).pop(),
+   897→            child: const Text('Cancel'),
+   898→          ),
+   899→          FilledButton(
+   900→            onPressed: () {
+   901→              // In production, would call a remove content use case
+   902→              Navigator.of(ctx).pop();
+   903→              ScaffoldMessenger.of(context).showSnackBar(
+   904→                const SnackBar(
+   905→                  content: Text('Content removed (mock)'),
+   906→                  backgroundColor: AppColors.error,
+   907→                  behavior: SnackBarBehavior.floating,
+   908→                ),
+   909→              );
+   910→            },
+   911→            style: FilledButton.styleFrom(
+   912→              backgroundColor: AppColors.error,
+   913→              foregroundColor: Colors.white,
+   914→            ),
+   915→            child: const Text('Remove'),
+   916→          ),
+   917→        ],
+   918→      ),
+   919→    );
+   920→  }
+   921→
+   922→  void _showContentDetailDialog(MarketplaceContent content) {
+   923→    final cs = Theme.of(context).colorScheme;
+   924→
+   925→    showDialog(
+   926→      context: context,
+   927→      builder: (ctx) => AlertDialog(
+   928→        title: Text(content.title),
+   929→        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+   930→        content: SizedBox(
+   931→          width: 520,
+   932→          child: Column(
+   933→            mainAxisSize: MainAxisSize.min,
+   934→            crossAxisAlignment: CrossAxisAlignment.start,
+   935→            children: [
+   936→              // Status & Type badges
+   937→              Wrap(
+   938→                spacing: Spacings.sm,
+   939→                runSpacing: Spacings.sm,
+   940→                children: [
+   941→                  StatusBadge(
+   942→                    label: content.status.label,
+   943→                    color: _statusColor(content.status),
+   944→                  ),
+   945→                  StatusBadge(
+   946→                    label: content.contentType.label,
+   947→                    color: _contentTypeColor(content.contentType),
+   948→                  ),
+   949→                  StatusBadge(
+   950→                    label: _formatPrice(content.price),
+   951→                    color: content.isFree ? AppColors.success : AppColors.warning,
+   952→                  ),
+   953→                ],
+   954→              ),
+   955→              const SizedBox(height: Spacings.lg),
+   956→
+   957→              // Details grid
+   958→              _buildDetailRow('Author', content.authorId, cs),
+   959→              if (content.subject != null)
+   960→                _buildDetailRow('Subject', content.subject!, cs),
+   961→              if (content.classLevel != null)
+   962→                _buildDetailRow('Class Level', content.classLevel!, cs),
+   963→              if (content.curriculum != null)
+   964→                _buildDetailRow('Curriculum', content.curriculum!, cs),
+   965→              _buildDetailRow('Downloads', '${content.downloadCount}', cs),
+   966→              _buildDetailRow(
+   967→                  'Rating', '${_formatRating(content.ratingAverage)} (${content.ratingCount} reviews)', cs),
+   968→              if (content.reviewedBy != null)
+   969→                _buildDetailRow('Reviewed By', content.reviewedBy!, cs),
+   970→              if (content.reviewedAt != null)
+   971→                _buildDetailRow('Reviewed At', _formatDate(content.reviewedAt!), cs),
+   972→              _buildDetailRow('Created', _formatDate(content.createdAt), cs),
+   973→
+   974→              const SizedBox(height: Spacings.lg),
+   975→
+   976→              // Description
+   977→              Text(
+   978→                'Description',
+   979→                style: AppTypography.wSemiBold.copyWith(fontSize: 13),
+   980→              ),
+   981→              const SizedBox(height: Spacings.xs),
+   982→              Text(
+   983→                content.description,
+   984→                style: AppTypography.wRegular.copyWith(
+   985→                  fontSize: 13,
+   986→                  color: cs.onSurface.withOpacity(0.7),
+   987→                ),
+   988→              ),
+   989→
+   990→              // Tags
+   991→              if (content.tags != null && content.tags!.isNotEmpty) ...[
+   992→                const SizedBox(height: Spacings.md),
+   993→                Text(
+   994→                  'Tags',
+   995→                  style: AppTypography.wSemiBold.copyWith(fontSize: 13),
+   996→                ),
+   997→                const SizedBox(height: Spacings.xs),
+   998→                Wrap(
+   999→                  spacing: Spacings.xs,
+  1000→                  runSpacing: Spacings.xs,
+  1001→                  children: content.tags!
+  1002→                      .map((tag) => Chip(
+  1003→                            label: Text(tag,
+  1004→                                style: AppTypography.wRegular.copyWith(fontSize: 11)),
+  1005→                            visualDensity: VisualDensity.compact,
+  1006→                            materialTapTargetSize:
+  1007→                                MaterialTapTargetSize.shrinkWrap,
+  1008→                          ))
+  1009→                      .toList(),
+  1010→                ),
+  1011→              ],
+  1012→
+  1013→              // Flag info
+  1014→              if (content.isFlagged) ...[
+  1015→                const SizedBox(height: Spacings.md),
+  1016→                Container(
+  1017→                  padding: Spacings.paddingAllMd,
+  1018→                  decoration: BoxDecoration(
+  1019→                    color: Colors.orange.withOpacity(0.1),
+  1020→                    borderRadius: Spacings.borderRadiusSm,
+  1021→                    border: Border.all(
+  1022→                        color: Colors.orange.withOpacity(0.3)),
+  1023→                  ),
+  1024→                  child: Row(
+  1025→                    children: [
+  1026→                      Icon(Icons.flag, size: Spacings.mdIcon, color: Colors.orange),
+  1027→                      const SizedBox(width: Spacings.sm),
+  1028→                      Expanded(
+  1029→                        child: Column(
+  1030→                          crossAxisAlignment: CrossAxisAlignment.start,
+  1031→                          children: [
+  1032→                            Text(
+  1033→                              'Flagged Content',
+  1034→                              style: AppTypography.wSemiBold.copyWith(
+  1035→                                fontSize: 12,
+  1036→                                color: Colors.orange,
+  1037→                              ),
+  1038→                            ),
+  1039→                            if (content.flagReason != null)
+  1040→                              Text(
+  1041→                                content.flagReason!,
+  1042→                                style: AppTypography.wRegular.copyWith(fontSize: 12),
+  1043→                              ),
+  1044→                          ],
+  1045→                        ),
+  1046→                      ),
+  1047→                    ],
+  1048→                  ),
+  1049→                ),
+  1050→              ],
+  1051→            ],
+  1052→          ),
+  1053→        ),
+  1054→        actions: [
+  1055→          TextButton(
+  1056→            onPressed: () => Navigator.of(ctx).pop(),
+  1057→            child: const Text('Close'),
+  1058→          ),
+  1059→        ],
+  1060→      ),
+  1061→    );
+  1062→  }
+  1063→
+  1064→  Widget _buildDetailRow(String label, String value, ColorScheme cs) {
+  1065→    return Padding(
+  1066→      padding: const EdgeInsets.only(bottom: Spacings.sm),
+  1067→      child: Row(
+  1068→        crossAxisAlignment: CrossAxisAlignment.start,
+  1069→        children: [
+  1070→          SizedBox(
+  1071→            width: 100,
+  1072→            child: Text(
+  1073→              label,
+  1074→              style: AppTypography.wRegular.copyWith(
+  1075→                fontSize: 12,
+  1076→                color: cs.onSurface.withOpacity(0.5),
+  1077→              ),
+  1078→            ),
+  1079→          ),
+  1080→          Expanded(
+  1081→            child: Text(
+  1082→              value,
+  1083→              style: AppTypography.wMedium.copyWith(fontSize: 13),
+  1084→            ),
+  1085→          ),
+  1086→        ],
+  1087→      ),
+  1088→    );
+  1089→  }
+  1090→}
+  1091→

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/billing_entities.dart';
@@ -28,7 +29,7 @@ class RevenueState {
   final List<RevenueDataPoint> revenueData;
 
   /// The billing dashboard summary, or `null`.
-  final BillingDashboardSummaryEntity? dashboardSummary;
+  final Map<String, dynamic>? dashboardSummary;
 
   /// The most recent error message, or `null`.
   final String? error;
@@ -43,7 +44,7 @@ class RevenueState {
   RevenueState copyWith({
     bool? isLoading,
     List<RevenueDataPoint>? revenueData,
-    BillingDashboardSummaryEntity? dashboardSummary,
+    Map<String, dynamic>? dashboardSummary,
     String? error,
   }) {
     return RevenueState(
@@ -99,14 +100,14 @@ class RevenueNotifier extends StateNotifier<RevenueState> {
     );
 
     result.fold(
-      onSuccess: (revenueDataEntity) {
+      onSuccess: (revenueData) {
         state = state.copyWith(
           isLoading: false,
-          revenueData: revenueDataEntity.dataPoints,
+          revenueData: revenueData,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${revenueDataEntity.dataPoints.length} revenue data points',
+          'Loaded ${revenueData.length} revenue data points',
         );
       },
       onFailure: (failure) {

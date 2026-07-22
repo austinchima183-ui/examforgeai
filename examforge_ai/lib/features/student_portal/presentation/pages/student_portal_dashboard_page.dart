@@ -232,7 +232,7 @@ class _StudentPortalDashboardPageState
           _StatCard(
             title: 'Upcoming Exams',
             value: '${stats.upcomingExams}',
-            icon: Icons.event_upcoming_outlined,
+            icon: Icons.event_outlined,
             color: AppColors.info,
           ),
           const SizedBox(width: Spacings.md),
@@ -668,7 +668,7 @@ class _StudentPortalDashboardPageState
   IconData _notificationIcon(StudentNotificationType type) {
     return switch (type) {
       StudentNotificationType.newAssignment => Icons.assignment_outlined,
-      StudentNotificationType.upcomingExam => Icons.event_upcoming_outlined,
+      StudentNotificationType.upcomingExam => Icons.event_outlined,
       StudentNotificationType.resultPublished => Icons.assessment_outlined,
       StudentNotificationType.teacherAnnouncement =>
         Icons.campaign_outlined,
@@ -727,7 +727,6 @@ class _StatCard extends StatelessWidget {
     final isDark = context.isDarkMode;
 
     return AppCard(
-      width: 160,
       padding: const EdgeInsets.all(Spacings.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

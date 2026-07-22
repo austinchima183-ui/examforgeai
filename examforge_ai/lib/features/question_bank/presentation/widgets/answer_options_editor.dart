@@ -19,7 +19,7 @@ class _AnswerOptionItem extends StatelessWidget {
     required this.onCorrectChanged,
     required this.onMarksChanged,
     required this.onExplanationChanged,
-    required this.onDelete,
+    this.onDelete,
     this.showDragHandle = true,
   });
 
@@ -30,7 +30,7 @@ class _AnswerOptionItem extends StatelessWidget {
   final ValueChanged<bool> onCorrectChanged;
   final ValueChanged<double> onMarksChanged;
   final ValueChanged<String> onExplanationChanged;
-  final VoidCallback onDelete;
+  final VoidCallback? onDelete;
   final bool showDragHandle;
 
   String get _optionLetter => String.fromCharCode(65 + index); // A, B, C...

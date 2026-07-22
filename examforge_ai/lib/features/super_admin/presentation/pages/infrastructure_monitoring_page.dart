@@ -146,7 +146,7 @@ class _InfrastructureMonitoringPageState
   Widget _buildErrorState(InfrastructureMonitoringState state) {
     return Center(
       child: Padding(
-        padding: Spacings.paddingXl,
+        padding: const EdgeInsets.all(Spacings.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

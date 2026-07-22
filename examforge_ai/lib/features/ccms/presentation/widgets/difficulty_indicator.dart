@@ -90,7 +90,7 @@ class DifficultyIndicator extends StatelessWidget {
           ),
           child: Text(
             level.label,
-            style: AppTypography.labelSmall.copyWith(
+            style: AppTypography.labelSmall!.copyWith(
               color: color,
               fontWeight: AppTypography.wSemiBold,
             ),
@@ -143,7 +143,7 @@ class DifficultyIndicator extends StatelessWidget {
             const SizedBox(width: Spacings.xs),
             Text(
               level.label,
-              style: AppTypography.labelSmall.copyWith(
+              style: AppTypography.labelSmall!.copyWith(
                 color: color,
                 fontWeight: AppTypography.wSemiBold,
               ),

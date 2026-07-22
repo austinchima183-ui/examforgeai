@@ -198,7 +198,7 @@ class _RubricListPageState extends ConsumerState<RubricListPage> {
 
           // Rubric list
           if (filteredRubrics.isEmpty)
-            const SliverFillRemaining(child: _buildEmptyState())
+            SliverFillRemaining(child: _buildEmptyState())
           else
             SliverPadding(
               padding: Spacings.paddingScreen,

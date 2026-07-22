@@ -465,6 +465,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
           GenerateQuestionsButton(
             resourceType: 'lesson_plan',
             resourceId: plan.id,
+            resourceName: plan.title,
           ),
           Spacings.sectionGap,
 
@@ -599,7 +600,7 @@ class _LessonPlanDetailPageState extends ConsumerState<LessonPlanDetailPage> {
               _buildMetaChip(Icons.psychology_outlined, plan.teachingStyle.label, cs.secondary),
               _buildMetaChip(Icons.timer_outlined, '${plan.durationMinutes} min', cs.primary),
               _buildMetaChip(Icons.people_outlined, plan.studentLevel.label, cs.tertiary),
-              _buildMetaChip(Icons.curriculum_outlined, plan.curriculum.label, cs.secondary),
+              _buildMetaChip(Icons.school_outlined, plan.curriculum.label, cs.secondary),
             ],
           ),
           const SizedBox(height: Spacings.md),

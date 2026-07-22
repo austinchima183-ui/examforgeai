@@ -99,7 +99,6 @@ class _State extends ConsumerState<ParentInsightsPage> {
                   title: 'No Insights',
                   subtitle:
                       'No insights at this time. Check back later for AI-generated observations about your child\'s academic journey.',
-                  icon: Icons.auto_awesome_outlined,
                 )
               : RefreshIndicator(
                   onRefresh: () => ref

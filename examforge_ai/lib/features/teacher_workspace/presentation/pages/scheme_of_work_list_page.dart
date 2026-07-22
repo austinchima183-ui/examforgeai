@@ -411,6 +411,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
               GenerateQuestionsButton(
                 resourceType: 'scheme_of_work',
                 resourceId: scheme.id,
+                resourceName: scheme.title,
               ),
             ],
           ),

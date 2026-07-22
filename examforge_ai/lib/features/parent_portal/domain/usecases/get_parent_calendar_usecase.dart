@@ -47,7 +47,7 @@ class GetParentCalendarUseCase {
         },
       ));
     }
-    return _repository.getParentCalendar(
+    return _repository.getCalendarEvents(
       startDate: params.startDate,
       endDate: params.endDate,
       studentId: params.studentId,

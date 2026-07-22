@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/student_portal_entities.dart';
@@ -119,7 +120,7 @@ class PracticeState {
       error: error,
       hasMore: hasMore ?? this.hasMore,
       remainingTime: clearRemainingTime ? null : (remainingTime ?? this.remainingTime),
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 

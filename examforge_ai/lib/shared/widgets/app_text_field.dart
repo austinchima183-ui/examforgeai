@@ -48,6 +48,7 @@ class AppTextField extends StatelessWidget {
     this.textCapitalization = TextCapitalization.none,
     this.onTap,
     this.enableSuggestions = true,
+    this.autofocus = false,
   });
 
   /// Floating label text.
@@ -125,6 +126,9 @@ class AppTextField extends StatelessWidget {
   /// Whether to enable suggestions.
   final bool enableSuggestions;
 
+  /// Whether the field should automatically receive focus.
+  final bool autofocus;
+
   @override
   Widget build(BuildContext context) {
     final cs = context.colorScheme;
@@ -151,6 +155,7 @@ class AppTextField extends StatelessWidget {
       textCapitalization: textCapitalization,
       onTap: onTap,
       enableSuggestions: enableSuggestions,
+      autofocus: autofocus,
       style: context.textTheme.bodyLarge?.copyWith(color: cs.onSurface),
       decoration: InputDecoration(
         labelText: effectiveLabel,

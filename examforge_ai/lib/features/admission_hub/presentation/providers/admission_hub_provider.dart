@@ -127,7 +127,7 @@ class AdmissionHubState {
       selectedState: selectedState ?? this.selectedState,
       hasMoreUniversities:
           hasMoreUniversities ?? this.hasMoreUniversities,
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 

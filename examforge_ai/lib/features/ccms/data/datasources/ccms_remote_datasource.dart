@@ -573,7 +573,7 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
       if (filters.containsKey('parent_topic_id')) {
         final parentId = filters['parent_topic_id'];
         if (parentId == null) {
-          query = query.filter('parent_topic_id', 'is.null');
+          query = query.filter('parent_topic_id', 'is', null);
         } else {
           query = query.eq('parent_topic_id', parentId as String);
         }
@@ -723,7 +723,7 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
       if (filters.containsKey('subtopic_id')) {
         final subtopicId = filters['subtopic_id'];
         if (subtopicId == null) {
-          query = query.filter('subtopic_id', 'is.null');
+          query = query.filter('subtopic_id', 'is', null);
         } else {
           query = query.eq('subtopic_id', subtopicId as String);
         }

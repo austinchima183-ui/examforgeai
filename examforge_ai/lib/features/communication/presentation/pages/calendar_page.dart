@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/get_calendar_events_usecase.dart';
 import '../providers/calendar_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -70,8 +71,8 @@ class _State extends ConsumerState<CalendarPage> {
     final end = DateTime(now.year, now.month + 2, 0);
     ref.read(calendarProvider.notifier).loadEvents(
       GetCalendarEventsParams(
-        startDate: start.toIso8601String(),
-        endDate: end.toIso8601String(),
+        startDate: start,
+        endDate: end,
       ),
     );
   }

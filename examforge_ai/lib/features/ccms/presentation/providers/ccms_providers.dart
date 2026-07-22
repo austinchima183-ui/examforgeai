@@ -7,6 +7,7 @@ library;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../../core/core.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../data/datasources/ccms_remote_datasource.dart';
 import '../../data/models/ccms_models.dart';
 import '../../data/repositories/ccms_repository_impl.dart';
@@ -41,12 +42,12 @@ import 'deployment_provider.dart';
 
 // ─── Repository Provider ────────────────────────────────────────────────────
 
-final _ccmsRemoteDatasourceProvider = Provider<CcmsRemoteDatasource>((ref) {
-  return CcmsRemoteDatasourceImpl();
+final _ccmsRemoteDatasourceProvider = Provider<CcmsRemoteDataSource>((ref) {
+  return CcmsRemoteDataSourceImpl(supabase: sb.Supabase.instance.client);
 });
 
 final ccmsRepositoryProvider = Provider<CcmsRepository>((ref) {
-  return CcmsRepositoryImpl(remoteDatasource: ref.watch(_ccmsRemoteDatasourceProvider));
+  return CcmsRepositoryImpl(remoteDataSource: ref.watch(_ccmsRemoteDatasourceProvider));
 });
 
 // ─── Educational Level Use Cases ────────────────────────────────────────────

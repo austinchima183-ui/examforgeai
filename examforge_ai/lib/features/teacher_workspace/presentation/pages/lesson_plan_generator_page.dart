@@ -315,7 +315,7 @@ class _LessonPlanGeneratorPageState
                 if (v != null) setState(() => _curriculum = v);
               },
               itemLabel: (c) => c.label,
-              prefixIcon: Icons.curriculum_outlined,
+              prefixIcon: Icons.school_outlined,
               isRequired: true,
             ),
             Spacings.itemGap,
@@ -529,6 +529,7 @@ class _LessonPlanGeneratorPageState
           GenerateQuestionsButton(
             resourceType: 'lesson_plan',
             resourceId: plan.id,
+            resourceName: plan.title,
           ),
           Spacings.sectionGap,
 
@@ -636,7 +637,7 @@ class _LessonPlanGeneratorPageState
             color: cs.tertiary,
           ),
           _buildMetaChip(
-            icon: Icons.curriculum_outlined,
+            icon: Icons.school_outlined,
             label: plan.curriculum.label,
             color: cs.secondary,
           ),

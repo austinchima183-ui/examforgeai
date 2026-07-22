@@ -197,7 +197,7 @@ class _OralQuestionListPageState extends ConsumerState<OralQuestionListPage> {
 
           // Oral question list
           if (filtered.isEmpty)
-            const SliverFillRemaining(child: _buildEmptyState())
+            SliverFillRemaining(child: _buildEmptyState())
           else
             SliverPadding(
               padding: Spacings.paddingScreen,

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/billing_entities.dart';
@@ -127,7 +128,7 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
       onSuccess: (paymentInit) {
         state = state.copyWith(
           isLoading: false,
-          checkoutUrl: paymentInit.checkoutUrl,
+          checkoutUrl: paymentInit['checkoutUrl'] as String?,
           successMessage: 'Payment initialized successfully',
           error: null,
         );
@@ -157,7 +158,7 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
       onSuccess: (verification) {
         state = state.copyWith(
           isLoading: false,
-          currentTransaction: verification.transaction,
+          currentTransaction: verification,
           successMessage: verification.status == 'successful'
               ? 'Payment verified successfully'
               : 'Payment verification returned: ${verification.status}',
@@ -198,14 +199,14 @@ class PaymentNotifier extends StateNotifier<PaymentState> {
     );
 
     result.fold(
-      onSuccess: (paginatedResult) {
+      onSuccess: (transactions) {
         state = state.copyWith(
           isLoading: false,
-          transactions: paginatedResult.items,
+          transactions: transactions,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${paginatedResult.items.length} transactions',
+          'Loaded ${transactions.length} transactions',
         );
       },
       onFailure: (failure) {
@@ -285,7 +286,7 @@ final paymentProvider =
     StateNotifierProvider<PaymentNotifier, PaymentState>(
   (ref) => PaymentNotifier(
     initializePaymentUseCase: ref.watch(initializePaymentUseCaseProvider),
-    verifyPaymentUseCase: ref.watch(verifyPaymentUseCaseProvider),
+    verifyPaymentUseCase: ref.watch(billingVerifyPaymentUseCaseProvider),
     getTransactionsUseCase: ref.watch(getTransactionsUseCaseProvider),
     requestRefundUseCase: ref.watch(requestRefundUseCaseProvider),
   ),

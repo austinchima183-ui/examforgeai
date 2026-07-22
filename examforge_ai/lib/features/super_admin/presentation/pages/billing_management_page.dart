@@ -138,7 +138,7 @@ class _BillingManagementPageState
   Widget _buildErrorState(BillingManagementState state) {
     return Center(
       child: Padding(
-        padding: Spacings.paddingXl,
+        padding: const EdgeInsets.all(Spacings.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

@@ -93,7 +93,7 @@ class PromptEngine {
     // ─── AI SECURITY: Check user inputs for prompt injection ──────────
     // Validate the topic, custom instructions, and other user-supplied
     // fields before incorporating them into the prompt.
-    final topicCheck = AiSecurityService.checkInput(input.topic);
+    final topicCheck = AiSecurityService.checkInput(input.topicId);
     if (!topicCheck.isSafe) {
       AppLogger.error(
         'AI SECURITY: Prompt injection detected in topic. '

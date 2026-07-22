@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/parent_portal_entities.dart';
@@ -210,7 +211,7 @@ class ParentMessagingNotifier extends StateNotifier<ParentMessagingState> {
       onSuccess: (_) {
         final updatedMessages = state.messages.map((m) {
           if (m.id == messageId) {
-            return m.copyWith(isRead: true);
+            return m.copyWith(readAt: DateTime.now());
           }
           return m;
         }).toList();

@@ -720,6 +720,7 @@ class _SchemeOfWorkGeneratorPageState
             child: GenerateQuestionsButton(
               resourceType: 'scheme_of_work',
               resourceId: scheme.id,
+              resourceName: scheme.title,
             ),
           ),
 

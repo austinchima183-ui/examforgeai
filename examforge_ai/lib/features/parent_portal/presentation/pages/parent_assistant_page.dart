@@ -200,7 +200,6 @@ class _State extends ConsumerState<ParentAssistantPage> {
         title: 'Ask a Question',
         subtitle:
             'Use the suggestions below or type your own question about your child\'s education.',
-        icon: Icons.auto_awesome_outlined,
       );
     }
 

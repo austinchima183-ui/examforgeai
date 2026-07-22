@@ -157,7 +157,7 @@ class _AnswerRepositoryPageState
                       title: 'Marking Scheme',
                       icon: Icons.grading_rounded,
                       content: answerState
-                          .answerEntry!.markingScheme!,
+                          .answerEntry!.markingScheme!.toString(),
                     ),
                     Spacings.sectionGap,
                   ],
@@ -200,7 +200,7 @@ class _AnswerRepositoryPageState
                                     ),
                                     const SizedBox(width: Spacings.sm),
                                     Expanded(
-                                      child: Text(e.value,
+                                      child: Text(e.value.toString(),
                                           style: tt.bodyMedium),
                                     ),
                                   ],
@@ -263,13 +263,13 @@ class _AnswerRepositoryPageState
     );
   }
 
-  void _showEditAnswerDialog(AnswerEntry entry) {
+  void _showEditAnswerDialog(AnswerRepositoryEntry entry) {
     final answerCtrl =
-        TextEditingController(text: entry.correctAnswer);
+        TextEditingController(text: entry.correctAnswers.isNotEmpty ? entry.correctAnswers.first['text'] as String? ?? '' : '');
     final explanationCtrl = TextEditingController(
         text: entry.stepByStepExplanation ?? '');
     final schemeCtrl =
-        TextEditingController(text: entry.markingScheme ?? '');
+        TextEditingController(text: entry.markingScheme?.toString() ?? '');
 
     showDialog(
       context: context,
@@ -314,17 +314,18 @@ class _AnswerRepositoryPageState
             label: 'Save',
             onPressed: () {
               ref.read(answerRepositoryProvider.notifier).updateAnswer(
-                    AnswerEntry(
+                    AnswerRepositoryEntry(
                       id: entry.id,
                       contentItemId: entry.contentItemId,
-                      correctAnswer: answerCtrl.text,
+                      correctAnswers: [{'text': answerCtrl.text}],
                       stepByStepExplanation: explanationCtrl.text.isEmpty
                           ? null
                           : explanationCtrl.text,
                       markingScheme: schemeCtrl.text.isEmpty
                           ? null
-                          : schemeCtrl.text,
+                          : {'text': schemeCtrl.text},
                       commonMistakes: entry.commonMistakes,
+                      version: entry.version,
                       isVerified: entry.isVerified,
                       verifiedBy: entry.verifiedBy,
                       verifiedAt: entry.verifiedAt,

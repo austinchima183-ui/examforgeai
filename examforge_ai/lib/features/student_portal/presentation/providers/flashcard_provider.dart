@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/student_portal_entities.dart';
@@ -129,7 +130,7 @@ class FlashcardState {
       error: error,
       cardsStudied: cardsStudied ?? this.cardsStudied,
       cardsCorrect: cardsCorrect ?? this.cardsCorrect,
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
       hasMoreDecks: hasMoreDecks ?? this.hasMoreDecks,
     );
   }

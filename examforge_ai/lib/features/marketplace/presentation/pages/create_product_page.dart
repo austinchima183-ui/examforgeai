@@ -1047,7 +1047,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                     Positioned(
                       top: 4,
                       right: 4,
-                      GestureDetector(
+                      child: GestureDetector(
                         onTap: () => setState(() => _previewImages.removeAt(index)),
                         child: Container(
                           padding: const EdgeInsets.all(2),

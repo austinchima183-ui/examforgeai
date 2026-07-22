@@ -497,7 +497,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
           subjectId,
           educationalLevelId,
           targetDate,
-          dailyStudyMinutes,
+          required dailyStudyMinutes,
         }) {
           ref.read(studyPlanProvider.notifier).generateAiPlan(
                 examBodyId: examBodyId,
@@ -804,7 +804,7 @@ class _AiGenerateDialog extends StatefulWidget {
     String? subjectId,
     String? educationalLevelId,
     DateTime? targetDate,
-    int dailyStudyMinutes,
+    required int dailyStudyMinutes,
   }) onGenerated;
 
   @override

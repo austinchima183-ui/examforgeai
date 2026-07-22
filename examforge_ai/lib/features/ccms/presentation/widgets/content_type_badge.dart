@@ -98,7 +98,7 @@ class ContentTypeBadge extends StatelessWidget {
             SizedBox(width: small ? 2 : Spacings.xs),
             Text(
               contentType.label,
-              style: AppTypography.labelSmall.copyWith(
+              style: AppTypography.labelSmall!.copyWith(
                 color: color,
                 fontWeight: AppTypography.wSemiBold,
                 fontSize: fontSize,

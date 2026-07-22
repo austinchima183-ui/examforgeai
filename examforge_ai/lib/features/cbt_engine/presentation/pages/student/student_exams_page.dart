@@ -11,7 +11,7 @@ import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../providers/student_exams_provider.dart';
+import '../../../../../config/dependency_injection.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // STUDENT EXAMS PAGE
@@ -90,7 +90,7 @@ class _StudentExamsPageState extends ConsumerState<StudentExamsPage>
                     _buildExamList(
                       context,
                       exams: state.upcomingExams,
-                      emptyIcon: Icons.event_upcoming_rounded,
+                      emptyIcon: Icons.event_available,
                       emptyTitle: 'No Upcoming Exams',
                       emptySubtitle: 'You don\'t have any exams scheduled.',
                       isUpcoming: true,

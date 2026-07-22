@@ -156,7 +156,7 @@ class StudentDashboardPage extends ConsumerWidget {
         StatItem(
           title: 'Upcoming Exams',
           value: '${stats.upcomingExams}',
-          icon: Icons.event_upcoming_outlined,
+          icon: Icons.event_outlined,
           trend: stats.upcomingExams > 0
               ? TrendDirection.up
               : TrendDirection.neutral,

@@ -45,7 +45,7 @@ class GetParentNotificationsUseCase {
         fieldErrors: {'page': 'Page must be >= 1'},
       ));
     }
-    return _repository.getParentNotifications(
+    return _repository.getNotifications(
       category: params.category,
       isRead: params.isRead,
       page: params.page,

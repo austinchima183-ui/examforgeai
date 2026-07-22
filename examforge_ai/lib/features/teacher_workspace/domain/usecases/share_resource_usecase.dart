@@ -23,6 +23,16 @@ class ShareResourceParams extends Equatable {
 
   @override
   List<Object?> get props => [resourceType, resourceId, sharedWith, canEdit, message];
+
+  /// Converts these params into a [Map<String, dynamic>] suitable for
+  /// passing to [TeacherWorkspaceRepository.shareResource].
+  Map<String, dynamic> toMap() => {
+    'resourceType': resourceType,
+    'resourceId': resourceId,
+    'sharedWith': sharedWith,
+    'canEdit': canEdit,
+    'message': message,
+  };
 }
 
 /// Use case for sharing a workspace resource with another user.
@@ -52,6 +62,6 @@ class ShareResourceUseCase {
         fieldErrors: {'sharedWith': 'Shared with cannot be empty'},
       ));
     }
-    return _repository.shareResource(params);
+    return _repository.shareResource(params.toMap());
   }
 }

@@ -200,7 +200,7 @@ class QuestionNavigator extends StatelessWidget {
                       Positioned(
                         top: 2,
                         right: 2,
-                        Container(
+                        child: Container(
                           width: 6,
                           height: 6,
                           decoration: BoxDecoration(

@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/get_knowledge_documents_usecase.dart';
 import '../providers/knowledge_assistant_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

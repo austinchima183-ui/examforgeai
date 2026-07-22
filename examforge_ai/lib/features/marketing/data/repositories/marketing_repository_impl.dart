@@ -15,7 +15,7 @@ class MarketingRepositoryImpl implements MarketingRepository {
     if (e is NetworkException) return FailureResult(Failure.network(message: e.message));
     if (e is AuthException) return FailureResult(Failure.auth(message: e.message, code: e.code));
     if (e is NotFoundException) return FailureResult(Failure.notFound(message: e.message));
-    if (e is ValidationException) return FailureResult(Failure.validation(fieldErrors: const {}, message: e.message, fieldErrors: e.fieldErrors));
+    if (e is ValidationException) return FailureResult(Failure.validation(message: e.message, fieldErrors: e.fieldErrors));
     return FailureResult(Failure.server(message: e.toString(), statusCode: 0));
   }
 

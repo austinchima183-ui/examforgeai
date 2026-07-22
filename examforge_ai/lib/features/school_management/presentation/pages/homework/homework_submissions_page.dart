@@ -258,7 +258,7 @@ class _HomeworkSubmissionsPageState
     final submissions = state.submissions;
 
     if (submissions.isEmpty) {
-      return SliverFill(
+      return SliverFillRemaining(
         child: AppEmptyState(
           icon: Icons.inbox_outlined,
           title: 'No Submissions Yet',

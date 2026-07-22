@@ -163,7 +163,7 @@ class ExamTimerService {
   ///
   /// Only effective when the timer is running.
   void setRemaining(Duration remaining) {
-    _remaining = remaining.clamp(Duration.zero, _total);
+    _remaining = remaining < Duration.zero ? Duration.zero : (remaining > _total ? _total : remaining);
 
     // Re-check warning state
     if (!_warningTriggered && isWarning) {

@@ -35,10 +35,10 @@ class DownloadReportUseCase {
 
   /// Downloads a report for the specified child.
   ///
-  /// Returns a [Result] containing the [ReportDownloadEntity]
+  /// Returns a [Result] containing the [ParentReportDownloadEntity]
   /// on success, or a [FailureResult] if validation fails or the
   /// repository encounters an error.
-  Future<Result<ReportDownloadEntity>> call(DownloadReportParams params) async {
+  Future<Result<ParentReportDownloadEntity>> call(DownloadReportParams params) async {
     if (params.studentId.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Student ID is required',
@@ -65,10 +65,10 @@ class DownloadReportUseCase {
         },
       ));
     }
-    return _repository.downloadReport(
-      studentId: params.studentId,
-      reportType: params.reportType,
-      format: params.format.trim().toLowerCase(),
-    );
+    return _repository.downloadReport({
+      'studentId': params.studentId,
+      'reportType': params.reportType,
+      'format': params.format.trim().toLowerCase(),
+    });
   }
 }

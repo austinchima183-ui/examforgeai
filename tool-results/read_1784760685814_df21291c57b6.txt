@@ -1,0 +1,2002 @@
+     1→import 'package:connectivity_plus/connectivity_plus.dart';
+     2→import 'package:dio/dio.dart';
+     3→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     4→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     5→import '../config/app_config.dart';
+     6→import '../config/env_config.dart';
+     7→import '../config/supabase_config.dart';
+     8→import '../core/constants/api_constants.dart';
+     9→import '../core/network/api_client.dart';
+    10→import '../core/network/network_info.dart';
+    11→import '../core/utils/logger.dart';
+    12→import '../features/ai_generator/data/datasources/ai_generator_remote_datasource.dart';
+    13→import '../features/ai_generator/data/repositories/ai_generator_repository_impl.dart';
+    14→import '../features/ai_generator/domain/repositories/ai_generator_repository.dart';
+    15→import '../features/ai_generator/domain/usecases/generate_questions_usecase.dart';
+    16→import '../features/ai_generator/domain/usecases/get_ai_dashboard_stats_usecase.dart';
+    17→import '../features/ai_generator/domain/usecases/get_generation_history_usecase.dart';
+    18→import '../features/ai_generator/domain/usecases/improve_question_usecase.dart';
+    19→import '../features/ai_generator/domain/usecases/manage_prompt_templates_usecase.dart';
+    20→import '../features/ai_generator/domain/usecases/review_generated_question_usecase.dart';
+    21→import '../features/ai_generator/domain/usecases/save_to_question_bank_usecase.dart';
+    22→import '../features/ai_generator/domain/usecases/upload_document_usecase.dart' as ai_upload;
+    23→import '../features/ai_generator/domain/usecases/validate_question_usecase.dart';
+    24→import '../features/ai_generator/presentation/providers/ai_document_provider.dart';
+    25→import '../features/ai_generator/presentation/providers/ai_generator_provider.dart';
+    26→import '../features/ai_generator/presentation/providers/ai_review_provider.dart';
+    27→import '../features/ai_generator/presentation/providers/ai_stats_provider.dart';
+    28→import '../features/ai_generator/presentation/providers/prompt_template_provider.dart';
+    29→import '../features/auth/data/datasources/auth_remote_datasource.dart';
+    30→import '../features/auth/data/repositories/auth_repository_impl.dart';
+    31→import '../features/auth/domain/repositories/auth_repository.dart';
+    32→import '../features/auth/domain/usecases/forgot_password_usecase.dart';
+    33→import '../features/auth/domain/usecases/get_current_user_usecase.dart';
+    34→import '../features/auth/domain/usecases/login_usecase.dart';
+    35→import '../features/auth/domain/usecases/logout_usecase.dart';
+    36→import '../features/auth/domain/usecases/signup_usecase.dart';
+    37→import '../features/auth/presentation/providers/auth_form_provider.dart';
+    38→import '../features/auth/presentation/providers/auth_provider.dart';
+    39→import '../features/cbt_engine/data/datasources/cbt_remote_datasource.dart';
+    40→import '../features/cbt_engine/data/datasources/exam_template_remote_datasource.dart';
+    41→import '../features/cbt_engine/data/repositories/cbt_repository_impl.dart';
+    42→import '../features/cbt_engine/data/repositories/exam_template_repository_impl.dart';
+    43→import '../features/cbt_engine/domain/repositories/cbt_repository.dart';
+    44→import '../features/cbt_engine/domain/repositories/exam_template_repository.dart';
+    45→import '../features/cbt_engine/domain/usecases/create_exam_usecase.dart';
+    46→import '../features/cbt_engine/domain/usecases/get_exam_results_usecase.dart';
+    47→import '../features/cbt_engine/domain/usecases/get_exam_statistics_usecase.dart';
+    48→import '../features/cbt_engine/domain/usecases/get_live_exam_stats_usecase.dart';
+    49→import '../features/cbt_engine/domain/usecases/get_submission_receipt_usecase.dart';
+    50→import '../features/cbt_engine/domain/usecases/grade_exam_usecase.dart';
+    51→import '../features/cbt_engine/domain/usecases/manage_exam_status_usecase.dart';
+    52→import '../features/cbt_engine/domain/usecases/manage_exam_templates_usecase.dart';
+    53→import '../features/cbt_engine/domain/usecases/save_answer_usecase.dart';
+    54→import '../features/cbt_engine/domain/usecases/start_exam_attempt_usecase.dart';
+    55→import '../features/cbt_engine/domain/usecases/submit_exam_attempt_usecase.dart';
+    56→import '../features/cbt_engine/domain/usecases/update_exam_usecase.dart';
+    57→import '../features/cbt_engine/presentation/providers/exam_builder_provider.dart';
+    58→import '../features/cbt_engine/presentation/providers/exam_list_provider.dart';
+    59→import '../features/cbt_engine/presentation/providers/exam_monitor_provider.dart';
+    60→import '../features/cbt_engine/presentation/providers/exam_notification_provider.dart';
+    61→import '../features/cbt_engine/presentation/providers/exam_results_provider.dart';
+    62→import '../features/cbt_engine/presentation/providers/exam_template_provider.dart';
+    63→import '../features/cbt_engine/presentation/providers/exam_taker_provider.dart';
+    64→import '../features/cbt_engine/presentation/providers/student_exams_provider.dart';
+    65→import '../features/cbt_engine/presentation/providers/submission_receipt_provider.dart';
+    66→import '../features/question_bank/data/datasources/question_bank_remote_datasource.dart';
+    67→import '../features/question_bank/data/repositories/question_bank_repository_impl.dart';
+    68→import '../features/question_bank/domain/repositories/question_bank_repository.dart';
+    69→import '../features/question_bank/domain/usecases/create_question_usecase.dart';
+    70→import '../features/question_bank/domain/usecases/delete_question_usecase.dart';
+    71→import '../features/question_bank/domain/usecases/export_questions_usecase.dart';
+    72→import '../features/question_bank/domain/usecases/get_question_detail_usecase.dart';
+    73→import '../features/question_bank/domain/usecases/get_question_stats_usecase.dart';
+    74→import '../features/question_bank/domain/usecases/get_questions_usecase.dart';
+    75→import '../features/question_bank/domain/usecases/import_questions_usecase.dart';
+    76→import '../features/question_bank/domain/usecases/manage_collections_usecase.dart';
+    77→import '../features/question_bank/domain/usecases/manage_question_status_usecase.dart';
+    78→import '../features/question_bank/domain/usecases/search_questions_usecase.dart';
+    79→import '../features/question_bank/domain/usecases/update_question_usecase.dart';
+    80→import '../features/question_bank/presentation/providers/collection_provider.dart';
+    81→import '../features/question_bank/presentation/providers/import_export_provider.dart';
+    82→import '../features/question_bank/presentation/providers/question_bank_stats_provider.dart';
+    83→import '../features/question_bank/presentation/providers/question_editor_provider.dart';
+    84→import '../features/question_bank/presentation/providers/question_filter_provider.dart';
+    85→import '../features/question_bank/presentation/providers/question_provider.dart';
+    86→import '../services/ai/ai_providers_registry.dart';
+    87→import '../services/ai/ai_service.dart';
+    88→import '../services/ai/prompt_engine.dart';
+    89→import '../services/ai/providers/gemini_provider.dart';
+    90→import '../services/ai/providers/openai_provider.dart';
+    91→import '../services/ai/validation_engine.dart';
+    92→import '../services/auth_service.dart';
+    93→import '../services/cbt/anti_cheat_service.dart';
+    94→import '../services/cbt/auto_save_service.dart';
+    95→import '../services/cbt/exam_notification_service.dart';
+    96→import '../services/cbt/exam_timer_service.dart';
+    97→import '../services/cbt/rate_limiting_service.dart';
+    98→import '../services/cbt/realtime_service.dart';
+    99→import '../services/cbt/result_processor.dart';
+   100→import '../services/cbt/session_recovery_service.dart';
+   101→import '../services/notification_service.dart';
+   102→import '../services/storage_service.dart';
+   103→import '../services/results/ai_grading_service.dart';
+   104→import '../services/results/analytics_engine.dart';
+   105→import '../services/results/report_generator.dart';
+   106→import '../features/results/data/datasources/results_remote_datasource.dart';
+   107→import '../features/results/data/repositories/results_repository_impl.dart';
+   108→import '../features/results/domain/repositories/results_repository.dart';
+   109→import '../features/results/domain/usecases/results_usecases.dart';
+   110→import '../features/results/presentation/providers/results_providers.dart';
+   111→import '../features/student_portal/data/datasources/student_portal_remote_datasource.dart';
+   112→import '../features/student_portal/data/repositories/student_portal_repository_impl.dart';
+   113→import '../features/student_portal/domain/repositories/student_portal_repository.dart';
+   114→import '../features/student_portal/domain/usecases/student_portal_usecases.dart' as sp_usecases;
+   115→import '../features/student_portal/presentation/providers/ai_tutor_provider.dart';
+   116→import '../features/student_portal/presentation/providers/assignment_provider.dart' hide AssignmentNotifier, AssignmentState;
+   117→import '../features/student_portal/presentation/providers/document_chat_provider.dart';
+   118→import '../features/student_portal/presentation/providers/flashcard_provider.dart';
+   119→import '../features/student_portal/presentation/providers/goals_provider.dart';
+   120→import '../features/student_portal/presentation/providers/practice_provider.dart';
+   121→import '../features/student_portal/presentation/providers/progress_provider.dart';
+   122→import '../features/student_portal/presentation/providers/resource_provider.dart';
+   123→import '../features/student_portal/presentation/providers/student_dashboard_provider.dart';
+   124→import '../features/student_portal/presentation/providers/student_notification_provider.dart';
+   125→import '../features/student_portal/presentation/providers/study_planner_provider.dart';
+   126→import '../features/parent_portal/presentation/providers/parent_dashboard_provider.dart';
+   127→import '../features/parent_portal/presentation/providers/child_profile_provider.dart';
+   128→import '../features/parent_portal/presentation/providers/child_performance_provider.dart';
+   129→import '../features/parent_portal/presentation/providers/child_attendance_provider.dart';
+   130→import '../features/parent_portal/presentation/providers/child_assignments_provider.dart';
+   131→import '../features/parent_portal/presentation/providers/parent_messaging_provider.dart';
+   132→import '../features/parent_portal/presentation/providers/parent_notification_provider.dart';
+   133→import '../features/parent_portal/presentation/providers/parent_calendar_provider.dart';
+   134→import '../features/parent_portal/presentation/providers/parent_assistant_provider.dart';
+   135→import '../features/parent_portal/presentation/providers/parent_insights_provider.dart';
+   136→import '../features/parent_portal/presentation/providers/parent_reports_provider.dart';
+   137→import '../features/parent_portal/presentation/providers/parent_engagement_provider.dart';
+   138→import '../features/super_admin/data/datasources/super_admin_remote_datasource.dart';
+   139→import '../features/super_admin/data/repositories/super_admin_repository_impl.dart';
+   140→import '../features/super_admin/domain/repositories/super_admin_repository.dart';
+   141→import '../features/super_admin/domain/usecases/super_admin_usecases.dart' hide CreateSchoolUseCase, GetAuditLogsUseCase, GetNotificationsUseCase, GetSchoolsUseCase, MarkNotificationReadUseCase;
+   142→import '../features/super_admin/domain/usecases/super_admin_usecases.dart' as sa;
+   143→import '../features/super_admin/presentation/providers/super_admin_providers.dart' hide AnalyticsNotifier, AnalyticsState;
+   144→import '../features/marketplace/data/datasources/marketplace_remote_datasource.dart';
+   145→import '../features/marketplace/data/repositories/marketplace_repository_impl.dart';
+   146→import '../features/marketplace/domain/repositories/marketplace_repository.dart';
+   147→import '../features/marketplace/domain/usecases/get_categories_usecase.dart';
+   148→import '../features/marketplace/domain/usecases/upsert_category_usecase.dart';
+   149→import '../features/marketplace/domain/usecases/get_seller_profile_usecase.dart';
+   150→import '../features/marketplace/domain/usecases/upsert_seller_profile_usecase.dart';
+   151→import '../features/marketplace/domain/usecases/update_seller_status_usecase.dart';
+   152→import '../features/marketplace/domain/usecases/get_sellers_usecase.dart';
+   153→import '../features/marketplace/domain/usecases/get_products_usecase.dart';
+   154→import '../features/marketplace/domain/usecases/get_product_usecase.dart';
+   155→import '../features/marketplace/domain/usecases/create_product_usecase.dart';
+   156→import '../features/marketplace/domain/usecases/update_product_usecase.dart';
+   157→import '../features/marketplace/domain/usecases/delete_product_usecase.dart';
+   158→import '../features/marketplace/domain/usecases/update_product_status_usecase.dart';
+   159→import '../features/marketplace/domain/usecases/feature_product_usecase.dart';
+   160→import '../features/marketplace/domain/usecases/get_seller_products_usecase.dart';
+   161→import '../features/marketplace/domain/usecases/get_featured_products_usecase.dart';
+   162→import '../features/marketplace/domain/usecases/get_related_products_usecase.dart';
+   163→import '../features/marketplace/domain/usecases/get_cart_usecase.dart';
+   164→import '../features/marketplace/domain/usecases/add_to_cart_usecase.dart';
+   165→import '../features/marketplace/domain/usecases/update_cart_item_usecase.dart';
+   166→import '../features/marketplace/domain/usecases/remove_from_cart_usecase.dart';
+   167→import '../features/marketplace/domain/usecases/clear_cart_usecase.dart';
+   168→import '../features/marketplace/domain/usecases/create_order_usecase.dart';
+   169→import '../features/marketplace/domain/usecases/get_order_usecase.dart';
+   170→import '../features/marketplace/domain/usecases/get_user_orders_usecase.dart';
+   171→import '../features/marketplace/domain/usecases/verify_payment_usecase.dart';
+   172→import '../features/marketplace/domain/usecases/update_order_status_usecase.dart';
+   173→import '../features/marketplace/domain/usecases/get_user_purchases_usecase.dart';
+   174→import '../features/marketplace/domain/usecases/verify_purchase_usecase.dart';
+   175→import '../features/marketplace/domain/usecases/record_download_usecase.dart';
+   176→import '../features/marketplace/domain/usecases/get_product_reviews_usecase.dart';
+   177→import '../features/marketplace/domain/usecases/create_review_usecase.dart';
+   178→import '../features/marketplace/domain/usecases/respond_to_review_usecase.dart';
+   179→import '../features/marketplace/domain/usecases/vote_review_helpful_usecase.dart';
+   180→import '../features/marketplace/domain/usecases/report_review_usecase.dart';
+   181→import '../features/marketplace/domain/usecases/get_wishlist_usecase.dart';
+   182→import '../features/marketplace/domain/usecases/toggle_wishlist_usecase.dart';
+   183→import '../features/marketplace/domain/usecases/validate_promo_code_usecase.dart';
+   184→import '../features/marketplace/domain/usecases/get_commission_rates_usecase.dart';
+   185→import '../features/marketplace/domain/usecases/upsert_commission_rate_usecase.dart';
+   186→import '../features/marketplace/domain/usecases/get_commission_records_usecase.dart';
+   187→import '../features/marketplace/domain/usecases/get_seller_analytics_usecase.dart';
+   188→import '../features/marketplace/domain/usecases/get_product_analytics_usecase.dart';
+   189→import '../features/marketplace/domain/usecases/run_quality_check_usecase.dart';
+   190→import '../features/marketplace/domain/usecases/get_quality_check_usecase.dart';
+   191→import '../features/marketplace/domain/usecases/create_dispute_usecase.dart';
+   192→import '../features/marketplace/domain/usecases/resolve_dispute_usecase.dart';
+   193→import '../features/marketplace/domain/usecases/get_disputes_usecase.dart';
+   194→import '../features/marketplace/domain/usecases/get_notifications_usecase.dart' as mp_notif;
+   195→import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart' as mp_mark_notif;
+   196→import '../features/marketplace/domain/usecases/get_recommendations_usecase.dart';
+   197→import '../features/marketplace/domain/usecases/get_trending_products_usecase.dart';
+   198→import '../features/marketplace/domain/usecases/approve_product_usecase.dart';
+   199→import '../features/marketplace/domain/usecases/reject_product_usecase.dart';
+   200→import '../features/marketplace/domain/usecases/moderate_review_usecase.dart';
+   201→import '../features/marketplace/domain/usecases/suspend_seller_usecase.dart';
+   202→import '../features/marketplace/domain/usecases/increment_product_view_usecase.dart';
+   203→import '../features/edu_os/data/datasources/edu_os_remote_datasource.dart';
+   204→import '../features/edu_os/data/repositories/edu_os_repository_impl.dart';
+   205→import '../features/edu_os/domain/repositories/edu_os_repository.dart';
+   206→import '../features/edu_os/domain/usecases/edu_os_usecases.dart';
+   207→import '../features/edu_os/presentation/providers/edu_os_provider.dart';
+   208→import '../features/marketplace/presentation/providers/marketplace_provider.dart';
+   209→import '../features/marketplace/presentation/providers/seller_provider.dart';
+   210→import '../features/marketplace/presentation/providers/product_detail_provider.dart';
+   211→import '../features/marketplace/presentation/providers/cart_provider.dart';
+   212→import '../features/marketplace/presentation/providers/order_provider.dart';
+   213→import '../features/marketplace/presentation/providers/purchase_provider.dart';
+   214→import '../features/marketplace/presentation/providers/quality_check_provider.dart';
+   215→import '../features/marketplace/presentation/providers/moderation_provider.dart';
+   216→import '../features/marketplace/presentation/providers/marketplace_notification_provider.dart';
+   217→import '../features/marketplace/presentation/providers/commission_provider.dart';
+   218→import '../features/offline/data/datasources/offline_local_datasource.dart';
+   219→import '../features/offline/data/datasources/offline_remote_datasource.dart';
+   220→import '../features/offline/data/repositories/offline_repository_impl.dart';
+   221→import '../features/offline/domain/repositories/offline_repository.dart';
+   222→import '../features/offline/domain/usecases/get_sync_status_usecase.dart';
+   223→import '../features/offline/domain/usecases/trigger_sync_usecase.dart';
+   224→import '../features/offline/domain/usecases/get_offline_resources_usecase.dart';
+   225→import '../features/offline/domain/usecases/download_resource_usecase.dart';
+   226→import '../features/offline/domain/usecases/remove_offline_resource_usecase.dart';
+   227→import '../features/offline/domain/usecases/save_draft_usecase.dart';
+   228→import '../features/offline/domain/usecases/get_drafts_usecase.dart';
+   229→import '../features/offline/domain/usecases/delete_draft_usecase.dart';
+   230→import '../features/offline/domain/usecases/save_offline_exam_attempt_usecase.dart';
+   231→import '../features/offline/domain/usecases/sync_exam_attempt_usecase.dart';
+   232→import '../features/offline/domain/usecases/register_device_usecase.dart';
+   233→import '../features/offline/domain/usecases/get_connectivity_info_usecase.dart';
+   234→import '../features/offline/domain/usecases/start_download_usecase.dart';
+   235→import '../features/offline/domain/usecases/get_downloads_usecase.dart';
+   236→import '../features/offline/presentation/providers/offline_provider.dart';
+   237→import '../core/storage/local_database.dart';
+   238→import '../core/storage/cache_manager.dart';
+   239→import '../core/connectivity/connectivity_engine.dart';
+   240→import '../core/sync/sync_engine.dart';
+   241→import '../core/device/device_service.dart';
+   242→import '../core/responsive/responsive_framework.dart';
+   243→import '../core/accessibility/accessibility_framework.dart';
+   244→import '../core/performance/performance_manager.dart';
+   245→import '../core/performance/ai_cache_service.dart';
+   246→import '../core/database/database_pool_manager.dart';
+   247→import '../core/pwa/pwa_service.dart';
+   248→import '../features/teacher_workspace/data/datasources/teacher_workspace_remote_datasource.dart';
+   249→import '../features/teacher_workspace/data/repositories/teacher_workspace_repository_impl.dart';
+   250→import '../features/teacher_workspace/domain/repositories/teacher_workspace_repository.dart';
+   251→import '../features/teacher_workspace/domain/usecases/ai_content_assistant_usecase.dart';
+   252→import '../features/teacher_workspace/domain/usecases/create_event_usecase.dart';
+   253→import '../features/teacher_workspace/domain/usecases/get_events_usecase.dart';
+   254→import '../features/teacher_workspace/domain/usecases/suggest_schedule_usecase.dart';
+   255→import '../features/teacher_workspace/domain/usecases/create_assignment_usecase.dart';
+   256→import '../features/teacher_workspace/domain/usecases/create_lesson_plan_usecase.dart';
+   257→import '../features/teacher_workspace/domain/usecases/create_report_comment_usecase.dart';
+   258→import '../features/teacher_workspace/domain/usecases/create_resource_usecase.dart';
+   259→import '../features/teacher_workspace/domain/usecases/create_scheme_of_work_usecase.dart';
+   260→import '../features/teacher_workspace/domain/usecases/create_worksheet_usecase.dart';
+   261→import '../features/teacher_workspace/domain/usecases/delete_lesson_plan_usecase.dart';
+   262→import '../features/teacher_workspace/domain/usecases/export_worksheet_usecase.dart';
+   263→import '../features/teacher_workspace/domain/usecases/generate_assignment_usecase.dart';
+   264→import '../features/teacher_workspace/domain/usecases/generate_lesson_plan_usecase.dart';
+   265→import '../features/teacher_workspace/domain/usecases/generate_questions_from_content_usecase.dart';
+   266→import '../features/teacher_workspace/domain/usecases/generate_report_comments_usecase.dart';
+   267→import '../features/teacher_workspace/domain/usecases/generate_resource_usecase.dart';
+   268→import '../features/teacher_workspace/domain/usecases/generate_scheme_of_work_usecase.dart';
+   269→import '../features/teacher_workspace/domain/usecases/generate_worksheet_usecase.dart';
+   270→import '../features/teacher_workspace/domain/usecases/get_assignments_usecase.dart';
+   271→import '../features/teacher_workspace/domain/usecases/get_content_history_usecase.dart';
+   272→import '../features/teacher_workspace/domain/usecases/get_lesson_plans_usecase.dart';
+   273→import '../features/teacher_workspace/domain/usecases/get_resources_usecase.dart';
+   274→import '../features/teacher_workspace/domain/usecases/get_schemes_of_work_usecase.dart';
+   275→import '../features/teacher_workspace/domain/usecases/get_version_history_usecase.dart';
+   276→import '../features/teacher_workspace/domain/usecases/get_worksheets_usecase.dart';
+   277→import '../features/teacher_workspace/domain/usecases/get_workspace_dashboard_usecase.dart';
+   278→import '../features/teacher_workspace/domain/usecases/publish_assignment_usecase.dart';
+   279→import '../features/teacher_workspace/domain/usecases/toggle_favorite_usecase.dart';
+   280→import '../features/teacher_workspace/domain/usecases/update_lesson_plan_usecase.dart';
+   281→import '../features/teacher_workspace/presentation/providers/assignment_provider.dart';
+   282→import '../features/teacher_workspace/presentation/providers/calendar_planner_provider.dart';
+   283→import '../features/teacher_workspace/presentation/providers/content_assistant_provider.dart';
+   284→import '../features/teacher_workspace/presentation/providers/generate_questions_provider.dart';
+   285→import '../features/teacher_workspace/presentation/providers/lesson_plan_provider.dart';
+   286→import '../features/teacher_workspace/presentation/providers/report_comment_provider.dart';
+   287→import '../features/teacher_workspace/presentation/providers/resource_library_provider.dart';
+   288→import '../features/teacher_workspace/presentation/providers/scheme_of_work_provider.dart';
+   289→import '../features/teacher_workspace/presentation/providers/teaching_resource_provider.dart';
+   290→import '../features/teacher_workspace/presentation/providers/worksheet_provider.dart';
+   291→import '../features/teacher_workspace/presentation/providers/workspace_dashboard_provider.dart';
+   292→import '../features/teacher_workspace/domain/usecases/generate_presentation_usecase.dart';
+   293→import '../features/teacher_workspace/domain/usecases/get_presentations_usecase.dart';
+   294→import '../features/teacher_workspace/domain/usecases/create_presentation_usecase.dart';
+   295→import '../features/teacher_workspace/domain/usecases/export_presentation_usecase.dart';
+   296→import '../features/teacher_workspace/domain/usecases/generate_communication_usecase.dart';
+   297→import '../features/teacher_workspace/domain/usecases/get_communications_usecase.dart';
+   298→import '../features/teacher_workspace/domain/usecases/create_communication_usecase.dart';
+   299→import '../features/teacher_workspace/domain/usecases/create_task_usecase.dart';
+   300→import '../features/teacher_workspace/domain/usecases/update_task_usecase.dart';
+   301→import '../features/teacher_workspace/domain/usecases/delete_task_usecase.dart';
+   302→import '../features/teacher_workspace/domain/usecases/get_tasks_usecase.dart';
+   303→import '../features/teacher_workspace/domain/usecases/generate_rubric_usecase.dart';
+   304→import '../features/teacher_workspace/domain/usecases/get_rubrics_usecase.dart';
+   305→import '../features/teacher_workspace/domain/usecases/create_rubric_usecase.dart';
+   306→import '../features/teacher_workspace/domain/usecases/generate_oral_questions_usecase.dart';
+   307→import '../features/teacher_workspace/domain/usecases/get_oral_questions_usecase.dart';
+   308→import '../features/teacher_workspace/domain/usecases/create_oral_questions_usecase.dart';
+   309→import '../features/teacher_workspace/domain/usecases/generate_practical_assessment_usecase.dart';
+   310→import '../features/teacher_workspace/domain/usecases/get_practical_assessments_usecase.dart';
+   311→import '../features/teacher_workspace/domain/usecases/create_practical_assessment_usecase.dart';
+   312→import '../features/teacher_workspace/domain/usecases/share_resource_usecase.dart';
+   313→import '../features/teacher_workspace/domain/usecases/add_comment_usecase.dart';
+   314→import '../features/teacher_workspace/domain/usecases/get_comments_usecase.dart';
+   315→import '../features/teacher_workspace/domain/usecases/get_enhanced_dashboard_usecase.dart';
+   316→import '../features/teacher_workspace/presentation/providers/presentation_provider.dart';
+   317→import '../features/teacher_workspace/presentation/providers/communication_provider.dart';
+   318→import '../features/teacher_workspace/presentation/providers/task_provider.dart';
+   319→import '../features/teacher_workspace/presentation/providers/rubric_provider.dart';
+   320→import '../features/teacher_workspace/presentation/providers/oral_question_provider.dart';
+   321→import '../features/teacher_workspace/presentation/providers/practical_assessment_provider.dart';
+   322→import '../features/teacher_workspace/presentation/providers/collaboration_provider.dart';
+   323→import '../features/teacher_workspace/presentation/providers/enhanced_dashboard_provider.dart';
+   324→import '../features/school_management/data/datasources/school_management_remote_datasource.dart';
+   325→import '../features/school_management/data/repositories/school_management_repository_impl.dart';
+   326→import '../features/school_management/domain/repositories/school_management_repository.dart';
+   327→import '../features/school_management/domain/usecases/school_usecases.dart';
+   328→import '../features/school_management/domain/usecases/student_usecases.dart';
+   329→import '../features/school_management/domain/usecases/teacher_usecases.dart';
+   330→import '../features/school_management/domain/usecases/parent_usecases.dart';
+   331→import '../features/school_management/domain/usecases/academic_session_usecases.dart' hide CreateCalendarEventUseCase, GetCalendarEventsUseCase;
+   332→import '../features/school_management/domain/usecases/timetable_usecases.dart';
+   333→import '../features/school_management/domain/usecases/attendance_usecases.dart';
+   334→import '../features/school_management/domain/usecases/homework_usecases.dart';
+   335→import '../features/school_management/domain/usecases/announcement_usecases.dart' hide CreateAnnouncementUseCase, GetAnnouncementsUseCase;
+   336→import '../features/school_management/domain/usecases/report_usecases.dart';
+   337→import '../features/parent_portal/data/datasources/parent_portal_remote_datasource.dart';
+   338→import '../features/parent_portal/data/repositories/parent_portal_repository_impl.dart';
+   339→import '../features/parent_portal/domain/repositories/parent_portal_repository.dart';
+   340→import '../features/parent_portal/domain/usecases/get_parent_dashboard_usecase.dart';
+   341→import '../features/parent_portal/domain/usecases/get_parent_insights_usecase.dart';
+   342→import '../features/parent_portal/domain/usecases/get_child_profile_usecase.dart';
+   343→import '../features/parent_portal/domain/usecases/get_child_performance_usecase.dart';
+   344→import '../features/parent_portal/domain/usecases/get_child_attendance_usecase.dart';
+   345→import '../features/parent_portal/domain/usecases/get_child_assignments_usecase.dart';
+   346→import '../features/parent_portal/domain/usecases/get_parent_notifications_usecase.dart';
+   347→import '../features/parent_portal/domain/usecases/mark_notification_read_usecase.dart' as pp_mark_notif;
+   348→import '../features/parent_portal/domain/usecases/get_parent_messages_usecase.dart';
+   349→import '../features/parent_portal/domain/usecases/mark_message_read_usecase.dart';
+   350→import '../features/parent_portal/domain/usecases/send_parent_message_usecase.dart';
+   351→import '../features/parent_portal/domain/usecases/get_message_threads_usecase.dart';
+   352→import '../features/parent_portal/domain/usecases/get_parent_calendar_usecase.dart';
+   353→import '../features/parent_portal/domain/usecases/dismiss_insight_usecase.dart';
+   354→import '../features/parent_portal/domain/usecases/ask_parent_assistant_usecase.dart';
+   355→import '../features/parent_portal/domain/usecases/download_report_usecase.dart' as pp_download;
+   356→import '../features/parent_portal/domain/usecases/record_engagement_usecase.dart';
+   357→import '../features/parent_portal/domain/usecases/get_engagement_analytics_usecase.dart';
+   358→import '../features/communication/data/datasources/communication_remote_datasource.dart';
+   359→import '../features/communication/data/repositories/communication_repository_impl.dart';
+   360→import '../features/communication/domain/repositories/communication_repository.dart';
+   361→import '../features/communication/domain/usecases/get_conversations_usecase.dart';
+   362→import '../features/communication/domain/usecases/create_conversation_usecase.dart';
+   363→import '../features/communication/domain/usecases/get_messages_usecase.dart';
+   364→import '../features/communication/domain/usecases/send_message_usecase.dart';
+   365→import '../features/communication/domain/usecases/edit_message_usecase.dart';
+   366→import '../features/communication/domain/usecases/delete_message_usecase.dart';
+   367→import '../features/communication/domain/usecases/pin_message_usecase.dart';
+   368→import '../features/communication/domain/usecases/add_reaction_usecase.dart';
+   369→import '../features/communication/domain/usecases/mark_as_read_usecase.dart';
+   370→import '../features/communication/domain/usecases/get_announcements_usecase.dart';
+   371→import '../features/communication/domain/usecases/create_announcement_usecase.dart';
+   372→import '../features/communication/domain/usecases/acknowledge_announcement_usecase.dart';
+   373→import '../features/communication/domain/usecases/get_notifications_usecase.dart';
+   374→import '../features/communication/domain/usecases/mark_notification_read_usecase.dart';
+   375→import '../features/communication/domain/usecases/mark_all_notifications_read_usecase.dart';
+   376→import '../features/communication/domain/usecases/get_notification_preferences_usecase.dart';
+   377→import '../features/communication/domain/usecases/update_notification_preferences_usecase.dart';
+   378→import '../features/communication/domain/usecases/get_forums_usecase.dart';
+   379→import '../features/communication/domain/usecases/create_forum_usecase.dart';
+   380→import '../features/communication/domain/usecases/get_forum_posts_usecase.dart';
+   381→import '../features/communication/domain/usecases/create_forum_post_usecase.dart';
+   382→import '../features/communication/domain/usecases/create_forum_comment_usecase.dart';
+   383→import '../features/communication/domain/usecases/get_calendar_events_usecase.dart';
+   384→import '../features/communication/domain/usecases/create_calendar_event_usecase.dart';
+   385→import '../features/communication/domain/usecases/rsvp_to_event_usecase.dart';
+   386→import '../features/communication/domain/usecases/ai_draft_announcement_usecase.dart';
+   387→import '../features/communication/domain/usecases/ai_rewrite_message_usecase.dart';
+   388→import '../features/communication/domain/usecases/ai_summarize_conversation_usecase.dart';
+   389→import '../features/communication/domain/usecases/ai_translate_message_usecase.dart';
+   390→import '../features/communication/domain/usecases/ai_suggest_reply_usecase.dart';
+   391→import '../features/communication/domain/usecases/ai_correct_grammar_usecase.dart';
+   392→import '../features/communication/domain/usecases/ai_adjust_tone_usecase.dart';
+   393→import '../features/communication/domain/usecases/ask_school_knowledge_usecase.dart';
+   394→import '../features/communication/domain/usecases/get_knowledge_documents_usecase.dart';
+   395→import '../features/communication/domain/usecases/upload_knowledge_document_usecase.dart';
+   396→import '../features/communication/domain/usecases/report_message_usecase.dart';
+   397→import '../features/communication/domain/usecases/mute_conversation_usecase.dart';
+   398→import '../features/communication/domain/usecases/archive_conversation_usecase.dart';
+   399→import '../features/communication/domain/usecases/get_audit_logs_usecase.dart';
+   400→import '../features/communication/domain/usecases/get_communication_dashboard_usecase.dart';
+   401→import '../features/communication/domain/usecases/set_typing_usecase.dart';
+   402→import '../features/communication/domain/usecases/update_presence_usecase.dart';
+   403→import '../features/communication/presentation/providers/conversation_provider.dart';
+   404→import '../features/communication/presentation/providers/message_provider.dart';
+   405→import '../features/communication/presentation/providers/announcement_provider.dart';
+   406→import '../features/communication/presentation/providers/notification_provider.dart';
+   407→import '../features/communication/presentation/providers/forum_provider.dart';
+   408→import '../features/communication/presentation/providers/calendar_provider.dart';
+   409→import '../features/communication/presentation/providers/ai_assistant_provider.dart';
+   410→import '../features/communication/presentation/providers/knowledge_assistant_provider.dart';
+   411→import '../features/communication/presentation/providers/communication_dashboard_provider.dart';
+   412→import '../features/communication/presentation/providers/moderation_provider.dart' hide ModerationNotifier, ModerationState;
+   413→import '../features/billing/data/datasources/billing_remote_datasource.dart';
+   414→import '../features/billing/data/datasources/flutterwave_datasource.dart';
+   415→import '../features/billing/data/repositories/billing_repository_impl.dart';
+   416→import '../features/billing/domain/repositories/billing_repository.dart';
+   417→import '../features/billing/domain/usecases/get_subscription_plans_usecase.dart';
+   418→import '../features/billing/domain/usecases/manage_subscription_usecase.dart';
+   419→import '../features/billing/domain/usecases/process_payment_usecase.dart' as bn_payment;
+   420→import '../features/billing/domain/usecases/manage_ai_credits_usecase.dart';
+   421→import '../features/billing/domain/usecases/manage_coupons_usecase.dart';
+   422→import '../features/billing/domain/usecases/manage_referrals_usecase.dart';
+   423→import '../features/billing/domain/usecases/manage_invoices_usecase.dart';
+   424→import '../features/billing/domain/usecases/manage_licenses_usecase.dart';
+   425→import '../features/billing/domain/usecases/get_revenue_analytics_usecase.dart';
+   426→import '../features/billing/domain/usecases/manage_school_billing_usecase.dart';
+   427→import '../features/billing/domain/usecases/manage_billing_notifications_usecase.dart' as bn;
+   428→import '../features/billing/presentation/providers/subscription_provider.dart';
+   429→import '../features/billing/presentation/providers/payment_provider.dart';
+   430→import '../features/billing/presentation/providers/ai_credits_provider.dart';
+   431→import '../features/billing/presentation/providers/coupon_provider.dart';
+   432→import '../features/billing/presentation/providers/referral_provider.dart';
+   433→import '../features/billing/presentation/providers/invoice_provider.dart';
+   434→import '../features/billing/presentation/providers/license_provider.dart';
+   435→import '../features/billing/presentation/providers/revenue_provider.dart';
+   436→import '../features/billing/presentation/providers/school_billing_provider.dart';
+   437→import '../features/billing/presentation/providers/billing_notification_provider.dart';
+   438→import '../config/dependency_injection.dart';
+   439→
+   440→
+   441→final supabaseClientProvider = Provider<sb.SupabaseClient>((ref) {
+   442→  try {
+   443→    return SupabaseConfig.client;
+   444→  } catch (e) {
+   445→    AppLogger.error('Failed to resolve Supabase client', error: e);
+   446→    rethrow;
+   447→  }
+   448→});
+   449→
+   450→/// Provides a configured [Dio] instance with base options pulled from
+   451→/// [AppConfig] and [ApiConstants].
+   452→final dioProvider = Provider<Dio>((ref) {
+   453→  final dio = Dio(
+   454→    BaseOptions(
+   455→      baseUrl: AppConfig.baseUrl,
+   456→      connectTimeout: AppConfig.connectTimeoutDuration,
+   457→      receiveTimeout: AppConfig.receiveTimeoutDuration,
+   458→      sendTimeout: AppConfig.sendTimeoutDuration,
+   459→      headers: ApiConstants.baseHeaders(),
+   460→      responseType: ResponseType.json,
+   461→      validateStatus: (status) => status != null && status < 500,
+   462→    ),
+   463→  );
+   464→  return dio;
+   465→});
+   466→
+   467→/// Provides the [ApiClient] wrapper around [Dio].
+   468→///
+   469→/// FIX: Now injects [StorageService] so that auth tokens are actually
+   470→/// read from secure storage instead of returning null (the root cause
+   471→/// of the "ApiClient auth always returning null" bug).
+   472→final apiClientProvider = Provider<ApiClient>((ref) {
+   473→  final dio = ref.watch(dioProvider);
+   474→  final storageService = ref.watch(storageServiceProvider);
+   475→  return ApiClient(dio, storageService: storageService);
+   476→});
+   477→
+   478→/// Re-exports the [NetworkInfo] provider from the core layer so that
+   479→/// it is accessible through the DI container alongside other services.
+   480→final networkInfoProvider = Provider<NetworkInfo>((ref) {
+   481→  // Delegate to the core-layer provider.
+   482→  return ref.watch(coreNetworkInfoProvider);
+   483→});
+   484→
+   485→// ═══════════════════════════════════════════════════════════════════════
+   486→// SERVICE PROVIDERS
+   487→// ═══════════════════════════════════════════════════════════════════════
+   488→
+   489→/// Provides the [StorageService] singleton.
+   490→///
+   491→/// Lazily initialized on first access.
+   492→final storageServiceProvider = Provider<StorageService>((ref) {
+   493→  final service = StorageService();
+   494→  ref.onDispose(() {
+   495→    // StorageService wraps singletons; no explicit dispose needed.
+   496→  });
+   497→  return service;
+   498→});
+   499→
+   500→/// Provides the [AuthService] instance, injecting the Supabase client
+   501→/// and the storage service.
+   502→final authServiceProvider = Provider<AuthService>((ref) {
+   503→  final supabaseClient = ref.watch(supabaseClientProvider);
+   504→  final storageService = ref.watch(storageServiceProvider);
+   505→  return AuthService(
+   506→    supabaseClient: supabaseClient,
+   507→    storageService: storageService,
+   508→  );
+   509→});
+   510→
+   511→/// Provides the [NotificationService] instance, injecting the Supabase
+   512→/// client and the storage service.
+   513→final notificationServiceProvider = Provider<NotificationService>((ref) {
+   514→  final supabaseClient = ref.watch(supabaseClientProvider);
+   515→  final storageService = ref.watch(storageServiceProvider);
+   516→  return NotificationService(
+   517→    supabaseClient: supabaseClient,
+   518→    storageService: storageService,
+   519→  );
+   520→});
+   521→
+   522→// ═══════════════════════════════════════════════════════════════════════
+   523→// AUTH STATE PROVIDERS
+   524→// ═══════════════════════════════════════════════════════════════════════
+   525→
+   526→/// Stream provider that emits the current Supabase [sb.AuthState].
+   527→///
+   528→/// Automatically reconnects on transient failures and emits the latest
+   529→/// state to any listener.
+   530→final authStateProvider = StreamProvider<sb.AuthState>((ref) {
+   531→  final supabaseClient = ref.watch(supabaseClientProvider);
+   532→  return supabaseClient.auth.onAuthStateChange;
+   533→});
+   534→
+   535→/// Convenience provider that yields the currently authenticated [sb.User],
+   536→/// or `null` if not signed in.
+   537→final currentUserProvider = Provider<sb.User?>((ref) {
+   538→  final authState = ref.watch(authStateProvider);
+   539→  return authState.when(
+   540→    data: (state) => state.session?.user,
+   541→    loading: () => SupabaseConfig.currentUser,
+   542→    error: (_, __) => null,
+   543→  );
+   544→});
+   545→
+   546→/// Convenience provider that yields `true` when the user is authenticated.
+   547→final isAuthenticatedProvider = Provider<bool>((ref) {
+   548→  final user = ref.watch(currentUserProvider);
+   549→  return user != null;
+   550→});
+   551→
+   552→/// Provides the current user's role from secure storage, or a default.
+   553→///
+   554→/// This is a future provider since it reads from secure storage.
+   555→final userRoleProvider = FutureProvider<String>((ref) async {
+   556→  final storageService = ref.watch(storageServiceProvider);
+   557→  return await storageService.getUserRole() ?? 'student';
+   558→});
+   559→
+   560→// ═══════════════════════════════════════════════════════════════════════
+   561→// CONNECTIVITY PROVIDERS (re-exported from core)
+   562→// ═══════════════════════════════════════════════════════════════════════
+   563→
+   564→/// Re-exports the connectivity stream from the core network layer.
+   565→final connectivityStreamProvider = StreamProvider<List<ConnectivityResult>>(
+   566→  (ref) {
+   567→    final networkInfo = ref.watch(networkInfoProvider);
+   568→    return networkInfo.onConnectivityChanged;
+   569→  },
+   570→);
+   571→
+   572→/// Re-exports the simple "is connected" boolean from the core layer.
+   573→final isConnectedProvider = Provider<bool>((ref) {
+   574→  final asyncResult = ref.watch(connectivityStreamProvider);
+   575→  return asyncResult.when(
+   576→    data: (results) =>
+   577→        results.any((r) => r != ConnectivityResult.none),
+   578→    loading: () => true,
+   579→    error: (_, __) => false,
+   580→  );
+   581→});
+   582→
+   583→// ═══════════════════════════════════════════════════════════════════════
+   584→// PERFORMANCE INFRASTRUCTURE PROVIDERS
+   585→// ═══════════════════════════════════════════════════════════════════════
+   586→// PERF: Centralized performance services that are integrated across
+   587→// all feature providers for monitoring, caching, and optimization.
+   588→
+   589→/// Provides the [DatabasePoolManager] singleton.
+   590→///
+   591→/// PERF: Initializes database pool monitoring with health checks
+   592→/// and slow query logging. Call `DatabasePoolManager.initialize()`
+   593→/// during app startup for full monitoring.
+   594→final databasePoolManagerProvider = Provider<DatabasePoolManager>((ref) {
+   595→  // Initialize on first access
+   596→  if (!DatabasePoolManager.isInitialized) {
+   597→    DatabasePoolManager.initialize(
+   598→      slowQueryThreshold: 500,
+   599→      healthCheckInterval: const Duration(minutes: 5),
+   600→    );
+   601→  }
+   602→  ref.onDispose(() {
+   603→    DatabasePoolManager.dispose();
+   604→  });
+   605→  return DatabasePoolManager();
+   606→});
+   607→
+   608→/// Provides the [PerformanceConfig] for the app.
+   609→///
+   610→/// PERF: Centralizes performance tuning parameters so all features
+   611→/// use consistent settings for image optimization, lazy loading,
+   612→/// request batching, and caching.
+   613→final performanceConfigProvider = Provider<PerformanceConfig>((ref) {
+   614→  return const PerformanceConfig(
+   615→    enableLazyLoading: true,
+   616→    enableImageCache: true,
+   617→    enableCompression: true,
+   618→    maxCacheSizeMB: 200,
+   619→    imageQuality: 0.8,
+   620→    prefetchCount: 20,
+   621→    debounceDuration: Duration(milliseconds: 100),
+   622→    maxConcurrentRequests: 6,
+   623→    requestTimeout: Duration(seconds: 15),
+   624→  );
+   625→});
+   626→
+   627→/// Provides the [PerformanceMonitor] for tracking app performance.
+   628→///
+   629→/// PERF: Central performance monitor that collects metrics from
+   630→/// all feature modules. Use `ref.read(performanceMonitorProvider)`
+   631→/// to record custom metrics in feature providers.
+   632→final performanceMonitorProvider = Provider<PerformanceMonitor>((ref) {
+   633→  return PerformanceMonitor();
+   634→});
+   635→
+   636→/// Provides the [ImageOptimizer] for image loading optimization.
+   637→final imageOptimizerProvider = Provider<ImageOptimizer>((ref) {
+   638→  final config = ref.watch(performanceConfigProvider);
+   639→  return ImageOptimizer(
+   640→    config: config,
+   641→    cacheManager: ref.watch(cacheManagerProvider),
+   642→  );
+   643→});
+   644→
+   645→/// Provides the [LazyLoadController] for paginated list loading.
+   646→final lazyLoadControllerProvider = Provider<LazyLoadController>((ref) {
+   647→  final config = ref.watch(performanceConfigProvider);
+   648→  return LazyLoadController(config: config);
+   649→});
+   650→
+   651→/// Provides the [RequestBatcher] for API request deduplication.
+   652→final requestBatcherProvider = Provider<RequestBatcher>((ref) {
+   653→  return RequestBatcher();
+   654→});
+   655→
+   656→/// Provides the [AiCacheService] for AI response caching.
+   657→///
+   658→/// PERF: Reduces AI API costs by caching generated responses.
+   659→/// Target: 70% cache hit rate for repeated topic/difficulty combinations.
+   660→/// Estimated savings: $140/month at 1,000 schools.
+   661→final aiCacheServiceProvider = Provider<AiCacheService>((ref) {
+   662→  return AiCacheService(
+   663→    maxCacheSize: 500,
+   664→    defaultTtl: const Duration(hours: 24),
+   665→  );
+   666→});
+   667→
+   668→/// Provides the [PromptTokenOptimizer] for AI prompt optimization.
+   669→///
+   670→/// PERF: Reduces token usage by 30-50% through whitespace removal,
+   671→/// example truncation, and context compression.
+   672→final promptTokenOptimizerProvider = Provider<PromptTokenOptimizer>((ref) {
+   673→  return PromptTokenOptimizer();
+   674→});
+   675→
+   676→/// Provider that exposes aggregated performance statistics.
+   677→///
+   678→/// PERF: Call this from super_admin dashboard to show real-time
+   679→/// performance metrics.
+   680→final performanceStatsProvider = Provider<Map<String, dynamic>>((ref) {
+   681→  final dbStats = DatabasePoolManager.stats;
+   682→  final aiCacheStats = ref.read(aiCacheServiceProvider).stats;
+   683→  final perfMonitor = ref.read(performanceMonitorProvider);
+   684→
+   685→  return {
+   686→    'database': dbStats,
+   687→    'aiCache': aiCacheStats,
+   688→    'aiCacheEstimatedSavings': ref.read(aiCacheServiceProvider).estimatedSavings,
+   689→    'performanceEvents': perfMonitor.getMetrics()['activeTimers']?.length ?? 0,
+   690→  };
+   691→});
+   692→
+   693→// ═══════════════════════════════════════════════════════════════════════
+   694→// AUTH FEATURE — CLEAN ARCHITECTURE PROVIDERS
+   695→// ═══════════════════════════════════════════════════════════════════════
+   696→
+   697→/// Provides the [AuthRemoteDataSource] implementation.
+   698→final authRemoteDataSourceProvider = Provider<AuthRemoteDataSource>((ref) {
+   699→  final supabaseClient = ref.watch(supabaseClientProvider);
+   700→  return AuthRemoteDataSourceImpl(supabaseClient: supabaseClient);
+   701→});
+   702→
+   703→/// Provides the [AuthRepository] implementation.
+   704→final authRepositoryProvider = Provider<AuthRepository>((ref) {
+   705→  final remoteDataSource = ref.watch(authRemoteDataSourceProvider);
+   706→  final storageService = ref.watch(storageServiceProvider);
+   707→  return AuthRepositoryImpl(
+   708→    remoteDataSource: remoteDataSource,
+   709→    storageService: storageService,
+   710→  );
+   711→});
+   712→
+   713→/// Provides the [LoginUseCase].
+   714→final loginUseCaseProvider = Provider<LoginUseCase>((ref) {
+   715→  final repository = ref.watch(authRepositoryProvider);
+   716→  return LoginUseCase(repository);
+   717→});
+   718→
+   719→/// Provides the [SignUpUseCase].
+   720→final signUpUseCaseProvider = Provider<SignUpUseCase>((ref) {
+   721→  final repository = ref.watch(authRepositoryProvider);
+   722→  return SignUpUseCase(repository);
+   723→});
+   724→
+   725→/// Provides the [ForgotPasswordUseCase].
+   726→final forgotPasswordUseCaseProvider = Provider<ForgotPasswordUseCase>((ref) {
+   727→  final repository = ref.watch(authRepositoryProvider);
+   728→  return ForgotPasswordUseCase(repository);
+   729→});
+   730→
+   731→/// Provides the [LogoutUseCase].
+   732→final logoutUseCaseProvider = Provider<LogoutUseCase>((ref) {
+   733→  final repository = ref.watch(authRepositoryProvider);
+   734→  return LogoutUseCase(repository);
+   735→});
+   736→
+   737→/// Provides the [GetCurrentUserUseCase].
+   738→final getCurrentUserUseCaseProvider = Provider<GetCurrentUserUseCase>((ref) {
+   739→  final repository = ref.watch(authRepositoryProvider);
+   740→  return GetCurrentUserUseCase(repository);
+   741→});
+   742→
+   743→/// Provides the [AuthNotifier] with all required use cases.
+   744→final authProvider = StateNotifierProvider<AuthNotifier, AuthState>((ref) {
+   745→  return AuthNotifier(
+   746→    loginUseCase: ref.watch(loginUseCaseProvider),
+   747→    signUpUseCase: ref.watch(signUpUseCaseProvider),
+   748→    forgotPasswordUseCase: ref.watch(forgotPasswordUseCaseProvider),
+   749→    logoutUseCase: ref.watch(logoutUseCaseProvider),
+   750→    getCurrentUserUseCase: ref.watch(getCurrentUserUseCaseProvider),
+   751→    authRepository: ref.watch(authRepositoryProvider),
+   752→  );
+   753→});
+   754→
+   755→/// Provides the [AuthFormNotifier] for form validation state.
+   756→// PERF: autoDispose — releases memory when user navigates away from this feature
+   757→final authFormProvider =
+   758→    StateNotifierProvider.autoDispose<AuthFormNotifier, AuthFormState>((ref) {
+   759→  return AuthFormNotifier();
+   760→});
+   761→
+   762→// ═══════════════════════════════════════════════════════════════════════
+   763→// QUESTION BANK FEATURE — CLEAN ARCHITECTURE PROVIDERS
+   764→// ═══════════════════════════════════════════════════════════════════════
+   765→
+   766→/// Provides the [QuestionBankRemoteDataSource] implementation.
+   767→final questionBankRemoteDataSourceProvider =
+   768→    Provider<QuestionBankRemoteDataSource>((ref) {
+   769→  final supabaseClient = ref.watch(supabaseClientProvider);
+   770→  return QuestionBankRemoteDataSourceImpl(supabaseClient: supabaseClient);
+   771→});
+   772→
+   773→/// Provides the [QuestionBankRepository] implementation.
+   774→final questionBankRepositoryProvider = Provider<QuestionBankRepository>((ref) {
+   775→  final remoteDataSource = ref.watch(questionBankRemoteDataSourceProvider);
+   776→  return QuestionBankRepositoryImpl(remoteDataSource: remoteDataSource);
+   777→});
+   778→
+   779→/// Provides the [GetQuestionsUseCase].
+   780→final getQuestionsUseCaseProvider = Provider<GetQuestionsUseCase>((ref) {
+   781→  final repository = ref.watch(questionBankRepositoryProvider);
+   782→  return GetQuestionsUseCase(repository);
+   783→});
+   784→
+   785→/// Provides the [CreateQuestionUseCase].
+   786→final createQuestionUseCaseProvider = Provider<CreateQuestionUseCase>((ref) {
+   787→  final repository = ref.watch(questionBankRepositoryProvider);
+   788→  return CreateQuestionUseCase(repository);
+   789→});
+   790→
+   791→/// Provides the [UpdateQuestionUseCase].
+   792→final updateQuestionUseCaseProvider = Provider<UpdateQuestionUseCase>((ref) {
+   793→  final repository = ref.watch(questionBankRepositoryProvider);
+   794→  return UpdateQuestionUseCase(repository);
+   795→});
+   796→
+   797→/// Provides the [DeleteQuestionUseCase].
+   798→final deleteQuestionUseCaseProvider = Provider<DeleteQuestionUseCase>((ref) {
+   799→  final repository = ref.watch(questionBankRepositoryProvider);
+   800→  return DeleteQuestionUseCase(repository);
+   801→});
+   802→
+   803→/// Provides the [GetQuestionDetailUseCase].
+   804→final getQuestionDetailUseCaseProvider =
+   805→    Provider<GetQuestionDetailUseCase>((ref) {
+   806→  final repository = ref.watch(questionBankRepositoryProvider);
+   807→  return GetQuestionDetailUseCase(repository);
+   808→});
+   809→
+   810→/// Provides the [SearchQuestionsUseCase].
+   811→final searchQuestionsUseCaseProvider =
+   812→    Provider<SearchQuestionsUseCase>((ref) {
+   813→  final repository = ref.watch(questionBankRepositoryProvider);
+   814→  return SearchQuestionsUseCase(repository);
+   815→});
+   816→
+   817→/// Provides the [ManageQuestionStatusUseCase].
+   818→final manageQuestionStatusUseCaseProvider =
+   819→    Provider<ManageQuestionStatusUseCase>((ref) {
+   820→  final repository = ref.watch(questionBankRepositoryProvider);
+   821→  return ManageQuestionStatusUseCase(repository);
+   822→});
+   823→
+   824→/// Provides the [GetQuestionStatsUseCase].
+   825→final getQuestionStatsUseCaseProvider =
+   826→    Provider<GetQuestionStatsUseCase>((ref) {
+   827→  final repository = ref.watch(questionBankRepositoryProvider);
+   828→  return GetQuestionStatsUseCase(repository);
+   829→});
+   830→
+   831→/// Provides the [ImportQuestionsUseCase].
+   832→final importQuestionsUseCaseProvider =
+   833→    Provider<ImportQuestionsUseCase>((ref) {
+   834→  final repository = ref.watch(questionBankRepositoryProvider);
+   835→  return ImportQuestionsUseCase(repository);
+   836→});
+   837→
+   838→/// Provides the [ExportQuestionsUseCase].
+   839→final exportQuestionsUseCaseProvider =
+   840→    Provider<ExportQuestionsUseCase>((ref) {
+   841→  final repository = ref.watch(questionBankRepositoryProvider);
+   842→  return ExportQuestionsUseCase(repository);
+   843→});
+   844→
+   845→/// Provides the [ManageCollectionsUseCase].
+   846→final manageCollectionsUseCaseProvider =
+   847→    Provider<ManageCollectionsUseCase>((ref) {
+   848→  final repository = ref.watch(questionBankRepositoryProvider);
+   849→  return ManageCollectionsUseCase(repository);
+   850→});
+   851→
+   852→/// Provides the [QuestionBankNotifier] with all required use cases.
+   853→// PERF: autoDispose — releases memory when user navigates away from this feature
+   854→final questionBankProvider =
+   855→    StateNotifierProvider.autoDispose<QuestionBankNotifier, QuestionBankState>((ref) {
+   856→  return QuestionBankNotifier(
+   857→    getQuestionsUseCase: ref.watch(getQuestionsUseCaseProvider),
+   858→    createQuestionUseCase: ref.watch(createQuestionUseCaseProvider),
+   859→    updateQuestionUseCase: ref.watch(updateQuestionUseCaseProvider),
+   860→    deleteQuestionUseCase: ref.watch(deleteQuestionUseCaseProvider),
+   861→    getQuestionDetailUseCase: ref.watch(getQuestionDetailUseCaseProvider),
+   862→    searchQuestionsUseCase: ref.watch(searchQuestionsUseCaseProvider),
+   863→    manageQuestionStatusUseCase: ref.watch(manageQuestionStatusUseCaseProvider),
+   864→    getQuestionStatsUseCase: ref.watch(getQuestionStatsUseCaseProvider),
+   865→  );
+   866→});
+   867→
+   868→/// Provides the [QuestionFilterNotifier] for filter state management.
+   869→// PERF: autoDispose — releases memory when user navigates away from this feature
+   870→final questionFilterProvider =
+   871→    StateNotifierProvider.autoDispose<QuestionFilterNotifier, QuestionFilterState>((ref) {
+   872→  final repository = ref.watch(questionBankRepositoryProvider);
+   873→  return QuestionFilterNotifier(repository: repository);
+   874→});
+   875→
+   876→/// Provides the [CollectionNotifier] for collection management.
+   877→// PERF: autoDispose — releases memory when user navigates away from this feature
+   878→final collectionProvider =
+   879→    StateNotifierProvider.autoDispose<CollectionNotifier, CollectionState>((ref) {
+   880→  return CollectionNotifier(
+   881→    manageCollectionsUseCase: ref.watch(manageCollectionsUseCaseProvider),
+   882→  );
+   883→});
+   884→
+   885→/// Provides the [ImportExportNotifier] for import/export state management.
+   886→// PERF: autoDispose — releases memory when user navigates away from this feature
+   887→final importExportProvider =
+   888→    StateNotifierProvider.autoDispose<ImportExportNotifier, ImportExportState>((ref) {
+   889→  return ImportExportNotifier(
+   890→    importQuestionsUseCase: ref.watch(importQuestionsUseCaseProvider),
+   891→    exportQuestionsUseCase: ref.watch(exportQuestionsUseCaseProvider),
+   892→    repository: ref.watch(questionBankRepositoryProvider),
+   893→  );
+   894→});
+   895→
+   896→/// Provides the [QuestionBankStatsNotifier] for stats dashboard.
+   897→// PERF: autoDispose — releases memory when user navigates away from this feature
+   898→final questionBankStatsProvider =
+   899→    StateNotifierProvider.autoDispose<QuestionBankStatsNotifier, QuestionBankStatsState>(
+   900→        (ref) {
+   901→  return QuestionBankStatsNotifier(
+   902→    getQuestionStatsUseCase: ref.watch(getQuestionStatsUseCaseProvider),
+   903→  );
+   904→});
+   905→
+   906→/// Provides the [QuestionEditorNotifier] for the question editor form.
+   907→// PERF: autoDispose — releases memory when user navigates away from this feature
+   908→final questionEditorProvider =
+   909→    StateNotifierProvider.autoDispose<QuestionEditorNotifier, QuestionEditorState>((ref) {
+   910→  return QuestionEditorNotifier(
+   911→    createQuestionUseCase: ref.watch(createQuestionUseCaseProvider),
+   912→    updateQuestionUseCase: ref.watch(updateQuestionUseCaseProvider),
+   913→    manageQuestionStatusUseCase: ref.watch(manageQuestionStatusUseCaseProvider),
+   914→    repository: ref.watch(questionBankRepositoryProvider),
+   915→  );
+   916→});
+   917→
+   918→// ═══════════════════════════════════════════════════════════════════════
+   919→// AI GENERATOR FEATURE — CLEAN ARCHITECTURE PROVIDERS
+   920→// ═══════════════════════════════════════════════════════════════════════
+   921→
+   922→// ─── AI Service Infrastructure ────────────────────────────────────────
+   923→
+   924→/// Provides the [AiProvidersRegistry] singleton.
+   925→///
+   926→/// Registers OpenAI and Gemini providers that route through Supabase
+   927→/// Edge Functions (server-side API keys). Direct API key access is
+   928→/// no longer used from the client for security.
+   929→final aiProviderRegistryProvider = Provider<AiProvidersRegistry>((ref) {
+   930→  final supabaseClient = ref.watch(supabaseClientProvider);
+   931→
+   932→  return AiProvidersRegistry.createDefault(
+   933→    supabaseClient: supabaseClient,
+   934→  );
+   935→});
+   936→
+   937→/// Provides the [PromptEngine] singleton.
+   938→final promptEngineProvider = Provider<PromptEngine>((ref) {
+   939→  return PromptEngine();
+   940→});
+   941→
+   942→/// Provides the [ValidationEngine] singleton.
+   943→final validationEngineProvider = Provider<ValidationEngine>((ref) {
+   944→  return ValidationEngine();
+   945→});
+   946→
+   947→/// Provides the [AiService] singleton, injecting the provider registry,
+   948→/// prompt engine, and validation engine.
+   949→final aiServiceProvider = Provider<AiService>((ref) {
+   950→  final registry = ref.watch(aiProviderRegistryProvider);
+   951→  final promptEngine = ref.watch(promptEngineProvider);
+   952→  final validationEngine = ref.watch(validationEngineProvider);
+   953→
+   954→  // PERF: Wire AI cache and token optimizer into the AI service
+   955→  final cacheService = ref.watch(aiCacheServiceProvider);
+   956→  final tokenOptimizer = ref.watch(promptTokenOptimizerProvider);
+   957→
+   958→  return AiService(
+   959→    providersRegistry: registry,
+   960→    promptEngine: promptEngine,
+   961→    validationEngine: validationEngine,
+   962→    cacheService: cacheService,
+   963→    tokenOptimizer: tokenOptimizer,
+   964→  );
+   965→});
+   966→
+   967→/// Provides the [OpenAiProvider] via Supabase Edge Functions.
+   968→final openaiProvider = Provider<OpenAiProvider?>((ref) {
+   969→  final supabaseClient = ref.watch(supabaseClientProvider);
+   970→  return OpenAiProvider(
+   971→    supabaseClient: supabaseClient,
+   972→  );
+   973→});
+   974→
+   975→/// Provides the [GeminiProvider] via Supabase Edge Functions.
+   976→final geminiProvider = Provider<GeminiProvider?>((ref) {
+   977→  final supabaseClient = ref.watch(supabaseClientProvider);
+   978→  return GeminiProvider(
+   979→    supabaseClient: supabaseClient,
+   980→  );
+   981→});
+   982→
+   983→// ─── AI Generator Data Layer ──────────────────────────────────────────
+   984→
+   985→/// Provides the [AiGeneratorRemoteDataSource] implementation.
+   986→final aiGeneratorRemoteDataSourceProvider =
+   987→    Provider<AiGeneratorRemoteDataSource>((ref) {
+   988→  final supabaseClient = ref.watch(supabaseClientProvider);
+   989→  return AiGeneratorRemoteDataSourceImpl(supabaseClient: supabaseClient);
+   990→});
+   991→
+   992→/// Provides the [AiGeneratorRepository] implementation.
+   993→final aiGeneratorRepositoryProvider = Provider<AiGeneratorRepository>((ref) {
+   994→  final remoteDataSource = ref.watch(aiGeneratorRemoteDataSourceProvider);
+   995→  return AiGeneratorRepositoryImpl(remoteDataSource: remoteDataSource);
+   996→});
+   997→
+   998→// ─── AI Generator Use Cases ───────────────────────────────────────────
+   999→
+  1000→/// Provides the [GenerateQuestionsUseCase].
+  1001→final generateQuestionsUseCaseProvider =
+  1002→    Provider<GenerateQuestionsUseCase>((ref) {
+  1003→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1004→  return GenerateQuestionsUseCase(repository);
+  1005→});
+  1006→
+  1007→/// Provides the [ReviewGeneratedQuestionUseCase].
+  1008→final reviewGeneratedQuestionUseCaseProvider =
+  1009→    Provider<ReviewGeneratedQuestionUseCase>((ref) {
+  1010→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1011→  return ReviewGeneratedQuestionUseCase(repository);
+  1012→});
+  1013→
+  1014→/// Provides the [ImproveQuestionUseCase].
+  1015→final improveQuestionUseCaseProvider = Provider<ImproveQuestionUseCase>((ref) {
+  1016→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1017→  return ImproveQuestionUseCase(repository);
+  1018→});
+  1019→
+  1020→/// Provides the [ValidateQuestionUseCase].
+  1021→final validateQuestionUseCaseProvider =
+  1022→    Provider<ValidateQuestionUseCase>((ref) {
+  1023→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1024→  return ValidateQuestionUseCase(repository);
+  1025→});
+  1026→
+  1027→/// Provides the [SaveToQuestionBankUseCase].
+  1028→final saveToQuestionBankUseCaseProvider =
+  1029→    Provider<SaveToQuestionBankUseCase>((ref) {
+  1030→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1031→  return SaveToQuestionBankUseCase(repository);
+  1032→});
+  1033→
+  1034→/// Provides the [UploadDocumentUseCase].
+  1035→// [DUPLICATE REMOVED] final uploadDocumentUseCaseProvider = Provider<UploadDocumentUseCase>((ref) {
+  1036→// [DUPLICATE REMOVED]   final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1037→// [DUPLICATE REMOVED]   return UploadDocumentUseCase(repository);
+  1038→// [DUPLICATE REMOVED] });
+  1039→
+  1040→/// Provides the [GetGenerationHistoryUseCase].
+  1041→final getGenerationHistoryUseCaseProvider =
+  1042→    Provider<GetGenerationHistoryUseCase>((ref) {
+  1043→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1044→  return GetGenerationHistoryUseCase(repository);
+  1045→});
+  1046→
+  1047→/// Provides the [ManagePromptTemplatesUseCase].
+  1048→final managePromptTemplatesUseCaseProvider =
+  1049→    Provider<ManagePromptTemplatesUseCase>((ref) {
+  1050→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1051→  return ManagePromptTemplatesUseCase(repository);
+  1052→});
+  1053→
+  1054→/// Provides the [GetAiDashboardStatsUseCase].
+  1055→final getAiDashboardStatsUseCaseProvider =
+  1056→    Provider<GetAiDashboardStatsUseCase>((ref) {
+  1057→  final repository = ref.watch(aiGeneratorRepositoryProvider);
+  1058→  return GetAiDashboardStatsUseCase(repository);
+  1059→});
+  1060→
+  1061→// ─── AI Generator State Notifiers ─────────────────────────────────────
+  1062→
+  1063→/// Provides the [AiGeneratorNotifier] for main generation state.
+  1064→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1065→final aiGeneratorProvider =
+  1066→    StateNotifierProvider.autoDispose<AiGeneratorNotifier, AiGeneratorState>((ref) {
+  1067→  return AiGeneratorNotifier(
+  1068→    generateQuestionsUseCase: ref.watch(generateQuestionsUseCaseProvider),
+  1069→    reviewGeneratedQuestionUseCase:
+  1070→        ref.watch(reviewGeneratedQuestionUseCaseProvider),
+  1071→    improveQuestionUseCase: ref.watch(improveQuestionUseCaseProvider),
+  1072→    validateQuestionUseCase: ref.watch(validateQuestionUseCaseProvider),
+  1073→    saveToQuestionBankUseCase: ref.watch(saveToQuestionBankUseCaseProvider),
+  1074→    getGenerationHistoryUseCase:
+  1075→        ref.watch(getGenerationHistoryUseCaseProvider),
+  1076→    aiService: ref.watch(aiServiceProvider),
+  1077→    managePromptTemplatesUseCase:
+  1078→        ref.watch(managePromptTemplatesUseCaseProvider),
+  1079→  );
+  1080→});
+  1081→
+  1082→/// Provides the [AiReviewNotifier] for review workflow state.
+  1083→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1084→final aiReviewProvider =
+  1085→    StateNotifierProvider.autoDispose<AiReviewNotifier, AiReviewState>((ref) {
+  1086→  return AiReviewNotifier(
+  1087→    repository: ref.watch(aiGeneratorRepositoryProvider),
+  1088→    reviewGeneratedQuestionUseCase:
+  1089→        ref.watch(reviewGeneratedQuestionUseCaseProvider),
+  1090→    improveQuestionUseCase: ref.watch(improveQuestionUseCaseProvider),
+  1091→    validateQuestionUseCase: ref.watch(validateQuestionUseCaseProvider),
+  1092→    saveToQuestionBankUseCase: ref.watch(saveToQuestionBankUseCaseProvider),
+  1093→  );
+  1094→});
+  1095→
+  1096→/// Provides the [AiDocumentNotifier] for document upload/processing state.
+  1097→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1098→final aiDocumentProvider =
+  1099→    StateNotifierProvider.autoDispose<AiDocumentNotifier, AiDocumentState>((ref) {
+  1100→  return AiDocumentNotifier(
+  1101→    uploadDocumentUseCase: ref.watch(aiUploadDocumentUseCaseProvider),
+  1102→    repository: ref.watch(aiGeneratorRepositoryProvider),
+  1103→  );
+  1104→});
+  1105→
+  1106→/// Provides the [PromptTemplateNotifier] for prompt management state.
+  1107→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1108→final promptTemplateProvider =
+  1109→    StateNotifierProvider.autoDispose<PromptTemplateNotifier, PromptTemplateState>(
+  1110→        (ref) {
+  1111→  return PromptTemplateNotifier(
+  1112→    managePromptTemplatesUseCase:
+  1113→        ref.watch(managePromptTemplatesUseCaseProvider),
+  1114→  );
+  1115→});
+  1116→
+  1117→/// Provides the [AiStatsNotifier] for dashboard stats state.
+  1118→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1119→final aiStatsProvider =
+  1120→    StateNotifierProvider.autoDispose<AiStatsNotifier, AiStatsState>((ref) {
+  1121→  return AiStatsNotifier(
+  1122→    getAiDashboardStatsUseCase: ref.watch(getAiDashboardStatsUseCaseProvider),
+  1123→    repository: ref.watch(aiGeneratorRepositoryProvider),
+  1124→  );
+  1125→});
+  1126→
+  1127→// ═══════════════════════════════════════════════════════════════════════
+  1128→// CBT ENGINE FEATURE — CLEAN ARCHITECTURE PROVIDERS
+  1129→// ═══════════════════════════════════════════════════════════════════════
+  1130→
+  1131→// ─── CBT Data Layer ──────────────────────────────────────────────────
+  1132→
+  1133→/// Provides the [CbtRemoteDataSource] implementation.
+  1134→final cbtRemoteDataSourceProvider = Provider<CbtRemoteDataSource>((ref) {
+  1135→  final supabaseClient = ref.watch(supabaseClientProvider);
+  1136→  return CbtRemoteDataSourceImpl(supabaseClient: supabaseClient);
+  1137→});
+  1138→
+  1139→/// Provides the [CbtRepository] implementation.
+  1140→final cbtRepositoryProvider = Provider<CbtRepository>((ref) {
+  1141→  final remoteDataSource = ref.watch(cbtRemoteDataSourceProvider);
+  1142→  return CbtRepositoryImpl(remoteDataSource: remoteDataSource);
+  1143→});
+  1144→
+  1145→// ─── CBT Use Cases ───────────────────────────────────────────────────
+  1146→
+  1147→/// Provides the [CreateExamUseCase].
+  1148→final createExamUseCaseProvider = Provider<CreateExamUseCase>((ref) {
+  1149→  final repository = ref.watch(cbtRepositoryProvider);
+  1150→  return CreateExamUseCase(repository);
+  1151→});
+  1152→
+  1153→/// Provides the [UpdateExamUseCase].
+  1154→final updateExamUseCaseProvider = Provider<UpdateExamUseCase>((ref) {
+  1155→  final repository = ref.watch(cbtRepositoryProvider);
+  1156→  return UpdateExamUseCase(repository);
+  1157→});
+  1158→
+  1159→/// Provides the [ManageExamStatusUseCase].
+  1160→final manageExamStatusUseCaseProvider =
+  1161→    Provider<ManageExamStatusUseCase>((ref) {
+  1162→  final repository = ref.watch(cbtRepositoryProvider);
+  1163→  return ManageExamStatusUseCase(repository);
+  1164→});
+  1165→
+  1166→/// Provides the [StartExamAttemptUseCase].
+  1167→final startExamAttemptUseCaseProvider =
+  1168→    Provider<StartExamAttemptUseCase>((ref) {
+  1169→  final repository = ref.watch(cbtRepositoryProvider);
+  1170→  return StartExamAttemptUseCase(repository);
+  1171→});
+  1172→
+  1173→/// Provides the [SubmitExamAttemptUseCase].
+  1174→final submitExamAttemptUseCaseProvider =
+  1175→    Provider<SubmitExamAttemptUseCase>((ref) {
+  1176→  final repository = ref.watch(cbtRepositoryProvider);
+  1177→  return SubmitExamAttemptUseCase(repository);
+  1178→});
+  1179→
+  1180→/// Provides the [SaveAnswerUseCase].
+  1181→final saveAnswerUseCaseProvider = Provider<SaveAnswerUseCase>((ref) {
+  1182→  final repository = ref.watch(cbtRepositoryProvider);
+  1183→  return SaveAnswerUseCase(repository);
+  1184→});
+  1185→
+  1186→/// Provides the [GetExamResultsUseCase].
+  1187→final getExamResultsUseCaseProvider = Provider<GetExamResultsUseCase>((ref) {
+  1188→  final repository = ref.watch(cbtRepositoryProvider);
+  1189→  return GetExamResultsUseCase(repository);
+  1190→});
+  1191→
+  1192→/// Provides the [GetExamStatisticsUseCase].
+  1193→final getExamStatisticsUseCaseProvider =
+  1194→    Provider<GetExamStatisticsUseCase>((ref) {
+  1195→  final repository = ref.watch(cbtRepositoryProvider);
+  1196→  return GetExamStatisticsUseCase(repository);
+  1197→});
+  1198→
+  1199→/// Provides the [GetLiveExamStatsUseCase].
+  1200→final getLiveExamStatsUseCaseProvider =
+  1201→    Provider<GetLiveExamStatsUseCase>((ref) {
+  1202→  final repository = ref.watch(cbtRepositoryProvider);
+  1203→  return GetLiveExamStatsUseCase(repository);
+  1204→});
+  1205→
+  1206→/// Provides the [GradeExamUseCase].
+  1207→final gradeExamUseCaseProvider = Provider<GradeExamUseCase>((ref) {
+  1208→  final repository = ref.watch(cbtRepositoryProvider);
+  1209→  return GradeExamUseCase(repository);
+  1210→});
+  1211→
+  1212→// ─── CBT Service Providers ───────────────────────────────────────────
+  1213→
+  1214→/// Provides the [AutoSaveService] singleton.
+  1215→final autoSaveServiceProvider = Provider<AutoSaveService>((ref) {
+  1216→  final service = AutoSaveService();
+  1217→  ref.onDispose(() {
+  1218→    service.dispose();
+  1219→  });
+  1220→  return service;
+  1221→});
+  1222→
+  1223→/// Provides the [ExamTimerService] singleton.
+  1224→final examTimerServiceProvider = Provider<ExamTimerService>((ref) {
+  1225→  final service = ExamTimerService();
+  1226→  ref.onDispose(() {
+  1227→    service.dispose();
+  1228→  });
+  1229→  return service;
+  1230→});
+  1231→
+  1232→/// Provides the [SessionRecoveryService] singleton.
+  1233→final sessionRecoveryServiceProvider = Provider<SessionRecoveryService>((ref) {
+  1234→  final service = SessionRecoveryService();
+  1235→  ref.onDispose(() {
+  1236→    service.dispose();
+  1237→  });
+  1238→  return service;
+  1239→});
+  1240→
+  1241→/// Provides the [AntiCheatService] singleton.
+  1242→final antiCheatServiceProvider = Provider<AntiCheatService>((ref) {
+  1243→  return AntiCheatService();
+  1244→});
+  1245→
+  1246→/// Provides the [ResultProcessor] singleton.
+  1247→final resultProcessorProvider = Provider<ResultProcessor>((ref) {
+  1248→  return ResultProcessor();
+  1249→});
+  1250→
+  1251→/// Provides the [CbtRealtimeService] singleton.
+  1252→final cbtRealtimeServiceProvider = Provider<CbtRealtimeService>((ref) {
+  1253→  final supabaseClient = ref.watch(supabaseClientProvider);
+  1254→  final service = CbtRealtimeService(supabaseClient: supabaseClient);
+  1255→  ref.onDispose(() {
+  1256→    service.dispose();
+  1257→  });
+  1258→  return service;
+  1259→});
+  1260→
+  1261→// ─── CBT State Notifiers ─────────────────────────────────────────────
+  1262→
+  1263→/// Provides the [ExamBuilderNotifier] for exam creation/editing state.
+  1264→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1265→final examBuilderProvider =
+  1266→    StateNotifierProvider.autoDispose<ExamBuilderNotifier, ExamBuilderState>((ref) {
+  1267→  return ExamBuilderNotifier(
+  1268→    createExamUseCase: ref.watch(createExamUseCaseProvider),
+  1269→    updateExamUseCase: ref.watch(updateExamUseCaseProvider),
+  1270→    manageExamStatusUseCase: ref.watch(manageExamStatusUseCaseProvider),
+  1271→    cbtRepository: ref.watch(cbtRepositoryProvider),
+  1272→  );
+  1273→});
+  1274→
+  1275→/// Provides the [ExamListNotifier] for exam listing and filtering state.
+  1276→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1277→final examListProvider =
+  1278→    StateNotifierProvider.autoDispose<ExamListNotifier, ExamListState>((ref) {
+  1279→  return ExamListNotifier(
+  1280→    cbtRepository: ref.watch(cbtRepositoryProvider),
+  1281→    manageExamStatusUseCase: ref.watch(manageExamStatusUseCaseProvider),
+  1282→  );
+  1283→});
+  1284→
+  1285→/// Provides the [ExamTakerNotifier] for student exam-taking state.
+  1286→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1287→final examTakerProvider =
+  1288→    StateNotifierProvider.autoDispose<ExamTakerNotifier, ExamTakerState>((ref) {
+  1289→  return ExamTakerNotifier(
+  1290→    startExamAttemptUseCase: ref.watch(startExamAttemptUseCaseProvider),
+  1291→    saveAnswerUseCase: ref.watch(saveAnswerUseCaseProvider),
+  1292→    submitExamAttemptUseCase: ref.watch(submitExamAttemptUseCaseProvider),
+  1293→    cbtRepository: ref.watch(cbtRepositoryProvider),
+  1294→    autoSaveService: ref.watch(autoSaveServiceProvider),
+  1295→    examTimerService: ref.watch(examTimerServiceProvider),
+  1296→    sessionRecoveryService: ref.watch(sessionRecoveryServiceProvider),
+  1297→    antiCheatService: ref.watch(antiCheatServiceProvider),
+  1298→  );
+  1299→});
+  1300→
+  1301→/// Provides the [ExamMonitorNotifier] for live monitoring state.
+  1302→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1303→final examMonitorProvider =
+  1304→    StateNotifierProvider.autoDispose<ExamMonitorNotifier, ExamMonitorState>((ref) {
+  1305→  return ExamMonitorNotifier(
+  1306→    cbtRepository: ref.watch(cbtRepositoryProvider),
+  1307→    getLiveExamStatsUseCase: ref.watch(getLiveExamStatsUseCaseProvider),
+  1308→    cbtRealtimeService: ref.watch(cbtRealtimeServiceProvider),
+  1309→  );
+  1310→});
+  1311→
+  1312→/// Provides the [ExamResultsNotifier] for results and grading state.
+  1313→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1314→final examResultsProvider =
+  1315→    StateNotifierProvider.autoDispose<ExamResultsNotifier, ExamResultsState>((ref) {
+  1316→  return ExamResultsNotifier(
+  1317→    cbtRepository: ref.watch(cbtRepositoryProvider),
+  1318→    getExamResultsUseCase: ref.watch(getExamResultsUseCaseProvider),
+  1319→    getExamStatisticsUseCase: ref.watch(getExamStatisticsUseCaseProvider),
+  1320→    gradeExamUseCase: ref.watch(gradeExamUseCaseProvider),
+  1321→  );
+  1322→});
+  1323→
+  1324→/// Provides the [StudentExamsNotifier] for student's exam list state.
+  1325→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1326→final studentExamsProvider =
+  1327→    StateNotifierProvider.autoDispose<StudentExamsNotifier, StudentExamsState>((ref) {
+  1328→  return StudentExamsNotifier(
+  1329→    cbtRepository: ref.watch(cbtRepositoryProvider),
+  1330→  );
+  1331→});
+  1332→
+  1333→// ─── CBT Exam Template Data Layer ────────────────────────────────────
+  1334→
+  1335→/// Provides the [ExamTemplateRemoteDataSource] implementation.
+  1336→final examTemplateRemoteDataSourceProvider =
+  1337→    Provider<ExamTemplateRemoteDataSource>((ref) {
+  1338→  final supabaseClient = ref.watch(supabaseClientProvider);
+  1339→  return ExamTemplateRemoteDataSourceImpl(supabaseClient: supabaseClient);
+  1340→});
+  1341→
+  1342→/// Provides the [ExamTemplateRepository] implementation.
+  1343→final examTemplateRepositoryProvider = Provider<ExamTemplateRepository>((ref) {
+  1344→  final remoteDataSource = ref.watch(examTemplateRemoteDataSourceProvider);
+  1345→  return ExamTemplateRepositoryImpl(remoteDataSource: remoteDataSource);
+  1346→});
+  1347→
+  1348→// ─── CBT Exam Template Use Cases ─────────────────────────────────────
+  1349→
+  1350→/// Provides the [SaveAsTemplateUseCase].
+  1351→final saveAsTemplateUseCaseProvider = Provider<SaveAsTemplateUseCase>((ref) {
+  1352→  return SaveAsTemplateUseCase(ref.watch(examTemplateRepositoryProvider));
+  1353→});
+  1354→
+  1355→/// Provides the [GetExamTemplatesUseCase].
+  1356→final getExamTemplatesUseCaseProvider =
+  1357→    Provider<GetExamTemplatesUseCase>((ref) {
+  1358→  return GetExamTemplatesUseCase(ref.watch(examTemplateRepositoryProvider));
+  1359→});
+  1360→
+  1361→/// Provides the [GetExamTemplateDetailUseCase].
+  1362→final getExamTemplateDetailUseCaseProvider =
+  1363→    Provider<GetExamTemplateDetailUseCase>((ref) {
+  1364→  return GetExamTemplateDetailUseCase(
+  1365→      ref.watch(examTemplateRepositoryProvider));
+  1366→});
+  1367→
+  1368→/// Provides the [DeleteExamTemplateUseCase].
+  1369→final deleteExamTemplateUseCaseProvider =
+  1370→    Provider<DeleteExamTemplateUseCase>((ref) {
+  1371→  return DeleteExamTemplateUseCase(ref.watch(examTemplateRepositoryProvider));
+  1372→});
+  1373→
+  1374→/// Provides the [CreateExamFromTemplateUseCase].
+  1375→final createExamFromTemplateUseCaseProvider =
+  1376→    Provider<CreateExamFromTemplateUseCase>((ref) {
+  1377→  return CreateExamFromTemplateUseCase(
+  1378→      ref.watch(examTemplateRepositoryProvider));
+  1379→});
+  1380→
+  1381→// ─── CBT Submission Receipt Use Cases ────────────────────────────────
+  1382→
+  1383→/// Provides the [GetSubmissionReceiptUseCase].
+  1384→final getSubmissionReceiptUseCaseProvider =
+  1385→    Provider<GetSubmissionReceiptUseCase>((ref) {
+  1386→  return GetSubmissionReceiptUseCase(
+  1387→      ref.watch(examTemplateRepositoryProvider));
+  1388→});
+  1389→
+  1390→/// Provides the [VerifySubmissionReceiptUseCase].
+  1391→final verifySubmissionReceiptUseCaseProvider =
+  1392→    Provider<VerifySubmissionReceiptUseCase>((ref) {
+  1393→  return VerifySubmissionReceiptUseCase(
+  1394→      ref.watch(examTemplateRepositoryProvider));
+  1395→});
+  1396→
+  1397→// ─── CBT New Service Providers ───────────────────────────────────────
+  1398→
+  1399→/// Provides the [ExamNotificationService] singleton.
+  1400→final examNotificationServiceProvider = Provider<ExamNotificationService>((ref) {
+  1401→  final supabaseClient = ref.watch(supabaseClientProvider);
+  1402→  final service = ExamNotificationService(supabaseClient: supabaseClient);
+  1403→  return service;
+  1404→});
+  1405→
+  1406→/// Provides the [RateLimitingService] singleton.
+  1407→final rateLimitingServiceProvider = Provider<RateLimitingService>((ref) {
+  1408→  final service = RateLimitingService();
+  1409→  ref.onDispose(() {
+  1410→    service.dispose();
+  1411→  });
+  1412→  return service;
+  1413→});
+  1414→
+  1415→// ─── CBT Exam Template State Notifier ────────────────────────────────
+  1416→
+  1417→/// Provides the [ExamTemplateNotifier] for exam template management state.
+  1418→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1419→final examTemplateProvider =
+  1420→    StateNotifierProvider.autoDispose<ExamTemplateNotifier, ExamTemplateState>((ref) {
+  1421→  return ExamTemplateNotifier(
+  1422→    saveAsTemplateUseCase: ref.watch(saveAsTemplateUseCaseProvider),
+  1423→    getExamTemplatesUseCase: ref.watch(getExamTemplatesUseCaseProvider),
+  1424→    getExamTemplateDetailUseCase:
+  1425→        ref.watch(getExamTemplateDetailUseCaseProvider),
+  1426→    deleteExamTemplateUseCase: ref.watch(deleteExamTemplateUseCaseProvider),
+  1427→    createExamFromTemplateUseCase:
+  1428→        ref.watch(createExamFromTemplateUseCaseProvider),
+  1429→  );
+  1430→});
+  1431→
+  1432→/// Provides the [SubmissionReceiptNotifier] for submission receipt state.
+  1433→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1434→final submissionReceiptProvider = StateNotifierProvider.autoDispose<SubmissionReceiptNotifier,
+  1435→    SubmissionReceiptState>((ref) {
+  1436→  return SubmissionReceiptNotifier(
+  1437→    getSubmissionReceiptUseCase:
+  1438→        ref.watch(getSubmissionReceiptUseCaseProvider),
+  1439→    verifySubmissionReceiptUseCase:
+  1440→        ref.watch(verifySubmissionReceiptUseCaseProvider),
+  1441→  );
+  1442→});
+  1443→
+  1444→/// Provides the [ExamNotificationNotifier] for exam notification state.
+  1445→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1446→final examNotificationProvider =
+  1447→    StateNotifierProvider.autoDispose<ExamNotificationNotifier, ExamNotificationState>(
+  1448→        (ref) {
+  1449→  return ExamNotificationNotifier(
+  1450→    cbtRepository: ref.watch(cbtRepositoryProvider),
+  1451→  );
+  1452→});
+  1453→
+  1454→// ═══════════════════════════════════════════════════════════════════════
+  1455→// RESULTS, GRADING & ANALYTICS ENGINE — CLEAN ARCHITECTURE PROVIDERS
+  1456→// ═══════════════════════════════════════════════════════════════════════
+  1457→
+  1458→// ─── Results Service Providers ────────────────────────────────────────
+  1459→
+  1460→/// Provides the [AiGradingService] singleton for AI-assisted essay grading.
+  1461→final aiGradingServiceProvider = Provider<AiGradingService>((ref) {
+  1462→  final aiService = ref.watch(aiServiceProvider);
+  1463→  final promptEngine = ref.watch(promptEngineProvider);
+  1464→  return AiGradingService(
+  1465→    aiService: aiService,
+  1466→    promptEngine: promptEngine,
+  1467→  );
+  1468→});
+  1469→
+  1470→/// Provides the [AnalyticsEngine] singleton for analytics computations.
+  1471→final analyticsEngineProvider = Provider<AnalyticsEngine>((ref) {
+  1472→  return AnalyticsEngine();
+  1473→});
+  1474→
+  1475→/// Provides the [ReportGenerator] singleton for report data generation.
+  1476→final reportGeneratorProvider = Provider<ReportGenerator>((ref) {
+  1477→  return ReportGenerator();
+  1478→});
+  1479→
+  1480→// ─── Results Data Layer ──────────────────────────────────────────────
+  1481→
+  1482→/// Provides the [ResultsRemoteDataSource] implementation.
+  1483→final resultsRemoteDataSourceProvider =
+  1484→    Provider<ResultsRemoteDataSource>((ref) {
+  1485→  final supabaseClient = ref.watch(supabaseClientProvider);
+  1486→  return ResultsRemoteDataSourceImpl(supabaseClient: supabaseClient);
+  1487→});
+  1488→
+  1489→/// Provides the [ResultsRepository] implementation.
+  1490→final resultsRepositoryProvider = Provider<ResultsRepository>((ref) {
+  1491→  final remoteDataSource = ref.watch(resultsRemoteDataSourceProvider);
+  1492→  final supabaseClient = ref.watch(supabaseClientProvider);
+  1493→  return ResultsRepositoryImpl(
+  1494→    remoteDataSource: remoteDataSource,
+  1495→    supabaseClient: supabaseClient,
+  1496→  );
+  1497→});
+  1498→
+  1499→// ─── Results Use Cases ───────────────────────────────────────────────
+  1500→
+  1501→/// Provides the [CreateGradeScaleUseCase].
+  1502→final createGradeScaleUseCaseProvider =
+  1503→    Provider<CreateGradeScaleUseCase>((ref) {
+  1504→  final repository = ref.watch(resultsRepositoryProvider);
+  1505→  return CreateGradeScaleUseCase(repository);
+  1506→});
+  1507→
+  1508→/// Provides the [UpdateGradeScaleUseCase].
+  1509→final updateGradeScaleUseCaseProvider =
+  1510→    Provider<UpdateGradeScaleUseCase>((ref) {
+  1511→  final repository = ref.watch(resultsRepositoryProvider);
+  1512→  return UpdateGradeScaleUseCase(repository);
+  1513→});
+  1514→
+  1515→/// Provides the [GetGradeScalesUseCase].
+  1516→final getGradeScalesUseCaseProvider =
+  1517→    Provider<GetGradeScalesUseCase>((ref) {
+  1518→  final repository = ref.watch(resultsRepositoryProvider);
+  1519→  return GetGradeScalesUseCase(repository);
+  1520→});
+  1521→
+  1522→/// Provides the [ApplyGradeScaleUseCase].
+  1523→final applyGradeScaleUseCaseProvider =
+  1524→    Provider<ApplyGradeScaleUseCase>((ref) {
+  1525→  final repository = ref.watch(resultsRepositoryProvider);
+  1526→  return ApplyGradeScaleUseCase(repository);
+  1527→});
+  1528→
+  1529→/// Provides the [RequestAiGradingUseCase].
+  1530→final requestAiGradingUseCaseProvider =
+  1531→    Provider<RequestAiGradingUseCase>((ref) {
+  1532→  final repository = ref.watch(resultsRepositoryProvider);
+  1533→  return RequestAiGradingUseCase(repository);
+  1534→});
+  1535→
+  1536→/// Provides the [ReviewAiGradingUseCase].
+  1537→final reviewAiGradingUseCaseProvider =
+  1538→    Provider<ReviewAiGradingUseCase>((ref) {
+  1539→  final repository = ref.watch(resultsRepositoryProvider);
+  1540→  return ReviewAiGradingUseCase(repository);
+  1541→});
+  1542→
+  1543→/// Provides the [BatchAiGradingUseCase].
+  1544→final batchAiGradingUseCaseProvider =
+  1545→    Provider<BatchAiGradingUseCase>((ref) {
+  1546→  final repository = ref.watch(resultsRepositoryProvider);
+  1547→  return BatchAiGradingUseCase(repository);
+  1548→});
+  1549→
+  1550→/// Provides the [GetPendingAiGradingsUseCase].
+  1551→final getPendingAiGradingsUseCaseProvider =
+  1552→    Provider<GetPendingAiGradingsUseCase>((ref) {
+  1553→  final repository = ref.watch(resultsRepositoryProvider);
+  1554→  return GetPendingAiGradingsUseCase(repository);
+  1555→});
+  1556→
+  1557→/// Provides the [SaveTeacherFeedbackUseCase].
+  1558→final saveTeacherFeedbackUseCaseProvider =
+  1559→    Provider<SaveTeacherFeedbackUseCase>((ref) {
+  1560→  final repository = ref.watch(resultsRepositoryProvider);
+  1561→  return SaveTeacherFeedbackUseCase(repository);
+  1562→});
+  1563→
+  1564→/// Provides the [GetTeacherFeedbackUseCase].
+  1565→final getTeacherFeedbackUseCaseProvider =
+  1566→    Provider<GetTeacherFeedbackUseCase>((ref) {
+  1567→  final repository = ref.watch(resultsRepositoryProvider);
+  1568→  return GetTeacherFeedbackUseCase(repository);
+  1569→});
+  1570→
+  1571→/// Provides the [GetStudentSubjectResultsUseCase].
+  1572→final getStudentSubjectResultsUseCaseProvider =
+  1573→    Provider<GetStudentSubjectResultsUseCase>((ref) {
+  1574→  final repository = ref.watch(resultsRepositoryProvider);
+  1575→  return GetStudentSubjectResultsUseCase(repository);
+  1576→});
+  1577→
+  1578→/// Provides the [GetStudentOverallResultUseCase].
+  1579→final getStudentOverallResultUseCaseProvider =
+  1580→    Provider<GetStudentOverallResultUseCase>((ref) {
+  1581→  final repository = ref.watch(resultsRepositoryProvider);
+  1582→  return GetStudentOverallResultUseCase(repository);
+  1583→});
+  1584→
+  1585→/// Provides the [GetClassOverallResultsUseCase].
+  1586→final getClassOverallResultsUseCaseProvider =
+  1587→    Provider<GetClassOverallResultsUseCase>((ref) {
+  1588→  final repository = ref.watch(resultsRepositoryProvider);
+  1589→  return GetClassOverallResultsUseCase(repository);
+  1590→});
+  1591→
+  1592→/// Provides the [UpdateTeacherCommentUseCase].
+  1593→final updateTeacherCommentUseCaseProvider =
+  1594→    Provider<UpdateTeacherCommentUseCase>((ref) {
+  1595→  final repository = ref.watch(resultsRepositoryProvider);
+  1596→  return UpdateTeacherCommentUseCase(repository);
+  1597→});
+  1598→
+  1599→/// Provides the [GetStudentTopicMasteryUseCase].
+  1600→final getStudentTopicMasteryUseCaseProvider =
+  1601→    Provider<GetStudentTopicMasteryUseCase>((ref) {
+  1602→  final repository = ref.watch(resultsRepositoryProvider);
+  1603→  return GetStudentTopicMasteryUseCase(repository);
+  1604→});
+  1605→
+  1606→/// Provides the [GetClassTopicMasteryUseCase].
+  1607→final getClassTopicMasteryUseCaseProvider =
+  1608→    Provider<GetClassTopicMasteryUseCase>((ref) {
+  1609→  final repository = ref.watch(resultsRepositoryProvider);
+  1610→  return GetClassTopicMasteryUseCase(repository);
+  1611→});
+  1612→
+  1613→/// Provides the [GetClassPerformanceUseCase].
+  1614→final getClassPerformanceUseCaseProvider =
+  1615→    Provider<GetClassPerformanceUseCase>((ref) {
+  1616→  final repository = ref.watch(resultsRepositoryProvider);
+  1617→  return GetClassPerformanceUseCase(repository);
+  1618→});
+  1619→
+  1620→/// Provides the [GetSchoolPerformanceUseCase].
+  1621→final getSchoolPerformanceUseCaseProvider =
+  1622→    Provider<GetSchoolPerformanceUseCase>((ref) {
+  1623→  final repository = ref.watch(resultsRepositoryProvider);
+  1624→  return GetSchoolPerformanceUseCase(repository);
+  1625→});
+  1626→
+  1627→/// Provides the [GetAnalyticsSnapshotUseCase].
+  1628→final getAnalyticsSnapshotUseCaseProvider =
+  1629→    Provider<GetAnalyticsSnapshotUseCase>((ref) {
+  1630→  final repository = ref.watch(resultsRepositoryProvider);
+  1631→  return GetAnalyticsSnapshotUseCase(repository);
+  1632→});
+  1633→
+  1634→/// Provides the [GetDashboardConfigurationUseCase].
+  1635→final getDashboardConfigurationUseCaseProvider =
+  1636→    Provider<GetDashboardConfigurationUseCase>((ref) {
+  1637→  final repository = ref.watch(resultsRepositoryProvider);
+  1638→  return GetDashboardConfigurationUseCase(repository);
+  1639→});
+  1640→
+  1641→/// Provides the [SaveDashboardConfigurationUseCase].
+  1642→final saveDashboardConfigurationUseCaseProvider =
+  1643→    Provider<SaveDashboardConfigurationUseCase>((ref) {
+  1644→  final repository = ref.watch(resultsRepositoryProvider);
+  1645→  return SaveDashboardConfigurationUseCase(repository);
+  1646→});
+  1647→
+  1648→/// Provides the [CreateReportExportUseCase].
+  1649→final createReportExportUseCaseProvider =
+  1650→    Provider<CreateReportExportUseCase>((ref) {
+  1651→  final repository = ref.watch(resultsRepositoryProvider);
+  1652→  return CreateReportExportUseCase(repository);
+  1653→});
+  1654→
+  1655→/// Provides the [GetReportExportsUseCase].
+  1656→final getReportExportsUseCaseProvider =
+  1657→    Provider<GetReportExportsUseCase>((ref) {
+  1658→  final repository = ref.watch(resultsRepositoryProvider);
+  1659→  return GetReportExportsUseCase(repository);
+  1660→});
+  1661→
+  1662→/// Provides the [DownloadReportUseCase].
+  1663→final resultsDownloadReportUseCaseProvider =
+  1664→    Provider<DownloadReportUseCase>((ref) {
+  1665→  final repository = ref.watch(resultsRepositoryProvider);
+  1666→  return DownloadReportUseCase(repository);
+  1667→});
+  1668→
+  1669→/// Provides the [LockResultsUseCase].
+  1670→final lockResultsUseCaseProvider = Provider<LockResultsUseCase>((ref) {
+  1671→  final repository = ref.watch(resultsRepositoryProvider);
+  1672→  return LockResultsUseCase(repository);
+  1673→});
+  1674→
+  1675→/// Provides the [PublishResultsUseCase].
+  1676→final publishResultsUseCaseProvider = Provider<PublishResultsUseCase>((ref) {
+  1677→  final repository = ref.watch(resultsRepositoryProvider);
+  1678→  return PublishResultsUseCase(repository);
+  1679→});
+  1680→
+  1681→/// Provides the [RecomputeResultsUseCase].
+  1682→final recomputeResultsUseCaseProvider =
+  1683→    Provider<RecomputeResultsUseCase>((ref) {
+  1684→  final repository = ref.watch(resultsRepositoryProvider);
+  1685→  return RecomputeResultsUseCase(repository);
+  1686→});
+  1687→
+  1688→// ─── Results State Notifiers ─────────────────────────────────────────
+  1689→
+  1690→/// Provides the [ResultsDashboardNotifier] for the results dashboard.
+  1691→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1692→final resultsDashboardProvider =
+  1693→    StateNotifierProvider.autoDispose<ResultsDashboardNotifier, ResultsDashboardState>(
+  1694→        (ref) {
+  1695→  return ResultsDashboardNotifier(
+  1696→    getGradeScalesUseCase: ref.watch(getGradeScalesUseCaseProvider),
+  1697→    getClassPerformanceUseCase: ref.watch(getClassPerformanceUseCaseProvider),
+  1698→    getSchoolPerformanceUseCase: ref.watch(getSchoolPerformanceUseCaseProvider),
+  1699→  );
+  1700→});
+  1701→
+  1702→/// Provides the [GradeScaleNotifier] for grade scale management.
+  1703→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1704→final gradeScaleProvider =
+  1705→    StateNotifierProvider.autoDispose<GradeScaleNotifier, GradeScaleState>((ref) {
+  1706→  return GradeScaleNotifier(
+  1707→    getGradeScalesUseCase: ref.watch(getGradeScalesUseCaseProvider),
+  1708→    createGradeScaleUseCase: ref.watch(createGradeScaleUseCaseProvider),
+  1709→    updateGradeScaleUseCase: ref.watch(updateGradeScaleUseCaseProvider),
+  1710→    applyGradeScaleUseCase: ref.watch(applyGradeScaleUseCaseProvider),
+  1711→  );
+  1712→});
+  1713→
+  1714→/// Provides the [AiGradingNotifier] for AI grading workflow.
+  1715→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1716→final aiGradingProvider =
+  1717→    StateNotifierProvider.autoDispose<AiGradingNotifier, AiGradingState>((ref) {
+  1718→  return AiGradingNotifier(
+  1719→    requestAiGradingUseCase: ref.watch(requestAiGradingUseCaseProvider),
+  1720→    reviewAiGradingUseCase: ref.watch(reviewAiGradingUseCaseProvider),
+  1721→    batchAiGradingUseCase: ref.watch(batchAiGradingUseCaseProvider),
+  1722→    getPendingAiGradingsUseCase: ref.watch(getPendingAiGradingsUseCaseProvider),
+  1723→  );
+  1724→});
+  1725→
+  1726→/// Provides the [TeacherGradingNotifier] for teacher manual grading.
+  1727→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1728→final teacherGradingProvider =
+  1729→    StateNotifierProvider.autoDispose<TeacherGradingNotifier, TeacherGradingState>(
+  1730→        (ref) {
+  1731→  return TeacherGradingNotifier(
+  1732→    saveTeacherFeedbackUseCase: ref.watch(saveTeacherFeedbackUseCaseProvider),
+  1733→    getTeacherFeedbackUseCase: ref.watch(getTeacherFeedbackUseCaseProvider),
+  1734→    reviewAiGradingUseCase: ref.watch(reviewAiGradingUseCaseProvider),
+  1735→  );
+  1736→});
+  1737→
+  1738→/// Provides the [StudentResultsNotifier] for student result viewing.
+  1739→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1740→final studentResultsProvider =
+  1741→    StateNotifierProvider.autoDispose<StudentResultsNotifier, StudentResultsState>(
+  1742→        (ref) {
+  1743→  return StudentResultsNotifier(
+  1744→    getStudentSubjectResultsUseCase:
+  1745→        ref.watch(getStudentSubjectResultsUseCaseProvider),
+  1746→    getStudentOverallResultUseCase:
+  1747→        ref.watch(getStudentOverallResultUseCaseProvider),
+  1748→    getStudentTopicMasteryUseCase:
+  1749→        ref.watch(getStudentTopicMasteryUseCaseProvider),
+  1750→  );
+  1751→});
+  1752→
+  1753→/// Provides the [AnalyticsNotifier] for analytics and dashboards.
+  1754→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1755→final analyticsProvider =
+  1756→    StateNotifierProvider.autoDispose<AnalyticsNotifier, AnalyticsState>((ref) {
+  1757→  return AnalyticsNotifier(
+  1758→    getClassPerformanceUseCase: ref.watch(getClassPerformanceUseCaseProvider),
+  1759→    getSchoolPerformanceUseCase: ref.watch(getSchoolPerformanceUseCaseProvider),
+  1760→    getAnalyticsSnapshotUseCase: ref.watch(getAnalyticsSnapshotUseCaseProvider),
+  1761→    getDashboardConfigurationUseCase:
+  1762→        ref.watch(getDashboardConfigurationUseCaseProvider),
+  1763→    saveDashboardConfigurationUseCase:
+  1764→        ref.watch(saveDashboardConfigurationUseCaseProvider),
+  1765→  );
+  1766→});
+  1767→
+  1768→/// Provides the [ReportExportNotifier] for report generation and export.
+  1769→// PERF: autoDispose — releases memory when user navigates away from this feature
+  1770→final reportExportProvider =
+  1771→    StateNotifierProvider.autoDispose<ReportExportNotifier, ReportExportState>((ref) {
+  1772→  return ReportExportNotifier(
+  1773→    createReportExportUseCase: ref.watch(createReportExportUseCaseProvider),
+  1774→    getReportExportsUseCase: ref.watch(getReportExportsUseCaseProvider),
+  1775→    downloadReportUseCase: ref.watch(resultsDownloadReportUseCaseProvider),
+  1776→  );
+  1777→});
+  1778→
+  1779→/// Provides the [ResultManagementNotifier] for result locking and publishing.
+  1780→// PERF: autoDispose
+  1781→final resultManagementProvider =
+  1782→    StateNotifierProvider.autoDispose<ResultManagementNotifier, ResultManagementState>(
+  1783→        (ref) {
+  1784→  return ResultManagementNotifier(
+  1785→    lockResultsUseCase: ref.watch(lockResultsUseCaseProvider),
+  1786→    publishResultsUseCase: ref.watch(publishResultsUseCaseProvider),
+  1787→    recomputeResultsUseCase: ref.watch(recomputeResultsUseCaseProvider),
+  1788→  );
+  1789→});
+  1790→
+  1791→// ═══════════════════════════════════════════════════════════════════════════════
+  1792→// TEACHER WORKSPACE MODULE
+  1793→// ═══════════════════════════════════════════════════════════════════════════════
+  1794→
+  1795→
+  1796→// ─── Data Source ───────────────────────────────────────────────────────────────
+  1797→
+  1798→final teacherWorkspaceRemoteDataSourceProvider =
+  1799→    Provider<TeacherWorkspaceRemoteDataSource>((ref) {
+  1800→  final supabaseClient = ref.watch(supabaseClientProvider);
+  1801→  return TeacherWorkspaceRemoteDataSourceImpl(supabaseClient: supabaseClient);
+  1802→});
+  1803→
+  1804→// ─── Repository ────────────────────────────────────────────────────────────────
+  1805→
+  1806→final teacherWorkspaceRepositoryProvider =
+  1807→    Provider<TeacherWorkspaceRepository>((ref) {
+  1808→  final remoteDataSource = ref.watch(teacherWorkspaceRemoteDataSourceProvider);
+  1809→  return TeacherWorkspaceRepositoryImpl(remoteDataSource: remoteDataSource);
+  1810→});
+  1811→
+  1812→// ─── Use Cases ─────────────────────────────────────────────────────────────────
+  1813→
+  1814→final getWorkspaceDashboardUseCaseProvider =
+  1815→    Provider<GetWorkspaceDashboardUseCase>((ref) {
+  1816→  return GetWorkspaceDashboardUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1817→});
+  1818→
+  1819→final createLessonPlanUseCaseProvider =
+  1820→    Provider<CreateLessonPlanUseCase>((ref) {
+  1821→  return CreateLessonPlanUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1822→});
+  1823→
+  1824→final updateLessonPlanUseCaseProvider =
+  1825→    Provider<UpdateLessonPlanUseCase>((ref) {
+  1826→  return UpdateLessonPlanUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1827→});
+  1828→
+  1829→final deleteLessonPlanUseCaseProvider =
+  1830→    Provider<DeleteLessonPlanUseCase>((ref) {
+  1831→  return DeleteLessonPlanUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1832→});
+  1833→
+  1834→final getLessonPlansUseCaseProvider =
+  1835→    Provider<GetLessonPlansUseCase>((ref) {
+  1836→  return GetLessonPlansUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1837→});
+  1838→
+  1839→final generateLessonPlanUseCaseProvider =
+  1840→    Provider<GenerateLessonPlanUseCase>((ref) {
+  1841→  return GenerateLessonPlanUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1842→});
+  1843→
+  1844→final createSchemeOfWorkUseCaseProvider =
+  1845→    Provider<CreateSchemeOfWorkUseCase>((ref) {
+  1846→  return CreateSchemeOfWorkUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1847→});
+  1848→
+  1849→final getSchemesOfWorkUseCaseProvider =
+  1850→    Provider<GetSchemesOfWorkUseCase>((ref) {
+  1851→  return GetSchemesOfWorkUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1852→});
+  1853→
+  1854→final generateSchemeOfWorkUseCaseProvider =
+  1855→    Provider<GenerateSchemeOfWorkUseCase>((ref) {
+  1856→  return GenerateSchemeOfWorkUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1857→});
+  1858→
+  1859→final createWorksheetUseCaseProvider =
+  1860→    Provider<CreateWorksheetUseCase>((ref) {
+  1861→  return CreateWorksheetUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1862→});
+  1863→
+  1864→final getWorksheetsUseCaseProvider =
+  1865→    Provider<GetWorksheetsUseCase>((ref) {
+  1866→  return GetWorksheetsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1867→});
+  1868→
+  1869→final generateWorksheetUseCaseProvider =
+  1870→    Provider<GenerateWorksheetUseCase>((ref) {
+  1871→  return GenerateWorksheetUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1872→});
+  1873→
+  1874→final exportWorksheetUseCaseProvider =
+  1875→    Provider<ExportWorksheetUseCase>((ref) {
+  1876→  return ExportWorksheetUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1877→});
+  1878→
+  1879→final createAssignmentUseCaseProvider =
+  1880→    Provider<CreateAssignmentUseCase>((ref) {
+  1881→  return CreateAssignmentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1882→});
+  1883→
+  1884→final getAssignmentsUseCaseProvider =
+  1885→    Provider<GetAssignmentsUseCase>((ref) {
+  1886→  return GetAssignmentsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1887→});
+  1888→
+  1889→final generateAssignmentUseCaseProvider =
+  1890→    Provider<GenerateAssignmentUseCase>((ref) {
+  1891→  return GenerateAssignmentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1892→});
+  1893→
+  1894→final publishAssignmentUseCaseProvider =
+  1895→    Provider<PublishAssignmentUseCase>((ref) {
+  1896→  return PublishAssignmentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1897→});
+  1898→
+  1899→final createReportCommentUseCaseProvider =
+  1900→    Provider<CreateReportCommentUseCase>((ref) {
+  1901→  return CreateReportCommentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1902→});
+  1903→
+  1904→final generateReportCommentsUseCaseProvider =
+  1905→    Provider<GenerateReportCommentsUseCase>((ref) {
+  1906→  return GenerateReportCommentsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1907→});
+  1908→
+  1909→final createResourceUseCaseProvider =
+  1910→    Provider<CreateResourceUseCase>((ref) {
+  1911→  return CreateResourceUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1912→});
+  1913→
+  1914→final getResourcesUseCaseProvider =
+  1915→    Provider<GetResourcesUseCase>((ref) {
+  1916→  return GetResourcesUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1917→});
+  1918→
+  1919→final generateResourceUseCaseProvider =
+  1920→    Provider<GenerateResourceUseCase>((ref) {
+  1921→  return GenerateResourceUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1922→});
+  1923→
+  1924→final toggleFavoriteUseCaseProvider =
+  1925→    Provider<ToggleFavoriteUseCase>((ref) {
+  1926→  return ToggleFavoriteUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1927→});
+  1928→
+  1929→final aiContentAssistantUseCaseProvider =
+  1930→    Provider<AiContentAssistantUseCase>((ref) {
+  1931→  return AiContentAssistantUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1932→});
+  1933→
+  1934→final getContentHistoryUseCaseProvider =
+  1935→    Provider<GetContentHistoryUseCase>((ref) {
+  1936→  return GetContentHistoryUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1937→});
+  1938→
+  1939→final createEventUseCaseProvider =
+  1940→    Provider<CreateEventUseCase>((ref) {
+  1941→  return CreateEventUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1942→});
+  1943→
+  1944→final getEventsUseCaseProvider =
+  1945→    Provider<GetEventsUseCase>((ref) {
+  1946→  return GetEventsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1947→});
+  1948→
+  1949→final suggestScheduleUseCaseProvider =
+  1950→    Provider<SuggestScheduleUseCase>((ref) {
+  1951→  return SuggestScheduleUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1952→});
+  1953→
+  1954→final getVersionHistoryUseCaseProvider =
+  1955→    Provider<GetVersionHistoryUseCase>((ref) {
+  1956→  return GetVersionHistoryUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1957→});
+  1958→
+  1959→final generateQuestionsFromContentUseCaseProvider =
+  1960→    Provider<GenerateQuestionsFromContentUseCase>((ref) {
+  1961→  return GenerateQuestionsFromContentUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1962→});
+  1963→
+  1964→// ─── Workspace Expansion Use Cases ──────────────────────────────────
+  1965→
+  1966→final generatePresentationUseCaseProvider = Provider<GeneratePresentationUseCase>((ref) {
+  1967→  return GeneratePresentationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1968→});
+  1969→
+  1970→final getPresentationsUseCaseProvider = Provider<GetPresentationsUseCase>((ref) {
+  1971→  return GetPresentationsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1972→});
+  1973→
+  1974→final createPresentationUseCaseProvider = Provider<CreatePresentationUseCase>((ref) {
+  1975→  return CreatePresentationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1976→});
+  1977→
+  1978→final exportPresentationUseCaseProvider = Provider<ExportPresentationUseCase>((ref) {
+  1979→  return ExportPresentationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1980→});
+  1981→
+  1982→final generateCommunicationUseCaseProvider = Provider<GenerateCommunicationUseCase>((ref) {
+  1983→  return GenerateCommunicationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1984→});
+  1985→
+  1986→final getCommunicationsUseCaseProvider = Provider<GetCommunicationsUseCase>((ref) {
+  1987→  return GetCommunicationsUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1988→});
+  1989→
+  1990→final createCommunicationUseCaseProvider = Provider<CreateCommunicationUseCase>((ref) {
+  1991→  return CreateCommunicationUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1992→});
+  1993→
+  1994→final createTaskUseCaseProvider = Provider<CreateTaskUseCase>((ref) {
+  1995→  return CreateTaskUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  1996→});
+  1997→
+  1998→final updateTaskUseCaseProvider = Provider<UpdateTaskUseCase>((ref) {
+  1999→  return UpdateTaskUseCase(ref.watch(teacherWorkspaceRepositoryProvider));
+  2000→});
+
+[showing lines 1-2000 of 4662; use offset=2001 with limit to continue reading]

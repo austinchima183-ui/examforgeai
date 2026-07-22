@@ -252,7 +252,7 @@ class SubjectCard extends StatelessWidget {
                       const SizedBox(width: Spacings.xs),
                       Text(
                         subject.subjectGroup!,
-                        style: AppTypography.labelSmall.copyWith(
+                        style: AppTypography.labelSmall!.copyWith(
                           color: groupColor,
                           fontWeight: AppTypography.wSemiBold,
                         ),
@@ -341,7 +341,7 @@ class _Badge extends StatelessWidget {
           ],
           Text(
             label,
-            style: AppTypography.labelSmall.copyWith(
+            style: AppTypography.labelSmall!.copyWith(
               color: color,
               fontWeight: AppTypography.wSemiBold,
             ),

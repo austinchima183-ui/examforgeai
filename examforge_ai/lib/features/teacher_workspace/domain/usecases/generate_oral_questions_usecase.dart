@@ -29,6 +29,16 @@ class GenerateOralQuestionsParams extends Equatable {
         difficulty,
         curriculum,
       ];
+
+  /// Converts these params into a [Map<String, dynamic>] suitable for
+  /// passing to [TeacherWorkspaceRepository.generateOralQuestions].
+  Map<String, dynamic> toMap() => {
+    'subjectId': subjectId,
+    'topic': topic,
+    'questionCount': questionCount,
+    'difficulty': difficulty,
+    'curriculum': curriculum,
+  };
 }
 
 /// Use case for generating oral questions using AI.
@@ -53,6 +63,6 @@ class GenerateOralQuestionsUseCase {
         fieldErrors: {'topic': 'Topic cannot be empty'},
       ));
     }
-    return _repository.generateOralQuestions(params);
+    return _repository.generateOralQuestions(params.toMap());
   }
 }

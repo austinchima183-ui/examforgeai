@@ -13,6 +13,7 @@ import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/cbt_entities.dart';
+import '../../../../../config/dependency_injection.dart';
 import '../../providers/exam_results_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

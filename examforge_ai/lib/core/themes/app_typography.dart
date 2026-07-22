@@ -353,39 +353,39 @@ class AppTypography {
   // AppTypography.bodySmall instead of AppTypography.lightTextTheme.bodySmall.
 
   /// Convenience getter – delegates to [lightTextTheme.displayLarge].
-  static TextStyle? displayLarge => lightTextTheme.displayLarge;
+  static TextStyle? get displayLarge => lightTextTheme.displayLarge;
   /// Convenience getter – delegates to [lightTextTheme.displayMedium].
-  static TextStyle? displayMedium => lightTextTheme.displayMedium;
+  static TextStyle? get displayMedium => lightTextTheme.displayMedium;
   /// Convenience getter – delegates to [lightTextTheme.displaySmall].
-  static TextStyle? displaySmall => lightTextTheme.displaySmall;
+  static TextStyle? get displaySmall => lightTextTheme.displaySmall;
 
   /// Convenience getter – delegates to [lightTextTheme.headlineLarge].
-  static TextStyle? headlineLarge => lightTextTheme.headlineLarge;
+  static TextStyle? get headlineLarge => lightTextTheme.headlineLarge;
   /// Convenience getter – delegates to [lightTextTheme.headlineMedium].
-  static TextStyle? headlineMedium => lightTextTheme.headlineMedium;
+  static TextStyle? get headlineMedium => lightTextTheme.headlineMedium;
   /// Convenience getter – delegates to [lightTextTheme.headlineSmall].
-  static TextStyle? headlineSmall => lightTextTheme.headlineSmall;
+  static TextStyle? get headlineSmall => lightTextTheme.headlineSmall;
 
   /// Convenience getter – delegates to [lightTextTheme.titleLarge].
-  static TextStyle? titleLarge => lightTextTheme.titleLarge;
+  static TextStyle? get titleLarge => lightTextTheme.titleLarge;
   /// Convenience getter – delegates to [lightTextTheme.titleMedium].
-  static TextStyle? titleMedium => lightTextTheme.titleMedium;
+  static TextStyle? get titleMedium => lightTextTheme.titleMedium;
   /// Convenience getter – delegates to [lightTextTheme.titleSmall].
-  static TextStyle? titleSmall => lightTextTheme.titleSmall;
+  static TextStyle? get titleSmall => lightTextTheme.titleSmall;
 
   /// Convenience getter – delegates to [lightTextTheme.bodyLarge].
-  static TextStyle? bodyLarge => lightTextTheme.bodyLarge;
+  static TextStyle? get bodyLarge => lightTextTheme.bodyLarge;
   /// Convenience getter – delegates to [lightTextTheme.bodyMedium].
-  static TextStyle? bodyMedium => lightTextTheme.bodyMedium;
+  static TextStyle? get bodyMedium => lightTextTheme.bodyMedium;
   /// Convenience getter – delegates to [lightTextTheme.bodySmall].
-  static TextStyle? bodySmall => lightTextTheme.bodySmall;
+  static TextStyle? get bodySmall => lightTextTheme.bodySmall;
 
   /// Convenience getter – delegates to [lightTextTheme.labelLarge].
-  static TextStyle? labelLarge => lightTextTheme.labelLarge;
+  static TextStyle? get labelLarge => lightTextTheme.labelLarge;
   /// Convenience getter – delegates to [lightTextTheme.labelMedium].
-  static TextStyle? labelMedium => lightTextTheme.labelMedium;
+  static TextStyle? get labelMedium => lightTextTheme.labelMedium;
   /// Convenience getter – delegates to [lightTextTheme.labelSmall].
-  static TextStyle? labelSmall => lightTextTheme.labelSmall;
+  static TextStyle? get labelSmall => lightTextTheme.labelSmall;
 
   // ─── Utility Helpers ──────────────────────────────────────────────────────
 

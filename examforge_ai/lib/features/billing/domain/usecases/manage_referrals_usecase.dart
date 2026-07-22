@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../../domain/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
 
 
 // ─── Get Or Create Referral Code ─────────────────────────────────────────────
@@ -15,7 +14,7 @@ class GetOrCreateReferralCodeParams {
   });
 
   final String referrerId;
-  final ReferrerType referrerType;
+  final BillingModel referrerType;
   final String? schoolId;
 }
 
@@ -51,14 +50,14 @@ class ApplyReferralCodeParams {
 
   final String code;
   final String refereeId;
-  final RefereeType refereeType;
+  final BillingModel refereeType;
 }
 
 class ApplyReferralCodeUseCase {
   ApplyReferralCodeUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<ReferralEntity>> call(ApplyReferralCodeParams params) async {
+  Future<Result<bool>> call(ApplyReferralCodeParams params) async {
     if (params.code.isEmpty) {
       return FailureResult(
         Failure.validation(fieldErrors: const {}, message: 'Referral code cannot be empty'),
@@ -96,7 +95,7 @@ class GetReferralTrackingUseCase {
   GetReferralTrackingUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaginatedResult<ReferralEntity>>> call(
+  Future<Result<List<Map<String, dynamic>>>> call(
     GetReferralTrackingParams params,
   ) async {
     if (params.referrerId.isEmpty) {

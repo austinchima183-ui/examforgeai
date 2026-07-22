@@ -357,7 +357,7 @@ class PresentationModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -388,7 +388,7 @@ class PresentationModel {
         Object.hashAll(tags),
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -826,7 +826,7 @@ class CommunicationModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -852,7 +852,7 @@ class CommunicationModel {
         Object.hashAll(tags),
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -1145,7 +1145,7 @@ class TaskModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -1167,7 +1167,7 @@ class TaskModel {
         assignedTo,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -2078,7 +2078,7 @@ class PracticalAssessmentModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -2105,7 +2105,7 @@ class PracticalAssessmentModel {
         Object.hashAll(tags),
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>

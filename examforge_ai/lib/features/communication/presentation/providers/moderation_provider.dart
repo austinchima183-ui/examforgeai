@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/communication_entities.dart';
@@ -237,6 +238,6 @@ final moderationProvider =
     reportMessageUseCase: ref.watch(reportMessageUseCaseProvider),
     muteConversationUseCase: ref.watch(muteConversationUseCaseProvider),
     archiveConversationUseCase: ref.watch(archiveConversationUseCaseProvider),
-    getAuditLogsUseCase: ref.watch(getAuditLogsUseCaseProvider),
+    getAuditLogsUseCase: ref.watch(communicationGetAuditLogsUseCaseProvider),
   );
 });

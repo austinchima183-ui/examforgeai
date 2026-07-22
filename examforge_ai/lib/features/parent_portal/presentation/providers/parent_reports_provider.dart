@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/parent_portal_entities.dart';
@@ -103,7 +104,7 @@ class ParentReportsNotifier extends StateNotifier<ParentReportsState> {
           isDownloading: false,
           downloads: updatedDownloads,
           successMessage: 'Report downloaded successfully',
-          lastDownloadUrl: download.downloadUrl,
+          lastDownloadUrl: download.fileUrl,
           error: null,
         );
         AppLogger.info('Report downloaded for student: $studentId');

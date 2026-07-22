@@ -223,7 +223,7 @@ class _ClassDetailPageState extends ConsumerState<ClassDetailPage>
                 },
               ),
               ListTile(
-                leading: Icon(Icons.archive_outlined, color: cs.warning),
+                leading: Icon(Icons.archive_outlined, color: AppColors.warning),
                 title: const Text('Deactivate Class'),
                 onTap: () {
                   Navigator.pop(ctx);

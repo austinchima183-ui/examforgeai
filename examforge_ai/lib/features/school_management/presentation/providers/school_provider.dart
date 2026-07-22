@@ -351,8 +351,8 @@ class SchoolDetailNotifier extends StateNotifier<SchoolDetailState> {
         final branchesResult = await _repository.getBranches(schoolId);
         final departmentsResult = await _repository.getDepartments(schoolId);
 
-        final branches = branchesResult.getOrElse(() => []);
-        final departments = departmentsResult.getOrElse(() => []);
+        final branches = branchesResult.getOrElse(<SchoolBranchEntity>[]);
+        final departments = departmentsResult.getOrElse(<DepartmentEntity>[]);
 
         state = state.copyWith(
           isLoading: false,

@@ -7,6 +7,8 @@ import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ai_coach_entities.dart';
 import '../providers/ai_coach_provider.dart';
 import '../widgets/ai_coach_widgets.dart';
+import 'coach_chat_page.dart';
+import 'weak_topics_page.dart';
 
 /// AI Coach dashboard page.
 ///

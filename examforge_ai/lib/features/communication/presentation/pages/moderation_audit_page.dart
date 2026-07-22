@@ -9,6 +9,7 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/get_audit_logs_usecase.dart';
 import '../providers/moderation_provider.dart';
 
 /// Communication audit logs and moderation page (admin only).
@@ -38,9 +39,11 @@ class _State extends ConsumerState<ModerationAuditPage> {
 
   void _loadLogs() {
     ref.read(moderationProvider.notifier).loadAuditLogs(
-          action: _actionFilter,
-          resourceType: _resourceFilter,
-        );
+      GetAuditLogsParams(
+        action: _actionFilter,
+        resourceType: _resourceFilter,
+      ),
+    );
   }
 
   @override
@@ -65,7 +68,7 @@ class _State extends ConsumerState<ModerationAuditPage> {
 
   Widget _buildBody(BuildContext context, ModerationState state) {
     if (state.isLoading && state.auditLogs.isEmpty) {
-      return const AppLoading();
+      return const AppLoadingSpinner();
     }
 
     if (state.error != null && state.auditLogs.isEmpty) {
@@ -118,7 +121,7 @@ class _State extends ConsumerState<ModerationAuditPage> {
         children: [
           Text(
             log.action.replaceAll('_', ' ').toUpperCase(),
-            style: AppTypography.labelSmall.copyWith(
+            style: AppTypography.labelSmall!.copyWith(
               color: severityColor,
               fontWeight: AppTypography.wBold,
             ),
@@ -146,7 +149,7 @@ class _State extends ConsumerState<ModerationAuditPage> {
           const SizedBox(height: Spacings.xs),
           Text(
             '${log.userName} (${log.userRole})',
-            style: AppTypography.bodySmall.copyWith(color: cs.onSurfaceVariant),
+            style: AppTypography.bodySmall!.copyWith(color: cs.onSurfaceVariant),
           ),
           if (log.details.isNotEmpty) ...[
             const SizedBox(height: 2),

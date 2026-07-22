@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/student_portal_entities.dart';
@@ -97,7 +98,7 @@ class DocumentChatState {
       isUploading: isUploading ?? this.isUploading,
       error: error,
       uploadProgress: uploadProgress ?? this.uploadProgress,
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
       hasMore: hasMore ?? this.hasMore,
     );
   }

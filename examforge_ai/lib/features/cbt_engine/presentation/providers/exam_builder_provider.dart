@@ -8,7 +8,6 @@ import '../../domain/usecases/create_exam_usecase.dart';
 import '../../domain/usecases/manage_exam_status_usecase.dart';
 import '../../domain/usecases/update_exam_usecase.dart';
 import '../../domain/repositories/cbt_repository.dart';
-import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════

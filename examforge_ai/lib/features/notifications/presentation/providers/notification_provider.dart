@@ -18,10 +18,10 @@ enum NotificationType {
 
   final String value;
 
-  static NotificationType fromString(String? value) {
-    if (value == null) return NotificationType.system;
-    return NotificationType.values.cast<NotificationType?>().firstWhere(
-          (type) => type?.value == value,
+  static NotificationType? fromString(String? value) {
+    if (value == null) return null;
+    return NotificationType.values.firstWhere(
+          (type) => type.value == value,
           orElse: () => NotificationType.system,
         );
   }

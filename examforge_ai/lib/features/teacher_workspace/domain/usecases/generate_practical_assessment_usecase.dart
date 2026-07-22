@@ -21,6 +21,15 @@ class GeneratePracticalAssessmentParams extends Equatable {
 
   @override
   List<Object?> get props => [subjectId, topic, difficulty, estimatedDuration];
+
+  /// Converts these params into a [Map<String, dynamic>] suitable for
+  /// passing to [TeacherWorkspaceRepository.generatePracticalAssessment].
+  Map<String, dynamic> toMap() => {
+    'subjectId': subjectId,
+    'topic': topic,
+    'difficulty': difficulty,
+    'estimatedDuration': estimatedDuration,
+  };
 }
 
 /// Use case for generating a practical assessment using AI.
@@ -45,6 +54,6 @@ class GeneratePracticalAssessmentUseCase {
         fieldErrors: {'topic': 'Topic cannot be empty'},
       ));
     }
-    return _repository.generatePracticalAssessment(params);
+    return _repository.generatePracticalAssessment(params.toMap());
   }
 }

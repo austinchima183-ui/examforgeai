@@ -2,7 +2,7 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../entities/cbt_entities.dart';
 import '../repositories/cbt_repository.dart';
-import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+import '../../../question_bank/domain/entities/question_entities.dart';
 
 
 /// Parameters for the [CreateExamUseCase].

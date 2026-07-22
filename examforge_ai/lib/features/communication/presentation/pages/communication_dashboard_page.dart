@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/get_announcements_usecase.dart';
 import '../providers/communication_dashboard_provider.dart';
 import '../providers/conversation_provider.dart';
 import '../providers/announcement_provider.dart';

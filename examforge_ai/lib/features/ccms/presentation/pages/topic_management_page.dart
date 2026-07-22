@@ -196,10 +196,9 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                                               topic.id),
                                     ),
                                     // Learning objectives under each topic
-                                    if (topic.learningObjectives !=
-            null &&
-                                        topic.learningObjectives!
-                                            .isNotEmpty)
+                                    if (topic.metadata != null &&
+                                        topic.metadata!['learningObjectives'] != null &&
+                                        (topic.metadata!['learningObjectives'] as List).isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.only(
                                             left: Spacings.xxl,
@@ -231,11 +230,10 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                                             ),
                                             const SizedBox(
                                                 height: Spacings.xs),
-                                            ...topic
-                                                .learningObjectives!
+                                            ...(topic.metadata!['learningObjectives'] as List)
                                                 .map((obj) =>
                                                     LearningObjectiveChip(
-                                                        objective: obj)),
+                                                        descriptionText: obj.toString()))
                                           ],
                                         ),
                                       ),
@@ -303,8 +301,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                 const SizedBox(height: Spacings.md),
                 // Learning objectives
                 Text('Learning Objectives',
-                    style: AppTypography.labelMedium.copyWith(
-                        fontWeight: AppTypography.wSemiBold,
+                    style: TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 12,
                         color: Theme.of(context).primaryColor)),
                 const SizedBox(height: Spacings.sm),
                 ...objectives.asMap().entries.map((e) => Padding(
@@ -313,7 +310,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                         children: [
                           Expanded(
                               child: Text(e.value,
-                                  style: AppTypography.bodySmall)),
+                                  style: AppTypography.bodySmall!)),
                           IconButton(
                             icon: const Icon(Icons.close, size: 16),
                             onPressed: () {
@@ -378,8 +375,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                       int.tryParse(durationCtrl.text),
                   depthLevel: 0,
                   isActive: true,
-                  learningObjectives:
-                      objectives.isEmpty ? null : objectives,
+                  metadata: objectives.isEmpty ? null : {'learningObjectives': objectives},
                   createdAt: DateTime.now(),
                   updatedAt: DateTime.now(),
                 ));
@@ -400,7 +396,8 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
         text: '${topic.estimatedDurationMinutes ?? ''}');
     final sortOrderCtrl =
         TextEditingController(text: '${topic.sortOrder}');
-    final objectives = List<String>.from(topic.learningObjectives ?? []);
+    final objectives = List<String>.from(
+        (topic.metadata?['learningObjectives'] as List?)?.map((e) => e.toString()) ?? []);
 
     showDialog(
       context: context,
@@ -447,8 +444,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                 ),
                 const SizedBox(height: Spacings.md),
                 Text('Learning Objectives',
-                    style: AppTypography.labelMedium.copyWith(
-                        fontWeight: AppTypography.wSemiBold,
+                    style: TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 12,
                         color: Theme.of(context).primaryColor)),
                 const SizedBox(height: Spacings.sm),
                 ...objectives.asMap().entries.map((e) => Padding(
@@ -457,7 +453,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                         children: [
                           Expanded(
                               child: Text(e.value,
-                                  style: AppTypography.bodySmall)),
+                                  style: AppTypography.bodySmall!)),
                           IconButton(
                             icon: const Icon(Icons.close, size: 16),
                             onPressed: () {
@@ -522,8 +518,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                       int.tryParse(durationCtrl.text),
                   depthLevel: topic.depthLevel,
                   isActive: topic.isActive,
-                  learningObjectives:
-                      objectives.isEmpty ? null : objectives,
+                  metadata: objectives.isEmpty ? topic.metadata : {'learningObjectives': objectives},
                   createdAt: topic.createdAt,
                   updatedAt: DateTime.now(),
                 ));

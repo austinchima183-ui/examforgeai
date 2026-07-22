@@ -578,10 +578,7 @@ class _AssignmentGeneratorPageState
         GenerateQuestionsButton(
           resourceType: 'assignment',
           resourceId: assignment.id,
-          difficulty: assignment.difficulty,
-          fullWidth: true,
-          variant: AppButtonVariant.tonal,
-          size: AppButtonSize.medium,
+          resourceName: assignment.title,
         ),
       ],
     );

@@ -278,7 +278,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
     );
   }
 
-  Widget _buildReferralTile(BuildContext context, ReferralEntity referral) {
+  Widget _buildReferralTile(BuildContext context, Map<String, dynamic> referral) {
     // ReferralEntity doesn't exist in billing_entities.dart directly,
     // but the provider returns it. We'll use a generic approach.
     final cs = context.colorScheme;

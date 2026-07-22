@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../config/dependency_injection.dart';
 import '../../domain/entities/edu_os_entities.dart';
 import '../providers/edu_os_provider.dart';
 import '../widgets/module_card.dart';
@@ -116,7 +117,7 @@ class _EduOsDashboardPageState extends ConsumerState<EduOsDashboardPage> with Si
         itemBuilder: (context, index) => ModuleCard(
           module: filtered[index],
           onTap: () {
-            provider.selectModule(filtered[index]);
+              ref.read(eduOsProvider).selectModule(filtered[index]);
             Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ModuleDetailPage()));
           },
         ),

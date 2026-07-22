@@ -32,10 +32,9 @@ class RecordEngagementUseCase {
 
   /// Records an engagement metric for the specified student.
   ///
-  /// Returns a [Result] containing the [EngagementRecordEntity]
-  /// on success, or a [FailureResult] if validation fails or the
-  /// repository encounters an error.
-  Future<Result<EngagementRecordEntity>> call(
+  /// Returns a [Result<void>] on success, or a [FailureResult] if
+  /// validation fails or the repository encounters an error.
+  Future<Result<void>> call(
     RecordEngagementParams params,
   ) async {
     if (params.metricType.trim().isEmpty) {
@@ -50,10 +49,10 @@ class RecordEngagementUseCase {
         fieldErrors: {'studentId': 'Student ID cannot be empty'},
       ));
     }
-    return _repository.recordEngagement(
-      metricType: params.metricType,
-      studentId: params.studentId,
-      details: params.details,
-    );
+    return _repository.recordEngagement({
+      'metricType': params.metricType,
+      'studentId': params.studentId,
+      'details': params.details,
+    });
   }
 }

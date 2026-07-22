@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/student_portal_entities.dart';
@@ -66,7 +67,7 @@ class StudentNotificationState {
       error: error,
       hasMore: hasMore ?? this.hasMore,
       unreadCount: unreadCount ?? this.unreadCount,
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 
@@ -299,10 +300,10 @@ class StudentNotificationNotifier
 final studentNotificationProvider = StateNotifierProvider<
     StudentNotificationNotifier, StudentNotificationState>((ref) {
   return StudentNotificationNotifier(
-    getNotifications: ref.watch(getNotificationsUseCaseProvider),
-    markNotificationRead: ref.watch(markNotificationReadUseCaseProvider),
+    getNotifications: ref.watch(studentGetNotificationsUseCaseProvider),
+    markNotificationRead: ref.watch(studentMarkNotificationReadUseCaseProvider),
     markAllNotificationsRead:
-        ref.watch(markAllNotificationsReadUseCaseProvider),
+        ref.watch(studentMarkAllNotificationsReadUseCaseProvider),
     studentId: ref.watch(currentStudentIdProvider),
   );
 });

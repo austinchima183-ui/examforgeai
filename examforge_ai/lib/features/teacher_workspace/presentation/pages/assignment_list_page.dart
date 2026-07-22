@@ -362,7 +362,7 @@ class _AssignmentCard extends ConsumerWidget {
             child: GenerateQuestionsButton(
               resourceType: 'assignment',
               resourceId: assignment.id,
-              difficulty: assignment.difficulty,
+              resourceName: assignment.title,
             ),
           ),
         ],

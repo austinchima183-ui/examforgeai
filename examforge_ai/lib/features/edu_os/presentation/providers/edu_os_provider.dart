@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import '../../../../core/errors/failures.dart';
 import '../../domain/entities/edu_os_entities.dart';
 import '../../domain/usecases/edu_os_usecases.dart';
 

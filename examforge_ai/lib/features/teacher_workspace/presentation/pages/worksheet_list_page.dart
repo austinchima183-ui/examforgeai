@@ -465,6 +465,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
               GenerateQuestionsButton(
                 resourceType: 'worksheet',
                 resourceId: worksheet.id,
+                resourceName: worksheet.title,
               ),
             ],
           ),

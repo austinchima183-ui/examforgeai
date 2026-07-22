@@ -329,12 +329,12 @@ class AiService {
         final cacheKey = cacheService!.generateCacheKey(
           operation: 'generate_questions',
           params: {
-            'subject': input.subject,
-            'topic': input.topic,
+            'subject': input.subjectId,
+            'topic': input.topicId,
             'difficulty': input.difficulty?.name,
             'question_type': input.questionType?.name,
-            'count': input.questionCount,
-            'class_level': input.classLevel?.name,
+            'count': input.numQuestions,
+            'class_level': input.classId,
           },
         );
 
@@ -394,12 +394,12 @@ class AiService {
         final cacheKey = cacheService!.generateCacheKey(
           operation: 'generate_questions',
           params: {
-            'subject': input.subject,
-            'topic': input.topic,
+            'subject': input.subjectId,
+            'topic': input.topicId,
             'difficulty': input.difficulty?.name,
             'question_type': input.questionType?.name,
-            'count': input.questionCount,
-            'class_level': input.classLevel?.name,
+            'count': input.numQuestions,
+            'class_level': input.classId,
           },
         );
         final tokenCost = ((result.inputTokens + result.outputTokens) / 1000000) * 0.15; // approximate cost

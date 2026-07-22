@@ -61,7 +61,7 @@ class _SubjectsManagementPageState
 
     final groups = subjectState.subjects
         .map((s) => s.subjectGroup)
-        .where((g) => g.isNotEmpty)
+        .where((g) => g?.isNotEmpty ?? false)
         .toSet()
         .toList()
       ..sort();
@@ -134,7 +134,7 @@ class _SubjectsManagementPageState
                                         value: null,
                                         child: Text('All Groups')),
                                     ...groups.map((g) => DropdownMenuItem(
-                                        value: g, child: Text(g))),
+                                        value: g!, child: Text(g!))),
                                   ],
                                   onChanged: (v) =>
                                       setState(() => _selectedGroup = v),
@@ -361,7 +361,7 @@ class _SubjectsManagementPageState
             AppButton(
               label: 'Save',
               onPressed: () {
-                ref.read(subjectProvider.notifier).updateSubject(Subject(
+                ref.read(subjectProvider.notifier).updateSubject(subject.id, Subject(
                   id: subject.id,
                   name: nameCtrl.text,
                   code: codeCtrl.text,

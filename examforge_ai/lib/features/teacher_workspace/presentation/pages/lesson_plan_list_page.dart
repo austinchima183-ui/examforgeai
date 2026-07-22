@@ -604,7 +604,7 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
               GenerateQuestionsButton(
                 resourceType: 'lesson_plan',
                 resourceId: plan.id,
-                compact: true,
+                resourceName: plan.title,
               ),
             ],
           ),

@@ -949,7 +949,7 @@ class _SellerCard extends ConsumerWidget {
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
 
-    final statusColor = _statusColor(seller.status);
+    final statusColor = _statusColor(seller.status, cs);
 
     return AppCard(
       padding: const EdgeInsets.all(Spacings.lg),
@@ -1004,18 +1004,21 @@ class _SellerCard extends ConsumerWidget {
                       Icons.inventory_2_outlined,
                       '${seller.totalProducts} products',
                       cs.onSurfaceVariant,
+                      tt,
                     ),
                     const SizedBox(width: Spacings.md),
                     _infoChip(
                       Icons.shopping_bag_outlined,
                       '${seller.totalSales} sales',
                       cs.onSurfaceVariant,
+                      tt,
                     ),
                     const SizedBox(width: Spacings.md),
                     _infoChip(
                       Icons.star_rounded,
                       seller.averageRating.toStringAsFixed(1),
                       AppColors.warning,
+                      tt,
                     ),
                   ],
                 ),
@@ -1027,8 +1030,7 @@ class _SellerCard extends ConsumerWidget {
     );
   }
 
-  Widget _infoChip(IconData icon, String label, Color color) {
-    final tt = context.textTheme;
+  Widget _infoChip(IconData icon, String label, Color color, TextTheme tt) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1042,7 +1044,7 @@ class _SellerCard extends ConsumerWidget {
     );
   }
 
-  Color _statusColor(MarketplaceSellerStatus status) {
+  Color _statusColor(MarketplaceSellerStatus status, ColorScheme cs) {
     switch (status) {
       case MarketplaceSellerStatus.active:
         return AppColors.success;
@@ -1051,7 +1053,7 @@ class _SellerCard extends ConsumerWidget {
       case MarketplaceSellerStatus.pendingVerification:
         return AppColors.warning;
       case MarketplaceSellerStatus.deactivated:
-        return context.colorScheme.onSurfaceVariant;
+        return cs.onSurfaceVariant;
     }
   }
 }
@@ -1148,7 +1150,7 @@ class _DisputeCard extends ConsumerWidget {
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
 
-    final statusColor = _disputeStatusColor(dispute.status);
+    final statusColor = _disputeStatusColor(dispute.status, cs);
 
     return AppCard(
       padding: const EdgeInsets.all(Spacings.lg),
@@ -1220,18 +1222,21 @@ class _DisputeCard extends ConsumerWidget {
                 Icons.person_outline_rounded,
                 'Buyer: ${dispute.buyerId.substring(0, 8)}',
                 cs.onSurfaceVariant,
+                tt,
               ),
               const SizedBox(width: Spacings.lg),
               _infoChip(
                 Icons.storefront_outlined,
                 'Seller: ${dispute.sellerId.substring(0, 8)}',
                 cs.onSurfaceVariant,
+                tt,
               ),
               const Spacer(),
               _infoChip(
                 Icons.calendar_today_outlined,
                 _formatDate(dispute.createdAt),
                 cs.onSurfaceVariant,
+                tt,
               ),
             ],
           ),
@@ -1266,8 +1271,7 @@ class _DisputeCard extends ConsumerWidget {
     );
   }
 
-  Widget _infoChip(IconData icon, String label, Color color) {
-    final tt = context.textTheme;
+  Widget _infoChip(IconData icon, String label, Color color, TextTheme tt) {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1281,7 +1285,7 @@ class _DisputeCard extends ConsumerWidget {
     );
   }
 
-  Color _disputeStatusColor(DisputeStatus status) {
+  Color _disputeStatusColor(DisputeStatus status, ColorScheme cs) {
     switch (status) {
       case DisputeStatus.open:
         return AppColors.error;
@@ -1290,7 +1294,7 @@ class _DisputeCard extends ConsumerWidget {
       case DisputeStatus.resolved:
         return AppColors.success;
       case DisputeStatus.closed:
-        return context.colorScheme.onSurfaceVariant;
+        return cs.onSurfaceVariant;
     }
   }
 

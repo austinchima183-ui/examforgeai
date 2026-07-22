@@ -667,7 +667,7 @@ class _TicketCard extends StatelessWidget {
                     label: const Text('Escalate'),
                   ),
                   const SizedBox(width: Spacings.sm),
-                  FilledButton.tonal.icon(
+                  FilledButton.tonalIcon(
                     onPressed: () => _showResolveDialog(context),
                     icon: const Icon(Icons.check_circle_outline, size: 16),
                     label: const Text('Resolve'),

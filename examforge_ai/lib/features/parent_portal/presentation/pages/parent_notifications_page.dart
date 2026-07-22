@@ -480,7 +480,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
     if (_showUnreadOnly) {
       return AppEmptyState.noNotifications(
         title: 'No Unread Notifications',
-        subtitle: 'You\'re all caught up! No unread $_filterLabel notifications.',
+        subtitle: 'You\'re all caught up! No unread $filterLabel notifications.',
       );
     }
 

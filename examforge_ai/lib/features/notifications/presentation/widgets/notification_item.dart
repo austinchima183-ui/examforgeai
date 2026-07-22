@@ -95,10 +95,7 @@ class NotificationItemWidget extends StatelessWidget {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  notification.icon != null
-                      ? IconData(notification.icon!,
-                          fontFamily: 'MaterialIcons')
-                      : _typeIcon(),
+                  _typeIcon(),
                   size: Spacings.mdIcon,
                   color: typeColor,
                 ),

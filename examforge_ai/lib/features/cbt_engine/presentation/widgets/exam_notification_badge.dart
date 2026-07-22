@@ -5,6 +5,7 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../config/dependency_injection.dart';
 import '../providers/exam_notification_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

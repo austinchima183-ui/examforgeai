@@ -174,7 +174,7 @@ class _FilterPanelState extends State<FilterPanel> {
                     ),
                     child: Text(
                       '$activeCount',
-                      style: AppTypography.labelSmall.copyWith(
+                      style: AppTypography.labelSmall!.copyWith(
                         color: cs.primary,
                         fontWeight: AppTypography.wBold,
                       ),

@@ -1113,7 +1113,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (subjectId != null) {
         query = query.eq('subject_id', subjectId);
       } else {
-        query = query.filter('subject_id', 'is.null');
+        query = query.isFilter('subject_id', null);
       }
 
       final response = await query.limit(1);

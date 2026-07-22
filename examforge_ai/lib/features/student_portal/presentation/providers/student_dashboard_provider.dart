@@ -2,8 +2,10 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../../core/utils/result.dart';
 import '../../../../shared/providers/auth_state_provider.dart';
 import '../../domain/entities/student_portal_entities.dart';
 import '../../domain/usecases/student_portal_usecases.dart';
@@ -240,6 +242,11 @@ final currentStudentIdProvider = Provider<String?>((ref) {
   return userId;
 });
 
+/// Provides the current student's school ID from auth state.
+final studentSchoolIdProvider = Provider<String?>((ref) {
+  return ref.watch(userSchoolIdProvider);
+});
+
 /// Provides the [StudentDashboardNotifier] with all required use cases.
 ///
 /// Reads the current student ID from [currentStudentIdProvider] and
@@ -249,8 +256,8 @@ final studentDashboardProvider =
   (ref) {
     return StudentDashboardNotifier(
       getDashboardStats: ref.watch(getDashboardStatsUseCaseProvider),
-      getConversations: ref.watch(getConversationsUseCaseProvider),
-      getNotifications: ref.watch(getNotificationsUseCaseProvider),
+      getConversations: ref.watch(studentGetConversationsUseCaseProvider),
+      getNotifications: ref.watch(studentGetNotificationsUseCaseProvider),
       getSubmissions: ref.watch(getSubmissionsUseCaseProvider),
       getPracticeSessions: ref.watch(getPracticeSessionsUseCaseProvider),
       studentId: ref.watch(currentStudentIdProvider),

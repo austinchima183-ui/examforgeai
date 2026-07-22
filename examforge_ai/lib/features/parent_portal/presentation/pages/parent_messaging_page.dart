@@ -108,7 +108,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
     final tt = context.textTheme;
     final thread = _selectedThread!;
 
-    return AppAppBar(
+    return AppBar(
       leading: IconButton(
         icon: const Icon(Icons.arrow_back),
         onPressed: () {

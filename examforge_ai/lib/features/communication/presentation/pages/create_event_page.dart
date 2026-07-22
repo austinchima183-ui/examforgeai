@@ -7,6 +7,7 @@ import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
+import '../../domain/usecases/create_calendar_event_usecase.dart';
 import '../providers/calendar_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -344,9 +345,9 @@ class _State extends ConsumerState<CreateEventPage> {
       CreateCalendarEventParams(
         title: _titleController.text.trim(),
         description: _descriptionController.text.trim(),
-        eventType: _eventType.value,
-        startTime: startDateTime.toIso8601String(),
-        endTime: endDateTime.toIso8601String(),
+        eventType: _eventType,
+        startTime: startDateTime,
+        endTime: endDateTime,
         isAllDay: _isAllDay,
         location: _locationController.text.trim().isEmpty ? null : _locationController.text.trim(),
         meetingLink: _meetingLinkController.text.trim().isEmpty ? null : _meetingLinkController.text.trim(),

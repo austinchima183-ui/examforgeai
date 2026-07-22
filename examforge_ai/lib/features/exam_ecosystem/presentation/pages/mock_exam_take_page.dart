@@ -68,7 +68,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
     } else if (widget.examId != null) {
       // Load the exam data from the provider using examId.
       Future.microtask(() {
-        ref.read(examEcosystemProvider.notifier).loadMockExams();
+        ref.read(examEcosystemProvider.notifier).loadAll();
       });
     }
   }
@@ -108,7 +108,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
     _timer.cancel();
 
     final shouldSubmit = isTimedOut ||
-        await _showSubmitConfirmation(isTimedOut: isTimedOut);
+        (await _showSubmitConfirmation(isTimedOut: isTimedOut) ?? false);
 
     if (shouldSubmit == true) {
       final timeTaken =

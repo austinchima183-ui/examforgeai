@@ -760,7 +760,7 @@ class _SellerProductCard extends ConsumerWidget {
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
 
-    final statusColor = _statusColor;
+    final statusColor = _statusColor(cs);
     final typeColor = _productTypeColor(cs);
 
     return AppCard(
@@ -972,14 +972,14 @@ class _SellerProductCard extends ConsumerWidget {
     }
   }
 
-  Color get _statusColor {
+  Color _statusColor(ColorScheme cs) {
     return switch (product.status) {
-      MarketplaceProductStatus.draft => AppColors.onSurfaceVariant,
+      MarketplaceProductStatus.draft => cs.onSurfaceVariant,
       MarketplaceProductStatus.pendingReview => AppColors.warning,
       MarketplaceProductStatus.approved => AppColors.success,
       MarketplaceProductStatus.rejected => AppColors.error,
       MarketplaceProductStatus.suspended => AppColors.error,
-      MarketplaceProductStatus.archived => AppColors.onSurfaceVariant,
+      MarketplaceProductStatus.archived => cs.onSurfaceVariant,
     };
   }
 

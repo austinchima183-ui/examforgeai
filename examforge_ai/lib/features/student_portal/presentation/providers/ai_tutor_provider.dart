@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/student_portal_entities.dart';
@@ -82,7 +83,7 @@ class AiTutorState {
       error: error,
       hasMoreConversations:
           hasMoreConversations ?? this.hasMoreConversations,
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 
@@ -419,10 +420,10 @@ class AiTutorNotifier extends StateNotifier<AiTutorState> {
 final aiTutorProvider =
     StateNotifierProvider<AiTutorNotifier, AiTutorState>((ref) {
   return AiTutorNotifier(
-    getConversations: ref.watch(getConversationsUseCaseProvider),
+    getConversations: ref.watch(studentGetConversationsUseCaseProvider),
     getConversationDetail: ref.watch(getConversationDetailUseCaseProvider),
-    createConversation: ref.watch(createConversationUseCaseProvider),
-    sendMessage: ref.watch(sendMessageUseCaseProvider),
+    createConversation: ref.watch(studentCreateConversationUseCaseProvider),
+    sendMessage: ref.watch(studentSendMessageUseCaseProvider),
     deleteConversation: ref.watch(deleteConversationUseCaseProvider),
     studentId: ref.watch(currentStudentIdProvider),
   );

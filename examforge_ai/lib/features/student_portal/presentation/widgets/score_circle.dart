@@ -61,7 +61,7 @@ class _ScoreCircleState extends State<ScoreCircle>
     if (widget.maxScore != null && widget.maxScore! > 0) {
       return (widget.score / widget.maxScore!) * 100;
     }
-    return widget.score.clamp(0, 100);
+    return widget.score.clamp(0.0, 100.0);
   }
 
   @override
@@ -86,7 +86,7 @@ class _ScoreCircleState extends State<ScoreCircle>
     final newPct = _percentage;
     final oldPct = oldWidget.maxScore != null && oldWidget.maxScore! > 0
         ? (oldWidget.score / oldWidget.maxScore!) * 100
-        : oldWidget.score.clamp(0, 100);
+        : oldWidget.score.clamp(0.0, 100.0);
     if (oldPct != newPct) {
       _scoreAnimation = Tween<double>(begin: oldPct, end: newPct).animate(
         CurvedAnimation(

@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/communication_entities.dart';
@@ -278,14 +279,14 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
 final notificationProvider =
     StateNotifierProvider<NotificationNotifier, NotificationState>((ref) {
   return NotificationNotifier(
-    getNotificationsUseCase: ref.watch(getNotificationsUseCaseProvider),
+    getNotificationsUseCase: ref.watch(communicationGetNotificationsUseCaseProvider),
     markNotificationReadUseCase:
-        ref.watch(markNotificationReadUseCaseProvider),
+        ref.watch(communicationMarkNotificationReadUseCaseProvider),
     markAllNotificationsReadUseCase:
         ref.watch(markAllNotificationsReadUseCaseProvider),
     getNotificationPreferencesUseCase:
         ref.watch(getNotificationPreferencesUseCaseProvider),
     updateNotificationPreferencesUseCase:
-        ref.watch(updateNotificationPreferencesUseCaseProvider),
+        ref.watch(communicationUpdateNotificationPreferencesUseCaseProvider),
   );
 });

@@ -282,14 +282,14 @@ class _StatChip extends StatelessWidget {
         children: [
           Text(
             value,
-            style: AppTypography.labelSmall.copyWith(
+            style: AppTypography.labelSmall!.copyWith(
               color: color,
               fontWeight: AppTypography.wBold,
             ),
           ),
           Text(
             label,
-            style: AppTypography.caption.copyWith(
+            style: AppTypography.caption!.copyWith(
               color: color.withOpacity(0.7),
             ),
           ),

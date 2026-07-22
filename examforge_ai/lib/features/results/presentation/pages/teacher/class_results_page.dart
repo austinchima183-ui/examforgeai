@@ -52,9 +52,6 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
             classId: widget.classId,
             academicSessionId: widget.academicSessionId,
           );
-      ref.read(resultManagementProvider.notifier).loadLockStatus(
-            examId: '', // TODO: pass examId if needed
-          );
     });
   }
 

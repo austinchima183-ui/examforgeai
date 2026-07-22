@@ -99,7 +99,7 @@ class QuestionDisplayWidget extends StatelessWidget {
 
             // ── Attachments (images, audio, video) ───────────────────
             if (question.attachments.isNotEmpty)
-              _buildAttachments(context, cs, tt, question.attachments),
+              _buildAttachments(context, cs, tt, question.attachments.map((a) => a.url).toList()),
 
             if (question.attachments.isNotEmpty)
               const SizedBox(height: Spacings.xl),
@@ -190,7 +190,7 @@ class QuestionDisplayWidget extends StatelessWidget {
                 children: [
                   if (question != null)
                     QuestionTypeBadge(
-                      type: question.type,
+                      type: question.questionType,
                       variant: QuestionTypeBadgeVariant.labelOnly,
                     ),
                   const SizedBox(width: Spacings.sm),
@@ -350,25 +350,25 @@ class QuestionDisplayWidget extends StatelessWidget {
         ),
         const SizedBox(height: Spacings.md),
         AnswerInputWidget(
-          questionType: question.type,
-          options: question.options,
+          questionType: question.questionType,
+          options: question.answerOptions,
           currentAnswer: currentAnswer,
           onAnswerChanged: onAnswerChanged,
           isEnabled: isEnabled,
-          maxCharacters: question.type == QuestionType.essay ? 5000 : null,
-          blanks: question.type == QuestionType.fillInBlank
+          maxCharacters: question.questionType == QuestionType.essay ? 5000 : null,
+          blanks: question.questionType == QuestionType.fillInBlank
               ? List.generate(
                   (question.metadata?['blank_count'] as int?) ?? 1,
                   (i) => 'Blank ${i + 1}',
                 )
               : const [],
-          matchingPairs: question.type == QuestionType.matching
+          matchingPairs: question.questionType == QuestionType.matching
               ? (question.metadata?['matching_pairs'] as List<Map<String, String>>?)
                       ?.cast<Map<String, String>>() ??
                   []
               : const [],
-          orderItems: question.type == QuestionType.ordering
-              ? question.options.map((o) => o.text).toList()
+          orderItems: question.questionType == QuestionType.ordering
+              ? question.answerOptions.map((o) => o.content).toList()
               : const [],
         ),
       ],

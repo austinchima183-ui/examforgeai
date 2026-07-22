@@ -246,7 +246,7 @@ class _LicenseManagementPageState
           const SizedBox(height: Spacings.xs),
           Row(
             children: [
-              Switch.adapted(
+              Switch(
                 value: _activeOnly,
                 onChanged: (value) {
                   setState(() => _activeOnly = value);

@@ -98,7 +98,7 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
       default:
         throw ServerException(
           message: e.message,
-          statusCode: e.statusCode ?? 500,
+          statusCode: int.tryParse(e.code ?? '') ?? 500,
         );
     }
   }

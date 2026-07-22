@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../config/dependency_injection.dart';
 import '../../domain/entities/edu_os_entities.dart';
 import '../providers/edu_os_provider.dart';
 import '../widgets/module_card.dart';
 import '../widgets/module_tier_badge.dart';
 
 /// Page showing a school's active modules and subscription status.
-class SchoolModulesPage extends StatelessWidget {
+class SchoolModulesPage extends ConsumerWidget {
   const SchoolModulesPage({
     super.key,
     this.schoolId,
@@ -19,7 +20,7 @@ class SchoolModulesPage extends StatelessWidget {
   final List<EduosModule>? allModules;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     if (subscriptions == null || subscriptions!.isEmpty) {
       return Center(
@@ -42,12 +43,12 @@ class SchoolModulesPage extends StatelessWidget {
       itemBuilder: (context, index) {
         final sub = subscriptions![index];
         final module = allModules?.where((m) => m.id == sub.moduleId).firstOrNull;
-        return _buildSubscriptionCard(context, sub, module, theme);
+        return _buildSubscriptionCard(context, ref, sub, module, theme);
       },
     );
   }
 
-  Widget _buildSubscriptionCard(BuildContext context, EduosModuleSubscription sub, EduosModule? module, ThemeData theme) {
+  Widget _buildSubscriptionCard(BuildContext context, WidgetRef ref, EduosModuleSubscription sub, EduosModule? module, ThemeData theme) {
     return Card(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       child: Padding(

@@ -424,7 +424,7 @@ class LessonPlanModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -460,7 +460,7 @@ class LessonPlanModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -807,7 +807,7 @@ class SchemeOfWorkModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -836,7 +836,7 @@ class SchemeOfWorkModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -1166,7 +1166,7 @@ class WorksheetModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -1194,7 +1194,7 @@ class WorksheetModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -1526,7 +1526,7 @@ class WorkspaceAssignmentModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -1554,7 +1554,7 @@ class WorkspaceAssignmentModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -1832,7 +1832,7 @@ class ReportCommentModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -1855,7 +1855,7 @@ class ReportCommentModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -2180,7 +2180,7 @@ class TeachingResourceModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -2208,7 +2208,7 @@ class TeachingResourceModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>
@@ -2929,7 +2929,7 @@ class CalendarEventModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         schoolId,
         teacherId,
@@ -2952,7 +2952,7 @@ class CalendarEventModel {
         metadata,
         createdAt,
         updatedAt,
-      );
+      ]);
 
   @override
   String toString() =>

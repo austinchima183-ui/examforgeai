@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/billing_entities.dart';
@@ -158,14 +159,14 @@ class AiCreditsNotifier extends StateNotifier<AiCreditsState> {
     );
 
     result.fold(
-      onSuccess: (paginatedResult) {
+      onSuccess: (transactions) {
         state = state.copyWith(
           isLoading: false,
-          creditTransactions: paginatedResult.items,
+          creditTransactions: transactions,
           error: null,
         );
         AppLogger.info(
-          'Loaded ${paginatedResult.items.length} credit transactions',
+          'Loaded ${transactions.length} credit transactions',
         );
       },
       onFailure: (failure) {

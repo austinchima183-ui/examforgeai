@@ -355,7 +355,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
                   point.period.length > 3
                       ? point.period.substring(0, 3)
                       : point.period,
-                  style: cs.textTheme.labelSmall?.copyWith(
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: cs.onSurfaceVariant,
                     fontSize: 8,
                   ),
@@ -462,7 +462,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
                           height: 12,
                           decoration: BoxDecoration(
                             color: m.color,
-                            borderRadius: Spacings.borderRadiusXs,
+                            borderRadius: Spacings.borderRadiusSm,
                           ),
                         ),
                         const SizedBox(width: Spacings.sm),

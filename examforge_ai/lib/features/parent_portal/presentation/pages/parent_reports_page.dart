@@ -475,7 +475,6 @@ class _State extends ConsumerState<ParentReportsPage> {
             AppEmptyState.noData(
               title: 'No Downloads Yet',
               subtitle: 'Your downloaded reports will appear here.',
-              icon: Icons.download_outlined,
             )
           else
             ...downloads.map((download) => _buildHistoryCard(

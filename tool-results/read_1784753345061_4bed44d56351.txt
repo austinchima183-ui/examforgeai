@@ -1,0 +1,797 @@
+     1→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     2→
+     3→import '../../../../core/errors/failures.dart';
+     4→import '../../../../core/utils/logger.dart';
+     5→import '../../../question_bank/domain/entities/question_entities.dart';
+     6→import '../../domain/entities/cbt_entities.dart';
+     7→import '../../domain/usecases/create_exam_usecase.dart';
+     8→import '../../domain/usecases/manage_exam_status_usecase.dart';
+     9→import '../../domain/usecases/update_exam_usecase.dart';
+    10→import '../../domain/repositories/cbt_repository.dart';
+    11→import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+    12→
+    13→
+    14→// ═══════════════════════════════════════════════════════════════════════
+    15→// EXAM BUILDER STATE
+    16→// ═══════════════════════════════════════════════════════════════════════
+    17→
+    18→/// Immutable state snapshot for the exam creation/editing feature.
+    19→///
+    20→/// Tracks the exam being built or edited, its sections, questions,
+    21→/// assigned students, loading flags, form field values, and messages.
+    22→class ExamBuilderState {
+    23→  const ExamBuilderState({
+    24→    this.exam,
+    25→    this.sections = const [],
+    26→    this.questions = const [],
+    27→    this.availableQuestions = const [],
+    28→    this.assignedStudents = const [],
+    29→    this.isSaving = false,
+    30→    this.isLoading = false,
+    31→    this.isPublishing = false,
+    32→    this.error,
+    33→    this.successMessage,
+    34→    // Form fields
+    35→    this.title = '',
+    36→    this.description = '',
+    37→    this.subjectId,
+    38→    this.classId,
+    39→    this.academicSessionId,
+    40→    this.examType = ExamType.schoolExam,
+    41→    this.status = ExamStatus.draft,
+    42→    this.startTime,
+    43→    this.endTime,
+    44→    this.timeLimitMinutes = 60,
+    45→    this.passMark = 50.0,
+    46→    this.passMarkType = 'percentage',
+    47→    this.instructions = '',
+    48→    this.allowedAttempts = 1,
+    49→    this.negativeMarkingEnabled = false,
+    50→    this.negativeMarkValue = 0.0,
+    51→    this.gracePeriodMinutes = 0,
+    52→    this.autoSubmit = true,
+    53→    this.randomizeQuestions = false,
+    54→    this.randomizeOptions = false,
+    55→    this.showResults = 'after_submission',
+    56→    this.showCorrectAnswers = false,
+    57→    this.showExplanations = false,
+    58→    this.maxStudents,
+    59→    this.requireFullScreen = false,
+    60→    this.allowResume = true,
+    61→    this.browserLockdown = false,
+    62→  });
+    63→
+    64→  /// The exam entity when editing; `null` when creating.
+    65→  final ExamEntity? exam;
+    66→
+    67→  /// Sections within the exam.
+    68→  final List<ExamSectionEntity> sections;
+    69→
+    70→  /// Questions added to the exam.
+    71→  final List<ExamQuestionEntity> questions;
+    72→
+    73→  /// Questions available from the Question Bank for selection.
+    74→  final List<QuestionEntity> availableQuestions;
+    75→
+    76→  /// Student IDs assigned to this exam.
+    77→  final List<String> assignedStudents;
+    78→
+    79→  /// Whether a save operation is in progress.
+    80→  final bool isSaving;
+    81→
+    82→  /// Whether an initial load is in progress.
+    83→  final bool isLoading;
+    84→
+    85→  /// Whether a publish operation is in progress.
+    86→  final bool isPublishing;
+    87→
+    88→  /// The most recent error message, or `null`.
+    89→  final String? error;
+    90→
+    91→  /// A transient success message, or `null`.
+    92→  final String? successMessage;
+    93→
+    94→  // ── Form fields ──────────────────────────────────────────────────────
+    95→
+    96→  final String title;
+    97→  final String description;
+    98→  final String? subjectId;
+    99→  final String? classId;
+   100→  final String? academicSessionId;
+   101→  final ExamType examType;
+   102→  final ExamStatus status;
+   103→  final DateTime? startTime;
+   104→  final DateTime? endTime;
+   105→  final int timeLimitMinutes;
+   106→  final double passMark;
+   107→  final String passMarkType;
+   108→  final String instructions;
+   109→  final int allowedAttempts;
+   110→  final bool negativeMarkingEnabled;
+   111→  final double negativeMarkValue;
+   112→  final int gracePeriodMinutes;
+   113→  final bool autoSubmit;
+   114→  final bool randomizeQuestions;
+   115→  final bool randomizeOptions;
+   116→  final String showResults;
+   117→  final bool showCorrectAnswers;
+   118→  final bool showExplanations;
+   119→  final int? maxStudents;
+   120→  final bool requireFullScreen;
+   121→  final bool allowResume;
+   122→  final bool browserLockdown;
+   123→
+   124→  // ── Convenience getters ──────────────────────────────────────────────
+   125→
+   126→  /// Whether the form is in edit mode (editing an existing exam).
+   127→  bool get isEditMode => exam != null && exam!.id.isNotEmpty;
+   128→
+   129→  /// Total marks computed from exam questions.
+   130→  double get totalMarks => questions.fold(0.0, (sum, q) => sum + q.marks);
+   131→
+   132→  /// Whether any async operation is in progress.
+   133→  bool get isBusy => isSaving || isLoading || isPublishing;
+   134→
+   135→  /// Whether the form has enough data to save.
+   136→  bool get canSave =>
+   137→      title.trim().isNotEmpty &&
+   138→      subjectId != null &&
+   139→      classId != null &&
+   140→      academicSessionId != null &&
+   141→      startTime != null &&
+   142→      endTime != null;
+   143→
+   144→  /// Whether the form has enough data to publish.
+   145→  bool get canPublish => canSave && questions.isNotEmpty;
+   146→
+   147→  // ── copyWith ─────────────────────────────────────────────────────────
+   148→
+   149→  ExamBuilderState copyWith({
+   150→    ExamEntity? exam,
+   151→    List<ExamSectionEntity>? sections,
+   152→    List<ExamQuestionEntity>? questions,
+   153→    List<QuestionEntity>? availableQuestions,
+   154→    List<String>? assignedStudents,
+   155→    bool? isSaving,
+   156→    bool? isLoading,
+   157→    bool? isPublishing,
+   158→    String? error,
+   159→    String? successMessage,
+   160→    String? title,
+   161→    String? description,
+   162→    String? subjectId,
+   163→    String? classId,
+   164→    String? academicSessionId,
+   165→    ExamType? examType,
+   166→    ExamStatus? status,
+   167→    DateTime? startTime,
+   168→    DateTime? endTime,
+   169→    int? timeLimitMinutes,
+   170→    double? passMark,
+   171→    String? passMarkType,
+   172→    String? instructions,
+   173→    int? allowedAttempts,
+   174→    bool? negativeMarkingEnabled,
+   175→    double? negativeMarkValue,
+   176→    int? gracePeriodMinutes,
+   177→    bool? autoSubmit,
+   178→    bool? randomizeQuestions,
+   179→    bool? randomizeOptions,
+   180→    String? showResults,
+   181→    bool? showCorrectAnswers,
+   182→    bool? showExplanations,
+   183→    int? maxStudents,
+   184→    bool? requireFullScreen,
+   185→    bool? allowResume,
+   186→    bool? browserLockdown,
+   187→  }) {
+   188→    return ExamBuilderState(
+   189→      exam: exam ?? this.exam,
+   190→      sections: sections ?? this.sections,
+   191→      questions: questions ?? this.questions,
+   192→      availableQuestions: availableQuestions ?? this.availableQuestions,
+   193→      assignedStudents: assignedStudents ?? this.assignedStudents,
+   194→      isSaving: isSaving ?? this.isSaving,
+   195→      isLoading: isLoading ?? this.isLoading,
+   196→      isPublishing: isPublishing ?? this.isPublishing,
+   197→      error: error,
+   198→      successMessage: successMessage,
+   199→      title: title ?? this.title,
+   200→      description: description ?? this.description,
+   201→      subjectId: subjectId ?? this.subjectId,
+   202→      classId: classId ?? this.classId,
+   203→      academicSessionId: academicSessionId ?? this.academicSessionId,
+   204→      examType: examType ?? this.examType,
+   205→      status: status ?? this.status,
+   206→      startTime: startTime ?? this.startTime,
+   207→      endTime: endTime ?? this.endTime,
+   208→      timeLimitMinutes: timeLimitMinutes ?? this.timeLimitMinutes,
+   209→      passMark: passMark ?? this.passMark,
+   210→      passMarkType: passMarkType ?? this.passMarkType,
+   211→      instructions: instructions ?? this.instructions,
+   212→      allowedAttempts: allowedAttempts ?? this.allowedAttempts,
+   213→      negativeMarkingEnabled:
+   214→          negativeMarkingEnabled ?? this.negativeMarkingEnabled,
+   215→      negativeMarkValue: negativeMarkValue ?? this.negativeMarkValue,
+   216→      gracePeriodMinutes: gracePeriodMinutes ?? this.gracePeriodMinutes,
+   217→      autoSubmit: autoSubmit ?? this.autoSubmit,
+   218→      randomizeQuestions: randomizeQuestions ?? this.randomizeQuestions,
+   219→      randomizeOptions: randomizeOptions ?? this.randomizeOptions,
+   220→      showResults: showResults ?? this.showResults,
+   221→      showCorrectAnswers: showCorrectAnswers ?? this.showCorrectAnswers,
+   222→      showExplanations: showExplanations ?? this.showExplanations,
+   223→      maxStudents: maxStudents ?? this.maxStudents,
+   224→      requireFullScreen: requireFullScreen ?? this.requireFullScreen,
+   225→      allowResume: allowResume ?? this.allowResume,
+   226→      browserLockdown: browserLockdown ?? this.browserLockdown,
+   227→    );
+   228→  }
+   229→
+   230→  /// Clears the current error message.
+   231→  ExamBuilderState clearError() => copyWith(error: null);
+   232→
+   233→  /// Clears the current success message.
+   234→  ExamBuilderState clearSuccessMessage() => copyWith(successMessage: null);
+   235→}
+   236→
+   237→// ═══════════════════════════════════════════════════════════════════════
+   238→// EXAM BUILDER NOTIFIER
+   239→// ═══════════════════════════════════════════════════════════════════════
+   240→
+   241→/// Riverpod [StateNotifier] that manages exam creation/editing state.
+   242→///
+   243→/// Provides methods for all form field updates, question/section
+   244→/// management, student assignment, and save/publish operations.
+   245→class ExamBuilderNotifier extends StateNotifier<ExamBuilderState> {
+   246→  ExamBuilderNotifier({
+   247→    required CreateExamUseCase createExamUseCase,
+   248→    required UpdateExamUseCase updateExamUseCase,
+   249→    required ManageExamStatusUseCase manageExamStatusUseCase,
+   250→    required CbtRepository cbtRepository,
+   251→  })  : _createExamUseCase = createExamUseCase,
+   252→        _updateExamUseCase = updateExamUseCase,
+   253→        _manageExamStatusUseCase = manageExamStatusUseCase,
+   254→        _cbtRepository = cbtRepository,
+   255→        super(const ExamBuilderState());
+   256→
+   257→  final CreateExamUseCase _createExamUseCase;
+   258→  final UpdateExamUseCase _updateExamUseCase;
+   259→  final ManageExamStatusUseCase _manageExamStatusUseCase;
+   260→  final CbtRepository _cbtRepository;
+   261→
+   262→  // ═══════════════════════════════════════════════════════════════════════
+   263→  // FORM FIELD SETTERS
+   264→  // ═══════════════════════════════════════════════════════════════════════
+   265→
+   266→  /// Updates the exam title.
+   267→  void setTitle(String value) => state = state.copyWith(title: value);
+   268→
+   269→  /// Updates the exam description.
+   270→  void setDescription(String value) =>
+   271→      state = state.copyWith(description: value);
+   272→
+   273→  /// Updates the subject ID.
+   274→  void setSubjectId(String? value) =>
+   275→      state = state.copyWith(subjectId: value);
+   276→
+   277→  /// Updates the class ID.
+   278→  void setClassId(String? value) => state = state.copyWith(classId: value);
+   279→
+   280→  /// Updates the academic session ID.
+   281→  void setAcademicSessionId(String? value) =>
+   282→      state = state.copyWith(academicSessionId: value);
+   283→
+   284→  /// Updates the exam type.
+   285→  void setExamType(ExamType value) =>
+   286→      state = state.copyWith(examType: value);
+   287→
+   288→  /// Updates the start time.
+   289→  void setStartTime(DateTime? value) =>
+   290→      state = state.copyWith(startTime: value);
+   291→
+   292→  /// Updates the end time.
+   293→  void setEndTime(DateTime? value) => state = state.copyWith(endTime: value);
+   294→
+   295→  /// Updates the time limit in minutes.
+   296→  void setTimeLimitMinutes(int value) =>
+   297→      state = state.copyWith(timeLimitMinutes: value);
+   298→
+   299→  /// Updates the pass mark.
+   300→  void setPassMark(double value) => state = state.copyWith(passMark: value);
+   301→
+   302→  /// Updates the pass mark type ('percentage' or 'absolute').
+   303→  void setPassMarkType(String value) =>
+   304→      state = state.copyWith(passMarkType: value);
+   305→
+   306→  /// Updates the instructions.
+   307→  void setInstructions(String value) =>
+   308→      state = state.copyWith(instructions: value);
+   309→
+   310→  /// Updates the allowed attempts.
+   311→  void setAllowedAttempts(int value) =>
+   312→      state = state.copyWith(allowedAttempts: value);
+   313→
+   314→  /// Toggles negative marking.
+   315→  void setNegativeMarkingEnabled(bool value) =>
+   316→      state = state.copyWith(negativeMarkingEnabled: value);
+   317→
+   318→  /// Updates the negative mark value.
+   319→  void setNegativeMarkValue(double value) =>
+   320→      state = state.copyWith(negativeMarkValue: value);
+   321→
+   322→  /// Updates the grace period in minutes.
+   323→  void setGracePeriodMinutes(int value) =>
+   324→      state = state.copyWith(gracePeriodMinutes: value);
+   325→
+   326→  /// Toggles auto-submit.
+   327→  void setAutoSubmit(bool value) => state = state.copyWith(autoSubmit: value);
+   328→
+   329→  /// Toggles question randomization.
+   330→  void setRandomizeQuestions(bool value) =>
+   331→      state = state.copyWith(randomizeQuestions: value);
+   332→
+   333→  /// Toggles option randomization.
+   334→  void setRandomizeOptions(bool value) =>
+   335→      state = state.copyWith(randomizeOptions: value);
+   336→
+   337→  /// Updates the show results setting.
+   338→  void setShowResults(String value) =>
+   339→      state = state.copyWith(showResults: value);
+   340→
+   341→  /// Toggles showing correct answers.
+   342→  void setShowCorrectAnswers(bool value) =>
+   343→      state = state.copyWith(showCorrectAnswers: value);
+   344→
+   345→  /// Toggles showing explanations.
+   346→  void setShowExplanations(bool value) =>
+   347→      state = state.copyWith(showExplanations: value);
+   348→
+   349→  /// Updates the max students limit.
+   350→  void setMaxStudents(int? value) =>
+   351→      state = state.copyWith(maxStudents: value);
+   352→
+   353→  /// Toggles full screen requirement.
+   354→  void setRequireFullScreen(bool value) =>
+   355→      state = state.copyWith(requireFullScreen: value);
+   356→
+   357→  /// Toggles resume allowance.
+   358→  void setAllowResume(bool value) =>
+   359→      state = state.copyWith(allowResume: value);
+   360→
+   361→  /// Toggles browser lockdown.
+   362→  void setBrowserLockdown(bool value) =>
+   363→      state = state.copyWith(browserLockdown: value);
+   364→
+   365→  // ═══════════════════════════════════════════════════════════════════════
+   366→  // QUESTION MANAGEMENT
+   367→  // ═══════════════════════════════════════════════════════════════════════
+   368→
+   369→  /// Adds a question to the exam.
+   370→  void addQuestion(ExamQuestionEntity question) {
+   371→    final updated = [...state.questions, question];
+   372→    state = state.copyWith(questions: updated);
+   373→    AppLogger.info('Question added to exam: ${question.questionId}');
+   374→  }
+   375→
+   376→  /// Removes a question from the exam by its ID.
+   377→  void removeQuestion(String questionId) {
+   378→    final updated =
+   379→        state.questions.where((q) => q.questionId != questionId).toList();
+   380→    state = state.copyWith(questions: updated);
+   381→    AppLogger.info('Question removed from exam: $questionId');
+   382→  }
+   383→
+   384→  /// Reorders questions according to the given list of question IDs.
+   385→  void reorderQuestions(List<String> questionIds) {
+   386→    final reordered = <ExamQuestionEntity>[];
+   387→    for (var i = 0; i < questionIds.length; i++) {
+   388→      final question = state.questions
+   389→          .where((q) => q.questionId == questionIds[i])
+   390→          .firstOrNull;
+   391→      if (question != null) {
+   392→        reordered.add(question.copyWith(sortOrder: i));
+   393→      }
+   394→    }
+   395→    state = state.copyWith(questions: reordered);
+   396→    AppLogger.info('Questions reordered: ${questionIds.length} items');
+   397→  }
+   398→
+   399→  // ═══════════════════════════════════════════════════════════════════════
+   400→  // SECTION MANAGEMENT
+   401→  // ═══════════════════════════════════════════════════════════════════════
+   402→
+   403→  /// Adds a section to the exam.
+   404→  void addSection(ExamSectionEntity section) {
+   405→    final updated = [...state.sections, section];
+   406→    state = state.copyWith(sections: updated);
+   407→    AppLogger.info('Section added: ${section.title}');
+   408→  }
+   409→
+   410→  /// Removes a section by its ID.
+   411→  void removeSection(String sectionId) {
+   412→    final updated =
+   413→        state.sections.where((s) => s.id != sectionId).toList();
+   414→    state = state.copyWith(sections: updated);
+   415→    AppLogger.info('Section removed: $sectionId');
+   416→  }
+   417→
+   418→  /// Updates a section by its ID.
+   419→  void updateSection(ExamSectionEntity updatedSection) {
+   420→    final updated = state.sections
+   421→        .map((s) => s.id == updatedSection.id ? updatedSection : s)
+   422→        .toList();
+   423→    state = state.copyWith(sections: updated);
+   424→    AppLogger.info('Section updated: ${updatedSection.id}');
+   425→  }
+   426→
+   427→  // ═══════════════════════════════════════════════════════════════════════
+   428→  // STUDENT ASSIGNMENT
+   429→  // ═══════════════════════════════════════════════════════════════════════
+   430→
+   431→  /// Assigns students to the exam.
+   432→  void assignStudents(List<String> studentIds) {
+   433→    final existing = state.assignedStudents.toSet();
+   434→    existing.addAll(studentIds);
+   435→    state = state.copyWith(assignedStudents: existing.toList());
+   436→    AppLogger.info('${studentIds.length} students assigned');
+   437→  }
+   438→
+   439→  /// Removes students from the exam.
+   440→  void removeStudents(List<String> studentIds) {
+   441→    final existing = state.assignedStudents.toSet();
+   442→    existing.removeAll(studentIds);
+   443→    state = state.copyWith(assignedStudents: existing.toList());
+   444→    AppLogger.info('${studentIds.length} students removed');
+   445→  }
+   446→
+   447→  // ═══════════════════════════════════════════════════════════════════════
+   448→  // LOAD AVAILABLE QUESTIONS (from Question Bank)
+   449→  // ═══════════════════════════════════════════════════════════════════════
+   450→
+   451→  /// Loads questions from the Question Bank for selection.
+   452→  Future<void> loadAvailableQuestions() async {
+   453→    // This delegates to the question bank repository through the
+   454→    // CBT repository's data sources. A full implementation would
+   455→    // use the question bank repository directly.
+   456→    AppLogger.info('Loading available questions from Question Bank');
+   457→  }
+   458→
+   459→  // ═══════════════════════════════════════════════════════════════════════
+   460→  // SAVE EXAM (create or update)
+   461→  // ═══════════════════════════════════════════════════════════════════════
+   462→
+   463→  /// Saves the exam — creates if new, updates if editing.
+   464→  Future<void> saveExam() async {
+   465→    if (state.isSaving) return;
+   466→
+   467→    state = state.copyWith(isSaving: true, error: null);
+   468→
+   469→    if (state.isEditMode) {
+   470→      await _updateExam();
+   471→    } else {
+   472→      await _createExam();
+   473→    }
+   474→  }
+   475→
+   476→  Future<void> _createExam() async {
+   477→    if (state.startTime == null || state.endTime == null) {
+   478→      state = state.copyWith(
+   479→        isSaving: false,
+   480→        error: 'Start time and end time are required',
+   481→      );
+   482→      return;
+   483→    }
+   484→
+   485→    final input = ExamCreateInput(
+   486→      title: state.title,
+   487→      description:
+   488→          state.description.trim().isEmpty ? null : state.description,
+   489→      subjectId: state.subjectId ?? '',
+   490→      classId: state.classId ?? '',
+   491→      academicSessionId: state.academicSessionId ?? '',
+   492→      examType: state.examType,
+   493→      startTime: state.startTime!,
+   494→      endTime: state.endTime!,
+   495→      timeLimitMinutes: state.timeLimitMinutes,
+   496→      passMark: state.passMark,
+   497→      passMarkType: state.passMarkType,
+   498→      instructions:
+   499→          state.instructions.trim().isEmpty ? null : state.instructions,
+   500→      allowedAttempts: state.allowedAttempts,
+   501→      negativeMarkingEnabled: state.negativeMarkingEnabled,
+   502→      negativeMarkValue: state.negativeMarkValue,
+   503→      gracePeriodMinutes: state.gracePeriodMinutes,
+   504→      autoSubmit: state.autoSubmit,
+   505→      randomizeQuestions: state.randomizeQuestions,
+   506→      randomizeOptions: state.randomizeOptions,
+   507→      showResults: state.showResults,
+   508→      showCorrectAnswers: state.showCorrectAnswers,
+   509→      showExplanations: state.showExplanations,
+   510→      maxStudents: state.maxStudents,
+   511→      requireFullScreen: state.requireFullScreen,
+   512→      allowResume: state.allowResume,
+   513→      browserLockdown: state.browserLockdown,
+   514→    );
+   515→
+   516→    final result = await _createExamUseCase(
+   517→      CreateExamParams(
+   518→        exam: input,
+   519→        sections: state.sections,
+   520→        questions: state.questions,
+   521→        studentIds: state.assignedStudents,
+   522→      ),
+   523→    );
+   524→
+   525→    result.fold(
+   526→      onSuccess: (exam) {
+   527→        state = state.copyWith(
+   528→          isSaving: false,
+   529→          exam: exam,
+   530→          status: exam.status,
+   531→          successMessage: 'Exam created successfully',
+   532→          error: null,
+   533→        );
+   534→        AppLogger.info('Exam created: ${exam.id}');
+   535→      },
+   536→      onFailure: (failure) {
+   537→        state = state.copyWith(
+   538→          isSaving: false,
+   539→          error: _mapFailureToMessage(failure),
+   540→        );
+   541→        AppLogger.warning('Failed to create exam: $failure');
+   542→      },
+   543→    );
+   544→  }
+   545→
+   546→  Future<void> _updateExam() async {
+   547→    if (state.exam == null) return;
+   548→
+   549→    final updatedExam = state.exam!.copyWith(
+   550→      title: state.title,
+   551→      description:
+   552→          state.description.trim().isEmpty ? null : state.description,
+   553→      subjectId: state.subjectId ?? state.exam!.subjectId,
+   554→      classId: state.classId ?? state.exam!.classId,
+   555→      academicSessionId:
+   556→          state.academicSessionId ?? state.exam!.academicSessionId,
+   557→      examType: state.examType,
+   558→      startTime: state.startTime ?? state.exam!.startTime,
+   559→      endTime: state.endTime ?? state.exam!.endTime,
+   560→      timeLimitMinutes: state.timeLimitMinutes,
+   561→      totalMarks: state.totalMarks,
+   562→      passMark: state.passMark,
+   563→      passMarkType: state.passMarkType,
+   564→      instructions:
+   565→          state.instructions.trim().isEmpty ? null : state.instructions,
+   566→      allowedAttempts: state.allowedAttempts,
+   567→      negativeMarkingEnabled: state.negativeMarkingEnabled,
+   568→      negativeMarkValue: state.negativeMarkValue,
+   569→      gracePeriodMinutes: state.gracePeriodMinutes,
+   570→      autoSubmit: state.autoSubmit,
+   571→      randomizeQuestions: state.randomizeQuestions,
+   572→      randomizeOptions: state.randomizeOptions,
+   573→      showResults: state.showResults,
+   574→      showCorrectAnswers: state.showCorrectAnswers,
+   575→      showExplanations: state.showExplanations,
+   576→      maxStudents: state.maxStudents,
+   577→      requireFullScreen: state.requireFullScreen,
+   578→      allowResume: state.allowResume,
+   579→      browserLockdown: state.browserLockdown,
+   580→      sections: state.sections,
+   581→      questions: state.questions,
+   582→      updatedAt: DateTime.now(),
+   583→    );
+   584→
+   585→    final result = await _updateExamUseCase(
+   586→      UpdateExamParams(
+   587→        exam: updatedExam,
+   588→        sections: state.sections,
+   589→        questions: state.questions,
+   590→        studentIds: state.assignedStudents,
+   591→      ),
+   592→    );
+   593→
+   594→    result.fold(
+   595→      onSuccess: (exam) {
+   596→        state = state.copyWith(
+   597→          isSaving: false,
+   598→          exam: exam,
+   599→          status: exam.status,
+   600→          successMessage: 'Exam updated successfully',
+   601→          error: null,
+   602→        );
+   603→        AppLogger.info('Exam updated: ${exam.id}');
+   604→      },
+   605→      onFailure: (failure) {
+   606→        state = state.copyWith(
+   607→          isSaving: false,
+   608→          error: _mapFailureToMessage(failure),
+   609→        );
+   610→        AppLogger.warning('Failed to update exam: $failure');
+   611→      },
+   612→    );
+   613→  }
+   614→
+   615→  // ═══════════════════════════════════════════════════════════════════════
+   616→  // PUBLISH EXAM
+   617→  // ═══════════════════════════════════════════════════════════════════════
+   618→
+   619→  /// Publishes the exam, making it visible to assigned students.
+   620→  ///
+   621→  /// Must be called after saving the exam.
+   622→  Future<void> publishExam() async {
+   623→    if (state.isPublishing) return;
+   624→    if (state.exam == null) {
+   625→      state = state.copyWith(error: 'Please save the exam first');
+   626→      return;
+   627→    }
+   628→
+   629→    state = state.copyWith(isPublishing: true, error: null);
+   630→
+   631→    final result = await _manageExamStatusUseCase(
+   632→      ManageStatusParams(
+   633→        examId: state.exam!.id,
+   634→        action: ManageStatusAction.publish,
+   635→      ),
+   636→    );
+   637→
+   638→    result.fold(
+   639→      onSuccess: (exam) {
+   640→        state = state.copyWith(
+   641→          isPublishing: false,
+   642→          exam: exam,
+   643→          status: exam.status,
+   644→          successMessage: 'Exam published successfully',
+   645→          error: null,
+   646→        );
+   647→        AppLogger.info('Exam published: ${exam.id}');
+   648→      },
+   649→      onFailure: (failure) {
+   650→        state = state.copyWith(
+   651→          isPublishing: false,
+   652→          error: _mapFailureToMessage(failure),
+   653→        );
+   654→        AppLogger.warning('Failed to publish exam: $failure');
+   655→      },
+   656→    );
+   657→  }
+   658→
+   659→  // ═══════════════════════════════════════════════════════════════════════
+   660→  // CLONE EXAM
+   661→  // ═══════════════════════════════════════════════════════════════════════
+   662→
+   663→  /// Creates a deep copy of the current exam with a new ID and draft status.
+   664→  Future<void> cloneExam() async {
+   665→    if (state.exam == null) return;
+   666→
+   667→    state = state.copyWith(isSaving: true, error: null);
+   668→
+   669→    final result = await _manageExamStatusUseCase(
+   670→      ManageStatusParams(
+   671→        examId: state.exam!.id,
+   672→        action: ManageStatusAction.clone,
+   673→      ),
+   674→    );
+   675→
+   676→    result.fold(
+   677→      onSuccess: (exam) {
+   678→        state = state.copyWith(
+   679→          isSaving: false,
+   680→          exam: exam,
+   681→          status: exam.status,
+   682→          successMessage: 'Exam cloned successfully',
+   683→          error: null,
+   684→        );
+   685→        AppLogger.info('Exam cloned: ${exam.id}');
+   686→      },
+   687→      onFailure: (failure) {
+   688→        state = state.copyWith(
+   689→          isSaving: false,
+   690→          error: _mapFailureToMessage(failure),
+   691→        );
+   692→        AppLogger.warning('Failed to clone exam: $failure');
+   693→      },
+   694→    );
+   695→  }
+   696→
+   697→  // ═══════════════════════════════════════════════════════════════════════
+   698→  // LOAD EXAM FOR EDIT
+   699→  // ═══════════════════════════════════════════════════════════════════════
+   700→
+   701→  /// Loads an existing exam into the form for editing.
+   702→  Future<void> loadExamForEdit(String examId) async {
+   703→    state = state.copyWith(isLoading: true, error: null);
+   704→
+   705→    final result = await _cbtRepository.getExamWithDetails(examId);
+   706→
+   707→    result.fold(
+   708→      onSuccess: (exam) {
+   709→        state = ExamBuilderState(
+   710→          exam: exam,
+   711→          sections: exam.sections,
+   712→          questions: exam.questions,
+   713→          isLoading: false,
+   714→          // Populate form fields from entity
+   715→          title: exam.title,
+   716→          description: exam.description ?? '',
+   717→          subjectId: exam.subjectId,
+   718→          classId: exam.classId,
+   719→          academicSessionId: exam.academicSessionId,
+   720→          examType: exam.examType,
+   721→          status: exam.status,
+   722→          startTime: exam.startTime,
+   723→          endTime: exam.endTime,
+   724→          timeLimitMinutes: exam.timeLimitMinutes,
+   725→          passMark: exam.passMark,
+   726→          passMarkType: exam.passMarkType,
+   727→          instructions: exam.instructions ?? '',
+   728→          allowedAttempts: exam.allowedAttempts,
+   729→          negativeMarkingEnabled: exam.negativeMarkingEnabled,
+   730→          negativeMarkValue: exam.negativeMarkValue,
+   731→          gracePeriodMinutes: exam.gracePeriodMinutes,
+   732→          autoSubmit: exam.autoSubmit,
+   733→          randomizeQuestions: exam.randomizeQuestions,
+   734→          randomizeOptions: exam.randomizeOptions,
+   735→          showResults: exam.showResults,
+   736→          showCorrectAnswers: exam.showCorrectAnswers,
+   737→          showExplanations: exam.showExplanations,
+   738→          maxStudents: exam.maxStudents,
+   739→          requireFullScreen: exam.requireFullScreen,
+   740→          allowResume: exam.allowResume,
+   741→          browserLockdown: exam.browserLockdown,
+   742→        );
+   743→        AppLogger.info('Exam loaded for edit: ${exam.id}');
+   744→      },
+   745→      onFailure: (failure) {
+   746→        state = state.copyWith(
+   747→          isLoading: false,
+   748→          error: _mapFailureToMessage(failure),
+   749→        );
+   750→        AppLogger.warning('Failed to load exam for edit: $failure');
+   751→      },
+   752→    );
+   753→  }
+   754→
+   755→  // ═══════════════════════════════════════════════════════════════════════
+   756→  // RESET FORM
+   757→  // ═══════════════════════════════════════════════════════════════════════
+   758→
+   759→  /// Resets the form to its initial state.
+   760→  void resetForm() {
+   761→    state = const ExamBuilderState();
+   762→    AppLogger.info('Exam builder form reset');
+   763→  }
+   764→
+   765→  // ═══════════════════════════════════════════════════════════════════════
+   766→  // CLEAR MESSAGES
+   767→  // ═══════════════════════════════════════════════════════════════════════
+   768→
+   769→  /// Clears the current error message from the state.
+   770→  void clearError() {
+   771→    state = state.clearError();
+   772→  }
+   773→
+   774→  /// Clears the current success message from the state.
+   775→  void clearSuccessMessage() {
+   776→    state = state.clearSuccessMessage();
+   777→  }
+   778→
+   779→  // ═══════════════════════════════════════════════════════════════════════
+   780→  // PRIVATE HELPERS
+   781→  // ═══════════════════════════════════════════════════════════════════════
+   782→
+   783→  /// Maps a [Failure] to a user-friendly error message.
+   784→  String _mapFailureToMessage(Failure failure) {
+   785→    return failure.when(
+   786→      server: (message, _, __) => message,
+   787→      cache: (message) => message,
+   788→      auth: (message, _) => message,
+   789→      network: (message) => message,
+   790→      validation: (message, _) => message,
+   791→      notFound: (message) => message,
+   792→      unauthorized: (message) => message,
+   793→      forbidden: (message) => message,
+   794→    );
+   795→  }
+   796→}
+   797→

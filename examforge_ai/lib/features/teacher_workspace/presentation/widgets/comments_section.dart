@@ -32,6 +32,7 @@ class CommentsSection extends ConsumerStatefulWidget {
 
 class _CommentsSectionState extends ConsumerState<CommentsSection> {
   final _commentController = TextEditingController();
+  final _commentFocusNode = FocusNode();
   String? _replyingToCommentId;
 
   @override
@@ -49,6 +50,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
   @override
   void dispose() {
     _commentController.dispose();
+    _commentFocusNode.dispose();
     super.dispose();
   }
 
@@ -170,7 +172,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
               setState(() {
                 _replyingToCommentId = comment.id;
               });
-              _commentController.requestFocus();
+              _commentFocusNode.requestFocus();
             },
             onResolve: () =>
                 ref.read(collaborationProvider.notifier).resolveComment(comment.id),
@@ -240,6 +242,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
             Expanded(
               child: TextField(
                 controller: _commentController,
+                focusNode: _commentFocusNode,
                 maxLines: 3,
                 minLines: 1,
                 textInputAction: TextInputAction.newline,

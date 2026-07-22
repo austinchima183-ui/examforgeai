@@ -42,7 +42,7 @@ class GetChildAssignmentsUseCase {
       ));
     }
     return _repository.getChildAssignments(
-      params.studentId,
+      studentId: params.studentId,
       status: params.status,
     );
   }

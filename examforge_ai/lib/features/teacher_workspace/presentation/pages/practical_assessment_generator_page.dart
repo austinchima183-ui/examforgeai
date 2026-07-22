@@ -873,9 +873,9 @@ class _PracticalAssessmentGeneratorPageState
                           minLines: 1,
                           decoration: InputDecoration(
                             isDense: true,
-                            border: const OutlineInputBorder(),
-                            borderRadius:
-                                BorderRadius.circular(Spacings.smRadius),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(Spacings.smRadius),
+                            ),
                           ),
                         )
                       : Text(
@@ -927,8 +927,9 @@ class _PracticalAssessmentGeneratorPageState
             minLines: 3,
             decoration: InputDecoration(
               labelText: 'Expected Results',
-              border: const OutlineInputBorder(),
-              borderRadius: BorderRadius.circular(Spacings.smRadius),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(Spacings.smRadius),
+              ),
             ),
           )
         else

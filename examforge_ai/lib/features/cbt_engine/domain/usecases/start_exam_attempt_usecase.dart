@@ -50,7 +50,7 @@ class StartExamAttemptUseCase {
             ),
           );
         }
-        return SuccessResult(attempt);
+        return Success(attempt);
       },
       onFailure: (failure) => FailureResult(failure),
     );

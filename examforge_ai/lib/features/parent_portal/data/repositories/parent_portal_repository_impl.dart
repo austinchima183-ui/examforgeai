@@ -125,10 +125,9 @@ class ParentPortalRepositoryImpl implements ParentPortalRepository {
         startDate,
         endDate,
       );
-      final records = (data['records'] as List<dynamic>?)
-              .map((e) => Map<String, dynamic>.from(e as Map))
-              .toList() ??
-          [];
+      final records = ((data['records'] as List<dynamic>?) ?? [])
+          .map((e) => Map<String, dynamic>.from(e as Map))
+          .toList();
       final entity = ChildAttendanceEntity(
         studentId: studentId,
         records: records,
@@ -330,14 +329,12 @@ class ParentPortalRepositoryImpl implements ParentPortalRepository {
       final data = await _remoteDataSource.askAssistant(params);
       final entity = ParentAssistantResponseEntity(
         answer: data['answer'] as String? ?? '',
-        sources: (data['sources'] as List<dynamic>?)
-                .map((e) => Map<String, dynamic>.from(e as Map))
-                .toList() ??
-            [],
+        sources: ((data['sources'] as List<dynamic>?) ?? [])
+            .map((e) => Map<String, dynamic>.from(e as Map))
+            .toList(),
         studentId: data['student_id'] as String?,
-        followUpQuestions: (data['follow_up_questions'] as List<dynamic>?)
-                .cast<String>() ??
-            [],
+        followUpQuestions: ((data['follow_up_questions'] as List<dynamic>?) ?? [])
+            .cast<String>(),
         confidence: (data['confidence'] as num?)?.toDouble() ?? 0.0,
       );
       return Success(entity);

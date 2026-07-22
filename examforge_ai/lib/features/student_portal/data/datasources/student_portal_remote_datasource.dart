@@ -1,5 +1,7 @@
 import 'dart:math';
 
+import 'dart:typed_data';
+
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import '../../../../core/errors/exceptions.dart';
 import '../../../../core/network/paginated_query_mixin.dart';
@@ -74,7 +76,7 @@ class StudentPortalRemoteDatasource {
       default:
         throw ServerException(
           message: e.message,
-          statusCode: e.statusCode ?? 500,
+          statusCode: int.tryParse(e.code ?? '') ?? 500,
         );
     }
   }
@@ -966,7 +968,7 @@ class StudentPortalRemoteDatasource {
     required String studentId,
     String? schoolId,
     required String fileName,
-    required List<int> fileBytes,
+    required Uint8List fileBytes,
     required String fileFormat,
     int? fileSize,
   }) async {
@@ -2190,7 +2192,7 @@ class StudentPortalRemoteDatasource {
           .from(_studentProgressSnapshotsTable)
           .select()
           .eq('student_id', studentId)
-          .filter('subject_id', 'is.null') // Overall progress (no specific subject)
+          .isFilter('subject_id', null) // Overall progress (no specific subject)
           .order('snapshot_date', ascending: false)
           .limit(1);
 

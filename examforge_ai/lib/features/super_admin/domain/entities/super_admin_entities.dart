@@ -1253,6 +1253,42 @@ class SchoolManagementDetail extends Equatable {
 
   double get storageUtilization => storageLimitMb > 0 ? (storageUsedMb / storageLimitMb) * 100 : 0;
 
+  SchoolManagementDetail copyWith({
+    String? id,
+    String? name,
+    String? domain,
+    String? logoUrl,
+    bool? isActive,
+    bool? isVerified,
+    String? subscriptionStatus,
+    int? studentCount,
+    int? teacherCount,
+    double? storageUsedMb,
+    double? storageLimitMb,
+    int? studentLimit,
+    int? teacherLimit,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) {
+    return SchoolManagementDetail(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      domain: domain ?? this.domain,
+      logoUrl: logoUrl ?? this.logoUrl,
+      isActive: isActive ?? this.isActive,
+      isVerified: isVerified ?? this.isVerified,
+      subscriptionStatus: subscriptionStatus ?? this.subscriptionStatus,
+      studentCount: studentCount ?? this.studentCount,
+      teacherCount: teacherCount ?? this.teacherCount,
+      storageUsedMb: storageUsedMb ?? this.storageUsedMb,
+      storageLimitMb: storageLimitMb ?? this.storageLimitMb,
+      studentLimit: studentLimit ?? this.studentLimit,
+      teacherLimit: teacherLimit ?? this.teacherLimit,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
   @override
   List<Object?> get props => [id, name, isActive, isVerified, subscriptionStatus, studentCount, teacherCount];
 }
@@ -1283,6 +1319,34 @@ class UserManagementDetail extends Equatable {
   final DateTime? lastLoginAt;
   final int loginCount;
   final DateTime? createdAt;
+
+  UserManagementDetail copyWith({
+    String? id,
+    String? email,
+    String? fullName,
+    String? role,
+    String? schoolId,
+    String? schoolName,
+    bool? isActive,
+    bool? isEmailVerified,
+    DateTime? lastLoginAt,
+    int? loginCount,
+    DateTime? createdAt,
+  }) {
+    return UserManagementDetail(
+      id: id ?? this.id,
+      email: email ?? this.email,
+      fullName: fullName ?? this.fullName,
+      role: role ?? this.role,
+      schoolId: schoolId ?? this.schoolId,
+      schoolName: schoolName ?? this.schoolName,
+      isActive: isActive ?? this.isActive,
+      isEmailVerified: isEmailVerified ?? this.isEmailVerified,
+      lastLoginAt: lastLoginAt ?? this.lastLoginAt,
+      loginCount: loginCount ?? this.loginCount,
+      createdAt: createdAt ?? this.createdAt,
+    );
+  }
 
   @override
   List<Object?> get props => [id, email, fullName, role, isActive, schoolId];

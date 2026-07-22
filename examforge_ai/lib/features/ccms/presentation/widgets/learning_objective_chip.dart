@@ -14,14 +14,18 @@ import '../../domain/entities/ccms_entities.dart';
 class LearningObjectiveChip extends StatelessWidget {
   const LearningObjectiveChip({
     super.key,
-    required this.objective,
+    this.objective,
+    this.descriptionText,
     this.onTap,
     this.onRemove,
     this.showCode = true,
   });
 
-  /// The learning objective to display.
-  final LearningObjective objective;
+  /// The learning objective to display (full structured data).
+  final LearningObjective? objective;
+
+  /// A plain description string to display when no full objective is available.
+  final String? descriptionText;
 
   /// Callback when the chip is tapped (to show full details).
   final VoidCallback? onTap;
@@ -49,12 +53,16 @@ class LearningObjectiveChip extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = _bloomColor(objective.bloomLevel);
+    final hasObj = objective != null;
+    final bloom = hasObj ? objective!.bloomLevel : BloomTaxonomy.understand;
+    final color = _bloomColor(bloom);
     final cs = context.colorScheme;
     final isDark = context.isDarkMode;
+    final displayText = hasObj ? objective!.description : (descriptionText ?? '');
+    final displayCode = hasObj ? objective!.code : '';
 
     return GestureDetector(
-      onTap: onTap ?? () => _showDetailsDialog(context),
+      onTap: onTap ?? (hasObj ? () => _showDetailsDialog(context) : null),
       child: Container(
         padding: const EdgeInsets.symmetric(
           horizontal: Spacings.sm,
@@ -91,7 +99,7 @@ class LearningObjectiveChip extends StatelessWidget {
             const SizedBox(width: Spacings.sm),
 
             // Code prefix badge
-            if (showCode && objective.code.isNotEmpty) ...[
+            if (showCode && displayCode.isNotEmpty) ...[
               Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: Spacings.xs,
@@ -102,8 +110,8 @@ class LearningObjectiveChip extends StatelessWidget {
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
-                  objective.code,
-                  style: AppTypography.labelSmall.copyWith(
+                  displayCode,
+                  style: AppTypography.labelSmall!.copyWith(
                     color: color,
                     fontWeight: AppTypography.wBold,
                     fontSize: 10,
@@ -116,8 +124,8 @@ class LearningObjectiveChip extends StatelessWidget {
             // Description (truncated)
             Flexible(
               child: Text(
-                objective.description,
-                style: AppTypography.bodySmall.copyWith(
+                displayText,
+                style: AppTypography.bodySmall!.copyWith(
                   color: cs.onSurface,
                 ),
                 maxLines: 2,
@@ -146,7 +154,7 @@ class LearningObjectiveChip extends StatelessWidget {
   // ─── Details Dialog ─────────────────────────────────────────────────────
 
   void _showDetailsDialog(BuildContext context) {
-    final color = _bloomColor(objective.bloomLevel);
+    final color = _bloomColor(objective!.bloomLevel);
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -166,8 +174,8 @@ class LearningObjectiveChip extends StatelessWidget {
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
-                objective.code.isNotEmpty
-                    ? objective.code
+                objective!.code.isNotEmpty
+                    ? objective!.code
                     : 'Learning Objective',
                 style: tt.titleSmall?.copyWith(
                   fontWeight: AppTypography.wSemiBold,
@@ -191,8 +199,8 @@ class LearningObjectiveChip extends StatelessWidget {
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Text(
-                objective.bloomLevel.label,
-                style: AppTypography.labelSmall.copyWith(
+                objective!.bloomLevel.label,
+                style: AppTypography.labelSmall!.copyWith(
                   color: color,
                   fontWeight: AppTypography.wSemiBold,
                 ),
@@ -201,7 +209,7 @@ class LearningObjectiveChip extends StatelessWidget {
             const SizedBox(height: Spacings.md),
             // Full description
             Text(
-              objective.description,
+              objective!.description,
               style: tt.bodyMedium?.copyWith(color: cs.onSurface),
             ),
           ],

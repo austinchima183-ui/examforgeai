@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../../core/errors/failures.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
@@ -8,6 +9,7 @@ import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../../../../config/dependency_injection.dart';
 import '../../domain/entities/super_admin_entities.dart';
+import '../../domain/usecases/super_admin_usecases.dart';
 import '../providers/super_admin_providers.dart';
 import '../widgets/super_admin_widgets.dart';
 
@@ -382,7 +384,7 @@ class _FeatureUsageTab extends StatelessWidget {
             return Card(
               child: ListTile(
                 leading: Icon(Icons.stars, color: AppColors.info),
-                title: Text(name, style: AppTypography.wSemiBold),
+                title: Text(name, style: TextStyle(fontWeight: AppTypography.wSemiBold)),
                 subtitle: Text('$users unique users'),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.sm),
@@ -453,7 +455,7 @@ class _RetentionTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(cohort, style: AppTypography.wSemiBold),
+                    Text(cohort, style: TextStyle(fontWeight: AppTypography.wSemiBold)),
                     const SizedBox(height: Spacings.sm),
                     ClipRRect(
                       borderRadius: Spacings.borderRadiusSm,
@@ -502,7 +504,7 @@ class _GeographicTab extends StatelessWidget {
             return Card(
               child: ListTile(
                 leading: Icon(Icons.public, color: AppColors.info),
-                title: Text(name, style: AppTypography.wSemiBold),
+                title: Text(name, style: TextStyle(fontWeight: AppTypography.wSemiBold)),
                 subtitle: Text('$schools schools | $users users'),
               ),
             );

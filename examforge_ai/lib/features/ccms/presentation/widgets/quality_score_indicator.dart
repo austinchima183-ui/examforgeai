@@ -96,7 +96,7 @@ class QualityScoreIndicator extends StatelessWidget {
           ),
           child: Text(
             score.toStringAsFixed(1),
-            style: AppTypography.labelSmall.copyWith(
+            style: AppTypography.labelSmall!.copyWith(
               color: color,
               fontWeight: AppTypography.wSemiBold,
             ),

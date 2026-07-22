@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../../domain/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
 
 
 // ─── Get Revenue Data ────────────────────────────────────────────────────────
@@ -23,7 +22,7 @@ class GetRevenueDataUseCase {
   GetRevenueDataUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<RevenueDataEntity>> call(GetRevenueDataParams params) async {
+  Future<Result<List<RevenueDataPoint>>> call(GetRevenueDataParams params) async {
     if (params.periodType.isEmpty) {
       return FailureResult(
         Failure.validation(fieldErrors: const {}, message: 'Period type cannot be empty'),
@@ -49,7 +48,7 @@ class GetBillingDashboardSummaryUseCase {
   GetBillingDashboardSummaryUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<BillingDashboardSummaryEntity>> call() async {
+  Future<Result<Map<String, dynamic>>> call() async {
     return _repository.getBillingDashboardSummary();
   }
 }

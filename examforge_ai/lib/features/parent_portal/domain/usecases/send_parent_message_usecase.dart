@@ -58,12 +58,12 @@ class SendParentMessageUseCase {
         fieldErrors: {'body': 'Message body cannot be empty'},
       ));
     }
-    return _repository.sendMessage(
-      recipientId: params.recipientId,
-      subject: params.subject,
-      body: params.body,
-      studentId: params.studentId,
-      parentMessageId: params.parentMessageId,
-    );
+    return _repository.sendMessage({
+      'recipientId': params.recipientId,
+      'subject': params.subject,
+      'body': params.body,
+      'studentId': params.studentId,
+      'parentMessageId': params.parentMessageId,
+    });
   }
 }

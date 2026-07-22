@@ -249,6 +249,7 @@ class _StudentListPageState extends ConsumerState<StudentListPage> {
     BuildContext context,
     List<ClassEntity> classes,
   ) {
+    final cs = context.colorScheme;
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(

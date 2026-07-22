@@ -45,11 +45,11 @@ class GetParentMessagesUseCase {
         fieldErrors: {'page': 'Page must be >= 1'},
       ));
     }
-    return _repository.getParentMessages(
-      threadId: params.threadId,
-      studentId: params.studentId,
-      page: params.page,
-      perPage: params.perPage,
-    );
+    return _repository.getMessages({
+      'threadId': params.threadId,
+      'studentId': params.studentId,
+      'page': params.page,
+      'perPage': params.perPage,
+    });
   }
 }

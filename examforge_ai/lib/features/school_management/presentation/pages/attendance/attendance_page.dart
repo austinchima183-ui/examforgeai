@@ -249,6 +249,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
   // ─── Class Selector (when no class is selected) ──────────────────────
 
   Widget _buildClassSelector(BuildContext context, ClassListState classState) {
+    final cs = context.colorScheme;
     if (classState.isLoading) {
       return const Center(
         child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),

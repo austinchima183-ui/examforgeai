@@ -92,7 +92,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
                 _buildInfoChip(theme, Icons.card_giftcard, '${program.rewardType}: ${program.rewardValue}'),
                 if (program.maxReferrals != null) ...[
                   const SizedBox(width: 12),
-                  _buildInfoChip(theme, Icons.limit, 'Max: ${program.maxReferrals}'),
+                  _buildInfoChip(theme, Icons.speed, 'Max: ${program.maxReferrals}'),
                 ],
               ],
             ),

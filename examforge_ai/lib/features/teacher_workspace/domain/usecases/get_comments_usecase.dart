@@ -30,10 +30,10 @@ class GetCommentsUseCase {
 
   /// Retrieves comments for the specified resource.
   ///
-  /// Returns a [Result] containing a list of [CommentEntity]
+  /// Returns a [Result] containing a list of [CollaborationCommentEntity]
   /// on success, or a [FailureResult] if validation fails or the
   /// repository encounters an error.
-  Future<Result<List<CommentEntity>>> call(GetCommentsParams params) async {
+  Future<Result<List<CollaborationCommentEntity>>> call(GetCommentsParams params) async {
     if (params.resourceType.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Resource type is required',

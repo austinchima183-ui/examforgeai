@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../../domain/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
 
 
 // ─── Get Billing Notifications ───────────────────────────────────────────────
@@ -25,7 +24,7 @@ class GetBillingNotificationsUseCase {
   GetBillingNotificationsUseCase(this._repository);
   final BillingRepository _repository;
 
-  Future<Result<PaginatedResult<BillingNotificationEntity>>> call(
+  Future<Result<List<BillingNotificationEntity>>> call(
     GetBillingNotificationsParams params,
   ) async {
     if (params.userId.isEmpty) {
@@ -72,7 +71,7 @@ class MarkNotificationReadUseCase {
     }
 
     return _repository.markNotificationRead(
-      notificationId: params.notificationId,
+      params.notificationId,
     );
   }
 }

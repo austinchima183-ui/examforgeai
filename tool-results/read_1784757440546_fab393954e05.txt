@@ -1,0 +1,1065 @@
+     1→import '../../../../core/errors/failures.dart';
+     2→import '../../../../core/utils/result.dart';
+     3→import '../entities/super_admin_entities.dart';
+     4→import '../repositories/super_admin_repository.dart';
+     5→
+     6→// ═══════════════════════════════════════════════════════════════════════════════
+     7→// DASHBOARD
+     8→// ═══════════════════════════════════════════════════════════════════════════════
+     9→
+    10→class GetDashboardMetricsParams {
+    11→  const GetDashboardMetricsParams({this.forceRefresh = false});
+    12→  final bool forceRefresh;
+    13→}
+    14→
+    15→class GetDashboardMetricsUseCase {
+    16→  GetDashboardMetricsUseCase(this._repository);
+    17→  final SuperAdminRepository _repository;
+    18→
+    19→  Future<Result<DashboardMetrics>> call(GetDashboardMetricsParams params) =>
+    20→      _repository.getDashboardMetrics(forceRefresh: params.forceRefresh);
+    21→}
+    22→
+    23→// ═══════════════════════════════════════════════════════════════════════════════
+    24→// PLATFORM SETTINGS
+    25→// ═══════════════════════════════════════════════════════════════════════════════
+    26→
+    27→class GetPlatformSettingsParams {
+    28→  const GetPlatformSettingsParams({this.scope});
+    29→  final SettingScope? scope;
+    30→}
+    31→
+    32→class GetPlatformSettingsUseCase {
+    33→  GetPlatformSettingsUseCase(this._repository);
+    34→  final SuperAdminRepository _repository;
+    35→
+    36→  Future<Result<List<PlatformSetting>>> call(GetPlatformSettingsParams params) =>
+    37→      _repository.getPlatformSettings(scope: params.scope);
+    38→}
+    39→
+    40→class UpdatePlatformSettingParams {
+    41→  const UpdatePlatformSettingParams({required this.setting});
+    42→  final PlatformSetting setting;
+    43→}
+    44→
+    45→class UpdatePlatformSettingUseCase {
+    46→  UpdatePlatformSettingUseCase(this._repository);
+    47→  final SuperAdminRepository _repository;
+    48→
+    49→  Future<Result<PlatformSetting>> call(UpdatePlatformSettingParams params) async {
+    50→    if (params.setting.key.isEmpty) {
+    51→      return const FailureResult(Failure.validation(
+    52→        message: 'Setting key is required',
+    53→        fieldErrors: {'key': 'Key cannot be empty'},
+    54→      ));
+    55→    }
+    56→    if (params.setting.isReadonly) {
+    57→      return const FailureResult(Failure.validation(
+    58→        message: 'Cannot modify a readonly setting',
+    59→        fieldErrors: {'readonly': 'This setting is read-only'},
+    60→      ));
+    61→    }
+    62→    return _repository.updatePlatformSetting(params.setting);
+    63→  }
+    64→}
+    65→
+    66→class BulkUpdateSettingsParams {
+    67→  const BulkUpdateSettingsParams({required this.settings});
+    68→  final List<PlatformSetting> settings;
+    69→}
+    70→
+    71→class BulkUpdateSettingsUseCase {
+    72→  BulkUpdateSettingsUseCase(this._repository);
+    73→  final SuperAdminRepository _repository;
+    74→
+    75→  Future<Result<List<PlatformSetting>>> call(BulkUpdateSettingsParams params) async {
+    76→    if (params.settings.isEmpty) {
+    77→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'No settings provided'));
+    78→    }
+    79→    final readonlySettings = params.settings.where((s) => s.isReadonly).toList();
+    80→    if (readonlySettings.isNotEmpty) {
+    81→      return FailureResult(Failure.validation(
+    82→        message: 'Cannot modify readonly settings: ${readonlySettings.map((s) => s.key).join(', ')}',
+    83→        fieldErrors: const {},
+    84→      ));
+    85→    }
+    86→    return _repository.bulkUpdateSettings(params.settings);
+    87→  }
+    88→}
+    89→
+    90→// ═══════════════════════════════════════════════════════════════════════════════
+    91→// FEATURE FLAGS
+    92→// ═══════════════════════════════════════════════════════════════════════════════
+    93→
+    94→class GetFeatureFlagsParams {
+    95→  const GetFeatureFlagsParams({this.isActive});
+    96→  final bool? isActive;
+    97→}
+    98→
+    99→class GetFeatureFlagsUseCase {
+   100→  GetFeatureFlagsUseCase(this._repository);
+   101→  final SuperAdminRepository _repository;
+   102→
+   103→  Future<Result<List<FeatureFlag>>> call(GetFeatureFlagsParams params) =>
+   104→      _repository.getFeatureFlags(isActive: params.isActive);
+   105→}
+   106→
+   107→class CreateFeatureFlagParams {
+   108→  const CreateFeatureFlagParams({required this.flag});
+   109→  final FeatureFlag flag;
+   110→}
+   111→
+   112→class CreateFeatureFlagUseCase {
+   113→  CreateFeatureFlagUseCase(this._repository);
+   114→  final SuperAdminRepository _repository;
+   115→
+   116→  Future<Result<FeatureFlag>> call(CreateFeatureFlagParams params) async {
+   117→    if (params.flag.key.isEmpty || params.flag.name.isEmpty) {
+   118→      return const FailureResult(Failure.validation(
+   119→        message: 'Feature flag key and name are required',
+   120→        fieldErrors: {'key': 'Key is required', 'name': 'Name is required'},
+   121→      ));
+   122→    }
+   123→    return _repository.createFeatureFlag(params.flag);
+   124→  }
+   125→}
+   126→
+   127→class UpdateFeatureFlagParams {
+   128→  const UpdateFeatureFlagParams({required this.flag});
+   129→  final FeatureFlag flag;
+   130→}
+   131→
+   132→class UpdateFeatureFlagUseCase {
+   133→  UpdateFeatureFlagUseCase(this._repository);
+   134→  final SuperAdminRepository _repository;
+   135→
+   136→  Future<Result<FeatureFlag>> call(UpdateFeatureFlagParams params) =>
+   137→      _repository.updateFeatureFlag(params.flag);
+   138→}
+   139→
+   140→class ToggleFeatureFlagParams {
+   141→  const ToggleFeatureFlagParams({required this.flagId, required this.isActive});
+   142→  final String flagId;
+   143→  final bool isActive;
+   144→}
+   145→
+   146→class ToggleFeatureFlagUseCase {
+   147→  ToggleFeatureFlagUseCase(this._repository);
+   148→  final SuperAdminRepository _repository;
+   149→
+   150→  Future<Result<FeatureFlag>> call(ToggleFeatureFlagParams params) async {
+   151→    if (params.flagId.isEmpty) {
+   152→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Flag ID is required'));
+   153→    }
+   154→    return _repository.toggleFeatureFlag(params.flagId, params.isActive);
+   155→  }
+   156→}
+   157→
+   158→// ═══════════════════════════════════════════════════════════════════════════════
+   159→// AUDIT LOGS
+   160→// ═══════════════════════════════════════════════════════════════════════════════
+   161→
+   162→class GetAuditLogsParams {
+   163→  const GetAuditLogsParams({
+   164→    this.category, this.severity, this.actorId, this.resourceType,
+   165→    this.resourceId, this.schoolId, this.startDate, this.endDate,
+   166→    this.limit = 50, this.offset = 0,
+   167→  });
+   168→  final AuditCategory? category;
+   169→  final AuditSeverity? severity;
+   170→  final String? actorId;
+   171→  final String? resourceType;
+   172→  final String? resourceId;
+   173→  final String? schoolId;
+   174→  final DateTime? startDate;
+   175→  final DateTime? endDate;
+   176→  final int limit;
+   177→  final int offset;
+   178→}
+   179→
+   180→class GetAuditLogsUseCase {
+   181→  GetAuditLogsUseCase(this._repository);
+   182→  final SuperAdminRepository _repository;
+   183→
+   184→  Future<Result<List<AuditLog>>> call(GetAuditLogsParams params) =>
+   185→      _repository.getAuditLogs(
+   186→        category: params.category, severity: params.severity, actorId: params.actorId,
+   187→        resourceType: params.resourceType, resourceId: params.resourceId,
+   188→        schoolId: params.schoolId, startDate: params.startDate, endDate: params.endDate,
+   189→        limit: params.limit, offset: params.offset,
+   190→      );
+   191→}
+   192→
+   193→class CreateAuditLogParams {
+   194→  const CreateAuditLogParams({required this.log});
+   195→  final AuditLog log;
+   196→}
+   197→
+   198→class CreateAuditLogUseCase {
+   199→  CreateAuditLogUseCase(this._repository);
+   200→  final SuperAdminRepository _repository;
+   201→
+   202→  Future<Result<AuditLog>> call(CreateAuditLogParams params) async {
+   203→    if (params.log.action.isEmpty) {
+   204→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Audit action is required'));
+   205→    }
+   206→    return _repository.createAuditLog(params.log);
+   207→  }
+   208→}
+   209→
+   210→// ═══════════════════════════════════════════════════════════════════════════════
+   211→// SCHOOL MANAGEMENT
+   212→// ═══════════════════════════════════════════════════════════════════════════════
+   213→
+   214→class GetSchoolsParams {
+   215→  const GetSchoolsParams({
+   216→    this.isActive, this.isVerified, this.search, this.subscriptionStatus,
+   217→    this.limit = 50, this.offset = 0,
+   218→  });
+   219→  final bool? isActive;
+   220→  final bool? isVerified;
+   221→  final String? search;
+   222→  final String? subscriptionStatus;
+   223→  final int limit;
+   224→  final int offset;
+   225→}
+   226→
+   227→class GetSchoolsUseCase {
+   228→  GetSchoolsUseCase(this._repository);
+   229→  final SuperAdminRepository _repository;
+   230→
+   231→  Future<Result<List<SchoolManagementDetail>>> call(GetSchoolsParams params) =>
+   232→      _repository.getSchools(
+   233→        isActive: params.isActive, isVerified: params.isVerified, search: params.search,
+   234→        subscriptionStatus: params.subscriptionStatus, limit: params.limit, offset: params.offset,
+   235→      );
+   236→}
+   237→
+   238→class ManageSchoolParams {
+   239→  const ManageSchoolParams({required this.schoolId, this.reason});
+   240→  final String schoolId;
+   241→  final String? reason;
+   242→}
+   243→
+   244→class SuspendSchoolUseCase {
+   245→  SuspendSchoolUseCase(this._repository);
+   246→  final SuperAdminRepository _repository;
+   247→
+   248→  Future<Result<void>> call(ManageSchoolParams params) async {
+   249→    if (params.schoolId.isEmpty) {
+   250→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'School ID is required'));
+   251→    }
+   252→    if (params.reason == null || params.reason!.isEmpty) {
+   253→      return const FailureResult(Failure.validation(
+   254→        message: 'Suspension reason is required',
+   255→        fieldErrors: {'reason': 'Please provide a reason for suspension'},
+   256→      ));
+   257→    }
+   258→    return _repository.suspendSchool(params.schoolId, params.reason!);
+   259→  }
+   260→}
+   261→
+   262→class ReactivateSchoolUseCase {
+   263→  ReactivateSchoolUseCase(this._repository);
+   264→  final SuperAdminRepository _repository;
+   265→
+   266→  Future<Result<void>> call(ManageSchoolParams params) async {
+   267→    if (params.schoolId.isEmpty) {
+   268→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'School ID is required'));
+   269→    }
+   270→    return _repository.reactivateSchool(params.schoolId);
+   271→  }
+   272→}
+   273→
+   274→class VerifySchoolUseCase {
+   275→  VerifySchoolUseCase(this._repository);
+   276→  final SuperAdminRepository _repository;
+   277→
+   278→  Future<Result<void>> call(ManageSchoolParams params) async {
+   279→    if (params.schoolId.isEmpty) {
+   280→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'School ID is required'));
+   281→    }
+   282→    return _repository.verifySchool(params.schoolId);
+   283→  }
+   284→}
+   285→
+   286→class CreateSchoolParams {
+   287→  const CreateSchoolParams({required this.schoolData});
+   288→  final Map<String, dynamic> schoolData;
+   289→}
+   290→
+   291→class CreateSchoolUseCase {
+   292→  CreateSchoolUseCase(this._repository);
+   293→  final SuperAdminRepository _repository;
+   294→
+   295→  Future<Result<SchoolManagementDetail>> call(CreateSchoolParams params) async {
+   296→    final name = params.schoolData['name'] as String? ?? '';
+   297→    if (name.isEmpty) {
+   298→      return const FailureResult(Failure.validation(
+   299→        message: 'School name is required',
+   300→        fieldErrors: {'name': 'Name cannot be empty'},
+   301→      ));
+   302→    }
+   303→    return _repository.createSchool(params.schoolData);
+   304→  }
+   305→}
+   306→
+   307→// ═══════════════════════════════════════════════════════════════════════════════
+   308→// USER MANAGEMENT
+   309→// ═══════════════════════════════════════════════════════════════════════════════
+   310→
+   311→class GetUsersParams {
+   312→  const GetUsersParams({
+   313→    this.role, this.schoolId, this.isActive, this.search,
+   314→    this.limit = 50, this.offset = 0,
+   315→  });
+   316→  final String? role;
+   317→  final String? schoolId;
+   318→  final bool? isActive;
+   319→  final String? search;
+   320→  final int limit;
+   321→  final int offset;
+   322→}
+   323→
+   324→class GetUsersUseCase {
+   325→  GetUsersUseCase(this._repository);
+   326→  final SuperAdminRepository _repository;
+   327→
+   328→  Future<Result<List<UserManagementDetail>>> call(GetUsersParams params) =>
+   329→      _repository.getUsers(
+   330→        role: params.role, schoolId: params.schoolId, isActive: params.isActive,
+   331→        search: params.search, limit: params.limit, offset: params.offset,
+   332→      );
+   333→}
+   334→
+   335→class ManageUserParams {
+   336→  const ManageUserParams({required this.userId, this.reason, this.newRole});
+   337→  final String userId;
+   338→  final String? reason;
+   339→  final String? newRole;
+   340→}
+   341→
+   342→class SuspendUserUseCase {
+   343→  SuspendUserUseCase(this._repository);
+   344→  final SuperAdminRepository _repository;
+   345→
+   346→  Future<Result<void>> call(ManageUserParams params) async {
+   347→    if (params.userId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'User ID is required'));
+   348→    if (params.reason == null || params.reason!.isEmpty) {
+   349→      return const FailureResult(Failure.validation(
+   350→        message: 'Suspension reason is required',
+   351→        fieldErrors: {'reason': 'Please provide a reason'},
+   352→      ));
+   353→    }
+   354→    return _repository.suspendUser(params.userId, params.reason!);
+   355→  }
+   356→}
+   357→
+   358→class ActivateUserUseCase {
+   359→  ActivateUserUseCase(this._repository);
+   360→  final SuperAdminRepository _repository;
+   361→
+   362→  Future<Result<void>> call(ManageUserParams params) async {
+   363→    if (params.userId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'User ID is required'));
+   364→    return _repository.activateUser(params.userId);
+   365→  }
+   366→}
+   367→
+   368→class ResetUserPasswordUseCase {
+   369→  ResetUserPasswordUseCase(this._repository);
+   370→  final SuperAdminRepository _repository;
+   371→
+   372→  Future<Result<void>> call(ManageUserParams params) async {
+   373→    if (params.userId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'User ID is required'));
+   374→    return _repository.resetUserPassword(params.userId);
+   375→  }
+   376→}
+   377→
+   378→class ChangeUserRoleUseCase {
+   379→  ChangeUserRoleUseCase(this._repository);
+   380→  final SuperAdminRepository _repository;
+   381→
+   382→  Future<Result<void>> call(ManageUserParams params) async {
+   383→    if (params.userId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'User ID is required'));
+   384→    if (params.newRole == null || params.newRole!.isEmpty) {
+   385→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'New role is required'));
+   386→    }
+   387→    return _repository.changeUserRole(params.userId, params.newRole!);
+   388→  }
+   389→}
+   390→
+   391→class StartImpersonationParams {
+   392→  const StartImpersonationParams({required this.targetUserId, required this.reason});
+   393→  final String targetUserId;
+   394→  final String reason;
+   395→}
+   396→
+   397→class StartImpersonationUseCase {
+   398→  StartImpersonationUseCase(this._repository);
+   399→  final SuperAdminRepository _repository;
+   400→
+   401→  Future<Result<ImpersonationSession>> call(StartImpersonationParams params) async {
+   402→    if (params.targetUserId.isEmpty) {
+   403→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Target user ID is required'));
+   404→    }
+   405→    if (params.reason.isEmpty) {
+   406→      return const FailureResult(Failure.validation(
+   407→        message: 'Impersonation reason is required for audit compliance',
+   408→        fieldErrors: {'reason': 'Please provide a justification'},
+   409→      ));
+   410→    }
+   411→    return _repository.startImpersonation(params.targetUserId, params.reason);
+   412→  }
+   413→}
+   414→
+   415→class EndImpersonationParams {
+   416→  const EndImpersonationParams({required this.sessionId});
+   417→  final String sessionId;
+   418→}
+   419→
+   420→class EndImpersonationUseCase {
+   421→  EndImpersonationUseCase(this._repository);
+   422→  final SuperAdminRepository _repository;
+   423→
+   424→  Future<Result<void>> call(EndImpersonationParams params) async {
+   425→    if (params.sessionId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Session ID is required'));
+   426→    return _repository.endImpersonation(params.sessionId);
+   427→  }
+   428→}
+   429→
+   430→// ═══════════════════════════════════════════════════════════════════════════════
+   431→// AI MANAGEMENT
+   432→// ═══════════════════════════════════════════════════════════════════════════════
+   433→
+   434→class GetAIProvidersUseCase {
+   435→  GetAIProvidersUseCase(this._repository);
+   436→  final SuperAdminRepository _repository;
+   437→
+   438→  Future<Result<List<AIProvider>>> call({bool? isActive}) =>
+   439→      _repository.getAIProviders(isActive: isActive);
+   440→}
+   441→
+   442→class UpsertAIProviderParams {
+   443→  const UpsertAIProviderParams({required this.provider});
+   444→  final AIProvider provider;
+   445→}
+   446→
+   447→class CreateAIProviderUseCase {
+   448→  CreateAIProviderUseCase(this._repository);
+   449→  final SuperAdminRepository _repository;
+   450→
+   451→  Future<Result<AIProvider>> call(UpsertAIProviderParams params) async {
+   452→    if (params.provider.name.isEmpty || params.provider.slug.isEmpty) {
+   453→      return const FailureResult(Failure.validation(
+   454→        message: 'Provider name and slug are required',
+   455→        fieldErrors: const {},
+   456→      ));
+   457→    }
+   458→    return _repository.createAIProvider(params.provider);
+   459→  }
+   460→}
+   461→
+   462→class UpdateAIProviderUseCase {
+   463→  UpdateAIProviderUseCase(this._repository);
+   464→  final SuperAdminRepository _repository;
+   465→
+   466→  Future<Result<AIProvider>> call(UpsertAIProviderParams params) =>
+   467→      _repository.updateAIProvider(params.provider);
+   468→}
+   469→
+   470→class SetDefaultProviderParams {
+   471→  const SetDefaultProviderParams({required this.providerId});
+   472→  final String providerId;
+   473→}
+   474→
+   475→class SetDefaultProviderUseCase {
+   476→  SetDefaultProviderUseCase(this._repository);
+   477→  final SuperAdminRepository _repository;
+   478→
+   479→  Future<Result<AIProvider>> call(SetDefaultProviderParams params) async {
+   480→    if (params.providerId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Provider ID is required'));
+   481→    return _repository.setDefaultProvider(params.providerId);
+   482→  }
+   483→}
+   484→
+   485→class ToggleProviderParams {
+   486→  const ToggleProviderParams({required this.providerId, required this.isActive});
+   487→  final String providerId;
+   488→  final bool isActive;
+   489→}
+   490→
+   491→class ToggleProviderUseCase {
+   492→  ToggleProviderUseCase(this._repository);
+   493→  final SuperAdminRepository _repository;
+   494→
+   495→  Future<Result<AIProvider>> call(ToggleProviderParams params) async {
+   496→    if (params.providerId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Provider ID is required'));
+   497→    return _repository.toggleProvider(params.providerId, params.isActive);
+   498→  }
+   499→}
+   500→
+   501→class GetAIRequestLogsParams {
+   502→  const GetAIRequestLogsParams({
+   503→    this.providerId, this.userId, this.schoolId, this.isSuccess,
+   504→    this.startDate, this.endDate, this.limit = 50, this.offset = 0,
+   505→  });
+   506→  final String? providerId;
+   507→  final String? userId;
+   508→  final String? schoolId;
+   509→  final bool? isSuccess;
+   510→  final DateTime? startDate;
+   511→  final DateTime? endDate;
+   512→  final int limit;
+   513→  final int offset;
+   514→}
+   515→
+   516→class GetAIRequestLogsUseCase {
+   517→  GetAIRequestLogsUseCase(this._repository);
+   518→  final SuperAdminRepository _repository;
+   519→
+   520→  Future<Result<List<AIRequestLog>>> call(GetAIRequestLogsParams params) =>
+   521→      _repository.getAIRequestLogs(
+   522→        providerId: params.providerId, userId: params.userId, schoolId: params.schoolId,
+   523→        isSuccess: params.isSuccess, startDate: params.startDate, endDate: params.endDate,
+   524→        limit: params.limit, offset: params.offset,
+   525→      );
+   526→}
+   527→
+   528→// ═══════════════════════════════════════════════════════════════════════════════
+   529→// SUPPORT TICKETS
+   530→// ═══════════════════════════════════════════════════════════════════════════════
+   531→
+   532→class GetSupportTicketsParams {
+   533→  const GetSupportTicketsParams({
+   534→    this.status, this.priority, this.category, this.assignedTo,
+   535→    this.schoolId, this.search, this.limit = 50, this.offset = 0,
+   536→  });
+   537→  final TicketStatus? status;
+   538→  final TicketPriority? priority;
+   539→  final TicketCategory? category;
+   540→  final String? assignedTo;
+   541→  final String? schoolId;
+   542→  final String? search;
+   543→  final int limit;
+   544→  final int offset;
+   545→}
+   546→
+   547→class GetSupportTicketsUseCase {
+   548→  GetSupportTicketsUseCase(this._repository);
+   549→  final SuperAdminRepository _repository;
+   550→
+   551→  Future<Result<List<SupportTicket>>> call(GetSupportTicketsParams params) =>
+   552→      _repository.getSupportTickets(
+   553→        status: params.status, priority: params.priority, category: params.category,
+   554→        assignedTo: params.assignedTo, schoolId: params.schoolId, search: params.search,
+   555→        limit: params.limit, offset: params.offset,
+   556→      );
+   557→}
+   558→
+   559→class AssignTicketParams {
+   560→  const AssignTicketParams({required this.ticketId, required this.assignToUserId});
+   561→  final String ticketId;
+   562→  final String assignToUserId;
+   563→}
+   564→
+   565→class AssignTicketUseCase {
+   566→  AssignTicketUseCase(this._repository);
+   567→  final SuperAdminRepository _repository;
+   568→
+   569→  Future<Result<SupportTicket>> call(AssignTicketParams params) async {
+   570→    if (params.ticketId.isEmpty || params.assignToUserId.isEmpty) {
+   571→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Ticket ID and assignee are required'));
+   572→    }
+   573→    return _repository.assignTicket(params.ticketId, params.assignToUserId);
+   574→  }
+   575→}
+   576→
+   577→class ResolveTicketParams {
+   578→  const ResolveTicketParams({required this.ticketId, required this.resolutionNotes});
+   579→  final String ticketId;
+   580→  final String resolutionNotes;
+   581→}
+   582→
+   583→class ResolveTicketUseCase {
+   584→  ResolveTicketUseCase(this._repository);
+   585→  final SuperAdminRepository _repository;
+   586→
+   587→  Future<Result<SupportTicket>> call(ResolveTicketParams params) async {
+   588→    if (params.ticketId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Ticket ID is required'));
+   589→    if (params.resolutionNotes.isEmpty) {
+   590→      return const FailureResult(Failure.validation(
+   591→        message: 'Resolution notes are required',
+   592→        fieldErrors: {'resolutionNotes': 'Please describe how the ticket was resolved'},
+   593→      ));
+   594→    }
+   595→    return _repository.resolveTicket(params.ticketId, params.resolutionNotes);
+   596→  }
+   597→}
+   598→
+   599→class EscalateTicketParams {
+   600→  const EscalateTicketParams({required this.ticketId, required this.escalateToUserId, required this.reason});
+   601→  final String ticketId;
+   602→  final String escalateToUserId;
+   603→  final String reason;
+   604→}
+   605→
+   606→class EscalateTicketUseCase {
+   607→  EscalateTicketUseCase(this._repository);
+   608→  final SuperAdminRepository _repository;
+   609→
+   610→  Future<Result<SupportTicket>> call(EscalateTicketParams params) async {
+   611→    if (params.ticketId.isEmpty || params.escalateToUserId.isEmpty) {
+   612→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Ticket ID and escalation target are required'));
+   613→    }
+   614→    return _repository.escalateTicket(params.ticketId, params.escalateToUserId, params.reason);
+   615→  }
+   616→}
+   617→
+   618→// ═══════════════════════════════════════════════════════════════════════════════
+   619→// MARKETPLACE
+   620→// ═══════════════════════════════════════════════════════════════════════════════
+   621→
+   622→class GetMarketplaceContentParams {
+   623→  const GetMarketplaceContentParams({
+   624→    this.status, this.contentType, this.search, this.limit = 50, this.offset = 0,
+   625→  });
+   626→  final MarketplaceStatus? status;
+   627→  final MarketplaceContentType? contentType;
+   628→  final String? search;
+   629→  final int limit;
+   630→  final int offset;
+   631→}
+   632→
+   633→class GetMarketplaceContentUseCase {
+   634→  GetMarketplaceContentUseCase(this._repository);
+   635→  final SuperAdminRepository _repository;
+   636→
+   637→  Future<Result<List<MarketplaceContent>>> call(GetMarketplaceContentParams params) =>
+   638→      _repository.getMarketplaceContent(
+   639→        status: params.status, contentType: params.contentType, search: params.search,
+   640→        limit: params.limit, offset: params.offset,
+   641→      );
+   642→}
+   643→
+   644→class ModerateContentParams {
+   645→  const ModerateContentParams({required this.contentId, this.reason, this.notes, this.featuredUntil});
+   646→  final String contentId;
+   647→  final String? reason;
+   648→  final String? notes;
+   649→  final DateTime? featuredUntil;
+   650→}
+   651→
+   652→class ApproveContentUseCase {
+   653→  ApproveContentUseCase(this._repository);
+   654→  final SuperAdminRepository _repository;
+   655→
+   656→  Future<Result<MarketplaceContent>> call(ModerateContentParams params) async {
+   657→    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Content ID is required'));
+   658→    return _repository.approveMarketplaceContent(params.contentId, notes: params.notes);
+   659→  }
+   660→}
+   661→
+   662→class RejectContentUseCase {
+   663→  RejectContentUseCase(this._repository);
+   664→  final SuperAdminRepository _repository;
+   665→
+   666→  Future<Result<MarketplaceContent>> call(ModerateContentParams params) async {
+   667→    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Content ID is required'));
+   668→    if (params.reason == null || params.reason!.isEmpty) {
+   669→      return const FailureResult(Failure.validation(
+   670→        message: 'Rejection reason is required',
+   671→        fieldErrors: {'reason': 'Please explain why this content is rejected'},
+   672→      ));
+   673→    }
+   674→    return _repository.rejectMarketplaceContent(params.contentId, params.reason!);
+   675→  }
+   676→}
+   677→
+   678→class FeatureContentUseCase {
+   679→  FeatureContentUseCase(this._repository);
+   680→  final SuperAdminRepository _repository;
+   681→
+   682→  Future<Result<MarketplaceContent>> call(ModerateContentParams params) async {
+   683→    if (params.contentId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Content ID is required'));
+   684→    return _repository.featureMarketplaceContent(params.contentId, params.featuredUntil);
+   685→  }
+   686→}
+   687→
+   688→// ═══════════════════════════════════════════════════════════════════════════════
+   689→// OPERATIONS INTELLIGENCE
+   690→// ═══════════════════════════════════════════════════════════════════════════════
+   691→
+   692→class GetIntelligenceAlertsParams {
+   693→  const GetIntelligenceAlertsParams({
+   694→    this.alertType, this.severity, this.unacknowledgedOnly,
+   695→    this.unresolvedOnly, this.schoolId, this.limit = 50, this.offset = 0,
+   696→  });
+   697→  final IntelligenceAlertType? alertType;
+   698→  final IntelligenceSeverity? severity;
+   699→  final bool? unacknowledgedOnly;
+   700→  final bool? unresolvedOnly;
+   701→  final String? schoolId;
+   702→  final int limit;
+   703→  final int offset;
+   704→}
+   705→
+   706→class GetIntelligenceAlertsUseCase {
+   707→  GetIntelligenceAlertsUseCase(this._repository);
+   708→  final SuperAdminRepository _repository;
+   709→
+   710→  Future<Result<List<IntelligenceAlert>>> call(GetIntelligenceAlertsParams params) =>
+   711→      _repository.getIntelligenceAlerts(
+   712→        alertType: params.alertType, severity: params.severity,
+   713→        unacknowledgedOnly: params.unacknowledgedOnly, unresolvedOnly: params.unresolvedOnly,
+   714→        schoolId: params.schoolId, limit: params.limit, offset: params.offset,
+   715→      );
+   716→}
+   717→
+   718→class AcknowledgeAlertParams {
+   719→  const AcknowledgeAlertParams({required this.alertId});
+   720→  final String alertId;
+   721→}
+   722→
+   723→class AcknowledgeAlertUseCase {
+   724→  AcknowledgeAlertUseCase(this._repository);
+   725→  final SuperAdminRepository _repository;
+   726→
+   727→  Future<Result<IntelligenceAlert>> call(AcknowledgeAlertParams params) async {
+   728→    if (params.alertId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Alert ID is required'));
+   729→    return _repository.acknowledgeAlert(params.alertId);
+   730→  }
+   731→}
+   732→
+   733→class ResolveAlertParams {
+   734→  const ResolveAlertParams({required this.alertId, required this.resolutionNotes});
+   735→  final String alertId;
+   736→  final String resolutionNotes;
+   737→}
+   738→
+   739→class ResolveAlertUseCase {
+   740→  ResolveAlertUseCase(this._repository);
+   741→  final SuperAdminRepository _repository;
+   742→
+   743→  Future<Result<IntelligenceAlert>> call(ResolveAlertParams params) async {
+   744→    if (params.alertId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Alert ID is required'));
+   745→    return _repository.resolveAlert(params.alertId, params.resolutionNotes);
+   746→  }
+   747→}
+   748→
+   749→class GenerateIntelligenceInsightsUseCase {
+   750→  GenerateIntelligenceInsightsUseCase(this._repository);
+   751→  final SuperAdminRepository _repository;
+   752→
+   753→  Future<Result<List<IntelligenceAlert>>> call() =>
+   754→      _repository.generateIntelligenceInsights();
+   755→}
+   756→
+   757→class GetChurnPredictionsParams {
+   758→  const GetChurnPredictionsParams({this.limit = 20});
+   759→  final int limit;
+   760→}
+   761→
+   762→class GetChurnPredictionsUseCase {
+   763→  GetChurnPredictionsUseCase(this._repository);
+   764→  final SuperAdminRepository _repository;
+   765→
+   766→  Future<Result<Map<String, dynamic>>> call(GetChurnPredictionsParams params) =>
+   767→      _repository.getChurnPredictions(limit: params.limit);
+   768→}
+   769→
+   770→class GetRevenueForecastParams {
+   771→  const GetRevenueForecastParams({this.monthsAhead = 6});
+   772→  final int monthsAhead;
+   773→}
+   774→
+   775→class GetRevenueForecastUseCase {
+   776→  GetRevenueForecastUseCase(this._repository);
+   777→  final SuperAdminRepository _repository;
+   778→
+   779→  Future<Result<Map<String, dynamic>>> call(GetRevenueForecastParams params) =>
+   780→      _repository.getRevenueForecast(monthsAhead: params.monthsAhead);
+   781→}
+   782→
+   783→class GetCostOptimizationsUseCase {
+   784→  GetCostOptimizationsUseCase(this._repository);
+   785→  final SuperAdminRepository _repository;
+   786→
+   787→  Future<Result<Map<String, dynamic>>> call() =>
+   788→      _repository.getCostOptimizationSuggestions();
+   789→}
+   790→
+   791→// ═══════════════════════════════════════════════════════════════════════════════
+   792→// SECURITY
+   793→// ═══════════════════════════════════════════════════════════════════════════════
+   794→
+   795→class GetLoginMonitoringParams {
+   796→  const GetLoginMonitoringParams({
+   797→    this.userId, this.failedOnly, this.ipAddress,
+   798→    this.startDate, this.endDate, this.limit = 50, this.offset = 0,
+   799→  });
+   800→  final String? userId;
+   801→  final bool? failedOnly;
+   802→  final String? ipAddress;
+   803→  final DateTime? startDate;
+   804→  final DateTime? endDate;
+   805→  final int limit;
+   806→  final int offset;
+   807→}
+   808→
+   809→class GetLoginMonitoringUseCase {
+   810→  GetLoginMonitoringUseCase(this._repository);
+   811→  final SuperAdminRepository _repository;
+   812→
+   813→  Future<Result<List<LoginMonitoringEntry>>> call(GetLoginMonitoringParams params) =>
+   814→      _repository.getLoginMonitoring(
+   815→        userId: params.userId, failedOnly: params.failedOnly, ipAddress: params.ipAddress,
+   816→        startDate: params.startDate, endDate: params.endDate, limit: params.limit, offset: params.offset,
+   817→      );
+   818→}
+   819→
+   820→class DetectSuspiciousActivityParams {
+   821→  const DetectSuspiciousActivityParams({this.lookbackHours = 24});
+   822→  final int lookbackHours;
+   823→}
+   824→
+   825→class DetectSuspiciousActivityUseCase {
+   826→  DetectSuspiciousActivityUseCase(this._repository);
+   827→  final SuperAdminRepository _repository;
+   828→
+   829→  Future<Result<List<Map<String, dynamic>>>> call(DetectSuspiciousActivityParams params) =>
+   830→      _repository.detectSuspiciousActivity(lookbackHours: params.lookbackHours);
+   831→}
+   832→
+   833→class LockUserAccountParams {
+   834→  const LockUserAccountParams({required this.userId, required this.reason});
+   835→  final String userId;
+   836→  final String reason;
+   837→}
+   838→
+   839→class LockUserAccountUseCase {
+   840→  LockUserAccountUseCase(this._repository);
+   841→  final SuperAdminRepository _repository;
+   842→
+   843→  Future<Result<void>> call(LockUserAccountParams params) async {
+   844→    if (params.userId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'User ID is required'));
+   845→    return _repository.lockUserAccount(params.userId, params.reason);
+   846→  }
+   847→}
+   848→
+   849→class UnlockUserAccountParams {
+   850→  const UnlockUserAccountParams({required this.userId});
+   851→  final String userId;
+   852→}
+   853→
+   854→class UnlockUserAccountUseCase {
+   855→  UnlockUserAccountUseCase(this._repository);
+   856→  final SuperAdminRepository _repository;
+   857→
+   858→  Future<Result<void>> call(UnlockUserAccountParams params) async {
+   859→    if (params.userId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'User ID is required'));
+   860→    return _repository.unlockUserAccount(params.userId);
+   861→  }
+   862→}
+   863→
+   864→// ═══════════════════════════════════════════════════════════════════════════════
+   865→// NOTIFICATIONS
+   866→// ═══════════════════════════════════════════════════════════════════════════════
+   867→
+   868→class GetNotificationsParams {
+   869→  const GetNotificationsParams({
+   870→    this.recipientId, this.category, this.priority, this.unreadOnly,
+   871→    this.limit = 50, this.offset = 0,
+   872→  });
+   873→  final String? recipientId;
+   874→  final NotificationCategory? category;
+   875→  final NotificationPriority? priority;
+   876→  final bool? unreadOnly;
+   877→  final int limit;
+   878→  final int offset;
+   879→}
+   880→
+   881→class GetNotificationsUseCase {
+   882→  GetNotificationsUseCase(this._repository);
+   883→  final SuperAdminRepository _repository;
+   884→
+   885→  Future<Result<List<PlatformNotification>>> call(GetNotificationsParams params) =>
+   886→      _repository.getNotifications(
+   887→        recipientId: params.recipientId, category: params.category,
+   888→        priority: params.priority, unreadOnly: params.unreadOnly,
+   889→        limit: params.limit, offset: params.offset,
+   890→      );
+   891→}
+   892→
+   893→class MarkNotificationReadUseCase {
+   894→  MarkNotificationReadUseCase(this._repository);
+   895→  final SuperAdminRepository _repository;
+   896→
+   897→  Future<Result<PlatformNotification>> call(String notificationId) async {
+   898→    if (notificationId.isEmpty) return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Notification ID is required'));
+   899→    return _repository.markNotificationRead(notificationId);
+   900→  }
+   901→}
+   902→
+   903→class GetUnreadNotificationCountUseCase {
+   904→  GetUnreadNotificationCountUseCase(this._repository);
+   905→  final SuperAdminRepository _repository;
+   906→
+   907→  Future<Result<int>> call({String? recipientId}) =>
+   908→      _repository.getUnreadNotificationCount(recipientId: recipientId);
+   909→}
+   910→
+   911→// ═══════════════════════════════════════════════════════════════════════════════
+   912→// REVENUE & ANALYTICS
+   913→// ═══════════════════════════════════════════════════════════════════════════════
+   914→
+   915→class GetRevenueAnalyticsParams {
+   916→  const GetRevenueAnalyticsParams({this.startDate, this.endDate});
+   917→  final DateTime? startDate;
+   918→  final DateTime? endDate;
+   919→}
+   920→
+   921→class GetRevenueAnalyticsUseCase {
+   922→  GetRevenueAnalyticsUseCase(this._repository);
+   923→  final SuperAdminRepository _repository;
+   924→
+   925→  Future<Result<RevenueAnalytics>> call(GetRevenueAnalyticsParams params) =>
+   926→      _repository.getRevenueAnalytics(startDate: params.startDate, endDate: params.endDate);
+   927→}
+   928→
+   929→class GetPlatformAnalyticsParams {
+   930→  const GetPlatformAnalyticsParams({this.startDate, this.endDate, this.months = 12});
+   931→  final DateTime? startDate;
+   932→  final DateTime? endDate;
+   933→  final int months;
+   934→}
+   935→
+   936→class GetSchoolGrowthUseCase {
+   937→  GetSchoolGrowthUseCase(this._repository);
+   938→  final SuperAdminRepository _repository;
+   939→
+   940→  Future<Result<Map<String, dynamic>>> call(GetPlatformAnalyticsParams params) =>
+   941→      _repository.getSchoolGrowthMetrics(startDate: params.startDate, endDate: params.endDate);
+   942→}
+   943→
+   944→class GetUserGrowthUseCase {
+   945→  GetUserGrowthUseCase(this._repository);
+   946→  final SuperAdminRepository _repository;
+   947→
+   948→  Future<Result<Map<String, dynamic>>> call(GetPlatformAnalyticsParams params) =>
+   949→      _repository.getUserGrowthMetrics(startDate: params.startDate, endDate: params.endDate);
+   950→}
+   951→
+   952→class GetFeatureUsageUseCase {
+   953→  GetFeatureUsageUseCase(this._repository);
+   954→  final SuperAdminRepository _repository;
+   955→
+   956→  Future<Result<Map<String, dynamic>>> call(GetPlatformAnalyticsParams params) =>
+   957→      _repository.getFeatureUsageMetrics(startDate: params.startDate, endDate: params.endDate);
+   958→}
+   959→
+   960→class GetRetentionMetricsUseCase {
+   961→  GetRetentionMetricsUseCase(this._repository);
+   962→  final SuperAdminRepository _repository;
+   963→
+   964→  Future<Result<Map<String, dynamic>>> call({int months = 12}) =>
+   965→      _repository.getRetentionMetrics(months: months);
+   966→}
+   967→
+   968→// ═══════════════════════════════════════════════════════════════════════════════
+   969→// INFRASTRUCTURE
+   970→// ═══════════════════════════════════════════════════════════════════════════════
+   971→
+   972→class GetInfrastructureServicesUseCase {
+   973→  GetInfrastructureServicesUseCase(this._repository);
+   974→  final SuperAdminRepository _repository;
+   975→
+   976→  Future<Result<List<InfrastructureService>>> call({HealthStatus? status}) =>
+   977→      _repository.getInfrastructureServices(status: status);
+   978→}
+   979→
+   980→class RunHealthCheckParams {
+   981→  const RunHealthCheckParams({this.serviceId});
+   982→  final String? serviceId;
+   983→}
+   984→
+   985→class RunHealthCheckUseCase {
+   986→  RunHealthCheckUseCase(this._repository);
+   987→  final SuperAdminRepository _repository;
+   988→
+   989→  Future<Result<void>> call(RunHealthCheckParams params) {
+   990→    if (params.serviceId != null) {
+   991→      return _repository.runHealthCheck(params.serviceId!);
+   992→    }
+   993→    return _repository.runAllHealthChecks();
+   994→  }
+   995→}
+   996→
+   997→// ═══════════════════════════════════════════════════════════════════════════════
+   998→// MAINTENANCE WINDOWS
+   999→// ═══════════════════════════════════════════════════════════════════════════════
+  1000→
+  1001→class CreateMaintenanceWindowParams {
+  1002→  const CreateMaintenanceWindowParams({required this.window});
+  1003→  final MaintenanceWindow window;
+  1004→}
+  1005→
+  1006→class CreateMaintenanceWindowUseCase {
+  1007→  CreateMaintenanceWindowUseCase(this._repository);
+  1008→  final SuperAdminRepository _repository;
+  1009→
+  1010→  Future<Result<MaintenanceWindow>> call(CreateMaintenanceWindowParams params) async {
+  1011→    if (params.window.title.isEmpty) {
+  1012→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'Title is required'));
+  1013→    }
+  1014→    if (params.window.endAt.isBefore(params.window.startAt)) {
+  1015→      return const FailureResult(Failure.validation(fieldErrors: const {}, message: 'End time must be after start time'));
+  1016→    }
+  1017→    return _repository.createMaintenanceWindow(params.window);
+  1018→  }
+  1019→}
+  1020→
+  1021→class GetMaintenanceWindowsParams {
+  1022→  const GetMaintenanceWindowsParams({this.status});
+  1023→  final MaintenanceStatus? status;
+  1024→}
+  1025→
+  1026→class GetMaintenanceWindowsUseCase {
+  1027→  GetMaintenanceWindowsUseCase(this._repository);
+  1028→  final SuperAdminRepository _repository;
+  1029→
+  1030→  Future<Result<List<MaintenanceWindow>>> call(GetMaintenanceWindowsParams params) =>
+  1031→      _repository.getMaintenanceWindows(status: params.status);
+  1032→}
+  1033→
+  1034→class CancelMaintenanceWindowParams {
+  1035→  const CancelMaintenanceWindowParams({required this.windowId});
+  1036→  final String windowId;
+  1037→}
+  1038→
+  1039→class CancelMaintenanceWindowUseCase {
+  1040→  CancelMaintenanceWindowUseCase(this._repository);
+  1041→  final SuperAdminRepository _repository;
+  1042→
+  1043→  Future<Result<void>> call(CancelMaintenanceWindowParams params) =>
+  1044→      _repository.cancelMaintenanceWindow(params.windowId);
+  1045→}
+  1046→
+  1047→// ═══════════════════════════════════════════════════════════════════════════════
+  1048→// REPORTS
+  1049→// ═══════════════════════════════════════════════════════════════════════════════
+  1050→
+  1051→class GenerateReportParams {
+  1052→  const GenerateReportParams({required this.type, required this.parameters, this.format = 'pdf'});
+  1053→  final ReportType type;
+  1054→  final Map<String, dynamic> parameters;
+  1055→  final String format;
+  1056→}
+  1057→
+  1058→class GenerateReportUseCase {
+  1059→  GenerateReportUseCase(this._repository);
+  1060→  final SuperAdminRepository _repository;
+  1061→
+  1062→  Future<Result<SystemReport>> call(GenerateReportParams params) =>
+  1063→      _repository.generateReport(params.type, params.parameters, format: params.format);
+  1064→}
+  1065→

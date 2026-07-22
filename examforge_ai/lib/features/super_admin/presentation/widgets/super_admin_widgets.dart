@@ -432,7 +432,7 @@ class AdminEmptyState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Padding(
-        padding: Spacings.paddingXl,
+        padding: const EdgeInsets.all(Spacings.xl),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [

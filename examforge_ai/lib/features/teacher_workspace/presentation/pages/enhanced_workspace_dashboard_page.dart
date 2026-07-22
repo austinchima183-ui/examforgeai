@@ -1340,7 +1340,7 @@ class _QuickStatCard extends StatelessWidget {
                   color: cs.onSurface,
                 ),
               ),
-              const SizedBox(height: Spacings.xxs),
+              SizedBox(height: Spacings.xs),
               Text(
                 stat.title,
                 style: tt.labelSmall?.copyWith(

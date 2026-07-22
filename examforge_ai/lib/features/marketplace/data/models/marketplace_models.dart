@@ -925,7 +925,7 @@ class MarketplaceProductModel {
           deletedAt == other.deletedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id,
         sellerId,
         categoryId,
@@ -937,16 +937,16 @@ class MarketplaceProductModel {
         classLevel,
         curriculum,
         language,
-        Object.hashAll(previewImages),
-        Object.hashAll(previewDocuments),
-        Object.hashAll(fullDocumentUrls),
+        previewImages,
+        previewDocuments,
+        fullDocumentUrls,
         price,
         originalPrice,
         currency,
         licenseType,
-        licenseConfig.hashCode,
+        licenseConfig,
         version,
-        Object.hashAll(tags),
+        tags,
         aiGeneratedSummary,
         isAiGenerated,
         isFeatured,
@@ -954,7 +954,7 @@ class MarketplaceProductModel {
         status,
         qualityScore,
         qualityCheckStatus,
-        qualityCheckDetails.hashCode,
+        qualityCheckDetails,
         totalSales,
         totalRevenue,
         averageRating,
@@ -965,7 +965,7 @@ class MarketplaceProductModel {
         createdAt,
         updatedAt,
         deletedAt,
-      );
+      ]);
 }
 
 // ============================================================================

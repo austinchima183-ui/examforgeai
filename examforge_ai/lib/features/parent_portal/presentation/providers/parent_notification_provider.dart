@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/parent_portal_entities.dart';
@@ -231,6 +232,6 @@ final parentNotificationProvider =
     getParentNotificationsUseCase:
         ref.watch(getParentNotificationsUseCaseProvider),
     markNotificationReadUseCase:
-        ref.watch(markNotificationReadUseCaseProvider),
+        ref.watch(parentMarkNotificationReadUseCaseProvider),
   );
 });

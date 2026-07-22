@@ -885,7 +885,7 @@ class StudyPlanModel {
         'end_date': endDate?.toIso8601String().split('T').first,
       };
 
-  StudyPlanEntity toEntity({List<StudyTaskEntity> tasks = []}) =>
+  StudyPlanEntity toEntity({List<StudyTaskEntity> tasks = const []}) =>
       StudyPlanEntity(
         id: id,
         studentId: studentId,

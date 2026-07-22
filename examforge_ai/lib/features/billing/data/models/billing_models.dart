@@ -418,15 +418,15 @@ class SubscriptionPlanModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id, name, tier, billingModel, description, monthlyPrice, annualPrice,
         currency, setupFee, maxStudents, maxTeachers, maxSchools, maxStorageMb,
         maxExamsPerMonth, aiCreditsMonthly, includesAiWorkspace,
         includesParentPortal, includesCommunication, includesAdvancedAnalytics,
         includesApiAccess, includesWhiteLabel, includesPrioritySupport,
         includesDedicatedManager, trialDays, isActive, isPopular, sortOrder,
-        Object.hashAll(featuresList), metadata.hashCode, createdAt, updatedAt,
-      );
+        ...featuresList, metadata, createdAt, updatedAt,
+      ]);
 }
 
 /// Data-layer representation of a subscription.
@@ -718,14 +718,14 @@ class SubscriptionModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id, subscriberId, subscriberType, schoolId, planId, plan, status,
         billingCycle, currentPeriodStart, currentPeriodEnd, trialStart,
         trialEnd, flutterwaveSubscriptionId, flutterwavePlanCode, couponId,
         couponDiscountApplied, priceAtSubscription, currency, seatsPurchased,
         seatsUsed, autoRenew, cancelledAt, cancellationReason,
-        metadata.hashCode, createdAt, updatedAt,
-      );
+        metadata, createdAt, updatedAt,
+      ]);
 }
 
 /// Data-layer representation of a transaction.
@@ -1042,15 +1042,15 @@ class TransactionModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id, subscriptionId, userId, schoolId, flutterwaveTxRef,
         flutterwaveTransactionId, flutterwaveFlwRef, amount, currency,
         channel, status, flutterwaveFee, appFee, netAmount,
-        paymentMethodSummary, processorResponse.hashCode, refundAmount,
+        paymentMethodSummary, processorResponse, refundAmount,
         refundReason, refundedAt, riskScore, fraudFlagged, fraudNotes,
-        description, metadata.hashCode, initiatedAt, completedAt,
+        description, metadata, initiatedAt, completedAt,
         verifiedAt, createdAt, updatedAt,
-      );
+      ]);
 }
 
 /// Data-layer representation of an invoice.
@@ -1352,13 +1352,13 @@ class InvoiceModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id, subscriptionId, transactionId, schoolId, userId, invoiceNumber,
         invoiceType, billToName, billToEmail, billToAddress, billToTaxId,
-        Object.hashAll(lineItems), subtotal, taxAmount, discountAmount,
+        ...lineItems, subtotal, taxAmount, discountAmount,
         totalAmount, currency, creditNoteFor, issueDate, dueDate, paidAt,
-        pdfUrl, emailSent, emailSentAt, metadata.hashCode, createdAt, updatedAt,
-      );
+        pdfUrl, emailSent, emailSentAt, metadata, createdAt, updatedAt,
+      ]);
 }
 
 /// Data-layer representation of a receipt.
@@ -2161,14 +2161,14 @@ class CouponModel {
           updatedAt == other.updatedAt;
 
   @override
-  int get hashCode => Object.hash(
+  int get hashCode => Object.hashAll([
         id, code, name, description, discountType, discountValue,
         discountPercent, maxDiscountAmount,
-        Object.hashAll(applicableTiers), Object.hashAll(applicableBillingModels),
-        Object.hashAll(applicablePlans), maxRedemptions, currentRedemptions,
+        ...applicableTiers, ...applicableBillingModels,
+        ...applicablePlans, maxRedemptions, currentRedemptions,
         maxRedemptionsPerUser, durationMonths, validFrom, validUntil,
-        trialDays, isActive, createdBy, metadata.hashCode, createdAt, updatedAt,
-      );
+        trialDays, isActive, createdBy, metadata, createdAt, updatedAt,
+      ]);
 }
 
 /// Data-layer representation of a referral code.

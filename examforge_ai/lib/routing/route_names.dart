@@ -1203,7 +1203,6 @@ class RouteNames {
     conversationList,
     chat,
     createConversation,
-    announcementList,
     announcementDetail,
     createAnnouncement,
     notificationCenter,

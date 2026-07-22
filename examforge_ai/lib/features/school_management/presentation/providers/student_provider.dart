@@ -461,8 +461,8 @@ class StudentDetailNotifier extends StateNotifier<StudentDetailState> {
         final historyResult =
             await _repository.getPromotionHistory(student.userId);
 
-        final links = linksResult.getOrElse(() => []);
-        final history = historyResult.getOrElse(() => []);
+        final links = linksResult.getOrElse(<ParentStudentLinkEntity>[]);
+        final history = historyResult.getOrElse(<PromotionHistoryEntity>[]);
 
         state = state.copyWith(
           isLoading: false,

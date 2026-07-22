@@ -26,10 +26,10 @@ class GetEnhancedDashboardUseCase {
 
   /// Retrieves the enhanced dashboard for the current teacher.
   ///
-  /// Returns a [Result] containing the [EnhancedDashboardEntity]
+  /// Returns a [Result] containing the [EnhancedWorkspaceDashboardEntity]
   /// on success, or a [FailureResult] if the repository encounters
   /// an error.
-  Future<Result<EnhancedDashboardEntity>> call(
+  Future<Result<EnhancedWorkspaceDashboardEntity>> call(
     GetEnhancedDashboardParams params,
   ) {
     return _repository.getEnhancedDashboard();

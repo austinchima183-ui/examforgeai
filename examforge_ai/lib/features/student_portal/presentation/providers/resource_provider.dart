@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/student_portal_entities.dart';
@@ -98,7 +99,7 @@ class ResourceState {
           ? null
           : (filterSubjectId ?? this.filterSubjectId),
       searchQuery: clearSearchQuery ? null : (searchQuery ?? this.searchQuery),
-      currentPage: currentPage ?? currentPage,
+      currentPage: currentPage ?? this.currentPage,
     );
   }
 
@@ -338,11 +339,6 @@ class ResourceNotifier extends StateNotifier<ResourceState> {
 // ═══════════════════════════════════════════════════════════════════════
 // RESOURCE PROVIDER
 // ═══════════════════════════════════════════════════════════════════════
-
-/// Provides the current student's school ID from auth state.
-final studentSchoolIdProvider = Provider<String?>((ref) {
-  return ref.watch(userSchoolIdProvider);
-});
 
 /// Provides the [ResourceNotifier] with all required use cases.
 final resourceProvider =

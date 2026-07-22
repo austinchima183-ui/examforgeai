@@ -1,6 +1,7 @@
 import 'package:equatable/equatable.dart';
 
 import '../../../question_bank/domain/entities/question_entities.dart';
+import 'cbt_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // ENUMS

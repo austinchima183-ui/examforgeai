@@ -36,7 +36,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
   String? _selectedSubjectId;
   String? _selectedLevelId;
   String? _selectedTopicId;
-  SourceType _sourceType = SourceType.original;
+  String _sourceType = 'original';
   bool _isPastQuestion = false;
   final _pastYearCtrl = TextEditingController();
   String? _selectedExamBody;
@@ -213,7 +213,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                 const DropdownMenuItem(
                     value: null, child: Text('Select')),
                 ...topicState.topics.map((t) => DropdownMenuItem(
-                    value: t.id, child: Text(t.name))),
+                    value: t.id, child: Text(t.title))),
               ],
               onChanged: (v) => setState(() => _selectedTopicId = v),
             ),
@@ -255,13 +255,13 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             ),
             const SizedBox(height: Spacings.md),
             Text("Bloom's Taxonomy Multi-Select",
-                style: AppTypography.labelMedium.copyWith(
+                style: AppTypography.labelMedium!.copyWith(
                     color: cs.primary,
                     fontWeight: AppTypography.wSemiBold)),
             const SizedBox(height: Spacings.sm),
             BloomTaxonomySelector(
               selectedLevels: _selectedBloomLevels,
-              onChanged: (levels) =>
+              onSelectionChanged: (levels) =>
                   setState(() => _selectedBloomLevels = levels),
             ),
             Spacings.sectionGap,
@@ -545,14 +545,14 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             Spacings.sectionGap,
 
             // ── Source Type ───────────────────────────────────────
-            DropdownButtonFormField<SourceType>(
+            DropdownButtonFormField<String>(
               value: _sourceType,
               decoration: const InputDecoration(
                   labelText: 'Source Type',
                   border: OutlineInputBorder()),
-              items: SourceType.values
+              items: ['original', 'adapted', 'imported', 'ai_generated']
                   .map((s) =>
-                      DropdownMenuItem(value: s, child: Text(s.label)))
+                      DropdownMenuItem(value: s, child: Text(s)))
                   .toList(),
               onChanged: (v) => setState(() => _sourceType = v!),
             ),
@@ -615,7 +615,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                   Expanded(
                     child: Text(
                       'I declare that this content is original or I have the right to use it.',
-                      style: AppTypography.bodySmall
+                      style: AppTypography.bodySmall!
                           .copyWith(color: cs.onSurfaceVariant),
                     ),
                   ),
@@ -672,21 +672,21 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
       body: _bodyCtrl.text,
       difficultyLevel: _difficulty,
       bloomLevel: _bloomLevel,
-      explanation: _explanationCtrl.text.isEmpty ? null : _explanationCtrl.text,
+      stepByStepExplanation: _explanationCtrl.text.isEmpty ? null : _explanationCtrl.text,
       markingScheme:
-          _markingSchemeCtrl.text.isEmpty ? null : _markingSchemeCtrl.text,
+          _markingSchemeCtrl.text.isEmpty ? null : {'text': _markingSchemeCtrl.text},
       teacherNotes:
           _teacherNotesCtrl.text.isEmpty ? null : _teacherNotesCtrl.text,
-      markAllocation: double.tryParse(_markAllocationCtrl.text),
-      timeAllocationMinutes: int.tryParse(_timeAllocationCtrl.text),
+      marksAllocated: double.tryParse(_markAllocationCtrl.text)?.toInt(),
+      timeAllocatedSeconds: int.tryParse(_timeAllocationCtrl.text) != null ? int.tryParse(_timeAllocationCtrl.text)! * 60 : null,
       sourceType: _sourceType,
       isPastQuestion: _isPastQuestion,
       isAiGenerated: _isAiGenerated,
       status: status,
-      qualityScore: 0,
+      version: 1,
       usageCount: 0,
       tags: _tags.isEmpty ? null : _tags,
-      learningObjectives:
+      learningObjectiveIds:
           _learningObjectives.isEmpty ? null : _learningObjectives,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),

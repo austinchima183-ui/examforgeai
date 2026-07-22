@@ -21,6 +21,15 @@ class GenerateRubricParams extends Equatable {
 
   @override
   List<Object?> get props => [subjectId, topic, criteriaCount, totalPoints];
+
+  /// Converts these params into a [Map<String, dynamic>] suitable for
+  /// passing to [TeacherWorkspaceRepository.generateRubric].
+  Map<String, dynamic> toMap() => {
+    'subjectId': subjectId,
+    'topic': topic,
+    'criteriaCount': criteriaCount,
+    'totalPoints': totalPoints,
+  };
 }
 
 /// Use case for generating a rubric using AI.
@@ -43,6 +52,6 @@ class GenerateRubricUseCase {
         fieldErrors: {'topic': 'Topic cannot be empty'},
       ));
     }
-    return _repository.generateRubric(params);
+    return _repository.generateRubric(params.toMap());
   }
 }

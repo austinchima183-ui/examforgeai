@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
@@ -141,7 +142,7 @@ class AnswerInputWidget extends StatelessWidget {
                     const SizedBox(width: Spacings.md),
                     Expanded(
                       child: Text(
-                        option.text,
+                        option.content,
                         style: tt.bodyLarge?.copyWith(
                           color: cs.onSurface,
                         ),
@@ -216,7 +217,7 @@ class AnswerInputWidget extends StatelessWidget {
                     const SizedBox(width: Spacings.md),
                     Expanded(
                       child: Text(
-                        option.text,
+                        option.content,
                         style: tt.bodyLarge?.copyWith(color: cs.onSurface),
                       ),
                     ),
@@ -613,7 +614,7 @@ class AnswerInputWidget extends StatelessWidget {
       decoration: const InputDecoration(
         labelText: 'Numerical Answer',
         hintText: 'Enter a number',
-        prefixIcon: Icons.calculate_rounded,
+        prefixIcon: const Icon(Icons.calculate_rounded),
       ),
       onChanged: (value) {
         final numValue = double.tryParse(value);

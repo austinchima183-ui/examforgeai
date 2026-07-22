@@ -222,7 +222,7 @@ class ExamBodyCard extends StatelessWidget {
       case ExamBodyType.jambUme:
         return Icons.computer_rounded;
       case ExamBodyType.postUtme:
-        return Icons.university_rounded;
+        return Icons.school_rounded;
       case ExamBodyType.bece:
       case ExamBodyType.commonEntrance:
         return Icons.menu_book_rounded;

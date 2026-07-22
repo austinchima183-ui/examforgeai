@@ -371,7 +371,7 @@ class _StudentFormPageState extends ConsumerState<StudentFormPage> {
               Row(
                 children: [
                   Expanded(
-                    child: AppDropdownField<String>(
+                    child: AppDropdownField<ClassEntity>(
                       label: 'Class',
                       items: classState.classes,
                       selectedItem: _selectedClassId != null
@@ -381,11 +381,11 @@ class _StudentFormPageState extends ConsumerState<StudentFormPage> {
                           : null,
                       onChanged: (v) => setState(() => _selectedClassId = v?.id),
                       isRequired: true,
-                      itemLabel: (c) => c.name,
-                      itemBuilder: (c) => DropdownMenuItem<String>(
-                        value: c.id,
+                      itemLabel: (c) => c.name ?? '',
+                      itemBuilder: (c) => DropdownMenuItem<ClassEntity>(
+                        value: c,
                         child: Text(
-                          c.name,
+                          c.name ?? '',
                           style: tt.bodyLarge?.copyWith(color: cs.onSurface),
                         ),
                       ),

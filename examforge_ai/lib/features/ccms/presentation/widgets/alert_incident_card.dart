@@ -62,7 +62,7 @@ class AlertIncidentCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      incident.message,
+                      'Threshold exceeded: ${incident.currentValue} > ${incident.thresholdValue}',
                       style: tt.titleSmall?.copyWith(fontWeight: AppTypography.wSemiBold, color: cs.onSurface),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
@@ -78,12 +78,12 @@ class AlertIncidentCard extends StatelessWidget {
                           ),
                           child: Text(
                             incident.severity.label.toUpperCase(),
-                            style: AppTypography.labelSmall.copyWith(color: color, fontWeight: AppTypography.wBold),
+                            style: AppTypography.labelSmall!.copyWith(color: color, fontWeight: AppTypography.wBold),
                           ),
                         ),
                         const SizedBox(width: Spacings.sm),
                         Text(
-                          _formatDate(incident.triggeredAt),
+                          _formatDate(incident.createdAt),
                           style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),
                         ),
                       ],
