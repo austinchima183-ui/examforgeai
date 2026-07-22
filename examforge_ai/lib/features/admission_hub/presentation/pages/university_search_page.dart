@@ -227,7 +227,7 @@ class _UniversitySearchPageState extends ConsumerState<UniversitySearchPage> {
                         ? const AppEmptyState(
                             icon: Icons.school_outlined,
                             title: 'No Universities Found',
-                            message:
+                            subtitle:
                                 'Try adjusting your search or filters.',
                           )
                         : ListView.builder(

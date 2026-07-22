@@ -12,14 +12,15 @@
 
 library;
 
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
 
 import '../utils/logger.dart';
+
+// Conditional import for platform-specific database driver
+// On web, use drift/web.dart with WebDatabase; on native, use drift/native.dart
+import 'local_database_connection_stub.dart'
+    if (dart.library.io) 'local_database_connection_io.dart'
+    if (dart.library.html) 'local_database_connection_web.dart';
 
 part 'local_database.g.dart';
 
@@ -530,8 +531,8 @@ class LocalSyncMetadataTable extends Table {
   ],
 )
 class AppDatabase extends _$AppDatabase {
-  /// Creates the [AppDatabase] with a lazy native connection.
-  AppDatabase() : super(_openConnection());
+  /// Creates the [AppDatabase] with a platform-appropriate connection.
+  AppDatabase() : super(createDatabaseExecutor());
 
   /// Creates the [AppDatabase] with an existing [QueryExecutor].
   ///
@@ -677,15 +678,7 @@ class AppDatabase extends _$AppDatabase {
 // CONNECTION HELPER
 // ═══════════════════════════════════════════════════════════════════════════════
 
-/// Opens a lazy connection to the SQLite database file.
-///
-/// The database file is stored in the application documents directory
-/// as `examforge_ai.db`.
-LazyDatabase _openConnection() {
-  return LazyDatabase(() async {
-    final dbFolder = await getApplicationDocumentsDirectory();
-    final file = File(p.join(dbFolder.path, 'examforge_ai.db'));
-    AppLogger.info('AppDatabase: file at ${file.path}');
-    return NativeDatabase.createInBackground(file);
-  });
-}
+/// Creates the appropriate database query executor for the current platform.
+/// On native platforms (iOS/Android/macOS/Windows/Linux), uses SQLite via dart:ffi.
+/// On web, uses a WebDatabase backed by IndexedDB or OPFS.
+QueryExecutor createDatabaseExecutor() => getQueryExecutor();

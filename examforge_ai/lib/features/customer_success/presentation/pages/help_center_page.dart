@@ -6,14 +6,14 @@ import '../providers/customer_success_provider.dart';
 /// Knowledge base / Help Center page.
 ///
 /// Shows searchable help articles organized by category.
-class HelpCenterPage extends StatefulWidget {
+class HelpCenterPage extends ConsumerStatefulWidget {
   const HelpCenterPage({super.key});
 
   @override
-  State<HelpCenterPage> createState() => _HelpCenterPageState();
+  ConsumerState<HelpCenterPage> createState() => _HelpCenterPageState();
 }
 
-class _HelpCenterPageState extends State<HelpCenterPage> {
+class _HelpCenterPageState extends ConsumerState<HelpCenterPage> {
   final _searchController = TextEditingController();
   String? _selectedCategory;
   bool _isSearching = false;
@@ -24,7 +24,7 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<CustomerSuccessProvider>().loadHelpArticles();
+      ref.read(customerSuccessProvider).loadHelpArticles();
     });
   }
 
@@ -42,8 +42,8 @@ class _HelpCenterPageState extends State<HelpCenterPage> {
         title: const Text('Help Center'),
         centerTitle: true,
       ),
-      body: Consumer<CustomerSuccessProvider>(
-        builder: (context, provider, child) {
+      body: Consumer(builder: (context, ref, child) {
+        final provider = ref.watch(customerSuccessProvider);
           return Column(
             children: [
               Padding(

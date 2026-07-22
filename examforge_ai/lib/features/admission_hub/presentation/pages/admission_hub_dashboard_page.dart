@@ -235,7 +235,7 @@ class _AdmissionHubDashboardPageState
                 child: AppEmptyState(
                   icon: Icons.school_outlined,
                   title: 'No Universities Found',
-                  message:
+                  subtitle:
                       'Try adjusting your search or filter criteria.',
                 ),
               )

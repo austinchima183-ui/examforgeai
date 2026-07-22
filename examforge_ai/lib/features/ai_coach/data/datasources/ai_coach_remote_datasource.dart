@@ -150,18 +150,19 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
     int pageSize = 20,
   }) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_coachSessionsTable)
           .select()
-          .eq('user_id', userId)
-          .order('updated_at', ascending: false);
+          .eq('user_id', userId);
 
       if (sessionType != null) {
-        query = query.eq('session_type', sessionType);
+        filterQuery = filterQuery.eq('session_type', sessionType);
       }
 
       final offset = (page - 1) * pageSize;
-      final response = await query.range(offset, offset + pageSize - 1);
+      var transformQuery = filterQuery.order('updated_at', ascending: false).range(offset, offset + pageSize - 1);
+
+      final response = await transformQuery;
 
       return response
           .map<AiCoachSessionModel>(
@@ -225,18 +226,18 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
     int limit = PaginatedQueryMixin.defaultPageSize,
   }) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_coachRecommendationsTable)
           .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .eq('user_id', userId);
 
       if (activeOnly == true) {
-        query = query.eq('is_dismissed', false);
+        filterQuery = filterQuery.eq('is_dismissed', false);
       }
 
       // PERF: Added limit to prevent unbounded query on ai_coach_recommendations
-      final response = await query.limit(limit);
+      var transformQuery = filterQuery.order('created_at', ascending: false).limit(limit);
+      final response = await transformQuery;
 
       return response
           .map<AiCoachRecommendationModel>((json) =>

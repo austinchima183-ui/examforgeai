@@ -5,20 +5,20 @@ import '../providers/marketing_provider.dart';
 import '../widgets/blog_post_card.dart';
 
 /// Blog management page for creating, editing, and managing blog posts.
-class BlogManagementPage extends StatefulWidget {
+class BlogManagementPage extends ConsumerStatefulWidget {
   const BlogManagementPage({super.key});
   @override
-  State<BlogManagementPage> createState() => _BlogManagementPageState();
+  ConsumerState<BlogManagementPage> createState() => _BlogManagementPageState();
 }
 
-class _BlogManagementPageState extends State<BlogManagementPage> {
+class _BlogManagementPageState extends ConsumerState<BlogManagementPage> {
   String? _filterStatus;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MarketingProvider>().loadBlogPosts(status: _filterStatus);
+      ref.read(marketingProvider).loadBlogPosts(status: _filterStatus);
     });
   }
 
@@ -32,8 +32,8 @@ class _BlogManagementPageState extends State<BlogManagementPage> {
         icon: const Icon(Icons.add),
         label: const Text('New Post'),
       ),
-      body: Consumer<MarketingProvider>(
-        builder: (context, provider, _) {
+      body: Consumer(builder: (context, ref, _) {
+          final provider = ref.watch(marketingProvider);
           return Column(
             children: [
               Padding(

@@ -44,7 +44,6 @@ class StudentNotificationState {
   final int currentPage;
 
   /// Current page number for notification pagination.
-  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading;

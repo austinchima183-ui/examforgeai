@@ -185,18 +185,18 @@ class ApiClient {
       case DioExceptionType.sendTimeout:
       case DioExceptionType.receiveTimeout:
       case DioExceptionType.transformTimeout:
-        return const NetworkException('Connection timed out. Please try again.');
+        return const NetworkException(message: 'Connection timed out. Please try again.');
 
       case DioExceptionType.connectionError:
         return const NetworkException(
-          'No internet connection. Please check your network.',
+          message: 'No internet connection. Please check your network.',
         );
 
       case DioExceptionType.badResponse:
         return _mapStatusCode(e);
 
       case DioExceptionType.cancel:
-        return const NetworkException('Request was cancelled.');
+        return const NetworkException(message: 'Request was cancelled.');
 
       case DioExceptionType.badCertificate:
         return const ServerException(
@@ -205,7 +205,7 @@ class ApiClient {
         );
 
       case DioExceptionType.unknown:
-        return NetworkException(e.message ?? 'An unknown error occurred.');
+        return NetworkException(message: e.message ?? 'An unknown error occurred.');
     }
   }
 
@@ -227,13 +227,13 @@ class ApiClient {
         return ServerException(message: message, statusCode: statusCode, data: data);
 
       case 401:
-        return UnauthorizedException(message);
+        return UnauthorizedException(message: message);
 
       case 403:
-        return ForbiddenException(message);
+        return ForbiddenException(message: message);
 
       case 404:
-        return NotFoundException(message);
+        return NotFoundException(message: message);
 
       case 422:
         return ValidationException(

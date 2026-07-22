@@ -183,7 +183,7 @@ class TeacherWorkspaceRemoteDataSourceImpl
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(e.message);
+        throw NotFoundException(message: e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -195,7 +195,7 @@ class TeacherWorkspaceRemoteDataSourceImpl
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException('You do not have permission for this action.');
+        throw ForbiddenException(message: 'You do not have permission for this action.');
       default:
         throw ServerException(
           message: e.message,

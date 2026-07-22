@@ -83,7 +83,7 @@ class SchoolModulesPage extends StatelessWidget {
             Switch(
               value: sub.isEnabled,
               onChanged: (value) {
-                context.read<EduOsProvider>().toggleModuleEnabled(sub.id, value);
+                ref.read(eduOsProvider).toggleModuleEnabled(sub.id, value);
               },
             ),
           ],

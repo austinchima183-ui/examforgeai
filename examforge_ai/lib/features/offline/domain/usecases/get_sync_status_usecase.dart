@@ -25,7 +25,7 @@ class GetSyncStatusUseCase {
   Future<Result<SyncStatusInfo>> call(GetSyncStatusParams params) async {
     if (params.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
       );
     }
 

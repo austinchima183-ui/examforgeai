@@ -92,7 +92,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
       lastDate: DateTime.now().add(const Duration(days: 365)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Spacings.lgRadius),
             ),
@@ -112,7 +112,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
       initialTime: _deadlineTime ?? TimeOfDay.now(),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Spacings.lgRadius),
             ),

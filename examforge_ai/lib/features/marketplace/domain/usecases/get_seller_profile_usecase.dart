@@ -22,6 +22,6 @@ class GetSellerProfileUseCase {
     if (params.userId != null) {
       return _repository.getSellerProfileByUserId(params.userId!);
     }
-    return FailureResult(ServerFailure('Either sellerId or userId must be provided'));
+    return FailureResult(ServerFailure(message: 'Either sellerId or userId must be provided', statusCode: 400));
   }
 }

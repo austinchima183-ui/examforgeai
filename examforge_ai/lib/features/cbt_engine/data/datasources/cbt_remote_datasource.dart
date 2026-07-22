@@ -197,7 +197,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update exam failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Exam not found: $examId');
+        throw NotFoundException(message: 'Exam not found: $examId');
       }
       throw ServerException(
         message: e.message,
@@ -249,7 +249,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get exam failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Exam not found: $examId');
+        throw NotFoundException(message: 'Exam not found: $examId');
       }
       throw ServerException(
         message: e.message,
@@ -288,7 +288,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get exam with details failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Exam not found: $examId');
+        throw NotFoundException(message: 'Exam not found: $examId');
       }
       throw ServerException(
         message: e.message,
@@ -307,29 +307,28 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
   @override
   Future<List<ExamModel>> getExams(Map<String, dynamic> filters) async {
     try {
-      var query = _supabaseClient.from(_examsTable).select();
+      var filterQuery = _supabaseClient.from(_examsTable).select();
 
       if (filters['school_id'] != null) {
-        query = query.eq('school_id', filters['school_id'] as String);
+        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
       }
       if (filters['subject_id'] != null) {
-        query = query.eq('subject_id', filters['subject_id'] as String);
+        filterQuery = filterQuery.eq('subject_id', filters['subject_id'] as String);
       }
       if (filters['status'] != null) {
-        query = query.eq('status', filters['status'] as String);
+        filterQuery = filterQuery.eq('status', filters['status'] as String);
       }
       if (filters['class_id'] != null) {
-        query = query.eq('class_id', filters['class_id'] as String);
+        filterQuery = filterQuery.eq('class_id', filters['class_id'] as String);
       }
 
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
       final offset = (page - 1) * perPage;
 
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
+      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
 
-      final response = await query;
+      final response = await transformQuery;
 
       return response
           .map<ExamModel>((json) => ExamModel.fromJson(json))
@@ -702,7 +701,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
       // Map known Postgrest error codes to domain-meaningful exceptions
       final msg = e.message;
       if (msg.contains('not assigned') || msg.contains('not eligible')) {
-        throw ForbiddenException(msg);
+        throw ForbiddenException(message: msg);
       }
       if (msg.contains('max attempts') || msg.contains('already in progress')) {
         throw ValidationException(message: msg);
@@ -810,7 +809,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get attempt failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Attempt not found: $attemptId');
+        throw NotFoundException(message: 'Attempt not found: $attemptId');
       }
       throw ServerException(
         message: e.message,
@@ -839,7 +838,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get attempt with answers failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Attempt not found: $attemptId');
+        throw NotFoundException(message: 'Attempt not found: $attemptId');
       }
       throw ServerException(
         message: e.message,
@@ -1124,18 +1123,18 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
   }) async {
     try {
       // PERF: Added pagination and column selection for monitoring logs
-      var query = _supabaseClient
+      var filterQuery = _supabaseClient
           .from(_monitoringLogsTable)
           .select('id, exam_id, student_id, event_type, severity, details, created_at')
           .eq('exam_id', examId);
 
       if (studentId != null) {
-        query = query.eq('student_id', studentId);
+        filterQuery = filterQuery.eq('student_id', studentId);
       }
 
-      query = query.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
+      var transformQuery = filterQuery.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
 
-      final response = await query;
+      final response = await transformQuery;
 
       return response
           .map<MonitoringLogModel>(
@@ -1172,18 +1171,18 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     try {
       // PERF: Added pagination and column selection to prevent unbounded results
       // For large exams (500+ students), fetching all results at once is expensive
-      var query = _supabaseClient
+      var filterQuery = _supabaseClient
           .from(_examResultsTable)
           .select('id, exam_id, student_id, attempt_id, total_marks, total_possible, score_percentage, is_passed, time_spent_seconds, grading_status, is_released, released_at, created_at')
           .eq('exam_id', examId);
 
       if (isReleased != null) {
-        query = query.eq('is_released', isReleased);
+        filterQuery = filterQuery.eq('is_released', isReleased);
       }
 
-      query = query.order('score_percentage', ascending: false).limit(limit).range(offset, offset + limit - 1);
+      var transformQuery = filterQuery.order('score_percentage', ascending: false).limit(limit).range(offset, offset + limit - 1);
 
-      final response = await query;
+      final response = await transformQuery;
 
       return response
           .map<ExamResultModel>((r) => ExamResultModel.fromJson(r))

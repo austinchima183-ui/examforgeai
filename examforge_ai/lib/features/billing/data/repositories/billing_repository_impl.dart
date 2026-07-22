@@ -651,6 +651,7 @@ class BillingRepositoryImpl implements BillingRepository {
       if (flwTxId == null || flwTxId.isEmpty) {
         return const FailureResult(Failure.validation(
           message: 'Cannot refund: no Flutterwave transaction ID found.',
+          fieldErrors: const {},
         ));
       }
 

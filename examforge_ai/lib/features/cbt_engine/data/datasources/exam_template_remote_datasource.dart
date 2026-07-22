@@ -143,33 +143,33 @@ class ExamTemplateRemoteDataSourceImpl
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_templatesTable)
           .select('*, exam_template_sections(*)');
 
       // Filter by school_id — return school templates + public templates.
       if (filters['school_id'] != null) {
-        query = query.or(
+        filterQuery = filterQuery.or(
           'school_id.eq.${filters['school_id']},is_public.eq.true',
         );
       } else {
         // When no school is specified, only return public templates.
-        query = query.eq('is_public', true);
+        filterQuery = filterQuery.eq('is_public', true);
       }
 
       // Filter by category.
       if (filters['category'] != null) {
-        query = query.eq('category', filters['category'] as String);
+        filterQuery = filterQuery.eq('category', filters['category'] as String);
       }
 
       // Filter by subject.
       if (filters['subject_id'] != null) {
-        query = query.eq('subject_id', filters['subject_id'] as String);
+        filterQuery = filterQuery.eq('subject_id', filters['subject_id'] as String);
       }
 
       // Filter by created_by.
       if (filters['created_by'] != null) {
-        query = query.eq('created_by', filters['created_by'] as String);
+        filterQuery = filterQuery.eq('created_by', filters['created_by'] as String);
       }
 
       // Pagination.
@@ -178,10 +178,9 @@ class ExamTemplateRemoteDataSourceImpl
           filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
       final offset = (page - 1) * perPage;
 
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
+      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
 
-      final response = await query;
+      final response = await transformQuery;
 
       return response
           .map<ExamTemplateModel>(
@@ -224,7 +223,7 @@ class ExamTemplateRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get template failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Template not found: $templateId');
+        throw NotFoundException(message: 'Template not found: $templateId');
       }
       throw ServerException(
         message: e.message,
@@ -261,7 +260,7 @@ class ExamTemplateRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Delete template failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Template not found: $templateId');
+        throw NotFoundException(message: 'Template not found: $templateId');
       }
       throw ServerException(
         message: e.message,
@@ -366,7 +365,7 @@ class ExamTemplateRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Create exam from template failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Template not found: $templateId');
+        throw NotFoundException(message: 'Template not found: $templateId');
       }
       throw ServerException(
         message: e.message,
@@ -403,7 +402,7 @@ class ExamTemplateRemoteDataSourceImpl
       AppLogger.error('Get submission receipt failed', error: e);
       if (e.code == 'PGRST116') {
         throw NotFoundException(
-          'Submission receipt not found for attempt: $attemptId',
+          message: 'Submission receipt not found for attempt: $attemptId',
         );
       }
       throw ServerException(

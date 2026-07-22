@@ -56,7 +56,6 @@ class ResourceState {
   final int currentPage;
 
   /// Current page number for resource pagination.
-  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading;

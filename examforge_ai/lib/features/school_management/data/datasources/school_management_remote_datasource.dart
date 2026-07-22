@@ -346,7 +346,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update school failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('School not found: $schoolId');
+        throw NotFoundException(message: 'School not found: $schoolId');
       }
       throw ServerException(
         message: e.message,
@@ -398,7 +398,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get school failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('School not found: $schoolId');
+        throw NotFoundException(message: 'School not found: $schoolId');
       }
       throw ServerException(
         message: e.message,
@@ -509,7 +509,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update branch failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Branch not found: $branchId');
+        throw NotFoundException(message: 'Branch not found: $branchId');
       }
       throw ServerException(
         message: e.message,
@@ -629,7 +629,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update department failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Department not found: $departmentId');
+        throw NotFoundException(message: 'Department not found: $departmentId');
       }
       throw ServerException(
         message: e.message,
@@ -751,7 +751,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update student profile failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Student profile not found: $profileId');
+        throw NotFoundException(message: 'Student profile not found: $profileId');
       }
       throw ServerException(
         message: e.message,
@@ -780,7 +780,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get student profile failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Student profile not found for user: $userId');
+        throw NotFoundException(message: 'Student profile not found for user: $userId');
       }
       throw ServerException(
         message: e.message,
@@ -916,7 +916,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Graduate student failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Student profile not found: $studentId');
+        throw NotFoundException(message: 'Student profile not found: $studentId');
       }
       throw ServerException(
         message: e.message,
@@ -1017,7 +1017,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update teacher profile failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Teacher profile not found: $profileId');
+        throw NotFoundException(message: 'Teacher profile not found: $profileId');
       }
       throw ServerException(
         message: e.message,
@@ -1046,7 +1046,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get teacher profile failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Teacher profile not found for user: $userId');
+        throw NotFoundException(message: 'Teacher profile not found for user: $userId');
       }
       throw ServerException(
         message: e.message,
@@ -1163,7 +1163,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update parent profile failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Parent profile not found: $profileId');
+        throw NotFoundException(message: 'Parent profile not found: $profileId');
       }
       throw ServerException(
         message: e.message,
@@ -1192,7 +1192,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get parent profile failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Parent profile not found for user: $userId');
+        throw NotFoundException(message: 'Parent profile not found for user: $userId');
       }
       throw ServerException(
         message: e.message,
@@ -1397,7 +1397,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update session failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Session not found: $sessionId');
+        throw NotFoundException(message: 'Session not found: $sessionId');
       }
       throw ServerException(
         message: e.message,
@@ -1449,7 +1449,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get session failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Session not found: $sessionId');
+        throw NotFoundException(message: 'Session not found: $sessionId');
       }
       throw ServerException(
         message: e.message,
@@ -1515,7 +1515,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get current session failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('No current session found for school: $schoolId');
+        throw NotFoundException(message: 'No current session found for school: $schoolId');
       }
       throw ServerException(
         message: e.message,
@@ -1605,7 +1605,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update term failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Term not found: $termId');
+        throw NotFoundException(message: 'Term not found: $termId');
       }
       throw ServerException(
         message: e.message,
@@ -1692,7 +1692,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get current term failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('No current term found for school: $schoolId');
+        throw NotFoundException(message: 'No current term found for school: $schoolId');
       }
       throw ServerException(
         message: e.message,
@@ -1784,7 +1784,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update calendar event failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Calendar event not found: $eventId');
+        throw NotFoundException(message: 'Calendar event not found: $eventId');
       }
       throw ServerException(
         message: e.message,
@@ -1924,7 +1924,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update timetable failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Timetable not found: $timetableId');
+        throw NotFoundException(message: 'Timetable not found: $timetableId');
       }
       throw ServerException(
         message: e.message,
@@ -1976,7 +1976,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get timetable failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Timetable not found: $timetableId');
+        throw NotFoundException(message: 'Timetable not found: $timetableId');
       }
       throw ServerException(
         message: e.message,
@@ -2081,7 +2081,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update timetable slot failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Timetable slot not found: $slotId');
+        throw NotFoundException(message: 'Timetable slot not found: $slotId');
       }
       throw ServerException(
         message: e.message,
@@ -2279,7 +2279,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update attendance record failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Attendance record not found: $recordId');
+        throw NotFoundException(message: 'Attendance record not found: $recordId');
       }
       throw ServerException(
         message: e.message,
@@ -2538,7 +2538,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update homework failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Homework not found: $homeworkId');
+        throw NotFoundException(message: 'Homework not found: $homeworkId');
       }
       throw ServerException(
         message: e.message,
@@ -2590,7 +2590,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get homework failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Homework not found: $homeworkId');
+        throw NotFoundException(message: 'Homework not found: $homeworkId');
       }
       throw ServerException(
         message: e.message,
@@ -2839,7 +2839,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update announcement failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Announcement not found: $announcementId');
+        throw NotFoundException(message: 'Announcement not found: $announcementId');
       }
       throw ServerException(
         message: e.message,
@@ -3001,7 +3001,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update document failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Document not found: $documentId');
+        throw NotFoundException(message: 'Document not found: $documentId');
       }
       throw ServerException(
         message: e.message,
@@ -3147,7 +3147,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get class failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Class not found: $classId');
+        throw NotFoundException(message: 'Class not found: $classId');
       }
       throw ServerException(
         message: e.message,
@@ -3250,7 +3250,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update class failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Class not found: $classId');
+        throw NotFoundException(message: 'Class not found: $classId');
       }
       throw ServerException(
         message: e.message,
@@ -3338,7 +3338,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get subject failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Subject not found: $subjectId');
+        throw NotFoundException(message: 'Subject not found: $subjectId');
       }
       throw ServerException(
         message: e.message,
@@ -3440,7 +3440,7 @@ class SchoolManagementRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update subject failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Subject not found: $subjectId');
+        throw NotFoundException(message: 'Subject not found: $subjectId');
       }
       throw ServerException(
         message: e.message,

@@ -27,22 +27,22 @@ class SaveOfflineExamAttemptUseCase {
   ) async {
     if (params.attempt.id.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Attempt ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Attempt ID cannot be empty'),
       );
     }
     if (params.attempt.examId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Exam ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Exam ID cannot be empty'),
       );
     }
     if (params.attempt.studentId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Student ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Student ID cannot be empty'),
       );
     }
     if (params.attempt.integrityHash.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Integrity hash cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Integrity hash cannot be empty'),
       );
     }
 

@@ -116,13 +116,13 @@ class ExamEcosystemRemoteDataSourceImpl
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Supabase Postgrest error', error: e);
       if (e.code == '404' || e.code == 'PGRST116') {
-        throw NotFoundException(e.message);
+        throw NotFoundException(message: e.message);
       }
       if (e.code == '401') {
-        throw UnauthorizedException(e.message);
+        throw UnauthorizedException(message: e.message);
       }
       if (e.code == '403') {
-        throw ForbiddenException(e.message);
+        throw ForbiddenException(message: e.message);
       }
       throw ServerException(
         message: e.message,

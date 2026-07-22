@@ -24,7 +24,7 @@ class DeleteDraftUseCase {
   Future<Result<bool>> call(DeleteDraftParams params) async {
     if (params.draftId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Draft ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Draft ID cannot be empty'),
       );
     }
 

@@ -119,7 +119,7 @@ class _AdmissionChecklistPageState
                 ? const AppEmptyState(
                     icon: Icons.checklist_outlined,
                     title: 'Select a University',
-                    message:
+                    subtitle:
                         'Choose a university and department to see your admission checklist.',
                   )
                 : state.isLoadingChecklist

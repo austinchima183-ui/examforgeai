@@ -410,7 +410,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
       final response = await query.limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Platform setting not found.');
+        throw const NotFoundException(message: 'Platform setting not found.');
       }
 
       return PlatformSettingModel.fromJson(response.first);
@@ -441,7 +441,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Platform setting not found for update.');
+        throw const NotFoundException(message: 'Platform setting not found for update.');
       }
 
       AppLogger.info('Platform setting updated: ${response.first['key']}');
@@ -539,7 +539,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Feature flag not found.');
+        throw const NotFoundException(message: 'Feature flag not found.');
       }
 
       return FeatureFlagModel.fromJson(response.first);
@@ -603,7 +603,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Feature flag not found for update.');
+        throw const NotFoundException(message: 'Feature flag not found for update.');
       }
 
       AppLogger.info('Feature flag updated: $flagId');
@@ -657,7 +657,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Feature flag not found for toggle.');
+        throw const NotFoundException(message: 'Feature flag not found for toggle.');
       }
 
       AppLogger.info('Feature flag toggled: $flagId → isActive=$isActive');
@@ -780,22 +780,23 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   }) async {
     try {
       // PERF: Added safety limit to count query to prevent unbounded result sets
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_auditLogsTable)
-          .select('id')
-          .limit(PaginatedQueryMixin.maxPageSize);
+          .select('id');
 
       if (category != null) {
-        query = query.eq('category', category);
+        filterQuery = filterQuery.eq('category', category);
       }
       if (startDate != null) {
-        query = query.gte('created_at', startDate.toIso8601String());
+        filterQuery = filterQuery.gte('created_at', startDate.toIso8601String());
       }
       if (endDate != null) {
-        query = query.lte('created_at', endDate.toIso8601String());
+        filterQuery = filterQuery.lte('created_at', endDate.toIso8601String());
       }
 
-      final response = await query;
+      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+
+      final response = await transformQuery;
       AppLogger.info('Audit log count: ${response.length}');
       return response.length;
     } on sb.PostgrestException catch (e) {
@@ -870,7 +871,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('School not found.');
+        throw const NotFoundException(message: 'School not found.');
       }
 
       return SchoolManagementDetailModel.fromJson(response.first);
@@ -934,7 +935,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('School not found for update.');
+        throw const NotFoundException(message: 'School not found for update.');
       }
 
       AppLogger.info('School updated: $schoolId');
@@ -1050,13 +1051,15 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   Future<int> getSchoolCount({bool? isActive}) async {
     try {
       // PERF: Added safety limit to count query to prevent unbounded result sets
-      var query = _supabase.from(_schoolsTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
+      var filterQuery = _supabase.from(_schoolsTable).select('id');
 
       if (isActive != null) {
-        query = query.eq('is_active', isActive);
+        filterQuery = filterQuery.eq('is_active', isActive);
       }
 
-      final response = await query;
+      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+
+      final response = await transformQuery;
       AppLogger.info('School count: ${response.length}');
       return response.length;
     } on sb.PostgrestException catch (e) {
@@ -1131,7 +1134,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('User not found.');
+        throw const NotFoundException(message: 'User not found.');
       }
 
       return UserManagementDetailModel.fromJson(response.first);
@@ -1209,7 +1212,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (profile.isEmpty) {
-        throw const NotFoundException('User not found for password reset.');
+        throw const NotFoundException(message: 'User not found for password reset.');
       }
 
       final email = profile.first['email'] as String;
@@ -1357,16 +1360,18 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   Future<int> getUserCount({String? role, bool? isActive}) async {
     try {
       // PERF: Added safety limit to count query to prevent unbounded result sets
-      var query = _supabase.from(_userProfilesTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
+      var filterQuery = _supabase.from(_userProfilesTable).select('id');
 
       if (role != null) {
-        query = query.eq('role', role);
+        filterQuery = filterQuery.eq('role', role);
       }
       if (isActive != null) {
-        query = query.eq('is_active', isActive);
+        filterQuery = filterQuery.eq('is_active', isActive);
       }
 
-      final response = await query;
+      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+
+      final response = await transformQuery;
       AppLogger.info('User count: ${response.length}');
       return response.length;
     } on sb.PostgrestException catch (e) {
@@ -1426,7 +1431,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('AI provider not found.');
+        throw const NotFoundException(message: 'AI provider not found.');
       }
 
       return AIProviderModel.fromJson(response.first);
@@ -1490,7 +1495,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('AI provider not found for update.');
+        throw const NotFoundException(message: 'AI provider not found for update.');
       }
 
       AppLogger.info('AI provider updated: $providerId');
@@ -1551,7 +1556,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('AI provider not found for setting default.');
+        throw const NotFoundException(message: 'AI provider not found for setting default.');
       }
 
       AppLogger.info('Default AI provider set: $providerId');
@@ -1585,7 +1590,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('AI provider not found for toggle.');
+        throw const NotFoundException(message: 'AI provider not found for toggle.');
       }
 
       AppLogger.info('AI provider toggled: $providerId → isActive=$isActive');
@@ -1733,7 +1738,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Infrastructure service not found.');
+        throw const NotFoundException(message: 'Infrastructure service not found.');
       }
 
       return InfrastructureServiceModel.fromJson(response.first);
@@ -1766,7 +1771,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
 
       if (response.isEmpty) {
         throw const NotFoundException(
-          'Infrastructure service not found for update.',
+          message: 'Infrastructure service not found for update.',
         );
       }
 
@@ -1891,7 +1896,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Support ticket not found.');
+        throw const NotFoundException(message: 'Support ticket not found.');
       }
 
       return SupportTicketModel.fromJson(response.first);
@@ -1923,7 +1928,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Support ticket not found for update.');
+        throw const NotFoundException(message: 'Support ticket not found for update.');
       }
 
       AppLogger.info('Support ticket updated: $ticketId');
@@ -1965,7 +1970,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Support ticket not found for assignment.');
+        throw const NotFoundException(message: 'Support ticket not found for assignment.');
       }
 
       AppLogger.info('Support ticket assigned: $ticketId → $assignToUserId');
@@ -2003,7 +2008,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Support ticket not found for escalation.');
+        throw const NotFoundException(message: 'Support ticket not found for escalation.');
       }
 
       AppLogger.info('Support ticket escalated: $ticketId');
@@ -2039,7 +2044,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Support ticket not found for resolution.');
+        throw const NotFoundException(message: 'Support ticket not found for resolution.');
       }
 
       AppLogger.info('Support ticket resolved: $ticketId');
@@ -2128,13 +2133,15 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   Future<int> getTicketCount({String? status}) async {
     try {
       // PERF: Added safety limit to count query to prevent unbounded result sets
-      var query = _supabase.from(_supportTicketsTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
+      var filterQuery = _supabase.from(_supportTicketsTable).select('id');
 
       if (status != null) {
-        query = query.eq('status', status);
+        filterQuery = filterQuery.eq('status', status);
       }
 
-      final response = await query;
+      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+
+      final response = await transformQuery;
       AppLogger.info('Ticket count: ${response.length}');
       return response.length;
     } on sb.PostgrestException catch (e) {
@@ -2207,7 +2214,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Marketplace content not found.');
+        throw const NotFoundException(message: 'Marketplace content not found.');
       }
 
       return MarketplaceContentModel.fromJson(response.first);
@@ -2243,7 +2250,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Marketplace content not found for approval.');
+        throw const NotFoundException(message: 'Marketplace content not found for approval.');
       }
 
       AppLogger.info('Marketplace content approved: $contentId');
@@ -2280,7 +2287,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Marketplace content not found for rejection.');
+        throw const NotFoundException(message: 'Marketplace content not found for rejection.');
       }
 
       AppLogger.info('Marketplace content rejected: $contentId');
@@ -2315,7 +2322,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Marketplace content not found for featuring.');
+        throw const NotFoundException(message: 'Marketplace content not found for featuring.');
       }
 
       AppLogger.info('Marketplace content featured: $contentId');
@@ -2352,7 +2359,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Marketplace content not found for removal.');
+        throw const NotFoundException(message: 'Marketplace content not found for removal.');
       }
 
       AppLogger.info('Marketplace content removed: $contentId');
@@ -2390,7 +2397,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Marketplace content not found for flagging.');
+        throw const NotFoundException(message: 'Marketplace content not found for flagging.');
       }
 
       AppLogger.info('Marketplace content flagged: $contentId');
@@ -2412,13 +2419,15 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
   Future<int> getMarketplaceContentCount({String? status}) async {
     try {
       // PERF: Added safety limit to count query to prevent unbounded result sets
-      var query = _supabase.from(_marketplaceContentTable).select('id').limit(PaginatedQueryMixin.maxPageSize);
+      var filterQuery = _supabase.from(_marketplaceContentTable).select('id');
 
       if (status != null) {
-        query = query.eq('status', status);
+        filterQuery = filterQuery.eq('status', status);
       }
 
-      final response = await query;
+      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+
+      final response = await transformQuery;
       AppLogger.info('Marketplace content count: ${response.length}');
       return response.length;
     } on sb.PostgrestException catch (e) {
@@ -2498,7 +2507,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Notification not found.');
+        throw const NotFoundException(message: 'Notification not found.');
       }
 
       AppLogger.info('Notification marked as read: $notificationId');
@@ -2705,7 +2714,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Intelligence alert not found.');
+        throw const NotFoundException(message: 'Intelligence alert not found.');
       }
 
       return IntelligenceAlertModel.fromJson(response.first);
@@ -2737,7 +2746,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Intelligence alert not found for acknowledgement.');
+        throw const NotFoundException(message: 'Intelligence alert not found for acknowledgement.');
       }
 
       AppLogger.info('Intelligence alert acknowledged: $alertId');
@@ -2774,7 +2783,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Intelligence alert not found for resolution.');
+        throw const NotFoundException(message: 'Intelligence alert not found for resolution.');
       }
 
       AppLogger.info('Intelligence alert resolved: $alertId');
@@ -3189,7 +3198,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('System report not found.');
+        throw const NotFoundException(message: 'System report not found.');
       }
 
       return SystemReportModel.fromJson(response.first);
@@ -3291,7 +3300,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Maintenance window not found for update.');
+        throw const NotFoundException(message: 'Maintenance window not found for update.');
       }
 
       AppLogger.info('Maintenance window updated: $windowId');
@@ -3377,7 +3386,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Platform policy not found.');
+        throw const NotFoundException(message: 'Platform policy not found.');
       }
 
       return PlatformPolicyModel.fromJson(response.first);
@@ -3473,7 +3482,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Email template not found.');
+        throw const NotFoundException(message: 'Email template not found.');
       }
 
       return EmailTemplateModel.fromJson(response.first);
@@ -3688,11 +3697,11 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
 
     switch (statusCode) {
       case 401:
-        return UnauthorizedException(message);
+        return UnauthorizedException(message: message);
       case 403:
-        return ForbiddenException(message);
+        return ForbiddenException(message: message);
       case 404:
-        return NotFoundException(message);
+        return NotFoundException(message: message);
       case 422:
         return ValidationException(
           message: message,

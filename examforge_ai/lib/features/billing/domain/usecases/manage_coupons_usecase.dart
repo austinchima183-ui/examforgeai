@@ -25,7 +25,7 @@ class ValidateCouponUseCase {
   Future<Result<CouponEntity>> call(ValidateCouponParams params) async {
     if (params.code.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon code cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Coupon code cannot be empty'),
       );
     }
 
@@ -60,12 +60,12 @@ class RedeemCouponUseCase {
   Future<Result<CouponEntity>> call(RedeemCouponParams params) async {
     if (params.couponId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Coupon ID cannot be empty'),
       );
     }
     if (params.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
       );
     }
 
@@ -101,12 +101,12 @@ class GetCouponsUseCase {
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
       );
     }
 
@@ -132,12 +132,12 @@ class CreateCouponUseCase {
   Future<Result<CouponEntity>> call(CreateCouponParams params) async {
     if (params.coupon.code.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon code cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Coupon code cannot be empty'),
       );
     }
     if (params.coupon.name.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon name cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Coupon name cannot be empty'),
       );
     }
 
@@ -159,7 +159,7 @@ class UpdateCouponUseCase {
   Future<Result<CouponEntity>> call(UpdateCouponParams params) async {
     if (params.coupon.id.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Coupon ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Coupon ID cannot be empty'),
       );
     }
 

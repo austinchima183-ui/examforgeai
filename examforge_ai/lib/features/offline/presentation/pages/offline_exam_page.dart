@@ -506,7 +506,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
           ),
           AppButton(
             label: 'Submit',
-            variant: AppButtonVariant.primary,
+            variant: AppButtonVariant.elevated,
             onPressed: () => Navigator.of(ctx).pop(true),
           ),
         ],
@@ -1092,7 +1092,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
             // Submit button
             AppButton(
               label: 'Submit',
-              variant: AppButtonVariant.primary,
+              variant: AppButtonVariant.elevated,
               icon: Icons.send,
               isLoading: _isSubmitting,
               onPressed: _isSubmitting ? null : _submitExam,
@@ -1314,7 +1314,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
               // Done button
               AppButton(
                 label: 'Done',
-                variant: AppButtonVariant.primary,
+                variant: AppButtonVariant.elevated,
                 onPressed: () => Navigator.of(context).pop(),
               ),
             ],
@@ -1368,7 +1368,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
           ),
           AppButton(
             label: 'Leave',
-            variant: AppButtonVariant.primary,
+            variant: AppButtonVariant.elevated,
             onPressed: () => Navigator.of(ctx).pop(true),
           ),
         ],

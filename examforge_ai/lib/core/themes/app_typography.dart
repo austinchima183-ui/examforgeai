@@ -348,6 +348,45 @@ class AppTypography {
     height: 1.33,
   );
 
+  // ─── Convenience Getters ────────────────────────────────────────────────────
+  // Static getters that delegate to lightTextTheme so code can write
+  // AppTypography.bodySmall instead of AppTypography.lightTextTheme.bodySmall.
+
+  /// Convenience getter – delegates to [lightTextTheme.displayLarge].
+  static TextStyle? displayLarge => lightTextTheme.displayLarge;
+  /// Convenience getter – delegates to [lightTextTheme.displayMedium].
+  static TextStyle? displayMedium => lightTextTheme.displayMedium;
+  /// Convenience getter – delegates to [lightTextTheme.displaySmall].
+  static TextStyle? displaySmall => lightTextTheme.displaySmall;
+
+  /// Convenience getter – delegates to [lightTextTheme.headlineLarge].
+  static TextStyle? headlineLarge => lightTextTheme.headlineLarge;
+  /// Convenience getter – delegates to [lightTextTheme.headlineMedium].
+  static TextStyle? headlineMedium => lightTextTheme.headlineMedium;
+  /// Convenience getter – delegates to [lightTextTheme.headlineSmall].
+  static TextStyle? headlineSmall => lightTextTheme.headlineSmall;
+
+  /// Convenience getter – delegates to [lightTextTheme.titleLarge].
+  static TextStyle? titleLarge => lightTextTheme.titleLarge;
+  /// Convenience getter – delegates to [lightTextTheme.titleMedium].
+  static TextStyle? titleMedium => lightTextTheme.titleMedium;
+  /// Convenience getter – delegates to [lightTextTheme.titleSmall].
+  static TextStyle? titleSmall => lightTextTheme.titleSmall;
+
+  /// Convenience getter – delegates to [lightTextTheme.bodyLarge].
+  static TextStyle? bodyLarge => lightTextTheme.bodyLarge;
+  /// Convenience getter – delegates to [lightTextTheme.bodyMedium].
+  static TextStyle? bodyMedium => lightTextTheme.bodyMedium;
+  /// Convenience getter – delegates to [lightTextTheme.bodySmall].
+  static TextStyle? bodySmall => lightTextTheme.bodySmall;
+
+  /// Convenience getter – delegates to [lightTextTheme.labelLarge].
+  static TextStyle? labelLarge => lightTextTheme.labelLarge;
+  /// Convenience getter – delegates to [lightTextTheme.labelMedium].
+  static TextStyle? labelMedium => lightTextTheme.labelMedium;
+  /// Convenience getter – delegates to [lightTextTheme.labelSmall].
+  static TextStyle? labelSmall => lightTextTheme.labelSmall;
+
   // ─── Utility Helpers ──────────────────────────────────────────────────────
 
   /// Returns the appropriate [TextTheme] for the given [brightness].

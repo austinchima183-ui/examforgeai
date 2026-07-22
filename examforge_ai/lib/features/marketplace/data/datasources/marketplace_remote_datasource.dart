@@ -382,7 +382,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Category not found.');
+        throw const NotFoundException(message: 'Category not found.');
       }
 
       return MarketplaceCategoryModel.fromJson(response.first);
@@ -472,7 +472,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Seller profile not found.');
+        throw const NotFoundException(message: 'Seller profile not found.');
       }
 
       return SellerProfileModel.fromJson(response.first);
@@ -499,7 +499,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Seller profile not found for user.');
+        throw const NotFoundException(message: 'Seller profile not found for user.');
       }
 
       return SellerProfileModel.fromJson(response.first);
@@ -670,36 +670,36 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
       }
 
       // Standard query builder when no search
-      var query = _supabase.from(_productsTable).select();
+      var filterQuery = _supabase.from(_productsTable).select();
 
-      query = query.is_('deleted_at', null); // exclude soft-deleted
+      filterQuery = filterQuery.filter('deleted_at', 'is.null'); // exclude soft-deleted
 
       if (status != null) {
-        query = query.eq('status', status);
+        filterQuery = filterQuery.eq('status', status);
       }
       if (productType != null) {
-        query = query.eq('product_type', productType);
+        filterQuery = filterQuery.eq('product_type', productType);
       }
       if (categoryId != null) {
-        query = query.eq('category_id', categoryId);
+        filterQuery = filterQuery.eq('category_id', categoryId);
       }
       if (sellerId != null) {
-        query = query.eq('seller_id', sellerId);
+        filterQuery = filterQuery.eq('seller_id', sellerId);
       }
       if (subject != null) {
-        query = query.eq('subject', subject);
+        filterQuery = filterQuery.eq('subject', subject);
       }
       if (classLevel != null) {
-        query = query.eq('class_level', classLevel);
+        filterQuery = filterQuery.eq('class_level', classLevel);
       }
       if (curriculum != null) {
-        query = query.eq('curriculum', curriculum);
+        filterQuery = filterQuery.eq('curriculum', curriculum);
       }
 
       // Apply sort
-      query = _applySortBy(query, sortBy);
+      var transformQuery = _applySortBy(filterQuery, sortBy);
 
-      final response = await query.range(offset, offset + limit - 1);
+      final response = await transformQuery.range(offset, offset + limit - 1);
 
       AppLogger.info('Fetched ${response.length} products');
       return response
@@ -728,7 +728,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Product not found.');
+        throw const NotFoundException(message: 'Product not found.');
       }
 
       return MarketplaceProductModel.fromJson(response.first);
@@ -755,7 +755,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Product not found by slug.');
+        throw const NotFoundException(message: 'Product not found by slug.');
       }
 
       return MarketplaceProductModel.fromJson(response.first);
@@ -973,7 +973,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .from(_productsTable)
           .select()
           .eq('seller_id', sellerId)
-          .is_('deleted_at', null)
+          .filter('deleted_at', 'is.null')
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 
@@ -1006,7 +1006,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .select()
           .eq('is_featured', true)
           .eq('status', 'published')
-          .is_('deleted_at', null)
+          .filter('deleted_at', 'is.null')
           .order('created_at', ascending: false)
           .limit(limit);
 
@@ -1053,7 +1053,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .eq('category_id', categoryId)
           .eq('status', 'published')
           .neq('id', productId)
-          .is_('deleted_at', null)
+          .filter('deleted_at', 'is.null')
           .order('total_sales', ascending: false)
           .limit(limit);
 
@@ -1356,7 +1356,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Order not found.');
+        throw const NotFoundException(message: 'Order not found.');
       }
 
       return MarketplaceOrderModel.fromJson(response.first);
@@ -1383,7 +1383,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Order not found by number.');
+        throw const NotFoundException(message: 'Order not found by number.');
       }
 
       return MarketplaceOrderModel.fromJson(response.first);
@@ -1545,7 +1545,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Purchase not found.');
+        throw const NotFoundException(message: 'Purchase not found.');
       }
 
       return MarketplacePurchaseModel.fromJson(response.first);
@@ -1959,7 +1959,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
       );
 
       if (result == null) {
-        throw const NotFoundException('Invalid or expired promo code.');
+        throw const NotFoundException(message: 'Invalid or expired promo code.');
       }
 
       return PromoCodeModel.fromJson(result as Map<String, dynamic>);
@@ -2374,7 +2374,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Quality check not found.');
+        throw const NotFoundException(message: 'Quality check not found.');
       }
 
       return QualityCheckModel.fromJson(response.first);
@@ -2472,7 +2472,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Dispute not found.');
+        throw const NotFoundException(message: 'Dispute not found.');
       }
 
       return DisputeModel.fromJson(response.first);
@@ -2838,7 +2838,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .from(_productsTable)
           .select()
           .eq('status', 'published')
-          .is_('deleted_at', null)
+          .filter('deleted_at', 'is.null')
           .order('total_sales', ascending: false)
           .limit(limit);
 
@@ -2873,7 +2873,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
           .from(_productsTable)
           .select()
           .eq('status', 'pending_review')
-          .is_('deleted_at', null)
+          .filter('deleted_at', 'is.null')
           .order('created_at', ascending: false)
           .range(offset, offset + limit - 1);
 
@@ -3092,11 +3092,11 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
 
     switch (statusCode) {
       case 401:
-        return UnauthorizedException(message);
+        return UnauthorizedException(message: message);
       case 403:
-        return ForbiddenException(message);
+        return ForbiddenException(message: message);
       case 404:
-        return NotFoundException(message);
+        return NotFoundException(message: message);
       case 422:
         return ValidationException(
           message: message,

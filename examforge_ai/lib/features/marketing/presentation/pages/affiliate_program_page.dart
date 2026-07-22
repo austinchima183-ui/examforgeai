@@ -7,18 +7,18 @@ import '../providers/marketing_provider.dart';
 ///
 /// Displays list of affiliates with their stats and
 /// allows managing affiliate statuses.
-class AffiliateProgramPage extends StatefulWidget {
+class AffiliateProgramPage extends ConsumerStatefulWidget {
   const AffiliateProgramPage({super.key});
   @override
-  State<AffiliateProgramPage> createState() => _AffiliateProgramPageState();
+  ConsumerState<AffiliateProgramPage> createState() => _AffiliateProgramPageState();
 }
 
-class _AffiliateProgramPageState extends State<AffiliateProgramPage> {
+class _AffiliateProgramPageState extends ConsumerState<AffiliateProgramPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MarketingProvider>().loadAffiliates();
+      ref.read(marketingProvider).loadAffiliates();
     });
   }
 
@@ -27,8 +27,8 @@ class _AffiliateProgramPageState extends State<AffiliateProgramPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Affiliate Program'), centerTitle: true),
-      body: Consumer<MarketingProvider>(
-        builder: (context, provider, _) {
+      body: Consumer(builder: (context, ref, _) {
+          final provider = ref.watch(marketingProvider);
           if (provider.isLoading && provider.affiliates.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }

@@ -10,13 +10,13 @@ import 'school_modules_page.dart';
 ///
 /// Shows available modules organized by tier with search
 /// and filtering capabilities.
-class EduOsDashboardPage extends StatefulWidget {
+class EduOsDashboardPage extends ConsumerStatefulWidget {
   const EduOsDashboardPage({super.key});
   @override
-  State<EduOsDashboardPage> createState() => _EduOsDashboardPageState();
+  ConsumerState<EduOsDashboardPage> createState() => _EduOsDashboardPageState();
 }
 
-class _EduOsDashboardPageState extends State<EduOsDashboardPage> with SingleTickerProviderStateMixin {
+class _EduOsDashboardPageState extends ConsumerState<EduOsDashboardPage> with SingleTickerProviderStateMixin {
   late TabController _tabController;
   String _searchQuery = '';
 
@@ -25,7 +25,7 @@ class _EduOsDashboardPageState extends State<EduOsDashboardPage> with SingleTick
     super.initState();
     _tabController = TabController(length: 4, vsync: this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<EduOsProvider>().loadModules();
+      ref.read(eduOsProvider).loadModules();
     });
   }
 
@@ -53,8 +53,8 @@ class _EduOsDashboardPageState extends State<EduOsDashboardPage> with SingleTick
           ],
         ),
       ),
-      body: Consumer<EduOsProvider>(
-        builder: (context, provider, _) {
+      body: Consumer(builder: (context, ref, _) {
+          final provider = ref.watch(eduOsProvider);
           if (provider.isLoading && provider.modules.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }
@@ -103,7 +103,7 @@ class _EduOsDashboardPageState extends State<EduOsDashboardPage> with SingleTick
     }
 
     return RefreshIndicator(
-      onRefresh: () => context.read<EduOsProvider>().loadModules(),
+      onRefresh: () => ref.read(eduOsProvider).loadModules(),
       child: GridView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(

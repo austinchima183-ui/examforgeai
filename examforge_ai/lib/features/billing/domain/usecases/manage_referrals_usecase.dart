@@ -28,7 +28,7 @@ class GetOrCreateReferralCodeUseCase {
   ) async {
     if (params.referrerId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Referrer ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Referrer ID cannot be empty'),
       );
     }
 
@@ -61,12 +61,12 @@ class ApplyReferralCodeUseCase {
   Future<Result<ReferralEntity>> call(ApplyReferralCodeParams params) async {
     if (params.code.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Referral code cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Referral code cannot be empty'),
       );
     }
     if (params.refereeId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Referee ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Referee ID cannot be empty'),
       );
     }
 
@@ -101,17 +101,17 @@ class GetReferralTrackingUseCase {
   ) async {
     if (params.referrerId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Referrer ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Referrer ID cannot be empty'),
       );
     }
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1'),
+        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1'),
+        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
       );
     }
 

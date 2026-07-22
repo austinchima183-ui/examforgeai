@@ -285,7 +285,7 @@ class CommunicationRemoteDataSourceImpl
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(e.message);
+        throw NotFoundException(message: e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -698,23 +698,25 @@ class CommunicationRemoteDataSourceImpl
   }) async {
     try {
       AppLogger.info('Fetching announcements');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_announcementsTable)
-          .select()
+          .select();
+
+      if (publishedOnly) {
+        filterQuery = filterQuery.eq('is_published', true);
+      }
+      if (type != null) {
+        filterQuery = filterQuery.eq('announcement_type', type);
+      }
+      if (priority != null) {
+        filterQuery = filterQuery.eq('priority', priority);
+      }
+
+      var transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
-      if (publishedOnly) {
-        query = query.eq('is_published', true);
-      }
-      if (type != null) {
-        query = query.eq('announcement_type', type);
-      }
-      if (priority != null) {
-        query = query.eq('priority', priority);
-      }
-
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} announcements');
       return response
           .map((e) => AnnouncementModel.fromJson(e as Map<String, dynamic>))
@@ -843,21 +845,23 @@ class CommunicationRemoteDataSourceImpl
   }) async {
     try {
       AppLogger.info('Fetching notifications');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_notificationsTable)
           .select()
-          .eq('user_id', _supabase.auth.currentUser?.id ?? '')
+          .eq('user_id', _supabase.auth.currentUser?.id ?? '');
+
+      if (category != null) {
+        filterQuery = filterQuery.eq('category', category);
+      }
+      if (isRead != null) {
+        filterQuery = filterQuery.eq('is_read', isRead);
+      }
+
+      var transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
-      if (category != null) {
-        query = query.eq('category', category);
-      }
-      if (isRead != null) {
-        query = query.eq('is_read', isRead);
-      }
-
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} notifications');
       return response
           .map((e) =>
@@ -977,17 +981,19 @@ class CommunicationRemoteDataSourceImpl
   }) async {
     try {
       AppLogger.info('Fetching forums');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_forumsTable)
-          .select()
+          .select();
+
+      if (type != null) {
+        filterQuery = filterQuery.eq('forum_type', type);
+      }
+
+      var transformQuery = filterQuery
           .order('last_activity_at', ascending: false, nullsFirst: true)
           .range((page - 1) * perPage, page * perPage - 1);
 
-      if (type != null) {
-        query = query.eq('forum_type', type);
-      }
-
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} forums');
       return response
           .map((e) => DiscussionForumModel.fromJson(e as Map<String, dynamic>))
@@ -1013,7 +1019,7 @@ class CommunicationRemoteDataSourceImpl
       return DiscussionForumModel.fromJson(response);
     } on sb.PostgrestException catch (e) {
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Forum not found: $forumId');
+        throw NotFoundException(message: 'Forum not found: $forumId');
       }
       _mapPostgrestException(e);
     } catch (e) {
@@ -1194,23 +1200,25 @@ class CommunicationRemoteDataSourceImpl
   }) async {
     try {
       AppLogger.info('Fetching calendar events');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_calendarEventsTable)
-          .select()
+          .select();
+
+      if (type != null) {
+        filterQuery = filterQuery.eq('event_type', type);
+      }
+      if (startDate != null) {
+        filterQuery = filterQuery.gte('start_time', startDate.toIso8601String());
+      }
+      if (endDate != null) {
+        filterQuery = filterQuery.lte('start_time', endDate.toIso8601String());
+      }
+
+      var transformQuery = filterQuery
           .order('start_time', ascending: true)
           .range((page - 1) * perPage, page * perPage - 1);
 
-      if (type != null) {
-        query = query.eq('event_type', type);
-      }
-      if (startDate != null) {
-        query = query.gte('start_time', startDate.toIso8601String());
-      }
-      if (endDate != null) {
-        query = query.lte('start_time', endDate.toIso8601String());
-      }
-
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} calendar events');
       return response
           .map((e) => CalendarEventModel.fromJson(e as Map<String, dynamic>))
@@ -1525,17 +1533,19 @@ class CommunicationRemoteDataSourceImpl
   }) async {
     try {
       AppLogger.info('Fetching knowledge documents');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_knowledgeDocsTable)
-          .select()
+          .select();
+
+      if (documentType != null) {
+        filterQuery = filterQuery.eq('document_type', documentType);
+      }
+
+      var transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
-      if (documentType != null) {
-        query = query.eq('document_type', documentType);
-      }
-
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} knowledge documents');
       return response
           .map((e) =>
@@ -1701,20 +1711,22 @@ class CommunicationRemoteDataSourceImpl
   }) async {
     try {
       AppLogger.info('Fetching audit logs');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_auditLogsTable)
-          .select()
+          .select();
+
+      if (action != null) {
+        filterQuery = filterQuery.eq('action', action);
+      }
+      if (resourceType != null) {
+        filterQuery = filterQuery.eq('resource_type', resourceType);
+      }
+
+      var transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
-      if (action != null) {
-        query = query.eq('action', action);
-      }
-      if (resourceType != null) {
-        query = query.eq('resource_type', resourceType);
-      }
-
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} audit logs');
       return response
           .map((e) =>

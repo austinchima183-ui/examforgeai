@@ -114,7 +114,6 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
   void dispose() {
     _customInstructionsController.dispose();
     _keywordsController.dispose();
-    _numQuestionsController.dispose();
     super.dispose();
   }
 

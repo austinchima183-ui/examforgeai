@@ -28,13 +28,13 @@ class ToggleWishlistUseCase {
                 final removeResult = await _repository.removeFromWishlist(match.id);
                 return removeResult.fold(
                   onSuccess: (_) => FailureResult<WishlistEntity>(
-                    ServerFailure('Removed from wishlist'),
+                    ServerFailure(message: 'Removed from wishlist', statusCode: 200),
                   ),
                   onFailure: (f) => FailureResult<WishlistEntity>(f),
                 );
               }
               return FailureResult<WishlistEntity>(
-                ServerFailure('Wishlist item not found'),
+                ServerFailure(message: 'Wishlist item not found', statusCode: 404),
               );
             },
             onFailure: (f) => FailureResult<WishlistEntity>(f),

@@ -22,6 +22,6 @@ class GetProductUseCase {
     if (params.slug != null) {
       return _repository.getProductBySlug(params.slug!);
     }
-    return FailureResult(ServerFailure('Either productId or slug must be provided'));
+    return FailureResult(ServerFailure(message: 'Either productId or slug must be provided', statusCode: 400));
   }
 }

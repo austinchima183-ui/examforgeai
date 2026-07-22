@@ -136,7 +136,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
       );
     } catch (e) {
       AppLogger.error('[OfflineLocalDS] Failed to get sync status', error: e);
-      throw CacheException('Failed to get sync status: $e');
+      throw CacheException(message: 'Failed to get sync status: $e');
     }
   }
 
@@ -161,7 +161,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to get offline resources',
         error: e,
       );
-      throw CacheException('Failed to get offline resources: $e');
+      throw CacheException(message: 'Failed to get offline resources: $e');
     }
   }
 
@@ -186,7 +186,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to save offline resource',
         error: e,
       );
-      throw CacheException('Failed to save offline resource: $e');
+      throw CacheException(message: 'Failed to save offline resource: $e');
     }
   }
 
@@ -200,7 +200,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to remove offline resource',
         error: e,
       );
-      throw CacheException('Failed to remove offline resource: $e');
+      throw CacheException(message: 'Failed to remove offline resource: $e');
     }
   }
 
@@ -225,7 +225,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to get drafts',
         error: e,
       );
-      throw CacheException('Failed to get drafts: $e');
+      throw CacheException(message: 'Failed to get drafts: $e');
     }
   }
 
@@ -266,7 +266,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to save draft',
         error: e,
       );
-      throw CacheException('Failed to save draft: $e');
+      throw CacheException(message: 'Failed to save draft: $e');
     }
   }
 
@@ -280,7 +280,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to delete draft',
         error: e,
       );
-      throw CacheException('Failed to delete draft: $e');
+      throw CacheException(message: 'Failed to delete draft: $e');
     }
   }
 
@@ -341,7 +341,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to save exam attempt',
         error: e,
       );
-      throw CacheException('Failed to save exam attempt: $e');
+      throw CacheException(message: 'Failed to save exam attempt: $e');
     }
   }
 
@@ -360,7 +360,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to get pending exam attempts',
         error: e,
       );
-      throw CacheException('Failed to get pending exam attempts: $e');
+      throw CacheException(message: 'Failed to get pending exam attempts: $e');
     }
   }
 
@@ -374,7 +374,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to mark exam attempt synced',
         error: e,
       );
-      throw CacheException('Failed to mark exam attempt synced: $e');
+      throw CacheException(message: 'Failed to mark exam attempt synced: $e');
     }
   }
 
@@ -408,7 +408,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to get downloads',
         error: e,
       );
-      throw CacheException('Failed to get downloads: $e');
+      throw CacheException(message: 'Failed to get downloads: $e');
     }
   }
 
@@ -454,7 +454,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to save download',
         error: e,
       );
-      throw CacheException('Failed to save download: $e');
+      throw CacheException(message: 'Failed to save download: $e');
     }
   }
 
@@ -478,7 +478,7 @@ class OfflineLocalDataSourceImpl implements OfflineLocalDataSource {
         '[OfflineLocalDS] Failed to update download status',
         error: e,
       );
-      throw CacheException('Failed to update download status: $e');
+      throw CacheException(message: 'Failed to update download status: $e');
     }
   }
 

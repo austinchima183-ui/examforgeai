@@ -73,7 +73,6 @@ class FlashcardState {
   final bool hasMoreDecks;
 
   /// Current page number for deck pagination.
-  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading;

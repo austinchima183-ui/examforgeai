@@ -26,12 +26,12 @@ class GetRevenueDataUseCase {
   Future<Result<RevenueDataEntity>> call(GetRevenueDataParams params) async {
     if (params.periodType.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Period type cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Period type cannot be empty'),
       );
     }
     if (params.endDate.isBefore(params.startDate)) {
       return FailureResult(
-        Failure.validation(message: 'End date must be after start date'),
+        Failure.validation(fieldErrors: const {}, message: 'End date must be after start date'),
       );
     }
 

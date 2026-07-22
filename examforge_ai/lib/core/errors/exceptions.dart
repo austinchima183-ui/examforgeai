@@ -24,7 +24,7 @@ class ServerException implements Exception {
 class CacheException implements Exception {
   final String message;
 
-  const CacheException([this.message = 'Cache operation failed']);
+  const CacheException({this.message = 'Cache operation failed'});
 
   @override
   String toString() => 'CacheException(message: $message)';
@@ -48,7 +48,7 @@ class AuthException implements Exception {
 class NetworkException implements Exception {
   final String message;
 
-  const NetworkException([this.message = 'No network connection available']);
+  const NetworkException({this.message = 'No network connection available'});
 
   @override
   String toString() => 'NetworkException(message: $message)';
@@ -73,7 +73,7 @@ class ValidationException implements Exception {
 class NotFoundException implements Exception {
   final String message;
 
-  const NotFoundException([this.message = 'Resource not found']);
+  const NotFoundException({this.message = 'Resource not found'});
 
   @override
   String toString() => 'NotFoundException(message: $message)';
@@ -83,7 +83,7 @@ class NotFoundException implements Exception {
 class UnauthorizedException implements Exception {
   final String message;
 
-  const UnauthorizedException([this.message = 'Unauthorized access']);
+  const UnauthorizedException({this.message = 'Unauthorized access'});
 
   @override
   String toString() => 'UnauthorizedException(message: $message)';
@@ -93,7 +93,7 @@ class UnauthorizedException implements Exception {
 class ForbiddenException implements Exception {
   final String message;
 
-  const ForbiddenException([this.message = 'Access forbidden']);
+  const ForbiddenException({this.message = 'Access forbidden'});
 
   @override
   String toString() => 'ForbiddenException(message: $message)';

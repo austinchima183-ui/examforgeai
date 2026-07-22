@@ -163,7 +163,7 @@ class _PostUtmeCenterPageState extends ConsumerState<PostUtmeCenterPage> {
                         ? const AppEmptyState(
                             icon: Icons.quiz_outlined,
                             title: 'No Practice Tests Found',
-                            message:
+                            subtitle:
                                 'Adjust your filters to find Post-UTME practice tests.',
                           )
                         : ListView.builder(

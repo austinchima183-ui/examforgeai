@@ -172,7 +172,7 @@ class _StudentFormPageState extends ConsumerState<StudentFormPage> {
       lastDate: DateTime.now(),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Spacings.lgRadius),
             ),

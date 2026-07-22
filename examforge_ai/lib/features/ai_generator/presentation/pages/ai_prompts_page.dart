@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
@@ -573,7 +574,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                   icon: isEditing
                                       ? Icons.save_rounded
                                       : Icons.add_rounded,
-                                  isLoading: state.isSaving,
+                                  isLoading: ref.read(promptTemplateProvider).isSaving,
                                 ),
                               ),
                               const SizedBox(height: Spacings.xxl),

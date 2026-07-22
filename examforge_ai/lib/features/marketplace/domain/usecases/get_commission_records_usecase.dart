@@ -22,7 +22,7 @@ class GetCommissionRecordsUseCase {
 
   Future<Result<List<CommissionRecordEntity>>> call(GetCommissionRecordsParams params) async {
     if (params.sellerId.isEmpty) {
-      return FailureResult(Failure.validation(message: 'Seller ID is required', code: 'EMPTY_ID'));
+      return FailureResult(Failure.validation(fieldErrors: const {}, message: 'Seller ID is required'));
     }
     return _repository.getCommissionRecords(
       params.sellerId,

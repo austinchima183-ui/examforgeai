@@ -24,7 +24,7 @@ class SyncExamAttemptUseCase {
   Future<Result<bool>> call(SyncExamAttemptParams params) async {
     if (params.attemptId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Attempt ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Attempt ID cannot be empty'),
       );
     }
 

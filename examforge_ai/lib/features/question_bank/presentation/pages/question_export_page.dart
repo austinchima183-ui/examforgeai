@@ -431,7 +431,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
           lastDate: DateTime(2100),
           builder: (ctx, child) => Theme(
             data: Theme.of(ctx).copyWith(
-              dialogTheme: DialogTheme(
+              dialogTheme: DialogThemeData(
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(Spacings.lgRadius),
                 ),

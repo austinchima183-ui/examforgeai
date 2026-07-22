@@ -9,6 +9,7 @@ import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_guards.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_loading.dart';
+import '../../../../core/extensions/context_extensions.dart';
 
 /// Dashboard redirector that navigates the user to the correct
 /// role-specific dashboard based on their stored role.

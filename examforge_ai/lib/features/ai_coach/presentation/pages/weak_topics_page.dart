@@ -66,7 +66,7 @@ class _WeakTopicsPageState extends ConsumerState<WeakTopicsPage> {
               ? const AppEmptyState(
                   icon: Icons.trending_up,
                   title: 'No Weak Topics Detected',
-                  message:
+                  subtitle:
                       'Great job! We couldn\'t find any significantly weak areas. '
                       'Keep practicing to maintain your strengths.',
                 )

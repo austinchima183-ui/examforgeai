@@ -29,7 +29,7 @@ class GetDownloadsUseCase {
   Future<Result<List<FileDownload>>> call(GetDownloadsParams params) async {
     if (params.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
       );
     }
 

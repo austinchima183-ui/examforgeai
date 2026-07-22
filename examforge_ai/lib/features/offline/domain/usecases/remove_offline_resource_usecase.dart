@@ -24,7 +24,7 @@ class RemoveOfflineResourceUseCase {
   Future<Result<bool>> call(RemoveOfflineResourceParams params) async {
     if (params.resourceId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Resource ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Resource ID cannot be empty'),
       );
     }
 

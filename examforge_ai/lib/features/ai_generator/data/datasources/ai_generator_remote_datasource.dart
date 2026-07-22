@@ -245,7 +245,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Generation request not found for update.');
+        throw const NotFoundException(message: 'Generation request not found for update.');
       }
 
       return GenerationRequestModel.fromJson(response.first);
@@ -272,7 +272,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Generation request not found.');
+        throw const NotFoundException(message: 'Generation request not found.');
       }
 
       return GenerationRequestModel.fromJson(response.first);
@@ -294,29 +294,33 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase
+      // Build filter chain first (on PostgrestFilterBuilder),
+      // then apply transforms (order, range) which return PostgrestTransformBuilder.
+      var filterQuery = _supabase
           .from(_generationRequestsTable)
-          .select()
-          .order('created_at', ascending: false);
+          .select();
 
-      // Apply filters
+      // Apply filters on PostgrestFilterBuilder
       if (filters.containsKey('school_id')) {
-        query = query.eq('school_id', filters['school_id'] as String);
+        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
       }
       if (filters.containsKey('status')) {
-        query = query.eq('status', filters['status'] as String);
+        filterQuery = filterQuery.eq('status', filters['status'] as String);
       }
       if (filters.containsKey('requested_by')) {
-        query = query.eq('requested_by', filters['requested_by'] as String);
+        filterQuery = filterQuery.eq('requested_by', filters['requested_by'] as String);
       }
+
+      // Now apply transforms on PostgrestTransformBuilder
+      var transformQuery = filterQuery.order('created_at', ascending: false);
 
       // Pagination
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
       final from = (page - 1) * perPage;
-      query = query.range(from, from + perPage - 1);
+      transformQuery = transformQuery.range(from, from + perPage - 1);
 
-      final response = await query;
+      final response = await transformQuery;
       return response
           .map<GenerationRequestModel>(
               (json) => GenerationRequestModel.fromJson(json))
@@ -426,7 +430,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Generated question not found for update.');
+        throw const NotFoundException(message: 'Generated question not found for update.');
       }
 
       return GeneratedQuestionModel.fromJson(response.first);
@@ -453,7 +457,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Generated question not found.');
+        throw const NotFoundException(message: 'Generated question not found.');
       }
 
       return GeneratedQuestionModel.fromJson(response.first);
@@ -475,28 +479,29 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_generatedQuestionsTable)
-          .select()
-          .order('created_at', ascending: false);
+          .select();
 
       if (filters.containsKey('school_id')) {
-        query = query.eq('school_id', filters['school_id'] as String);
+        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
       }
       if (filters.containsKey('review_status')) {
-        query = query.eq('review_status', filters['review_status'] as String);
+        filterQuery = filterQuery.eq('review_status', filters['review_status'] as String);
       }
       if (filters.containsKey('generation_request_id')) {
-        query = query.eq('generation_request_id',
+        filterQuery = filterQuery.eq('generation_request_id',
             filters['generation_request_id'] as String);
       }
+
+      var transformQuery = filterQuery.order('created_at', ascending: false);
 
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
       final from = (page - 1) * perPage;
-      query = query.range(from, from + perPage - 1);
+      transformQuery = transformQuery.range(from, from + perPage - 1);
 
-      final response = await query;
+      final response = await transformQuery;
       return response
           .map<GeneratedQuestionModel>(
               (json) => GeneratedQuestionModel.fromJson(json))
@@ -566,7 +571,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Generated question not found for approval.');
+        throw const NotFoundException(message: 'Generated question not found for approval.');
       }
 
       AppLogger.info('Question approved: $id');
@@ -603,7 +608,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Generated question not found for rejection.');
+        throw const NotFoundException(message: 'Generated question not found for rejection.');
       }
 
       AppLogger.info('Question rejected: $id');
@@ -639,7 +644,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException(
+        throw const NotFoundException(message: 
             'Generated question not found for revision request.');
       }
 
@@ -706,7 +711,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Improvement not found for update.');
+        throw const NotFoundException(message: 'Improvement not found for update.');
       }
 
       return QuestionImprovementModel.fromJson(response.first);
@@ -733,7 +738,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Improvement not found.');
+        throw const NotFoundException(message: 'Improvement not found.');
       }
 
       return QuestionImprovementModel.fromJson(response.first);
@@ -881,7 +886,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Validation result not found.');
+        throw const NotFoundException(message: 'Validation result not found.');
       }
 
       return ValidationResultModel.fromJson(response.first);
@@ -946,7 +951,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Document upload not found for update.');
+        throw const NotFoundException(message: 'Document upload not found for update.');
       }
 
       return DocumentUploadModel.fromJson(response.first);
@@ -973,7 +978,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Document upload not found.');
+        throw const NotFoundException(message: 'Document upload not found.');
       }
 
       return DocumentUploadModel.fromJson(response.first);
@@ -995,25 +1000,26 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_documentsTable)
-          .select()
-          .order('created_at', ascending: false);
+          .select();
 
       if (filters.containsKey('school_id')) {
-        query = query.eq('school_id', filters['school_id'] as String);
+        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
       }
       if (filters.containsKey('uploaded_by')) {
-        query = query.eq('uploaded_by', filters['uploaded_by'] as String);
+        filterQuery = filterQuery.eq('uploaded_by', filters['uploaded_by'] as String);
       }
+
+      var transformQuery = filterQuery.order('created_at', ascending: false);
 
       // PERF: Added default pagination to prevent unbounded query
       final page = filters['page'] as int? ?? 1;
       final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? PaginatedQueryMixin.defaultPageSize;
       final from = (page - 1) * perPage;
-      query = query.range(from, from + perPage - 1);
+      transformQuery = transformQuery.range(from, from + perPage - 1);
 
-      final response = await query;
+      final response = await transformQuery;
       return response
           .map<DocumentUploadModel>(
               (json) => DocumentUploadModel.fromJson(json))
@@ -1051,7 +1057,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException(
+        throw const NotFoundException(message: 
             'Generated question not found for save-to-bank.');
       }
 
@@ -1122,7 +1128,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Prompt template not found for update.');
+        throw const NotFoundException(message: 'Prompt template not found for update.');
       }
 
       return PromptTemplateModel.fromJson(response.first);
@@ -1149,7 +1155,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Prompt template not found.');
+        throw const NotFoundException(message: 'Prompt template not found.');
       }
 
       return PromptTemplateModel.fromJson(response.first);
@@ -1171,26 +1177,26 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_promptTemplatesTable)
           .select()
-          .eq('is_active', true)
-          .order('is_default', ascending: false)
-          .order('quality_score', ascending: true);
+          .eq('is_active', true);
 
       if (filters.containsKey('prompt_type')) {
-        query =
-            query.eq('prompt_type', filters['prompt_type'] as String);
+        filterQuery = filterQuery.eq('prompt_type', filters['prompt_type'] as String);
       }
       if (filters.containsKey('subject_id')) {
-        query = query.eq('subject_id', filters['subject_id'] as String);
+        filterQuery = filterQuery.eq('subject_id', filters['subject_id'] as String);
       }
       if (filters.containsKey('curriculum')) {
-        query = query.eq('curriculum', filters['curriculum'] as String);
+        filterQuery = filterQuery.eq('curriculum', filters['curriculum'] as String);
       }
 
       // PERF: Added limit to prevent unbounded query on prompt_templates
-      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
+      final response = await filterQuery
+          .order('is_default', ascending: false)
+          .order('quality_score', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<PromptTemplateModel>(
               (json) => PromptTemplateModel.fromJson(json))
@@ -1294,7 +1300,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Provider config not found for update.');
+        throw const NotFoundException(message: 'Provider config not found for update.');
       }
 
       return AiProviderConfigModel.fromJson(response.first);
@@ -1321,7 +1327,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Provider config not found.');
+        throw const NotFoundException(message: 'Provider config not found.');
       }
 
       return AiProviderConfigModel.fromJson(response.first);
@@ -1378,7 +1384,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Active API key not found for provider.');
+        throw const NotFoundException(message: 'Active API key not found for provider.');
       }
 
       return AiApiKeyModel.fromJson(response.first);
@@ -1445,7 +1451,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Queue entry not found for update.');
+        throw const NotFoundException(message: 'Queue entry not found for update.');
       }
 
       return GenerationQueueModel.fromJson(response.first);
@@ -1475,7 +1481,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('No pending generation in queue.');
+        throw const NotFoundException(message: 'No pending generation in queue.');
       }
 
       final entry = response.first;
@@ -1573,26 +1579,27 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_usageStatsTable)
-          .select()
-          .order('date', ascending: false);
+          .select();
 
       if (filters.containsKey('school_id')) {
-        query = query.eq('school_id', filters['school_id'] as String);
+        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
       }
       if (filters.containsKey('provider')) {
-        query = query.eq('provider', filters['provider'] as String);
+        filterQuery = filterQuery.eq('provider', filters['provider'] as String);
       }
       if (filters.containsKey('start_date')) {
-        query = query.gte('date', filters['start_date'] as String);
+        filterQuery = filterQuery.gte('date', filters['start_date'] as String);
       }
       if (filters.containsKey('end_date')) {
-        query = query.lte('date', filters['end_date'] as String);
+        filterQuery = filterQuery.lte('date', filters['end_date'] as String);
       }
 
       // PERF: Added limit to prevent unbounded query on ai_usage_stats
-      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
+      final response = await filterQuery
+          .order('date', ascending: false)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<AiUsageStatsModel>(
               (json) => AiUsageStatsModel.fromJson(json))
@@ -1738,21 +1745,22 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_curriculumMappingsTable)
           .select()
-          .eq('is_active', true)
-          .order('curriculum', ascending: true);
+          .eq('is_active', true);
 
       if (filters.containsKey('curriculum')) {
-        query = query.eq('curriculum', filters['curriculum'] as String);
+        filterQuery = filterQuery.eq('curriculum', filters['curriculum'] as String);
       }
       if (filters.containsKey('subject_id')) {
-        query = query.eq('subject_id', filters['subject_id'] as String);
+        filterQuery = filterQuery.eq('subject_id', filters['subject_id'] as String);
       }
 
       // PERF: Added limit to prevent unbounded query on curriculum_mappings
-      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
+      final response = await filterQuery
+          .order('curriculum', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<CurriculumMappingModel>(
               (json) => CurriculumMappingModel.fromJson(json))

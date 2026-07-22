@@ -226,7 +226,7 @@ class QuestionBankRemoteDataSourceImpl
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Question not found for update.');
+        throw const NotFoundException(message: 'Question not found for update.');
       }
 
       AppLogger.info('Question updated: $questionId');
@@ -274,7 +274,7 @@ class QuestionBankRemoteDataSourceImpl
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Question not found.');
+        throw const NotFoundException(message: 'Question not found.');
       }
 
       return QuestionModel.fromJson(response.first);
@@ -304,7 +304,7 @@ class QuestionBankRemoteDataSourceImpl
           .limit(1);
 
       if (questionResponse.isEmpty) {
-        throw const NotFoundException('Question not found.');
+        throw const NotFoundException(message: 'Question not found.');
       }
 
       final questionJson = Map<String, dynamic>.from(questionResponse.first);
@@ -376,17 +376,15 @@ class QuestionBankRemoteDataSourceImpl
     Map<String, dynamic> filters,
   ) async {
     try {
-      var query = _supabase.from(_questionsTable).select();
-
-      query = _applyFilters(query, filters);
-      query = _applySorting(query, filters['sort_by'] as String?);
-      query = _applyPagination(
-        query,
+      final filterQuery = _applyFilters(_supabase.from(_questionsTable).select(), filters);
+      var transformQuery = _applySorting(filterQuery, filters['sort_by'] as String?);
+      transformQuery = _applyPagination(
+        transformQuery,
         page: filters['page'] as int?,
         perPage: filters['per_page'] as int?,
       );
 
-      final response = await query;
+      final response = await transformQuery;
       return response
           .map((json) => QuestionModel.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -404,13 +402,12 @@ class QuestionBankRemoteDataSourceImpl
   @override
   Future<int> getQuestionCount(Map<String, dynamic> filters) async {
     try {
-      var query = _supabase
-          .from(_questionsTable)
-          .select('id');
+      final filterQuery = _applyFilters(
+        _supabase.from(_questionsTable).select('id'),
+        filters,
+      );
 
-      query = _applyFilters(query, filters);
-
-      final response = await query;
+      final response = await filterQuery;
       return response.length;
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -764,7 +761,7 @@ class QuestionBankRemoteDataSourceImpl
     try {
       final userId = _currentUserId;
       if (userId == null) {
-        throw const UnauthorizedException('User not authenticated.');
+        throw const UnauthorizedException(message: 'User not authenticated.');
       }
 
       // Check if already favorited
@@ -811,7 +808,7 @@ class QuestionBankRemoteDataSourceImpl
     try {
       final userId = _currentUserId;
       if (userId == null) {
-        throw const UnauthorizedException('User not authenticated.');
+        throw const UnauthorizedException(message: 'User not authenticated.');
       }
 
       final offset = (page - 1) * perPage;
@@ -921,7 +918,7 @@ class QuestionBankRemoteDataSourceImpl
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Collection not found for update.');
+        throw const NotFoundException(message: 'Collection not found for update.');
       }
 
       AppLogger.info('Collection updated: $collectionId');
@@ -966,22 +963,23 @@ class QuestionBankRemoteDataSourceImpl
     bool? isShared,
   }) async {
     try {
-      var query = _supabase.from(_collectionsTable).select();
+      var filterQuery = _supabase.from(_collectionsTable).select();
 
       if (schoolId != null) {
-        query = query.eq('school_id', schoolId);
+        filterQuery = filterQuery.eq('school_id', schoolId);
       }
       if (createdBy != null) {
-        query = query.eq('created_by', createdBy);
+        filterQuery = filterQuery.eq('created_by', createdBy);
       }
       if (isShared != null) {
-        query = query.eq('is_shared', isShared);
+        filterQuery = filterQuery.eq('is_shared', isShared);
       }
 
-      query = query.eq('is_active', true).order('sort_order');
+      filterQuery = filterQuery.eq('is_active', true);
+      var transformQuery = filterQuery.order('sort_order');
 
       // PERF: Added limit to prevent unbounded query on question_collections
-      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
+      final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => QuestionCollectionModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1136,16 +1134,16 @@ class QuestionBankRemoteDataSourceImpl
     String? sharedWith,
   }) async {
     try {
-      var query = _supabase.from(_sharesTable).select();
+      var filterQuery = _supabase.from(_sharesTable).select();
 
       if (sharedWith != null) {
-        query = query.eq('shared_with', sharedWith);
+        filterQuery = filterQuery.eq('shared_with', sharedWith);
       }
 
-      query = query.order('created_at', ascending: false);
+      var transformQuery = filterQuery.order('created_at', ascending: false);
 
       // PERF: Added limit to prevent unbounded query on question_shares
-      final response = await query.limit(PaginatedQueryMixin.defaultPageSize);
+      final response = await transformQuery.limit(PaginatedQueryMixin.defaultPageSize);
       return response
           .map((json) => QuestionShareModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1206,7 +1204,7 @@ class QuestionBankRemoteDataSourceImpl
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Import job not found.');
+        throw const NotFoundException(message: 'Import job not found.');
       }
 
       return QuestionImportModel.fromJson(response.first);
@@ -1263,7 +1261,7 @@ class QuestionBankRemoteDataSourceImpl
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Export job not found.');
+        throw const NotFoundException(message: 'Export job not found.');
       }
 
       return QuestionExportModel.fromJson(response.first);
@@ -1290,28 +1288,26 @@ class QuestionBankRemoteDataSourceImpl
     Map<String, dynamic> filters,
   ) async {
     try {
-      var supabaseQuery = _supabase.from(_questionsTable).select();
-
-      // Full-text search using Supabase text search
-      supabaseQuery = supabaseQuery.textSearch(
-        'content',
-        query,
-        config: 'english',
+      // Full-text search using Supabase text search, then apply additional filters
+      final filterQuery = _applyFilters(
+        _supabase.from(_questionsTable).select().textSearch(
+          'content',
+          query,
+          config: 'english',
+        ),
+        filters,
       );
-
-      // Apply additional filters
-      supabaseQuery = _applyFilters(supabaseQuery, filters);
-      supabaseQuery = _applySorting(
-        supabaseQuery,
+      var transformQuery = _applySorting(
+        filterQuery,
         filters['sort_by'] as String?,
       );
-      supabaseQuery = _applyPagination(
-        supabaseQuery,
+      transformQuery = _applyPagination(
+        transformQuery,
         page: filters['page'] as int?,
         perPage: filters['per_page'] as int?,
       );
 
-      final response = await supabaseQuery;
+      final response = await transformQuery;
       return response
           .map((json) => QuestionModel.fromJson(json as Map<String, dynamic>))
           .toList();
@@ -1504,16 +1500,17 @@ class QuestionBankRemoteDataSourceImpl
     String? schoolId,
   }) async {
     try {
-      var query = _supabase.from(_categoriesTable).select();
+      var filterQuery = _supabase.from(_categoriesTable).select();
 
       if (schoolId != null) {
-        query = query.eq('school_id', schoolId);
+        filterQuery = filterQuery.eq('school_id', schoolId);
       }
 
-      query = query.eq('is_active', true).order('sort_order');
+      filterQuery = filterQuery.eq('is_active', true);
+      var transformQuery = filterQuery.order('sort_order');
 
       // PERF: Added limit to prevent unbounded query on question_categories
-      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
+      final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => QuestionCategoryModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1535,16 +1532,17 @@ class QuestionBankRemoteDataSourceImpl
     String? schoolId,
   }) async {
     try {
-      var query = _supabase.from(_academicSessionsTable).select();
+      var filterQuery = _supabase.from(_academicSessionsTable).select();
 
       if (schoolId != null) {
-        query = query.eq('school_id', schoolId);
+        filterQuery = filterQuery.eq('school_id', schoolId);
       }
 
-      query = query.eq('is_active', true).order('start_date');
+      filterQuery = filterQuery.eq('is_active', true);
+      var transformQuery = filterQuery.order('start_date');
 
       // PERF: Added limit to prevent unbounded query on academic_sessions
-      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
+      final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => AcademicSessionModel.fromJson(
                 json as Map<String, dynamic>,
@@ -1610,7 +1608,7 @@ class QuestionBankRemoteDataSourceImpl
 
       if (versionResponse.isEmpty) {
         throw NotFoundException(
-          'Version $version not found for question $questionId.',
+          message: 'Version $version not found for question $questionId.',
         );
       }
 
@@ -1712,7 +1710,7 @@ class QuestionBankRemoteDataSourceImpl
 
   /// Applies sorting based on the [sortBy] value.
   sb.PostgrestTransformBuilder<dynamic> _applySorting(
-    sb.PostgrestTransformBuilder<dynamic> query,
+    sb.PostgrestFilterBuilder<dynamic> query,
     String? sortBy,
   ) {
     switch (sortBy) {
@@ -1758,11 +1756,11 @@ class QuestionBankRemoteDataSourceImpl
 
     switch (statusCode) {
       case 401:
-        return UnauthorizedException(message);
+        return UnauthorizedException(message: message);
       case 403:
-        return ForbiddenException(message);
+        return ForbiddenException(message: message);
       case 404:
-        return NotFoundException(message);
+        return NotFoundException(message: message);
       case 422:
         return ValidationException(
           message: message,

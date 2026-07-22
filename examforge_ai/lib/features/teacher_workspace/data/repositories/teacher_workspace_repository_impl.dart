@@ -27,7 +27,7 @@ class TeacherWorkspaceRepositoryImpl implements TeacherWorkspaceRepository {
     } else if (e is NetworkException) {
       return Failure.network(message: e.message);
     } else if (e is ValidationException) {
-      return Failure.validation(message: e.message, fieldErrors: e.fieldErrors);
+      return Failure.validation(fieldErrors: const {}, message: e.message, fieldErrors: e.fieldErrors);
     } else if (e is NotFoundException) {
       return Failure.notFound(message: e.message);
     } else if (e is UnauthorizedException) {

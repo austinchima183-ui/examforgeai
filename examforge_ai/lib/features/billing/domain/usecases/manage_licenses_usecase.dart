@@ -54,12 +54,12 @@ class RevokeLicenseUseCase {
   Future<Result<LicenseEntity>> call(RevokeLicenseParams params) async {
     if (params.licenseId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'License ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'License ID cannot be empty'),
       );
     }
     if (params.reason.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Reason cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Reason cannot be empty'),
       );
     }
 

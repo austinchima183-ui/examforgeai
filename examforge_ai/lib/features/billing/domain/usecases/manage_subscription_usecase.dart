@@ -35,17 +35,17 @@ class CreateSubscriptionUseCase {
   ) async {
     if (params.subscriberId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscriber ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscriber ID cannot be empty'),
       );
     }
     if (params.planId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Plan ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Plan ID cannot be empty'),
       );
     }
     if (params.seats < 1) {
       return FailureResult(
-        Failure.validation(message: 'Seats must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Seats must be at least 1'),
       );
     }
 
@@ -84,12 +84,12 @@ class UpgradeSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscription ID cannot be empty'),
       );
     }
     if (params.newPlanId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'New plan ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'New plan ID cannot be empty'),
       );
     }
 
@@ -122,12 +122,12 @@ class DowngradeSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscription ID cannot be empty'),
       );
     }
     if (params.newPlanId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'New plan ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'New plan ID cannot be empty'),
       );
     }
 
@@ -161,7 +161,7 @@ class CancelSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscription ID cannot be empty'),
       );
     }
 
@@ -189,7 +189,7 @@ class RenewSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscription ID cannot be empty'),
       );
     }
 
@@ -215,7 +215,7 @@ class PauseSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscription ID cannot be empty'),
       );
     }
 
@@ -241,7 +241,7 @@ class ResumeSubscriptionUseCase {
   ) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscription ID cannot be empty'),
       );
     }
 
@@ -272,7 +272,7 @@ class GetCurrentSubscriptionUseCase {
   ) async {
     if (params.subscriberId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscriber ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscriber ID cannot be empty'),
       );
     }
 
@@ -310,12 +310,12 @@ class GetSubscriptionsUseCase {
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
       );
     }
 

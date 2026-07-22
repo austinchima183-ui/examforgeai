@@ -76,7 +76,7 @@ class _AssignmentGeneratorPageState
       builder: (ctx, child) {
         return Theme(
           data: Theme.of(ctx).copyWith(
-            dialogTheme: DialogTheme(
+            dialogTheme: DialogThemeData(
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(Spacings.lgRadius),
               ),

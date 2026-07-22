@@ -21,8 +21,8 @@ class _ModuleDetailPageState extends State<ModuleDetailPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return Consumer<EduOsProvider>(
-      builder: (context, provider, _) {
+    return Consumer(builder: (context, ref, _) {
+        final provider = ref.watch(eduOsProvider);
         final module = provider.selectedModule;
         if (module == null) {
           return Scaffold(appBar: AppBar(title: const Text('Module')), body: const Center(child: Text('No module selected')));

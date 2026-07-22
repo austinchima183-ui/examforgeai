@@ -61,7 +61,6 @@ class DocumentChatState {
   final bool hasMore;
 
   /// Current page number for document pagination.
-  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading || isSending || isUploading;

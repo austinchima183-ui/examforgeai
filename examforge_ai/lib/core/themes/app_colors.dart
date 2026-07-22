@@ -12,6 +12,15 @@ class AppColors {
   /// Primary brand seed – Indigo 600 (#4F46E5)
   static const Color seed = Color(0xFF4F46E5);
 
+  /// Convenience getter – the primary color from the light [ColorScheme].
+  /// Used throughout the app as `AppColors.primary`.
+  /// Hard-coded to match ColorScheme.fromSeed(seed: Color(0xFF4F46E5)) result,
+  /// so it can be used in const expressions.
+  static const Color primary = Color(0xFF4F46E5);
+
+  /// Convenience getter – the on-primary color from the light [ColorScheme].
+  static const Color onPrimary = Color(0xFFFFFFFF);
+
   // ─── Material 3 Color Schemes ─────────────────────────────────────────────
 
   /// Light color scheme derived from [seed].

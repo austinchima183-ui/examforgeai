@@ -31,12 +31,12 @@ class GetInvoicesUseCase {
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
       );
     }
 
@@ -64,7 +64,7 @@ class GetInvoiceUseCase {
   Future<Result<InvoiceEntity>> call(GetInvoiceParams params) async {
     if (params.invoiceId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Invoice ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Invoice ID cannot be empty'),
       );
     }
 
@@ -91,12 +91,12 @@ class GenerateInvoiceUseCase {
   Future<Result<InvoiceEntity>> call(GenerateInvoiceParams params) async {
     if (params.subscriptionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Subscription ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Subscription ID cannot be empty'),
       );
     }
     if (params.lineItems.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Line items cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Line items cannot be empty'),
       );
     }
 
@@ -121,7 +121,7 @@ class GetInvoicePdfUrlUseCase {
   Future<Result<String>> call(GetInvoicePdfUrlParams params) async {
     if (params.invoiceId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Invoice ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Invoice ID cannot be empty'),
       );
     }
 
@@ -152,17 +152,17 @@ class GetReceiptsUseCase {
   ) async {
     if (params.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
       );
     }
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
       );
     }
 
@@ -188,7 +188,7 @@ class GetReceiptPdfUrlUseCase {
   Future<Result<String>> call(GetReceiptPdfUrlParams params) async {
     if (params.receiptId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Receipt ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Receipt ID cannot be empty'),
       );
     }
 

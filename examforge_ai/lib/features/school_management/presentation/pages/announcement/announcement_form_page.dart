@@ -92,7 +92,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
       lastDate: DateTime.now().add(const Duration(days: 365 * 2)),
       builder: (ctx, child) => Theme(
         data: Theme.of(ctx).copyWith(
-          dialogTheme: DialogTheme(
+          dialogTheme: DialogThemeData(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Spacings.lgRadius),
             ),

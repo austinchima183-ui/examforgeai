@@ -256,11 +256,11 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
   Never _handlePostgrestError(sb.PostgrestException e) {
     AppLogger.error('Supabase error: ${e.message}', error: e);
     if (e.code == '401') {
-      throw UnauthorizedException(e.message);
+      throw UnauthorizedException(message: e.message);
     } else if (e.code == '403') {
-      throw ForbiddenException(e.message);
+      throw ForbiddenException(message: e.message);
     } else if (e.code == '404' || e.code == 'PGRST116') {
-      throw NotFoundException(e.message);
+      throw NotFoundException(message: e.message);
     }
     throw ServerException(
       message: e.message,
@@ -573,7 +573,7 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
       if (filters.containsKey('parent_topic_id')) {
         final parentId = filters['parent_topic_id'];
         if (parentId == null) {
-          query = query.is_('parent_topic_id', null);
+          query = query.filter('parent_topic_id', 'is.null');
         } else {
           query = query.eq('parent_topic_id', parentId as String);
         }
@@ -723,7 +723,7 @@ class CcmsRemoteDataSourceImpl implements CcmsRemoteDataSource {
       if (filters.containsKey('subtopic_id')) {
         final subtopicId = filters['subtopic_id'];
         if (subtopicId == null) {
-          query = query.is_('subtopic_id', null);
+          query = query.filter('subtopic_id', 'is.null');
         } else {
           query = query.eq('subtopic_id', subtopicId as String);
         }

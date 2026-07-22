@@ -53,8 +53,6 @@ class AiCoachState {
   final String? error;
   final bool hasMoreSessions;
   final int currentPage;
-
-  int get currentPage => currentPage;
   bool get isBusy =>
       isLoading ||
       isSendingMessage ||

@@ -22,6 +22,6 @@ class GetOrderUseCase {
     if (params.orderNumber != null) {
       return _repository.getOrderByNumber(params.orderNumber!);
     }
-    return FailureResult(ServerFailure('Either orderId or orderNumber must be provided'));
+    return FailureResult(ServerFailure(message: 'Either orderId or orderNumber must be provided', statusCode: 400));
   }
 }

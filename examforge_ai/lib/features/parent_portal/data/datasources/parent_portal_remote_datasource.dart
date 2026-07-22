@@ -89,7 +89,7 @@ class ParentPortalRemoteDataSourceImpl
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(e.message);
+        throw NotFoundException(message: e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -101,7 +101,7 @@ class ParentPortalRemoteDataSourceImpl
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException('You do not have permission for this action.');
+        throw ForbiddenException(message: 'You do not have permission for this action.');
       default:
         throw ServerException(
           message: e.message,
@@ -163,7 +163,7 @@ class ParentPortalRemoteDataSourceImpl
       return response;
     } on sb.PostgrestException catch (e) {
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Child profile not found for student: $studentId');
+        throw NotFoundException(message: 'Child profile not found for student: $studentId');
       }
       _mapPostgrestException(e);
     } catch (e) {
@@ -346,33 +346,35 @@ class ParentPortalRemoteDataSourceImpl
   ) async {
     try {
       AppLogger.info('Fetching parent messages with params: $params');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_messagesTable)
           .select();
 
       // Apply filters from params
       if (params.containsKey('thread_id')) {
-        query = query.eq('thread_id', params['thread_id'] as String);
+        filterQuery = filterQuery.eq('thread_id', params['thread_id'] as String);
       }
       if (params.containsKey('student_id')) {
-        query = query.eq('student_id', params['student_id'] as String);
+        filterQuery = filterQuery.eq('student_id', params['student_id'] as String);
       }
       if (params.containsKey('direction')) {
-        query = query.eq('direction', params['direction'] as String);
+        filterQuery = filterQuery.eq('direction', params['direction'] as String);
       }
       if (params.containsKey('is_archived')) {
-        query = query.eq('is_archived', params['is_archived'] as bool);
+        filterQuery = filterQuery.eq('is_archived', params['is_archived'] as bool);
       }
+
+      late final dynamic transformQuery;
       if (params.containsKey('page') && params.containsKey('per_page')) {
         final page = params['page'] as int;
         final perPage = params['per_page'] as int;
-        query = query.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
+        transformQuery = filterQuery.order('created_at', ascending: false).range((page - 1) * perPage, page * perPage - 1);
       } else {
         // PERF: Default pagination to prevent unbounded query on parent_messages
-        query = query.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
+        transformQuery = filterQuery.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
       }
 
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info('Parent messages fetched: ${response.length} records');
       return response
           .map((e) => ParentMessageModel.fromJson(e))
@@ -448,29 +450,31 @@ class ParentPortalRemoteDataSourceImpl
     try {
       AppLogger.info('Fetching parent notifications with params: $params');
       final parentId = _supabase.auth.currentUser?.id ?? '';
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_notificationsTable)
           .select()
-          .eq('parent_id', parentId)
-          .order('created_at', ascending: false);
+          .eq('parent_id', parentId);
 
       // Apply filters from params
       if (params.containsKey('category')) {
-        query = query.eq('category', params['category'] as String);
+        filterQuery = filterQuery.eq('category', params['category'] as String);
       }
       if (params.containsKey('is_read')) {
-        query = query.eq('is_read', params['is_read'] as bool);
+        filterQuery = filterQuery.eq('is_read', params['is_read'] as bool);
       }
+
+      // Apply transforms (order + pagination)
+      var transformQuery = filterQuery.order('created_at', ascending: false);
       if (params.containsKey('page') && params.containsKey('per_page')) {
         final page = params['page'] as int;
         final perPage = params['per_page'] as int;
-        query = query.range((page - 1) * perPage, page * perPage - 1);
+        transformQuery = transformQuery.range((page - 1) * perPage, page * perPage - 1);
       } else {
         // PERF: Default pagination to prevent unbounded query on parent_notifications
-        query = query.limit(PaginatedQueryMixin.defaultPageSize);
+        transformQuery = transformQuery.limit(PaginatedQueryMixin.defaultPageSize);
       }
 
-      final response = await query;
+      final response = await transformQuery;
       AppLogger.info(
         'Parent notifications fetched: ${response.length} records',
       );
@@ -540,29 +544,30 @@ class ParentPortalRemoteDataSourceImpl
   ) async {
     try {
       AppLogger.info('Fetching parent calendar events with params: $params');
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_calendarEventsTable)
-          .select()
-          .order('start_time', ascending: true);
+          .select();
 
       // Apply filters from params
       if (params.containsKey('start_date')) {
         final startDate = params['start_date'] as String;
-        query = query.gte('start_time', startDate);
+        filterQuery = filterQuery.gte('start_time', startDate);
       }
       if (params.containsKey('end_date')) {
         final endDate = params['end_date'] as String;
-        query = query.lte('end_time', endDate);
+        filterQuery = filterQuery.lte('end_time', endDate);
       }
       if (params.containsKey('student_id')) {
-        query = query.eq('student_id', params['student_id'] as String);
+        filterQuery = filterQuery.eq('student_id', params['student_id'] as String);
       }
       if (params.containsKey('event_type')) {
-        query = query.eq('event_type', params['event_type'] as String);
+        filterQuery = filterQuery.eq('event_type', params['event_type'] as String);
       }
 
       // PERF: Added limit to prevent unbounded query on parent_calendar_events
-      final response = await query.limit(PaginatedQueryMixin.dropdownPageSize);
+      final response = await filterQuery
+          .order('start_time', ascending: true)
+          .limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((e) => ParentCalendarEventModel.fromJson(e))
           .toList();
@@ -614,34 +619,35 @@ class ParentPortalRemoteDataSourceImpl
     try {
       AppLogger.info('Fetching parent AI insights with params: $params');
       final parentId = _supabase.auth.currentUser?.id ?? '';
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_insightsTable)
           .select()
-          .eq('parent_id', parentId)
-          .order('created_at', ascending: false);
+          .eq('parent_id', parentId);
 
       // Apply filters from params
       if (params.containsKey('student_id')) {
-        query = query.eq('student_id', params['student_id'] as String);
+        filterQuery = filterQuery.eq('student_id', params['student_id'] as String);
       }
       if (params.containsKey('is_read')) {
-        query = query.eq('is_read', params['is_read'] as bool);
+        filterQuery = filterQuery.eq('is_read', params['is_read'] as bool);
       }
       if (params.containsKey('is_dismissed')) {
-        query = query.eq('is_dismissed', params['is_dismissed'] as bool);
+        filterQuery = filterQuery.eq('is_dismissed', params['is_dismissed'] as bool);
       } else {
         // Default: exclude dismissed insights
-        query = query.eq('is_dismissed', false);
+        filterQuery = filterQuery.eq('is_dismissed', false);
       }
       if (params.containsKey('insight_type')) {
-        query = query.eq('insight_type', params['insight_type'] as String);
+        filterQuery = filterQuery.eq('insight_type', params['insight_type'] as String);
       }
       if (params.containsKey('severity')) {
-        query = query.eq('severity', params['severity'] as String);
+        filterQuery = filterQuery.eq('severity', params['severity'] as String);
       }
 
       // PERF: Added limit to prevent unbounded query on parent_ai_insights
-      final response = await query.limit(PaginatedQueryMixin.defaultPageSize);
+      final response = await filterQuery
+          .order('created_at', ascending: false)
+          .limit(PaginatedQueryMixin.defaultPageSize);
       return response
           .map((e) => ParentAiInsightModel.fromJson(e))
           .toList();

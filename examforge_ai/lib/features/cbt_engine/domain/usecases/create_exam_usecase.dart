@@ -239,7 +239,7 @@ class CreateExamUseCase {
     if (examResult.isFailure) return examResult;
 
     final createdExam = examResult.getOrElse(
-      const ExamEntity(
+      ExamEntity(
         id: '',
         schoolId: '',
         createdBy: '',

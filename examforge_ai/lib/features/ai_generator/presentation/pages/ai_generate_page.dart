@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ai_entities.dart';
+import '../../../question_bank/domain/entities/question_entities.dart';
 import '../providers/ai_generator_provider.dart';
 import '../widgets/ai_widgets.dart';
 

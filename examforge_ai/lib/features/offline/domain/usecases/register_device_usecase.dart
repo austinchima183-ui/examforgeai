@@ -27,17 +27,17 @@ class RegisterDeviceUseCase {
   ) async {
     if (params.device.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
       );
     }
     if (params.device.deviceToken.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Device token cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Device token cannot be empty'),
       );
     }
     if (params.device.platform.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Platform cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Platform cannot be empty'),
       );
     }
 

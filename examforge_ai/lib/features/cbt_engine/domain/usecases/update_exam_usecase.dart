@@ -49,7 +49,7 @@ class UpdateExamUseCase {
     }
 
     final existing = existingResult.getOrElse(
-      const ExamEntity(
+      ExamEntity(
         id: '',
         schoolId: '',
         createdBy: '',

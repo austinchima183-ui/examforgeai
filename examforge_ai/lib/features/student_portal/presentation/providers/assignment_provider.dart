@@ -52,7 +52,6 @@ class AssignmentState {
   final int currentPage;
 
   /// Current page number for submission pagination.
-  int get currentPage => currentPage;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading || isSubmitting;

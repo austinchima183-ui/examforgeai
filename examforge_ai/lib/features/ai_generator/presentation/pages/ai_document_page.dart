@@ -6,6 +6,7 @@ import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ai_entities.dart';
+import '../../../question_bank/domain/entities/question_entities.dart';
 import '../widgets/ai_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

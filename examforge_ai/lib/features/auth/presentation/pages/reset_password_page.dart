@@ -11,6 +11,7 @@ import '../../../../shared/widgets/app_text_field.dart';
 import '../providers/auth_provider.dart';
 import '../widgets/password_strength_indicator.dart';
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 
 
 /// Reset password page — the deep-link target from the password-reset

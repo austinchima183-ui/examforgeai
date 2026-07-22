@@ -62,8 +62,6 @@ class AdmissionHubState {
 
   final bool hasMoreUniversities;
   final int currentPage;
-
-  int get currentPage => currentPage;
   bool get isBusy =>
       isLoading ||
       isSearching ||

@@ -4,18 +4,18 @@ import '../../domain/entities/analytics_dashboard_entities.dart';
 import '../providers/analytics_dashboard_provider.dart';
 
 /// Release notes page showing product updates and changelog.
-class ReleaseNotesPage extends StatefulWidget {
+class ReleaseNotesPage extends ConsumerStatefulWidget {
   const ReleaseNotesPage({super.key});
   @override
-  State<ReleaseNotesPage> createState() => _ReleaseNotesPageState();
+  ConsumerState<ReleaseNotesPage> createState() => _ReleaseNotesPageState();
 }
 
-class _ReleaseNotesPageState extends State<ReleaseNotesPage> {
+class _ReleaseNotesPageState extends ConsumerState<ReleaseNotesPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<AnalyticsDashboardProvider>().loadReleaseNotes();
+      ref.read(analyticsDashboardProvider).loadReleaseNotes();
     });
   }
 
@@ -24,8 +24,8 @@ class _ReleaseNotesPageState extends State<ReleaseNotesPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Release Notes'), centerTitle: true),
-      body: Consumer<AnalyticsDashboardProvider>(
-        builder: (context, provider, _) {
+      body: Consumer(builder: (context, ref, _) {
+          final provider = ref.watch(analyticsDashboardProvider);
           if (provider.isLoading && provider.releaseNotes.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }

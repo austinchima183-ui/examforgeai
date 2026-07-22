@@ -20,7 +20,7 @@ class UpdateOrderStatusUseCase {
 
   Future<Result<MarketplaceOrderEntity>> call(UpdateOrderStatusParams params) async {
     if (params.orderId.isEmpty) {
-      return FailureResult(Failure.validation(message: 'Order ID is required', code: 'EMPTY_ID'));
+      return FailureResult(Failure.validation(fieldErrors: const {}, message: 'Order ID is required'));
     }
     return _repository.updateOrderStatus(params.orderId, params.status);
   }

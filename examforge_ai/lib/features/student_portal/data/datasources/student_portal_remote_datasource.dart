@@ -2190,13 +2190,13 @@ class StudentPortalRemoteDatasource {
           .from(_studentProgressSnapshotsTable)
           .select()
           .eq('student_id', studentId)
-          .is_('subject_id', null) // Overall progress (no specific subject)
+          .filter('subject_id', 'is.null') // Overall progress (no specific subject)
           .order('snapshot_date', ascending: false)
           .limit(1);
 
       if (response.isEmpty) {
         throw NotFoundException(
-          'No progress snapshot found for student: $studentId',
+          message: 'No progress snapshot found for student: $studentId',
         );
       }
 

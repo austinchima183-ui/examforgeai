@@ -273,7 +273,7 @@ class _AiCoachDashboardPageState
                 child: AppEmptyState(
                   icon: Icons.psychology_outlined,
                   title: 'No Sessions Yet',
-                  message:
+                  subtitle:
                       'Start a coaching session to get personalized guidance.',
                 ),
               )

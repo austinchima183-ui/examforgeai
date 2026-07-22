@@ -5,18 +5,18 @@ import '../widgets/metric_card.dart';
 import '../widgets/trend_chart.dart';
 
 /// Revenue analytics page showing MRR, ARR, and financial metrics.
-class RevenueAnalyticsPage extends StatefulWidget {
+class RevenueAnalyticsPage extends ConsumerStatefulWidget {
   const RevenueAnalyticsPage({super.key});
   @override
-  State<RevenueAnalyticsPage> createState() => _RevenueAnalyticsPageState();
+  ConsumerState<RevenueAnalyticsPage> createState() => _RevenueAnalyticsPageState();
 }
 
-class _RevenueAnalyticsPageState extends State<RevenueAnalyticsPage> {
+class _RevenueAnalyticsPageState extends ConsumerState<RevenueAnalyticsPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<AnalyticsDashboardProvider>();
+      final provider = ref.read(analyticsDashboardProvider);
       final now = DateTime.now();
       provider.loadRevenueMetrics(startDate: now.subtract(const Duration(days: 90)), endDate: now);
       provider.loadChurnData();
@@ -29,8 +29,8 @@ class _RevenueAnalyticsPageState extends State<RevenueAnalyticsPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Revenue Analytics'), centerTitle: true),
-      body: Consumer<AnalyticsDashboardProvider>(
-        builder: (context, provider, _) {
+      body: Consumer(builder: (context, ref, _) {
+          final provider = ref.watch(analyticsDashboardProvider);
           final revenue = provider.revenueMetrics ?? {};
           final mrr = (revenue['mrr'] as num?)?.toDouble() ?? 0.0;
           final arr = (revenue['arr'] as num?)?.toDouble() ?? 0.0;

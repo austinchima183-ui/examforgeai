@@ -7,18 +7,18 @@ import '../widgets/trend_chart.dart';
 /// User acquisition analytics page.
 ///
 /// Shows user signup trends, activation rates, and growth metrics.
-class UserAcquisitionPage extends StatefulWidget {
+class UserAcquisitionPage extends ConsumerStatefulWidget {
   const UserAcquisitionPage({super.key});
   @override
-  State<UserAcquisitionPage> createState() => _UserAcquisitionPageState();
+  ConsumerState<UserAcquisitionPage> createState() => _UserAcquisitionPageState();
 }
 
-class _UserAcquisitionPageState extends State<UserAcquisitionPage> {
+class _UserAcquisitionPageState extends ConsumerState<UserAcquisitionPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      final provider = context.read<AnalyticsDashboardProvider>();
+      final provider = ref.read(analyticsDashboardProvider);
       final now = DateTime.now();
       provider.loadDailyMetrics(schoolId: 'all', metricName: 'user_signups', startDate: now.subtract(const Duration(days: 30)), endDate: now);
       provider.loadFeatureAdoption();
@@ -31,8 +31,8 @@ class _UserAcquisitionPageState extends State<UserAcquisitionPage> {
     final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('User Acquisition'), centerTitle: true),
-      body: Consumer<AnalyticsDashboardProvider>(
-        builder: (context, provider, _) {
+      body: Consumer(builder: (context, ref, _) {
+          final provider = ref.watch(analyticsDashboardProvider);
           return SingleChildScrollView(
             padding: const EdgeInsets.all(16),
             child: Column(

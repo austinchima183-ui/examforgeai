@@ -30,17 +30,17 @@ class DownloadResourceUseCase {
   Future<Result<bool>> call(DownloadResourceParams params) async {
     if (params.userId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'User ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
       );
     }
     if (params.resourceType.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Resource type cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Resource type cannot be empty'),
       );
     }
     if (params.resourceId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Resource ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'Resource ID cannot be empty'),
       );
     }
 

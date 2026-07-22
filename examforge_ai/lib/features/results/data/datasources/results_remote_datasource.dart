@@ -306,7 +306,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update grade scale failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Grade scale not found: ${scale.id}');
+        throw NotFoundException(message: 'Grade scale not found: ${scale.id}');
       }
       throw ServerException(
         message: e.message,
@@ -361,7 +361,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get grade scale failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Grade scale not found: $scaleId');
+        throw NotFoundException(message: 'Grade scale not found: $scaleId');
       }
       throw ServerException(
         message: e.message,
@@ -387,22 +387,22 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   }) async {
     try {
       // PERF: Added pagination params + limit to grade scales list query
-      var query = _supabaseClient
+      var filterQuery = _supabaseClient
           .from(_gradeScalesTable)
           .select('*, grade_scale_entries(*)');
 
-      query = query.eq('school_id', schoolId);
+      filterQuery = filterQuery.eq('school_id', schoolId);
 
       if (isActive != null) {
-        query = query.eq('is_active', isActive);
+        filterQuery = filterQuery.eq('is_active', isActive);
       }
       if (gradeType != null) {
-        query = query.eq('grade_type', gradeType);
+        filterQuery = filterQuery.eq('grade_type', gradeType);
       }
 
-      query = query.order('created_at', ascending: false).range(offset, offset + limit - 1);
+      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + limit - 1);
 
-      final response = await query;
+      final response = await transformQuery;
 
       return response.map<GradeScaleModel>((json) {
         final mappedJson = _mapGradeScaleEntries(json);
@@ -486,7 +486,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       AppLogger.error('Update AI grading result failed', error: e);
       if (e.code == 'PGRST116') {
         throw NotFoundException(
-          'AI grading result not found: ${result.id}',
+          message: 'AI grading result not found: ${result.id}',
         );
       }
       throw ServerException(
@@ -1113,7 +1113,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (subjectId != null) {
         query = query.eq('subject_id', subjectId);
       } else {
-        query = query.is_('subject_id', null);
+        query = query.filter('subject_id', 'is.null');
       }
 
       final response = await query.limit(1);
@@ -1286,22 +1286,22 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   }) async {
     try {
       // PERF: Added explicit columns — analytics snapshot was using bare .select()
-      var query = _supabaseClient
+      var filterQuery = _supabaseClient
           .from(_analyticsSnapshotsTable)
           .select('id, school_id, snapshot_type, entity_id, academic_session_id, data, computed_at')
           .eq('school_id', schoolId)
           .eq('snapshot_type', snapshotType);
 
       if (entityId != null) {
-        query = query.eq('entity_id', entityId);
+        filterQuery = filterQuery.eq('entity_id', entityId);
       }
       if (academicSessionId != null) {
-        query = query.eq('academic_session_id', academicSessionId);
+        filterQuery = filterQuery.eq('academic_session_id', academicSessionId);
       }
 
-      query = query.order('computed_at', ascending: false).limit(1);
+      var transformQuery = filterQuery.order('computed_at', ascending: false).limit(1);
 
-      final response = await query;
+      final response = await transformQuery;
 
       if (response.isEmpty) return null;
 
@@ -1529,7 +1529,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update report export failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Report export not found: ${export.id}');
+        throw NotFoundException(message: 'Report export not found: ${export.id}');
       }
       throw ServerException(
         message: e.message,
@@ -1583,23 +1583,22 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
   }) async {
     try {
       // PERF: Added explicit columns — report exports list was using bare .select()
-      var query = _supabaseClient.from(_reportExportsTable).select('id, school_id, requested_by, report_type, status, file_url, created_at, updated_at');
+      var filterQuery = _supabaseClient.from(_reportExportsTable).select('id, school_id, requested_by, report_type, status, file_url, created_at, updated_at');
 
       if (schoolId != null) {
-        query = query.eq('school_id', schoolId);
+        filterQuery = filterQuery.eq('school_id', schoolId);
       }
       if (requestedBy != null) {
-        query = query.eq('requested_by', requestedBy);
+        filterQuery = filterQuery.eq('requested_by', requestedBy);
       }
       if (status != null) {
-        query = query.eq('status', status);
+        filterQuery = filterQuery.eq('status', status);
       }
 
       final offset = (page - 1) * perPage;
-      query = query.range(offset, offset + perPage - 1);
-      query = query.order('created_at', ascending: false);
+      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
 
-      final response = await query;
+      final response = await transformQuery;
 
       return response
           .map<ReportExportModel>(
@@ -1666,7 +1665,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Update result lock failed', error: e);
       if (e.code == 'PGRST116') {
-        throw NotFoundException('Result lock not found: ${lock.id}');
+        throw NotFoundException(message: 'Result lock not found: ${lock.id}');
       }
       throw ServerException(
         message: e.message,

@@ -44,7 +44,7 @@ class StorageService {
       AppLogger.debug('Access token saved');
     } catch (e) {
       AppLogger.error('Failed to save access token', error: e);
-      throw CacheException('Failed to save access token: $e');
+      throw CacheException(message: 'Failed to save access token: $e');
     }
   }
 
@@ -54,7 +54,7 @@ class StorageService {
       return await _secureStorage.read(key: AppConstants.accessToken);
     } catch (e) {
       AppLogger.error('Failed to read access token', error: e);
-      throw CacheException('Failed to read access token: $e');
+      throw CacheException(message: 'Failed to read access token: $e');
     }
   }
 
@@ -65,7 +65,7 @@ class StorageService {
       AppLogger.debug('Access token deleted');
     } catch (e) {
       AppLogger.error('Failed to delete access token', error: e);
-      throw CacheException('Failed to delete access token: $e');
+      throw CacheException(message: 'Failed to delete access token: $e');
     }
   }
 
@@ -81,7 +81,7 @@ class StorageService {
       AppLogger.debug('Refresh token saved');
     } catch (e) {
       AppLogger.error('Failed to save refresh token', error: e);
-      throw CacheException('Failed to save refresh token: $e');
+      throw CacheException(message: 'Failed to save refresh token: $e');
     }
   }
 
@@ -91,7 +91,7 @@ class StorageService {
       return await _secureStorage.read(key: AppConstants.refreshToken);
     } catch (e) {
       AppLogger.error('Failed to read refresh token', error: e);
-      throw CacheException('Failed to read refresh token: $e');
+      throw CacheException(message: 'Failed to read refresh token: $e');
     }
   }
 
@@ -102,7 +102,7 @@ class StorageService {
       AppLogger.debug('Refresh token deleted');
     } catch (e) {
       AppLogger.error('Failed to delete refresh token', error: e);
-      throw CacheException('Failed to delete refresh token: $e');
+      throw CacheException(message: 'Failed to delete refresh token: $e');
     }
   }
 
@@ -118,7 +118,7 @@ class StorageService {
       AppLogger.debug('User ID saved');
     } catch (e) {
       AppLogger.error('Failed to save user ID', error: e);
-      throw CacheException('Failed to save user ID: $e');
+      throw CacheException(message: 'Failed to save user ID: $e');
     }
   }
 
@@ -128,7 +128,7 @@ class StorageService {
       return await _secureStorage.read(key: AppConstants.userId);
     } catch (e) {
       AppLogger.error('Failed to read user ID', error: e);
-      throw CacheException('Failed to read user ID: $e');
+      throw CacheException(message: 'Failed to read user ID: $e');
     }
   }
 
@@ -138,7 +138,7 @@ class StorageService {
       await _secureStorage.delete(key: AppConstants.userId);
     } catch (e) {
       AppLogger.error('Failed to delete user ID', error: e);
-      throw CacheException('Failed to delete user ID: $e');
+      throw CacheException(message: 'Failed to delete user ID: $e');
     }
   }
 
@@ -154,7 +154,7 @@ class StorageService {
       AppLogger.debug('User role saved: $role');
     } catch (e) {
       AppLogger.error('Failed to save user role', error: e);
-      throw CacheException('Failed to save user role: $e');
+      throw CacheException(message: 'Failed to save user role: $e');
     }
   }
 
@@ -164,7 +164,7 @@ class StorageService {
       return await _secureStorage.read(key: AppConstants.userRole);
     } catch (e) {
       AppLogger.error('Failed to read user role', error: e);
-      throw CacheException('Failed to read user role: $e');
+      throw CacheException(message: 'Failed to read user role: $e');
     }
   }
 
@@ -174,7 +174,7 @@ class StorageService {
       await _secureStorage.delete(key: AppConstants.userRole);
     } catch (e) {
       AppLogger.error('Failed to delete user role', error: e);
-      throw CacheException('Failed to delete user role: $e');
+      throw CacheException(message: 'Failed to delete user role: $e');
     }
   }
 
@@ -189,7 +189,7 @@ class StorageService {
       );
     } catch (e) {
       AppLogger.error('Failed to save biometric preference', error: e);
-      throw CacheException('Failed to save biometric preference: $e');
+      throw CacheException(message: 'Failed to save biometric preference: $e');
     }
   }
 
@@ -217,7 +217,7 @@ class StorageService {
       AppLogger.debug('Theme mode saved: $mode');
     } catch (e) {
       AppLogger.error('Failed to save theme mode', error: e);
-      throw CacheException('Failed to save theme mode: $e');
+      throw CacheException(message: 'Failed to save theme mode: $e');
     }
   }
 
@@ -240,7 +240,7 @@ class StorageService {
       AppLogger.debug('Locale saved: $localeCode');
     } catch (e) {
       AppLogger.error('Failed to save locale', error: e);
-      throw CacheException('Failed to save locale: $e');
+      throw CacheException(message: 'Failed to save locale: $e');
     }
   }
 
@@ -263,7 +263,7 @@ class StorageService {
       AppLogger.debug('Onboarding complete: $complete');
     } catch (e) {
       AppLogger.error('Failed to save onboarding state', error: e);
-      throw CacheException('Failed to save onboarding state: $e');
+      throw CacheException(message: 'Failed to save onboarding state: $e');
     }
   }
 
@@ -287,7 +287,7 @@ class StorageService {
       AppLogger.debug('Remember me saved: $remember');
     } catch (e) {
       AppLogger.error('Failed to save remember me preference', error: e);
-      throw CacheException('Failed to save remember me preference: $e');
+      throw CacheException(message: 'Failed to save remember me preference: $e');
     }
   }
 
@@ -311,7 +311,7 @@ class StorageService {
       await _secureStorage.write(key: key, value: value);
     } catch (e) {
       AppLogger.error('Failed to write secure key: $key', error: e);
-      throw CacheException('Failed to write secure value: $e');
+      throw CacheException(message: 'Failed to write secure value: $e');
     }
   }
 
@@ -321,7 +321,7 @@ class StorageService {
       return await _secureStorage.read(key: key);
     } catch (e) {
       AppLogger.error('Failed to read secure key: $key', error: e);
-      throw CacheException('Failed to read secure value: $e');
+      throw CacheException(message: 'Failed to read secure value: $e');
     }
   }
 
@@ -331,7 +331,7 @@ class StorageService {
       await _sharedPrefs.setString(key, value);
     } catch (e) {
       AppLogger.error('Failed to write preference key: $key', error: e);
-      throw CacheException('Failed to write preference: $e');
+      throw CacheException(message: 'Failed to write preference: $e');
     }
   }
 
@@ -341,7 +341,7 @@ class StorageService {
       return await _sharedPrefs.getString(key);
     } catch (e) {
       AppLogger.error('Failed to read preference key: $key', error: e);
-      throw CacheException('Failed to read preference: $e');
+      throw CacheException(message: 'Failed to read preference: $e');
     }
   }
 
@@ -360,7 +360,7 @@ class StorageService {
       AppLogger.info('All storage cleared');
     } catch (e) {
       AppLogger.error('Failed to clear all storage', error: e);
-      throw CacheException('Failed to clear all storage: $e');
+      throw CacheException(message: 'Failed to clear all storage: $e');
     }
   }
 
@@ -379,7 +379,7 @@ class StorageService {
       AppLogger.info('Sensitive data cleared');
     } catch (e) {
       AppLogger.error('Failed to clear sensitive data', error: e);
-      throw CacheException('Failed to clear sensitive data: $e');
+      throw CacheException(message: 'Failed to clear sensitive data: $e');
     }
   }
 
@@ -402,7 +402,7 @@ class StorageService {
       AppLogger.debug('Token pair saved');
     } catch (e) {
       AppLogger.error('Failed to save token pair', error: e);
-      throw CacheException('Failed to save token pair: $e');
+      throw CacheException(message: 'Failed to save token pair: $e');
     }
   }
 

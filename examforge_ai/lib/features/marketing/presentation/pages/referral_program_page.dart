@@ -8,18 +8,18 @@ import '../widgets/referral_code_display.dart';
 ///
 /// Shows active referral programs with codes and stats,
 /// and allows creating new referral programs.
-class ReferralProgramPage extends StatefulWidget {
+class ReferralProgramPage extends ConsumerStatefulWidget {
   const ReferralProgramPage({super.key});
   @override
-  State<ReferralProgramPage> createState() => _ReferralProgramPageState();
+  ConsumerState<ReferralProgramPage> createState() => _ReferralProgramPageState();
 }
 
-class _ReferralProgramPageState extends State<ReferralProgramPage> {
+class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<MarketingProvider>().loadReferralPrograms();
+      ref.read(marketingProvider).loadReferralPrograms();
     });
   }
 
@@ -33,8 +33,8 @@ class _ReferralProgramPageState extends State<ReferralProgramPage> {
         icon: const Icon(Icons.add),
         label: const Text('New Program'),
       ),
-      body: Consumer<MarketingProvider>(
-        builder: (context, provider, _) {
+      body: Consumer(builder: (context, ref, _) {
+          final provider = ref.watch(marketingProvider);
           if (provider.isLoading && provider.referralPrograms.isEmpty) {
             return const Center(child: CircularProgressIndicator());
           }

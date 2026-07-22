@@ -37,17 +37,17 @@ class InitializePaymentUseCase {
   ) async {
     if (params.amount <= 0) {
       return FailureResult(
-        Failure.validation(message: 'Amount must be greater than 0', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Amount must be greater than 0'),
       );
     }
     if (params.email.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Email cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Email cannot be empty'),
       );
     }
     if (params.txRef.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Transaction reference cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Transaction reference cannot be empty'),
       );
     }
 
@@ -80,7 +80,7 @@ class VerifyPaymentUseCase {
   ) async {
     if (params.txRef.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Transaction reference cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Transaction reference cannot be empty'),
       );
     }
 
@@ -102,7 +102,7 @@ class ProcessWebhookUseCase {
   Future<Result<bool>> call(ProcessWebhookParams params) async {
     if (params.payload.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Webhook payload cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Webhook payload cannot be empty'),
       );
     }
 
@@ -131,12 +131,12 @@ class RequestRefundUseCase {
   Future<Result<TransactionEntity>> call(RequestRefundParams params) async {
     if (params.transactionId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'Transaction ID cannot be empty', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Transaction ID cannot be empty'),
       );
     }
     if (params.amount <= 0) {
       return FailureResult(
-        Failure.validation(message: 'Refund amount must be greater than 0', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Refund amount must be greater than 0'),
       );
     }
 
@@ -175,12 +175,12 @@ class GetTransactionsUseCase {
   ) async {
     if (params.page < 1) {
       return FailureResult(
-        Failure.validation(message: 'Page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
       return FailureResult(
-        Failure.validation(message: 'Per page must be at least 1', fieldErrors: const {}),
+        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
       );
     }
 

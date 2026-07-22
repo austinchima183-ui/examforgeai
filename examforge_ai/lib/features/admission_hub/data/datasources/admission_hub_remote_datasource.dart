@@ -108,7 +108,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
     AppLogger.error('Postgrest error: ${e.message}', error: e);
     switch (e.code) {
       case 'PGRST116':
-        throw NotFoundException(e.message);
+        throw NotFoundException(message: e.message);
       case '23505':
         throw ServerException(
           message: 'A record with this data already exists.',
@@ -134,7 +134,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
   Never _handleGenericException(Object e, String operation) {
     AppLogger.error('Failed to $operation', error: e);
     if (e is sb.AuthException) {
-      throw UnauthorizedException(e.message);
+      throw UnauthorizedException(message: e.message);
     }
     throw ServerException(message: e.toString(), statusCode: 500);
   }
@@ -151,21 +151,22 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
     int pageSize = 20,
   }) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_universitiesTable)
           .select()
-          .eq('is_active', true)
-          .order('name');
+          .eq('is_active', true);
 
       if (type != null) {
-        query = query.eq('university_type', type);
+        filterQuery = filterQuery.eq('university_type', type);
       }
       if (state != null) {
-        query = query.eq('state', state);
+        filterQuery = filterQuery.eq('state', state);
       }
 
+      var transformQuery = filterQuery.order('name');
+
       final offset = (page - 1) * pageSize;
-      final response = await query.range(offset, offset + pageSize - 1);
+      final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<UniversityModel>(
@@ -206,22 +207,23 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
     int pageSize = 20,
   }) async {
     try {
-      var supabaseQuery = _supabase
+      var filterQuery = _supabase
           .from(_universitiesTable)
           .select()
           .eq('is_active', true)
-          .ilike('name', '%$query%')
-          .order('name');
+          .ilike('name', '%$query%');
 
       if (type != null) {
-        supabaseQuery = supabaseQuery.eq('university_type', type);
+        filterQuery = filterQuery.eq('university_type', type);
       }
       if (state != null) {
-        supabaseQuery = supabaseQuery.eq('state', state);
+        filterQuery = filterQuery.eq('state', state);
       }
 
+      var transformQuery = filterQuery.order('name');
+
       final offset = (page - 1) * pageSize;
-      final response = await supabaseQuery.range(offset, offset + pageSize - 1);
+      final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<UniversityModel>(
@@ -356,24 +358,25 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
     int pageSize = 20,
   }) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_postUtmeProductsTable)
           .select()
-          .eq('is_active', true)
-          .order('created_at', ascending: false);
+          .eq('is_active', true);
 
       if (universityId != null) {
-        query = query.eq('university_id', universityId);
+        filterQuery = filterQuery.eq('university_id', universityId);
       }
       if (departmentId != null) {
-        query = query.eq('department_id', departmentId);
+        filterQuery = filterQuery.eq('department_id', departmentId);
       }
       if (year != null) {
-        query = query.eq('year', year);
+        filterQuery = filterQuery.eq('year', year);
       }
 
+      var transformQuery = filterQuery.order('created_at', ascending: false);
+
       final offset = (page - 1) * pageSize;
-      final response = await query.range(offset, offset + pageSize - 1);
+      final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<PostUtmeProductModel>((json) =>
@@ -426,7 +429,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
 
       if (response == null) {
         throw NotFoundException(
-          'No checklist found for this university/department combination',
+          message: 'No checklist found for this university/department combination',
         );
       }
 
@@ -472,18 +475,19 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
     int pageSize = 20,
   }) async {
     try {
-      var query = _supabase
+      var filterQuery = _supabase
           .from(_admissionApplicationsTable)
           .select()
-          .eq('user_id', userId)
-          .order('created_at', ascending: false);
+          .eq('user_id', userId);
 
       if (status != null) {
-        query = query.eq('admission_status', status);
+        filterQuery = filterQuery.eq('admission_status', status);
       }
 
+      var transformQuery = filterQuery.order('created_at', ascending: false);
+
       final offset = (page - 1) * pageSize;
-      final response = await query.range(offset, offset + pageSize - 1);
+      final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<AdmissionApplicationModel>((json) =>

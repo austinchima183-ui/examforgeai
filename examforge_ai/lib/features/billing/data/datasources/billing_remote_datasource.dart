@@ -292,7 +292,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Subscription plan not found.');
+        throw const NotFoundException(message: 'Subscription plan not found.');
       }
 
       return SubscriptionPlanModel.fromJson(response.first);
@@ -363,7 +363,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('No active subscription found.');
+        throw const NotFoundException(message: 'No active subscription found.');
       }
 
       return SubscriptionModel.fromJson(response.first);
@@ -476,7 +476,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Subscription not found for update.');
+        throw const NotFoundException(message: 'Subscription not found for update.');
       }
 
       AppLogger.info('Subscription updated: $subscriptionId');
@@ -577,7 +577,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Transaction not found.');
+        throw const NotFoundException(message: 'Transaction not found.');
       }
 
       return TransactionModel.fromJson(response.first);
@@ -639,7 +639,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Transaction not found for update.');
+        throw const NotFoundException(message: 'Transaction not found for update.');
       }
 
       AppLogger.info('Transaction updated: $transactionId');
@@ -718,7 +718,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Invoice not found.');
+        throw const NotFoundException(message: 'Invoice not found.');
       }
 
       return InvoiceModel.fromJson(response.first);
@@ -780,7 +780,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Invoice not found for update.');
+        throw const NotFoundException(message: 'Invoice not found for update.');
       }
 
       AppLogger.info('Invoice updated: $invoiceId');
@@ -880,7 +880,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Credit balance not found.');
+        throw const NotFoundException(message: 'Credit balance not found.');
       }
 
       return AiCreditBalanceModel.fromJson(response.first);
@@ -1088,7 +1088,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       final response = await query.limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('Invalid or expired coupon code.');
+        throw const NotFoundException(message: 'Invalid or expired coupon code.');
       }
 
       final couponData = response.first;
@@ -1168,7 +1168,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (couponResponse.isEmpty) {
-        throw const NotFoundException('Coupon not found for redemption.');
+        throw const NotFoundException(message: 'Coupon not found for redemption.');
       }
 
       final currentCount =
@@ -1286,7 +1286,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('Coupon not found for update.');
+        throw const NotFoundException(message: 'Coupon not found for update.');
       }
 
       AppLogger.info('Coupon updated: $couponId');
@@ -1391,7 +1391,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (codeResponse.isEmpty) {
-        throw const NotFoundException('Referral code not found or inactive.');
+        throw const NotFoundException(message: 'Referral code not found or inactive.');
       }
 
       final referrerId = codeResponse.first['referrer_id'] as String;
@@ -1539,7 +1539,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .select();
 
       if (response.isEmpty) {
-        throw const NotFoundException('License not found for revocation.');
+        throw const NotFoundException(message: 'License not found for revocation.');
       }
 
       AppLogger.info('License revoked: $licenseId');
@@ -1573,7 +1573,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
           .limit(1);
 
       if (response.isEmpty) {
-        throw const NotFoundException('School billing profile not found.');
+        throw const NotFoundException(message: 'School billing profile not found.');
       }
 
       return SchoolBillingProfileModel.fromJson(response.first);
@@ -1606,7 +1606,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
 
       if (response.isEmpty) {
         throw const NotFoundException(
-          'School billing profile not found for update.',
+          message: 'School billing profile not found for update.',
         );
       }
 
@@ -1908,11 +1908,11 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
 
     switch (statusCode) {
       case 401:
-        return UnauthorizedException(message);
+        return UnauthorizedException(message: message);
       case 403:
-        return ForbiddenException(message);
+        return ForbiddenException(message: message);
       case 404:
-        return NotFoundException(message);
+        return NotFoundException(message: message);
       case 422:
         return ValidationException(
           message: message,

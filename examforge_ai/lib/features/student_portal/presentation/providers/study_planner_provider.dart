@@ -48,7 +48,6 @@ class StudyPlannerState {
   final bool isSuggesting;
 
   /// Whether an AI suggestion operation is in progress.
-  bool get isSuggesting => isSuggesting;
 
   /// Whether any async operation is in progress.
   bool get isBusy => isLoading || isSuggesting;

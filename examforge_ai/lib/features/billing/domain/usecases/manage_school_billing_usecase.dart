@@ -21,7 +21,7 @@ class GetSchoolBillingProfileUseCase {
   ) async {
     if (params.schoolId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'School ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'School ID cannot be empty'),
       );
     }
 
@@ -45,7 +45,7 @@ class UpdateSchoolBillingProfileUseCase {
   ) async {
     if (params.profile.schoolId.isEmpty) {
       return FailureResult(
-        Failure.validation(message: 'School ID cannot be empty'),
+        Failure.validation(fieldErrors: const {}, message: 'School ID cannot be empty'),
       );
     }
 

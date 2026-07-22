@@ -44,7 +44,7 @@ class GetLiveExamStatsUseCase {
     }
 
     final exam = examResult.getOrElse(
-      const ExamEntity(
+      ExamEntity(
         id: '',
         schoolId: '',
         createdBy: '',
