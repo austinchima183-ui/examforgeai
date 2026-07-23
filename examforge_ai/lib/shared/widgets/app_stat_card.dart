@@ -9,4 +9,5 @@
 /// ```
 library;
 
-export 'app_card.dart' show AppStatCard, TrendDirection;
+export 'app_card.dart' show AppStatCard;
+export '../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart' show TrendDirection;

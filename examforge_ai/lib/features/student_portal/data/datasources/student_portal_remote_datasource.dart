@@ -1006,7 +1006,8 @@ class StudentPortalRemoteDatasource {
 
       final documentId = response['id'] as String;
 
-      // 3. Trigger the process-document edge function (async)
+      // Fire-and-forget: trigger the process-document edge function (async)
+      // Errors are logged but don't block the upload response.
       _supabase.functions.invoke(
         _processDocumentFunction,
         body: {
@@ -1014,7 +1015,9 @@ class StudentPortalRemoteDatasource {
           'file_url': fileUrl,
           'file_format': fileFormat,
         },
-      ).catchError((error) {
+      ).then((_) {
+        AppLogger.info('Document processing initiated for $documentId');
+      }).catchError((error) {
         AppLogger.error(
           'Process document edge function failed',
           error: error,

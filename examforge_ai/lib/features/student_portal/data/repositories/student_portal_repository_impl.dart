@@ -458,7 +458,9 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
             'file_format': fileFormat,
           },
         )
-            .catchError((error) {
+            .then((_) {
+          AppLogger.info('Document processing initiated for $documentId');
+        }).catchError((error) {
           AppLogger.error('Process document edge function failed',
               error: error,);
         });
