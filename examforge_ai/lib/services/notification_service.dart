@@ -215,7 +215,7 @@ class NotificationService {
       if (_currentToken != null) {
         await _persistTokenLocally(_currentToken!);
         await _syncTokenToSupabase(_currentToken!);
-        AppLogger.info('FCM token obtained: ${_currentToken!.substring(0, 10)}...');
+        AppLogger.info('FCM token obtained: [REDACTED]');
       }
     } catch (e) {
       AppLogger.error('Failed to obtain FCM token', error: e);
