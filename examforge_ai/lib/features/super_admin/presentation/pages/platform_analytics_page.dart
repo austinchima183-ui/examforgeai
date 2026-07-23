@@ -1,16 +1,16 @@
 import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../domain/entities/super_admin_entities.dart';
 import '../../domain/usecases/super_admin_usecases.dart';
-import '../providers/super_admin_providers.dart';
 import '../widgets/super_admin_widgets.dart';
 
 // ═══ Provider ═══
@@ -201,7 +201,7 @@ class _PlatformAnalyticsPageState extends ConsumerState<PlatformAnalyticsPage>
     child: Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(Icons.error_outline, size: 48, color: AppColors.error),
+        const Icon(Icons.error_outline, size: 48, color: AppColors.error),
         const SizedBox(height: Spacings.lg),
         Text(error, style: AppTypography.wRegular.copyWith(color: AppColors.error)),
         const SizedBox(height: Spacings.lg),
@@ -344,7 +344,7 @@ class _UserGrowthChip extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.08),
+          color: color.withValues(alpha: 0.08),
           borderRadius: Spacings.borderRadiusSm,
         ),
         child: Column(
@@ -383,13 +383,13 @@ class _FeatureUsageTab extends StatelessWidget {
             final users = e['unique_users'] as int? ?? 0;
             return Card(
               child: ListTile(
-                leading: Icon(Icons.stars, color: AppColors.info),
-                title: Text(name, style: TextStyle(fontWeight: AppTypography.wSemiBold)),
+                leading: const Icon(Icons.stars, color: AppColors.info),
+                title: Text(name, style: const TextStyle(fontWeight: AppTypography.wSemiBold)),
                 subtitle: Text('$users unique users'),
                 trailing: Container(
                   padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(0.1),
+                    color: AppColors.info.withValues(alpha: 0.1),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Text('$usage uses', style: AppTypography.wSemiBold.copyWith(color: AppColors.info, fontSize: 13)),
@@ -455,14 +455,14 @@ class _RetentionTab extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(cohort, style: TextStyle(fontWeight: AppTypography.wSemiBold)),
+                    Text(cohort, style: const TextStyle(fontWeight: AppTypography.wSemiBold)),
                     const SizedBox(height: Spacings.sm),
                     ClipRRect(
                       borderRadius: Spacings.borderRadiusSm,
                       child: LinearProgressIndicator(
                         value: retention / 100,
                         minHeight: 8,
-                        backgroundColor: color.withOpacity(0.15),
+                        backgroundColor: color.withValues(alpha: 0.15),
                         valueColor: AlwaysStoppedAnimation<Color>(color),
                       ),
                     ),
@@ -503,8 +503,8 @@ class _GeographicTab extends StatelessWidget {
             final users = e['user_count'] as int? ?? 0;
             return Card(
               child: ListTile(
-                leading: Icon(Icons.public, color: AppColors.info),
-                title: Text(name, style: TextStyle(fontWeight: AppTypography.wSemiBold)),
+                leading: const Icon(Icons.public, color: AppColors.info),
+                title: Text(name, style: const TextStyle(fontWeight: AppTypography.wSemiBold)),
                 subtitle: Text('$schools schools | $users users'),
               ),
             );

@@ -231,8 +231,8 @@ class _State extends ConsumerState<ChildAssignmentsPage>
           child: Column(
             children: List.generate(
               5,
-              (_) => Padding(
-                padding: const EdgeInsets.only(bottom: Spacings.md),
+              (_) => const Padding(
+                padding: EdgeInsets.only(bottom: Spacings.md),
                 child: AppLoadingShimmer.box(
                   height: 80,
                   borderRadius: Spacings.borderRadiusMd,
@@ -281,13 +281,13 @@ class _State extends ConsumerState<ChildAssignmentsPage>
       child: Card(
         elevation: Spacings.elevationNone,
         color: isOverdue
-            ? AppColors.errorLight.withOpacity(0.3)
+            ? AppColors.errorLight.withValues(alpha: 0.3)
             : cs.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
           side: isOverdue
               ? BorderSide(
-                  color: AppColors.errorOf(cs.brightness).withOpacity(0.3),
+                  color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.3),
                 )
               : BorderSide.none,
         ),
@@ -406,7 +406,7 @@ class _State extends ConsumerState<ChildAssignmentsPage>
                         ),
                         decoration: BoxDecoration(
                           color: AppColors.successOf(cs.brightness)
-                              .withOpacity(0.12),
+                              .withValues(alpha: 0.12),
                           borderRadius: Spacings.borderRadiusSm,
                         ),
                         child: Text(

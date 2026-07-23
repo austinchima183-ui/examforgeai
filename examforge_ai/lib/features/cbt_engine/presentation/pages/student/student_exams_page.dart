@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../../../../config/dependency_injection.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // STUDENT EXAMS PAGE
@@ -71,7 +71,7 @@ class _StudentExamsPageState extends ConsumerState<StudentExamsPage>
       ),
       body: state.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : state.error != null
               ? Center(
                   child: AppEmptyState(
@@ -253,7 +253,7 @@ class _StudentExamCard extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: accentColor.withOpacity(isDark ? 0.25 : 0.12),
+                  color: accentColor.withValues(alpha: isDark ? 0.25 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Row(
@@ -297,14 +297,14 @@ class _StudentExamCard extends StatelessWidget {
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
                 color: AppColors.infoOf(cs.brightness)
-                    .withOpacity(isDark ? 0.15 : 0.08),
+                    .withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   Icon(Icons.schedule_rounded,
-                      size: 16, color: AppColors.infoOf(cs.brightness)),
+                      size: 16, color: AppColors.infoOf(cs.brightness),),
                   const SizedBox(width: Spacings.xs),
                   Text(
                     'Starts in ${_countdown(exam.startTime)}',

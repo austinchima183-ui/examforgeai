@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/communication_entities.dart';
 
 // ─── NotificationTile ─────────────────────────────────────────────────────────
@@ -103,11 +103,11 @@ class NotificationTile extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: catColor.withOpacity(isDark ? 0.25 : 0.12),
+                color: catColor.withValues(alpha: isDark ? 0.25 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
               ),
               child: Icon(catIcon,
-                  size: Spacings.mdIcon, color: catColor),
+                  size: Spacings.mdIcon, color: catColor,),
             ),
             const SizedBox(width: Spacings.md),
 
@@ -137,7 +137,7 @@ class NotificationTile extends StatelessWidget {
                         Container(
                           width: 8,
                           height: 8,
-                          decoration: BoxDecoration(
+                          decoration: const BoxDecoration(
                             color: AppColors.seed,
                             shape: BoxShape.circle,
                           ),

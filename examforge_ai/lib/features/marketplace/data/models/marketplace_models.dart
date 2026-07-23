@@ -20,7 +20,7 @@ bool _mapEquals(Map<String, dynamic>? a, Map<String, dynamic>? b) {
         if (aVal[i] is Map<String, dynamic> &&
             bVal[i] is Map<String, dynamic>) {
           if (!_mapEquals(aVal[i] as Map<String, dynamic>,
-              bVal[i] as Map<String, dynamic>)) {
+              bVal[i] as Map<String, dynamic>,)) {
             return false;
           }
         } else if (aVal[i] != bVal[i]) {
@@ -39,7 +39,7 @@ bool _listEquals<T>(List<T> a, List<T> b) {
   for (var i = 0; i < a.length; i++) {
     if (a[i] is Map<String, dynamic> && b[i] is Map<String, dynamic>) {
       if (!_mapEquals(a[i] as Map<String, dynamic>,
-          b[i] as Map<String, dynamic>)) {
+          b[i] as Map<String, dynamic>,)) {
         return false;
       }
     } else if (a[i] != b[i]) {
@@ -117,7 +117,7 @@ class MarketplaceCategoryModel {
       };
 
   factory MarketplaceCategoryModel.fromEntity(
-      MarketplaceCategoryEntity entity) {
+      MarketplaceCategoryEntity entity,) {
     return MarketplaceCategoryModel(
       id: entity.id,
       parentId: entity.parentId,
@@ -259,7 +259,7 @@ class SellerProfileModel {
       bio: json['bio'] as String?,
       avatarUrl: json['avatar_url'] as String? ?? json['avatarUrl'] as String?,
       status: MarketplaceSellerStatus.fromString(
-              json['status'] as String?) ??
+              json['status'] as String?,) ??
           MarketplaceSellerStatus.pendingVerification,
       verificationLevel: json['verification_level'] as int? ??
           json['verificationLevel'] as int? ??
@@ -566,7 +566,7 @@ class MarketplaceProductModel {
       description: json['description'] as String?,
       productType: MarketplaceProductType.fromString(
               json['product_type'] as String? ??
-                  json['productType'] as String?) ??
+                  json['productType'] as String?,) ??
           MarketplaceProductType.other,
       subject: json['subject'] as String?,
       classLevel:
@@ -597,7 +597,7 @@ class MarketplaceProductModel {
       currency: json['currency'] as String? ?? 'NGN',
       licenseType: MarketplaceLicenseType.fromString(
               json['license_type'] as String? ??
-                  json['licenseType'] as String?) ??
+                  json['licenseType'] as String?,) ??
           MarketplaceLicenseType.personal,
       licenseConfig: json['license_config'] as Map<String, dynamic>? ??
           json['licenseConfig'] as Map<String, dynamic>?,
@@ -612,7 +612,7 @@ class MarketplaceProductModel {
           json['is_featured'] as bool? ?? json['isFeatured'] as bool? ?? false,
       isFree: json['is_free'] as bool? ?? json['isFree'] as bool? ?? false,
       status: MarketplaceProductStatus.fromString(
-              json['status'] as String?) ??
+              json['status'] as String?,) ??
           MarketplaceProductStatus.draft,
       qualityScore: (json['quality_score'] as num? ??
               json['qualityScore'] as num?)
@@ -620,7 +620,7 @@ class MarketplaceProductModel {
           0,
       qualityCheckStatus: QualityCheckStatus.fromString(
               json['quality_check_status'] as String? ??
-                  json['qualityCheckStatus'] as String?) ??
+                  json['qualityCheckStatus'] as String?,) ??
           QualityCheckStatus.pending,
       qualityCheckDetails:
           json['quality_check_details'] as Map<String, dynamic>? ??
@@ -1112,7 +1112,7 @@ class CartItemModel {
           json['product_id'] as String? ?? json['productId'] as String,
       licenseType: MarketplaceLicenseType.fromString(
               json['license_type'] as String? ??
-                  json['licenseType'] as String?) ??
+                  json['licenseType'] as String?,) ??
           MarketplaceLicenseType.personal,
       quantity: json['quantity'] as int? ?? 1,
       addedAt: json['added_at'] != null
@@ -1122,7 +1122,7 @@ class CartItemModel {
               : DateTime.now(),
       product: json['product'] != null
           ? MarketplaceProductModel.fromJson(
-              json['product'] as Map<String, dynamic>)
+              json['product'] as Map<String, dynamic>,)
           : null,
     );
   }
@@ -1352,7 +1352,7 @@ class OrderItemModel {
       sellerId: json['seller_id'] as String? ?? json['sellerId'] as String,
       licenseType: MarketplaceLicenseType.fromString(
               json['license_type'] as String? ??
-                  json['licenseType'] as String?) ??
+                  json['licenseType'] as String?,) ??
           MarketplaceLicenseType.personal,
       priceAtPurchase: (json['price_at_purchase'] as num? ??
               json['priceAtPurchase'] as num?)
@@ -1781,7 +1781,7 @@ class MarketplacePurchaseModel {
           json['orderItemId'] as String,
       licenseType: MarketplaceLicenseType.fromString(
               json['license_type'] as String? ??
-                  json['licenseType'] as String?) ??
+                  json['licenseType'] as String?,) ??
           MarketplaceLicenseType.personal,
       licenseKey: json['license_key'] as String? ??
           json['licenseKey'] as String?,
@@ -1823,7 +1823,7 @@ class MarketplacePurchaseModel {
       };
 
   factory MarketplacePurchaseModel.fromEntity(
-      MarketplacePurchaseEntity entity) {
+      MarketplacePurchaseEntity entity,) {
     return MarketplacePurchaseModel(
       id: entity.id,
       buyerId: entity.buyerId,
@@ -2346,7 +2346,7 @@ class PromoCodeModel {
       description: json['description'] as String?,
       discountType: DiscountType.fromString(
               json['discount_type'] as String? ??
-                  json['discountType'] as String?) ??
+                  json['discountType'] as String?,) ??
           DiscountType.percentage,
       discountValue: (json['discount_value'] as num? ??
               json['discountValue'] as num?)
@@ -2586,11 +2586,11 @@ class CommissionRateModel {
       id: json['id'] as String,
       productType: MarketplaceProductType.fromString(
               json['product_type'] as String? ??
-                  json['productType'] as String?) ??
+                  json['productType'] as String?,) ??
           MarketplaceProductType.other,
       licenseType: MarketplaceLicenseType.fromString(
               json['license_type'] as String? ??
-                  json['licenseType'] as String?) ??
+                  json['licenseType'] as String?,) ??
           MarketplaceLicenseType.personal,
       commissionRate:
           (json['commission_rate'] as num? ?? json['commissionRate'] as num?)
@@ -2758,7 +2758,7 @@ class CommissionRecordModel {
       sellerId: json['seller_id'] as String? ?? json['sellerId'] as String,
       commissionType: CommissionType.fromString(
               json['commission_type'] as String? ??
-                  json['commissionType'] as String?) ??
+                  json['commissionType'] as String?,) ??
           CommissionType.platform,
       commissionRate: (json['commission_rate'] as num? ??
               json['commissionRate'] as num?)
@@ -3252,7 +3252,7 @@ class MarketplaceSearchLogModel {
       };
 
   factory MarketplaceSearchLogModel.fromEntity(
-      MarketplaceSearchLogEntity entity) {
+      MarketplaceSearchLogEntity entity,) {
     return MarketplaceSearchLogModel(
       id: entity.id,
       userId: entity.userId,
@@ -3928,7 +3928,7 @@ class MarketplaceNotificationModel {
       };
 
   factory MarketplaceNotificationModel.fromEntity(
-      MarketplaceNotificationEntity entity) {
+      MarketplaceNotificationEntity entity,) {
     return MarketplaceNotificationModel(
       id: entity.id,
       userId: entity.userId,

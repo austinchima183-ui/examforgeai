@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/extensions/datetime_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/extensions/datetime_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../providers/dashboard_provider.dart';
 
@@ -231,7 +231,7 @@ class _NotificationTile extends StatelessWidget {
               margin: const EdgeInsets.only(right: Spacings.md),
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: accentColor.withOpacity(isDark ? 0.20 : 0.12),
+                color: accentColor.withValues(alpha: isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Icon(

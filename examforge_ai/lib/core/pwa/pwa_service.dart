@@ -104,7 +104,7 @@ class PwaService {
         _installPromptEvent = event as BeforeInstallPromptEvent;
         AppLogger.info('[PWA] beforeinstallprompt captured');
         _installStatusController.add(PwaInstallStatus.installable);
-      }.toJS);
+      }.toJS,);
     } catch (e) {
       AppLogger.warning('[PWA] Failed to set up beforeinstallprompt listener: $e');
     }
@@ -117,7 +117,7 @@ class PwaService {
         AppLogger.info('[PWA] App installed');
         _installPromptEvent = null;
         _installStatusController.add(PwaInstallStatus.installed);
-      }.toJS);
+      }.toJS,);
     } catch (e) {
       AppLogger.warning('[PWA] Failed to set up appinstalled listener: $e');
     }
@@ -201,10 +201,8 @@ class PwaService {
 
     try {
       final registration =
-          await web.window.navigator.serviceWorker?.register('/sw.js').toDart;
-      if (registration != null) {
-        AppLogger.info('[PWA] Service Worker registered: ${registration.scope}');
-      }
+          await web.window.navigator.serviceWorker.register('/sw.js').toDart;
+      AppLogger.info('[PWA] Service Worker registered: ${registration.scope}');
     } catch (e) {
       AppLogger.warning('[PWA] Service Worker registration failed: $e');
     }
@@ -242,7 +240,6 @@ class PwaService {
 
     try {
       final registration = web.window.navigator.serviceWorker;
-      if (registration == null) return null;
 
       final readyReg = await registration.ready.toDart;
       final pushManager = readyReg.pushManager;
@@ -273,8 +270,7 @@ class PwaService {
 
     try {
       final registration =
-          await web.window.navigator.serviceWorker?.ready.toDart;
-      if (registration == null) return false;
+          await web.window.navigator.serviceWorker.ready.toDart;
 
       await registration.update().toDart;
       final waiting = registration.waiting;

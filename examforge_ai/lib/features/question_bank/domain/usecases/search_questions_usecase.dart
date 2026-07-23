@@ -58,7 +58,7 @@ class SearchQuestionsUseCase {
     }
 
     if (trimmedQuery.length < minQueryLength) {
-      return FailureResult(
+      return const FailureResult(
         Failure.validation(
           message:
               'Search query must be at least $minQueryLength characters',

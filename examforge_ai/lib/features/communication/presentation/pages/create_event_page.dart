@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
@@ -118,7 +117,7 @@ class _State extends ConsumerState<CreateEventPage> {
                   _buildSectionLabel('Event Type'),
                   const SizedBox(height: Spacings.sm),
                   DropdownButtonFormField<CalendarEventType>(
-                    value: _eventType,
+                    initialValue: _eventType,
                     decoration: const InputDecoration(
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.category_outlined),

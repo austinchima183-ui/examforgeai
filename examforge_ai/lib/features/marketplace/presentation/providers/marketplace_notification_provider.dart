@@ -136,7 +136,7 @@ class MarketplaceNotificationNotifier
           notifications: state.notifications
               .map((n) => n.id == notificationId
                   ? n.copyWith(isRead: true)
-                  : n)
+                  : n,)
               .toList(),
           unreadCount: state.unreadCount > 0
               ? state.unreadCount - 1

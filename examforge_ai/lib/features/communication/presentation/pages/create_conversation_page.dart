@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
@@ -251,7 +250,7 @@ class _State extends ConsumerState<CreateConversationPage> {
           _buildSectionLabel('Class'),
           const SizedBox(height: Spacings.sm),
           DropdownButtonFormField<String>(
-            value: _selectedClassId,
+            initialValue: _selectedClassId,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.class_outlined),
@@ -269,7 +268,7 @@ class _State extends ConsumerState<CreateConversationPage> {
           _buildSectionLabel('Department'),
           const SizedBox(height: Spacings.sm),
           DropdownButtonFormField<String>(
-            value: _selectedDepartmentId,
+            initialValue: _selectedDepartmentId,
             decoration: const InputDecoration(
               border: OutlineInputBorder(),
               prefixIcon: Icon(Icons.business_outlined),
@@ -325,12 +324,12 @@ class _State extends ConsumerState<CreateConversationPage> {
   Widget _buildParticipantSearch() {
     return TextField(
       controller: _searchController,
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         hintText: 'Search people…',
-        border: const OutlineInputBorder(),
-        prefixIcon: const Icon(Icons.search),
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.search),
         isDense: true,
-        contentPadding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.sm),
+        contentPadding: EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.sm),
       ),
       onChanged: (q) => setState(() => _searchQuery = q),
     );

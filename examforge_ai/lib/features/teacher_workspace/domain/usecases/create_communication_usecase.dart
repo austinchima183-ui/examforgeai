@@ -34,7 +34,7 @@ class CreateCommunicationUseCase {
       return const FailureResult(Failure.validation(
         message: 'Communication title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createCommunication(params.communication);
   }

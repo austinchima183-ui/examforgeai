@@ -25,8 +25,8 @@ import 'dart:convert';
 
 import 'package:crypto/crypto.dart';
 
-import 'constant_time_comparison.dart';
 import '../utils/logger.dart';
+import 'constant_time_comparison.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXCEPTIONS

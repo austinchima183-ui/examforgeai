@@ -2465,7 +2465,7 @@ class QuestionModel {
     final List<AnswerOptionModel> options = rawOptions is List
         ? rawOptions
             .map((e) =>
-                AnswerOptionModel.fromJson(e as Map<String, dynamic>))
+                AnswerOptionModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <AnswerOptionModel>[];
 
@@ -2474,7 +2474,7 @@ class QuestionModel {
     final List<MatchingPairModel> pairs = rawPairs is List
         ? rawPairs
             .map((e) =>
-                MatchingPairModel.fromJson(e as Map<String, dynamic>))
+                MatchingPairModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <MatchingPairModel>[];
 
@@ -2483,7 +2483,7 @@ class QuestionModel {
     final List<OrderingItemModel> items = rawItems is List
         ? rawItems
             .map((e) =>
-                OrderingItemModel.fromJson(e as Map<String, dynamic>))
+                OrderingItemModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <OrderingItemModel>[];
 
@@ -2493,7 +2493,7 @@ class QuestionModel {
     final List<FillInBlankAnswerModel> fiba = rawFiba is List
         ? rawFiba
             .map((e) =>
-                FillInBlankAnswerModel.fromJson(e as Map<String, dynamic>))
+                FillInBlankAnswerModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <FillInBlankAnswerModel>[];
 
@@ -2503,7 +2503,7 @@ class QuestionModel {
     final List<QuestionAttachmentModel> att = rawAttachments is List
         ? rawAttachments
             .map((e) =>
-                QuestionAttachmentModel.fromJson(e as Map<String, dynamic>))
+                QuestionAttachmentModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <QuestionAttachmentModel>[];
 
@@ -2512,7 +2512,7 @@ class QuestionModel {
     final List<QuestionTagModel> tagList = rawTags is List
         ? rawTags
             .map((e) =>
-                QuestionTagModel.fromJson(e as Map<String, dynamic>))
+                QuestionTagModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <QuestionTagModel>[];
 
@@ -3190,11 +3190,11 @@ class QuestionBankStatsModel {
       questionsBySubject:
           parseMap(json['questions_by_subject'] ?? json['questionsBySubject']),
       questionsByDifficulty: parseMap(
-          json['questions_by_difficulty'] ?? json['questionsByDifficulty']),
+          json['questions_by_difficulty'] ?? json['questionsByDifficulty'],),
       questionsByType:
           parseMap(json['questions_by_type'] ?? json['questionsByType']),
       questionsByExamType: parseMap(
-          json['questions_by_exam_type'] ?? json['questionsByExamType']),
+          json['questions_by_exam_type'] ?? json['questionsByExamType'],),
       recentQuestions: json['recent_questions'] as int? ??
           json['recentQuestions'] as int? ??
           0,

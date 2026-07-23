@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/marketing_provider.dart';
+import 'affiliate_program_page.dart';
 import 'blog_management_page.dart';
 import 'referral_program_page.dart';
-import 'affiliate_program_page.dart';
 
 /// Main dashboard page for the Marketing feature.
 ///
@@ -45,7 +46,7 @@ class _MarketingDashboardPageState extends ConsumerState<MarketingDashboardPage>
                   children: [
                     Expanded(child: _buildStatCard(context, 'Blog Posts', '${provider.blogPosts.length}', Icons.article_outlined, Colors.teal, () {
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const BlogManagementPage()));
-                    })),
+                    }),),
                     const SizedBox(width: 12),
                     Expanded(child: _buildStatCard(context, 'Campaigns', '${provider.emailCampaigns.length}', Icons.campaign_outlined, Colors.deepPurple, null)),
                   ],
@@ -55,11 +56,11 @@ class _MarketingDashboardPageState extends ConsumerState<MarketingDashboardPage>
                   children: [
                     Expanded(child: _buildStatCard(context, 'Referrals', '${provider.referralPrograms.length}', Icons.card_giftcard, Colors.orange, () {
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const ReferralProgramPage()));
-                    })),
+                    }),),
                     const SizedBox(width: 12),
                     Expanded(child: _buildStatCard(context, 'Affiliates', '${provider.affiliates.length}', Icons.handshake_outlined, Colors.indigo, () {
                       Navigator.of(context).push(MaterialPageRoute(builder: (_) => const AffiliateProgramPage()));
-                    })),
+                    }),),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -75,7 +76,7 @@ class _MarketingDashboardPageState extends ConsumerState<MarketingDashboardPage>
                       subtitle: Text('${c.campaignType.label} • ${c.recipientCount} recipients • ${(c.openRate * 100).toStringAsFixed(1)}% open rate'),
                       trailing: _buildCampaignStatusChip(theme, c.status),
                     ),
-                  )),
+                  ),),
                 ],
                 const SizedBox(height: 24),
                 if (provider.blogPosts.isNotEmpty) ...[
@@ -90,7 +91,7 @@ class _MarketingDashboardPageState extends ConsumerState<MarketingDashboardPage>
                       subtitle: Text('${post.category} • ${post.viewsCount} views'),
                       trailing: _buildBlogStatusChip(theme, post.status),
                     ),
-                  )),
+                  ),),
                 ],
               ],
             ),
@@ -125,7 +126,7 @@ class _MarketingDashboardPageState extends ConsumerState<MarketingDashboardPage>
     final color = _getCampaignStatusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
       child: Text(status.toUpperCase(), style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
     );
   }
@@ -140,7 +141,7 @@ class _MarketingDashboardPageState extends ConsumerState<MarketingDashboardPage>
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
       child: Text(status.toUpperCase(), style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
     );
   }

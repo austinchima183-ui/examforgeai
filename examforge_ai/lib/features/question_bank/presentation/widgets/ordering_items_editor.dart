@@ -42,7 +42,7 @@ class _OrderingItemRow extends StatelessWidget {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Row(
@@ -51,7 +51,7 @@ class _OrderingItemRow extends StatelessWidget {
           Icon(
             Icons.drag_indicator_rounded,
             size: Spacings.mdIcon,
-            color: cs.onSurfaceVariant.withOpacity(0.4),
+            color: cs.onSurfaceVariant.withValues(alpha: 0.4),
           ),
 
           const SizedBox(width: Spacings.sm),
@@ -61,7 +61,7 @@ class _OrderingItemRow extends StatelessWidget {
             width: 28.0,
             height: 28.0,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
               shape: BoxShape.circle,
             ),
             child: Center(
@@ -97,7 +97,7 @@ class _OrderingItemRow extends StatelessWidget {
                 enabledBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   borderSide: BorderSide(
-                    color: cs.outlineVariant.withOpacity(0.5),
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(
@@ -122,7 +122,7 @@ class _OrderingItemRow extends StatelessWidget {
                 size: Spacings.smIcon,
                 color: item.mediaUrl != null && item.mediaUrl!.isNotEmpty
                     ? cs.primary
-                    : cs.onSurfaceVariant.withOpacity(0.4),
+                    : cs.onSurfaceVariant.withValues(alpha: 0.4),
               ),
               onPressed: () => _showMediaUrlDialog(context),
               tooltip: 'Media URL',
@@ -140,7 +140,7 @@ class _OrderingItemRow extends StatelessWidget {
                 icon: Icon(
                   Icons.close_rounded,
                   size: Spacings.smIcon,
-                  color: cs.onSurfaceVariant.withOpacity(0.5),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
                 onPressed: onDelete,
                 tooltip: 'Remove item',

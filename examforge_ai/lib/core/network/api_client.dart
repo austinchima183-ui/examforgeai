@@ -3,11 +3,10 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../services/storage_service.dart';
 import '../constants/api_constants.dart';
-import '../constants/app_constants.dart';
 import '../errors/exceptions.dart';
 import '../utils/logger.dart';
-import '../../services/storage_service.dart';
 
 /// A Dio-based HTTP client that wraps common HTTP verbs and automatically
 /// converts Dio-specific errors into domain [Exception]s.
@@ -55,7 +54,7 @@ class ApiClient {
           path,
           queryParameters: queryParameters,
           options: options,
-        ));
+        ),);
   }
 
   Future<Response<T>> post<T>(
@@ -69,7 +68,7 @@ class ApiClient {
           data: data,
           queryParameters: queryParameters,
           options: options,
-        ));
+        ),);
   }
 
   Future<Response<T>> put<T>(
@@ -83,7 +82,7 @@ class ApiClient {
           data: data,
           queryParameters: queryParameters,
           options: options,
-        ));
+        ),);
   }
 
   Future<Response<T>> patch<T>(
@@ -97,7 +96,7 @@ class ApiClient {
           data: data,
           queryParameters: queryParameters,
           options: options,
-        ));
+        ),);
   }
 
   Future<Response<T>> delete<T>(
@@ -111,7 +110,7 @@ class ApiClient {
           data: data,
           queryParameters: queryParameters,
           options: options,
-        ));
+        ),);
   }
 
   // ─── Error Mapping ─────────────────────────────────────────────────

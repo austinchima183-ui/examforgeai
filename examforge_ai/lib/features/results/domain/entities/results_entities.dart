@@ -1,7 +1,4 @@
 import 'package:equatable/equatable.dart';
-import '../../../../features/dashboard/presentation/providers/dashboard_provider.dart';
-import '../../../../features/results/domain/entities/results_entities.dart';
-import '../../../../features/student_portal/domain/entities/student_portal_entities.dart';
 
 
 
@@ -657,7 +654,7 @@ class StudentSubjectResultEntity extends Equatable {
   /// Position string like "5th of 30".
   String get positionLabel =>
       classPosition != null && classSize != null
-          ? '${classPosition} of $classSize'
+          ? '$classPosition of $classSize'
           : 'N/A';
 
   /// Deviation from class average.

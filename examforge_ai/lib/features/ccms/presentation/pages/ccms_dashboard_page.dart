@@ -34,7 +34,7 @@ class _CcmsDashboardPageState extends ConsumerState<CcmsDashboardPage> {
     final isTablet = context.isTablet;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Curriculum Management'),
+      appBar: const AppAppBar(title: 'Curriculum Management'),
       body: SingleChildScrollView(
         padding: Spacings.paddingScreen,
         child: Column(
@@ -158,7 +158,7 @@ class _CcmsDashboardPageState extends ConsumerState<CcmsDashboardPage> {
   }
 
   Widget _buildStatsGrid(
-      CcmsStats? stats, bool isDesktop, bool isTablet) {
+      CcmsStats? stats, bool isDesktop, bool isTablet,) {
     final crossAxisCount = isDesktop ? 3 : (isTablet ? 3 : 2);
     final statCards = [
       StatOverviewCard(
@@ -390,7 +390,7 @@ class _CcmsDashboardPageState extends ConsumerState<CcmsDashboardPage> {
                   Icon(
                     icon,
                     size: 48,
-                    color: cs.onSurfaceVariant.withOpacity(0.3),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                   ),
                   const SizedBox(height: Spacings.sm),
                   Text(
@@ -433,7 +433,7 @@ class _QuickAction extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Icon(icon, size: Spacings.lgIcon, color: color),

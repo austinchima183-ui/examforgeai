@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../../../core/errors/exceptions.dart';
 import '../../../../../core/network/paginated_query_mixin.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/billing_models.dart';
 
@@ -408,7 +408,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       });
 
       var transformed =
-          filtered.order('created_at', ascending: false) as sb.PostgrestTransformBuilder<dynamic>;
+          filtered.order('created_at', ascending: false);
       transformed = _applyPagination(transformed, page: page, perPage: perPage);
 
       final list = await transformed;
@@ -546,7 +546,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       });
 
       var transformed =
-          filtered.order('created_at', ascending: false) as sb.PostgrestTransformBuilder<dynamic>;
+          filtered.order('created_at', ascending: false);
       transformed = _applyPagination(transformed, page: page, perPage: perPage);
 
       final list = await transformed;
@@ -689,7 +689,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       });
 
       var transformed =
-          filtered.order('created_at', ascending: false) as sb.PostgrestTransformBuilder<dynamic>;
+          filtered.order('created_at', ascending: false);
       transformed = _applyPagination(transformed, page: page, perPage: perPage);
 
       final list = await transformed;
@@ -917,7 +917,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       }
 
       var transformed =
-          query.order('created_at', ascending: false) as sb.PostgrestTransformBuilder<dynamic>;
+          query.order('created_at', ascending: false);
       transformed = _applyPagination(transformed, page: page, perPage: perPage);
 
       final list = await transformed;
@@ -1222,7 +1222,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       }
 
       var transformed =
-          query.order('created_at', ascending: false) as sb.PostgrestTransformBuilder<dynamic>;
+          query.order('created_at', ascending: false);
       transformed = _applyPagination(transformed, page: page, perPage: perPage);
 
       final list = await transformed;
@@ -1773,7 +1773,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       }
 
       var transformed =
-          query.order('created_at', ascending: false) as sb.PostgrestTransformBuilder<dynamic>;
+          query.order('created_at', ascending: false);
       transformed = _applyPagination(transformed, page: page, perPage: perPage);
 
       final list = await transformed;

@@ -379,7 +379,7 @@ class ExamTemplateSectionModel {
       randomizeQuestions: entity.randomizeQuestions,
       questionSelectionRule: entity.questionSelectionRule != null
           ? QuestionSelectionRuleModel.fromEntity(
-              entity.questionSelectionRule!)
+              entity.questionSelectionRule!,)
           : null,
       marksPerQuestion: entity.marksPerQuestion,
     );

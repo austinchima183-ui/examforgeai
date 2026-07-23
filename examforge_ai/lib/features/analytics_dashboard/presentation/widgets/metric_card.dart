@@ -36,21 +36,21 @@ class MetricCard extends StatelessWidget {
                 Container(
                   width: 36,
                   height: 36,
-                  decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+                  decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
                   child: Icon(icon, color: color, size: 20),
                 ),
                 if (trend != null)
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
-                      color: (trend! >= 0 ? Colors.green : Colors.red).withOpacity(0.15),
+                      color: (trend! >= 0 ? Colors.green : Colors.red).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Row(mainAxisSize: MainAxisSize.min, children: [
                       Icon(trend! >= 0 ? Icons.arrow_upward : Icons.arrow_downward, size: 12, color: trend! >= 0 ? Colors.green : Colors.red),
                       const SizedBox(width: 2),
                       Text('${trend!.abs().toStringAsFixed(1)}%', style: TextStyle(fontSize: 11, color: trend! >= 0 ? Colors.green : Colors.red, fontWeight: FontWeight.w600)),
-                    ]),
+                    ],),
                   ),
               ],
             ),

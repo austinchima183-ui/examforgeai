@@ -54,13 +54,13 @@ class ShareResourceUseCase {
       return const FailureResult(Failure.validation(
         message: 'Resource ID is required',
         fieldErrors: {'resourceId': 'Resource ID cannot be empty'},
-      ));
+      ),);
     }
     if (params.sharedWith.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Shared with is required',
         fieldErrors: {'sharedWith': 'Shared with cannot be empty'},
-      ));
+      ),);
     }
     return _repository.shareResource(params.toMap());
   }

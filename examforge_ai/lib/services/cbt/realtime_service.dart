@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import '../../../features/cbt_engine/domain/entities/cbt_entities.dart';
 import '../../core/errors/exceptions.dart';
 import '../../core/utils/logger.dart';
-import '../../../features/cbt_engine/domain/entities/cbt_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // CBT REALTIME SERVICE
@@ -61,18 +61,16 @@ class CbtRealtimeService {
         value: examId,
       ),
       callback: (sb.PostgresChangePayload payload) {
-        if (payload.newRecord != null) {
-          try {
-            final session = _parseSessionEntity(payload.newRecord!);
-            if (!controller.isClosed) {
-              controller.add(session);
-            }
-          } catch (e) {
-            AppLogger.warning(
-              'Failed to parse session realtime event',
-              error: e,
-            );
+        try {
+          final session = _parseSessionEntity(payload.newRecord);
+          if (!controller.isClosed) {
+            controller.add(session);
           }
+        } catch (e) {
+          AppLogger.warning(
+            'Failed to parse session realtime event',
+            error: e,
+          );
         }
       },
     );
@@ -116,18 +114,16 @@ class CbtRealtimeService {
         value: examId,
       ),
       callback: (sb.PostgresChangePayload payload) {
-        if (payload.newRecord != null) {
-          try {
-            final attempt = _parseAttemptEntity(payload.newRecord!);
-            if (!controller.isClosed) {
-              controller.add(attempt);
-            }
-          } catch (e) {
-            AppLogger.warning(
-              'Failed to parse attempt realtime event',
-              error: e,
-            );
+        try {
+          final attempt = _parseAttemptEntity(payload.newRecord);
+          if (!controller.isClosed) {
+            controller.add(attempt);
           }
+        } catch (e) {
+          AppLogger.warning(
+            'Failed to parse attempt realtime event',
+            error: e,
+          );
         }
       },
     );
@@ -169,18 +165,16 @@ class CbtRealtimeService {
         value: examId,
       ),
       callback: (sb.PostgresChangePayload payload) {
-        if (payload.newRecord != null) {
-          try {
-            final event = _parseMonitoringEntity(payload.newRecord!);
-            if (!controller.isClosed) {
-              controller.add(event);
-            }
-          } catch (e) {
-            AppLogger.warning(
-              'Failed to parse monitoring realtime event',
-              error: e,
-            );
+        try {
+          final event = _parseMonitoringEntity(payload.newRecord);
+          if (!controller.isClosed) {
+            controller.add(event);
           }
+        } catch (e) {
+          AppLogger.warning(
+            'Failed to parse monitoring realtime event',
+            error: e,
+          );
         }
       },
     );

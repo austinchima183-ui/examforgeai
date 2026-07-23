@@ -1,21 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../../shared/widgets/app_dialog.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/parent_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -98,21 +94,21 @@ class ParentDetailPage extends ConsumerWidget {
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
+                    color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: parent.avatarUrl != null
                       ? ClipOval(
                           child: Image.network(
                             parent.avatarUrl!,
-                            errorBuilder: (_, __, ___) => Icon(
+                            errorBuilder: (_, __, ___) => const Icon(
                               Icons.family_restroom_rounded,
                               color: AppColors.info,
                               size: Spacings.xlIcon,
                             ),
                           ),
                         )
-                      : Icon(
+                      : const Icon(
                           Icons.family_restroom_rounded,
                           color: AppColors.info,
                           size: Spacings.xlIcon,
@@ -146,8 +142,8 @@ class ParentDetailPage extends ConsumerWidget {
                       ),
                       decoration: BoxDecoration(
                         color: parent.isActive
-                            ? AppColors.success.withOpacity(isDark ? 0.20 : 0.12)
-                            : AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
+                            ? AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12)
+                            : AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -167,7 +163,7 @@ class ParentDetailPage extends ConsumerWidget {
           const SizedBox(height: Spacings.xxl),
 
           // ─── Contact Information ──────────────────────────────────
-          _SectionTitle(title: 'Contact Information'),
+          const _SectionTitle(title: 'Contact Information'),
           const SizedBox(height: Spacings.sm),
           AppCard(
             child: Column(
@@ -229,7 +225,7 @@ class ParentDetailPage extends ConsumerWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               _SectionTitle(
-                  title: 'Children (${parent.children.length})'),
+                  title: 'Children (${parent.children.length})',),
               AppButton(
                 label: 'Link Child',
                 onPressed: () => _showLinkChildDialog(context),
@@ -254,7 +250,7 @@ class ParentDetailPage extends ConsumerWidget {
                     link: link,
                     onUnlink: () => _showUnlinkConfirmation(context, link),
                   ),
-                )),
+                ),),
         ],
       ),
     );
@@ -268,8 +264,8 @@ class ParentDetailPage extends ConsumerWidget {
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              decoration: const InputDecoration(
+            const TextField(
+              decoration: InputDecoration(
                 labelText: 'Student ID or Admission Number',
                 prefixIcon: Icon(Icons.search_rounded),
               ),
@@ -292,7 +288,7 @@ class ParentDetailPage extends ConsumerWidget {
               title: const Text('Primary Contact'),
               value: false,
               onChanged: (_) {},
-              activeColor: context.colorScheme.primary,
+              activeThumbColor: context.colorScheme.primary,
             ),
           ],
         ),
@@ -375,7 +371,7 @@ class _ChildCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -425,7 +421,7 @@ class _ChildCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
+                        color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Text(
@@ -445,7 +441,7 @@ class _ChildCard extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12,
+                          color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12,
                           ),
                           borderRadius: BorderRadius.circular(Spacings.fullRadius),
                         ),
@@ -465,7 +461,7 @@ class _ChildCard extends StatelessWidget {
             ),
           ),
           IconButton(
-            icon: Icon(
+            icon: const Icon(
               Icons.link_off_rounded,
               color: AppColors.error,
               size: Spacings.mdIcon,

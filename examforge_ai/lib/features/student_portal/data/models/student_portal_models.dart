@@ -367,7 +367,7 @@ class AssignmentSubmissionModel {
                   url: a['url'] as String? ?? '',
                   size: a['size'] as int?,
                   type: a['type'] as String?,
-                ))
+                ),)
             .toList(),
         status: SubmissionStatus.fromString(status) ?? SubmissionStatus.draft,
         score: score,
@@ -1204,14 +1204,14 @@ class StudentProgressModel {
                   topicId: t['topic_id'] as String? ?? '',
                   topicName: t['topic_name'] as String? ?? '',
                   scorePct: (t['score_pct'] as num?)?.toDouble() ?? 0,
-                ))
+                ),)
             .toList(),
         strongTopics: strongTopics
             .map((t) => TopicScoreInfo(
                   topicId: t['topic_id'] as String? ?? '',
                   topicName: t['topic_name'] as String? ?? '',
                   scorePct: (t['score_pct'] as num?)?.toDouble() ?? 0,
-                ))
+                ),)
             .toList(),
         aiSuggestions: aiSuggestions
             .map((s) => AiSuggestion(
@@ -1219,7 +1219,7 @@ class StudentProgressModel {
                   message: s['message'] as String? ?? '',
                   actionLabel: s['action_label'] as String?,
                   actionUrl: s['action_url'] as String?,
-                ))
+                ),)
             .toList(),
         metadata: metadata,
         createdAt: createdAt,

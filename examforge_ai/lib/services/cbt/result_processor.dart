@@ -29,7 +29,7 @@ class ResultProcessor {
     );
 
     double totalMarks = 0;
-    double totalPossible = exam.totalMarks;
+    final double totalPossible = exam.totalMarks;
     int autoGradedCount = 0;
     int subjectiveCount = 0;
 
@@ -237,7 +237,7 @@ class ResultProcessor {
         lowestScore: 0,
         medianScore: 0,
         passRate: 0,
-        questionsByCorrectRate: {},
+        questionsByCorrectRate: const {},
         averageTimeSpentSeconds: 0,
         gradingCompletionPercentage: 0,
       );
@@ -343,7 +343,7 @@ class ResultProcessor {
         totalMarks: result.totalMarks,
         scorePercentage: result.scorePercentage,
         createdAt: DateTime.now(),
-      ));
+      ),);
     }
 
     return rankings;
@@ -387,7 +387,7 @@ class ResultProcessor {
 
     if (selectedOptionId == null) {
       // No answer provided
-      return _GradeResult(
+      return const _GradeResult(
         marksAwarded: 0,
         marksDeducted: 0,
         isCorrect: false,
@@ -478,7 +478,7 @@ class ResultProcessor {
             answer.answerData['selectedOptionId'] as String?;
 
     if (selectedOptionId == null) {
-      return _GradeResult(
+      return const _GradeResult(
         marksAwarded: 0,
         marksDeducted: 0,
         isCorrect: false,
@@ -509,7 +509,7 @@ class ResultProcessor {
     final blanks = answer.answerData['blanks'] as List<dynamic>? ?? [];
 
     if (blanks.isEmpty) {
-      return _GradeResult(
+      return const _GradeResult(
         marksAwarded: 0,
         marksDeducted: 0,
         isCorrect: false,
@@ -565,7 +565,7 @@ class ResultProcessor {
     final pairs = answer.answerData['pairs'] as List<dynamic>? ?? [];
 
     if (pairs.isEmpty) {
-      return _GradeResult(
+      return const _GradeResult(
         marksAwarded: 0,
         marksDeducted: 0,
         isCorrect: false,
@@ -623,7 +623,7 @@ class ResultProcessor {
         .cast<String>();
 
     if (orderedIds.isEmpty) {
-      return _GradeResult(
+      return const _GradeResult(
         marksAwarded: 0,
         marksDeducted: 0,
         isCorrect: false,
@@ -664,7 +664,7 @@ class ResultProcessor {
     final studentValue = answer.answerData['value'];
 
     if (studentValue == null) {
-      return _GradeResult(
+      return const _GradeResult(
         marksAwarded: 0,
         marksDeducted: 0,
         isCorrect: false,
@@ -693,7 +693,7 @@ class ResultProcessor {
 
     if (correctValue == null) {
       // Cannot grade without a correct value
-      return _GradeResult(
+      return const _GradeResult(
         marksAwarded: 0,
         marksDeducted: 0,
         isCorrect: null,

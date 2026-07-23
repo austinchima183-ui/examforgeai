@@ -1,8 +1,8 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
+import '../../../question_bank/domain/entities/question_entities.dart';
 import '../entities/cbt_entities.dart';
 import '../repositories/cbt_repository.dart';
-import '../../../question_bank/domain/entities/question_entities.dart';
 
 
 /// Parameters for the [GradeExamUseCase].
@@ -77,7 +77,7 @@ class GradeExamUseCase {
         onSuccess: (_) =>
             const Failure.server(message: 'Unknown error', statusCode: 500),
         onFailure: (failure) => failure,
-      ));
+      ),);
     }
 
     final exam = examResult.getOrElse(
@@ -126,7 +126,7 @@ class GradeExamUseCase {
         onSuccess: (_) =>
             const Failure.server(message: 'Unknown error', statusCode: 500),
         onFailure: (failure) => failure,
-      ));
+      ),);
     }
 
     // Return an empty success to indicate bulk grading was triggered

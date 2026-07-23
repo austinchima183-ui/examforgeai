@@ -17,7 +17,7 @@ class PublishAssignmentUseCase {
       return const FailureResult(Failure.validation(
         message: 'Assignment ID is required',
         fieldErrors: {'assignmentId': 'Assignment ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.publishAssignment(params.assignmentId);
   }

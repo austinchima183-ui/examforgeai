@@ -123,7 +123,7 @@ class ImportProgressIndicator extends StatelessWidget {
               duration: const Duration(milliseconds: 300),
               padding: const EdgeInsets.all(Spacings.xs),
               decoration: BoxDecoration(
-                color: color.withOpacity(isDark ? 0.20 : 0.12),
+                color: color.withValues(alpha: isDark ? 0.20 : 0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(_statusIcon(), size: Spacings.mdIcon, color: color),
@@ -269,10 +269,10 @@ class _StatChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.15 : 0.08),
+        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: Spacings.borderRadiusSm,
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
           width: 1,
         ),
       ),
@@ -289,8 +289,8 @@ class _StatChip extends StatelessWidget {
           ),
           Text(
             label,
-            style: AppTypography.caption!.copyWith(
-              color: color.withOpacity(0.7),
+            style: AppTypography.caption.copyWith(
+              color: color.withValues(alpha: 0.7),
             ),
           ),
         ],

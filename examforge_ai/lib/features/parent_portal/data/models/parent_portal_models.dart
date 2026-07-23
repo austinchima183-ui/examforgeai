@@ -1221,7 +1221,7 @@ class ParentDashboardModel {
         'grade': r.grade,
         'subject_name': r.subjectName,
         'date': r.date?.toIso8601String(),
-      }).toList(),
+      },).toList(),
     };
   }
 

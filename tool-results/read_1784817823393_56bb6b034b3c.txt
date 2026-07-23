@@ -1,0 +1,2002 @@
+     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→
+     3→import '../../../../core/errors/exceptions.dart';
+     4→import '../../../../core/network/paginated_query_mixin.dart';
+     5→import '../../../../core/utils/logger.dart';
+     6→import '../models/marketplace_models.dart';
+     7→
+     8→// ═══════════════════════════════════════════════════════════════════════
+     9→// ABSTRACT INTERFACE
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→
+    12→/// Abstract interface for all remote marketplace data operations.
+    13→///
+    14→/// Implementations handle all network communication with the Supabase
+    15→/// backend and return plain model instances. Exceptions are allowed to
+    16→/// propagate so the repository layer can catch and convert them to
+    17→/// domain [Failure] types.
+    18→abstract class MarketplaceRemoteDataSource {
+    19→  // ─── Categories ────────────────────────────────────────────────────
+    20→
+    21→  Future<List<MarketplaceCategoryModel>> getCategories({
+    22→    bool activeOnly = true,
+    23→    int limit = PaginatedQueryMixin.dropdownPageSize,
+    24→  });
+    25→  Future<MarketplaceCategoryModel> getCategory(String categoryId);
+    26→  Future<MarketplaceCategoryModel> upsertCategory(
+    27→    MarketplaceCategoryModel category,
+    28→  );
+    29→  Future<bool> deleteCategory(String categoryId);
+    30→
+    31→  // ─── Seller Profiles ──────────────────────────────────────────────
+    32→
+    33→  Future<SellerProfileModel> getSellerProfile(String sellerId);
+    34→  Future<SellerProfileModel> getSellerProfileByUserId(String userId);
+    35→  Future<SellerProfileModel> upsertSellerProfile(
+    36→    SellerProfileModel profile,
+    37→  );
+    38→  Future<SellerProfileModel> updateSellerStatus(
+    39→    String sellerId,
+    40→    String status,
+    41→  );
+    42→  Future<List<SellerProfileModel>> getSellers({
+    43→    String? status,
+    44→    int limit = 20,
+    45→    int offset = 0,
+    46→  });
+    47→
+    48→  // ─── Products ─────────────────────────────────────────────────────
+    49→
+    50→  Future<List<MarketplaceProductModel>> getProducts({
+    51→    String? status,
+    52→    String? productType,
+    53→    String? categoryId,
+    54→    String? sellerId,
+    55→    String? subject,
+    56→    String? classLevel,
+    57→    String? curriculum,
+    58→    String? search,
+    59→    String? sortBy,
+    60→    int limit = 20,
+    61→    int offset = 0,
+    62→  });
+    63→  Future<MarketplaceProductModel> getProduct(String productId);
+    64→  Future<MarketplaceProductModel> getProductBySlug(String slug);
+    65→  Future<MarketplaceProductModel> createProduct(
+    66→    MarketplaceProductModel product,
+    67→  );
+    68→  Future<MarketplaceProductModel> updateProduct(
+    69→    MarketplaceProductModel product,
+    70→  );
+    71→  Future<bool> deleteProduct(String productId);
+    72→  Future<MarketplaceProductModel> updateProductStatus(
+    73→    String productId,
+    74→    String status,
+    75→  );
+    76→  Future<MarketplaceProductModel> featureProduct(
+    77→    String productId,
+    78→    bool featured,
+    79→  );
+    80→  Future<bool> incrementProductView(String productId);
+    81→  Future<List<MarketplaceProductModel>> getSellerProducts(
+    82→    String sellerId, {
+    83→    int limit = 20,
+    84→    int offset = 0,
+    85→  });
+    86→  Future<List<MarketplaceProductModel>> getFeaturedProducts({
+    87→    int limit = 10,
+    88→  });
+    89→  Future<List<MarketplaceProductModel>> getRelatedProducts(
+    90→    String productId, {
+    91→    int limit = 10,
+    92→  });
+    93→
+    94→  // ─── Product Versions ─────────────────────────────────────────────
+    95→
+    96→  Future<List<ProductVersionModel>> getProductVersions(
+    97→    String productId, {
+    98→    int limit = PaginatedQueryMixin.dropdownPageSize,
+    99→  });
+   100→  Future<ProductVersionModel> createProductVersion(
+   101→    ProductVersionModel version,
+   102→  );
+   103→
+   104→  // ─── Shopping Cart ────────────────────────────────────────────────
+   105→
+   106→  Future<CartModel> getCart(String userId);
+   107→  Future<CartItemModel> addToCart(String userId, CartItemModel item);
+   108→  Future<CartItemModel> updateCartItem(CartItemModel item);
+   109→  Future<bool> removeFromCart(String cartItemId);
+   110→  Future<bool> clearCart(String userId);
+   111→
+   112→  // ─── Orders ───────────────────────────────────────────────────────
+   113→
+   114→  Future<MarketplaceOrderModel> createOrder(MarketplaceOrderModel order);
+   115→  Future<MarketplaceOrderModel> getOrder(String orderId);
+   116→  Future<MarketplaceOrderModel> getOrderByNumber(String orderNumber);
+   117→  Future<List<MarketplaceOrderModel>> getUserOrders(
+   118→    String buyerId, {
+   119→    int limit = 20,
+   120→    int offset = 0,
+   121→  });
+   122→  Future<MarketplaceOrderModel> updateOrderStatus(
+   123→    String orderId,
+   124→    String status,
+   125→  );
+   126→  Future<MarketplaceOrderModel> verifyPayment(String txRef);
+   127→
+   128→  // ─── Purchases ────────────────────────────────────────────────────
+   129→
+   130→  Future<List<MarketplacePurchaseModel>> getUserPurchases(
+   131→    String buyerId, {
+   132→    int limit = 20,
+   133→    int offset = 0,
+   134→  });
+   135→  Future<MarketplacePurchaseModel> getPurchase(String purchaseId);
+   136→  Future<bool> verifyPurchase(String buyerId, String productId);
+   137→  Future<MarketplacePurchaseModel> recordDownload(String purchaseId);
+   138→
+   139→  // ─── Reviews & Ratings ────────────────────────────────────────────
+   140→
+   141→  Future<List<MarketplaceReviewModel>> getProductReviews(
+   142→    String productId, {
+   143→    int limit = 20,
+   144→    int offset = 0,
+   145→  });
+   146→  Future<MarketplaceReviewModel> createReview(MarketplaceReviewModel review);
+   147→  Future<MarketplaceReviewModel> updateReview(MarketplaceReviewModel review);
+   148→  Future<bool> deleteReview(String reviewId);
+   149→  Future<MarketplaceReviewModel> respondToReview(
+   150→    String reviewId,
+   151→    String response,
+   152→  );
+   153→  Future<bool> voteReviewHelpful(String reviewId, String userId);
+   154→  Future<bool> reportReview(String reviewId, String reason);
+   155→
+   156→  // ─── Wishlist ─────────────────────────────────────────────────────
+   157→
+   158→  Future<List<WishlistModel>> getUserWishlist(
+   159→    String userId, {
+   160→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   161→  });
+   162→  Future<WishlistModel> addToWishlist(String userId, String productId);
+   163→  Future<bool> removeFromWishlist(String wishlistId);
+   164→  Future<bool> isInWishlist(String userId, String productId);
+   165→
+   166→  // ─── Promo Codes ──────────────────────────────────────────────────
+   167→
+   168→  Future<PromoCodeModel> validatePromoCode(
+   169→    String code, {
+   170→    double? orderAmount,
+   171→    List<String>? productTypes,
+   172→  });
+   173→  Future<bool> applyPromoCode(String promoCodeId);
+   174→  Future<List<PromoCodeModel>> getPromoCodes({
+   175→    bool activeOnly = true,
+   176→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   177→  });
+   178→  Future<PromoCodeModel> createPromoCode(PromoCodeModel promoCode);
+   179→  Future<PromoCodeModel> updatePromoCode(PromoCodeModel promoCode);
+   180→
+   181→  // ─── Commissions ──────────────────────────────────────────────────
+   182→
+   183→  Future<List<CommissionRateModel>> getCommissionRates({
+   184→    String? productType,
+   185→    String? licenseType,
+   186→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   187→  });
+   188→  Future<CommissionRateModel> upsertCommissionRate(
+   189→    CommissionRateModel rate,
+   190→  );
+   191→  Future<List<CommissionRecordModel>> getCommissionRecords(
+   192→    String sellerId, {
+   193→    int limit = 20,
+   194→    int offset = 0,
+   195→  });
+   196→
+   197→  // ─── Analytics ────────────────────────────────────────────────────
+   198→
+   199→  Future<List<SellerAnalyticsModel>> getSellerAnalytics(
+   200→    String sellerId, {
+   201→    DateTime? startDate,
+   202→    DateTime? endDate,
+   203→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   204→  });
+   205→  Future<List<ProductAnalyticsModel>> getProductAnalytics(
+   206→    String productId, {
+   207→    DateTime? startDate,
+   208→    DateTime? endDate,
+   209→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   210→  });
+   211→  Future<bool> recordSearchEvent(MarketplaceSearchLogModel searchLog);
+   212→  Future<bool> recordAIRecommendation(AIRecommendationModel recommendation);
+   213→
+   214→  // ─── Quality Checks ───────────────────────────────────────────────
+   215→
+   216→  Future<QualityCheckModel> runQualityCheck(String productId);
+   217→  Future<QualityCheckModel> getQualityCheck(String productId);
+   218→  Future<List<QualityCheckModel>> getProductQualityHistory(
+   219→    String productId, {
+   220→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   221→  });
+   222→
+   223→  // ─── Disputes ─────────────────────────────────────────────────────
+   224→
+   225→  Future<DisputeModel> createDispute(DisputeModel dispute);
+   226→  Future<DisputeModel> getDispute(String disputeId);
+   227→  Future<List<DisputeModel>> getDisputes({
+   228→    String? orderId,
+   229→    String? buyerId,
+   230→    String? sellerId,
+   231→    String? status,
+   232→    int limit = PaginatedQueryMixin.defaultPageSize,
+   233→    int offset = 0,
+   234→  });
+   235→  Future<DisputeModel> resolveDispute(
+   236→    String disputeId,
+   237→    String resolution,
+   238→    String resolvedBy,
+   239→  );
+   240→
+   241→  // ─── Notifications ────────────────────────────────────────────────
+   242→
+   243→  Future<List<MarketplaceNotificationModel>> getUserNotifications(
+   244→    String userId, {
+   245→    bool unreadOnly = false,
+   246→    int limit = 20,
+   247→  });
+   248→  Future<bool> markNotificationRead(String notificationId);
+   249→  Future<bool> markAllNotificationsRead(String userId);
+   250→  Future<MarketplaceNotificationModel> createNotification(
+   251→    MarketplaceNotificationModel notification,
+   252→  );
+   253→
+   254→  // ─── Saved Searches ───────────────────────────────────────────────
+   255→
+   256→  Future<List<SavedSearchModel>> getSavedSearches(
+   257→    String userId, {
+   258→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   259→  });
+   260→  Future<SavedSearchModel> createSavedSearch(SavedSearchModel savedSearch);
+   261→  Future<bool> deleteSavedSearch(String savedSearchId);
+   262→
+   263→  // ─── AI Recommendations ───────────────────────────────────────────
+   264→
+   265→  Future<List<MarketplaceProductModel>> getRecommendations(
+   266→    String userId, {
+   267→    int limit = 10,
+   268→  });
+   269→  Future<List<MarketplaceProductModel>> getTrendingProducts({int limit = 10});
+   270→
+   271→  // ─── Marketplace Moderation ───────────────────────────────────────
+   272→
+   273→  Future<List<MarketplaceProductModel>> getPendingProducts({
+   274→    int limit = 20,
+   275→    int offset = 0,
+   276→  });
+   277→  Future<MarketplaceProductModel> approveProduct(
+   278→    String productId,
+   279→    String moderatorId,
+   280→  );
+   281→  Future<MarketplaceProductModel> rejectProduct(
+   282→    String productId,
+   283→    String reason,
+   284→    String moderatorId,
+   285→  );
+   286→  Future<MarketplaceReviewModel> moderateReview(
+   287→    String reviewId,
+   288→    String status,
+   289→  );
+   290→  Future<SellerProfileModel> suspendSeller(
+   291→    String sellerId,
+   292→    String reason,
+   293→  );
+   294→}
+   295→
+   296→// ═══════════════════════════════════════════════════════════════════════
+   297→// SUPABASE IMPLEMENTATION
+   298→// ═══════════════════════════════════════════════════════════════════════
+   299→
+   300→/// Supabase-backed implementation of [MarketplaceRemoteDataSource].
+   301→///
+   302→/// Every method maps Supabase-specific responses and errors into the
+   303→/// domain-agnostic types defined in the data layer. Supabase
+   304→/// [sb.PostgrestException] instances are converted to our custom
+   305→/// exceptions with user-friendly messages.
+   306→class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
+   307→  MarketplaceRemoteDataSourceImpl({
+   308→    required sb.SupabaseClient supabaseClient,
+   309→  }) : _supabase = supabaseClient;
+   310→
+   311→  final sb.SupabaseClient _supabase;
+   312→
+   313→  // ─── Table names ──────────────────────────────────────────────────
+   314→  static const _categoriesTable = 'marketplace_categories';
+   315→  static const _sellerProfilesTable = 'seller_profiles';
+   316→  static const _productsTable = 'marketplace_products';
+   317→  static const _productVersionsTable = 'product_versions';
+   318→  static const _cartItemsTable = 'cart_items';
+   319→  static const _cartsTable = 'shopping_carts';
+   320→  static const _ordersTable = 'marketplace_orders';
+   321→  static const _orderItemsTable = 'order_items';
+   322→  static const _purchasesTable = 'marketplace_purchases';
+   323→  static const _reviewsTable = 'marketplace_reviews';
+   324→  static const _reviewHelpfulTable = 'review_helpful_votes';
+   325→  static const _reviewReportsTable = 'review_reports';
+   326→  static const _wishlistTable = 'marketplace_wishlist';
+   327→  static const _promoCodesTable = 'promo_codes';
+   328→  static const _commissionRatesTable = 'commission_rates';
+   329→  static const _commissionRecordsTable = 'commission_records';
+   330→  static const _sellerAnalyticsTable = 'seller_analytics';
+   331→  static const _productAnalyticsTable = 'product_analytics';
+   332→  static const _searchLogsTable = 'marketplace_search_logs';
+   333→  static const _aiRecommendationsTable = 'ai_recommendations';
+   334→  static const _qualityChecksTable = 'quality_checks';
+   335→  static const _disputesTable = 'marketplace_disputes';
+   336→  static const _notificationsTable = 'marketplace_notifications';
+   337→  static const _savedSearchesTable = 'saved_searches';
+   338→
+   339→  // ═══════════════════════════════════════════════════════════════════
+   340→  // CATEGORIES
+   341→  // ═══════════════════════════════════════════════════════════════════
+   342→
+   343→  @override
+   344→  Future<List<MarketplaceCategoryModel>> getCategories({
+   345→    bool activeOnly = true,
+   346→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   347→  }) async {
+   348→    try {
+   349→      var query = _supabase.from(_categoriesTable).select();
+   350→
+   351→      if (activeOnly) {
+   352→        query = query.eq('is_active', true);
+   353→      }
+   354→
+   355→      // PERF: Added limit to prevent unbounded query on marketplace_categories
+   356→      final response = await query.order('sort_order', ascending: true).limit(limit);
+   357→
+   358→      AppLogger.info('Fetched ${response.length} marketplace categories');
+   359→      return response
+   360→          .map<MarketplaceCategoryModel>(
+   361→            (row) => MarketplaceCategoryModel.fromJson(row),
+   362→          )
+   363→          .toList();
+   364→    } on sb.PostgrestException catch (e) {
+   365→      throw _mapPostgrestException(e);
+   366→    } catch (e) {
+   367→      AppLogger.error('Unexpected getCategories error', error: e);
+   368→      throw const ServerException(
+   369→        message: 'Failed to fetch marketplace categories.',
+   370→        statusCode: 500,
+   371→      );
+   372→    }
+   373→  }
+   374→
+   375→  @override
+   376→  Future<MarketplaceCategoryModel> getCategory(String categoryId) async {
+   377→    try {
+   378→      final response = await _supabase
+   379→          .from(_categoriesTable)
+   380→          .select()
+   381→          .eq('id', categoryId)
+   382→          .limit(1);
+   383→
+   384→      if (response.isEmpty) {
+   385→        throw const NotFoundException(message: 'Category not found.');
+   386→      }
+   387→
+   388→      return MarketplaceCategoryModel.fromJson(response.first);
+   389→    } on sb.PostgrestException catch (e) {
+   390→      throw _mapPostgrestException(e);
+   391→    } on NotFoundException {
+   392→      rethrow;
+   393→    } catch (e) {
+   394→      AppLogger.error('Unexpected getCategory error', error: e);
+   395→      throw const ServerException(
+   396→        message: 'Failed to fetch category.',
+   397→        statusCode: 500,
+   398→      );
+   399→    }
+   400→  }
+   401→
+   402→  @override
+   403→  Future<MarketplaceCategoryModel> upsertCategory(
+   404→    MarketplaceCategoryModel category,
+   405→  ) async {
+   406→    try {
+   407→      final data = category.toJson();
+   408→      data['updated_at'] = DateTime.now().toIso8601String();
+   409→
+   410→      final response = await _supabase
+   411→          .from(_categoriesTable)
+   412→          .upsert(data)
+   413→          .select();
+   414→
+   415→      if (response.isEmpty) {
+   416→        throw const ServerException(
+   417→          message: 'Category upsert returned no data.',
+   418→          statusCode: 500,
+   419→        );
+   420→      }
+   421→
+   422→      AppLogger.info('Category upserted: ${response.first['id']}');
+   423→      return MarketplaceCategoryModel.fromJson(response.first);
+   424→    } on sb.PostgrestException catch (e) {
+   425→      throw _mapPostgrestException(e);
+   426→    } on ServerException {
+   427→      rethrow;
+   428→    } catch (e) {
+   429→      AppLogger.error('Unexpected upsertCategory error', error: e);
+   430→      throw const ServerException(
+   431→        message: 'Failed to upsert category.',
+   432→        statusCode: 500,
+   433→      );
+   434→    }
+   435→  }
+   436→
+   437→  @override
+   438→  Future<bool> deleteCategory(String categoryId) async {
+   439→    try {
+   440→      await _supabase
+   441→          .from(_categoriesTable)
+   442→          .update({
+   443→            'is_active': false,
+   444→            'updated_at': DateTime.now().toIso8601String(),
+   445→          })
+   446→          .eq('id', categoryId);
+   447→
+   448→      AppLogger.info('Category soft-deleted: $categoryId');
+   449→      return true;
+   450→    } on sb.PostgrestException catch (e) {
+   451→      throw _mapPostgrestException(e);
+   452→    } catch (e) {
+   453→      AppLogger.error('Unexpected deleteCategory error', error: e);
+   454→      throw const ServerException(
+   455→        message: 'Failed to delete category.',
+   456→        statusCode: 500,
+   457→      );
+   458→    }
+   459→  }
+   460→
+   461→  // ═══════════════════════════════════════════════════════════════════
+   462→  // SELLER PROFILES
+   463→  // ═══════════════════════════════════════════════════════════════════
+   464→
+   465→  @override
+   466→  Future<SellerProfileModel> getSellerProfile(String sellerId) async {
+   467→    try {
+   468→      final response = await _supabase
+   469→          .from(_sellerProfilesTable)
+   470→          .select()
+   471→          .eq('id', sellerId)
+   472→          .limit(1);
+   473→
+   474→      if (response.isEmpty) {
+   475→        throw const NotFoundException(message: 'Seller profile not found.');
+   476→      }
+   477→
+   478→      return SellerProfileModel.fromJson(response.first);
+   479→    } on sb.PostgrestException catch (e) {
+   480→      throw _mapPostgrestException(e);
+   481→    } on NotFoundException {
+   482→      rethrow;
+   483→    } catch (e) {
+   484→      AppLogger.error('Unexpected getSellerProfile error', error: e);
+   485→      throw const ServerException(
+   486→        message: 'Failed to fetch seller profile.',
+   487→        statusCode: 500,
+   488→      );
+   489→    }
+   490→  }
+   491→
+   492→  @override
+   493→  Future<SellerProfileModel> getSellerProfileByUserId(String userId) async {
+   494→    try {
+   495→      final response = await _supabase
+   496→          .from(_sellerProfilesTable)
+   497→          .select()
+   498→          .eq('user_id', userId)
+   499→          .limit(1);
+   500→
+   501→      if (response.isEmpty) {
+   502→        throw const NotFoundException(message: 'Seller profile not found for user.');
+   503→      }
+   504→
+   505→      return SellerProfileModel.fromJson(response.first);
+   506→    } on sb.PostgrestException catch (e) {
+   507→      throw _mapPostgrestException(e);
+   508→    } on NotFoundException {
+   509→      rethrow;
+   510→    } catch (e) {
+   511→      AppLogger.error('Unexpected getSellerProfileByUserId error', error: e);
+   512→      throw const ServerException(
+   513→        message: 'Failed to fetch seller profile by user ID.',
+   514→        statusCode: 500,
+   515→      );
+   516→    }
+   517→  }
+   518→
+   519→  @override
+   520→  Future<SellerProfileModel> upsertSellerProfile(
+   521→    SellerProfileModel profile,
+   522→  ) async {
+   523→    try {
+   524→      final data = profile.toJson();
+   525→      data['updated_at'] = DateTime.now().toIso8601String();
+   526→
+   527→      final response = await _supabase
+   528→          .from(_sellerProfilesTable)
+   529→          .upsert(data)
+   530→          .select();
+   531→
+   532→      if (response.isEmpty) {
+   533→        throw const ServerException(
+   534→          message: 'Seller profile upsert returned no data.',
+   535→          statusCode: 500,
+   536→        );
+   537→      }
+   538→
+   539→      AppLogger.info('Seller profile upserted: ${response.first['id']}');
+   540→      return SellerProfileModel.fromJson(response.first);
+   541→    } on sb.PostgrestException catch (e) {
+   542→      throw _mapPostgrestException(e);
+   543→    } on ServerException {
+   544→      rethrow;
+   545→    } catch (e) {
+   546→      AppLogger.error('Unexpected upsertSellerProfile error', error: e);
+   547→      throw const ServerException(
+   548→        message: 'Failed to upsert seller profile.',
+   549→        statusCode: 500,
+   550→      );
+   551→    }
+   552→  }
+   553→
+   554→  @override
+   555→  Future<SellerProfileModel> updateSellerStatus(
+   556→    String sellerId,
+   557→    String status,
+   558→  ) async {
+   559→    try {
+   560→      final response = await _supabase
+   561→          .from(_sellerProfilesTable)
+   562→          .update({
+   563→            'status': status,
+   564→            'updated_at': DateTime.now().toIso8601String(),
+   565→          })
+   566→          .eq('id', sellerId)
+   567→          .select();
+   568→
+   569→      if (response.isEmpty) {
+   570→        throw const ServerException(
+   571→          message: 'Seller status update returned no data.',
+   572→          statusCode: 500,
+   573→        );
+   574→      }
+   575→
+   576→      AppLogger.info('Seller status updated: $sellerId → $status');
+   577→      return SellerProfileModel.fromJson(response.first);
+   578→    } on sb.PostgrestException catch (e) {
+   579→      throw _mapPostgrestException(e);
+   580→    } on ServerException {
+   581→      rethrow;
+   582→    } catch (e) {
+   583→      AppLogger.error('Unexpected updateSellerStatus error', error: e);
+   584→      throw const ServerException(
+   585→        message: 'Failed to update seller status.',
+   586→        statusCode: 500,
+   587→      );
+   588→    }
+   589→  }
+   590→
+   591→  @override
+   592→  Future<List<SellerProfileModel>> getSellers({
+   593→    String? status,
+   594→    int limit = 20,
+   595→    int offset = 0,
+   596→  }) async {
+   597→    try {
+   598→      var query = _supabase.from(_sellerProfilesTable).select();
+   599→
+   600→      if (status != null) {
+   601→        query = query.eq('status', status);
+   602→      }
+   603→
+   604→      final response = await query
+   605→          .order('created_at', ascending: false)
+   606→          .range(offset, offset + limit - 1);
+   607→
+   608→      AppLogger.info('Fetched ${response.length} sellers');
+   609→      return response
+   610→          .map<SellerProfileModel>(
+   611→            (row) => SellerProfileModel.fromJson(row),
+   612→          )
+   613→          .toList();
+   614→    } on sb.PostgrestException catch (e) {
+   615→      throw _mapPostgrestException(e);
+   616→    } catch (e) {
+   617→      AppLogger.error('Unexpected getSellers error', error: e);
+   618→      throw const ServerException(
+   619→        message: 'Failed to fetch sellers.',
+   620→        statusCode: 500,
+   621→      );
+   622→    }
+   623→  }
+   624→
+   625→  // ═══════════════════════════════════════════════════════════════════
+   626→  // PRODUCTS
+   627→  // ═══════════════════════════════════════════════════════════════════
+   628→
+   629→  @override
+   630→  Future<List<MarketplaceProductModel>> getProducts({
+   631→    String? status,
+   632→    String? productType,
+   633→    String? categoryId,
+   634→    String? sellerId,
+   635→    String? subject,
+   636→    String? classLevel,
+   637→    String? curriculum,
+   638→    String? search,
+   639→    String? sortBy,
+   640→    int limit = 20,
+   641→    int offset = 0,
+   642→  }) async {
+   643→    try {
+   644→      // Use RPC for full-text search when a search query is provided
+   645→      if (search != null && search.isNotEmpty) {
+   646→        final response = await _supabase.rpc(
+   647→          'marketplace_search',
+   648→          params: {
+   649→            'search_query': search,
+   650→            'p_status': status,
+   651→            'p_product_type': productType,
+   652→            'p_category_id': categoryId,
+   653→            'p_seller_id': sellerId,
+   654→            'p_subject': subject,
+   655→            'p_class_level': classLevel,
+   656→            'p_curriculum': curriculum,
+   657→            'p_sort_by': sortBy ?? 'newest',
+   658→            'p_limit': limit,
+   659→            'p_offset': offset,
+   660→          },
+   661→        );
+   662→
+   663→        final list = response as List<dynamic>;
+   664→        AppLogger.info('Search returned ${list.length} products');
+   665→        return list
+   666→            .map<MarketplaceProductModel>(
+   667→              (row) => MarketplaceProductModel.fromJson(row as Map<String, dynamic>),
+   668→            )
+   669→            .toList();
+   670→      }
+   671→
+   672→      // Standard query builder when no search
+   673→      var filterQuery = _supabase.from(_productsTable).select();
+   674→
+   675→      filterQuery = filterQuery.filter('deleted_at', 'is', null); // exclude soft-deleted
+   676→
+   677→      if (status != null) {
+   678→        filterQuery = filterQuery.eq('status', status);
+   679→      }
+   680→      if (productType != null) {
+   681→        filterQuery = filterQuery.eq('product_type', productType);
+   682→      }
+   683→      if (categoryId != null) {
+   684→        filterQuery = filterQuery.eq('category_id', categoryId);
+   685→      }
+   686→      if (sellerId != null) {
+   687→        filterQuery = filterQuery.eq('seller_id', sellerId);
+   688→      }
+   689→      if (subject != null) {
+   690→        filterQuery = filterQuery.eq('subject', subject);
+   691→      }
+   692→      if (classLevel != null) {
+   693→        filterQuery = filterQuery.eq('class_level', classLevel);
+   694→      }
+   695→      if (curriculum != null) {
+   696→        filterQuery = filterQuery.eq('curriculum', curriculum);
+   697→      }
+   698→
+   699→      // Apply sort
+   700→      final transformQuery = _applySortBy(filterQuery, sortBy);
+   701→
+   702→      final response = await transformQuery.range(offset, offset + limit - 1);
+   703→
+   704→      AppLogger.info('Fetched ${response.length} products');
+   705→      return response
+   706→          .map<MarketplaceProductModel>(
+   707→            (row) => MarketplaceProductModel.fromJson(row),
+   708→          )
+   709→          .toList();
+   710→    } on sb.PostgrestException catch (e) {
+   711→      throw _mapPostgrestException(e);
+   712→    } catch (e) {
+   713→      AppLogger.error('Unexpected getProducts error', error: e);
+   714→      throw const ServerException(
+   715→        message: 'Failed to fetch products.',
+   716→        statusCode: 500,
+   717→      );
+   718→    }
+   719→  }
+   720→
+   721→  @override
+   722→  Future<MarketplaceProductModel> getProduct(String productId) async {
+   723→    try {
+   724→      final response = await _supabase
+   725→          .from(_productsTable)
+   726→          .select()
+   727→          .eq('id', productId)
+   728→          .limit(1);
+   729→
+   730→      if (response.isEmpty) {
+   731→        throw const NotFoundException(message: 'Product not found.');
+   732→      }
+   733→
+   734→      return MarketplaceProductModel.fromJson(response.first);
+   735→    } on sb.PostgrestException catch (e) {
+   736→      throw _mapPostgrestException(e);
+   737→    } on NotFoundException {
+   738→      rethrow;
+   739→    } catch (e) {
+   740→      AppLogger.error('Unexpected getProduct error', error: e);
+   741→      throw const ServerException(
+   742→        message: 'Failed to fetch product.',
+   743→        statusCode: 500,
+   744→      );
+   745→    }
+   746→  }
+   747→
+   748→  @override
+   749→  Future<MarketplaceProductModel> getProductBySlug(String slug) async {
+   750→    try {
+   751→      final response = await _supabase
+   752→          .from(_productsTable)
+   753→          .select()
+   754→          .eq('slug', slug)
+   755→          .limit(1);
+   756→
+   757→      if (response.isEmpty) {
+   758→        throw const NotFoundException(message: 'Product not found by slug.');
+   759→      }
+   760→
+   761→      return MarketplaceProductModel.fromJson(response.first);
+   762→    } on sb.PostgrestException catch (e) {
+   763→      throw _mapPostgrestException(e);
+   764→    } on NotFoundException {
+   765→      rethrow;
+   766→    } catch (e) {
+   767→      AppLogger.error('Unexpected getProductBySlug error', error: e);
+   768→      throw const ServerException(
+   769→        message: 'Failed to fetch product by slug.',
+   770→        statusCode: 500,
+   771→      );
+   772→    }
+   773→  }
+   774→
+   775→  @override
+   776→  Future<MarketplaceProductModel> createProduct(
+   777→    MarketplaceProductModel product,
+   778→  ) async {
+   779→    try {
+   780→      final data = product.toJson();
+   781→      data['created_at'] = DateTime.now().toIso8601String();
+   782→      data['updated_at'] = DateTime.now().toIso8601String();
+   783→
+   784→      final response = await _supabase
+   785→          .from(_productsTable)
+   786→          .insert(data)
+   787→          .select();
+   788→
+   789→      if (response.isEmpty) {
+   790→        throw const ServerException(
+   791→          message: 'Product creation returned no data.',
+   792→          statusCode: 500,
+   793→        );
+   794→      }
+   795→
+   796→      AppLogger.info('Product created: ${response.first['id']}');
+   797→      return MarketplaceProductModel.fromJson(response.first);
+   798→    } on sb.PostgrestException catch (e) {
+   799→      throw _mapPostgrestException(e);
+   800→    } on ServerException {
+   801→      rethrow;
+   802→    } catch (e) {
+   803→      AppLogger.error('Unexpected createProduct error', error: e);
+   804→      throw const ServerException(
+   805→        message: 'Failed to create product.',
+   806→        statusCode: 500,
+   807→      );
+   808→    }
+   809→  }
+   810→
+   811→  @override
+   812→  Future<MarketplaceProductModel> updateProduct(
+   813→    MarketplaceProductModel product,
+   814→  ) async {
+   815→    try {
+   816→      final data = product.toJson();
+   817→      data['updated_at'] = DateTime.now().toIso8601String();
+   818→
+   819→      final response = await _supabase
+   820→          .from(_productsTable)
+   821→          .update(data)
+   822→          .eq('id', product.id)
+   823→          .select();
+   824→
+   825→      if (response.isEmpty) {
+   826→        throw const ServerException(
+   827→          message: 'Product update returned no data.',
+   828→          statusCode: 500,
+   829→        );
+   830→      }
+   831→
+   832→      AppLogger.info('Product updated: ${product.id}');
+   833→      return MarketplaceProductModel.fromJson(response.first);
+   834→    } on sb.PostgrestException catch (e) {
+   835→      throw _mapPostgrestException(e);
+   836→    } on ServerException {
+   837→      rethrow;
+   838→    } catch (e) {
+   839→      AppLogger.error('Unexpected updateProduct error', error: e);
+   840→      throw const ServerException(
+   841→        message: 'Failed to update product.',
+   842→        statusCode: 500,
+   843→      );
+   844→    }
+   845→  }
+   846→
+   847→  @override
+   848→  Future<bool> deleteProduct(String productId) async {
+   849→    try {
+   850→      await _supabase
+   851→          .from(_productsTable)
+   852→          .update({
+   853→            'deleted_at': DateTime.now().toIso8601String(),
+   854→            'updated_at': DateTime.now().toIso8601String(),
+   855→          })
+   856→          .eq('id', productId);
+   857→
+   858→      AppLogger.info('Product soft-deleted: $productId');
+   859→      return true;
+   860→    } on sb.PostgrestException catch (e) {
+   861→      throw _mapPostgrestException(e);
+   862→    } catch (e) {
+   863→      AppLogger.error('Unexpected deleteProduct error', error: e);
+   864→      throw const ServerException(
+   865→        message: 'Failed to delete product.',
+   866→        statusCode: 500,
+   867→      );
+   868→    }
+   869→  }
+   870→
+   871→  @override
+   872→  Future<MarketplaceProductModel> updateProductStatus(
+   873→    String productId,
+   874→    String status,
+   875→  ) async {
+   876→    try {
+   877→      final response = await _supabase
+   878→          .from(_productsTable)
+   879→          .update({
+   880→            'status': status,
+   881→            'updated_at': DateTime.now().toIso8601String(),
+   882→          })
+   883→          .eq('id', productId)
+   884→          .select();
+   885→
+   886→      if (response.isEmpty) {
+   887→        throw const ServerException(
+   888→          message: 'Product status update returned no data.',
+   889→          statusCode: 500,
+   890→        );
+   891→      }
+   892→
+   893→      AppLogger.info('Product status updated: $productId → $status');
+   894→      return MarketplaceProductModel.fromJson(response.first);
+   895→    } on sb.PostgrestException catch (e) {
+   896→      throw _mapPostgrestException(e);
+   897→    } on ServerException {
+   898→      rethrow;
+   899→    } catch (e) {
+   900→      AppLogger.error('Unexpected updateProductStatus error', error: e);
+   901→      throw const ServerException(
+   902→        message: 'Failed to update product status.',
+   903→        statusCode: 500,
+   904→      );
+   905→    }
+   906→  }
+   907→
+   908→  @override
+   909→  Future<MarketplaceProductModel> featureProduct(
+   910→    String productId,
+   911→    bool featured,
+   912→  ) async {
+   913→    try {
+   914→      final response = await _supabase
+   915→          .from(_productsTable)
+   916→          .update({
+   917→            'is_featured': featured,
+   918→            'updated_at': DateTime.now().toIso8601String(),
+   919→          })
+   920→          .eq('id', productId)
+   921→          .select();
+   922→
+   923→      if (response.isEmpty) {
+   924→        throw const ServerException(
+   925→          message: 'Product feature update returned no data.',
+   926→          statusCode: 500,
+   927→        );
+   928→      }
+   929→
+   930→      AppLogger.info('Product featured: $productId → $featured');
+   931→      return MarketplaceProductModel.fromJson(response.first);
+   932→    } on sb.PostgrestException catch (e) {
+   933→      throw _mapPostgrestException(e);
+   934→    } on ServerException {
+   935→      rethrow;
+   936→    } catch (e) {
+   937→      AppLogger.error('Unexpected featureProduct error', error: e);
+   938→      throw const ServerException(
+   939→        message: 'Failed to update product feature status.',
+   940→        statusCode: 500,
+   941→      );
+   942→    }
+   943→  }
+   944→
+   945→  @override
+   946→  Future<bool> incrementProductView(String productId) async {
+   947→    try {
+   948→      await _supabase.rpc(
+   949→        'record_product_view',
+   950→        params: {'p_product_id': productId},
+   951→      );
+   952→
+   953→      return true;
+   954→    } on sb.PostgrestException catch (e) {
+   955→      throw _mapPostgrestException(e);
+   956→    } catch (e) {
+   957→      AppLogger.error('Unexpected incrementProductView error', error: e);
+   958→      throw const ServerException(
+   959→        message: 'Failed to increment product view.',
+   960→        statusCode: 500,
+   961→      );
+   962→    }
+   963→  }
+   964→
+   965→  @override
+   966→  Future<List<MarketplaceProductModel>> getSellerProducts(
+   967→    String sellerId, {
+   968→    int limit = 20,
+   969→    int offset = 0,
+   970→  }) async {
+   971→    try {
+   972→      final response = await _supabase
+   973→          .from(_productsTable)
+   974→          .select()
+   975→          .eq('seller_id', sellerId)
+   976→          .filter('deleted_at', 'is', null)
+   977→          .order('created_at', ascending: false)
+   978→          .range(offset, offset + limit - 1);
+   979→
+   980→      AppLogger.info(
+   981→        'Fetched ${response.length} products for seller $sellerId',
+   982→      );
+   983→      return response
+   984→          .map<MarketplaceProductModel>(
+   985→            (row) => MarketplaceProductModel.fromJson(row),
+   986→          )
+   987→          .toList();
+   988→    } on sb.PostgrestException catch (e) {
+   989→      throw _mapPostgrestException(e);
+   990→    } catch (e) {
+   991→      AppLogger.error('Unexpected getSellerProducts error', error: e);
+   992→      throw const ServerException(
+   993→        message: 'Failed to fetch seller products.',
+   994→        statusCode: 500,
+   995→      );
+   996→    }
+   997→  }
+   998→
+   999→  @override
+  1000→  Future<List<MarketplaceProductModel>> getFeaturedProducts({
+  1001→    int limit = 10,
+  1002→  }) async {
+  1003→    try {
+  1004→      final response = await _supabase
+  1005→          .from(_productsTable)
+  1006→          .select()
+  1007→          .eq('is_featured', true)
+  1008→          .eq('status', 'published')
+  1009→          .filter('deleted_at', 'is', null)
+  1010→          .order('created_at', ascending: false)
+  1011→          .limit(limit);
+  1012→
+  1013→      AppLogger.info('Fetched ${response.length} featured products');
+  1014→      return response
+  1015→          .map<MarketplaceProductModel>(
+  1016→            (row) => MarketplaceProductModel.fromJson(row),
+  1017→          )
+  1018→          .toList();
+  1019→    } on sb.PostgrestException catch (e) {
+  1020→      throw _mapPostgrestException(e);
+  1021→    } catch (e) {
+  1022→      AppLogger.error('Unexpected getFeaturedProducts error', error: e);
+  1023→      throw const ServerException(
+  1024→        message: 'Failed to fetch featured products.',
+  1025→        statusCode: 500,
+  1026→      );
+  1027→    }
+  1028→  }
+  1029→
+  1030→  @override
+  1031→  Future<List<MarketplaceProductModel>> getRelatedProducts(
+  1032→    String productId, {
+  1033→    int limit = 10,
+  1034→  }) async {
+  1035→    try {
+  1036→      // First, get the product to find its category
+  1037→      final productResponse = await _supabase
+  1038→          .from(_productsTable)
+  1039→          .select('category_id')
+  1040→          .eq('id', productId)
+  1041→          .limit(1);
+  1042→
+  1043→      if (productResponse.isEmpty) {
+  1044→        return [];
+  1045→      }
+  1046→
+  1047→      final categoryId = productResponse.first['category_id'] as String;
+  1048→
+  1049→      // Then fetch products in the same category, excluding the current one
+  1050→      final response = await _supabase
+  1051→          .from(_productsTable)
+  1052→          .select()
+  1053→          .eq('category_id', categoryId)
+  1054→          .eq('status', 'published')
+  1055→          .neq('id', productId)
+  1056→          .filter('deleted_at', 'is', null)
+  1057→          .order('total_sales', ascending: false)
+  1058→          .limit(limit);
+  1059→
+  1060→      AppLogger.info('Fetched ${response.length} related products');
+  1061→      return response
+  1062→          .map<MarketplaceProductModel>(
+  1063→            (row) => MarketplaceProductModel.fromJson(row),
+  1064→          )
+  1065→          .toList();
+  1066→    } on sb.PostgrestException catch (e) {
+  1067→      throw _mapPostgrestException(e);
+  1068→    } catch (e) {
+  1069→      AppLogger.error('Unexpected getRelatedProducts error', error: e);
+  1070→      throw const ServerException(
+  1071→        message: 'Failed to fetch related products.',
+  1072→        statusCode: 500,
+  1073→      );
+  1074→    }
+  1075→  }
+  1076→
+  1077→  // ═══════════════════════════════════════════════════════════════════
+  1078→  // PRODUCT VERSIONS
+  1079→  // ═══════════════════════════════════════════════════════════════════
+  1080→
+  1081→  @override
+  1082→  Future<List<ProductVersionModel>> getProductVersions(
+  1083→    String productId, {
+  1084→    int limit = PaginatedQueryMixin.dropdownPageSize,
+  1085→  }) async {
+  1086→    try {
+  1087→      // PERF: Added limit to prevent unbounded query on product_versions
+  1088→      final response = await _supabase
+  1089→          .from(_productVersionsTable)
+  1090→          .select()
+  1091→          .eq('product_id', productId)
+  1092→          .order('version_number', ascending: false)
+  1093→          .limit(limit);
+  1094→
+  1095→      AppLogger.info(
+  1096→        'Fetched ${response.length} versions for product $productId',
+  1097→      );
+  1098→      return response
+  1099→          .map<ProductVersionModel>(
+  1100→            (row) => ProductVersionModel.fromJson(row),
+  1101→          )
+  1102→          .toList();
+  1103→    } on sb.PostgrestException catch (e) {
+  1104→      throw _mapPostgrestException(e);
+  1105→    } catch (e) {
+  1106→      AppLogger.error('Unexpected getProductVersions error', error: e);
+  1107→      throw const ServerException(
+  1108→        message: 'Failed to fetch product versions.',
+  1109→        statusCode: 500,
+  1110→      );
+  1111→    }
+  1112→  }
+  1113→
+  1114→  @override
+  1115→  Future<ProductVersionModel> createProductVersion(
+  1116→    ProductVersionModel version,
+  1117→  ) async {
+  1118→    try {
+  1119→      final data = version.toJson();
+  1120→      data['created_at'] = DateTime.now().toIso8601String();
+  1121→
+  1122→      final response = await _supabase
+  1123→          .from(_productVersionsTable)
+  1124→          .insert(data)
+  1125→          .select();
+  1126→
+  1127→      if (response.isEmpty) {
+  1128→        throw const ServerException(
+  1129→          message: 'Product version creation returned no data.',
+  1130→          statusCode: 500,
+  1131→        );
+  1132→      }
+  1133→
+  1134→      AppLogger.info('Product version created: ${response.first['id']}');
+  1135→      return ProductVersionModel.fromJson(response.first);
+  1136→    } on sb.PostgrestException catch (e) {
+  1137→      throw _mapPostgrestException(e);
+  1138→    } on ServerException {
+  1139→      rethrow;
+  1140→    } catch (e) {
+  1141→      AppLogger.error('Unexpected createProductVersion error', error: e);
+  1142→      throw const ServerException(
+  1143→        message: 'Failed to create product version.',
+  1144→        statusCode: 500,
+  1145→      );
+  1146→    }
+  1147→  }
+  1148→
+  1149→  // ═══════════════════════════════════════════════════════════════════
+  1150→  // SHOPPING CART
+  1151→  // ═══════════════════════════════════════════════════════════════════
+  1152→
+  1153→  @override
+  1154→  Future<CartModel> getCart(String userId) async {
+  1155→    try {
+  1156→      // Fetch cart items with product details via join
+  1157→      final response = await _supabase
+  1158→          .from(_cartItemsTable)
+  1159→          .select('*, marketplace_products(*)')
+  1160→          .eq('user_id', userId)
+  1161→          .order('created_at', ascending: true);
+  1162→
+  1163→      final cartItems = response
+  1164→          .map<CartItemModel>((row) => CartItemModel.fromJson(row))
+  1165→          .toList();
+  1166→
+  1167→      // Build a CartModel from the cart items
+  1168→      return CartModel(
+  1169→        id: userId, // cart identified by userId
+  1170→        userId: userId,
+  1171→        items: cartItems,
+  1172→        createdAt: DateTime.now(),
+  1173→        updatedAt: DateTime.now(),
+  1174→      );
+  1175→    } on sb.PostgrestException catch (e) {
+  1176→      throw _mapPostgrestException(e);
+  1177→    } catch (e) {
+  1178→      AppLogger.error('Unexpected getCart error', error: e);
+  1179→      throw const ServerException(
+  1180→        message: 'Failed to fetch cart.',
+  1181→        statusCode: 500,
+  1182→      );
+  1183→    }
+  1184→  }
+  1185→
+  1186→  @override
+  1187→  Future<CartItemModel> addToCart(String userId, CartItemModel item) async {
+  1188→    try {
+  1189→      final data = item.toJson();
+  1190→      data['user_id'] = userId;
+  1191→      data['created_at'] = DateTime.now().toIso8601String();
+  1192→      data['updated_at'] = DateTime.now().toIso8601String();
+  1193→
+  1194→      final response = await _supabase
+  1195→          .from(_cartItemsTable)
+  1196→          .upsert(data)
+  1197→          .select();
+  1198→
+  1199→      if (response.isEmpty) {
+  1200→        throw const ServerException(
+  1201→          message: 'Add to cart returned no data.',
+  1202→          statusCode: 500,
+  1203→        );
+  1204→      }
+  1205→
+  1206→      AppLogger.info('Item added to cart for user $userId');
+  1207→      return CartItemModel.fromJson(response.first);
+  1208→    } on sb.PostgrestException catch (e) {
+  1209→      throw _mapPostgrestException(e);
+  1210→    } on ServerException {
+  1211→      rethrow;
+  1212→    } catch (e) {
+  1213→      AppLogger.error('Unexpected addToCart error', error: e);
+  1214→      throw const ServerException(
+  1215→        message: 'Failed to add item to cart.',
+  1216→        statusCode: 500,
+  1217→      );
+  1218→    }
+  1219→  }
+  1220→
+  1221→  @override
+  1222→  Future<CartItemModel> updateCartItem(CartItemModel item) async {
+  1223→    try {
+  1224→      final data = item.toJson();
+  1225→      data['updated_at'] = DateTime.now().toIso8601String();
+  1226→
+  1227→      final response = await _supabase
+  1228→          .from(_cartItemsTable)
+  1229→          .update(data)
+  1230→          .eq('id', item.id)
+  1231→          .select();
+  1232→
+  1233→      if (response.isEmpty) {
+  1234→        throw const ServerException(
+  1235→          message: 'Cart item update returned no data.',
+  1236→          statusCode: 500,
+  1237→        );
+  1238→      }
+  1239→
+  1240→      AppLogger.info('Cart item updated: ${item.id}');
+  1241→      return CartItemModel.fromJson(response.first);
+  1242→    } on sb.PostgrestException catch (e) {
+  1243→      throw _mapPostgrestException(e);
+  1244→    } on ServerException {
+  1245→      rethrow;
+  1246→    } catch (e) {
+  1247→      AppLogger.error('Unexpected updateCartItem error', error: e);
+  1248→      throw const ServerException(
+  1249→        message: 'Failed to update cart item.',
+  1250→        statusCode: 500,
+  1251→      );
+  1252→    }
+  1253→  }
+  1254→
+  1255→  @override
+  1256→  Future<bool> removeFromCart(String cartItemId) async {
+  1257→    try {
+  1258→      await _supabase
+  1259→          .from(_cartItemsTable)
+  1260→          .delete()
+  1261→          .eq('id', cartItemId);
+  1262→
+  1263→      AppLogger.info('Cart item removed: $cartItemId');
+  1264→      return true;
+  1265→    } on sb.PostgrestException catch (e) {
+  1266→      throw _mapPostgrestException(e);
+  1267→    } catch (e) {
+  1268→      AppLogger.error('Unexpected removeFromCart error', error: e);
+  1269→      throw const ServerException(
+  1270→        message: 'Failed to remove item from cart.',
+  1271→        statusCode: 500,
+  1272→      );
+  1273→    }
+  1274→  }
+  1275→
+  1276→  @override
+  1277→  Future<bool> clearCart(String userId) async {
+  1278→    try {
+  1279→      await _supabase
+  1280→          .from(_cartItemsTable)
+  1281→          .delete()
+  1282→          .eq('user_id', userId);
+  1283→
+  1284→      AppLogger.info('Cart cleared for user $userId');
+  1285→      return true;
+  1286→    } on sb.PostgrestException catch (e) {
+  1287→      throw _mapPostgrestException(e);
+  1288→    } catch (e) {
+  1289→      AppLogger.error('Unexpected clearCart error', error: e);
+  1290→      throw const ServerException(
+  1291→        message: 'Failed to clear cart.',
+  1292→        statusCode: 500,
+  1293→      );
+  1294→    }
+  1295→  }
+  1296→
+  1297→  // ═══════════════════════════════════════════════════════════════════
+  1298→  // ORDERS
+  1299→  // ═══════════════════════════════════════════════════════════════════
+  1300→
+  1301→  @override
+  1302→  Future<MarketplaceOrderModel> createOrder(MarketplaceOrderModel order) async {
+  1303→    try {
+  1304→      final orderData = order.toJson();
+  1305→      orderData['created_at'] = DateTime.now().toIso8601String();
+  1306→      orderData['updated_at'] = DateTime.now().toIso8601String();
+  1307→
+  1308→      // Extract order items for nested insert
+  1309→      final itemsJson = orderData.remove('items') as List<dynamic>? ?? [];
+  1310→
+  1311→      // Insert the order
+  1312→      final orderResponse = await _supabase
+  1313→          .from(_ordersTable)
+  1314→          .insert(orderData)
+  1315→          .select()
+  1316→          .single();
+  1317→
+  1318→      final orderId = orderResponse['id'] as String;
+  1319→
+  1320→      // Insert order items with the order reference
+  1321→      if (itemsJson.isNotEmpty) {
+  1322→        final orderItems = itemsJson.map((item) {
+  1323→          final itemMap = Map<String, dynamic>.from(item as Map<String, dynamic>);
+  1324→          itemMap['order_id'] = orderId;
+  1325→          itemMap['created_at'] = DateTime.now().toIso8601String();
+  1326→          return itemMap;
+  1327→        }).toList();
+  1328→
+  1329→        await _supabase.from(_orderItemsTable).insert(orderItems);
+  1330→      }
+  1331→
+  1332→      AppLogger.info('Order created: $orderId');
+  1333→
+  1334→      // Fetch the complete order with items
+  1335→      return getOrder(orderId);
+  1336→    } on sb.PostgrestException catch (e) {
+  1337→      throw _mapPostgrestException(e);
+  1338→    } on ServerException {
+  1339→      rethrow;
+  1340→    } catch (e) {
+  1341→      AppLogger.error('Unexpected createOrder error', error: e);
+  1342→      throw const ServerException(
+  1343→        message: 'Failed to create order.',
+  1344→        statusCode: 500,
+  1345→      );
+  1346→    }
+  1347→  }
+  1348→
+  1349→  @override
+  1350→  Future<MarketplaceOrderModel> getOrder(String orderId) async {
+  1351→    try {
+  1352→      final response = await _supabase
+  1353→          .from(_ordersTable)
+  1354→          .select('*, order_items(*)')
+  1355→          .eq('id', orderId)
+  1356→          .limit(1);
+  1357→
+  1358→      if (response.isEmpty) {
+  1359→        throw const NotFoundException(message: 'Order not found.');
+  1360→      }
+  1361→
+  1362→      return MarketplaceOrderModel.fromJson(response.first);
+  1363→    } on sb.PostgrestException catch (e) {
+  1364→      throw _mapPostgrestException(e);
+  1365→    } on NotFoundException {
+  1366→      rethrow;
+  1367→    } catch (e) {
+  1368→      AppLogger.error('Unexpected getOrder error', error: e);
+  1369→      throw const ServerException(
+  1370→        message: 'Failed to fetch order.',
+  1371→        statusCode: 500,
+  1372→      );
+  1373→    }
+  1374→  }
+  1375→
+  1376→  @override
+  1377→  Future<MarketplaceOrderModel> getOrderByNumber(String orderNumber) async {
+  1378→    try {
+  1379→      final response = await _supabase
+  1380→          .from(_ordersTable)
+  1381→          .select('*, order_items(*)')
+  1382→          .eq('order_number', orderNumber)
+  1383→          .limit(1);
+  1384→
+  1385→      if (response.isEmpty) {
+  1386→        throw const NotFoundException(message: 'Order not found by number.');
+  1387→      }
+  1388→
+  1389→      return MarketplaceOrderModel.fromJson(response.first);
+  1390→    } on sb.PostgrestException catch (e) {
+  1391→      throw _mapPostgrestException(e);
+  1392→    } on NotFoundException {
+  1393→      rethrow;
+  1394→    } catch (e) {
+  1395→      AppLogger.error('Unexpected getOrderByNumber error', error: e);
+  1396→      throw const ServerException(
+  1397→        message: 'Failed to fetch order by number.',
+  1398→        statusCode: 500,
+  1399→      );
+  1400→    }
+  1401→  }
+  1402→
+  1403→  @override
+  1404→  Future<List<MarketplaceOrderModel>> getUserOrders(
+  1405→    String buyerId, {
+  1406→    int limit = 20,
+  1407→    int offset = 0,
+  1408→  }) async {
+  1409→    try {
+  1410→      final response = await _supabase
+  1411→          .from(_ordersTable)
+  1412→          .select('*, order_items(*)')
+  1413→          .eq('buyer_id', buyerId)
+  1414→          .order('created_at', ascending: false)
+  1415→          .range(offset, offset + limit - 1);
+  1416→
+  1417→      AppLogger.info('Fetched ${response.length} orders for buyer $buyerId');
+  1418→      return response
+  1419→          .map<MarketplaceOrderModel>(
+  1420→            (row) => MarketplaceOrderModel.fromJson(row),
+  1421→          )
+  1422→          .toList();
+  1423→    } on sb.PostgrestException catch (e) {
+  1424→      throw _mapPostgrestException(e);
+  1425→    } catch (e) {
+  1426→      AppLogger.error('Unexpected getUserOrders error', error: e);
+  1427→      throw const ServerException(
+  1428→        message: 'Failed to fetch user orders.',
+  1429→        statusCode: 500,
+  1430→      );
+  1431→    }
+  1432→  }
+  1433→
+  1434→  @override
+  1435→  Future<MarketplaceOrderModel> updateOrderStatus(
+  1436→    String orderId,
+  1437→    String status,
+  1438→  ) async {
+  1439→    try {
+  1440→      final response = await _supabase
+  1441→          .from(_ordersTable)
+  1442→          .update({
+  1443→            'status': status,
+  1444→            'updated_at': DateTime.now().toIso8601String(),
+  1445→          })
+  1446→          .eq('id', orderId)
+  1447→          .select('*, order_items(*)');
+  1448→
+  1449→      if (response.isEmpty) {
+  1450→        throw const ServerException(
+  1451→          message: 'Order status update returned no data.',
+  1452→          statusCode: 500,
+  1453→        );
+  1454→      }
+  1455→
+  1456→      AppLogger.info('Order status updated: $orderId → $status');
+  1457→      return MarketplaceOrderModel.fromJson(response.first);
+  1458→    } on sb.PostgrestException catch (e) {
+  1459→      throw _mapPostgrestException(e);
+  1460→    } on ServerException {
+  1461→      rethrow;
+  1462→    } catch (e) {
+  1463→      AppLogger.error('Unexpected updateOrderStatus error', error: e);
+  1464→      throw const ServerException(
+  1465→        message: 'Failed to update order status.',
+  1466→        statusCode: 500,
+  1467→      );
+  1468→    }
+  1469→  }
+  1470→
+  1471→  @override
+  1472→  Future<MarketplaceOrderModel> verifyPayment(String txRef) async {
+  1473→    try {
+  1474→      final result = await _supabase.rpc(
+  1475→        'verify_marketplace_payment',
+  1476→        params: {'p_tx_ref': txRef},
+  1477→      );
+  1478→
+  1479→      final orderId = result['order_id'] as String?;
+  1480→      if (orderId == null) {
+  1481→        throw const ServerException(
+  1482→          message: 'Payment verification returned no order ID.',
+  1483→          statusCode: 500,
+  1484→        );
+  1485→      }
+  1486→
+  1487→      return getOrder(orderId);
+  1488→    } on sb.PostgrestException catch (e) {
+  1489→      throw _mapPostgrestException(e);
+  1490→    } on ServerException {
+  1491→      rethrow;
+  1492→    } catch (e) {
+  1493→      AppLogger.error('Unexpected verifyPayment error', error: e);
+  1494→      throw const ServerException(
+  1495→        message: 'Failed to verify payment.',
+  1496→        statusCode: 500,
+  1497→      );
+  1498→    }
+  1499→  }
+  1500→
+  1501→  // ═══════════════════════════════════════════════════════════════════
+  1502→  // PURCHASES
+  1503→  // ═══════════════════════════════════════════════════════════════════
+  1504→
+  1505→  @override
+  1506→  Future<List<MarketplacePurchaseModel>> getUserPurchases(
+  1507→    String buyerId, {
+  1508→    int limit = 20,
+  1509→    int offset = 0,
+  1510→  }) async {
+  1511→    try {
+  1512→      final response = await _supabase
+  1513→          .from(_purchasesTable)
+  1514→          .select()
+  1515→          .eq('buyer_id', buyerId)
+  1516→          .order('created_at', ascending: false)
+  1517→          .range(offset, offset + limit - 1);
+  1518→
+  1519→      AppLogger.info(
+  1520→        'Fetched ${response.length} purchases for buyer $buyerId',
+  1521→      );
+  1522→      return response
+  1523→          .map<MarketplacePurchaseModel>(
+  1524→            (row) => MarketplacePurchaseModel.fromJson(row),
+  1525→          )
+  1526→          .toList();
+  1527→    } on sb.PostgrestException catch (e) {
+  1528→      throw _mapPostgrestException(e);
+  1529→    } catch (e) {
+  1530→      AppLogger.error('Unexpected getUserPurchases error', error: e);
+  1531→      throw const ServerException(
+  1532→        message: 'Failed to fetch user purchases.',
+  1533→        statusCode: 500,
+  1534→      );
+  1535→    }
+  1536→  }
+  1537→
+  1538→  @override
+  1539→  Future<MarketplacePurchaseModel> getPurchase(String purchaseId) async {
+  1540→    try {
+  1541→      final response = await _supabase
+  1542→          .from(_purchasesTable)
+  1543→          .select()
+  1544→          .eq('id', purchaseId)
+  1545→          .limit(1);
+  1546→
+  1547→      if (response.isEmpty) {
+  1548→        throw const NotFoundException(message: 'Purchase not found.');
+  1549→      }
+  1550→
+  1551→      return MarketplacePurchaseModel.fromJson(response.first);
+  1552→    } on sb.PostgrestException catch (e) {
+  1553→      throw _mapPostgrestException(e);
+  1554→    } on NotFoundException {
+  1555→      rethrow;
+  1556→    } catch (e) {
+  1557→      AppLogger.error('Unexpected getPurchase error', error: e);
+  1558→      throw const ServerException(
+  1559→        message: 'Failed to fetch purchase.',
+  1560→        statusCode: 500,
+  1561→      );
+  1562→    }
+  1563→  }
+  1564→
+  1565→  @override
+  1566→  Future<bool> verifyPurchase(String buyerId, String productId) async {
+  1567→    try {
+  1568→      final response = await _supabase
+  1569→          .from(_purchasesTable)
+  1570→          .select('id')
+  1571→          .eq('buyer_id', buyerId)
+  1572→          .eq('product_id', productId)
+  1573→          .limit(1);
+  1574→
+  1575→      return response.isNotEmpty;
+  1576→    } on sb.PostgrestException catch (e) {
+  1577→      throw _mapPostgrestException(e);
+  1578→    } catch (e) {
+  1579→      AppLogger.error('Unexpected verifyPurchase error', error: e);
+  1580→      throw const ServerException(
+  1581→        message: 'Failed to verify purchase.',
+  1582→        statusCode: 500,
+  1583→      );
+  1584→    }
+  1585→  }
+  1586→
+  1587→  @override
+  1588→  Future<MarketplacePurchaseModel> recordDownload(String purchaseId) async {
+  1589→    try {
+  1590→      final response = await _supabase
+  1591→          .from(_purchasesTable)
+  1592→          .update({
+  1593→            'download_count': 1, // Supabase will use the stored increment
+  1594→            'last_downloaded_at': DateTime.now().toIso8601String(),
+  1595→            'updated_at': DateTime.now().toIso8601String(),
+  1596→          })
+  1597→          .eq('id', purchaseId)
+  1598→          .select();
+  1599→
+  1600→      if (response.isEmpty) {
+  1601→        throw const ServerException(
+  1602→          message: 'Record download returned no data.',
+  1603→          statusCode: 500,
+  1604→        );
+  1605→      }
+  1606→
+  1607→      AppLogger.info('Download recorded for purchase $purchaseId');
+  1608→      return MarketplacePurchaseModel.fromJson(response.first);
+  1609→    } on sb.PostgrestException catch (e) {
+  1610→      throw _mapPostgrestException(e);
+  1611→    } on ServerException {
+  1612→      rethrow;
+  1613→    } catch (e) {
+  1614→      AppLogger.error('Unexpected recordDownload error', error: e);
+  1615→      throw const ServerException(
+  1616→        message: 'Failed to record download.',
+  1617→        statusCode: 500,
+  1618→      );
+  1619→    }
+  1620→  }
+  1621→
+  1622→  // ═══════════════════════════════════════════════════════════════════
+  1623→  // REVIEWS & RATINGS
+  1624→  // ═══════════════════════════════════════════════════════════════════
+  1625→
+  1626→  @override
+  1627→  Future<List<MarketplaceReviewModel>> getProductReviews(
+  1628→    String productId, {
+  1629→    int limit = 20,
+  1630→    int offset = 0,
+  1631→  }) async {
+  1632→    try {
+  1633→      final response = await _supabase
+  1634→          .from(_reviewsTable)
+  1635→          .select()
+  1636→          .eq('product_id', productId)
+  1637→          .order('created_at', ascending: false)
+  1638→          .range(offset, offset + limit - 1);
+  1639→
+  1640→      AppLogger.info(
+  1641→        'Fetched ${response.length} reviews for product $productId',
+  1642→      );
+  1643→      return response
+  1644→          .map<MarketplaceReviewModel>(
+  1645→            (row) => MarketplaceReviewModel.fromJson(row),
+  1646→          )
+  1647→          .toList();
+  1648→    } on sb.PostgrestException catch (e) {
+  1649→      throw _mapPostgrestException(e);
+  1650→    } catch (e) {
+  1651→      AppLogger.error('Unexpected getProductReviews error', error: e);
+  1652→      throw const ServerException(
+  1653→        message: 'Failed to fetch product reviews.',
+  1654→        statusCode: 500,
+  1655→      );
+  1656→    }
+  1657→  }
+  1658→
+  1659→  @override
+  1660→  Future<MarketplaceReviewModel> createReview(
+  1661→    MarketplaceReviewModel review,
+  1662→  ) async {
+  1663→    try {
+  1664→      final data = review.toJson();
+  1665→      data['created_at'] = DateTime.now().toIso8601String();
+  1666→      data['updated_at'] = DateTime.now().toIso8601String();
+  1667→
+  1668→      final response = await _supabase
+  1669→          .from(_reviewsTable)
+  1670→          .insert(data)
+  1671→          .select();
+  1672→
+  1673→      if (response.isEmpty) {
+  1674→        throw const ServerException(
+  1675→          message: 'Review creation returned no data.',
+  1676→          statusCode: 500,
+  1677→        );
+  1678→      }
+  1679→
+  1680→      AppLogger.info('Review created: ${response.first['id']}');
+  1681→      return MarketplaceReviewModel.fromJson(response.first);
+  1682→    } on sb.PostgrestException catch (e) {
+  1683→      throw _mapPostgrestException(e);
+  1684→    } on ServerException {
+  1685→      rethrow;
+  1686→    } catch (e) {
+  1687→      AppLogger.error('Unexpected createReview error', error: e);
+  1688→      throw const ServerException(
+  1689→        message: 'Failed to create review.',
+  1690→        statusCode: 500,
+  1691→      );
+  1692→    }
+  1693→  }
+  1694→
+  1695→  @override
+  1696→  Future<MarketplaceReviewModel> updateReview(
+  1697→    MarketplaceReviewModel review,
+  1698→  ) async {
+  1699→    try {
+  1700→      final data = review.toJson();
+  1701→      data['updated_at'] = DateTime.now().toIso8601String();
+  1702→
+  1703→      final response = await _supabase
+  1704→          .from(_reviewsTable)
+  1705→          .update(data)
+  1706→          .eq('id', review.id)
+  1707→          .select();
+  1708→
+  1709→      if (response.isEmpty) {
+  1710→        throw const ServerException(
+  1711→          message: 'Review update returned no data.',
+  1712→          statusCode: 500,
+  1713→        );
+  1714→      }
+  1715→
+  1716→      AppLogger.info('Review updated: ${review.id}');
+  1717→      return MarketplaceReviewModel.fromJson(response.first);
+  1718→    } on sb.PostgrestException catch (e) {
+  1719→      throw _mapPostgrestException(e);
+  1720→    } on ServerException {
+  1721→      rethrow;
+  1722→    } catch (e) {
+  1723→      AppLogger.error('Unexpected updateReview error', error: e);
+  1724→      throw const ServerException(
+  1725→        message: 'Failed to update review.',
+  1726→        statusCode: 500,
+  1727→      );
+  1728→    }
+  1729→  }
+  1730→
+  1731→  @override
+  1732→  Future<bool> deleteReview(String reviewId) async {
+  1733→    try {
+  1734→      await _supabase.from(_reviewsTable).delete().eq('id', reviewId);
+  1735→
+  1736→      AppLogger.info('Review deleted: $reviewId');
+  1737→      return true;
+  1738→    } on sb.PostgrestException catch (e) {
+  1739→      throw _mapPostgrestException(e);
+  1740→    } catch (e) {
+  1741→      AppLogger.error('Unexpected deleteReview error', error: e);
+  1742→      throw const ServerException(
+  1743→        message: 'Failed to delete review.',
+  1744→        statusCode: 500,
+  1745→      );
+  1746→    }
+  1747→  }
+  1748→
+  1749→  @override
+  1750→  Future<MarketplaceReviewModel> respondToReview(
+  1751→    String reviewId,
+  1752→    String response,
+  1753→  ) async {
+  1754→    try {
+  1755→      final result = await _supabase
+  1756→          .from(_reviewsTable)
+  1757→          .update({
+  1758→            'seller_response': response,
+  1759→            'seller_response_at': DateTime.now().toIso8601String(),
+  1760→            'updated_at': DateTime.now().toIso8601String(),
+  1761→          })
+  1762→          .eq('id', reviewId)
+  1763→          .select();
+  1764→
+  1765→      if (result.isEmpty) {
+  1766→        throw const ServerException(
+  1767→          message: 'Review response returned no data.',
+  1768→          statusCode: 500,
+  1769→        );
+  1770→      }
+  1771→
+  1772→      AppLogger.info('Response added to review: $reviewId');
+  1773→      return MarketplaceReviewModel.fromJson(result.first);
+  1774→    } on sb.PostgrestException catch (e) {
+  1775→      throw _mapPostgrestException(e);
+  1776→    } on ServerException {
+  1777→      rethrow;
+  1778→    } catch (e) {
+  1779→      AppLogger.error('Unexpected respondToReview error', error: e);
+  1780→      throw const ServerException(
+  1781→        message: 'Failed to respond to review.',
+  1782→        statusCode: 500,
+  1783→      );
+  1784→    }
+  1785→  }
+  1786→
+  1787→  @override
+  1788→  Future<bool> voteReviewHelpful(String reviewId, String userId) async {
+  1789→    try {
+  1790→      await _supabase.from(_reviewHelpfulTable).upsert({
+  1791→        'review_id': reviewId,
+  1792→        'user_id': userId,
+  1793→        'created_at': DateTime.now().toIso8601String(),
+  1794→      });
+  1795→
+  1796→      AppLogger.info('Helpful vote recorded for review $reviewId');
+  1797→      return true;
+  1798→    } on sb.PostgrestException catch (e) {
+  1799→      throw _mapPostgrestException(e);
+  1800→    } catch (e) {
+  1801→      AppLogger.error('Unexpected voteReviewHelpful error', error: e);
+  1802→      throw const ServerException(
+  1803→        message: 'Failed to vote review helpful.',
+  1804→        statusCode: 500,
+  1805→      );
+  1806→    }
+  1807→  }
+  1808→
+  1809→  @override
+  1810→  Future<bool> reportReview(String reviewId, String reason) async {
+  1811→    try {
+  1812→      await _supabase.from(_reviewReportsTable).insert({
+  1813→        'review_id': reviewId,
+  1814→        'reason': reason,
+  1815→        'created_at': DateTime.now().toIso8601String(),
+  1816→      });
+  1817→
+  1818→      AppLogger.info('Review reported: $reviewId');
+  1819→      return true;
+  1820→    } on sb.PostgrestException catch (e) {
+  1821→      throw _mapPostgrestException(e);
+  1822→    } catch (e) {
+  1823→      AppLogger.error('Unexpected reportReview error', error: e);
+  1824→      throw const ServerException(
+  1825→        message: 'Failed to report review.',
+  1826→        statusCode: 500,
+  1827→      );
+  1828→    }
+  1829→  }
+  1830→
+  1831→  // ═══════════════════════════════════════════════════════════════════
+  1832→  // WISHLIST
+  1833→  // ═══════════════════════════════════════════════════════════════════
+  1834→
+  1835→  @override
+  1836→  Future<List<WishlistModel>> getUserWishlist(
+  1837→    String userId, {
+  1838→    int limit = PaginatedQueryMixin.dropdownPageSize,
+  1839→  }) async {
+  1840→    try {
+  1841→      // PERF: Added limit to prevent unbounded query on wishlist
+  1842→      final response = await _supabase
+  1843→          .from(_wishlistTable)
+  1844→          .select()
+  1845→          .eq('user_id', userId)
+  1846→          .order('created_at', ascending: false)
+  1847→          .limit(limit);
+  1848→
+  1849→      AppLogger.info('Fetched ${response.length} wishlist items for user $userId');
+  1850→      return response
+  1851→          .map<WishlistModel>((row) => WishlistModel.fromJson(row))
+  1852→          .toList();
+  1853→    } on sb.PostgrestException catch (e) {
+  1854→      throw _mapPostgrestException(e);
+  1855→    } catch (e) {
+  1856→      AppLogger.error('Unexpected getUserWishlist error', error: e);
+  1857→      throw const ServerException(
+  1858→        message: 'Failed to fetch wishlist.',
+  1859→        statusCode: 500,
+  1860→      );
+  1861→    }
+  1862→  }
+  1863→
+  1864→  @override
+  1865→  Future<WishlistModel> addToWishlist(String userId, String productId) async {
+  1866→    try {
+  1867→      final response = await _supabase
+  1868→          .from(_wishlistTable)
+  1869→          .insert({
+  1870→            'user_id': userId,
+  1871→            'product_id': productId,
+  1872→            'created_at': DateTime.now().toIso8601String(),
+  1873→          })
+  1874→          .select();
+  1875→
+  1876→      if (response.isEmpty) {
+  1877→        throw const ServerException(
+  1878→          message: 'Add to wishlist returned no data.',
+  1879→          statusCode: 500,
+  1880→        );
+  1881→      }
+  1882→
+  1883→      AppLogger.info('Added to wishlist: product $productId for user $userId');
+  1884→      return WishlistModel.fromJson(response.first);
+  1885→    } on sb.PostgrestException catch (e) {
+  1886→      throw _mapPostgrestException(e);
+  1887→    } on ServerException {
+  1888→      rethrow;
+  1889→    } catch (e) {
+  1890→      AppLogger.error('Unexpected addToWishlist error', error: e);
+  1891→      throw const ServerException(
+  1892→        message: 'Failed to add to wishlist.',
+  1893→        statusCode: 500,
+  1894→      );
+  1895→    }
+  1896→  }
+  1897→
+  1898→  @override
+  1899→  Future<bool> removeFromWishlist(String wishlistId) async {
+  1900→    try {
+  1901→      await _supabase
+  1902→          .from(_wishlistTable)
+  1903→          .delete()
+  1904→          .eq('id', wishlistId);
+  1905→
+  1906→      AppLogger.info('Removed from wishlist: $wishlistId');
+  1907→      return true;
+  1908→    } on sb.PostgrestException catch (e) {
+  1909→      throw _mapPostgrestException(e);
+  1910→    } catch (e) {
+  1911→      AppLogger.error('Unexpected removeFromWishlist error', error: e);
+  1912→      throw const ServerException(
+  1913→        message: 'Failed to remove from wishlist.',
+  1914→        statusCode: 500,
+  1915→      );
+  1916→    }
+  1917→  }
+  1918→
+  1919→  @override
+  1920→  Future<bool> isInWishlist(String userId, String productId) async {
+  1921→    try {
+  1922→      final response = await _supabase
+  1923→          .from(_wishlistTable)
+  1924→          .select('id')
+  1925→          .eq('user_id', userId)
+  1926→          .eq('product_id', productId)
+  1927→          .limit(1);
+  1928→
+  1929→      return response.isNotEmpty;
+  1930→    } on sb.PostgrestException catch (e) {
+  1931→      throw _mapPostgrestException(e);
+  1932→    } catch (e) {
+  1933→      AppLogger.error('Unexpected isInWishlist error', error: e);
+  1934→      throw const ServerException(
+  1935→        message: 'Failed to check wishlist status.',
+  1936→        statusCode: 500,
+  1937→      );
+  1938→    }
+  1939→  }
+  1940→
+  1941→  // ═══════════════════════════════════════════════════════════════════
+  1942→  // PROMO CODES
+  1943→  // ═══════════════════════════════════════════════════════════════════
+  1944→
+  1945→  @override
+  1946→  Future<PromoCodeModel> validatePromoCode(
+  1947→    String code, {
+  1948→    double? orderAmount,
+  1949→    List<String>? productTypes,
+  1950→  }) async {
+  1951→    try {
+  1952→      final result = await _supabase.rpc(
+  1953→        'validate_promo_code',
+  1954→        params: {
+  1955→          'p_code': code,
+  1956→          'p_order_amount': orderAmount,
+  1957→          'p_product_types': productTypes,
+  1958→        },
+  1959→      );
+  1960→
+  1961→      if (result == null) {
+  1962→        throw const NotFoundException(message: 'Invalid or expired promo code.');
+  1963→      }
+  1964→
+  1965→      return PromoCodeModel.fromJson(result as Map<String, dynamic>);
+  1966→    } on sb.PostgrestException catch (e) {
+  1967→      throw _mapPostgrestException(e);
+  1968→    } on NotFoundException {
+  1969→      rethrow;
+  1970→    } catch (e) {
+  1971→      AppLogger.error('Unexpected validatePromoCode error', error: e);
+  1972→      throw const ServerException(
+  1973→        message: 'Failed to validate promo code.',
+  1974→        statusCode: 500,
+  1975→      );
+  1976→    }
+  1977→  }
+  1978→
+  1979→  @override
+  1980→  Future<bool> applyPromoCode(String promoCodeId) async {
+  1981→    try {
+  1982→      await _supabase.rpc(
+  1983→        'apply_promo_code',
+  1984→        params: {'p_promo_code_id': promoCodeId},
+  1985→      );
+  1986→
+  1987→      AppLogger.info('Promo code applied: $promoCodeId');
+  1988→      return true;
+  1989→    } on sb.PostgrestException catch (e) {
+  1990→      throw _mapPostgrestException(e);
+  1991→    } catch (e) {
+  1992→      AppLogger.error('Unexpected applyPromoCode error', error: e);
+  1993→      throw const ServerException(
+  1994→        message: 'Failed to apply promo code.',
+  1995→        statusCode: 500,
+  1996→      );
+  1997→    }
+  1998→  }
+  1999→
+  2000→  @override
+
+[showing lines 1-2000 of 3116; use offset=2001 with limit to continue reading]

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // TOPIC PROGRESS BAR
@@ -97,7 +97,7 @@ class TopicProgressBar extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: barColor.withOpacity(isDark ? 0.25 : 0.12),
+                    color: barColor.withValues(alpha: isDark ? 0.25 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(
@@ -106,7 +106,7 @@ class TopicProgressBar extends StatelessWidget {
                       fontFamily: AppTypography.fontFamily,
                       fontSize: 12,
                       fontWeight: AppTypography.wBold,
-                      color: isDark ? barColor.withOpacity(0.9) : barColor,
+                      color: isDark ? barColor.withValues(alpha: 0.9) : barColor,
                       letterSpacing: AppTypography.lsLabel,
                     ),
                   ),
@@ -126,7 +126,7 @@ class TopicProgressBar extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isDark
                           ? cs.surfaceContainerHighest
-                          : cs.surfaceContainerHighest.withOpacity(0.5),
+                          : cs.surfaceContainerHighest.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
                   ),

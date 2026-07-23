@@ -31,9 +31,8 @@
 /// ```
 library;
 
-import 'package:examforge_ai/features/results/domain/entities/results_entities.dart';
 import 'package:examforge_ai/features/cbt_engine/domain/entities/cbt_entities.dart' hide GradeScaleEntity;
-import '../../features/student_portal/domain/entities/student_portal_entities.dart';
+import 'package:examforge_ai/features/results/domain/entities/results_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -735,7 +734,7 @@ class ReportGenerator {
           passRate: scores.isNotEmpty
               ? (passed / scores.length) * 100
               : 0,
-        ));
+        ),);
       }
     }
 
@@ -807,7 +806,7 @@ class ReportGenerator {
           averageScore: cp.averageScore,
           passRate: cp.passRate,
           totalStudents: cp.totalStudents,
-        ));
+        ),);
       }
     }
 
@@ -839,7 +838,7 @@ class ReportGenerator {
           averageScore: entry.value.avg,
           passRate: entry.value.passRate,
           studentCount: entry.value.count,
-        ));
+        ),);
       }
     }
 
@@ -850,7 +849,7 @@ class ReportGenerator {
         trendData.add(TrendDataPoint(
           period: point['period'] as String? ?? '',
           score: (point['score'] as num?)?.toDouble() ?? 0,
-        ));
+        ),);
       }
     }
 
@@ -926,7 +925,7 @@ class ReportGenerator {
           studentsAttempted: items
               .where((t) => t.questionsAttempted > 0)
               .length,
-        ));
+        ),);
       }
     }
 
@@ -997,7 +996,7 @@ class ReportGenerator {
         correctRate: entry.value,
         averageTimeSeconds: 0, // Derived from attempt data if available
         skippedCount: 0, // Derived from attempt data if available
-      ));
+      ),);
     }
 
     // Build grade distribution from results.
@@ -1020,7 +1019,7 @@ class ReportGenerator {
           grade: r.grade ??
               gradeScale?.applyToPercentage(r.scorePercentage)?.grade ??
               _defaultGrade(r.scorePercentage),
-        )).toList();
+        ),).toList();
 
     final bottomN = sorted.reversed.take(5).map((r) => PerformerEntry(
           studentName: studentNameMap?[r.studentId] ?? r.studentId,
@@ -1029,7 +1028,7 @@ class ReportGenerator {
           grade: r.grade ??
               gradeScale?.applyToPercentage(r.scorePercentage)?.grade ??
               _defaultGrade(r.scorePercentage),
-        )).toList();
+        ),).toList();
 
     final content = ExamSummaryContent(
       examTitle: exam.title,

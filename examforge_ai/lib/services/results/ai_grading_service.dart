@@ -734,7 +734,7 @@ class AiGradingService {
         '- Evaluate the answer strictly against the provided marking '
         'scheme / rubric.');
     systemBuffer.writeln(
-        '- Assign a score between 0 and the maximum marks ($maxMarks).');
+        '- Assign a score between 0 and the maximum marks ($maxMarks).',);
     systemBuffer.writeln(
         '- Provide a confidence score (0.0–1.0) indicating how certain '
         'you are about the assigned score.');

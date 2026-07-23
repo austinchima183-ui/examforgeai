@@ -101,7 +101,7 @@ class LevelCategoryCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(isDark ? 0.20 : 0.12),
+                  color: accent.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(
@@ -138,7 +138,7 @@ class LevelCategoryCard extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: accent.withOpacity(isDark ? 0.20 : 0.12),
+                  color: accent.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusFull,
                 ),
                 child: Text(
@@ -282,12 +282,12 @@ class _LevelRow extends StatelessWidget {
                               vertical: 1,
                             ),
                             decoration: BoxDecoration(
-                              color: accent.withOpacity(0.15),
+                              color: accent.withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(4),
                             ),
                             child: Text(
                               'Custom',
-                              style: AppTypography.caption!.copyWith(
+                              style: AppTypography.caption.copyWith(
                                 color: accent,
                                 fontWeight: AppTypography.wSemiBold,
                               ),
@@ -304,7 +304,7 @@ class _LevelRow extends StatelessWidget {
                         Icon(
                           Icons.cake_outlined,
                           size: 12,
-                          color: cs.onSurfaceVariant.withOpacity(0.7),
+                          color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                         ),
                         const SizedBox(width: 2),
                         Text(
@@ -333,7 +333,7 @@ class _LevelRow extends StatelessWidget {
             Switch(
               value: isEnabled,
               onChanged: onToggle != null ? (_) => onToggle!() : null,
-              activeColor: accent,
+              activeThumbColor: accent,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             ),
           ],

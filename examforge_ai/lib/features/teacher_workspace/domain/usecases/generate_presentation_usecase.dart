@@ -73,7 +73,7 @@ class GeneratePresentationUseCase {
       return const FailureResult(Failure.validation(
         message: 'Subject ID is required',
         fieldErrors: {'subjectId': 'Subject ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generatePresentation(params.toMap());
   }

@@ -77,7 +77,7 @@ class StatOverviewCard extends StatelessWidget {
     final isDark = context.isDarkMode;
     final accentColor = color ?? cs.primary;
     final iconBgColor =
-        accentColor.withOpacity(isDark ? 0.20 : 0.12);
+        accentColor.withValues(alpha: isDark ? 0.20 : 0.12);
     final trendColor = _trendColor(cs);
 
     return AppCard(
@@ -114,7 +114,7 @@ class StatOverviewCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: trendColor.withOpacity(isDark ? 0.15 : 0.08),
+                    color: trendColor.withValues(alpha: isDark ? 0.15 : 0.08),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Row(
@@ -168,7 +168,7 @@ class StatOverviewCard extends StatelessWidget {
             Text(
               subtitle!,
               style: tt.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant.withOpacity(0.7),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                 fontSize: 11,
               ),
               maxLines: 1,
@@ -181,7 +181,7 @@ class StatOverviewCard extends StatelessWidget {
           Container(
             height: 3,
             decoration: BoxDecoration(
-              color: accentColor.withOpacity(0.3),
+              color: accentColor.withValues(alpha: 0.3),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: FractionallySizedBox(

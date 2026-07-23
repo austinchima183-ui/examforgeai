@@ -19,18 +19,15 @@ library;
 
 import 'dart:convert';
 
-import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
-import 'package:flutter/semantics.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:equatable/equatable.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../utils/logger.dart';
-import '../themes/app_colors.dart';
-import '../themes/app_typography.dart';
 import '../themes/spacings.dart';
-import '../extensions/context_extensions.dart';
+import '../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ColorblindMode Enum
@@ -603,7 +600,7 @@ class AccessibleButton extends StatelessWidget {
   ) {
     return FilledButton.styleFrom(
       shape: highContrastShape ??
-          RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+          const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
     );
   }
 
@@ -613,7 +610,7 @@ class AccessibleButton extends StatelessWidget {
   ) {
     return OutlinedButton.styleFrom(
       shape: highContrastShape ??
-          RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+          const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       side: highContrastShape != null
           ? const BorderSide(color: Color(0xFF000000), width: 2.0)
           : null,
@@ -793,7 +790,7 @@ class HighContrastTheme {
           foregroundColor: surface,
           backgroundColor: primary,
           side: BorderSide(color: onSurface, width: 2.0),
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusMd,
           ),
         ),
@@ -802,7 +799,7 @@ class HighContrastTheme {
         style: OutlinedButton.styleFrom(
           foregroundColor: onSurface,
           side: BorderSide(color: onSurface, width: 2.0),
-          shape: RoundedRectangleBorder(
+          shape: const RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusMd,
           ),
         ),

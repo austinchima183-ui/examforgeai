@@ -164,7 +164,7 @@ class MasteryLevelBadge extends StatelessWidget {
     return Chip(
       avatar: showPercentage
           ? CircleAvatar(
-              backgroundColor: color.withOpacity(0.2),
+              backgroundColor: color.withValues(alpha: 0.2),
               child: Text(
                 '${level.percentage}',
                 style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: color),
@@ -172,9 +172,9 @@ class MasteryLevelBadge extends StatelessWidget {
             )
           : null,
       label: Text(level.label),
-      backgroundColor: color.withOpacity(0.12),
+      backgroundColor: color.withValues(alpha: 0.12),
       labelStyle: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
-      side: BorderSide(color: color.withOpacity(0.3)),
+      side: BorderSide(color: color.withValues(alpha: 0.3)),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.compact,
@@ -631,8 +631,8 @@ class StudentRankingTable extends StatelessWidget {
     if (position >= 1 && position <= 3) {
       final medal = _medalColors[position - 1];
       return brightness == Brightness.light
-          ? medal.withOpacity(0.12)
-          : medal.withOpacity(0.18);
+          ? medal.withValues(alpha: 0.12)
+          : medal.withValues(alpha: 0.18);
     }
     return null;
   }
@@ -662,7 +662,7 @@ class StudentRankingTable extends StatelessWidget {
           final rowColor = _rowColor(entry.position, brightness);
           return DataRow(
             color: rowColor != null
-                ? MaterialStatePropertyAll(rowColor)
+                ? WidgetStatePropertyAll(rowColor)
                 : null,
             cells: [
               DataCell(
@@ -794,7 +794,7 @@ class _AiGradingCardState extends State<AiGradingCard> {
         side: BorderSide(
           color: isReviewed
               ? colorScheme.outlineVariant
-              : kIndigo.withOpacity(0.4),
+              : kIndigo.withValues(alpha: 0.4),
           width: isReviewed ? 1 : 1.5,
         ),
       ),
@@ -806,7 +806,7 @@ class _AiGradingCardState extends State<AiGradingCard> {
             // ── Header: AI provider + status ──
             Row(
               children: [
-                Icon(Icons.auto_awesome, size: 18, color: kIndigo),
+                const Icon(Icons.auto_awesome, size: 18, color: kIndigo),
                 const Gap(6),
                 Text(
                   'AI Grading — ${result.aiProvider}',
@@ -956,7 +956,7 @@ class _AiGradingCardState extends State<AiGradingCard> {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: kIndigo.withOpacity(0.06),
+                    color: kIndigo.withValues(alpha: 0.06),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
@@ -1130,7 +1130,7 @@ class _GradeScaleEditorState extends State<GradeScaleEditor> {
         gpaValue: 0,
         isPassing: true,
         sortOrder: _entries.length,
-      ));
+      ),);
     });
     _notifyChanged();
   }
@@ -1328,7 +1328,7 @@ class _GradeScaleEntryRow extends StatelessWidget {
           child: Switch(
             value: entry.isPassing,
             onChanged: (v) => onChanged?.call(entry.copyWith(isPassing: v)),
-            activeColor: Colors.green,
+            activeThumbColor: Colors.green,
             materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
           ),
         ),
@@ -1588,7 +1588,7 @@ class ScoreDistributionChart extends StatelessWidget {
         label: '$low–$high',
         count: counts[i],
         totalStudents: total,
-      ));
+      ),);
     }
     return ScoreDistributionChart(
       key: key,
@@ -1698,7 +1698,7 @@ class DashboardWidgetCard extends ConsumerWidget {
                   ),
                 ),
                 if (isLoading)
-                  SizedBox(
+                  const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
@@ -1737,7 +1737,7 @@ class DashboardWidgetCard extends ConsumerWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(_typeIcon, size: 48, color: kIndigo.withOpacity(0.3)),
+          Icon(_typeIcon, size: 48, color: kIndigo.withValues(alpha: 0.3)),
           const Gap(8),
           Text(
             config.widgetType.label,
@@ -1839,7 +1839,7 @@ class ReportExportCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(10),
               decoration: BoxDecoration(
-                color: kIndigo.withOpacity(0.1),
+                color: kIndigo.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: Icon(_formatIcon(), size: 24, color: kIndigo),
@@ -1937,7 +1937,7 @@ class ReportExportCard extends StatelessWidget {
                 height: 20,
                 child: CircularProgressIndicator(
                   strokeWidth: 2,
-                  color: kIndigo.withOpacity(0.6),
+                  color: kIndigo.withValues(alpha: 0.6),
                 ),
               ),
           ],
@@ -2008,8 +2008,8 @@ class ResultStatusChip extends StatelessWidget {
         fontWeight: FontWeight.w600,
         fontSize: 12,
       ),
-      backgroundColor: color.withOpacity(0.1),
-      side: BorderSide(color: color.withOpacity(0.3)),
+      backgroundColor: color.withValues(alpha: 0.1),
+      side: BorderSide(color: color.withValues(alpha: 0.3)),
       padding: const EdgeInsets.symmetric(horizontal: 4),
       materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
       visualDensity: VisualDensity.compact,

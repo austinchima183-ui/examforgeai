@@ -60,7 +60,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                       Text('Current Deployment Status',
                           style: tt.titleLarge?.copyWith(
                               fontWeight: AppTypography.wSemiBold,
-                              color: cs.onSurface)),
+                              color: cs.onSurface,),),
                       const SizedBox(height: Spacings.md),
                       _buildEnvironmentStatusCards(state, isDesktop, cs, tt),
                       Spacings.sectionGap,
@@ -69,11 +69,11 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                       Text('Deployment History',
                           style: tt.titleLarge?.copyWith(
                               fontWeight: AppTypography.wSemiBold,
-                              color: cs.onSurface)),
+                              color: cs.onSurface,),),
                       const SizedBox(height: Spacings.md),
                       if (state.deployments.isEmpty)
                         AppEmptyState.noData(
-                            subtitle: 'No deployments found')
+                            subtitle: 'No deployments found',)
                       else
                         ...state.deployments.map((deployment) => Padding(
                               padding:
@@ -89,7 +89,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                             _statusIcon(deployment.status),
                                             size: Spacings.mdIcon,
                                             color: _statusColor(
-                                                deployment.status)),
+                                                deployment.status,),),
                                         const SizedBox(width: Spacings.sm),
                                         Expanded(
                                           child: Text(
@@ -97,17 +97,17 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                             style: tt.titleSmall?.copyWith(
                                                 fontWeight:
                                                     AppTypography.wSemiBold,
-                                                color: cs.onSurface),
+                                                color: cs.onSurface,),
                                           ),
                                         ),
                                         Container(
                                           padding: const EdgeInsets.symmetric(
                                               horizontal: Spacings.sm,
-                                              vertical: 2),
+                                              vertical: 2,),
                                           decoration: BoxDecoration(
                                             color: _statusColor(
-                                                    deployment.status)
-                                                .withOpacity(0.15),
+                                                    deployment.status,)
+                                                .withValues(alpha: 0.15),
                                             borderRadius:
                                                 Spacings.borderRadiusSm,
                                           ),
@@ -115,10 +115,10 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                             deployment.status.label,
                                             style: tt.labelSmall!.copyWith(
                                                     color: _statusColor(
-                                                        deployment.status),
+                                                        deployment.status,),
                                                     fontWeight:
                                                         AppTypography
-                                                            .wSemiBold),
+                                                            .wSemiBold,),
                                           ),
                                         ),
                                       ],
@@ -130,12 +130,12 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                             'Deployed by: ${deployment.deployerId ?? 'Unknown'}',
                                             style: tt.bodySmall?.copyWith(
                                                 color:
-                                                    cs.onSurfaceVariant)),
+                                                    cs.onSurfaceVariant,),),
                                         const Spacer(),
                                         Text(_formatDate(deployment.startedAt),
                                             style: tt.bodySmall?.copyWith(
                                                 color:
-                                                    cs.onSurfaceVariant)),
+                                                    cs.onSurfaceVariant,),),
                                       ],
                                     ),
                                     if (deployment.notes != null &&
@@ -143,7 +143,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                       const SizedBox(height: Spacings.xs),
                                       Text(deployment.notes!,
                                           style: tt.bodySmall?.copyWith(
-                                              color: cs.onSurfaceVariant)),
+                                              color: cs.onSurfaceVariant,),),
                                     ],
                                     const SizedBox(height: Spacings.sm),
                                     Row(
@@ -167,7 +167,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                             label: 'Retry',
                                             onPressed: () => ref
                                                 .read(deploymentProvider
-                                                    .notifier)
+                                                    .notifier,)
                                                 .updateDeploymentStatus(
                                                   deploymentId:
                                                       deployment.id,
@@ -183,22 +183,22 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                   ],
                                 ),
                               ),
-                            )),
+                            ),),
                       Spacings.sectionGap,
 
                       // ── Test Results ────────────────────────────────
                       Text('Test Results',
                           style: tt.titleLarge?.copyWith(
                               fontWeight: AppTypography.wSemiBold,
-                              color: cs.onSurface)),
+                              color: cs.onSurface,),),
                       const SizedBox(height: Spacings.md),
                       if (state.testResults.isEmpty)
                         Text('No test results available',
                             style: tt.bodySmall?.copyWith(
-                                color: cs.onSurfaceVariant))
+                                color: cs.onSurfaceVariant,),)
                       else ...[
                         _buildTestResultsSummary(
-                            state.testResults, isDesktop),
+                            state.testResults, isDesktop,),
                         const SizedBox(height: Spacings.md),
                         ...state.testResults.take(10).map((result) =>
                             Card(
@@ -209,14 +209,14 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                                         : Icons.cancel_rounded,
                                     color: result.status == 'passed'
                                         ? AppColors.success
-                                        : AppColors.error),
+                                        : AppColors.error,),
                                 title: Text(
-                                    '${result.testType.label}: ${result.testName}'),
+                                    '${result.testType.label}: ${result.testName}',),
                                 subtitle: Text(
-                                    'Duration: ${result.durationMs}ms · ${_formatDate(result.createdAt)}'),
+                                    'Duration: ${result.durationMs}ms · ${_formatDate(result.createdAt)}',),
                                 dense: true,
                               ),
-                            )),
+                            ),),
                       ],
                       Spacings.sectionGap,
 
@@ -224,25 +224,25 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                       Text('Database Migrations',
                           style: tt.titleLarge?.copyWith(
                               fontWeight: AppTypography.wSemiBold,
-                              color: cs.onSurface)),
+                              color: cs.onSurface,),),
                       const SizedBox(height: Spacings.md),
                       AppCard(
                         child: Column(
                           children: [
                             ListTile(
                               leading: Icon(Icons.storage_rounded,
-                                  color: cs.primary),
+                                  color: cs.primary,),
                               title: const Text('Migration Status'),
                               subtitle: Text(
-                                  'Last applied: ${state.deployments.isNotEmpty ? _formatDate(state.deployments.first.startedAt) : "N/A"}'),
+                                  'Last applied: ${state.deployments.isNotEmpty ? _formatDate(state.deployments.first.startedAt) : "N/A"}',),
                             ),
                             const Divider(),
                             ListTile(
-                              leading: Icon(Icons.check_circle_rounded,
-                                  color: AppColors.success),
+                              leading: const Icon(Icons.check_circle_rounded,
+                                  color: AppColors.success,),
                               title: const Text('Schema Version'),
                               subtitle: Text(
-                                  'Current: ${state.deployments.isNotEmpty ? state.deployments.first.version : "N/A"}'),
+                                  'Current: ${state.deployments.isNotEmpty ? state.deployments.first.version : "N/A"}',),
                             ),
                           ],
                         ),
@@ -254,7 +254,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
   }
 
   Widget _buildEnvironmentStatusCards(
-      DeploymentState state, bool isDesktop, ColorScheme cs, TextTheme tt) {
+      DeploymentState state, bool isDesktop, ColorScheme cs, TextTheme tt,) {
     // Group deployments by environment
     final envMap = <String, Deployment>{};
     for (final dep in state.deployments) {
@@ -279,7 +279,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(0.15),
+                  color: statusColor.withValues(alpha: 0.15),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -299,18 +299,18 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                     Text(env.toUpperCase(),
                         style: tt.labelMedium?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurfaceVariant)),
+                            color: cs.onSurfaceVariant,),),
                     Text(
                         dep != null
                             ? 'v${dep.version}'
                             : 'No deployment',
                         style: tt.titleSmall?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurface)),
+                            color: cs.onSurface,),),
                     if (dep != null)
                       Text(dep.status.label,
                           style: tt.bodySmall?.copyWith(
-                              color: statusColor)),
+                              color: statusColor,),),
                   ],
                 ),
               ),
@@ -322,7 +322,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
   }
 
   Widget _buildTestResultsSummary(
-      List<TestResult> results, bool isDesktop) {
+      List<TestResult> results, bool isDesktop,) {
     final passed = results.where((r) => r.status == 'passed').length;
     final failed = results.where((r) => r.status == 'failed').length;
     final skipped = results.where((r) => r.status != 'passed' && r.durationMs == 0).length;
@@ -383,16 +383,16 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                     controller: versionCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Version *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<String>(
-                  value: environment,
+                  initialValue: environment,
                   decoration: const InputDecoration(
                       labelText: 'Environment *',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(),),
                   items: ['dev', 'staging', 'production']
                       .map((e) => DropdownMenuItem(
-                          value: e, child: Text(e.toUpperCase())))
+                          value: e, child: Text(e.toUpperCase()),),)
                       .toList(),
                   onChanged: (v) => setState(() => environment = v!),
                 ),
@@ -401,15 +401,15 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
                     controller: notesCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Notes',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
               ],
             ),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Deploy',
               onPressed: () {
@@ -446,7 +446,7 @@ class _DeploymentPageState extends ConsumerState<DeploymentPage> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Rollback',
             onPressed: () {

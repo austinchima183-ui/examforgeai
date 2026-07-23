@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
-import '../../domain/usecases/generate_assignment_usecase.dart';
 import '../../domain/usecases/create_assignment_usecase.dart';
+import '../../domain/usecases/generate_assignment_usecase.dart';
 import '../providers/assignment_provider.dart';
 import '../widgets/generate_questions_button.dart';
 
@@ -287,7 +286,7 @@ class _AssignmentGeneratorPageState
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Icon(
@@ -323,10 +322,10 @@ class _AssignmentGeneratorPageState
   Widget _buildDifficultyDropdown(BuildContext context) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
-    final effectiveLabel = 'Difficulty *';
+    const effectiveLabel = 'Difficulty *';
 
     return DropdownButtonFormField<String>(
-      value: _selectedDifficulty,
+      initialValue: _selectedDifficulty,
       items: _difficultyOptions
           .map((d) => DropdownMenuItem<String>(
                 value: d,
@@ -334,14 +333,14 @@ class _AssignmentGeneratorPageState
                   d[0].toUpperCase() + d.substring(1),
                   style: tt.bodyLarge?.copyWith(color: cs.onSurface),
                 ),
-              ))
+              ),)
           .toList(),
       onChanged: (v) {
         if (v != null) setState(() => _selectedDifficulty = v);
       },
       style: tt.bodyLarge?.copyWith(color: cs.onSurface),
       icon: Icon(Icons.arrow_drop_down_rounded, color: cs.onSurfaceVariant),
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         labelText: effectiveLabel,
         prefixIcon: Icon(Icons.signal_cellular_alt_rounded, size: Spacings.mdIcon),
       ),
@@ -379,7 +378,7 @@ class _AssignmentGeneratorPageState
 
   Widget _buildDivider(BuildContext context) {
     return Divider(
-      color: context.colorScheme.outlineVariant.withOpacity(0.5),
+      color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
       thickness: 1,
     );
   }
@@ -496,7 +495,7 @@ class _AssignmentGeneratorPageState
                       width: 28,
                       height: 28,
                       decoration: BoxDecoration(
-                        color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                        color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),

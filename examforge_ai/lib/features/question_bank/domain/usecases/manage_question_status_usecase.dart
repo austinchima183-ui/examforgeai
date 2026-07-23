@@ -1,6 +1,5 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
-import '../entities/question_entities.dart';
 import '../repositories/question_bank_repository.dart';
 
 /// The type of status action to perform on a question.

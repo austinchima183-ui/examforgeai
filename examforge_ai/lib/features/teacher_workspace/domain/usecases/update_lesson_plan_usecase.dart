@@ -18,7 +18,7 @@ class UpdateLessonPlanUseCase {
       return const FailureResult(Failure.validation(
         message: 'Lesson plan ID is required',
         fieldErrors: {'id': 'ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.updateLessonPlan(params.plan);
   }

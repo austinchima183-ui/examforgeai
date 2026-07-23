@@ -115,7 +115,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
             Icon(
               Icons.chat_outlined,
               size: Spacings.xlIcon,
-              color: context.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              color: context.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: Spacings.md),
             Text(
@@ -198,7 +198,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
               vertical: Spacings.sm,
             ),
             decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Row(
@@ -252,7 +252,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
                       : 'Add a comment...',
                   isDense: true,
                   contentPadding: Spacings.paddingInput,
-                  border: OutlineInputBorder(
+                  border: const OutlineInputBorder(
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                 ),
@@ -264,7 +264,7 @@ class _CommentsSectionState extends ConsumerState<CommentsSection> {
               style: FilledButton.styleFrom(
                 minimumSize: const Size(44, 44),
                 padding: EdgeInsets.zero,
-                shape: RoundedRectangleBorder(
+                shape: const RoundedRectangleBorder(
                   borderRadius: Spacings.borderRadiusMd,
                 ),
               ),
@@ -351,7 +351,7 @@ class _CommentTile extends StatelessWidget {
             // Avatar
             CircleAvatar(
               radius: 16,
-              backgroundColor: colorScheme.primary.withOpacity(0.12),
+              backgroundColor: colorScheme.primary.withValues(alpha: 0.12),
               child: Text(
                 comment.authorId.isNotEmpty
                     ? comment.authorId.substring(0, 1).toUpperCase()
@@ -393,7 +393,7 @@ class _CommentTile extends StatelessWidget {
                             vertical: Spacings.xs,
                           ),
                           decoration: BoxDecoration(
-                            color: AppColors.success.withOpacity(0.1),
+                            color: AppColors.success.withValues(alpha: 0.1),
                             borderRadius: Spacings.borderRadiusSm,
                           ),
                           child: Text(
@@ -489,7 +489,7 @@ class _ReplyTile extends StatelessWidget {
       children: [
         CircleAvatar(
           radius: 12,
-          backgroundColor: colorScheme.tertiary.withOpacity(0.12),
+          backgroundColor: colorScheme.tertiary.withValues(alpha: 0.12),
           child: Text(
             reply.authorId.isNotEmpty
                 ? reply.authorId.substring(0, 1).toUpperCase()

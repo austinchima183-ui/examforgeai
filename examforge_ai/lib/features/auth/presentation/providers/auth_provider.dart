@@ -3,12 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/user_entity.dart';
+import '../../domain/repositories/auth_repository.dart';
 import '../../domain/usecases/forgot_password_usecase.dart';
 import '../../domain/usecases/get_current_user_usecase.dart';
 import '../../domain/usecases/login_usecase.dart';
 import '../../domain/usecases/logout_usecase.dart';
 import '../../domain/usecases/signup_usecase.dart';
-import '../../domain/repositories/auth_repository.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // AUTH STATE
@@ -126,7 +126,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
     final result = await _loginUseCase(LoginParams(
       email: email,
       password: password,
-    ));
+    ),);
 
     result.fold(
       onSuccess: (user) {
@@ -143,7 +143,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isLoading: false,
           error: _mapFailureToMessage(failure),
         );
-        AppLogger.warning('Login failed: ${failure}');
+        AppLogger.warning('Login failed: $failure');
       },
     );
   }
@@ -166,7 +166,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
       fullName: fullName,
       role: role,
       schoolId: schoolId,
-    ));
+    ),);
 
     result.fold(
       onSuccess: (user) {
@@ -184,7 +184,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           isLoading: false,
           error: _mapFailureToMessage(failure),
         );
-        AppLogger.warning('Sign-up failed: ${failure}');
+        AppLogger.warning('Sign-up failed: $failure');
       },
     );
   }

@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // STUDY PROGRESS RING
@@ -99,7 +99,7 @@ class _StudyProgressRingState extends State<StudyProgressRing>
   }
 
   Color _progressBgColor(BuildContext context, Color fgColor) {
-    return fgColor.withOpacity(context.isDarkMode ? 0.20 : 0.10);
+    return fgColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
   }
 
   @override

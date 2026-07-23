@@ -86,7 +86,7 @@ class TopicNotifier extends StateNotifier<TopicState> {
       subjectId: subjectId,
       educationalLevelId: educationalLevelId,
       curriculumId: curriculumId,
-    ));
+    ),);
     result.fold(
       onSuccess: (topics) => state = state.copyWith(topics: topics, isLoading: false),
       onFailure: (failure) => state = state.copyWith(isLoading: false, error: _mapFailureToMessage(failure)),

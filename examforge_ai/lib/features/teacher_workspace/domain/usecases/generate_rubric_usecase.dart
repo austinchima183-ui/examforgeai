@@ -50,7 +50,7 @@ class GenerateRubricUseCase {
       return const FailureResult(Failure.validation(
         message: 'Topic is required',
         fieldErrors: {'topic': 'Topic cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateRubric(params.toMap());
   }

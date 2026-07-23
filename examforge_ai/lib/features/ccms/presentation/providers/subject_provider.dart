@@ -93,7 +93,7 @@ class SubjectNotifier extends StateNotifier<SubjectState> {
       schoolId: schoolId,
       educationalLevelId: educationalLevelId,
       curriculumId: curriculumId,
-    ));
+    ),);
     result.fold(
       onSuccess: (subjects) =>
           state = state.copyWith(subjects: subjects, isLoading: false),

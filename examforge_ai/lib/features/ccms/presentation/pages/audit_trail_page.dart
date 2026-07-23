@@ -34,20 +34,26 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
-    var filtered = state.auditTrail.where((entry) {
+    final filtered = state.auditTrail.where((entry) {
       if (_filterAction != null && entry.action != _filterAction) {
         return false;
       }
       if (_filterResourceType != null &&
-          entry.resourceType != _filterResourceType) return false;
+          entry.resourceType != _filterResourceType) {
+        return false;
+      }
       if (_filterUserId != null &&
           _filterUserId!.isNotEmpty &&
           !entry.userId
               .toLowerCase()
-              .contains(_filterUserId!.toLowerCase())) return false;
+              .contains(_filterUserId!.toLowerCase())) {
+        return false;
+      }
       if (_dateRange != null) {
         if (entry.createdAt.isBefore(_dateRange!.start) ||
-            entry.createdAt.isAfter(_dateRange!.end)) return false;
+            entry.createdAt.isAfter(_dateRange!.end)) {
+          return false;
+        }
       }
       return true;
     }).toList();
@@ -81,16 +87,16 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<AuditAction?>(
-                        value: _filterAction,
+                        initialValue: _filterAction,
                         decoration: const InputDecoration(
                             labelText: 'Action',
                             isDense: true,
-                            border: OutlineInputBorder()),
+                            border: OutlineInputBorder(),),
                         items: [
                           const DropdownMenuItem(
-                              value: null, child: Text('All Actions')),
+                              value: null, child: Text('All Actions'),),
                           ...AuditAction.values.map((a) => DropdownMenuItem(
-                              value: a, child: Text(a.label))),
+                              value: a, child: Text(a.label),),),
                         ],
                         onChanged: (v) =>
                             setState(() => _filterAction = v),
@@ -99,16 +105,16 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                     const SizedBox(width: Spacings.md),
                     Expanded(
                       child: DropdownButtonFormField<String?>(
-                        value: _filterResourceType,
+                        initialValue: _filterResourceType,
                         decoration: const InputDecoration(
                             labelText: 'Resource Type',
                             isDense: true,
-                            border: OutlineInputBorder()),
+                            border: OutlineInputBorder(),),
                         items: [
                           const DropdownMenuItem(
-                              value: null, child: Text('All Types')),
+                              value: null, child: Text('All Types'),),
                           ...resourceTypes.map((t) => DropdownMenuItem(
-                              value: t, child: Text(t))),
+                              value: t, child: Text(t),),),
                         ],
                         onChanged: (v) =>
                             setState(() => _filterResourceType = v),
@@ -121,16 +127,16 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String?>(
-                        value: _filterUserId,
+                        initialValue: _filterUserId,
                         decoration: const InputDecoration(
                             labelText: 'User',
                             isDense: true,
-                            border: OutlineInputBorder()),
+                            border: OutlineInputBorder(),),
                         items: [
                           const DropdownMenuItem(
-                              value: null, child: Text('All Users')),
+                              value: null, child: Text('All Users'),),
                           ...userIds.map((u) => DropdownMenuItem(
-                              value: u, child: Text(u))),
+                              value: u, child: Text(u),),),
                         ],
                         onChanged: (v) =>
                             setState(() => _filterUserId = v),
@@ -185,10 +191,10 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
                     : filtered.isEmpty
                         ? AppEmptyState.noResults(
                             subtitle:
-                                'No audit entries match your filters')
+                                'No audit entries match your filters',)
                         : ListView.builder(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: Spacings.lg),
+                                horizontal: Spacings.lg,),
                             itemCount: filtered.length,
                             itemBuilder: (context, index) =>
                                 AuditEntryTile(
@@ -219,42 +225,42 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
               _detailRow('Action', entry.action.label),
               if (entry.oldValues != null) ...[
                 const SizedBox(height: Spacings.md),
-                Text('Old Values:',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold)),
+                const Text('Old Values:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,),),
                 const SizedBox(height: Spacings.xs),
                 Container(
                   width: double.infinity,
                   padding: Spacings.paddingCard,
                   decoration: BoxDecoration(
-                    color: AppColors.error.withOpacity(0.05),
+                    color: AppColors.error.withValues(alpha: 0.05),
                     borderRadius: Spacings.borderRadiusMd,
                     border: Border.all(
                         color:
-                            AppColors.error.withOpacity(0.2)),
+                            AppColors.error.withValues(alpha: 0.2),),
                   ),
                   child: Text(entry.oldValues.toString(),
-                      style: AppTypography.bodySmall!),
+                      style: AppTypography.bodySmall!,),
                 ),
               ],
               if (entry.newValues != null) ...[
                 const SizedBox(height: Spacings.md),
-                Text('New Values:',
-                    style: const TextStyle(
-                        fontWeight: FontWeight.bold)),
+                const Text('New Values:',
+                    style: TextStyle(
+                        fontWeight: FontWeight.bold,),),
                 const SizedBox(height: Spacings.xs),
                 Container(
                   width: double.infinity,
                   padding: Spacings.paddingCard,
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.05),
+                    color: AppColors.success.withValues(alpha: 0.05),
                     borderRadius: Spacings.borderRadiusMd,
                     border: Border.all(
                         color: AppColors.success
-                            .withOpacity(0.2)),
+                            .withValues(alpha: 0.2),),
                   ),
                   child: Text(entry.newValues.toString(),
-                      style: AppTypography.bodySmall!),
+                      style: AppTypography.bodySmall!,),
                 ),
               ],
             ],
@@ -280,10 +286,10 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
           SizedBox(
             width: 100,
             child: Text(label,
-            style: TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 12)),
+            style: const TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 12),),
           ),
           Expanded(
-              child: Text(value, style: AppTypography.bodySmall!)),
+              child: Text(value, style: AppTypography.bodySmall!),),
         ],
       ),
     );
@@ -292,7 +298,7 @@ class _AuditTrailPageState extends ConsumerState<AuditTrailPage> {
   void _exportCsv() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(
-          content: Text('Exporting audit trail as CSV…')),
+          content: Text('Exporting audit trail as CSV…'),),
     );
   }
 

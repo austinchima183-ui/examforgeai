@@ -156,7 +156,7 @@ class SubjectCard extends StatelessWidget {
 
               // Custom badge
               if (subject.isCustom)
-                _Badge(
+                const _Badge(
                   label: 'Custom',
                   color: AppColors.seed,
                   icon: Icons.tune_rounded,
@@ -234,10 +234,10 @@ class SubjectCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: groupColor.withOpacity(isDark ? 0.20 : 0.12),
+                    color: groupColor.withValues(alpha: isDark ? 0.20 : 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                     border: Border.all(
-                      color: groupColor.withOpacity(0.25),
+                      color: groupColor.withValues(alpha: 0.25),
                       width: 1,
                     ),
                   ),
@@ -325,10 +325,10 @@ class _Badge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
         border: Border.all(
-          color: color.withOpacity(0.25),
+          color: color.withValues(alpha: 0.25),
           width: 1,
         ),
       ),

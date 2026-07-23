@@ -6,7 +6,6 @@ import '../../domain/entities/cbt_entities.dart';
 import '../../domain/repositories/cbt_repository.dart';
 import '../datasources/cbt_remote_datasource.dart';
 import '../models/cbt_models.dart';
-import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
 
 
 /// Concrete implementation of [CbtRepository] that delegates
@@ -77,7 +76,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -99,7 +98,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -117,7 +116,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -135,7 +134,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -153,7 +152,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -183,7 +182,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -205,7 +204,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -223,7 +222,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -241,7 +240,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -267,7 +266,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -286,7 +285,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -305,7 +304,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -328,7 +327,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -344,7 +343,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -366,12 +365,12 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -395,7 +394,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -413,7 +412,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -433,7 +432,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -453,7 +452,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -481,7 +480,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -501,7 +500,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -520,7 +519,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -541,7 +540,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -557,7 +556,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -578,7 +577,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -600,7 +599,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -626,7 +625,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -646,7 +645,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -670,7 +669,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -686,7 +685,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -706,7 +705,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -722,7 +721,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -738,7 +737,7 @@ class CbtRepositoryImpl implements CbtRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }

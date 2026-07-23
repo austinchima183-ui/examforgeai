@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Study planner page with calendar view, tasks, and AI suggestions.
 ///
@@ -190,11 +189,11 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
         ),
         actions: [
           if (plan.isAiSuggested)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: Spacings.sm),
               child: Chip(
-                avatar: const Icon(Icons.auto_awesome, size: 16),
-                label: const Text('AI Suggested'),
+                avatar: Icon(Icons.auto_awesome, size: 16),
+                label: Text('AI Suggested'),
               ),
             ),
         ],
@@ -315,7 +314,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                           ),
                         ),
                       ),
-                    ))
+                    ),)
                 .toList(),
           ),
           const SizedBox(height: Spacings.sm),
@@ -362,7 +361,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
         final hasTasks = state.tasks.any((t) =>
             t.scheduledDate.year == date.year &&
             t.scheduledDate.month == date.month &&
-            t.scheduledDate.day == date.day);
+            t.scheduledDate.day == date.day,);
 
         return GestureDetector(
           onTap: () {
@@ -439,7 +438,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
   String _monthName(int month) {
     const months = [
       '', 'January', 'February', 'March', 'April', 'May', 'June',
-      'July', 'August', 'September', 'October', 'November', 'December'
+      'July', 'August', 'September', 'October', 'November', 'December',
     ];
     return months[month];
   }
@@ -447,7 +446,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
   void _showCreatePlanDialog(BuildContext context) {
     final titleController = TextEditingController();
     StudyPlanFrequency frequency = StudyPlanFrequency.daily;
-    DateTime startDate = DateTime.now();
+    final DateTime startDate = DateTime.now();
     DateTime? endDate;
 
     showDialog(
@@ -469,7 +468,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                   ),
                   const SizedBox(height: Spacings.md),
                   DropdownButtonFormField<StudyPlanFrequency>(
-                    value: frequency,
+                    initialValue: frequency,
                     decoration: const InputDecoration(
                       labelText: 'Frequency',
                       border: OutlineInputBorder(),
@@ -478,7 +477,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                         .map((f) => DropdownMenuItem(
                               value: f,
                               child: Text(f.label),
-                            ))
+                            ),)
                         .toList(),
                     onChanged: (value) {
                       if (value != null) {
@@ -538,18 +537,18 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                   ),
                   const SizedBox(height: Spacings.md),
                   DropdownButtonFormField<String>(
-                    value: selectedSubject,
+                    initialValue: selectedSubject,
                     decoration: const InputDecoration(
                       labelText: 'Subject (optional)',
                       border: OutlineInputBorder(),
                     ),
                     items: const [
                       DropdownMenuItem(
-                          value: 'math', child: Text('Mathematics')),
+                          value: 'math', child: Text('Mathematics'),),
                       DropdownMenuItem(
-                          value: 'english', child: Text('English')),
+                          value: 'english', child: Text('English'),),
                       DropdownMenuItem(
-                          value: 'biology', child: Text('Biology')),
+                          value: 'biology', child: Text('Biology'),),
                     ],
                     onChanged: (value) {
                       setDialogState(() => selectedSubject = value);

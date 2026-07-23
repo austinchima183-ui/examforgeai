@@ -31,7 +31,7 @@ class MarkMessageReadUseCase {
       return const FailureResult(Failure.validation(
         message: 'Message ID is required',
         fieldErrors: {'messageId': 'Message ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.markMessageRead(params.messageId);
   }

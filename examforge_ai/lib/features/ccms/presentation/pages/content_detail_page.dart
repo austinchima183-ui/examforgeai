@@ -7,8 +7,6 @@ import '../../domain/entities/ccms_entities.dart';
 import '../providers/ccms_providers.dart';
 import '../providers/content_provider.dart';
 import '../providers/content_review_provider.dart';
-import '../providers/content_collection_provider.dart';
-import '../providers/deployment_provider.dart';
 import '../widgets/ccms_widgets.dart';
 import 'content_editor_page.dart';
 
@@ -74,7 +72,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                 context,
                 MaterialPageRoute(
                   builder: (_) => ContentEditorPage(
-                      contentId: widget.contentId),
+                      contentId: widget.contentId,),
                 ),
               );
             },
@@ -98,11 +96,11 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             },
             itemBuilder: (context) => [
               const PopupMenuItem(
-                  value: 'publish', child: Text('Publish')),
+                  value: 'publish', child: Text('Publish'),),
               const PopupMenuItem(
-                  value: 'archive', child: Text('Archive')),
+                  value: 'archive', child: Text('Archive'),),
               const PopupMenuItem(
-                  value: 'collection', child: Text('Add to Collection')),
+                  value: 'collection', child: Text('Add to Collection'),),
             ],
           ),
         ],
@@ -146,7 +144,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                             context,
                             MaterialPageRoute(
                               builder: (_) => ContentEditorPage(
-                                  contentId: widget.contentId),
+                                  contentId: widget.contentId,),
                             ),
                           );
                         },
@@ -183,7 +181,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
   }
 
   Widget _buildDetailsTab(
-      ContentItem content, ColorScheme cs, TextTheme tt) {
+      ContentItem content, ColorScheme cs, TextTheme tt,) {
     return SingleChildScrollView(
       padding: Spacings.paddingScreen,
       child: Column(
@@ -197,43 +195,43 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             const Spacer(),
             if (content.isAiGenerated == true)
               Icon(Icons.auto_awesome_rounded,
-                  color: cs.primary, size: Spacings.mdIcon),
+                  color: cs.primary, size: Spacings.mdIcon,),
             if (content.isPastQuestion == true)
-              Padding(
-                padding: const EdgeInsets.only(left: Spacings.xs),
+              const Padding(
+                padding: EdgeInsets.only(left: Spacings.xs),
                 child: Icon(Icons.history_edu_rounded,
-                    color: AppColors.warning, size: Spacings.mdIcon),
+                    color: AppColors.warning, size: Spacings.mdIcon,),
               ),
-          ]),
+          ],),
           const SizedBox(height: Spacings.md),
           Text(content.title,
               style: tt.headlineSmall?.copyWith(
-                  fontWeight: AppTypography.wBold, color: cs.onSurface)),
+                  fontWeight: AppTypography.wBold, color: cs.onSurface,),),
           const SizedBox(height: Spacings.sm),
           Row(children: [
             Text('Status: ',
-                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant)),
+                style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant),),
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: Spacings.sm, vertical: 2),
+                  horizontal: Spacings.sm, vertical: 2,),
               decoration: BoxDecoration(
                   color:
-                      _statusColor(content.status).withOpacity(0.15),
-                  borderRadius: Spacings.borderRadiusSm),
+                      _statusColor(content.status).withValues(alpha: 0.15),
+                  borderRadius: Spacings.borderRadiusSm,),
               child: Text(content.status.label,
                   style: tt.labelSmall!.copyWith(
                       color: _statusColor(content.status),
-                      fontWeight: AppTypography.wSemiBold)),
+                      fontWeight: AppTypography.wSemiBold,),),
             ),
             const SizedBox(width: Spacings.md),
             if (content.averageQualityScore != null)
               QualityScoreIndicator(score: content.averageQualityScore!),
-          ]),
+          ],),
           Spacings.sectionGap,
 
           // Body
           _DetailSection(
-              title: 'Content', icon: Icons.article_rounded, content: content.body),
+              title: 'Content', icon: Icons.article_rounded, content: content.body,),
           Spacings.sectionGap,
 
           // Explanation
@@ -242,7 +240,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             _DetailSection(
                 title: 'Explanation',
                 icon: Icons.lightbulb_outline_rounded,
-                content: content.stepByStepExplanation!),
+                content: content.stepByStepExplanation!,),
             Spacings.sectionGap,
           ],
 
@@ -251,7 +249,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             _DetailSection(
                 title: 'Marking Scheme',
                 icon: Icons.grading_rounded,
-                content: content.markingScheme!.toString()),
+                content: content.markingScheme!.toString(),),
             Spacings.sectionGap,
           ],
 
@@ -261,7 +259,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             _DetailSection(
                 title: 'Teacher Notes',
                 icon: Icons.sticky_note_2_outlined,
-                content: content.teacherNotes!),
+                content: content.teacherNotes!,),
             Spacings.sectionGap,
           ],
 
@@ -274,7 +272,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
               content.learningObjectiveIds!.isNotEmpty) ...[
             Text('Learning Objectives',
                 style: tt.titleMedium?.copyWith(
-                    fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+                    fontWeight: AppTypography.wSemiBold, color: cs.onSurface,),),
             const SizedBox(height: Spacings.sm),
             Wrap(
               spacing: Spacings.sm,
@@ -284,7 +282,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                         label: Text(id),
                         materialTapTargetSize:
                             MaterialTapTargetSize.shrinkWrap,
-                      ))
+                      ),)
                   .toList(),
             ),
             Spacings.sectionGap,
@@ -294,7 +292,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           if (content.tags != null && content.tags!.isNotEmpty) ...[
             Text('Tags',
                 style: tt.titleMedium?.copyWith(
-                    fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+                    fontWeight: AppTypography.wSemiBold, color: cs.onSurface,),),
             const SizedBox(height: Spacings.sm),
             Wrap(
               spacing: Spacings.sm,
@@ -304,7 +302,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                         label: Text(tag),
                         materialTapTargetSize:
                             MaterialTapTargetSize.shrinkWrap,
-                      ))
+                      ),)
                   .toList(),
             ),
             Spacings.sectionGap,
@@ -313,7 +311,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           // Usage Statistics
           Text('Usage Statistics',
               style: tt.titleMedium?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface,),),
           const SizedBox(height: Spacings.sm),
           StatOverviewCard(
             title: 'Usage Count',
@@ -326,7 +324,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           // Related Content Suggestions
           Text('Related Content',
               style: tt.titleMedium?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface,),),
           const SizedBox(height: Spacings.sm),
           AppEmptyState.noData(subtitle: 'No related content found'),
         ],
@@ -335,14 +333,14 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
   }
 
   Widget _buildMetadataSection(
-      ContentItem content, ColorScheme cs, TextTheme tt) {
+      ContentItem content, ColorScheme cs, TextTheme tt,) {
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text('Metadata',
               style: tt.titleSmall?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.primary)),
+                  fontWeight: AppTypography.wSemiBold, color: cs.primary,),),
           const SizedBox(height: Spacings.sm),
           _metaRow('Subject ID', content.subjectId, cs, tt),
           _metaRow('Level ID', content.educationalLevelId, cs, tt),
@@ -359,14 +357,14 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             _metaRow('Past Question', 'Yes', cs, tt),
           ],
           _metaRow('AI Generated',
-              (content.isAiGenerated == true) ? 'Yes' : 'No', cs, tt),
+              (content.isAiGenerated == true) ? 'Yes' : 'No', cs, tt,),
         ],
       ),
     );
   }
 
   Widget _metaRow(
-      String label, String value, ColorScheme cs, TextTheme tt) {
+      String label, String value, ColorScheme cs, TextTheme tt,) {
     return Padding(
       padding: const EdgeInsets.only(bottom: Spacings.xs),
       child: Row(
@@ -377,7 +375,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             child: Text(label,
                 style: tt.bodySmall?.copyWith(
                     color: cs.onSurfaceVariant,
-                    fontWeight: AppTypography.wMedium)),
+                    fontWeight: AppTypography.wMedium,),),
           ),
           Expanded(
             child: Text(value, style: tt.bodySmall),
@@ -388,7 +386,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
   }
 
   Widget _buildVersionHistoryTab(
-      ContentState contentState, ColorScheme cs, TextTheme tt) {
+      ContentState contentState, ColorScheme cs, TextTheme tt,) {
     if (contentState.versions.isEmpty) {
       return AppEmptyState.noData(subtitle: 'No version history');
     }
@@ -405,19 +403,19 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
             ),
             title: Text('v${v.versionNumber}'),
             subtitle: Text(
-                'By ${v.createdBy ?? 'Unknown'} · ${_formatDate(v.createdAt)}'),
+                'By ${v.createdBy ?? 'Unknown'} · ${_formatDate(v.createdAt)}',),
             trailing: (v.versionNumber == contentState.selectedContent?.version)
                 ? Container(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: Spacings.sm, vertical: 2),
+                        horizontal: Spacings.sm, vertical: 2,),
                     decoration: BoxDecoration(
-                      color: cs.primary.withOpacity(0.15),
+                      color: cs.primary.withValues(alpha: 0.15),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
                     child: Text('Current',
                         style: tt.labelSmall!.copyWith(
                             color: cs.primary,
-                            fontWeight: AppTypography.wSemiBold)),
+                            fontWeight: AppTypography.wSemiBold,),),
                   )
                 : null,
           ),
@@ -427,7 +425,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
   }
 
   Widget _buildReviewsTab(
-      ContentReviewState reviewState, ColorScheme cs, TextTheme tt) {
+      ContentReviewState reviewState, ColorScheme cs, TextTheme tt,) {
     if (reviewState.reviews.isEmpty) {
       return AppEmptyState.noData(subtitle: 'No reviews yet');
     }
@@ -445,16 +443,16 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                 Row(children: [
                   Text(r.reviewerId,
                       style: tt.labelMedium?.copyWith(
-                          fontWeight: AppTypography.wSemiBold)),
+                          fontWeight: AppTypography.wSemiBold,),),
                   const Spacer(),
                   Text(_formatDate(r.reviewedAt),
                       style: tt.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant)),
-                ]),
-                if (r.qualityScore != null) ...[
-                  const SizedBox(height: Spacings.sm),
-                  QualityScoreIndicator(score: r.qualityScore!),
-                ],
+                          color: cs.onSurfaceVariant,),),
+                ],),
+                ...[
+                const SizedBox(height: Spacings.sm),
+                QualityScoreIndicator(score: r.qualityScore),
+              ],
                 const SizedBox(height: Spacings.xs),
                 Text(r.comment ?? '', style: tt.bodyMedium),
               ],
@@ -476,7 +474,7 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
           child: collectionState.collections.isEmpty
               ? Text('No collections available. Create one first.',
                   style: Theme.of(context).textTheme.bodyMedium!.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant))
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,),)
               : ListView.builder(
                   shrinkWrap: true,
                   itemCount: collectionState.collections.length,
@@ -495,12 +493,12 @@ class _ContentDetailPageState extends ConsumerState<ContentDetailPage>
                                 contentItemId: widget.contentId,
                                 sortOrder: 0,
                                 addedAt: DateTime.now(),
-                              ));
+                              ),);
                         Navigator.pop(context);
                         ScaffoldMessenger.of(context).showSnackBar(
                           SnackBar(
                               content: Text(
-                                  'Added to ${collection.name}')),
+                                  'Added to ${collection.name}',),),
                         );
                       },
                     );
@@ -555,14 +553,14 @@ class _DetailSection extends StatelessWidget {
           const SizedBox(width: Spacings.xs),
           Text(title,
               style: tt.titleMedium?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.primary)),
-        ]),
+                  fontWeight: AppTypography.wSemiBold, color: cs.primary,),),
+        ],),
         const SizedBox(height: Spacings.sm),
         Container(
           width: double.infinity,
           padding: Spacings.paddingCard,
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withOpacity(0.3),
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: Text(content, style: tt.bodyMedium),

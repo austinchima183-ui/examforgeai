@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/usecases/create_scheme_of_work_usecase.dart';
 import '../../domain/usecases/generate_scheme_of_work_usecase.dart';
@@ -159,7 +156,7 @@ class _SchemeOfWorkGeneratorPageState
     });
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'AI Scheme of Work',
       ),
       body: state.isGenerating
@@ -212,7 +209,7 @@ class _SchemeOfWorkGeneratorPageState
   // ─── Form Section ─────────────────────────────────────────────────
 
   Widget _buildFormSection(
-      ColorScheme cs, TextTheme tt, SchemeOfWorkState state) {
+      ColorScheme cs, TextTheme tt, SchemeOfWorkState state,) {
     return Form(
       key: _formKey,
       child: AppCard(
@@ -310,7 +307,7 @@ class _SchemeOfWorkGeneratorPageState
                         controller: TextEditingController(
                             text: _startDate != null
                                 ? _formatDate(_startDate)
-                                : ''),
+                                : '',),
                         prefixIcon: Icons.calendar_today_outlined,
                         readOnly: true,
                       ),
@@ -327,7 +324,7 @@ class _SchemeOfWorkGeneratorPageState
                         controller: TextEditingController(
                             text: _endDate != null
                                 ? _formatDate(_endDate)
-                                : ''),
+                                : '',),
                         prefixIcon: Icons.calendar_today_outlined,
                         readOnly: true,
                       ),
@@ -387,7 +384,7 @@ class _SchemeOfWorkGeneratorPageState
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.auto_awesome,
-                          size: Spacings.smIcon, color: cs.onTertiaryContainer),
+                          size: Spacings.smIcon, color: cs.onTertiaryContainer,),
                       const SizedBox(width: Spacings.xs),
                       Text(
                         'AI Generated',
@@ -411,14 +408,14 @@ class _SchemeOfWorkGeneratorPageState
               _buildMetadataChip(cs, tt, Icons.book_outlined, scheme.subject),
               if (scheme.className != null)
                 _buildMetadataChip(
-                    cs, tt, Icons.school_outlined, scheme.className!),
+                    cs, tt, Icons.school_outlined, scheme.className!,),
               _buildMetadataChip(
-                  cs, tt, Icons.dashboard_outlined, scheme.curriculum.label),
+                  cs, tt, Icons.dashboard_outlined, scheme.curriculum.label,),
               _buildMetadataChip(cs, tt, Icons.schedule_outlined,
-                  scheme.durationType.label),
+                  scheme.durationType.label,),
               if (scheme.term != null)
                 _buildMetadataChip(
-                    cs, tt, Icons.calendar_view_week_outlined, scheme.term!),
+                    cs, tt, Icons.calendar_view_week_outlined, scheme.term!,),
             ],
           ),
           const SizedBox(height: Spacings.md),
@@ -427,7 +424,7 @@ class _SchemeOfWorkGeneratorPageState
           Row(
             children: [
               Icon(Icons.history_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 'Version ${scheme.version}',
@@ -435,7 +432,7 @@ class _SchemeOfWorkGeneratorPageState
               ),
               const SizedBox(width: Spacings.md),
               Icon(Icons.update_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 _formatDate(scheme.updatedAt),
@@ -449,7 +446,7 @@ class _SchemeOfWorkGeneratorPageState
   }
 
   Widget _buildMetadataChip(
-      ColorScheme cs, TextTheme tt, IconData icon, String label) {
+      ColorScheme cs, TextTheme tt, IconData icon, String label,) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: Spacings.sm,
@@ -479,7 +476,7 @@ class _SchemeOfWorkGeneratorPageState
   // ─── Breakdown List ───────────────────────────────────────────────
 
   Widget _buildBreakdownList(
-      ColorScheme cs, TextTheme tt, SchemeOfWorkEntity scheme) {
+      ColorScheme cs, TextTheme tt, SchemeOfWorkEntity scheme,) {
     final plans = scheme.weeklyPlans;
     if (plans.isEmpty) {
       return AppCard(
@@ -519,7 +516,7 @@ class _SchemeOfWorkGeneratorPageState
   }
 
   Widget _buildBreakdownCard(
-      ColorScheme cs, TextTheme tt, int weekNumber, Map<String, dynamic> plan) {
+      ColorScheme cs, TextTheme tt, int weekNumber, Map<String, dynamic> plan,) {
     final topic = plan['topic'] as String? ?? 'Untitled';
     final objectives = (plan['objectives'] as List<dynamic>?)
             ?.map((e) => e.toString())
@@ -615,7 +612,7 @@ class _SchemeOfWorkGeneratorPageState
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Icon(Icons.assignment_outlined,
-                    size: Spacings.smIcon, color: cs.tertiary),
+                    size: Spacings.smIcon, color: cs.tertiary,),
                 const SizedBox(width: Spacings.sm),
                 Expanded(
                   child: Column(
@@ -647,7 +644,7 @@ class _SchemeOfWorkGeneratorPageState
   }
 
   Widget _buildSubSection(ColorScheme cs, TextTheme tt, IconData icon,
-      String title, List<String> items) {
+      String title, List<String> items,) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [

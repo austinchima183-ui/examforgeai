@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Document upload and chat page.
 ///
@@ -151,7 +151,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
             color: cs.surfaceContainerLow,
             border: Border(
               bottom: BorderSide(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -239,14 +239,14 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
                     icon: Icons.style_outlined,
                     label: 'Flashcards',
                     onTap: () => _sendQuickAction(
-                        'Generate flashcards from this document'),
+                        'Generate flashcards from this document',),
                   ),
                   const SizedBox(width: Spacings.sm),
                   _QuickActionButton(
                     icon: Icons.quiz_outlined,
                     label: 'Questions',
                     onTap: () => _sendQuickAction(
-                        'Create revision questions from this document'),
+                        'Create revision questions from this document',),
                   ),
                 ],
               ),
@@ -269,7 +269,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
                         ),
                       ),
                       const SizedBox(height: Spacings.md),
-                      AppLoadingBar(
+                      const AppLoadingBar(
                         value: null,
                       ),
                     ],
@@ -296,7 +296,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
                                   Icons.description_outlined,
                                   size: Spacings.xlIcon,
                                   color: cs.primary
-                                      .withOpacity(0.5),
+                                      .withValues(alpha: 0.5),
                                 ),
                                 const SizedBox(height: Spacings.lg),
                                 Text(
@@ -335,7 +335,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
               color: cs.surface,
               border: Border(
                 top: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -349,7 +349,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
                         hintText: 'Ask about this document...',
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(
-                              Spacings.xlRadius),
+                              Spacings.xlRadius,),
                           borderSide: BorderSide.none,
                         ),
                         filled: true,
@@ -406,7 +406,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -476,7 +476,7 @@ class _DocumentChatPageState extends ConsumerState<DocumentChatPage> {
               Icon(
                 Icons.cloud_upload_outlined,
                 size: Spacings.xlIcon,
-                color: cs.primary.withOpacity(0.5),
+                color: cs.primary.withValues(alpha: 0.5),
               ),
               const SizedBox(height: Spacings.lg),
               Text(
@@ -548,7 +548,7 @@ class _DocumentCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+              color: statusColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
@@ -581,7 +581,7 @@ class _DocumentCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                        color: statusColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius:
                             BorderRadius.circular(Spacings.fullRadius),

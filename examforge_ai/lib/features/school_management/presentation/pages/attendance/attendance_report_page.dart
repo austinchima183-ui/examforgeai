@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
@@ -13,8 +12,6 @@ import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/class_provider.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 
@@ -36,7 +33,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
   String? _selectedClassId;
   DateTime? _startDate;
   DateTime? _endDate;
-  String _selectedTermId = 'current-term';
+  final String _selectedTermId = 'current-term';
 
   @override
   void initState() {
@@ -94,7 +91,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
             child: reportState.isLoading
                 ? const Center(
                     child: AppLoadingSpinner(
-                        size: AppLoadingSpinnerSize.large),
+                        size: AppLoadingSpinnerSize.large,),
                   )
                 : reportState.error != null
                     ? AppErrorState.genericError(
@@ -153,7 +150,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: _selectedClassId,
+              initialValue: _selectedClassId,
               decoration: const InputDecoration(
                 labelText: 'Class',
                 prefixIcon: Icon(Icons.class_outlined, size: 20),
@@ -388,7 +385,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                           Expanded(
                             flex: (absentRate * 100).round().clamp(1, 100),
                             child: Container(
-                              color: AppColors.error.withOpacity(0.7),
+                              color: AppColors.error.withValues(alpha: 0.7),
                             ),
                           ),
                         ],
@@ -442,7 +439,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
           lateDays: detail.lateDays,
           excusedDays: detail.excusedDays,
           rate: detail.attendanceRate,
-        ));
+        ),);
       }
     } else {
       // Fallback: aggregate from records
@@ -510,7 +507,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
             ),
             decoration: BoxDecoration(
               color: cs.surfaceContainerHigh,
-              borderRadius: BorderRadius.vertical(
+              borderRadius: const BorderRadius.vertical(
                 top: Radius.circular(Spacings.smRadius),
               ),
             ),
@@ -533,7 +530,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                 decoration: BoxDecoration(
                   border: Border(
                     bottom: BorderSide(
-                        color: cs.outlineVariant.withOpacity(0.3), width: 0.5),
+                        color: cs.outlineVariant.withValues(alpha: 0.3), width: 0.5,),
                   ),
                 ),
                 child: Row(
@@ -601,7 +598,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                         ),
                         decoration: BoxDecoration(
                           color: _rateColor(row.rate)
-                              .withOpacity(isDark ? 0.20 : 0.12),
+                              .withValues(alpha: isDark ? 0.20 : 0.12),
                           borderRadius:
                               BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -617,7 +614,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
                     ),
                   ],
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -713,7 +710,7 @@ class _SummaryCard extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(icon, color: color, size: 18),

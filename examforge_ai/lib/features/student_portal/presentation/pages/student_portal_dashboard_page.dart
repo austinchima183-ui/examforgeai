@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Comprehensive student dashboard page for the Student Portal.
 ///
@@ -208,7 +208,7 @@ class _StudentPortalDashboardPageState
                   Text(
                     'Day Streak 🔥',
                     style: tt.bodySmall?.copyWith(
-                      color: Colors.white.withOpacity(0.9),
+                      color: Colors.white.withValues(alpha: 0.9),
                       fontWeight: AppTypography.wSemiBold,
                     ),
                   ),
@@ -338,7 +338,7 @@ class _StudentPortalDashboardPageState
   // ─── Today's Schedule ───────────────────────────────────────────────
 
   Widget _buildTodaySchedule(
-      BuildContext context, StudentDashboardState state) {
+      BuildContext context, StudentDashboardState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -385,7 +385,7 @@ class _StudentPortalDashboardPageState
   // ─── Recent Activity ────────────────────────────────────────────────
 
   Widget _buildRecentActivity(
-      BuildContext context, StudentDashboardState state) {
+      BuildContext context, StudentDashboardState state,) {
     final tt = context.textTheme;
     final cs = context.colorScheme;
 
@@ -440,7 +440,7 @@ class _StudentPortalDashboardPageState
   // ─── Notifications Summary ──────────────────────────────────────────
 
   Widget _buildNotificationsSummary(
-      BuildContext context, StudentDashboardState state) {
+      BuildContext context, StudentDashboardState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final notifications = state.recentNotifications.take(4).toList();
@@ -507,12 +507,12 @@ class _StudentPortalDashboardPageState
   // ─── AI Study Suggestions ───────────────────────────────────────────
 
   Widget _buildAiSuggestions(
-      BuildContext context, StudentDashboardState state) {
+      BuildContext context, StudentDashboardState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
     final suggestions = [
-      _AiSuggestion(
+      const _AiSuggestion(
         icon: Icons.auto_awesome_outlined,
         title: 'Focus on Weak Topics',
         description:
@@ -563,7 +563,7 @@ class _StudentPortalDashboardPageState
                   Container(
                     padding: const EdgeInsets.all(Spacings.md),
                     decoration: BoxDecoration(
-                      color: suggestion.color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                      color: suggestion.color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                       ),
                       borderRadius:
                           BorderRadius.circular(Spacings.mdRadius),
@@ -652,7 +652,7 @@ class _StudentPortalDashboardPageState
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -734,7 +734,7 @@ class _StatCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(icon, size: Spacings.mdIcon, color: color),
@@ -797,7 +797,7 @@ class _QuickActionCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: action.color.withOpacity(isDark ? 0.20 : 0.12),
+              color: action.color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(
@@ -888,7 +888,7 @@ class _DashboardLoadingSkeleton extends StatelessWidget {
                         color:
                             context.colorScheme.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(
-                            Spacings.mdRadius),
+                            Spacings.mdRadius,),
                       ),
                     ),
                   ),
@@ -921,7 +921,7 @@ class _DashboardLoadingSkeleton extends StatelessWidget {
                     color:
                         context.colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(
-                        Spacings.mdRadius),
+                        Spacings.mdRadius,),
                   ),
                 ),
               ),

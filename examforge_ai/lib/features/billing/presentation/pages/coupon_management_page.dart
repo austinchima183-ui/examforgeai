@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../providers/coupon_provider.dart';
 
@@ -80,7 +80,7 @@ class _CouponManagementPageState extends ConsumerState<CouponManagementPage> {
     final filtered = _filteredCoupons;
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Coupon Management',
       ),
       body: Column(
@@ -99,7 +99,7 @@ class _CouponManagementPageState extends ConsumerState<CouponManagementPage> {
         onPressed: _showCreateCouponDialog,
         icon: const Icon(Icons.add_rounded),
         label: const Text('New Coupon'),
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
       ),
@@ -370,7 +370,7 @@ class _CouponListTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -387,10 +387,10 @@ class _CouponListTile extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withOpacity(0.4),
+                    color: cs.primaryContainer.withValues(alpha: 0.4),
                     borderRadius: Spacings.borderRadiusSm,
                     border: Border.all(
-                      color: cs.primary.withOpacity(0.3),
+                      color: cs.primary.withValues(alpha: 0.3),
                     ),
                   ),
                   child: Text(
@@ -410,7 +410,7 @@ class _CouponListTile extends StatelessWidget {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
+                    color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Text(
@@ -438,7 +438,7 @@ class _CouponListTile extends StatelessWidget {
                 if (onDeactivate != null && coupon.isActive)
                   IconButton(
                     onPressed: onDeactivate,
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.block_rounded,
                       size: Spacings.mdIcon - 4,
                       color: AppColors.error,
@@ -530,11 +530,9 @@ class _CouponFormData {
     required this.discountType,
     required this.discountValue,
     this.maxRedemptions = 0,
-    this.maxRedemptionsPerUser = 1,
-    this.durationMonths = 1,
     required this.validFrom,
     this.validUntil,
-  });
+  }) : maxRedemptionsPerUser = 1, durationMonths = 1;
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -609,7 +607,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
           int.tryParse(_maxRedemptionsController.text.trim()) ?? 0,
       validFrom: DateTime.now(),
       validUntil: DateTime.now().add(const Duration(days: 90)),
-    ));
+    ),);
   }
 
   @override
@@ -620,7 +618,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
 
     return AlertDialog(
       title: Text(isEdit ? 'Edit Coupon' : 'Create Coupon'),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
       content: SingleChildScrollView(
@@ -657,7 +655,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
               ),
               const SizedBox(height: Spacings.md),
               DropdownButtonFormField<CouponDiscountType>(
-                value: _discountType,
+                initialValue: _discountType,
                 decoration: const InputDecoration(
                   labelText: 'Discount Type',
                   prefixIcon: Icon(Icons.discount_outlined, size: 20),
@@ -666,7 +664,7 @@ class _CouponFormDialogState extends State<_CouponFormDialog> {
                     .map((t) => DropdownMenuItem(
                           value: t,
                           child: Text(t.label),
-                        ))
+                        ),)
                     .toList(),
                 onChanged: (v) {
                   if (v != null) setState(() => _discountType = v);

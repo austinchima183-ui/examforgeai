@@ -1,21 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/parent_provider.dart';
-import '../../providers/announcement_provider.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 
@@ -78,7 +73,7 @@ class _ParentPortalPageState extends ConsumerState<ParentPortalPage> {
                   child: Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.error_outline_rounded,
                         size: Spacings.xlIcon,
                         color: AppColors.error,
@@ -230,7 +225,7 @@ class _ParentPortalPageState extends ConsumerState<ParentPortalPage> {
                         // Navigate to child detail
                       },
                     ),
-                  )),
+                  ),),
 
             const SizedBox(height: Spacings.xxl),
 
@@ -243,21 +238,21 @@ class _ParentPortalPageState extends ConsumerState<ParentPortalPage> {
               ),
             ),
             const SizedBox(height: Spacings.md),
-            _AnnouncementCard(
+            const _AnnouncementCard(
               title: 'Mid-Term Break',
               subtitle: 'School will be closed from March 15-19 for mid-term break.',
               date: 'Mar 10, 2026',
               type: AnnouncementType.holiday,
             ),
             const SizedBox(height: Spacings.md),
-            _AnnouncementCard(
+            const _AnnouncementCard(
               title: 'Parent-Teacher Conference',
               subtitle: 'Scheduled for March 22, 2026. Please attend.',
               date: 'Mar 8, 2026',
               type: AnnouncementType.event,
             ),
             const SizedBox(height: Spacings.md),
-            _AnnouncementCard(
+            const _AnnouncementCard(
               title: 'Exam Period Starts',
               subtitle: 'End-of-term exams begin April 1, 2026.',
               date: 'Mar 5, 2026',
@@ -303,7 +298,7 @@ class _QuickLinkCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(icon, size: Spacings.lgIcon, color: color),
@@ -350,7 +345,7 @@ class _ChildOverviewCard extends StatelessWidget {
             width: 52,
             height: 52,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -396,13 +391,13 @@ class _ChildOverviewCard extends StatelessWidget {
                     ],
                     const Spacer(),
                     // Placeholder stats
-                    _MiniStat(
+                    const _MiniStat(
                       icon: Icons.event_available_rounded,
                       value: '95%',
                       color: AppColors.success,
                     ),
                     const SizedBox(width: Spacings.md),
-                    _MiniStat(
+                    const _MiniStat(
                       icon: Icons.quiz_outlined,
                       value: '2',
                       color: AppColors.info,
@@ -547,7 +542,7 @@ class _AnnouncementCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(_typeIcon(), size: Spacings.mdIcon, color: color),

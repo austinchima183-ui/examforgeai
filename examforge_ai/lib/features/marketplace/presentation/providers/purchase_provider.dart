@@ -162,7 +162,7 @@ class PurchaseNotifier extends StateNotifier<PurchaseState> {
                       downloadCount: p.downloadCount + 1,
                       lastDownloadedAt: DateTime.now(),
                     )
-                  : p)
+                  : p,)
               .toList(),
         );
         AppLogger.info('Download recorded for purchase: $purchaseId');

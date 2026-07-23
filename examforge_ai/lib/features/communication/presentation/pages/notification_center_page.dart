@@ -224,7 +224,7 @@ class _State extends ConsumerState<NotificationCenterPage> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: categoryColor.withOpacity(0.12),
+              color: categoryColor.withValues(alpha: 0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Icon(categoryIcon, color: categoryColor, size: Spacings.mdIcon),
@@ -292,25 +292,25 @@ class _State extends ConsumerState<NotificationCenterPage> {
         child: Padding(
           padding: const EdgeInsets.all(Spacings.lg),
           child: Column(
-            children: List.generate(8, (_) => Padding(
-              padding: const EdgeInsets.only(bottom: Spacings.lg),
+            children: List.generate(8, (_) => const Padding(
+              padding: EdgeInsets.only(bottom: Spacings.lg),
               child: Row(
                 children: [
                   AppLoadingShimmer.box(width: 40, height: 40, borderRadius: Spacings.borderRadiusMd),
-                  const SizedBox(width: Spacings.md),
+                  SizedBox(width: Spacings.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AppLoadingShimmer.box(width: 160, height: 14, borderRadius: Spacings.borderRadiusSm),
-                        const SizedBox(height: Spacings.sm),
+                        SizedBox(height: Spacings.sm),
                         AppLoadingShimmer.box(height: 12, borderRadius: Spacings.borderRadiusSm),
                       ],
                     ),
                   ),
                 ],
               ),
-            )),
+            ),),
           ),
         ),
       ),

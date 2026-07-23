@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
@@ -278,7 +277,7 @@ class PresentationNotifier extends StateNotifier<PresentationState> {
       presentations: updatedList,
       currentPresentation: state.currentPresentation?.id == presentationId
           ? state.currentPresentation!.copyWith(
-              isFavorite: !state.currentPresentation!.isFavorite)
+              isFavorite: !state.currentPresentation!.isFavorite,)
           : state.currentPresentation,
       successMessage: 'Favorite updated',
       error: null,

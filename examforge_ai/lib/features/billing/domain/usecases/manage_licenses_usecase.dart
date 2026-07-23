@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../../domain/repositories/billing_repository.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
 
 
 // ─── Get Licenses ────────────────────────────────────────────────────────────
@@ -53,13 +52,13 @@ class RevokeLicenseUseCase {
 
   Future<Result<LicenseEntity>> call(RevokeLicenseParams params) async {
     if (params.licenseId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'License ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'License ID cannot be empty'),
       );
     }
     if (params.reason.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Reason cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Reason cannot be empty'),
       );
     }
 

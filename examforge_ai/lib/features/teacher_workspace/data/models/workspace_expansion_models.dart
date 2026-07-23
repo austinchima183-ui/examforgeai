@@ -1021,7 +1021,7 @@ class TaskModel {
                 'id': s.id,
                 'title': s.title,
                 'is_completed': s.isCompleted,
-              })
+              },)
           .toList(),
       completedAt: entity.completedAt,
       completionNotes: entity.completionNotes,
@@ -1055,7 +1055,7 @@ class TaskModel {
                 isCompleted: (s['is_completed'] as bool?) ??
                     (s['isCompleted'] as bool?) ??
                     false,
-              ))
+              ),)
           .toList(),
       completedAt: completedAt,
       completionNotes: completionNotes,
@@ -1309,9 +1309,9 @@ class RubricModel {
                           'level': l.level.value,
                           'description': l.description,
                           'score': l.score,
-                        })
+                        },)
                     .toList(),
-              })
+              },)
           .toList(),
       totalPoints: entity.totalPoints,
       topic: entity.topic,
@@ -1342,13 +1342,13 @@ class RubricModel {
                 levels: ((c['levels'] as List<dynamic>?) ?? [])
                     .map((l) => RubricLevelEntity(
                           level: RubricCriterionLevel.fromString(
-                                  l['level'] as String?) ??
+                                  l['level'] as String?,) ??
                               RubricCriterionLevel.beginning,
                           description: (l['description'] as String?) ?? '',
                           score: (l['score'] as num?)?.toDouble() ?? 0.0,
-                        ))
+                        ),)
                     .toList(),
-              ))
+              ),)
           .toList(),
       totalPoints: totalPoints,
       topic: topic,
@@ -1600,7 +1600,7 @@ class OralQuestionModel {
                 'marks': q.marks,
                 'difficulty': q.difficulty,
                 'bloom_level': q.bloomLevel,
-              })
+              },)
           .toList(),
       totalMarks: entity.totalMarks,
       estimatedDurationMinutes: entity.estimatedDurationMinutes,
@@ -1635,7 +1635,7 @@ class OralQuestionModel {
                 difficulty: q['difficulty'] as String?,
                 bloomLevel: q['bloom_level'] as String? ??
                     q['bloomLevel'] as String?,
-              ))
+              ),)
           .toList(),
       totalMarks: totalMarks,
       estimatedDurationMinutes: estimatedDurationMinutes,
@@ -2627,7 +2627,7 @@ class EnhancedDashboardModel {
                 'start_time': e.startTime.toIso8601String(),
                 'end_time': e.endTime.toIso8601String(),
                 'event_type': e.eventType,
-              })
+              },)
           .toList(),
       pendingAssignments: entity.pendingAssignments
           .map((e) => <String, dynamic>{
@@ -2635,7 +2635,7 @@ class EnhancedDashboardModel {
                 'title': e.title,
                 'deadline': e.deadline?.toIso8601String(),
                 'status': e.status,
-              })
+              },)
           .toList(),
       recentDocuments: entity.recentDocuments
           .map((e) => <String, dynamic>{
@@ -2643,7 +2643,7 @@ class EnhancedDashboardModel {
                 'title': e.title,
                 'type': e.type,
                 'updated_at': e.updatedAt.toIso8601String(),
-              })
+              },)
           .toList(),
       savedTemplates: entity.savedTemplates
           .map((e) => <String, dynamic>{
@@ -2651,7 +2651,7 @@ class EnhancedDashboardModel {
                 'name': e.name,
                 'template_type': e.templateType,
                 'usage_count': e.usageCount,
-              })
+              },)
           .toList(),
       upcomingEvents: entity.upcomingEvents
           .map((e) => <String, dynamic>{
@@ -2660,7 +2660,7 @@ class EnhancedDashboardModel {
                 'start_time': e.startTime.toIso8601String(),
                 'end_time': e.endTime.toIso8601String(),
                 'event_type': e.eventType,
-              })
+              },)
           .toList(),
       teachingStatistics: <String, dynamic>{
         'total_students': entity.teachingStatistics.totalStudents,
@@ -2713,7 +2713,7 @@ class EnhancedDashboardModel {
                 eventType: (e['event_type'] as String?) ??
                     (e['eventType'] as String?) ??
                     '',
-              ))
+              ),)
           .toList(),
       pendingAssignments: pendingAssignments
           .map((e) => DashboardAssignmentEntity(
@@ -2723,7 +2723,7 @@ class EnhancedDashboardModel {
                     ? DateTime.parse(e['deadline'] as String)
                     : null,
                 status: (e['status'] as String?) ?? '',
-              ))
+              ),)
           .toList(),
       recentDocuments: recentDocuments
           .map((e) => RecentDocumentEntity(
@@ -2735,7 +2735,7 @@ class EnhancedDashboardModel {
                     : e['updatedAt'] != null
                         ? DateTime.parse(e['updatedAt'] as String)
                         : DateTime.now(),
-              ))
+              ),)
           .toList(),
       savedTemplates: savedTemplates
           .map((e) => DashboardTemplateEntity(
@@ -2747,7 +2747,7 @@ class EnhancedDashboardModel {
                 usageCount: (e['usage_count'] as int?) ??
                     (e['usageCount'] as int?) ??
                     0,
-              ))
+              ),)
           .toList(),
       upcomingEvents: upcomingEvents
           .map((e) => DashboardEventEntity(
@@ -2766,7 +2766,7 @@ class EnhancedDashboardModel {
                 eventType: (e['event_type'] as String?) ??
                     (e['eventType'] as String?) ??
                     '',
-              ))
+              ),)
           .toList(),
       teachingStatistics: TeachingStatisticsEntity(
         totalStudents: (teachingStatistics['total_students'] as int?) ??

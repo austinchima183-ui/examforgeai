@@ -1,4 +1,5 @@
 /// IO (native) platform database connection using SQLite via dart:ffi.
+library;
 import 'dart:io';
 
 import 'package:drift/drift.dart';

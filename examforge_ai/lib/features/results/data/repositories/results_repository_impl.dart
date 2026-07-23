@@ -9,7 +9,6 @@ import '../../domain/entities/results_entities.dart';
 import '../../domain/repositories/results_repository.dart';
 import '../datasources/results_remote_datasource.dart';
 import '../models/results_models.dart';
-import '../../../../features/results/domain/entities/results_entities.dart';
 
 
 /// Concrete implementation of [ResultsRepository] that delegates
@@ -85,7 +84,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -106,7 +105,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -122,7 +121,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -140,7 +139,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -164,7 +163,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -197,7 +196,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -259,7 +258,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -277,7 +276,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -295,7 +294,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -338,13 +337,13 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -364,7 +363,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -387,7 +386,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -405,7 +404,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -427,7 +426,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -457,9 +456,9 @@ class ResultsRepositoryImpl implements ResultsRepository {
       );
 
       if (response == null) {
-        return FailureResult(Failure.notFound(
+        return const FailureResult(Failure.notFound(
           message: 'Student subject result not found',
-        ));
+        ),);
       }
 
       final model = StudentSubjectResultModel.fromJson(
@@ -472,13 +471,13 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -500,7 +499,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -524,7 +523,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -551,7 +550,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         return FailureResult(Failure.notFound(
           message:
               'Student overall result not found for student $studentId in class $classId',
-        ));
+        ),);
       }
 
       return Success(model.toEntity());
@@ -562,7 +561,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -584,7 +583,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -620,13 +619,13 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -650,7 +649,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
       if (model == null) {
         return FailureResult(Failure.notFound(
           message: 'Topic mastery not found for student $studentId, topic $topicId',
-        ));
+        ),);
       }
 
       return Success(model.toEntity());
@@ -661,7 +660,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -683,7 +682,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -705,7 +704,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -732,7 +731,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         return FailureResult(Failure.notFound(
           message:
               'Class performance not found for class $classId${subjectId != null ? ', subject $subjectId' : ''}',
-        ));
+        ),);
       }
 
       return Success(model.toEntity());
@@ -743,7 +742,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -765,7 +764,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -789,7 +788,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
       if (model == null) {
         return FailureResult(Failure.notFound(
           message: 'School performance not found for school $schoolId',
-        ));
+        ),);
       }
 
       return Success(model.toEntity());
@@ -800,7 +799,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -830,7 +829,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -849,7 +848,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -874,7 +873,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         return FailureResult(Failure.notFound(
           message:
               'Dashboard configuration not found for school $schoolId, role $role',
-        ));
+        ),);
       }
 
       return Success(model.toEntity());
@@ -885,7 +884,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -904,7 +903,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -928,7 +927,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -978,7 +977,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1003,7 +1002,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1031,7 +1030,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1049,10 +1048,10 @@ class ResultsRepositoryImpl implements ResultsRepository {
       }
 
       if (model.fileUrl == null) {
-        return FailureResult(Failure.server(
+        return const FailureResult(Failure.server(
           message: 'Report file is not yet available',
           statusCode: 404,
-        ));
+        ),);
       }
 
       // Update downloaded_at timestamp
@@ -1068,7 +1067,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1107,7 +1106,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1124,7 +1123,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
       if (existing == null) {
         return FailureResult(Failure.notFound(
           message: 'No result lock found for exam: $examId',
-        ));
+        ),);
       }
 
       final updated = existing.copyWith(
@@ -1142,7 +1141,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1158,7 +1157,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1201,7 +1200,7 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1275,13 +1274,13 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1306,13 +1305,13 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1334,13 +1333,13 @@ class ResultsRepositoryImpl implements ResultsRepository {
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
         data: e.details,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }

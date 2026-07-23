@@ -1,4 +1,3 @@
-import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../entities/communication_entities.dart';
 import '../repositories/communication_repository.dart';

@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
@@ -241,7 +240,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
           ),
           filled: true,
           fillColor: cs.surfaceContainerHighest,
-          border: OutlineInputBorder(
+          border: const OutlineInputBorder(
             borderRadius: Spacings.borderRadiusMd,
             borderSide: BorderSide.none,
           ),
@@ -275,9 +274,9 @@ class _State extends ConsumerState<ParentMessagingPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: hasUnread
-            ? cs.primaryContainer.withOpacity(0.15)
+            ? cs.primaryContainer.withValues(alpha: 0.15)
             : cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: InkWell(
@@ -541,7 +540,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
                       _formatMessageTime(message.createdAt),
                       style: tt.labelSmall?.copyWith(
                         color: isSent
-                            ? cs.onPrimary.withOpacity(0.7)
+                            ? cs.onPrimary.withValues(alpha: 0.7)
                             : cs.onSurfaceVariant,
                       ),
                     ),
@@ -553,8 +552,8 @@ class _State extends ConsumerState<ParentMessagingPage> {
                             : Icons.done,
                         size: Spacings.smIcon,
                         color: isRead
-                            ? cs.onPrimary.withOpacity(0.7)
-                            : cs.onPrimary.withOpacity(0.5),
+                            ? cs.onPrimary.withValues(alpha: 0.7)
+                            : cs.onPrimary.withValues(alpha: 0.5),
                       ),
                     ],
                   ],
@@ -644,7 +643,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
                 ),
                 filled: true,
                 fillColor: cs.surfaceContainerHighest,
-                border: OutlineInputBorder(
+                border: const OutlineInputBorder(
                   borderRadius: Spacings.borderRadiusMd,
                   borderSide: BorderSide.none,
                 ),
@@ -687,8 +686,8 @@ class _State extends ConsumerState<ParentMessagingPage> {
           child: Column(
             children: List.generate(
               6,
-              (_) => Padding(
-                padding: const EdgeInsets.only(bottom: Spacings.md),
+              (_) => const Padding(
+                padding: EdgeInsets.only(bottom: Spacings.md),
                 child: Row(
                   children: [
                     AppLoadingShimmer.box(
@@ -696,7 +695,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
                       height: 48,
                       shape: BoxShape.circle,
                     ),
-                    const SizedBox(width: Spacings.md),
+                    SizedBox(width: Spacings.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -706,7 +705,7 @@ class _State extends ConsumerState<ParentMessagingPage> {
                             height: 14,
                             borderRadius: Spacings.borderRadiusSm,
                           ),
-                          const SizedBox(height: Spacings.sm),
+                          SizedBox(height: Spacings.sm),
                           AppLoadingShimmer.box(
                             height: 12,
                             borderRadius: Spacings.borderRadiusSm,

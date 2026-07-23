@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/usecases/generate_report_comments_usecase.dart';
 import '../providers/report_comment_provider.dart';
@@ -39,26 +38,26 @@ class _ReportCommentGeneratorPageState
 
   // Sample data – in production, these would be fetched from the backend.
   final List<_DropdownOption> _classOptions = [
-    _DropdownOption(id: 'class-1', label: 'JSS 1A'),
-    _DropdownOption(id: 'class-2', label: 'JSS 1B'),
-    _DropdownOption(id: 'class-3', label: 'JSS 2A'),
-    _DropdownOption(id: 'class-4', label: 'JSS 2B'),
-    _DropdownOption(id: 'class-5', label: 'SSS 1A'),
-    _DropdownOption(id: 'class-6', label: 'SSS 1B'),
+    const _DropdownOption(id: 'class-1', label: 'JSS 1A'),
+    const _DropdownOption(id: 'class-2', label: 'JSS 1B'),
+    const _DropdownOption(id: 'class-3', label: 'JSS 2A'),
+    const _DropdownOption(id: 'class-4', label: 'JSS 2B'),
+    const _DropdownOption(id: 'class-5', label: 'SSS 1A'),
+    const _DropdownOption(id: 'class-6', label: 'SSS 1B'),
   ];
 
   final List<_DropdownOption> _subjectOptions = [
-    _DropdownOption(id: 'subj-1', label: 'Mathematics'),
-    _DropdownOption(id: 'subj-2', label: 'English Language'),
-    _DropdownOption(id: 'subj-3', label: 'Physics'),
-    _DropdownOption(id: 'subj-4', label: 'Chemistry'),
-    _DropdownOption(id: 'subj-5', label: 'Biology'),
-    _DropdownOption(id: 'subj-6', label: 'History'),
+    const _DropdownOption(id: 'subj-1', label: 'Mathematics'),
+    const _DropdownOption(id: 'subj-2', label: 'English Language'),
+    const _DropdownOption(id: 'subj-3', label: 'Physics'),
+    const _DropdownOption(id: 'subj-4', label: 'Chemistry'),
+    const _DropdownOption(id: 'subj-5', label: 'Biology'),
+    const _DropdownOption(id: 'subj-6', label: 'History'),
   ];
 
   final List<_DropdownOption> _sessionOptions = [
-    _DropdownOption(id: 'sess-1', label: '2024/2025'),
-    _DropdownOption(id: 'sess-2', label: '2023/2024'),
+    const _DropdownOption(id: 'sess-1', label: '2024/2025'),
+    const _DropdownOption(id: 'sess-2', label: '2023/2024'),
   ];
 
   _DropdownOption? _selectedClass;
@@ -315,7 +314,7 @@ class _ReportCommentGeneratorPageState
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Icon(
@@ -351,10 +350,10 @@ class _ReportCommentGeneratorPageState
   Widget _buildClassDropdown(BuildContext context) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
-    final effectiveLabel = 'Class *';
+    const effectiveLabel = 'Class *';
 
     return DropdownButtonFormField<_DropdownOption>(
-      value: _selectedClass,
+      initialValue: _selectedClass,
       items: _classOptions
           .map((opt) => DropdownMenuItem<_DropdownOption>(
                 value: opt,
@@ -362,13 +361,13 @@ class _ReportCommentGeneratorPageState
                   opt.label,
                   style: tt.bodyLarge?.copyWith(color: cs.onSurface),
                 ),
-              ))
+              ),)
           .toList(),
       onChanged: (v) => setState(() => _selectedClass = v),
       validator: (v) => v == null ? 'Please select a class' : null,
       style: tt.bodyLarge?.copyWith(color: cs.onSurface),
       icon: Icon(Icons.arrow_drop_down_rounded, color: cs.onSurfaceVariant),
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         labelText: effectiveLabel,
         prefixIcon: Icon(Icons.class_outlined, size: Spacings.mdIcon),
       ),
@@ -383,7 +382,7 @@ class _ReportCommentGeneratorPageState
     final tt = context.textTheme;
 
     return DropdownButtonFormField<_DropdownOption>(
-      value: _selectedSubject,
+      initialValue: _selectedSubject,
       items: _subjectOptions
           .map((opt) => DropdownMenuItem<_DropdownOption>(
                 value: opt,
@@ -391,12 +390,12 @@ class _ReportCommentGeneratorPageState
                   opt.label,
                   style: tt.bodyLarge?.copyWith(color: cs.onSurface),
                 ),
-              ))
+              ),)
           .toList(),
       onChanged: (v) => setState(() => _selectedSubject = v),
       style: tt.bodyLarge?.copyWith(color: cs.onSurface),
       icon: Icon(Icons.arrow_drop_down_rounded, color: cs.onSurfaceVariant),
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         labelText: 'Subject',
         prefixIcon: Icon(Icons.book_outlined, size: Spacings.mdIcon),
       ),
@@ -411,7 +410,7 @@ class _ReportCommentGeneratorPageState
     final tt = context.textTheme;
 
     return DropdownButtonFormField<_DropdownOption>(
-      value: _selectedSession,
+      initialValue: _selectedSession,
       items: _sessionOptions
           .map((opt) => DropdownMenuItem<_DropdownOption>(
                 value: opt,
@@ -419,12 +418,12 @@ class _ReportCommentGeneratorPageState
                   opt.label,
                   style: tt.bodyLarge?.copyWith(color: cs.onSurface),
                 ),
-              ))
+              ),)
           .toList(),
       onChanged: (v) => setState(() => _selectedSession = v),
       style: tt.bodyLarge?.copyWith(color: cs.onSurface),
       icon: Icon(Icons.arrow_drop_down_rounded, color: cs.onSurfaceVariant),
-      decoration: InputDecoration(
+      decoration: const InputDecoration(
         labelText: 'Academic Session',
         prefixIcon: Icon(Icons.school_outlined, size: Spacings.mdIcon),
       ),
@@ -446,7 +445,7 @@ class _ReportCommentGeneratorPageState
       child: Row(
         children: [
           Icon(Icons.people_outline_rounded,
-              size: Spacings.mdIcon, color: cs.onSurfaceVariant),
+              size: Spacings.mdIcon, color: cs.onSurfaceVariant,),
           const SizedBox(width: Spacings.md),
           Expanded(
             child: Text(
@@ -457,7 +456,7 @@ class _ReportCommentGeneratorPageState
           Switch(
             value: _allStudents,
             onChanged: (v) => setState(() => _allStudents = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
         ],
       ),
@@ -466,7 +465,7 @@ class _ReportCommentGeneratorPageState
 
   Widget _buildDivider(BuildContext context) {
     return Divider(
-      color: context.colorScheme.outlineVariant.withOpacity(0.5),
+      color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
       thickness: 1,
     );
   }
@@ -565,7 +564,7 @@ class _StudentCommentCard extends StatelessWidget {
               CircleAvatar(
                 radius: 20,
                 backgroundColor:
-                    cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+                    cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
                 child: Text(
                   studentName.isNotEmpty ? studentName[0].toUpperCase() : '?',
                   style: tt.titleMedium?.copyWith(
@@ -605,14 +604,14 @@ class _StudentCommentCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.tertiary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+                    color: cs.tertiary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.auto_awesome_rounded,
-                          size: Spacings.smIcon, color: cs.tertiary),
+                          size: Spacings.smIcon, color: cs.tertiary,),
                       const SizedBox(width: Spacings.xs),
                       Text(
                         'AI',
@@ -633,7 +632,7 @@ class _StudentCommentCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.green.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+                    color: Colors.green.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -699,7 +698,7 @@ class _StudentCommentCard extends StatelessWidget {
                 return Chip(
                   label: Text(s, style: tt.bodySmall),
                   backgroundColor: Colors.green
-                      .withOpacity(context.isDarkMode ? 0.20 : 0.10),
+                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
                   side: BorderSide.none,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,
@@ -719,7 +718,7 @@ class _StudentCommentCard extends StatelessWidget {
                 return Chip(
                   label: Text(s, style: tt.bodySmall),
                   backgroundColor: Colors.orange
-                      .withOpacity(context.isDarkMode ? 0.20 : 0.10),
+                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
                   side: BorderSide.none,
                   materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   visualDensity: VisualDensity.compact,

@@ -19,15 +19,13 @@
 /// customisable through the [ScreenBreakpoint] predefined constants.
 library;
 
+import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:equatable/equatable.dart';
 
-import '../utils/logger.dart';
 import '../themes/app_colors.dart';
 import '../themes/app_typography.dart';
 import '../themes/spacings.dart';
-import '../extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // ScreenSize Enum
@@ -192,7 +190,7 @@ class ScreenBreakpoint extends Equatable {
 
   @override
   String toString() =>
-      'ScreenBreakpoint($name, ${minWidth}-${maxWidth ?? '∞'}, '
+      'ScreenBreakpoint($name, $minWidth-${maxWidth ?? '∞'}, '
       'cols=$columns, margin=$margin, gutter=$gutter)';
 }
 
@@ -413,7 +411,7 @@ class AdaptiveScaffold extends StatelessWidget {
                       icon: d.icon,
                       selectedIcon: d.selectedIcon,
                       label: Text(d.label),
-                    ))
+                    ),)
                 .toList(),
             leading: floatingActionButton,
             labelType: NavigationRailLabelType.all,
@@ -904,7 +902,7 @@ class AdaptiveCard extends StatelessWidget {
       child: Card(
         clipBehavior: Clip.antiAlias,
         elevation: Spacings.elevationSm,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: InkWell(
@@ -970,7 +968,7 @@ class AdaptiveCard extends StatelessWidget {
       child: Card(
         clipBehavior: Clip.antiAlias,
         elevation: Spacings.elevationSm,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: InkWell(

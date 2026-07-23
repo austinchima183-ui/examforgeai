@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../../domain/repositories/marketplace_repository.dart';
-import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
 
 
 class UpdateOrderStatusParams {
@@ -20,7 +19,7 @@ class UpdateOrderStatusUseCase {
 
   Future<Result<MarketplaceOrderEntity>> call(UpdateOrderStatusParams params) async {
     if (params.orderId.isEmpty) {
-      return FailureResult(Failure.validation(fieldErrors: const {}, message: 'Order ID is required'));
+      return const FailureResult(Failure.validation(fieldErrors: {}, message: 'Order ID is required'));
     }
     return _repository.updateOrderStatus(params.orderId, params.status);
   }

@@ -14,12 +14,13 @@
 /// This file re-exports the [UserRole] enum and the
 /// [currentRoleProvider] from the routing layer, and adds convenience
 /// extensions for UI and business logic.
+library;
+
+import '../../core/utils/logger.dart';
+import '../../routing/route_guards.dart';
 
 // ─── Re-export from route_guards.dart ──────────────────────────────────
 export '../../routing/route_guards.dart' show UserRole, currentRoleProvider;
-
-import '../../routing/route_guards.dart';
-import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // USER ROLE UTILITIES

@@ -17,7 +17,7 @@ class DeleteLessonPlanUseCase {
       return const FailureResult(Failure.validation(
         message: 'Lesson plan ID is required',
         fieldErrors: {'planId': 'Plan ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.deleteLessonPlan(params.planId);
   }

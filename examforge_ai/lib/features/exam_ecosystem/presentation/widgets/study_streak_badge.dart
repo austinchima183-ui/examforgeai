@@ -2,10 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 /// Streak tracking badge with fire icon.
 ///
@@ -136,7 +135,7 @@ class _StudyStreakBadgeState extends State<StudyStreakBadge>
                 boxShadow: _isHighStreak
                     ? [
                         BoxShadow(
-                          color: streakColor.withOpacity(0.4 + 0.3 * _glowController.value,
+                          color: streakColor.withValues(alpha: 0.4 + 0.3 * _glowController.value,
                           ),
                           blurRadius: glowRadius,
                           spreadRadius: 2.0,

@@ -39,7 +39,7 @@ class GetExamResultsUseCase {
         onSuccess: (_) =>
             const Failure.server(message: 'Unknown error', statusCode: 500),
         onFailure: (failure) => failure,
-      ));
+      ),);
     }
 
     // ── Delegate to repository ────────────────────────────────────────

@@ -395,7 +395,7 @@ class SubscriptionPlanEntity extends Equatable {
     includesAiWorkspace, includesParentPortal, includesCommunication,
     includesAdvancedAnalytics, includesApiAccess, includesWhiteLabel,
     includesPrioritySupport, includesDedicatedManager, trialDays, isActive,
-    isPopular, sortOrder, featuresList, metadata, createdAt, updatedAt];
+    isPopular, sortOrder, featuresList, metadata, createdAt, updatedAt,];
 }
 
 /// Active subscription for a teacher, school, or enterprise.
@@ -516,7 +516,7 @@ class SubscriptionEntity extends Equatable {
     trialEnd, flutterwaveSubscriptionId, flutterwavePlanCode, couponId,
     couponDiscountApplied, priceAtSubscription, currency, seatsPurchased,
     seatsUsed, autoRenew, cancelledAt, cancellationReason, metadata,
-    createdAt, updatedAt];
+    createdAt, updatedAt,];
 }
 
 /// Payment transaction record.
@@ -637,7 +637,7 @@ class TransactionEntity extends Equatable {
     amount, currency, channel, status, flutterwaveFee, appFee, netAmount,
     paymentMethodSummary, processorResponse, refundAmount, refundReason,
     refundedAt, riskScore, fraudFlagged, fraudNotes, description, metadata,
-    initiatedAt, completedAt, verifiedAt, createdAt, updatedAt];
+    initiatedAt, completedAt, verifiedAt, createdAt, updatedAt,];
 }
 
 /// Invoice entity with line items.
@@ -750,7 +750,7 @@ class InvoiceEntity extends Equatable {
     billToAddress, billToTaxId, lineItems, subtotal, taxAmount,
     discountAmount, totalAmount, currency, creditNoteFor, issueDate,
     dueDate, paidAt, pdfUrl, emailSent, emailSentAt, metadata,
-    createdAt, updatedAt];
+    createdAt, updatedAt,];
 }
 
 /// Invoice line item.
@@ -814,7 +814,7 @@ class ReceiptEntity extends Equatable {
   @override
   List<Object?> get props => [id, transactionId, invoiceId, userId, schoolId,
     receiptNumber, amountPaid, currency, paymentMethod, paymentDate, pdfUrl,
-    emailSent, emailSentAt, metadata, createdAt];
+    emailSent, emailSentAt, metadata, createdAt,];
 }
 
 /// AI Credit balance for a teacher or school.
@@ -888,7 +888,7 @@ class AiCreditBalanceEntity extends Equatable {
   @override
   List<Object?> get props => [id, ownerId, ownerType, schoolId, totalCredits,
     usedCredits, remainingCredits, currentCycleStart, currentCycleEnd,
-    creditsExpire, expirationDate, metadata, createdAt, updatedAt];
+    creditsExpire, expirationDate, metadata, createdAt, updatedAt,];
 }
 
 /// AI Credit transaction (audit trail).
@@ -933,7 +933,7 @@ class AiCreditTransactionEntity extends Equatable {
   @override
   List<Object?> get props => [id, balanceId, ownerId, ownerType, schoolId,
     transactionType, credits, balanceBefore, balanceAfter, featureName,
-    referenceId, estimatedCostUsd, description, metadata, createdAt];
+    referenceId, estimatedCostUsd, description, metadata, createdAt,];
 }
 
 /// Coupon / discount code.
@@ -1037,7 +1037,7 @@ class CouponEntity extends Equatable {
     discountValue, discountPercent, maxDiscountAmount, applicableTiers,
     applicableBillingModels, applicablePlans, maxRedemptions,
     currentRedemptions, maxRedemptionsPerUser, durationMonths, validFrom,
-    validUntil, trialDays, isActive, createdBy, metadata, createdAt, updatedAt];
+    validUntil, trialDays, isActive, createdBy, metadata, createdAt, updatedAt,];
 }
 
 /// Referral code entity.
@@ -1111,7 +1111,7 @@ class ReferralCodeEntity extends Equatable {
   List<Object?> get props => [id, referrerId, referrerType, schoolId, code,
     isActive, rewardType, rewardValue, rewardDescription, refereeRewardType,
     refereeRewardValue, totalReferrals, successfulReferrals, totalRewardsEarned,
-    metadata, createdAt, updatedAt];
+    metadata, createdAt, updatedAt,];
 }
 
 /// License entity.
@@ -1200,7 +1200,7 @@ class LicenseEntity extends Equatable {
   List<Object?> get props => [id, subscriptionId, schoolId, userId, licenseType,
     licenseKey, seatsTotal, seatsUsed, issuedAt, expiresAt, isActive,
     revokedAt, revokeReason, autoRenew, renewalReminderSent, metadata,
-    createdAt, updatedAt];
+    createdAt, updatedAt,];
 }
 
 /// AI Credit pack (purchasable bundle).
@@ -1241,7 +1241,7 @@ class AiCreditPackEntity extends Equatable {
   @override
   List<Object?> get props => [id, name, description, credits, price, currency,
     validityDays, isActive, sortOrder, applicableBillingModels, metadata,
-    createdAt, updatedAt];
+    createdAt, updatedAt,];
 }
 
 /// School billing profile.
@@ -1294,7 +1294,7 @@ class SchoolBillingProfileEntity extends Equatable {
     taxIdNumber, taxExempt, defaultPaymentMethod, paymentMethods,
     autoRenew, renewalReminderDays, currentStudentCount,
     currentTeacherCount, currentStorageUsedMb, currentAiCreditsUsed,
-    metadata, createdAt, updatedAt];
+    metadata, createdAt, updatedAt,];
 }
 
 /// Revenue analytics data point.
@@ -1347,7 +1347,7 @@ class RevenueDataPoint extends Equatable {
     processorFees, activeSubscriptions, newSubscriptions,
     cancelledSubscriptions, churnRate, trialConversions,
     teacherSaasRevenue, schoolSaasRevenue, enterpriseSaasRevenue,
-    aiCreditsSold, aiCreditsUsed, currency];
+    aiCreditsSold, aiCreditsUsed, currency,];
 }
 
 /// Billing notification entity.
@@ -1395,5 +1395,5 @@ class BillingNotificationEntity extends Equatable {
   @override
   List<Object?> get props => [id, userId, schoolId, subscriptionId,
     transactionId, notificationType, title, message, inAppSent, pushSent,
-    emailSent, smsSent, isRead, readAt, scheduledAt, sentAt, metadata, createdAt];
+    emailSent, smsSent, isRead, readAt, scheduledAt, sentAt, metadata, createdAt,];
 }

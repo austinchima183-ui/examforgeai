@@ -110,17 +110,17 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
       case 'PGRST116':
         throw NotFoundException(message: e.message);
       case '23505':
-        throw ServerException(
+        throw const ServerException(
           message: 'A record with this data already exists.',
           statusCode: 409,
         );
       case '23503':
-        throw ServerException(
+        throw const ServerException(
           message: 'Referenced record not found.',
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException(
+        throw const ForbiddenException(
           message: 'You do not have permission for this action.',
         );
       default:
@@ -163,14 +163,14 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
         filterQuery = filterQuery.eq('state', state);
       }
 
-      var transformQuery = filterQuery.order('name');
+      final transformQuery = filterQuery.order('name');
 
       final offset = (page - 1) * pageSize;
       final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<UniversityModel>(
-              (json) => UniversityModel.fromJson(json as Map<String, dynamic>))
+              (json) => UniversityModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -220,14 +220,14 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
         filterQuery = filterQuery.eq('state', state);
       }
 
-      var transformQuery = filterQuery.order('name');
+      final transformQuery = filterQuery.order('name');
 
       final offset = (page - 1) * pageSize;
       final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<UniversityModel>(
-              (json) => UniversityModel.fromJson(json as Map<String, dynamic>))
+              (json) => UniversityModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -254,7 +254,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
 
       return response
           .map<UniversityFacultyModel>(
-              (json) => UniversityFacultyModel.fromJson(json as Map<String, dynamic>))
+              (json) => UniversityFacultyModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -296,7 +296,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
 
       return response
           .map<UniversityDepartmentModel>((json) =>
-              UniversityDepartmentModel.fromJson(json as Map<String, dynamic>))
+              UniversityDepartmentModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -373,14 +373,14 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
         filterQuery = filterQuery.eq('year', year);
       }
 
-      var transformQuery = filterQuery.order('created_at', ascending: false);
+      final transformQuery = filterQuery.order('created_at', ascending: false);
 
       final offset = (page - 1) * pageSize;
       final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<PostUtmeProductModel>((json) =>
-              PostUtmeProductModel.fromJson(json as Map<String, dynamic>))
+              PostUtmeProductModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -428,7 +428,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
           .maybeSingle();
 
       if (response == null) {
-        throw NotFoundException(
+        throw const NotFoundException(
           message: 'No checklist found for this university/department combination',
         );
       }
@@ -484,14 +484,14 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
         filterQuery = filterQuery.eq('admission_status', status);
       }
 
-      var transformQuery = filterQuery.order('created_at', ascending: false);
+      final transformQuery = filterQuery.order('created_at', ascending: false);
 
       final offset = (page - 1) * pageSize;
       final response = await transformQuery.range(offset, offset + pageSize - 1);
 
       return response
           .map<AdmissionApplicationModel>((json) =>
-              AdmissionApplicationModel.fromJson(json as Map<String, dynamic>))
+              AdmissionApplicationModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -558,7 +558,7 @@ class AdmissionHubRemoteDatasourceImpl implements AdmissionHubRemoteDatasource {
 
       return response
           .map<UniversityModel>(
-              (json) => UniversityModel.fromJson(json as Map<String, dynamic>))
+              (json) => UniversityModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);

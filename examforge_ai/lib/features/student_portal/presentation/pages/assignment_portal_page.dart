@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Assignment portal page with list and detail views.
 ///
@@ -64,7 +64,7 @@ class _AssignmentPortalPageState
   // ═══════════════════════════════════════════════════════════════════════
 
   Widget _buildAssignmentList(
-      BuildContext context, AssignmentState state) {
+      BuildContext context, AssignmentState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -104,7 +104,7 @@ class _AssignmentPortalPageState
                       .loadSubmissions(),
                 )
               : state.submissions.isEmpty
-                  ? AppEmptyState(
+                  ? const AppEmptyState(
                       icon: Icons.assignment_outlined,
                       title: 'No Assignments',
                       subtitle:
@@ -137,7 +137,7 @@ class _AssignmentPortalPageState
   // ═══════════════════════════════════════════════════════════════════════
 
   Widget _buildAssignmentDetail(
-      BuildContext context, AssignmentState state) {
+      BuildContext context, AssignmentState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final submission = state.currentSubmission!;
@@ -206,7 +206,7 @@ class _AssignmentPortalPageState
                         vertical: Spacings.md,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                        color: AppColors.success.withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                         ),
                         borderRadius:
                             BorderRadius.circular(Spacings.mdRadius),
@@ -402,7 +402,7 @@ class _AssignmentPortalPageState
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -473,7 +473,7 @@ class _AssignmentCard extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                  color: statusColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.fullRadius),
@@ -520,7 +520,7 @@ class _AssignmentCard extends StatelessWidget {
               ),
               if (submission.score != null) ...[
                 const SizedBox(width: Spacings.lg),
-                Icon(
+                const Icon(
                   Icons.assessment_outlined,
                   size: Spacings.smIcon,
                   color: AppColors.success,

@@ -2,9 +2,9 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/extensions/context_extensions.dart';
 import '../../core/themes/app_typography.dart';
 import '../../core/themes/spacings.dart';
-import '../../core/extensions/context_extensions.dart';
 
 // ─── AppSearchBar ─────────────────────────────────────────────────────────────
 
@@ -205,7 +205,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
                 side: BorderSide(
                   color: _isFocused
                       ? cs.primary
-                      : cs.outlineVariant.withOpacity(0.5),
+                      : cs.outlineVariant.withValues(alpha: 0.5),
                   width: _isFocused ? 2.0 : 1.0,
                 ),
               ),
@@ -267,7 +267,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.08),
+                  color: Colors.black.withValues(alpha: 0.08),
                   blurRadius: 8,
                   offset: const Offset(0, 4),
                 ),
@@ -328,7 +328,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
                           widget.onChanged?.call(item);
                           _focusNode.unfocus();
                         },
-                      )),
+                      ),),
                 ],
 
                 // Suggestions (shown when text is entered)
@@ -344,7 +344,7 @@ class _AppSearchBarState extends State<AppSearchBar> {
                           _submit(item);
                           _focusNode.unfocus();
                         },
-                      )),
+                      ),),
                 ],
               ],
             ),
@@ -375,7 +375,7 @@ class _SearchListItem extends StatelessWidget {
     final tt = context.textTheme;
 
     // Highlight matching portion of the suggestion
-    TextSpan _buildTextSpan() {
+    TextSpan buildTextSpan() {
       if (query != null && query!.isNotEmpty) {
         final lowerText = text.toLowerCase();
         final lowerQuery = query!.toLowerCase();
@@ -421,7 +421,7 @@ class _SearchListItem extends StatelessWidget {
             Icon(icon, size: Spacings.mdIcon, color: cs.onSurfaceVariant),
             const SizedBox(width: Spacings.md),
             Expanded(
-              child: RichText(text: _buildTextSpan()),
+              child: RichText(text: buildTextSpan()),
             ),
           ],
         ),

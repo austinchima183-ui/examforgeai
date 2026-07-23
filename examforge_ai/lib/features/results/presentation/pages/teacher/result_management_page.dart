@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/utils/result.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
@@ -55,12 +55,12 @@ class _ResultManagementPageState
     final state = ref.watch(resultManagementProvider);
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Result Management',
       ),
       body: state.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : _buildBody(context, state),
     );
   }
@@ -104,7 +104,7 @@ class _ResultManagementPageState
   // ─── Status Section ────────────────────────────────────────────────
 
   Widget _buildStatusSection(
-      BuildContext context, ResultManagementState state) {
+      BuildContext context, ResultManagementState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -190,7 +190,7 @@ class _ResultManagementPageState
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(isDark ? 0.20 : 0.12),
+                  color: color.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(icon, size: Spacings.mdIcon, color: color),
@@ -229,7 +229,7 @@ class _ResultManagementPageState
   // ─── Actions Section ───────────────────────────────────────────────
 
   Widget _buildActionsSection(
-      BuildContext context, ResultManagementState state) {
+      BuildContext context, ResultManagementState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -304,7 +304,7 @@ class _ResultManagementPageState
   // ─── Activity Log ──────────────────────────────────────────────────
 
   Widget _buildActivityLog(
-      BuildContext context, ResultManagementState state) {
+      BuildContext context, ResultManagementState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final lockStatus = state.lockStatus;
@@ -327,7 +327,7 @@ class _ResultManagementPageState
         color: lockStatus.isLocked
             ? AppColors.warningOf(cs.brightness)
             : AppColors.successOf(cs.brightness),
-      ));
+      ),);
     }
 
     return Column(
@@ -336,7 +336,7 @@ class _ResultManagementPageState
         Row(
           children: [
             Icon(Icons.history_rounded,
-                color: cs.primary, size: Spacings.mdIcon),
+                color: cs.primary, size: Spacings.mdIcon,),
             const SizedBox(width: Spacings.sm),
             Text(
               'Activity Log',
@@ -351,8 +351,8 @@ class _ResultManagementPageState
         AppCard(
           padding: EdgeInsets.zero,
           child: events.isEmpty
-              ? Padding(
-                  padding: const EdgeInsets.all(Spacings.xxl),
+              ? const Padding(
+                  padding: EdgeInsets.all(Spacings.xxl),
                   child: AppEmptyState(
                     icon: Icons.history_rounded,
                     title: 'No Activity',
@@ -384,11 +384,11 @@ class _ResultManagementPageState
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
               color:
-                  event.color.withOpacity(isDark ? 0.20 : 0.12),
+                  event.color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(event.icon,
-                size: Spacings.mdIcon, color: event.color),
+                size: Spacings.mdIcon, color: event.color,),
           ),
           const SizedBox(width: Spacings.md),
           Expanded(
@@ -427,7 +427,7 @@ class _ResultManagementPageState
   // ─── Actions ───────────────────────────────────────────────────────
 
   Future<void> _toggleLock(
-      BuildContext context, ResultManagementState state) async {
+      BuildContext context, ResultManagementState state,) async {
     if (state.isResultLocked) {
       // Unlock
       final confirmed = await AppDialog.showConfirm(
@@ -453,7 +453,7 @@ class _ResultManagementPageState
                         lockedAt: DateTime(1970),
                         isLocked: false,
                         createdAt: DateTime(1970),
-                      )),
+                      ),),
             );
       }
     } else {
@@ -506,7 +506,7 @@ class _ResultManagementPageState
     if (confirmed == true) {
       ref.read(resultManagementProvider.notifier).withholdResults(
             widget.examId,
-            withholdRemote: (_) async => Success(null),
+            withholdRemote: (_) async => const Success(null),
           );
     }
   }
@@ -541,13 +541,13 @@ class _ResultManagementPageState
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.error_outline_rounded,
-                color: AppColors.errorOf(cs.brightness)),
+                color: AppColors.errorOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -585,13 +585,13 @@ class _ResultManagementPageState
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.check_circle_rounded,
-                color: AppColors.successOf(cs.brightness)),
+                color: AppColors.successOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -668,7 +668,7 @@ class _ActionTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: iconColor.withOpacity(isDark ? 0.20 : 0.12),
+                color: iconColor.withValues(alpha: isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: isLoading

@@ -3,13 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_guards.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 /// Dashboard redirector that navigates the user to the correct
 /// role-specific dashboard based on their stored role.
@@ -54,7 +54,7 @@ class _DashboardRedirectorState extends ConsumerState<DashboardRedirector> {
                   padding: const EdgeInsets.all(Spacings.lg),
                   decoration: BoxDecoration(
                     color: AppColors.errorOf(
-                        context.colorScheme.brightness).withOpacity(0.1),
+                        context.colorScheme.brightness,).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(

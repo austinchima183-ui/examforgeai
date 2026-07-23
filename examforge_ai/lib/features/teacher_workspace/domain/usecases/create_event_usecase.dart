@@ -18,7 +18,7 @@ class CreateEventUseCase {
       return const FailureResult(Failure.validation(
         message: 'Event title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     if (params.event.endTime.isBefore(params.event.startTime) ||
         params.event.endTime.isAtSameMomentAs(params.event.startTime)) {
@@ -27,7 +27,7 @@ class CreateEventUseCase {
         fieldErrors: {
           'endTime': 'End time must be after start time',
         },
-      ));
+      ),);
     }
     return _repository.createEvent(params.event);
   }

@@ -4,7 +4,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/offline_entities.dart';
 import '../../domain/repositories/offline_repository.dart';
-import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 
 /// Parameters for [StartDownloadUseCase].
@@ -34,28 +33,28 @@ class StartDownloadUseCase {
 
   Future<Result<FileDownload>> call(StartDownloadParams params) async {
     if (params.userId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'User ID cannot be empty'),
       );
     }
     if (params.resourceType.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Resource type cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Resource type cannot be empty'),
       );
     }
     if (params.resourceId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Resource ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Resource ID cannot be empty'),
       );
     }
     if (params.fileUrl.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'File URL cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'File URL cannot be empty'),
       );
     }
     if (params.fileName.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'File name cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'File name cannot be empty'),
       );
     }
 

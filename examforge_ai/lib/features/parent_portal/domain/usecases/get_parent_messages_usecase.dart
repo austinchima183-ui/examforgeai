@@ -43,7 +43,7 @@ class GetParentMessagesUseCase {
       return const FailureResult(Failure.validation(
         message: 'Page must be greater than or equal to 1',
         fieldErrors: {'page': 'Page must be >= 1'},
-      ));
+      ),);
     }
     return _repository.getMessages({
       'threadId': params.threadId,

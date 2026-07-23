@@ -126,7 +126,7 @@ class GoalsNotifier extends StateNotifier<GoalsState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getGoals(
-      studentId: _studentId!,
+      studentId: _studentId,
       status: state.filterStatus,
     );
 
@@ -166,7 +166,7 @@ class GoalsNotifier extends StateNotifier<GoalsState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _createGoal(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       subjectId: subjectId,
       title: title,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/utils/result.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
@@ -14,7 +14,6 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
-import '../../../../../features/results/domain/entities/results_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -87,7 +86,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
       ),
       body: dashState.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : _buildBody(context, dashState, performance),
     );
   }
@@ -124,7 +123,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
                 _buildStatisticsSection(context, performance),
                 const SizedBox(height: Spacings.xl),
               ] else ...[
-                AppEmptyState(
+                const AppEmptyState(
                   icon: Icons.bar_chart_rounded,
                   title: 'No Performance Data',
                   subtitle:
@@ -153,7 +152,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
   // ─── Publish Toggle ────────────────────────────────────────────────
 
   Widget _buildPublishToggle(
-      BuildContext context, ResultManagementState mgmtState) {
+      BuildContext context, ResultManagementState mgmtState,) {
     final cs = context.colorScheme;
 
     return FilledButton.tonalIcon(
@@ -170,13 +169,13 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
       ),
       style: FilledButton.styleFrom(
         backgroundColor: _isPublished
-            ? AppColors.warningOf(cs.brightness).withOpacity(0.15)
+            ? AppColors.warningOf(cs.brightness).withValues(alpha: 0.15)
             : cs.primaryContainer,
         foregroundColor: _isPublished
             ? AppColors.warningOf(cs.brightness)
             : cs.onPrimaryContainer,
         padding: const EdgeInsets.symmetric(
-            horizontal: Spacings.lg, vertical: Spacings.sm),
+            horizontal: Spacings.lg, vertical: Spacings.sm,),
         minimumSize: const Size(0, 36),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
@@ -188,7 +187,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
   // ─── Statistics Section ────────────────────────────────────────────
 
   Widget _buildStatisticsSection(
-      BuildContext context, ClassPerformanceEntity perf) {
+      BuildContext context, ClassPerformanceEntity perf,) {
     return LayoutBuilder(
       builder: (context, constraints) {
         final crossCount = constraints.maxWidth > 800 ? 4 : 2;
@@ -250,7 +249,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         SizedBox(
           width: 220,
           child: DropdownButtonFormField<String>(
-            value: _selectedSubjectId,
+            initialValue: _selectedSubjectId,
             decoration: InputDecoration(
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
@@ -286,7 +285,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
   // ─── Student Rankings Table ────────────────────────────────────────
 
   Widget _buildStudentRankings(
-      BuildContext context, ClassPerformanceEntity? perf) {
+      BuildContext context, ClassPerformanceEntity? perf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -305,7 +304,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
             child: Row(
               children: [
                 Icon(Icons.leaderboard_rounded,
-                    color: cs.primary, size: Spacings.mdIcon),
+                    color: cs.primary, size: Spacings.mdIcon,),
                 const SizedBox(width: Spacings.sm),
                 Text(
                   'Student Rankings',
@@ -348,8 +347,8 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
 
           // Student rows (placeholder)
           if (students.isEmpty)
-            Padding(
-              padding: const EdgeInsets.all(Spacings.xxl),
+            const Padding(
+              padding: EdgeInsets.all(Spacings.xxl),
               child: AppEmptyState(
                 icon: Icons.people_outline_rounded,
                 title: 'No Student Data',
@@ -393,7 +392,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: cs.outlineVariant.withOpacity(0.3),
+              color: cs.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
         ),
@@ -439,7 +438,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10),
+                  color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -477,7 +476,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -494,7 +493,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
   // ─── Subject Comparison Chart Placeholder ──────────────────────────
 
   Widget _buildSubjectComparisonChart(
-      BuildContext context, ClassPerformanceEntity? perf) {
+      BuildContext context, ClassPerformanceEntity? perf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -505,7 +504,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
           Row(
             children: [
               Icon(Icons.compare_rounded,
-                  color: cs.primary, size: Spacings.mdIcon),
+                  color: cs.primary, size: Spacings.mdIcon,),
               const SizedBox(width: Spacings.sm),
               Text(
                 'Subject Comparison',
@@ -522,10 +521,10 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
             height: 200,
             width: double.infinity,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withOpacity(0.5),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
                 strokeAlign: BorderSide.strokeAlignOutside,
               ),
             ),
@@ -535,7 +534,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
                 children: [
                   Icon(Icons.bar_chart_rounded,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withOpacity(0.5)),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),),
                   const SizedBox(height: Spacings.sm),
                   Text(
                     'Subject comparison chart will render here',
@@ -585,13 +584,13 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.error_outline_rounded,
-                color: AppColors.errorOf(cs.brightness)),
+                color: AppColors.errorOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -632,13 +631,13 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.check_circle_rounded,
-                color: AppColors.successOf(cs.brightness)),
+                color: AppColors.successOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -658,7 +657,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
   // ─── Actions ───────────────────────────────────────────────────────
 
   Future<void> _togglePublishResults(
-      BuildContext context, ResultManagementState mgmtState) async {
+      BuildContext context, ResultManagementState mgmtState,) async {
     if (_isPublished) {
       // Withhold
       final confirmed = await AppDialog.showConfirm(
@@ -673,7 +672,7 @@ class _ClassResultsPageState extends ConsumerState<ClassResultsPage> {
       if (confirmed == true) {
         ref.read(resultManagementProvider.notifier).withholdResults(
               widget.classId,
-              withholdRemote: (_) async => Success(null),
+              withholdRemote: (_) async => const Success(null),
             );
         setState(() => _isPublished = false);
       }

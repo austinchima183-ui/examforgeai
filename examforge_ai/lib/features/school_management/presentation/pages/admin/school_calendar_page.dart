@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
@@ -33,7 +31,7 @@ class SchoolCalendarPage extends ConsumerStatefulWidget {
 
 class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
   DateTime _focusedMonth = DateTime.now();
-  Set<CalendarEventType> _selectedEventTypes = {};
+  final Set<CalendarEventType> _selectedEventTypes = {};
 
   @override
   void initState() {
@@ -228,7 +226,7 @@ class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
                   }
                 });
               },
-              selectedColor: color.withOpacity(0.12),
+              selectedColor: color.withValues(alpha: 0.12),
               checkmarkColor: color,
               labelStyle: TextStyle(
                 color: isSelected ? color : cs.onSurfaceVariant,
@@ -273,7 +271,7 @@ class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
                           ),
                         ),
                       ),
-                    ))
+                    ),)
                 .toList(),
           ),
           const SizedBox(height: Spacings.sm),
@@ -306,7 +304,7 @@ class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
                   child: Container(
                     decoration: BoxDecoration(
                       color: isToday
-                          ? cs.primary.withOpacity(isDark ? 0.20 : 0.08)
+                          ? cs.primary.withValues(alpha: isDark ? 0.20 : 0.08)
                           : null,
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
@@ -331,12 +329,12 @@ class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
                                       width: 6,
                                       height: 6,
                                       margin: const EdgeInsets.symmetric(
-                                          horizontal: 1),
+                                          horizontal: 1,),
                                       decoration: BoxDecoration(
                                         color: _eventTypeColor(e.eventType),
                                         shape: BoxShape.circle,
                                       ),
-                                    ))
+                                    ),)
                                 .toList(),
                           ),
                         ],
@@ -428,7 +426,7 @@ class _SchoolCalendarPageState extends ConsumerState<SchoolCalendarPage> {
                         Navigator.pop(ctx);
                         _showEventDetailDialog(context, event);
                       },
-                    ))
+                    ),)
                 .toList(),
           ),
         ),
@@ -741,7 +739,7 @@ class _EventListItem extends StatelessWidget {
       trailing: Container(
         padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
         decoration: BoxDecoration(
-          color: eventColor.withOpacity(isDark ? 0.20 : 0.12),
+          color: eventColor.withValues(alpha: isDark ? 0.20 : 0.12),
           borderRadius: BorderRadius.circular(Spacings.fullRadius),
         ),
         child: Text(

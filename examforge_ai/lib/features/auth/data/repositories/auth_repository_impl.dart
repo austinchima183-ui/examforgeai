@@ -6,7 +6,6 @@ import '../../../../services/storage_service.dart';
 import '../../domain/entities/user_entity.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
-import '../models/user_model.dart';
 
 /// Concrete implementation of [AuthRepository] that coordinates
 /// between the remote data source and local storage.
@@ -51,13 +50,13 @@ class AuthRepositoryImpl implements AuthRepository {
       return FailureResult(Failure.auth(
         message: e.message,
         code: e.code,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on CacheException catch (e) {
@@ -67,7 +66,7 @@ class AuthRepositoryImpl implements AuthRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -99,13 +98,13 @@ class AuthRepositoryImpl implements AuthRepository {
       return FailureResult(Failure.auth(
         message: e.message,
         code: e.code,
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on CacheException catch (e) {
@@ -115,7 +114,7 @@ class AuthRepositoryImpl implements AuthRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -130,16 +129,16 @@ class AuthRepositoryImpl implements AuthRepository {
       return FailureResult(Failure.auth(
         message: e.message,
         code: e.code,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected forgot-password error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -160,16 +159,16 @@ class AuthRepositoryImpl implements AuthRepository {
       return FailureResult(Failure.auth(
         message: e.message,
         code: e.code,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected reset-password error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -184,14 +183,14 @@ class AuthRepositoryImpl implements AuthRepository {
       return FailureResult(Failure.auth(
         message: e.message,
         code: e.code,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected verify-email error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -206,16 +205,16 @@ class AuthRepositoryImpl implements AuthRepository {
       return FailureResult(Failure.auth(
         message: e.message,
         code: e.code,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected resend-verification error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -248,11 +247,11 @@ class AuthRepositoryImpl implements AuthRepository {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected get-current-user error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -288,7 +287,7 @@ class AuthRepositoryImpl implements AuthRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred during logout.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 

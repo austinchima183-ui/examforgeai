@@ -3116,7 +3116,7 @@ class SchoolManagementRemoteDataSourceImpl
             .eq('id', documentId);
       } catch (fallbackError) {
         AppLogger.error('Fallback increment download count failed', error: fallbackError);
-        throw ServerException(
+        throw const ServerException(
           message: 'Failed to increment download count',
           statusCode: 500,
         );
@@ -3276,7 +3276,7 @@ class SchoolManagementRemoteDataSourceImpl
         'class_id': classId,
         'student_id': studentId,
         'is_active': true,
-      }).toList();
+      },).toList();
 
       await _supabaseClient
           .from(_classStudentsTable)
@@ -3653,7 +3653,7 @@ class SchoolManagementRemoteDataSourceImpl
       final records = await query.limit(PaginatedQueryMixin.statsPageSize);
 
       // Aggregate attendance data
-      int totalRecords = records.length;
+      final int totalRecords = records.length;
       int totalPresent = 0;
       int totalAbsent = 0;
       int totalLate = 0;

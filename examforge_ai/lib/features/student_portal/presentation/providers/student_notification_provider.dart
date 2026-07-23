@@ -116,7 +116,7 @@ class StudentNotificationNotifier
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getNotifications(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: 1,
       pageSize: _pageSize,
     );
@@ -155,7 +155,7 @@ class StudentNotificationNotifier
     final nextPage = state.currentPage + 1;
 
     final result = await _getNotifications(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: nextPage,
       pageSize: _pageSize,
     );
@@ -245,7 +245,7 @@ class StudentNotificationNotifier
     );
 
     final result = await _markAllNotificationsRead(
-      studentId: _studentId!,
+      studentId: _studentId,
     );
 
     result.fold(

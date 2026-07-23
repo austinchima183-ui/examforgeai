@@ -31,7 +31,7 @@ class DeleteTaskUseCase {
       return const FailureResult(Failure.validation(
         message: 'Task ID is required',
         fieldErrors: {'taskId': 'Task ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.deleteTask(params.taskId);
   }

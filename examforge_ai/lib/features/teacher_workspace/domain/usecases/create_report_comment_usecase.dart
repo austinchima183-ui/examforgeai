@@ -20,7 +20,7 @@ class CreateReportCommentUseCase {
       return const FailureResult(Failure.validation(
         message: 'Comment text is required',
         fieldErrors: {'commentText': 'Comment text cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createReportComment(params.comment);
   }

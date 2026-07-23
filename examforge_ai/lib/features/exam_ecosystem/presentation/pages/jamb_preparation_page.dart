@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/exam_ecosystem_entities.dart';
 import '../providers/exam_ecosystem_provider.dart';
@@ -139,8 +139,8 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
           Container(
             width: double.infinity,
             padding: Spacings.paddingCard,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
                 colors: [Color(0xFF1E40AF), Color(0xFF3B82F6)],
               ),
               borderRadius: Spacings.borderRadiusLg,
@@ -153,7 +153,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                     Container(
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         borderRadius: Spacings.borderRadiusMd,
                       ),
                       child: const Icon(
@@ -177,7 +177,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                           Text(
                             'Unified Tertiary Matriculation Examination',
                             style: tt.bodySmall?.copyWith(
-                              color: Colors.white.withOpacity(0.8),
+                              color: Colors.white.withValues(alpha: 0.8),
                             ),
                           ),
                         ],
@@ -186,7 +186,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                   ],
                 ),
                 const SizedBox(height: Spacings.md),
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceAround,
                   children: [
                     _JambStat(label: 'Duration', value: '2 hrs'),
@@ -258,7 +258,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                 leading: const Icon(Icons.lightbulb_outline_rounded, size: 18),
                 title: Text(tip, style: tt.bodySmall),
                 contentPadding: EdgeInsets.zero,
-              )),
+              ),),
         ],
       ),
     );
@@ -454,7 +454,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                       vertical: 2,
                     ),
                     decoration: BoxDecoration(
-                      color: combo.color.withOpacity(0.1),
+                      color: combo.color.withValues(alpha: 0.1),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
@@ -563,7 +563,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
           ),
           const SizedBox(height: Spacings.sm),
           if (jambExams.isEmpty)
-            AppEmptyState(
+            const AppEmptyState(
               icon: Icons.quiz_outlined,
               title: 'No JAMB Mocks',
               subtitle: 'JAMB mock exams will appear here when available.',
@@ -574,7 +574,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor:
-                          AppColors.info.withOpacity(0.1),
+                          AppColors.info.withValues(alpha: 0.1),
                       child: const Icon(
                         Icons.assignment_rounded,
                         color: AppColors.info,
@@ -594,7 +594,7 @@ class _JambPreparationPageState extends ConsumerState<JambPreparationPage>
                         ? () {/* Navigate to exam */ }
                         : null,
                   ),
-                )),
+                ),),
         ],
       ),
     );
@@ -622,7 +622,7 @@ class _JambStat extends StatelessWidget {
         Text(
           label,
           style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
         ),
       ],
@@ -648,7 +648,7 @@ class _PracticeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withOpacity(0.08),
+      color: color.withValues(alpha: 0.08),
       borderRadius: Spacings.borderRadiusMd,
       child: InkWell(
         onTap: onTap,

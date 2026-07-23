@@ -7,5 +7,5 @@
 /// ```
 library;
 
-export 'university_card.dart';
 export 'eligibility_result_card.dart';
+export 'university_card.dart';

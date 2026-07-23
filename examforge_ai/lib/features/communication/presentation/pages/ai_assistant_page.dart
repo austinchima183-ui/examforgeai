@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
@@ -78,7 +76,7 @@ class _State extends ConsumerState<AiAssistantPage> {
     final state = ref.watch(aiAssistantProvider);
 
     return Scaffold(
-      appBar: AppAppBar(title: 'AI Assistant'),
+      appBar: const AppAppBar(title: 'AI Assistant'),
       body: Column(
         children: [
           Expanded(
@@ -235,7 +233,7 @@ class _State extends ConsumerState<AiAssistantPage> {
         if (['rewrite', 'tone_adjust', 'draft_announcement', 'suggest_reply'].contains(_selectedTool))
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _selectedTone,
+              initialValue: _selectedTone,
               decoration: const InputDecoration(
                 labelText: 'Tone',
                 border: OutlineInputBorder(),
@@ -248,7 +246,7 @@ class _State extends ConsumerState<AiAssistantPage> {
         if (_selectedTool == 'translate') ...[
           Expanded(
             child: DropdownButtonFormField<String>(
-              value: _selectedLanguage,
+              initialValue: _selectedLanguage,
               decoration: const InputDecoration(
                 labelText: 'Target Language',
                 border: OutlineInputBorder(),
@@ -295,9 +293,9 @@ class _State extends ConsumerState<AiAssistantPage> {
           width: double.infinity,
           padding: const EdgeInsets.all(Spacings.lg),
           decoration: BoxDecoration(
-            color: cs.primaryContainer.withOpacity(0.1),
+            color: cs.primaryContainer.withValues(alpha: 0.1),
             borderRadius: Spacings.borderRadiusMd,
-            border: Border.all(color: cs.primary.withOpacity(0.2)),
+            border: Border.all(color: cs.primary.withValues(alpha: 0.2)),
           ),
           child: SelectableText(
             response.content,
@@ -317,7 +315,7 @@ class _State extends ConsumerState<AiAssistantPage> {
                 Expanded(child: Text(s, style: tt.bodySmall?.copyWith(color: cs.onSurfaceVariant))),
               ],
             ),
-          )),
+          ),),
         ],
         const SizedBox(height: Spacings.md),
         SizedBox(
@@ -359,7 +357,7 @@ class _State extends ConsumerState<AiAssistantPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
-                        decoration: BoxDecoration(color: cs.primaryContainer.withOpacity(0.3), borderRadius: Spacings.borderRadiusSm),
+                        decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.3), borderRadius: Spacings.borderRadiusSm),
                         child: Text(toolLabel, style: tt.labelSmall?.copyWith(color: cs.primary, fontWeight: AppTypography.wMedium)),
                       ),
                       const Spacer(),

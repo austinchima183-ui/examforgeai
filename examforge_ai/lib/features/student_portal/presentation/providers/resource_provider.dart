@@ -150,7 +150,7 @@ class ResourceNotifier extends StateNotifier<ResourceState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getResources(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       page: 1,
       pageSize: _pageSize,
@@ -191,7 +191,7 @@ class ResourceNotifier extends StateNotifier<ResourceState> {
     final nextPage = state.currentPage + 1;
 
     final result = await _getResources(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       page: nextPage,
       pageSize: _pageSize,
@@ -291,7 +291,7 @@ class ResourceNotifier extends StateNotifier<ResourceState> {
 
     final result = await _logResourceAccess(
       resourceId: resourceId,
-      studentId: _studentId!,
+      studentId: _studentId,
       accessType: accessType,
     );
 

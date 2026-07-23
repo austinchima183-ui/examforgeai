@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
@@ -392,7 +392,7 @@ class _SessionCard extends ConsumerWidget {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.success
-                          .withOpacity(isDark ? 0.20 : 0.12),
+                          .withValues(alpha: isDark ? 0.20 : 0.12),
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
                     child: Text(
@@ -457,7 +457,7 @@ class _SessionCard extends ConsumerWidget {
                 ),
                 if (!isCurrent)
                   IconButton(
-                    icon: Icon(
+                    icon: const Icon(
                       Icons.check_circle_outline,
                       size: Spacings.mdIcon,
                       color: AppColors.success,
@@ -564,7 +564,7 @@ class _TermsList extends ConsumerWidget {
                 term: term,
                 onSetCurrent: () =>
                     ref.read(termListProvider.notifier).setCurrentTerm(term.id),
-              )),
+              ),),
       ],
     );
   }
@@ -600,8 +600,8 @@ class _TermItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           border: Border.all(
             color: term.isCurrent
-                ? cs.primary.withOpacity(0.5)
-                : cs.outlineVariant.withOpacity(0.3),
+                ? cs.primary.withValues(alpha: 0.5)
+                : cs.outlineVariant.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -638,7 +638,7 @@ class _TermItem extends StatelessWidget {
                           ),
                           decoration: BoxDecoration(
                             color: AppColors.success
-                                .withOpacity(isDark ? 0.20 : 0.12),
+                                .withValues(alpha: isDark ? 0.20 : 0.12),
                             borderRadius:
                                 BorderRadius.circular(Spacings.fullRadius),
                           ),
@@ -664,7 +664,7 @@ class _TermItem extends StatelessWidget {
             ),
             if (!term.isCurrent && onSetCurrent != null)
               IconButton(
-                icon: Icon(
+                icon: const Icon(
                   Icons.check_circle_outline,
                   size: Spacings.mdIcon,
                   color: AppColors.success,

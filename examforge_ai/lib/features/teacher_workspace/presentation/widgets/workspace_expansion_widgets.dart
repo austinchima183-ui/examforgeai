@@ -7,10 +7,10 @@
 /// ```
 library;
 
-export 'presentation_type_selector.dart';
-export 'communication_type_selector.dart';
-export 'rubric_table.dart';
-export 'task_card.dart';
-export 'share_resource_dialog.dart';
 export 'comments_section.dart';
+export 'communication_type_selector.dart';
+export 'presentation_type_selector.dart';
+export 'rubric_table.dart';
+export 'share_resource_dialog.dart';
+export 'task_card.dart';
 export 'teaching_stats_card.dart';

@@ -87,10 +87,10 @@ class QualityScoreIndicator extends StatelessWidget {
             vertical: 2,
           ),
           decoration: BoxDecoration(
-            color: color.withOpacity(isDark ? 0.20 : 0.12),
+            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
             borderRadius: Spacings.borderRadiusSm,
             border: Border.all(
-              color: color.withOpacity(0.25),
+              color: color.withValues(alpha: 0.25),
               width: 1,
             ),
           ),
@@ -134,7 +134,7 @@ class QualityScoreIndicator extends StatelessWidget {
                 size: _starSize(),
                 color: isFilled
                     ? color
-                    : cs.outlineVariant.withOpacity(0.4),
+                    : cs.outlineVariant.withValues(alpha: 0.4),
               ),
             );
           }),

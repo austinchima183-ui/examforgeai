@@ -1,22 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
-import '../../../../../shared/widgets/app_stat_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
 import '../../../../question_bank/presentation/widgets/difficulty_badge.dart';
+import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../providers/exam_list_provider.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
 
 
 
@@ -39,10 +36,10 @@ class ExamDetailPage extends ConsumerWidget {
     final exam = state.exams.where((e) => e.id == examId).firstOrNull;
 
     if (exam == null && state.isLoading) {
-      return Scaffold(
-        appBar: const AppAppBar(title: 'Exam Details'),
-        body: const Center(
-            child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large)),
+      return const Scaffold(
+        appBar: AppAppBar(title: 'Exam Details'),
+        body: Center(
+            child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),),
       );
     }
 
@@ -193,7 +190,7 @@ class ExamDetailPage extends ConsumerWidget {
                   vertical: Spacings.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(context.isDarkMode ? 0.25 : 0.12),
+                  color: statusColor.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -226,7 +223,7 @@ class ExamDetailPage extends ConsumerWidget {
               _infoItem(context, Icons.check_circle_rounded, 'Pass Mark',
                   exam.passMarkType == 'percentage'
                       ? '${exam.passMark}%'
-                      : '${exam.passMark.toInt()}'),
+                      : '${exam.passMark.toInt()}',),
             ],
           ),
         ],
@@ -311,7 +308,7 @@ class ExamDetailPage extends ConsumerWidget {
         ),
         const SizedBox(height: Spacings.md),
         if (exam.questions.isEmpty)
-          AppEmptyState(
+          const AppEmptyState(
             icon: Icons.quiz_outlined,
             title: 'No Questions',
             subtitle: 'This exam has no questions added yet.',
@@ -328,7 +325,7 @@ class ExamDetailPage extends ConsumerWidget {
                       width: 32,
                       height: 32,
                       decoration: BoxDecoration(
-                        color: cs.primary.withOpacity(0.1),
+                        color: cs.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Center(
@@ -357,7 +354,7 @@ class ExamDetailPage extends ConsumerWidget {
                             Text(
                               'Question ${eq.sortOrder}',
                               style: tt.bodyMedium?.copyWith(
-                                  color: cs.onSurfaceVariant),
+                                  color: cs.onSurfaceVariant,),
                             ),
                           const SizedBox(height: Spacings.xs),
                           Row(

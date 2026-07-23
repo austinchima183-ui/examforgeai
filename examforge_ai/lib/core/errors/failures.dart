@@ -5,6 +5,7 @@
 ///
 /// This design provides the same API as a Freezed-generated union
 /// without requiring build_runner.
+library;
 
 sealed class Failure {
   const Failure();

@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../../domain/repositories/marketplace_repository.dart';
-import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
 
 
 class GetCommissionRecordsParams {
@@ -22,7 +21,7 @@ class GetCommissionRecordsUseCase {
 
   Future<Result<List<CommissionRecordEntity>>> call(GetCommissionRecordsParams params) async {
     if (params.sellerId.isEmpty) {
-      return FailureResult(Failure.validation(fieldErrors: const {}, message: 'Seller ID is required'));
+      return const FailureResult(Failure.validation(fieldErrors: {}, message: 'Seller ID is required'));
     }
     return _repository.getCommissionRecords(
       params.sellerId,

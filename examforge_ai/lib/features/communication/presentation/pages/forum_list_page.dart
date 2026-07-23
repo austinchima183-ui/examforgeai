@@ -187,7 +187,7 @@ class _State extends ConsumerState<ForumListPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+        shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
         child: InkWell(
           onTap: () {/* TODO: navigate to forum detail */},
           borderRadius: Spacings.borderRadiusMd,
@@ -202,7 +202,7 @@ class _State extends ConsumerState<ForumListPage> {
                     // Avatar
                     CircleAvatar(
                       radius: 20,
-                      backgroundColor: typeColor.withOpacity(0.12),
+                      backgroundColor: typeColor.withValues(alpha: 0.12),
                       child: Icon(_forumTypeIcon(forum.forumType), color: typeColor, size: Spacings.mdIcon),
                     ),
                     const SizedBox(width: Spacings.md),
@@ -224,7 +224,7 @@ class _State extends ConsumerState<ForumListPage> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
                             decoration: BoxDecoration(
-                              color: typeColor.withOpacity(0.12),
+                              color: typeColor.withValues(alpha: 0.12),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             child: Text(
@@ -286,25 +286,25 @@ class _State extends ConsumerState<ForumListPage> {
         child: Padding(
           padding: const EdgeInsets.all(Spacings.lg),
           child: Column(
-            children: List.generate(5, (_) => Padding(
-              padding: const EdgeInsets.only(bottom: Spacings.lg),
+            children: List.generate(5, (_) => const Padding(
+              padding: EdgeInsets.only(bottom: Spacings.lg),
               child: Row(
                 children: [
                   AppLoadingShimmer.box(width: 40, height: 40, shape: BoxShape.circle),
-                  const SizedBox(width: Spacings.md),
+                  SizedBox(width: Spacings.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AppLoadingShimmer.box(width: 180, height: 14, borderRadius: Spacings.borderRadiusSm),
-                        const SizedBox(height: Spacings.sm),
+                        SizedBox(height: Spacings.sm),
                         AppLoadingShimmer.box(height: 12, borderRadius: Spacings.borderRadiusSm),
                       ],
                     ),
                   ),
                 ],
               ),
-            )),
+            ),),
           ),
         ),
       ),

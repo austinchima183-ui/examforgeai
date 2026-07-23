@@ -4,7 +4,6 @@ import 'dart:io';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../core/errors/exceptions.dart';
 import '../core/utils/logger.dart';
 import 'storage_service.dart';
 
@@ -257,7 +256,7 @@ class NotificationService {
   Future<void> subscribeToTopic(String topic) async {
     if (!_initialized) {
       AppLogger.warning(
-          'NotificationService not initialized; cannot subscribe to topic.');
+          'NotificationService not initialized; cannot subscribe to topic.',);
       return;
     }
 
@@ -275,7 +274,7 @@ class NotificationService {
   Future<void> unsubscribeFromTopic(String topic) async {
     if (!_initialized) {
       AppLogger.warning(
-          'NotificationService not initialized; cannot unsubscribe from topic.');
+          'NotificationService not initialized; cannot unsubscribe from topic.',);
       return;
     }
 
@@ -516,13 +515,13 @@ class NotificationService {
             await _messaging.subscribeToTopic(trimmed);
           } catch (e) {
             AppLogger.warning(
-                'Failed to re-subscribe to topic: $trimmed', error: e);
+                'Failed to re-subscribe to topic: $trimmed', error: e,);
           }
         }
       }
 
       AppLogger.info(
-          'Restored ${_subscribedTopics.length} topic subscriptions');
+          'Restored ${_subscribedTopics.length} topic subscriptions',);
     } catch (e) {
       AppLogger.error('Failed to restore subscribed topics', error: e);
     }

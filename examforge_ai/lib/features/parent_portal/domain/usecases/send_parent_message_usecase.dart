@@ -44,19 +44,19 @@ class SendParentMessageUseCase {
       return const FailureResult(Failure.validation(
         message: 'Recipient ID is required',
         fieldErrors: {'recipientId': 'Recipient ID cannot be empty'},
-      ));
+      ),);
     }
     if (params.subject.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Subject is required',
         fieldErrors: {'subject': 'Subject cannot be empty'},
-      ));
+      ),);
     }
     if (params.body.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Message body is required',
         fieldErrors: {'body': 'Message body cannot be empty'},
-      ));
+      ),);
     }
     return _repository.sendMessage({
       'recipientId': params.recipientId,

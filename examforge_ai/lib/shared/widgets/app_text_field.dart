@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import '../../core/themes/spacings.dart';
 import '../../core/extensions/context_extensions.dart';
+import '../../core/themes/spacings.dart';
 
 // ─── AppTextField ─────────────────────────────────────────────────────────────
 
@@ -456,7 +456,7 @@ class AppDropdownField<T> extends StatelessWidget {
     final effectiveLabel = isRequired && label != null ? '$label *' : label;
 
     return DropdownButtonFormField<T>(
-      value: selectedItem,
+      initialValue: selectedItem,
       items: itemBuilder != null
           ? items.map(itemBuilder!).toList()
           : items
@@ -466,7 +466,7 @@ class AppDropdownField<T> extends StatelessWidget {
                       itemLabel(item),
                       style: tt.bodyLarge?.copyWith(color: cs.onSurface),
                     ),
-                  ))
+                  ),)
               .toList(),
       onChanged: isEnabled ? onChanged : null,
       validator: validator,

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/exam_ecosystem_entities.dart';
 import '../providers/exam_ecosystem_provider.dart';
@@ -112,11 +112,11 @@ class _ReadinessDashboardPageState
                                       _selectedExamBodyId == body.id,
                                   onSelected: () {
                                     setState(() =>
-                                        _selectedExamBodyId = body.id);
+                                        _selectedExamBodyId = body.id,);
                                     ref
                                         .read(readinessProvider.notifier)
                                         .loadReadiness(
-                                            examBodyId: body.id);
+                                            examBodyId: body.id,);
                                   },
                                 ),
                               ),
@@ -169,11 +169,11 @@ class _ReadinessDashboardPageState
                           width: double.infinity,
                           padding: Spacings.paddingCard,
                           decoration: BoxDecoration(
-                            color: AppColors.errorLight.withOpacity(0.3,
+                            color: AppColors.errorLight.withValues(alpha: 0.3,
                             ),
                             borderRadius: Spacings.borderRadiusMd,
                             border: Border.all(
-                              color: AppColors.error.withOpacity(0.2),
+                              color: AppColors.error.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Wrap(
@@ -212,12 +212,12 @@ class _ReadinessDashboardPageState
                           width: double.infinity,
                           padding: Spacings.paddingCard,
                           decoration: BoxDecoration(
-                            color: AppColors.successLight.withOpacity(0.3,
+                            color: AppColors.successLight.withValues(alpha: 0.3,
                             ),
                             borderRadius: Spacings.borderRadiusMd,
                             border: Border.all(
                               color:
-                                  AppColors.success.withOpacity(0.2),
+                                  AppColors.success.withValues(alpha: 0.2),
                             ),
                           ),
                           child: Wrap(
@@ -347,7 +347,7 @@ class _ReadinessDashboardPageState
                         decoration: BoxDecoration(
                           color: _readinessLevelColor(
                             assessment.readinessLevel,
-                          ).withOpacity(0.1),
+                          ).withValues(alpha: 0.1),
                           borderRadius: Spacings.borderRadiusFull,
                         ),
                         child: Text(

@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/customer_success_provider.dart';
-import 'onboarding_wizard_page.dart';
-import 'help_center_page.dart';
-import 'feedback_page.dart';
 import 'feature_requests_page.dart';
+import 'feedback_page.dart';
+import 'help_center_page.dart';
+import 'onboarding_wizard_page.dart';
 
 /// Main dashboard page for the Customer Success feature.
 ///
@@ -119,7 +120,7 @@ class _CustomerSuccessDashboardPageState extends ConsumerState<CustomerSuccessDa
               Icon(Icons.school_outlined, color: theme.colorScheme.primary),
               const SizedBox(width: 8),
               Text('Onboarding Progress', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-            ]),
+            ],),
             const SizedBox(height: 16),
             ClipRRect(
               borderRadius: BorderRadius.circular(8),

@@ -40,11 +40,11 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
   bool _isPastQuestion = false;
   final _pastYearCtrl = TextEditingController();
   String? _selectedExamBody;
-  bool _isAiGenerated = false;
+  final bool _isAiGenerated = false;
   bool _licensingDeclared = false;
 
   // MCQ Options
-  List<_OptionItem> _options = [
+  final List<_OptionItem> _options = [
     _OptionItem(label: 'A', text: '', isCorrect: true),
     _OptionItem(label: 'B', text: '', isCorrect: false),
     _OptionItem(label: 'C', text: '', isCorrect: false),
@@ -52,11 +52,11 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
   ];
 
   // Tags as chips
-  List<String> _tags = [];
+  final List<String> _tags = [];
   final _tagInputCtrl = TextEditingController();
 
   // Learning objectives
-  List<String> _learningObjectives = [];
+  final List<String> _learningObjectives = [];
   final _objectiveCtrl = TextEditingController();
 
   @override
@@ -104,7 +104,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
         title: widget.contentId != null ? 'Edit Content' : 'Create Content',
         actions: [
           TextButton(
-              onPressed: _saveDraft, child: const Text('Save Draft')),
+              onPressed: _saveDraft, child: const Text('Save Draft'),),
           const SizedBox(width: Spacings.sm),
           AppButton(
             label: 'Submit',
@@ -122,7 +122,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             TextField(
               controller: _titleCtrl,
               decoration: const InputDecoration(
-                  labelText: 'Title *', border: OutlineInputBorder()),
+                  labelText: 'Title *', border: OutlineInputBorder(),),
             ),
             Spacings.sectionGap,
 
@@ -131,13 +131,13 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<ContentType>(
-                    value: _contentType,
+                    initialValue: _contentType,
                     decoration: const InputDecoration(
                         labelText: 'Content Type *',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     items: ContentType.values
                         .map((t) => DropdownMenuItem(
-                            value: t, child: Text(t.label)))
+                            value: t, child: Text(t.label),),)
                         .toList(),
                     onChanged: (v) => setState(() => _contentType = v!),
                   ),
@@ -146,13 +146,13 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                   const SizedBox(width: Spacings.md),
                   Expanded(
                     child: DropdownButtonFormField<QuestionCategory>(
-                      value: _questionCategory,
+                      initialValue: _questionCategory,
                       decoration: const InputDecoration(
                           labelText: 'Question Category',
-                          border: OutlineInputBorder()),
+                          border: OutlineInputBorder(),),
                       items: QuestionCategory.values
                           .map((c) => DropdownMenuItem(
-                              value: c, child: Text(c.label)))
+                              value: c, child: Text(c.label),),)
                           .toList(),
                       onChanged: (v) =>
                           setState(() => _questionCategory = v!),
@@ -168,16 +168,16 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedSubjectId,
+                    initialValue: _selectedSubjectId,
                     decoration: const InputDecoration(
                         labelText: 'Subject *',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     items: [
                       const DropdownMenuItem(
-                          value: null, child: Text('Select')),
+                          value: null, child: Text('Select'),),
                       ...subjectState.subjects.map((s) =>
                           DropdownMenuItem(
-                              value: s.id, child: Text(s.name))),
+                              value: s.id, child: Text(s.name),),),
                     ],
                     onChanged: (v) =>
                         setState(() => _selectedSubjectId = v),
@@ -186,16 +186,16 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                 const SizedBox(width: Spacings.md),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedLevelId,
+                    initialValue: _selectedLevelId,
                     decoration: const InputDecoration(
                         labelText: 'Level *',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     items: [
                       const DropdownMenuItem(
-                          value: null, child: Text('Select')),
+                          value: null, child: Text('Select'),),
                       ...levelState.levels.map((l) =>
                           DropdownMenuItem(
-                              value: l.id, child: Text(l.name))),
+                              value: l.id, child: Text(l.name),),),
                     ],
                     onChanged: (v) =>
                         setState(() => _selectedLevelId = v),
@@ -205,15 +205,15 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             ),
             const SizedBox(height: Spacings.md),
             DropdownButtonFormField<String>(
-              value: _selectedTopicId,
+              initialValue: _selectedTopicId,
               decoration: const InputDecoration(
                   labelText: 'Topic/Subtopic',
-                  border: OutlineInputBorder()),
+                  border: OutlineInputBorder(),),
               items: [
                 const DropdownMenuItem(
-                    value: null, child: Text('Select')),
+                    value: null, child: Text('Select'),),
                 ...topicState.topics.map((t) => DropdownMenuItem(
-                    value: t.id, child: Text(t.title))),
+                    value: t.id, child: Text(t.title),),),
               ],
               onChanged: (v) => setState(() => _selectedTopicId = v),
             ),
@@ -224,13 +224,13 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               children: [
                 Expanded(
                   child: DropdownButtonFormField<DifficultyLevel>(
-                    value: _difficulty,
+                    initialValue: _difficulty,
                     decoration: const InputDecoration(
                         labelText: 'Difficulty *',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     items: DifficultyLevel.values
                         .map((d) => DropdownMenuItem(
-                            value: d, child: Text(d.label)))
+                            value: d, child: Text(d.label),),)
                         .toList(),
                     onChanged: (v) =>
                         setState(() => _difficulty = v!),
@@ -239,13 +239,13 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                 const SizedBox(width: Spacings.md),
                 Expanded(
                   child: DropdownButtonFormField<BloomTaxonomy>(
-                    value: _bloomLevel,
+                    initialValue: _bloomLevel,
                     decoration: const InputDecoration(
                         labelText: "Bloom's Level *",
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     items: BloomTaxonomy.values
                         .map((b) => DropdownMenuItem(
-                            value: b, child: Text(b.label)))
+                            value: b, child: Text(b.label),),)
                         .toList(),
                     onChanged: (v) =>
                         setState(() => _bloomLevel = v!),
@@ -257,7 +257,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             Text("Bloom's Taxonomy Multi-Select",
                 style: AppTypography.labelMedium!.copyWith(
                     color: cs.primary,
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             const SizedBox(height: Spacings.sm),
             BloomTaxonomySelector(
               selectedLevels: _selectedBloomLevels,
@@ -272,7 +272,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               decoration: const InputDecoration(
                   labelText: 'Content Body *',
                   border: OutlineInputBorder(),
-                  alignLabelWithHint: true),
+                  alignLabelWithHint: true,),
               maxLines: 8,
             ),
             Spacings.sectionGap,
@@ -285,7 +285,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               Text('Answer Options',
                   style: tt.titleMedium?.copyWith(
                       fontWeight: AppTypography.wSemiBold,
-                      color: cs.onSurface)),
+                      color: cs.onSurface,),),
               const SizedBox(height: Spacings.sm),
               ..._options.asMap().entries.map((entry) {
                 final idx = entry.key;
@@ -302,7 +302,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                                   fontWeight: AppTypography.wBold,
                                   color: opt.isCorrect
                                       ? AppColors.success
-                                      : cs.onSurfaceVariant)),
+                                      : cs.onSurfaceVariant,),),
                         ),
                       ),
                       const SizedBox(width: Spacings.sm),
@@ -340,8 +340,8 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                       ),
                       if (_options.length > 2)
                         IconButton(
-                          icon: Icon(Icons.remove_circle_outline_rounded,
-                              color: AppColors.error, size: 20),
+                          icon: const Icon(Icons.remove_circle_outline_rounded,
+                              color: AppColors.error, size: 20,),
                           onPressed: () {
                             setState(() => _options.removeAt(idx));
                           },
@@ -354,10 +354,10 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                 label: 'Add Option',
                 onPressed: () {
                   final nextLabel = String.fromCharCode(
-                      65 + _options.length);
+                      65 + _options.length,);
                   setState(() {
                     _options.add(_OptionItem(
-                        label: nextLabel, text: '', isCorrect: false));
+                        label: nextLabel, text: '', isCorrect: false,),);
                   });
                 },
                 variant: AppButtonVariant.outlined,
@@ -373,7 +373,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                 controller: _correctAnswerCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Correct Answer',
-                    border: OutlineInputBorder()),
+                    border: OutlineInputBorder(),),
               ),
               Spacings.sectionGap,
             ],
@@ -384,7 +384,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               decoration: const InputDecoration(
                   labelText: 'Step-by-Step Explanation',
                   border: OutlineInputBorder(),
-                  alignLabelWithHint: true),
+                  alignLabelWithHint: true,),
               maxLines: 5,
             ),
             const SizedBox(height: Spacings.md),
@@ -395,7 +395,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               decoration: const InputDecoration(
                   labelText: 'Marking Scheme',
                   border: OutlineInputBorder(),
-                  alignLabelWithHint: true),
+                  alignLabelWithHint: true,),
               maxLines: 4,
             ),
             const SizedBox(height: Spacings.md),
@@ -406,7 +406,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               decoration: const InputDecoration(
                   labelText: 'Teacher Notes',
                   border: OutlineInputBorder(),
-                  alignLabelWithHint: true),
+                  alignLabelWithHint: true,),
               maxLines: 3,
             ),
             Spacings.sectionGap,
@@ -415,7 +415,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             Text('Learning Objectives',
                 style: tt.titleSmall?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.sm),
             Wrap(
               spacing: Spacings.sm,
@@ -426,9 +426,9 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                   .map((e) => Chip(
                         label: Text(e.value),
                         onDeleted: () => setState(
-                            () => _learningObjectives.removeAt(e.key)),
+                            () => _learningObjectives.removeAt(e.key),),
                         deleteIconColor: cs.onSurfaceVariant,
-                      ))
+                      ),)
                   .toList(),
             ),
             const SizedBox(height: Spacings.sm),
@@ -440,7 +440,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                     decoration: const InputDecoration(
                         labelText: 'Add Learning Objective',
                         border: OutlineInputBorder(),
-                        isDense: true),
+                        isDense: true,),
                     onSubmitted: (v) {
                       if (v.isNotEmpty) {
                         setState(() {
@@ -470,7 +470,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             Text('Tags',
                 style: tt.titleSmall?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.sm),
             Wrap(
               spacing: Spacings.sm,
@@ -483,7 +483,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                         onDeleted: () =>
                             setState(() => _tags.removeAt(e.key)),
                         deleteIconColor: cs.onSurfaceVariant,
-                      ))
+                      ),)
                   .toList(),
             ),
             const SizedBox(height: Spacings.sm),
@@ -495,7 +495,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                     decoration: const InputDecoration(
                         labelText: 'Add Tag',
                         border: OutlineInputBorder(),
-                        isDense: true),
+                        isDense: true,),
                     onSubmitted: (v) {
                       if (v.isNotEmpty && !_tags.contains(v)) {
                         setState(() => _tags.add(v));
@@ -526,7 +526,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                     controller: _markAllocationCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Marks Allocated',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     keyboardType: TextInputType.number,
                   ),
                 ),
@@ -536,7 +536,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                     controller: _timeAllocationCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Time Allocated (seconds)',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     keyboardType: TextInputType.number,
                   ),
                 ),
@@ -546,13 +546,13 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
 
             // ── Source Type ───────────────────────────────────────
             DropdownButtonFormField<String>(
-              value: _sourceType,
+              initialValue: _sourceType,
               decoration: const InputDecoration(
                   labelText: 'Source Type',
-                  border: OutlineInputBorder()),
+                  border: OutlineInputBorder(),),
               items: ['original', 'adapted', 'imported', 'ai_generated']
                   .map((s) =>
-                      DropdownMenuItem(value: s, child: Text(s)))
+                      DropdownMenuItem(value: s, child: Text(s)),)
                   .toList(),
               onChanged: (v) => setState(() => _sourceType = v!),
             ),
@@ -563,7 +563,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
               value: _isPastQuestion,
               onChanged: (v) => setState(() => _isPastQuestion = v),
               title: const Text('Past Question'),
-              activeColor: cs.primary,
+              activeThumbColor: cs.primary,
             ),
             if (_isPastQuestion) ...[
               Row(
@@ -573,20 +573,20 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
                       controller: _pastYearCtrl,
                       decoration: const InputDecoration(
                           labelText: 'Year',
-                          border: OutlineInputBorder()),
+                          border: OutlineInputBorder(),),
                       keyboardType: TextInputType.number,
                     ),
                   ),
                   const SizedBox(width: Spacings.md),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedExamBody,
+                      initialValue: _selectedExamBody,
                       decoration: const InputDecoration(
                           labelText: 'Exam Body',
-                          border: OutlineInputBorder()),
+                          border: OutlineInputBorder(),),
                       items: ['WAEC', 'NECO', 'NABTEB', 'JAMB']
                           .map((b) => DropdownMenuItem(
-                              value: b, child: Text(b)))
+                              value: b, child: Text(b),),)
                           .toList(),
                       onChanged: (v) =>
                           setState(() => _selectedExamBody = v),
@@ -601,7 +601,7 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
             Container(
               padding: Spacings.paddingCard,
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withOpacity(0.3),
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Row(
@@ -695,26 +695,26 @@ class _ContentEditorPageState extends ConsumerState<ContentEditorPage> {
 
   void _saveDraft() {
     ref.read(contentProvider.notifier).createContent(
-        _buildContentItem(ContentStatus.draft));
+        _buildContentItem(ContentStatus.draft),);
     Navigator.pop(context);
   }
 
   void _submitForReview() {
     ref.read(contentProvider.notifier).createContent(
-        _buildContentItem(ContentStatus.review));
+        _buildContentItem(ContentStatus.review),);
     Navigator.pop(context);
   }
 
   void _publishDirectly() {
     ref.read(contentProvider.notifier).createContent(
-        _buildContentItem(ContentStatus.published));
+        _buildContentItem(ContentStatus.published),);
     Navigator.pop(context);
   }
 }
 
 class _OptionItem {
   _OptionItem(
-      {required this.label, required this.text, required this.isCorrect});
+      {required this.label, required this.text, required this.isCorrect,});
 
   String label;
   String text;

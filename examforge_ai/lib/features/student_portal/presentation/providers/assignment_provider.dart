@@ -139,7 +139,7 @@ class AssignmentNotifier extends StateNotifier<AssignmentState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getSubmissions(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: 1,
       pageSize: _pageSize,
       status: state.filterStatus,
@@ -177,7 +177,7 @@ class AssignmentNotifier extends StateNotifier<AssignmentState> {
     final nextPage = state.currentPage + 1;
 
     final result = await _getSubmissions(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: nextPage,
       pageSize: _pageSize,
       status: state.filterStatus,
@@ -249,7 +249,7 @@ class AssignmentNotifier extends StateNotifier<AssignmentState> {
 
     final result = await _createSubmission(
       assignmentId: assignmentId,
-      studentId: _studentId!,
+      studentId: _studentId,
       content: content,
       attachments: attachments,
     );

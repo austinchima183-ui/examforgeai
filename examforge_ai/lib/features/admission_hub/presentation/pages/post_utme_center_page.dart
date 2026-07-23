@@ -53,7 +53,7 @@ class _PostUtmeCenterPageState extends ConsumerState<PostUtmeCenterPage> {
               color: context.colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -73,7 +73,7 @@ class _PostUtmeCenterPageState extends ConsumerState<PostUtmeCenterPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: _selectedUniversityId,
+                        initialValue: _selectedUniversityId,
                         decoration: InputDecoration(
                           labelText: 'University',
                           border: OutlineInputBorder(
@@ -112,7 +112,7 @@ class _PostUtmeCenterPageState extends ConsumerState<PostUtmeCenterPage> {
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<int>(
-                        value: _selectedYear,
+                        initialValue: _selectedYear,
                         decoration: InputDecoration(
                           labelText: 'Year',
                           border: OutlineInputBorder(
@@ -240,7 +240,7 @@ class _PostUtmeProductCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: product.isPremium
-            ? BorderSide(color: AppColors.warning, width: 1.5)
+            ? const BorderSide(color: AppColors.warning, width: 1.5)
             : BorderSide.none,
       ),
       child: Padding(
@@ -268,13 +268,13 @@ class _PostUtmeProductCard extends StatelessWidget {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.warning.withOpacity(0.15),
+                      color: AppColors.warning.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
+                        const Icon(
                           Icons.star,
                           size: 14,
                           color: AppColors.warning,

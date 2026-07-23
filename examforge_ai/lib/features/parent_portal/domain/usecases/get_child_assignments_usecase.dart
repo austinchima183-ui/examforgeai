@@ -39,7 +39,7 @@ class GetChildAssignmentsUseCase {
       return const FailureResult(Failure.validation(
         message: 'Student ID is required',
         fieldErrors: {'studentId': 'Student ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.getChildAssignments(
       studentId: params.studentId,

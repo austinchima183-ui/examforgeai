@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/question_entities.dart';
@@ -76,7 +76,7 @@ class _QuestionFilterPanelState extends ConsumerState<QuestionFilterPanel> {
         color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -422,7 +422,7 @@ class _QuestionFilterPanelState extends ConsumerState<QuestionFilterPanel> {
             children: selectedTags.map((tag) {
               return Chip(
                 label: Text(tag, style: tt.bodySmall),
-                deleteIcon: Icon(
+                deleteIcon: const Icon(
                   Icons.close_rounded,
                   size: Spacings.smIcon,
                 ),

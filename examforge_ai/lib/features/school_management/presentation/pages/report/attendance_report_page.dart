@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/report_provider.dart';
 import '../../providers/class_provider.dart';
-import '../../providers/academic_session_provider.dart';
-import '../../../../../config/dependency_injection.dart';
+import '../../providers/report_provider.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -38,7 +36,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
   DateTime? _startDate;
   DateTime? _endDate;
   bool _isExporting = false;
-  bool _showStudentDetail = false;
+  final bool _showStudentDetail = false;
   String? _expandedClassId;
 
   @override
@@ -167,7 +165,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
     }
 
     if (state.attendanceReport.isEmpty) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.calendar_month_outlined,
         title: 'No Attendance Data',
         subtitle: 'Attendance report data will appear here once available.',
@@ -255,7 +253,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
     double totalPresent = 0;
     double totalAbsent = 0;
     double totalLate = 0;
-    int classCount = state.attendanceReport.length;
+    final int classCount = state.attendanceReport.length;
 
     for (final classData in state.attendanceReport) {
       totalPresent += (classData['presentPercent'] as num?)?.toDouble() ?? 0;
@@ -408,7 +406,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
               const SizedBox(height: Spacings.lg),
               // Class filter
               DropdownButtonFormField<String>(
-                value: _selectedClassId,
+                initialValue: _selectedClassId,
                 decoration: const InputDecoration(
                   labelText: 'Class',
                   prefixIcon: Icon(Icons.class_outlined),
@@ -433,7 +431,7 @@ class _AttendanceReportPageState extends ConsumerState<AttendanceReportPage> {
               const SizedBox(height: Spacings.md),
               // Term filter
               DropdownButtonFormField<String>(
-                value: _selectedTermId,
+                initialValue: _selectedTermId,
                 decoration: const InputDecoration(
                   labelText: 'Term',
                   prefixIcon: Icon(Icons.school_outlined),
@@ -571,7 +569,7 @@ class _ClassBreakdownCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Icon(Icons.class_rounded, size: Spacings.mdIcon, color: cs.primary),
@@ -652,9 +650,9 @@ class _ClassBreakdownCard extends StatelessWidget {
                     ),
                     // Attendance rate with indicator
                     if (isHigh)
-                      Icon(Icons.arrow_upward_rounded, size: Spacings.smIcon, color: AppColors.success),
+                      const Icon(Icons.arrow_upward_rounded, size: Spacings.smIcon, color: AppColors.success),
                     if (isLow)
-                      Icon(Icons.arrow_downward_rounded, size: Spacings.smIcon, color: AppColors.error),
+                      const Icon(Icons.arrow_downward_rounded, size: Spacings.smIcon, color: AppColors.error),
                     const SizedBox(width: Spacings.xs),
                     Text(
                       '${rate.toStringAsFixed(1)}%',

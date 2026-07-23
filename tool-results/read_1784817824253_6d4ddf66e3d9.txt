@@ -1,0 +1,2002 @@
+     1→import 'dart:math';
+     2→
+     3→import 'dart:typed_data';
+     4→
+     5→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     6→import '../../../../core/errors/exceptions.dart';
+     7→import '../../../../core/network/paginated_query_mixin.dart';
+     8→import '../../../../core/utils/logger.dart';
+     9→import '../models/student_portal_models.dart';
+    10→
+    11→/// Remote datasource for the Student Portal feature.
+    12→///
+    13→/// Uses the Supabase Flutter client to interact with the database,
+    14→/// Storage, and Edge Functions. All methods return model types that
+    15→/// can be mapped to domain entities by the repository implementation.
+    16→class StudentPortalRemoteDatasource {
+    17→  StudentPortalRemoteDatasource({
+    18→    required sb.SupabaseClient supabaseClient,
+    19→  }) : _supabase = supabaseClient;
+    20→
+    21→  final sb.SupabaseClient _supabase;
+    22→
+    23→  // ── Table name constants ───────────────────────────────────────────────
+    24→  static const _aiTutorConversationsTable = 'ai_tutor_conversations';
+    25→  static const _aiTutorMessagesTable = 'ai_tutor_messages';
+    26→  static const _practiceSessionsTable = 'practice_sessions';
+    27→  static const _practiceAnswersTable = 'practice_answers';
+    28→  static const _assignmentSubmissionsTable = 'assignment_submissions';
+    29→  static const _studentLearningResourcesTable = 'student_learning_resources';
+    30→  static const _resourceAccessLogTable = 'resource_access_log';
+    31→  static const _documentChatsTable = 'document_chats';
+    32→  static const _documentChatMessagesTable = 'document_chat_messages';
+    33→  static const _flashcardDecksTable = 'flashcard_decks';
+    34→  static const _flashcardsTable = 'flashcards';
+    35→  static const _studyPlansTable = 'study_plans';
+    36→  static const _studyTasksTable = 'study_tasks';
+    37→  static const _studentGoalsTable = 'student_goals';
+    38→  static const _studentProgressSnapshotsTable = 'student_progress_snapshots';
+    39→  static const _studentDailyActivityTable = 'student_daily_activity';
+    40→  static const _studentNotificationsTable = 'student_notifications';
+    41→  static const _studentDashboardView = 'v_student_dashboard';
+    42→  static const _questionsTable = 'questions';
+    43→
+    44→  // ── Storage bucket ─────────────────────────────────────────────────────
+    45→  static const _studentDocumentsBucket = 'student-documents';
+    46→
+    47→  // ── Edge function names ────────────────────────────────────────────────
+    48→  static const _aiTutorChatFunction = 'ai-tutor-chat';
+    49→  static const _generateFlashcardsFunction = 'generate-flashcards';
+    50→  static const _suggestStudyPlanFunction = 'suggest-study-plan';
+    51→  static const _processDocumentFunction = 'process-document';
+    52→  static const _generateQuestionsFunction = 'generate-questions';
+    53→
+    54→  // ── Exception mapping helper ───────────────────────────────────────────
+    55→
+    56→  /// Maps a [sb.PostgrestException] to the appropriate domain exception.
+    57→  Never _mapPostgrestException(sb.PostgrestException e) {
+    58→    AppLogger.error('Postgrest error: ${e.message}', error: e);
+    59→    switch (e.code) {
+    60→      case 'PGRST116':
+    61→        throw NotFoundException(message: e.message);
+    62→      case '23505':
+    63→        throw const ServerException(
+    64→          message: 'A record with this data already exists.',
+    65→          statusCode: 409,
+    66→        );
+    67→      case '23503':
+    68→        throw const ServerException(
+    69→          message: 'Referenced record not found.',
+    70→          statusCode: 404,
+    71→        );
+    72→      case '42501':
+    73→        throw const ForbiddenException(
+    74→          message: 'You do not have permission for this action.',
+    75→        );
+    76→      default:
+    77→        throw ServerException(
+    78→          message: e.message,
+    79→          statusCode: int.tryParse(e.code ?? '') ?? 500,
+    80→        );
+    81→    }
+    82→  }
+    83→
+    84→  /// Handles generic catch-all exceptions.
+    85→  Never _handleGenericException(Object e, String operation) {
+    86→    AppLogger.error('Failed to $operation', error: e);
+    87→    if (e is sb.AuthException) {
+    88→      throw UnauthorizedException(message: e.message);
+    89→    }
+    90→    throw ServerException(message: e.toString(), statusCode: 500);
+    91→  }
+    92→
+    93→  // ═══════════════════════════════════════════════════════════════════════
+    94→  // AI TUTOR
+    95→  // ═══════════════════════════════════════════════════════════════════════
+    96→
+    97→  /// Creates a new AI tutor conversation.
+    98→  ///
+    99→  /// Inserts a new row into [ai_tutor_conversations] and returns the
+   100→  /// fully-hydrated model from the database.
+   101→  Future<AiTutorConversationModel> createConversation({
+   102→    required String studentId,
+   103→    String? schoolId,
+   104→    String title = 'New Conversation',
+   105→    String? subjectId,
+   106→    String? topic,
+   107→    String curriculumType = 'nigerian',
+   108→  }) async {
+   109→    try {
+   110→      AppLogger.info('Creating AI tutor conversation for student: $studentId');
+   111→      final response = await _supabase
+   112→          .from(_aiTutorConversationsTable)
+   113→          .insert({
+   114→            'student_id': studentId,
+   115→            'school_id': schoolId,
+   116→            'title': title,
+   117→            'subject_id': subjectId,
+   118→            'topic': topic,
+   119→            'curriculum_type': curriculumType,
+   120→          })
+   121→          .select()
+   122→          .single();
+   123→      AppLogger.info('AI tutor conversation created successfully');
+   124→      return AiTutorConversationModel.fromJson(response);
+   125→    } on sb.PostgrestException catch (e) {
+   126→      _mapPostgrestException(e);
+   127→    } catch (e) {
+   128→      _handleGenericException(e, 'create AI tutor conversation');
+   129→    }
+   130→  }
+   131→
+   132→  /// Fetches paginated conversations for a student.
+   133→  ///
+   134→  /// Results are ordered by [updated_at] descending so the most
+   135→  /// recently active conversations appear first.
+   136→  Future<List<AiTutorConversationModel>> getConversations({
+   137→    required String studentId,
+   138→    int page = 1,
+   139→    int pageSize = 20,
+   140→  }) async {
+   141→    try {
+   142→      AppLogger.info(
+   143→        'Fetching AI tutor conversations for student: $studentId (page: $page)',
+   144→      );
+   145→      final offset = (page - 1) * pageSize;
+   146→      final response = await _supabase
+   147→          .from(_aiTutorConversationsTable)
+   148→          .select()
+   149→          .eq('student_id', studentId)
+   150→          .eq('is_archived', false)
+   151→          .order('updated_at', ascending: false)
+   152→          .range(offset, offset + pageSize - 1);
+   153→      return response
+   154→          .map((json) => AiTutorConversationModel.fromJson(json))
+   155→          .toList();
+   156→    } on sb.PostgrestException catch (e) {
+   157→      _mapPostgrestException(e);
+   158→    } catch (e) {
+   159→      _handleGenericException(e, 'fetch AI tutor conversations');
+   160→    }
+   161→  }
+   162→
+   163→  /// Gets a single conversation with all its messages.
+   164→  ///
+   165→  /// Returns a map containing both the conversation and its messages
+   166→  /// for the repository to assemble into a rich domain entity.
+   167→  Future<Map<String, dynamic>> getConversationDetail({
+   168→    required String conversationId,
+   169→  }) async {
+   170→    try {
+   171→      AppLogger.info(
+   172→        'Fetching AI tutor conversation detail: $conversationId',
+   173→      );
+   174→
+   175→      // Fetch the conversation record
+   176→      final conversationResponse = await _supabase
+   177→          .from(_aiTutorConversationsTable)
+   178→          .select()
+   179→          .eq('id', conversationId)
+   180→          .single();
+   181→
+   182→      // Fetch all messages for this conversation
+   183→      // PERF: Added limit to prevent unbounded query on ai_tutor_messages
+   184→      final messagesResponse = await _supabase
+   185→          .from(_aiTutorMessagesTable)
+   186→          .select()
+   187→          .eq('conversation_id', conversationId)
+   188→          .order('created_at', ascending: true)
+   189→          .limit(PaginatedQueryMixin.dropdownPageSize);
+   190→
+   191→      final messages = messagesResponse
+   192→          .map((json) => AiTutorMessageModel.fromJson(json))
+   193→          .toList();
+   194→
+   195→      return {
+   196→        'conversation': AiTutorConversationModel.fromJson(conversationResponse),
+   197→        'messages': messages,
+   198→      };
+   199→    } on sb.PostgrestException catch (e) {
+   200→      _mapPostgrestException(e);
+   201→    } catch (e) {
+   202→      _handleGenericException(e, 'fetch conversation detail');
+   203→    }
+   204→  }
+   205→
+   206→  /// Sends a message in an AI tutor conversation and receives an AI response.
+   207→  ///
+   208→  /// The flow is:
+   209→  /// 1. Insert the user message into [ai_tutor_messages].
+   210→  /// 2. Call the `ai-tutor-chat` Edge Function with conversation context.
+   211→  /// 3. Insert the AI assistant message into [ai_tutor_messages].
+   212→  /// 4. Update the conversation's [last_message] and [message_count].
+   213→  /// 5. Return the AI response model.
+   214→  Future<AiTutorMessageModel> sendMessage({
+   215→    required String conversationId,
+   216→    required String content,
+   217→    String? subjectId,
+   218→    String? topic,
+   219→    String? curriculumType,
+   220→  }) async {
+   221→    try {
+   222→      AppLogger.info(
+   223→        'Sending message in conversation: $conversationId',
+   224→      );
+   225→
+   226→      // 1. Insert the user message
+   227→      final userMessageResponse = await _supabase
+   228→          .from(_aiTutorMessagesTable)
+   229→          .insert({
+   230→            'conversation_id': conversationId,
+   231→            'role': 'user',
+   232→            'content': content,
+   233→          })
+   234→          .select()
+   235→          .single();
+   236→
+   237→      AppLogger.info('User message inserted');
+   238→
+   239→      // 2. Call the AI tutor Edge Function for a response
+   240→      final aiResponse = await _supabase.functions.invoke(
+   241→        _aiTutorChatFunction,
+   242→        body: {
+   243→          'conversation_id': conversationId,
+   244→          'message': content,
+   245→          'subject_id': subjectId,
+   246→          'topic': topic,
+   247→          'curriculum_type': curriculumType,
+   248→        },
+   249→      );
+   250→
+   251→      if (aiResponse.status != 200) {
+   252→        AppLogger.error(
+   253→          'AI tutor edge function returned status: ${aiResponse.status}',
+   254→        );
+   255→        throw ServerException(
+   256→          message: 'AI tutor service returned an error: ${aiResponse.data}',
+   257→          statusCode: aiResponse.status,
+   258→        );
+   259→      }
+   260→
+   261→      final aiContent = aiResponse.data['content'] as String? ??
+   262→          'I apologize, but I was unable to generate a response. Please try again.';
+   263→      final aiMetadata = aiResponse.data['metadata'] as Map<String, dynamic>?;
+   264→
+   265→      // 3. Insert the AI assistant message
+   266→      final assistantMessageResponse = await _supabase
+   267→          .from(_aiTutorMessagesTable)
+   268→          .insert({
+   269→            'conversation_id': conversationId,
+   270→            'role': 'assistant',
+   271→            'content': aiContent,
+   272→            'metadata': aiMetadata ?? {},
+   273→          })
+   274→          .select()
+   275→          .single();
+   276→
+   277→      // 4. Update the conversation's last_message and message_count
+   278→      await _supabase
+   279→          .from(_aiTutorConversationsTable)
+   280→          .update({
+   281→            'last_message': aiContent.length > 100
+   282→                ? '${aiContent.substring(0, 100)}...'
+   283→                : aiContent,
+   284→          })
+   285→          .eq('id', conversationId);
+   286→
+   287→      AppLogger.info('AI response message inserted');
+   288→
+   289→      return AiTutorMessageModel.fromJson(assistantMessageResponse);
+   290→    } on sb.PostgrestException catch (e) {
+   291→      _mapPostgrestException(e);
+   292→    } catch (e) {
+   293→      if (e is ServerException) rethrow;
+   294→      _handleGenericException(e, 'send AI tutor message');
+   295→    }
+   296→  }
+   297→
+   298→  /// Deletes a conversation and all its messages.
+   299→  ///
+   300→  /// Relies on the database CASCADE delete configured on the
+   301→  /// foreign key from [ai_tutor_messages] to [ai_tutor_conversations].
+   302→  Future<void> deleteConversation({
+   303→    required String conversationId,
+   304→  }) async {
+   305→    try {
+   306→      AppLogger.info('Deleting conversation: $conversationId');
+   307→      await _supabase
+   308→          .from(_aiTutorConversationsTable)
+   309→          .delete()
+   310→          .eq('id', conversationId);
+   311→      AppLogger.info('Conversation deleted successfully');
+   312→    } on sb.PostgrestException catch (e) {
+   313→      _mapPostgrestException(e);
+   314→    } catch (e) {
+   315→      _handleGenericException(e, 'delete conversation');
+   316→    }
+   317→  }
+   318→
+   319→  // ═══════════════════════════════════════════════════════════════════════
+   320→  // PRACTICE SESSIONS
+   321→  // ═══════════════════════════════════════════════════════════════════════
+   322→
+   323→  /// Creates a new practice session and fetches random questions from
+   324→  /// the question bank matching the given filters.
+   325→  ///
+   326→  /// The session is created in `in_progress` status. Questions are
+   327→  /// selected from the [questions] table using random ordering and
+   328→  /// subject/difficulty filters.
+   329→  Future<PracticeSessionModel> createPracticeSession({
+   330→    required String studentId,
+   331→    String? schoolId,
+   332→    String? subjectId,
+   333→    String? topicId,
+   334→    String difficulty = 'medium',
+   335→    String mode = 'untimed',
+   336→    int? timeLimitSec,
+   337→    int questionCount = 10,
+   338→  }) async {
+   339→    try {
+   340→      AppLogger.info(
+   341→        'Creating practice session for student: $studentId',
+   342→      );
+   343→
+   344→      // Insert the practice session
+   345→      final sessionResponse = await _supabase
+   346→          .from(_practiceSessionsTable)
+   347→          .insert({
+   348→            'student_id': studentId,
+   349→            'school_id': schoolId,
+   350→            'subject_id': subjectId,
+   351→            'topic_id': topicId,
+   352→            'difficulty': difficulty,
+   353→            'mode': mode,
+   354→            'time_limit_sec': timeLimitSec,
+   355→            'total_questions': questionCount,
+   356→            'status': 'in_progress',
+   357→            'started_at': DateTime.now().toUtc().toIso8601String(),
+   358→          })
+   359→          .select()
+   360→          .single();
+   361→
+   362→      final sessionId = sessionResponse['id'] as String;
+   363→
+   364→      // Fetch random questions from the question bank
+   365→      var query = _supabase
+   366→          .from(_questionsTable)
+   367→          .select('id')
+   368→          .eq('status', 'approved');
+   369→
+   370→      if (subjectId != null) {
+   371→        query = query.eq('subject_id', subjectId);
+   372→      }
+   373→      if (difficulty != 'mixed') {
+   374→        query = query.eq('difficulty', difficulty);
+   375→      }
+   376→
+   377→      // Use limit and random ordering via Supabase
+   378→      final questionIds = await query
+   379→          .limit(questionCount * 3) // Fetch extra for randomness
+   380→          .order('id');
+   381→
+   382→      // Randomly select the desired number of questions
+   383→      final selectedQuestions = <Map<String, dynamic>>[];
+   384→      if (questionIds.isNotEmpty) {
+   385→        final shuffled = List<Map<String, dynamic>>.from(questionIds)..shuffle();
+   386→        selectedQuestions.addAll(
+   387→          shuffled.take(min(questionCount, shuffled.length)),
+   388→        );
+   389→      }
+   390→
+   391→      // Store the question IDs as the session's question set
+   392→      // (practice_answers will be created as students answer)
+   393→      // Update the total_questions to match actual available count
+   394→      if (selectedQuestions.length != questionCount) {
+   395→        await _supabase
+   396→            .from(_practiceSessionsTable)
+   397→            .update({'total_questions': selectedQuestions.length})
+   398→            .eq('id', sessionId);
+   399→        sessionResponse['total_questions'] = selectedQuestions.length;
+   400→      }
+   401→
+   402→      AppLogger.info(
+   403→        'Practice session created: $sessionId with ${selectedQuestions.length} questions',
+   404→      );
+   405→
+   406→      return PracticeSessionModel.fromJson(sessionResponse);
+   407→    } on sb.PostgrestException catch (e) {
+   408→      _mapPostgrestException(e);
+   409→    } catch (e) {
+   410→      _handleGenericException(e, 'create practice session');
+   411→    }
+   412→  }
+   413→
+   414→  /// Gets practice sessions for a student with pagination and optional
+   415→  /// status/subject filters.
+   416→  Future<List<PracticeSessionModel>> getPracticeSessions({
+   417→    required String studentId,
+   418→    int page = 1,
+   419→    int pageSize = 20,
+   420→    String? status,
+   421→    String? subjectId,
+   422→  }) async {
+   423→    try {
+   424→      AppLogger.info(
+   425→        'Fetching practice sessions for student: $studentId',
+   426→      );
+   427→      final offset = (page - 1) * pageSize;
+   428→
+   429→      var query = _supabase
+   430→          .from(_practiceSessionsTable)
+   431→          .select('*, subjects(name)')
+   432→          .eq('student_id', studentId);
+   433→
+   434→      if (status != null) {
+   435→        query = query.eq('status', status);
+   436→      }
+   437→      if (subjectId != null) {
+   438→        query = query.eq('subject_id', subjectId);
+   439→      }
+   440→
+   441→      final response = await query
+   442→          .order('created_at', ascending: false)
+   443→          .range(offset, offset + pageSize - 1);
+   444→
+   445→      return response.map((json) {
+   446→        // Flatten joined subject name
+   447→        final subjectData = json['subjects'] as Map<String, dynamic>?;
+   448→        return PracticeSessionModel.fromJson({
+   449→          ...json,
+   450→          'subject_name': subjectData?['name'] as String?,
+   451→        });
+   452→      }).toList();
+   453→    } on sb.PostgrestException catch (e) {
+   454→      _mapPostgrestException(e);
+   455→    } catch (e) {
+   456→      _handleGenericException(e, 'fetch practice sessions');
+   457→    }
+   458→  }
+   459→
+   460→  /// Gets a single practice session detail, including all answers.
+   461→  Future<PracticeSessionModel> getPracticeSessionDetail({
+   462→    required String sessionId,
+   463→  }) async {
+   464→    try {
+   465→      AppLogger.info('Fetching practice session detail: $sessionId');
+   466→
+   467→      final sessionResponse = await _supabase
+   468→          .from(_practiceSessionsTable)
+   469→          .select('*, subjects(name)')
+   470→          .eq('id', sessionId)
+   471→          .single();
+   472→
+   473→      // Fetch answers for this session
+   474→      // PERF: Added limit to prevent unbounded query on practice_answers
+   475→      final answersResponse = await _supabase
+   476→          .from(_practiceAnswersTable)
+   477→          .select()
+   478→          .eq('session_id', sessionId)
+   479→          .order('created_at', ascending: true)
+   480→          .limit(PaginatedQueryMixin.dropdownPageSize);
+   481→
+   482→      final subjectData = sessionResponse['subjects'] as Map<String, dynamic>?;
+   483→
+   484→      return PracticeSessionModel.fromJson({
+   485→        ...sessionResponse,
+   486→        'subject_name': subjectData?['name'] as String?,
+   487→        // Answers are available for the repository to assemble
+   488→        'answers': answersResponse
+   489→            .map((a) => PracticeAnswerModel.fromJson(a))
+   490→            .toList(),
+   491→      });
+   492→    } on sb.PostgrestException catch (e) {
+   493→      _mapPostgrestException(e);
+   494→    } catch (e) {
+   495→      _handleGenericException(e, 'fetch practice session detail');
+   496→    }
+   497→  }
+   498→
+   499→  /// Submits an answer for a practice question.
+   500→  ///
+   501→  /// Inserts the answer and, if correct, increments the session's
+   502→  /// [correct_count]. The [score_pct] is recalculated on the fly.
+   503→  Future<PracticeAnswerModel> submitPracticeAnswer({
+   504→    required String sessionId,
+   505→    required String questionId,
+   506→    required Map<String, dynamic> studentAnswer,
+   507→    int timeSpentSec = 0,
+   508→  }) async {
+   509→    try {
+   510→      AppLogger.info(
+   511→        'Submitting practice answer for session: $sessionId, question: $questionId',
+   512→      );
+   513→
+   514→      // Insert the answer
+   515→      final answerResponse = await _supabase
+   516→          .from(_practiceAnswersTable)
+   517→          .insert({
+   518→            'session_id': sessionId,
+   519→            'question_id': questionId,
+   520→            'student_answer': studentAnswer,
+   521→            'time_spent_sec': timeSpentSec,
+   522→          })
+   523→          .select()
+   524→          .single();
+   525→
+   526→      final isCorrect = answerResponse['is_correct'] as bool? ?? false;
+   527→
+   528→      // Update session correct_count if answer is correct
+   529→      if (isCorrect) {
+   530→        await _supabase.rpc('increment_practice_correct_count', params: {
+   531→          'session_id': sessionId,
+   532→        },);
+   533→      }
+   534→
+   535→      AppLogger.info('Practice answer submitted successfully');
+   536→      return PracticeAnswerModel.fromJson(answerResponse);
+   537→    } on sb.PostgrestException catch (e) {
+   538→      _mapPostgrestException(e);
+   539→    } catch (e) {
+   540→      _handleGenericException(e, 'submit practice answer');
+   541→    }
+   542→  }
+   543→
+   544→  /// Completes a practice session.
+   545→  ///
+   546→  /// Sets the status to `completed`, calculates the final score
+   547→  /// percentage, and records the completion timestamp.
+   548→  Future<PracticeSessionModel> completePracticeSession({
+   549→    required String sessionId,
+   550→  }) async {
+   551→    try {
+   552→      AppLogger.info('Completing practice session: $sessionId');
+   553→
+   554→      // Fetch current session to compute score
+   555→      final current = await _supabase
+   556→          .from(_practiceSessionsTable)
+   557→          .select('total_questions, correct_count')
+   558→          .eq('id', sessionId)
+   559→          .single();
+   560→
+   561→      final totalQ = current['total_questions'] as int? ?? 0;
+   562→      final correctQ = current['correct_count'] as int? ?? 0;
+   563→      final scorePct = totalQ > 0 ? (correctQ / totalQ) * 100 : 0.0;
+   564→
+   565→      final response = await _supabase
+   566→          .from(_practiceSessionsTable)
+   567→          .update({
+   568→            'status': 'completed',
+   569→            'score_pct': scorePct,
+   570→            'completed_at': DateTime.now().toUtc().toIso8601String(),
+   571→          })
+   572→          .eq('id', sessionId)
+   573→          .select()
+   574→          .single();
+   575→
+   576→      AppLogger.info(
+   577→        'Practice session completed: $sessionId (score: ${scorePct.toStringAsFixed(1)}%)',
+   578→      );
+   579→      return PracticeSessionModel.fromJson(response);
+   580→    } on sb.PostgrestException catch (e) {
+   581→      _mapPostgrestException(e);
+   582→    } catch (e) {
+   583→      _handleGenericException(e, 'complete practice session');
+   584→    }
+   585→  }
+   586→
+   587→  /// Abandons a practice session.
+   588→  ///
+   589→  /// Sets the status to `abandoned` and records the completion
+   590→  /// timestamp so the session is no longer shown as active.
+   591→  Future<void> abandonPracticeSession({
+   592→    required String sessionId,
+   593→  }) async {
+   594→    try {
+   595→      AppLogger.info('Abandoning practice session: $sessionId');
+   596→      await _supabase
+   597→          .from(_practiceSessionsTable)
+   598→          .update({
+   599→            'status': 'abandoned',
+   600→            'completed_at': DateTime.now().toUtc().toIso8601String(),
+   601→          })
+   602→          .eq('id', sessionId);
+   603→      AppLogger.info('Practice session abandoned');
+   604→    } on sb.PostgrestException catch (e) {
+   605→      _mapPostgrestException(e);
+   606→    } catch (e) {
+   607→      _handleGenericException(e, 'abandon practice session');
+   608→    }
+   609→  }
+   610→
+   611→  // ═══════════════════════════════════════════════════════════════════════
+   612→  // ASSIGNMENT SUBMISSIONS
+   613→  // ═══════════════════════════════════════════════════════════════════════
+   614→
+   615→  /// Gets all submissions for a student with pagination and optional
+   616→  /// status filter. Joins assignment info for display.
+   617→  Future<List<AssignmentSubmissionModel>> getSubmissions({
+   618→    required String studentId,
+   619→    int page = 1,
+   620→    int pageSize = 20,
+   621→    String? status,
+   622→  }) async {
+   623→    try {
+   624→      AppLogger.info('Fetching submissions for student: $studentId');
+   625→      final offset = (page - 1) * pageSize;
+   626→
+   627→      var query = _supabase
+   628→          .from(_assignmentSubmissionsTable)
+   629→          .select('*, workspace_assignments(title, due_date, subjects(name), profiles!workspace_assignments_teacher_id_fkey(full_name))')
+   630→          .eq('student_id', studentId);
+   631→
+   632→      if (status != null) {
+   633→        query = query.eq('status', status);
+   634→      }
+   635→
+   636→      final response = await query
+   637→          .order('updated_at', ascending: false)
+   638→          .range(offset, offset + pageSize - 1);
+   639→
+   640→      return response.map((json) {
+   641→        final assignment = json['workspace_assignments'] as Map<String, dynamic>?;
+   642→        final subject = assignment?['subjects'] as Map<String, dynamic>?;
+   643→        final teacher = assignment?['profiles'] as Map<String, dynamic>?;
+   644→        return AssignmentSubmissionModel.fromJson({
+   645→          ...json,
+   646→          'assignment_title': assignment?['title'] as String?,
+   647→          'due_date': assignment?['due_date'] as String?,
+   648→          'subject_name': subject?['name'] as String?,
+   649→          'teacher_name': teacher?['full_name'] as String?,
+   650→        });
+   651→      }).toList();
+   652→    } on sb.PostgrestException catch (e) {
+   653→      _mapPostgrestException(e);
+   654→    } catch (e) {
+   655→      _handleGenericException(e, 'fetch submissions');
+   656→    }
+   657→  }
+   658→
+   659→  /// Gets a single submission by ID, including assignment metadata.
+   660→  Future<AssignmentSubmissionModel> getSubmissionDetail({
+   661→    required String submissionId,
+   662→  }) async {
+   663→    try {
+   664→      AppLogger.info('Fetching submission detail: $submissionId');
+   665→
+   666→      final response = await _supabase
+   667→          .from(_assignmentSubmissionsTable)
+   668→          .select('*, workspace_assignments(title, due_date, max_score, subjects(name), profiles!workspace_assignments_teacher_id_fkey(full_name))')
+   669→          .eq('id', submissionId)
+   670→          .single();
+   671→
+   672→      final assignment =
+   673→          response['workspace_assignments'] as Map<String, dynamic>?;
+   674→      final subject = assignment?['subjects'] as Map<String, dynamic>?;
+   675→      final teacher = assignment?['profiles'] as Map<String, dynamic>?;
+   676→
+   677→      return AssignmentSubmissionModel.fromJson({
+   678→        ...response,
+   679→        'assignment_title': assignment?['title'] as String?,
+   680→        'due_date': assignment?['due_date'] as String?,
+   681→        'max_score': assignment?['max_score'],
+   682→        'subject_name': subject?['name'] as String?,
+   683→        'teacher_name': teacher?['full_name'] as String?,
+   684→      });
+   685→    } on sb.PostgrestException catch (e) {
+   686→      _mapPostgrestException(e);
+   687→    } catch (e) {
+   688→      _handleGenericException(e, 'fetch submission detail');
+   689→    }
+   690→  }
+   691→
+   692→  /// Creates a draft submission for an assignment.
+   693→  Future<AssignmentSubmissionModel> createSubmission({
+   694→    required String assignmentId,
+   695→    required String studentId,
+   696→    String? schoolId,
+   697→    Map<String, dynamic> content = const {},
+   698→    List<Map<String, dynamic>> attachments = const [],
+   699→  }) async {
+   700→    try {
+   701→      AppLogger.info(
+   702→        'Creating submission for assignment: $assignmentId',
+   703→      );
+   704→      final response = await _supabase
+   705→          .from(_assignmentSubmissionsTable)
+   706→          .insert({
+   707→            'assignment_id': assignmentId,
+   708→            'student_id': studentId,
+   709→            'school_id': schoolId,
+   710→            'content': content,
+   711→            'attachments': attachments,
+   712→            'status': 'draft',
+   713→          })
+   714→          .select()
+   715→          .single();
+   716→      AppLogger.info('Draft submission created successfully');
+   717→      return AssignmentSubmissionModel.fromJson(response);
+   718→    } on sb.PostgrestException catch (e) {
+   719→      _mapPostgrestException(e);
+   720→    } catch (e) {
+   721→      _handleGenericException(e, 'create submission');
+   722→    }
+   723→  }
+   724→
+   725→  /// Updates a submission (save draft or add attachments).
+   726→  Future<AssignmentSubmissionModel> updateSubmission({
+   727→    required String submissionId,
+   728→    Map<String, dynamic>? content,
+   729→    List<Map<String, dynamic>>? attachments,
+   730→  }) async {
+   731→    try {
+   732→      AppLogger.info('Updating submission: $submissionId');
+   733→
+   734→      final updateData = <String, dynamic>{};
+   735→      if (content != null) updateData['content'] = content;
+   736→      if (attachments != null) updateData['attachments'] = attachments;
+   737→
+   738→      final response = await _supabase
+   739→          .from(_assignmentSubmissionsTable)
+   740→          .update(updateData)
+   741→          .eq('id', submissionId)
+   742→          .select()
+   743→          .single();
+   744→
+   745→      AppLogger.info('Submission updated successfully');
+   746→      return AssignmentSubmissionModel.fromJson(response);
+   747→    } on sb.PostgrestException catch (e) {
+   748→      _mapPostgrestException(e);
+   749→    } catch (e) {
+   750→      _handleGenericException(e, 'update submission');
+   751→    }
+   752→  }
+   753→
+   754→  /// Submits a draft assignment (changes status from draft to submitted).
+   755→  Future<AssignmentSubmissionModel> submitAssignment({
+   756→    required String submissionId,
+   757→  }) async {
+   758→    try {
+   759→      AppLogger.info('Submitting assignment: $submissionId');
+   760→
+   761→      // Check if past due date for late_submitted logic
+   762→      final existing = await _supabase
+   763→          .from(_assignmentSubmissionsTable)
+   764→          .select('status, workspace_assignments(due_date)')
+   765→          .eq('id', submissionId)
+   766→          .single();
+   767→
+   768→      final assignment = existing['workspace_assignments'] as Map<String, dynamic>?;
+   769→      final dueDate = assignment?['due_date'] != null
+   770→          ? DateTime.tryParse(assignment!['due_date'] as String)
+   771→          : null;
+   772→      final isLate = dueDate != null && DateTime.now().isAfter(dueDate);
+   773→
+   774→      final newStatus = isLate ? 'late_submitted' : 'submitted';
+   775→
+   776→      final response = await _supabase
+   777→          .from(_assignmentSubmissionsTable)
+   778→          .update({
+   779→            'status': newStatus,
+   780→            'submitted_at': DateTime.now().toUtc().toIso8601String(),
+   781→          })
+   782→          .eq('id', submissionId)
+   783→          .select()
+   784→          .single();
+   785→
+   786→      AppLogger.info('Assignment submitted with status: $newStatus');
+   787→      return AssignmentSubmissionModel.fromJson(response);
+   788→    } on sb.PostgrestException catch (e) {
+   789→      _mapPostgrestException(e);
+   790→    } catch (e) {
+   791→      _handleGenericException(e, 'submit assignment');
+   792→    }
+   793→  }
+   794→
+   795→  /// Gets assignments assigned to the student that don't have a
+   796→  /// submission yet (for the "pending assignments" view).
+   797→  Future<List<AssignmentSubmissionModel>> getAssignedAssignments({
+   798→    required String studentId,
+   799→    int page = 1,
+   800→    int pageSize = 20,
+   801→  }) async {
+   802→    try {
+   803→      AppLogger.info(
+   804→        'Fetching assigned assignments for student: $studentId',
+   805→      );
+   806→      final offset = (page - 1) * pageSize;
+   807→
+   808→      // Fetch assigned assignments the student hasn't submitted yet
+   809→      final response = await _supabase
+   810→          .from(_assignmentSubmissionsTable)
+   811→          .select('*, workspace_assignments(title, due_date, subjects(name), profiles!workspace_assignments_teacher_id_fkey(full_name))')
+   812→          .eq('student_id', studentId)
+   813→          .order('created_at', ascending: false)
+   814→          .range(offset, offset + pageSize - 1);
+   815→
+   816→      return response.map((json) {
+   817→        final assignment =
+   818→            json['workspace_assignments'] as Map<String, dynamic>?;
+   819→        final subject = assignment?['subjects'] as Map<String, dynamic>?;
+   820→        final teacher = assignment?['profiles'] as Map<String, dynamic>?;
+   821→        return AssignmentSubmissionModel.fromJson({
+   822→          ...json,
+   823→          'assignment_title': assignment?['title'] as String?,
+   824→          'due_date': assignment?['due_date'] as String?,
+   825→          'subject_name': subject?['name'] as String?,
+   826→          'teacher_name': teacher?['full_name'] as String?,
+   827→        });
+   828→      }).toList();
+   829→    } on sb.PostgrestException catch (e) {
+   830→      _mapPostgrestException(e);
+   831→    } catch (e) {
+   832→      _handleGenericException(e, 'fetch assigned assignments');
+   833→    }
+   834→  }
+   835→
+   836→  // ═══════════════════════════════════════════════════════════════════════
+   837→  // LEARNING RESOURCES
+   838→  // ═══════════════════════════════════════════════════════════════════════
+   839→
+   840→  /// Gets learning resources visible to a student (school-level + public).
+   841→  ///
+   842→  /// Supports filtering by resource type, subject, and free-text
+   843→  /// search query. Results are paginated.
+   844→  Future<List<LearningResourceModel>> getResources({
+   845→    required String studentId,
+   846→    String? schoolId,
+   847→    int page = 1,
+   848→    int pageSize = 20,
+   849→    String? resourceType,
+   850→    String? subjectId,
+   851→    String? searchQuery,
+   852→  }) async {
+   853→    try {
+   854→      AppLogger.info('Fetching learning resources for student: $studentId');
+   855→      final offset = (page - 1) * pageSize;
+   856→
+   857→      var query = _supabase
+   858→          .from(_studentLearningResourcesTable)
+   859→          .select('*, subjects(name), profiles!teacher_id(full_name)')
+   860→          .or('is_public.eq.true,school_id.eq.$schoolId');
+   861→
+   862→      if (resourceType != null) {
+   863→        query = query.eq('resource_type', resourceType);
+   864→      }
+   865→      if (subjectId != null) {
+   866→        query = query.eq('subject_id', subjectId);
+   867→      }
+   868→      if (searchQuery != null && searchQuery.isNotEmpty) {
+   869→        query = query.ilike('title', '%$searchQuery%');
+   870→      }
+   871→
+   872→      final response = await query
+   873→          .order('created_at', ascending: false)
+   874→          .range(offset, offset + pageSize - 1);
+   875→
+   876→      return response.map((json) {
+   877→        final subject = json['subjects'] as Map<String, dynamic>?;
+   878→        final teacher = json['profiles'] as Map<String, dynamic>?;
+   879→        return LearningResourceModel.fromJson({
+   880→          ...json,
+   881→          'subject_name': subject?['name'] as String?,
+   882→          'teacher_name': teacher?['full_name'] as String?,
+   883→        });
+   884→      }).toList();
+   885→    } on sb.PostgrestException catch (e) {
+   886→      _mapPostgrestException(e);
+   887→    } catch (e) {
+   888→      _handleGenericException(e, 'fetch learning resources');
+   889→    }
+   890→  }
+   891→
+   892→  /// Gets a single learning resource by ID.
+   893→  Future<LearningResourceModel> getResourceDetail({
+   894→    required String resourceId,
+   895→  }) async {
+   896→    try {
+   897→      AppLogger.info('Fetching resource detail: $resourceId');
+   898→
+   899→      final response = await _supabase
+   900→          .from(_studentLearningResourcesTable)
+   901→          .select('*, subjects(name), profiles!teacher_id(full_name)')
+   902→          .eq('id', resourceId)
+   903→          .single();
+   904→
+   905→      final subject = response['subjects'] as Map<String, dynamic>?;
+   906→      final teacher = response['profiles'] as Map<String, dynamic>?;
+   907→
+   908→      return LearningResourceModel.fromJson({
+   909→        ...response,
+   910→        'subject_name': subject?['name'] as String?,
+   911→        'teacher_name': teacher?['full_name'] as String?,
+   912→      });
+   913→    } on sb.PostgrestException catch (e) {
+   914→      _mapPostgrestException(e);
+   915→    } catch (e) {
+   916→      _handleGenericException(e, 'fetch resource detail');
+   917→    }
+   918→  }
+   919→
+   920→  /// Logs a resource access event (view or download).
+   921→  Future<void> logResourceAccess({
+   922→    required String resourceId,
+   923→    required String studentId,
+   924→    String accessType = 'view',
+   925→  }) async {
+   926→    try {
+   927→      AppLogger.info(
+   928→        'Logging resource access: $resourceId by student: $studentId',
+   929→      );
+   930→
+   931→      await _supabase.from(_resourceAccessLogTable).insert({
+   932→        'resource_id': resourceId,
+   933→        'student_id': studentId,
+   934→        'access_type': accessType,
+   935→      });
+   936→
+   937→      // Increment view/download counter on the resource
+   938→      final counterField =
+   939→          accessType == 'download' ? 'download_count' : 'view_count';
+   940→      await _supabase.rpc(
+   941→        'increment_resource_counter',
+   942→        params: {
+   943→          'resource_id': resourceId,
+   944→          'counter_field': counterField,
+   945→        },
+   946→      );
+   947→
+   948→      AppLogger.info('Resource access logged successfully');
+   949→    } on sb.PostgrestException catch (e) {
+   950→      _mapPostgrestException(e);
+   951→    } catch (e) {
+   952→      _handleGenericException(e, 'log resource access');
+   953→    }
+   954→  }
+   955→
+   956→  // ═══════════════════════════════════════════════════════════════════════
+   957→  // DOCUMENT CHAT
+   958→  // ═══════════════════════════════════════════════════════════════════════
+   959→
+   960→  /// Uploads a document for AI chat processing.
+   961→  ///
+   962→  /// The flow is:
+   963→  /// 1. Upload the file to Supabase Storage bucket `student-documents`.
+   964→  /// 2. Create a `document_chats` record.
+   965→  /// 3. Call the `process-document` Edge Function for text extraction
+   966→  ///    (runs asynchronously).
+   967→  Future<DocumentChatModel> uploadDocument({
+   968→    required String studentId,
+   969→    String? schoolId,
+   970→    required String fileName,
+   971→    required Uint8List fileBytes,
+   972→    required String fileFormat,
+   973→    int? fileSize,
+   974→  }) async {
+   975→    try {
+   976→      AppLogger.info(
+   977→        'Uploading document for student: $studentId, file: $fileName',
+   978→      );
+   979→
+   980→      // 1. Upload file to Supabase Storage
+   981→      final storagePath =
+   982→          '$studentId/${DateTime.now().millisecondsSinceEpoch}_$fileName';
+   983→      await _supabase.storage
+   984→          .from(_studentDocumentsBucket)
+   985→          .uploadBinary(storagePath, fileBytes);
+   986→
+   987→      // Get the public URL for the uploaded file
+   988→      final fileUrl = _supabase.storage
+   989→          .from(_studentDocumentsBucket)
+   990→          .getPublicUrl(storagePath);
+   991→
+   992→      // 2. Create a document_chats record
+   993→      final response = await _supabase
+   994→          .from(_documentChatsTable)
+   995→          .insert({
+   996→            'student_id': studentId,
+   997→            'school_id': schoolId,
+   998→            'file_name': fileName,
+   999→            'file_url': fileUrl,
+  1000→            'file_size': fileSize,
+  1001→            'file_format': fileFormat,
+  1002→            'status': 'processing',
+  1003→          })
+  1004→          .select()
+  1005→          .single();
+  1006→
+  1007→      final documentId = response['id'] as String;
+  1008→
+  1009→      // 3. Trigger the process-document edge function (async)
+  1010→      _supabase.functions.invoke(
+  1011→        _processDocumentFunction,
+  1012→        body: {
+  1013→          'document_id': documentId,
+  1014→          'file_url': fileUrl,
+  1015→          'file_format': fileFormat,
+  1016→        },
+  1017→      ).catchError((error) {
+  1018→        AppLogger.error(
+  1019→          'Process document edge function failed',
+  1020→          error: error,
+  1021→        );
+  1022→      });
+  1023→
+  1024→      AppLogger.info('Document uploaded and processing started: $documentId');
+  1025→      return DocumentChatModel.fromJson(response);
+  1026→    } on sb.PostgrestException catch (e) {
+  1027→      _mapPostgrestException(e);
+  1028→    } on sb.StorageException catch (e) {
+  1029→      AppLogger.error('Storage upload failed', error: e);
+  1030→      throw ServerException(
+  1031→        message: 'File upload failed: ${e.message}',
+  1032→        statusCode: 500,
+  1033→      );
+  1034→    } catch (e) {
+  1035→      if (e is ServerException) rethrow;
+  1036→      _handleGenericException(e, 'upload document');
+  1037→    }
+  1038→  }
+  1039→
+  1040→  /// Gets all documents for a student (paginated).
+  1041→  Future<List<DocumentChatModel>> getDocuments({
+  1042→    required String studentId,
+  1043→    int page = 1,
+  1044→    int pageSize = 20,
+  1045→  }) async {
+  1046→    try {
+  1047→      AppLogger.info('Fetching documents for student: $studentId');
+  1048→      final offset = (page - 1) * pageSize;
+  1049→
+  1050→      final response = await _supabase
+  1051→          .from(_documentChatsTable)
+  1052→          .select()
+  1053→          .eq('student_id', studentId)
+  1054→          .order('created_at', ascending: false)
+  1055→          .range(offset, offset + pageSize - 1);
+  1056→
+  1057→      return response
+  1058→          .map((json) => DocumentChatModel.fromJson(json))
+  1059→          .toList();
+  1060→    } on sb.PostgrestException catch (e) {
+  1061→      _mapPostgrestException(e);
+  1062→    } catch (e) {
+  1063→      _handleGenericException(e, 'fetch documents');
+  1064→    }
+  1065→  }
+  1066→
+  1067→  /// Gets a single document with its chat messages.
+  1068→  Future<DocumentChatModel> getDocumentDetail({
+  1069→    required String documentId,
+  1070→  }) async {
+  1071→    try {
+  1072→      AppLogger.info('Fetching document detail: $documentId');
+  1073→
+  1074→      final docResponse = await _supabase
+  1075→          .from(_documentChatsTable)
+  1076→          .select()
+  1077→          .eq('id', documentId)
+  1078→          .single();
+  1079→
+  1080→      // Fetch chat messages for this document
+  1081→      // PERF: Added limit to prevent unbounded query on document_chat_messages
+  1082→      final messagesResponse = await _supabase
+  1083→          .from(_documentChatMessagesTable)
+  1084→          .select()
+  1085→          .eq('document_id', documentId)
+  1086→          .order('created_at', ascending: true)
+  1087→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1088→
+  1089→      return DocumentChatModel.fromJson({
+  1090→        ...docResponse,
+  1091→        'messages': messagesResponse
+  1092→            .map((m) => DocumentChatMessageModel.fromJson(m))
+  1093→            .toList(),
+  1094→      });
+  1095→    } on sb.PostgrestException catch (e) {
+  1096→      _mapPostgrestException(e);
+  1097→    } catch (e) {
+  1098→      _handleGenericException(e, 'fetch document detail');
+  1099→    }
+  1100→  }
+  1101→
+  1102→  /// Sends a message in a document chat and receives an AI response.
+  1103→  ///
+  1104→  /// Inserts the user message, calls the AI Edge Function, then
+  1105→  /// inserts the AI response message.
+  1106→  Future<DocumentChatMessageModel> sendDocumentMessage({
+  1107→    required String documentId,
+  1108→    required String content,
+  1109→  }) async {
+  1110→    try {
+  1111→      AppLogger.info(
+  1112→        'Sending document message for document: $documentId',
+  1113→      );
+  1114→
+  1115→      // 1. Insert user message
+  1116→      await _supabase.from(_documentChatMessagesTable).insert({
+  1117→        'document_id': documentId,
+  1118→        'role': 'user',
+  1119→        'content': content,
+  1120→      });
+  1121→
+  1122→      // 2. Call AI edge function for document chat response
+  1123→      final aiResponse = await _supabase.functions.invoke(
+  1124→        _aiTutorChatFunction,
+  1125→        body: {
+  1126→          'document_id': documentId,
+  1127→          'message': content,
+  1128→          'mode': 'document_chat',
+  1129→        },
+  1130→      );
+  1131→
+  1132→      if (aiResponse.status != 200) {
+  1133→        throw ServerException(
+  1134→          message: 'Document chat AI service error',
+  1135→          statusCode: aiResponse.status,
+  1136→        );
+  1137→      }
+  1138→
+  1139→      final aiContent = aiResponse.data['content'] as String? ??
+  1140→          'I was unable to process your question about this document. Please try again.';
+  1141→      final aiMetadata = aiResponse.data['metadata'] as Map<String, dynamic>?;
+  1142→
+  1143→      // 3. Insert AI response message
+  1144→      final assistantMessageResponse = await _supabase
+  1145→          .from(_documentChatMessagesTable)
+  1146→          .insert({
+  1147→            'document_id': documentId,
+  1148→            'role': 'assistant',
+  1149→            'content': aiContent,
+  1150→            'metadata': aiMetadata ?? {},
+  1151→          })
+  1152→          .select()
+  1153→          .single();
+  1154→
+  1155→      AppLogger.info('Document chat message sent successfully');
+  1156→      return DocumentChatMessageModel.fromJson(assistantMessageResponse);
+  1157→    } on sb.PostgrestException catch (e) {
+  1158→      _mapPostgrestException(e);
+  1159→    } catch (e) {
+  1160→      if (e is ServerException) rethrow;
+  1161→      _handleGenericException(e, 'send document message');
+  1162→    }
+  1163→  }
+  1164→
+  1165→  /// Deletes a document, its chat messages, and the stored file.
+  1166→  Future<void> deleteDocument({required String documentId}) async {
+  1167→    try {
+  1168→      AppLogger.info('Deleting document: $documentId');
+  1169→
+  1170→      // Fetch the document to get the storage path
+  1171→      final doc = await _supabase
+  1172→          .from(_documentChatsTable)
+  1173→          .select('file_url, student_id')
+  1174→          .eq('id', documentId)
+  1175→          .single();
+  1176→
+  1177→      // Delete from database (cascade deletes messages)
+  1178→      await _supabase
+  1179→          .from(_documentChatsTable)
+  1180→          .delete()
+  1181→          .eq('id', documentId);
+  1182→
+  1183→      // Attempt to remove the file from storage (best-effort)
+  1184→      final fileUrl = doc['file_url'] as String?;
+  1185→      if (fileUrl != null) {
+  1186→        try {
+  1187→          final studentId = doc['student_id'] as String;
+  1188→          // Extract the storage path from the URL
+  1189→          final uri = Uri.parse(fileUrl);
+  1190→          final pathSegments = uri.pathSegments;
+  1191→          final storagePath = pathSegments.skip(2).join('/');
+  1192→          await _supabase.storage
+  1193→              .from(_studentDocumentsBucket)
+  1194→              .remove([storagePath]);
+  1195→        } catch (storageError) {
+  1196→          AppLogger.warning(
+  1197→            'Failed to delete document from storage (non-critical)',
+  1198→            error: storageError,
+  1199→          );
+  1200→        }
+  1201→      }
+  1202→
+  1203→      AppLogger.info('Document deleted successfully');
+  1204→    } on sb.PostgrestException catch (e) {
+  1205→      _mapPostgrestException(e);
+  1206→    } catch (e) {
+  1207→      _handleGenericException(e, 'delete document');
+  1208→    }
+  1209→  }
+  1210→
+  1211→  // ═══════════════════════════════════════════════════════════════════════
+  1212→  // FLASHCARDS
+  1213→  // ═══════════════════════════════════════════════════════════════════════
+  1214→
+  1215→  /// Gets all flashcard decks for a student.
+  1216→  ///
+  1217→  /// Includes a computed [due_count] — the number of cards whose
+  1218→  /// next review date has passed. Supports filtering by favorite
+  1219→  /// status and subject.
+  1220→  Future<List<FlashcardDeckModel>> getFlashcardDecks({
+  1221→    required String studentId,
+  1222→    int page = 1,
+  1223→    int pageSize = 20,
+  1224→    bool? isFavorite,
+  1225→    String? subjectId,
+  1226→  }) async {
+  1227→    try {
+  1228→      AppLogger.info('Fetching flashcard decks for student: $studentId');
+  1229→      final offset = (page - 1) * pageSize;
+  1230→
+  1231→      var query = _supabase
+  1232→          .from(_flashcardDecksTable)
+  1233→          .select('*, subjects(name), flashcards(count)')
+  1234→          .eq('student_id', studentId);
+  1235→
+  1236→      if (isFavorite != null) {
+  1237→        query = query.eq('is_favorite', isFavorite);
+  1238→      }
+  1239→      if (subjectId != null) {
+  1240→        query = query.eq('subject_id', subjectId);
+  1241→      }
+  1242→
+  1243→      final response = await query
+  1244→          .order('updated_at', ascending: false)
+  1245→          .range(offset, offset + pageSize - 1);
+  1246→
+  1247→      return response.map((json) {
+  1248→        final subject = json['subjects'] as Map<String, dynamic>?;
+  1249→        final flashcardAgg = json['flashcards'] as List<dynamic>?;
+  1250→
+  1251→        // Compute due count from flashcards (cards where next_review <= now)
+  1252→        const int dueCount = 0;
+  1253→        // The aggregate count from Supabase gives total, we need a
+  1254→        // separate query for due count — use a fallback approach
+  1255→        return FlashcardDeckModel.fromJson({
+  1256→          ...json,
+  1257→          'subject_name': subject?['name'] as String?,
+  1258→          'card_count': flashcardAgg?.first?['count'] as int? ?? 0,
+  1259→          'due_count': dueCount, // Will be enriched separately
+  1260→        });
+  1261→      }).toList();
+  1262→    } on sb.PostgrestException catch (e) {
+  1263→      _mapPostgrestException(e);
+  1264→    } catch (e) {
+  1265→      _handleGenericException(e, 'fetch flashcard decks');
+  1266→    }
+  1267→  }
+  1268→
+  1269→  /// Creates a new flashcard deck.
+  1270→  Future<FlashcardDeckModel> createFlashcardDeck({
+  1271→    required String studentId,
+  1272→    String? schoolId,
+  1273→    String? subjectId,
+  1274→    String? topicId,
+  1275→    required String title,
+  1276→    String? description,
+  1277→    String sourceType = 'manual',
+  1278→    String? sourceId,
+  1279→    List<String> tags = const [],
+  1280→  }) async {
+  1281→    try {
+  1282→      AppLogger.info('Creating flashcard deck: $title');
+  1283→      final response = await _supabase
+  1284→          .from(_flashcardDecksTable)
+  1285→          .insert({
+  1286→            'student_id': studentId,
+  1287→            'school_id': schoolId,
+  1288→            'subject_id': subjectId,
+  1289→            'topic_id': topicId,
+  1290→            'title': title,
+  1291→            'description': description,
+  1292→            'source_type': sourceType,
+  1293→            'source_id': sourceId,
+  1294→            'tags': tags,
+  1295→          })
+  1296→          .select()
+  1297→          .single();
+  1298→      AppLogger.info('Flashcard deck created successfully');
+  1299→      return FlashcardDeckModel.fromJson(response);
+  1300→    } on sb.PostgrestException catch (e) {
+  1301→      _mapPostgrestException(e);
+  1302→    } catch (e) {
+  1303→      _handleGenericException(e, 'create flashcard deck');
+  1304→    }
+  1305→  }
+  1306→
+  1307→  /// Updates a flashcard deck's metadata.
+  1308→  Future<FlashcardDeckModel> updateFlashcardDeck({
+  1309→    required String deckId,
+  1310→    String? title,
+  1311→    String? description,
+  1312→    bool? isFavorite,
+  1313→    List<String>? tags,
+  1314→  }) async {
+  1315→    try {
+  1316→      AppLogger.info('Updating flashcard deck: $deckId');
+  1317→
+  1318→      final updateData = <String, dynamic>{};
+  1319→      if (title != null) updateData['title'] = title;
+  1320→      if (description != null) updateData['description'] = description;
+  1321→      if (isFavorite != null) updateData['is_favorite'] = isFavorite;
+  1322→      if (tags != null) updateData['tags'] = tags;
+  1323→
+  1324→      final response = await _supabase
+  1325→          .from(_flashcardDecksTable)
+  1326→          .update(updateData)
+  1327→          .eq('id', deckId)
+  1328→          .select()
+  1329→          .single();
+  1330→
+  1331→      AppLogger.info('Flashcard deck updated successfully');
+  1332→      return FlashcardDeckModel.fromJson(response);
+  1333→    } on sb.PostgrestException catch (e) {
+  1334→      _mapPostgrestException(e);
+  1335→    } catch (e) {
+  1336→      _handleGenericException(e, 'update flashcard deck');
+  1337→    }
+  1338→  }
+  1339→
+  1340→  /// Deletes a flashcard deck and all its cards (cascade).
+  1341→  Future<void> deleteFlashcardDeck({required String deckId}) async {
+  1342→    try {
+  1343→      AppLogger.info('Deleting flashcard deck: $deckId');
+  1344→      await _supabase
+  1345→          .from(_flashcardDecksTable)
+  1346→          .delete()
+  1347→          .eq('id', deckId);
+  1348→      AppLogger.info('Flashcard deck deleted successfully');
+  1349→    } on sb.PostgrestException catch (e) {
+  1350→      _mapPostgrestException(e);
+  1351→    } catch (e) {
+  1352→      _handleGenericException(e, 'delete flashcard deck');
+  1353→    }
+  1354→  }
+  1355→
+  1356→  /// Gets flashcards in a deck.
+  1357→  ///
+  1358→  /// When [dueOnly] is true, only returns cards whose [next_review]
+  1359→  /// datetime is in the past (i.e. they are due for review).
+  1360→  Future<List<FlashcardModel>> getFlashcards({
+  1361→    required String deckId,
+  1362→    bool dueOnly = false,
+  1363→  }) async {
+  1364→    try {
+  1365→      AppLogger.info(
+  1366→        'Fetching flashcards for deck: $deckId (dueOnly: $dueOnly)',
+  1367→      );
+  1368→
+  1369→      var query = _supabase
+  1370→          .from(_flashcardsTable)
+  1371→          .select()
+  1372→          .eq('deck_id', deckId);
+  1373→
+  1374→      if (dueOnly) {
+  1375→        query = query.lte('next_review', DateTime.now().toUtc().toIso8601String());
+  1376→      }
+  1377→
+  1378→      // PERF: Added limit to prevent unbounded query on flashcards
+  1379→      final response = await query.order('created_at', ascending: true).limit(PaginatedQueryMixin.dropdownPageSize);
+  1380→      return response
+  1381→          .map((json) => FlashcardModel.fromJson(json))
+  1382→          .toList();
+  1383→    } on sb.PostgrestException catch (e) {
+  1384→      _mapPostgrestException(e);
+  1385→    } catch (e) {
+  1386→      _handleGenericException(e, 'fetch flashcards');
+  1387→    }
+  1388→  }
+  1389→
+  1390→  /// Creates a new flashcard in a deck.
+  1391→  Future<FlashcardModel> createFlashcard({
+  1392→    required String deckId,
+  1393→    required String frontContent,
+  1394→    required String backContent,
+  1395→    String? hint,
+  1396→    String? imageUrl,
+  1397→    String difficulty = 'medium',
+  1398→  }) async {
+  1399→    try {
+  1400→      AppLogger.info('Creating flashcard in deck: $deckId');
+  1401→      final response = await _supabase
+  1402→          .from(_flashcardsTable)
+  1403→          .insert({
+  1404→            'deck_id': deckId,
+  1405→            'front_content': frontContent,
+  1406→            'back_content': backContent,
+  1407→            'hint': hint,
+  1408→            'image_url': imageUrl,
+  1409→            'difficulty': difficulty,
+  1410→            'ease_factor': 2.5,
+  1411→            'interval': 0,
+  1412→            'repetitions': 0,
+  1413→            'next_review': DateTime.now().toUtc().toIso8601String(),
+  1414→          })
+  1415→          .select()
+  1416→          .single();
+  1417→
+  1418→      AppLogger.info('Flashcard created successfully');
+  1419→      return FlashcardModel.fromJson(response);
+  1420→    } on sb.PostgrestException catch (e) {
+  1421→      _mapPostgrestException(e);
+  1422→    } catch (e) {
+  1423→      _handleGenericException(e, 'create flashcard');
+  1424→    }
+  1425→  }
+  1426→
+  1427→  /// Updates a flashcard's content fields.
+  1428→  Future<FlashcardModel> updateFlashcard({
+  1429→    required String cardId,
+  1430→    String? frontContent,
+  1431→    String? backContent,
+  1432→    String? hint,
+  1433→  }) async {
+  1434→    try {
+  1435→      AppLogger.info('Updating flashcard: $cardId');
+  1436→
+  1437→      final updateData = <String, dynamic>{};
+  1438→      if (frontContent != null) updateData['front_content'] = frontContent;
+  1439→      if (backContent != null) updateData['back_content'] = backContent;
+  1440→      if (hint != null) updateData['hint'] = hint;
+  1441→
+  1442→      final response = await _supabase
+  1443→          .from(_flashcardsTable)
+  1444→          .update(updateData)
+  1445→          .eq('id', cardId)
+  1446→          .select()
+  1447→          .single();
+  1448→
+  1449→      AppLogger.info('Flashcard updated successfully');
+  1450→      return FlashcardModel.fromJson(response);
+  1451→    } on sb.PostgrestException catch (e) {
+  1452→      _mapPostgrestException(e);
+  1453→    } catch (e) {
+  1454→      _handleGenericException(e, 'update flashcard');
+  1455→    }
+  1456→  }
+  1457→
+  1458→  /// Rates a flashcard using the SM-2 spaced repetition algorithm.
+  1459→  ///
+  1460→  /// The rating can be one of: `again`, `hard`, `good`, `easy`.
+  1461→  ///
+  1462→  /// **SM-2 Algorithm Implementation:**
+  1463→  /// - `again`: repetitions = 0, interval = 1 min
+  1464→  /// - `hard`:  easeFactor -= 0.15, interval = interval * 1.2
+  1465→  /// - `good`:  interval = interval * easeFactor
+  1466→  /// - `easy`:  easeFactor += 0.15, interval = interval * easeFactor * 1.3
+  1467→  /// - easeFactor is clamped between 1.3 and 3.0
+  1468→  /// - If repetitions == 0: interval = 1 day
+  1469→  /// - If repetitions == 1: interval = 6 days
+  1470→  /// - Else: interval = previousInterval * easeFactor
+  1471→  Future<FlashcardModel> rateFlashcard({
+  1472→    required String cardId,
+  1473→    required String rating,
+  1474→  }) async {
+  1475→    try {
+  1476→      AppLogger.info('Rating flashcard: $cardId with rating: $rating');
+  1477→
+  1478→      // 1. Fetch the current card state
+  1479→      final current = await _supabase
+  1480→          .from(_flashcardsTable)
+  1481→          .select()
+  1482→          .eq('id', cardId)
+  1483→          .single();
+  1484→
+  1485→      var repetitions = current['repetitions'] as int? ?? 0;
+  1486→      var easeFactor = (current['ease_factor'] as num?)?.toDouble() ?? 2.5;
+  1487→      var interval = (current['interval'] as num?)?.toDouble() ?? 0.0;
+  1488→      final previousInterval = interval;
+  1489→
+  1490→      // 2. Apply SM-2 algorithm based on rating
+  1491→      switch (rating) {
+  1492→        case 'again':
+  1493→          repetitions = 0;
+  1494→          interval = 1.0 / 1440.0; // 1 minute in days (~0.000694 days)
+  1495→          // Alternatively, we can set next_review to now + 1 minute directly
+  1496→          break;
+  1497→        case 'hard':
+  1498→          easeFactor = max(1.3, easeFactor - 0.15);
+  1499→          interval = previousInterval * 1.2;
+  1500→          if (interval < 1) interval = 1;
+  1501→          repetitions = repetitions + 1;
+  1502→          break;
+  1503→        case 'good':
+  1504→          if (repetitions == 0) {
+  1505→            interval = 1; // 1 day
+  1506→          } else if (repetitions == 1) {
+  1507→            interval = 6; // 6 days
+  1508→          } else {
+  1509→            interval = previousInterval * easeFactor;
+  1510→          }
+  1511→          repetitions = repetitions + 1;
+  1512→          break;
+  1513→        case 'easy':
+  1514→          easeFactor = min(3.0, easeFactor + 0.15);
+  1515→          if (repetitions == 0) {
+  1516→            interval = 1;
+  1517→          } else if (repetitions == 1) {
+  1518→            interval = 6;
+  1519→          } else {
+  1520→            interval = previousInterval * easeFactor;
+  1521→          }
+  1522→          interval = interval * 1.3;
+  1523→          repetitions = repetitions + 1;
+  1524→          break;
+  1525→        default:
+  1526→          throw ValidationException(
+  1527→            message: 'Invalid flashcard rating: $rating',
+  1528→            fieldErrors: {'rating': 'Must be one of: again, hard, good, easy'},
+  1529→          );
+  1530→      }
+  1531→
+  1532→      // 3. Clamp easeFactor
+  1533→      easeFactor = easeFactor.clamp(1.3, 3.0);
+  1534→
+  1535→      // 4. Compute next review date
+  1536→      final nextReview = DateTime.now().add(Duration(
+  1537→        milliseconds: (interval * 24 * 60 * 60 * 1000).round(),
+  1538→      ),);
+  1539→
+  1540→      // 5. Persist the updated SM-2 state
+  1541→      final response = await _supabase
+  1542→          .from(_flashcardsTable)
+  1543→          .update({
+  1544→            'repetitions': repetitions,
+  1545→            'ease_factor': easeFactor,
+  1546→            'interval': interval,
+  1547→            'next_review': nextReview.toUtc().toIso8601String(),
+  1548→            'last_reviewed': DateTime.now().toUtc().toIso8601String(),
+  1549→          })
+  1550→          .eq('id', cardId)
+  1551→          .select()
+  1552→          .single();
+  1553→
+  1554→      AppLogger.info(
+  1555→        'Flashcard rated: $cardId → next review in ${interval.toStringAsFixed(1)} days',
+  1556→      );
+  1557→      return FlashcardModel.fromJson(response);
+  1558→    } on sb.PostgrestException catch (e) {
+  1559→      _mapPostgrestException(e);
+  1560→    } catch (e) {
+  1561→      if (e is ValidationException) rethrow;
+  1562→      _handleGenericException(e, 'rate flashcard');
+  1563→    }
+  1564→  }
+  1565→
+  1566→  /// Deletes a single flashcard.
+  1567→  Future<void> deleteFlashcard({required String cardId}) async {
+  1568→    try {
+  1569→      AppLogger.info('Deleting flashcard: $cardId');
+  1570→      await _supabase
+  1571→          .from(_flashcardsTable)
+  1572→          .delete()
+  1573→          .eq('id', cardId);
+  1574→      AppLogger.info('Flashcard deleted successfully');
+  1575→    } on sb.PostgrestException catch (e) {
+  1576→      _mapPostgrestException(e);
+  1577→    } catch (e) {
+  1578→      _handleGenericException(e, 'delete flashcard');
+  1579→    }
+  1580→  }
+  1581→
+  1582→  /// Generates flashcards from content using AI.
+  1583→  ///
+  1584→  /// Calls the `generate-flashcards` Edge Function, then creates
+  1585→  /// a deck and populates it with the generated cards.
+  1586→  Future<FlashcardDeckModel> generateFlashcards({
+  1587→    required String studentId,
+  1588→    String? schoolId,
+  1589→    required String title,
+  1590→    String? subjectId,
+  1591→    String? topicId,
+  1592→    required String sourceContent,
+  1593→    String sourceType = 'ai_generated',
+  1594→    int cardCount = 10,
+  1595→  }) async {
+  1596→    try {
+  1597→      AppLogger.info(
+  1598→        'Generating flashcards from content for student: $studentId',
+  1599→      );
+  1600→
+  1601→      // 1. Call the generate-flashcards edge function
+  1602→      final aiResponse = await _supabase.functions.invoke(
+  1603→        _generateFlashcardsFunction,
+  1604→        body: {
+  1605→          'student_id': studentId,
+  1606→          'title': title,
+  1607→          'subject_id': subjectId,
+  1608→          'topic_id': topicId,
+  1609→          'source_content': sourceContent,
+  1610→          'card_count': cardCount,
+  1611→        },
+  1612→      );
+  1613→
+  1614→      if (aiResponse.status != 200) {
+  1615→        throw ServerException(
+  1616→          message: 'Flashcard generation failed: ${aiResponse.data}',
+  1617→          statusCode: aiResponse.status,
+  1618→        );
+  1619→      }
+  1620→
+  1621→      final generatedCards = aiResponse.data['cards'] as List<dynamic>? ?? [];
+  1622→
+  1623→      // 2. Create the deck
+  1624→      final deckResponse = await _supabase
+  1625→          .from(_flashcardDecksTable)
+  1626→          .insert({
+  1627→            'student_id': studentId,
+  1628→            'school_id': schoolId,
+  1629→            'subject_id': subjectId,
+  1630→            'topic_id': topicId,
+  1631→            'title': title,
+  1632→            'source_type': sourceType,
+  1633→            'tags': ['ai_generated'],
+  1634→          })
+  1635→          .select()
+  1636→          .single();
+  1637→
+  1638→      final deckId = deckResponse['id'] as String;
+  1639→
+  1640→      // 3. Create all the generated flashcards in the deck
+  1641→      if (generatedCards.isNotEmpty) {
+  1642→        final cardsToInsert = generatedCards.map((card) {
+  1643→          final cardMap = card as Map<String, dynamic>;
+  1644→          return {
+  1645→            'deck_id': deckId,
+  1646→            'front_content': cardMap['front'] as String? ?? '',
+  1647→            'back_content': cardMap['back'] as String? ?? '',
+  1648→            'hint': cardMap['hint'] as String?,
+  1649→            'difficulty': cardMap['difficulty'] as String? ?? 'medium',
+  1650→            'ease_factor': 2.5,
+  1651→            'interval': 0,
+  1652→            'repetitions': 0,
+  1653→            'next_review': DateTime.now().toUtc().toIso8601String(),
+  1654→          };
+  1655→        }).toList();
+  1656→
+  1657→        await _supabase
+  1658→            .from(_flashcardsTable)
+  1659→            .insert(cardsToInsert);
+  1660→      }
+  1661→
+  1662→      AppLogger.info(
+  1663→        'Generated flashcard deck: $deckId with ${generatedCards.length} cards',
+  1664→      );
+  1665→      return FlashcardDeckModel.fromJson(deckResponse);
+  1666→    } on sb.PostgrestException catch (e) {
+  1667→      _mapPostgrestException(e);
+  1668→    } catch (e) {
+  1669→      if (e is ServerException) rethrow;
+  1670→      _handleGenericException(e, 'generate flashcards');
+  1671→    }
+  1672→  }
+  1673→
+  1674→  // ═══════════════════════════════════════════════════════════════════════
+  1675→  // STUDY PLANNER
+  1676→  // ═══════════════════════════════════════════════════════════════════════
+  1677→
+  1678→  /// Gets all study plans for a student, optionally including their
+  1679→  /// tasks. Supports filtering by [isActive] status.
+  1680→  Future<List<StudyPlanModel>> getStudyPlans({
+  1681→    required String studentId,
+  1682→    bool? isActive,
+  1683→  }) async {
+  1684→    try {
+  1685→      AppLogger.info('Fetching study plans for student: $studentId');
+  1686→
+  1687→      var query = _supabase
+  1688→          .from(_studyPlansTable)
+  1689→          .select('*, study_tasks(*)')
+  1690→          .eq('student_id', studentId);
+  1691→
+  1692→      if (isActive != null) {
+  1693→        query = query.eq('is_active', isActive);
+  1694→      }
+  1695→
+  1696→      // PERF: Added limit to prevent unbounded query on study_plans
+  1697→      final response = await query
+  1698→          .order('created_at', ascending: false)
+  1699→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1700→
+  1701→      return response.map((json) {
+  1702→        final tasks = (json['study_tasks'] as List<dynamic>?)
+  1703→                ?.map((t) => StudyTaskModel.fromJson(t as Map<String, dynamic>))
+  1704→                .toList() ??
+  1705→            [];
+  1706→        return StudyPlanModel.fromJson({
+  1707→          ...json,
+  1708→          'tasks': tasks,
+  1709→        });
+  1710→      }).toList();
+  1711→    } on sb.PostgrestException catch (e) {
+  1712→      _mapPostgrestException(e);
+  1713→    } catch (e) {
+  1714→      _handleGenericException(e, 'fetch study plans');
+  1715→    }
+  1716→  }
+  1717→
+  1718→  /// Creates a new study plan with optional initial tasks.
+  1719→  Future<StudyPlanModel> createStudyPlan({
+  1720→    required String studentId,
+  1721→    String? schoolId,
+  1722→    required String title,
+  1723→    String? description,
+  1724→    String frequency = 'daily',
+  1725→    required DateTime startDate,
+  1726→    DateTime? endDate,
+  1727→    List<Map<String, dynamic>> tasks = const [],
+  1728→  }) async {
+  1729→    try {
+  1730→      AppLogger.info('Creating study plan: $title');
+  1731→
+  1732→      final planResponse = await _supabase
+  1733→          .from(_studyPlansTable)
+  1734→          .insert({
+  1735→            'student_id': studentId,
+  1736→            'school_id': schoolId,
+  1737→            'title': title,
+  1738→            'description': description,
+  1739→            'frequency': frequency,
+  1740→            'start_date': startDate.toUtc().toIso8601String(),
+  1741→            'end_date': endDate?.toUtc().toIso8601String(),
+  1742→            'is_active': true,
+  1743→          })
+  1744→          .select()
+  1745→          .single();
+  1746→
+  1747→      final planId = planResponse['id'] as String;
+  1748→
+  1749→      // Insert initial tasks if provided
+  1750→      if (tasks.isNotEmpty) {
+  1751→        final tasksToInsert = tasks.map((task) {
+  1752→          return {
+  1753→            'plan_id': planId,
+  1754→            'subject_id': task['subject_id'] as String?,
+  1755→            'title': task['title'] as String,
+  1756→            'description': task['description'] as String?,
+  1757→            'scheduled_date': (task['scheduled_date'] as DateTime)
+  1758→                .toUtc()
+  1759→                .toIso8601String(),
+  1760→            'start_time': task['start_time'] != null
+  1761→                ? (task['start_time'] as DateTime).toUtc().toIso8601String()
+  1762→                : null,
+  1763→            'end_time': task['end_time'] != null
+  1764→                ? (task['end_time'] as DateTime).toUtc().toIso8601String()
+  1765→                : null,
+  1766→          };
+  1767→        }).toList();
+  1768→
+  1769→        await _supabase.from(_studyTasksTable).insert(tasksToInsert);
+  1770→      }
+  1771→
+  1772→      AppLogger.info('Study plan created: $planId');
+  1773→      return StudyPlanModel.fromJson(planResponse);
+  1774→    } on sb.PostgrestException catch (e) {
+  1775→      _mapPostgrestException(e);
+  1776→    } catch (e) {
+  1777→      _handleGenericException(e, 'create study plan');
+  1778→    }
+  1779→  }
+  1780→
+  1781→  /// Updates a study plan's metadata.
+  1782→  Future<StudyPlanModel> updateStudyPlan({
+  1783→    required String planId,
+  1784→    String? title,
+  1785→    String? description,
+  1786→    String? frequency,
+  1787→    DateTime? endDate,
+  1788→    bool? isActive,
+  1789→  }) async {
+  1790→    try {
+  1791→      AppLogger.info('Updating study plan: $planId');
+  1792→
+  1793→      final updateData = <String, dynamic>{};
+  1794→      if (title != null) updateData['title'] = title;
+  1795→      if (description != null) updateData['description'] = description;
+  1796→      if (frequency != null) updateData['frequency'] = frequency;
+  1797→      if (endDate != null) updateData['end_date'] = endDate.toUtc().toIso8601String();
+  1798→      if (isActive != null) updateData['is_active'] = isActive;
+  1799→
+  1800→      final response = await _supabase
+  1801→          .from(_studyPlansTable)
+  1802→          .update(updateData)
+  1803→          .eq('id', planId)
+  1804→          .select()
+  1805→          .single();
+  1806→
+  1807→      AppLogger.info('Study plan updated successfully');
+  1808→      return StudyPlanModel.fromJson(response);
+  1809→    } on sb.PostgrestException catch (e) {
+  1810→      _mapPostgrestException(e);
+  1811→    } catch (e) {
+  1812→      _handleGenericException(e, 'update study plan');
+  1813→    }
+  1814→  }
+  1815→
+  1816→  /// Deletes a study plan and all its tasks (cascade).
+  1817→  Future<void> deleteStudyPlan({required String planId}) async {
+  1818→    try {
+  1819→      AppLogger.info('Deleting study plan: $planId');
+  1820→      await _supabase
+  1821→          .from(_studyPlansTable)
+  1822→          .delete()
+  1823→          .eq('id', planId);
+  1824→      AppLogger.info('Study plan deleted successfully');
+  1825→    } on sb.PostgrestException catch (e) {
+  1826→      _mapPostgrestException(e);
+  1827→    } catch (e) {
+  1828→      _handleGenericException(e, 'delete study plan');
+  1829→    }
+  1830→  }
+  1831→
+  1832→  /// Creates a new study task within a plan.
+  1833→  Future<StudyTaskModel> createStudyTask({
+  1834→    required String planId,
+  1835→    String? subjectId,
+  1836→    required String title,
+  1837→    String? description,
+  1838→    required DateTime scheduledDate,
+  1839→    DateTime? startTime,
+  1840→    DateTime? endTime,
+  1841→  }) async {
+  1842→    try {
+  1843→      AppLogger.info('Creating study task: $title in plan: $planId');
+  1844→
+  1845→      final response = await _supabase
+  1846→          .from(_studyTasksTable)
+  1847→          .insert({
+  1848→            'plan_id': planId,
+  1849→            'subject_id': subjectId,
+  1850→            'title': title,
+  1851→            'description': description,
+  1852→            'scheduled_date': scheduledDate.toUtc().toIso8601String(),
+  1853→            'start_time': startTime?.toUtc().toIso8601String(),
+  1854→            'end_time': endTime?.toUtc().toIso8601String(),
+  1855→          })
+  1856→          .select()
+  1857→          .single();
+  1858→
+  1859→      AppLogger.info('Study task created successfully');
+  1860→      return StudyTaskModel.fromJson(response);
+  1861→    } on sb.PostgrestException catch (e) {
+  1862→      _mapPostgrestException(e);
+  1863→    } catch (e) {
+  1864→      _handleGenericException(e, 'create study task');
+  1865→    }
+  1866→  }
+  1867→
+  1868→  /// Updates a study task's status, completion, or notes.
+  1869→  Future<StudyTaskModel> updateStudyTask({
+  1870→    required String taskId,
+  1871→    String? status,
+  1872→    double? completionPct,
+  1873→    String? notes,
+  1874→  }) async {
+  1875→    try {
+  1876→      AppLogger.info('Updating study task: $taskId');
+  1877→
+  1878→      final updateData = <String, dynamic>{};
+  1879→      if (status != null) updateData['status'] = status;
+  1880→      if (completionPct != null) updateData['completion_pct'] = completionPct;
+  1881→      if (notes != null) updateData['notes'] = notes;
+  1882→
+  1883→      final response = await _supabase
+  1884→          .from(_studyTasksTable)
+  1885→          .update(updateData)
+  1886→          .eq('id', taskId)
+  1887→          .select()
+  1888→          .single();
+  1889→
+  1890→      AppLogger.info('Study task updated successfully');
+  1891→      return StudyTaskModel.fromJson(response);
+  1892→    } on sb.PostgrestException catch (e) {
+  1893→      _mapPostgrestException(e);
+  1894→    } catch (e) {
+  1895→      _handleGenericException(e, 'update study task');
+  1896→    }
+  1897→  }
+  1898→
+  1899→  /// Deletes a study task.
+  1900→  Future<void> deleteStudyTask({required String taskId}) async {
+  1901→    try {
+  1902→      AppLogger.info('Deleting study task: $taskId');
+  1903→      await _supabase
+  1904→          .from(_studyTasksTable)
+  1905→          .delete()
+  1906→          .eq('id', taskId);
+  1907→      AppLogger.info('Study task deleted successfully');
+  1908→    } on sb.PostgrestException catch (e) {
+  1909→      _mapPostgrestException(e);
+  1910→    } catch (e) {
+  1911→      _handleGenericException(e, 'delete study task');
+  1912→    }
+  1913→  }
+  1914→
+  1915→  /// Gets an AI-suggested study plan based on student progress.
+  1916→  ///
+  1917→  /// Calls the `suggest-study-plan` Edge Function which analyzes
+  1918→  /// the student's performance data and generates a personalized plan.
+  1919→  Future<StudyPlanModel> suggestStudyPlan({
+  1920→    required String studentId,
+  1921→    String? schoolId,
+  1922→    String? focusSubjectId,
+  1923→  }) async {
+  1924→    try {
+  1925→      AppLogger.info(
+  1926→        'Requesting AI study plan suggestion for student: $studentId',
+  1927→      );
+  1928→
+  1929→      final aiResponse = await _supabase.functions.invoke(
+  1930→        _suggestStudyPlanFunction,
+  1931→        body: {
+  1932→          'student_id': studentId,
+  1933→          'school_id': schoolId,
+  1934→          'focus_subject_id': focusSubjectId,
+  1935→        },
+  1936→      );
+  1937→
+  1938→      if (aiResponse.status != 200) {
+  1939→        throw ServerException(
+  1940→          message: 'Study plan suggestion failed: ${aiResponse.data}',
+  1941→          statusCode: aiResponse.status,
+  1942→        );
+  1943→      }
+  1944→
+  1945→      final planData = aiResponse.data as Map<String, dynamic>;
+  1946→      final tasksData = planData['tasks'] as List<dynamic>? ?? [];
+  1947→
+  1948→      // Create the suggested plan
+  1949→      final planResponse = await _supabase
+  1950→          .from(_studyPlansTable)
+  1951→          .insert({
+  1952→            'student_id': studentId,
+  1953→            'school_id': schoolId,
+  1954→            'title': planData['title'] as String? ?? 'AI Suggested Study Plan',
+  1955→            'description':
+  1956→                planData['description'] as String? ?? 'Personalized study plan based on your progress',
+  1957→            'frequency': planData['frequency'] as String? ?? 'daily',
+  1958→            'start_date': DateTime.now().toUtc().toIso8601String(),
+  1959→            'is_active': true,
+  1960→            'is_ai_suggested': true,
+  1961→          })
+  1962→          .select()
+  1963→          .single();
+  1964→
+  1965→      final planId = planResponse['id'] as String;
+  1966→
+  1967→      // Insert the suggested tasks
+  1968→      if (tasksData.isNotEmpty) {
+  1969→        final tasksToInsert = tasksData.map((task) {
+  1970→          final t = task as Map<String, dynamic>;
+  1971→          return {
+  1972→            'plan_id': planId,
+  1973→            'subject_id': t['subject_id'] as String?,
+  1974→            'title': t['title'] as String,
+  1975→            'description': t['description'] as String?,
+  1976→            'scheduled_date': t['scheduled_date'] as String,
+  1977→            'start_time': t['start_time'] as String?,
+  1978→            'end_time': t['end_time'] as String?,
+  1979→          };
+  1980→        }).toList();
+  1981→
+  1982→        await _supabase.from(_studyTasksTable).insert(tasksToInsert);
+  1983→      }
+  1984→
+  1985→      AppLogger.info('AI study plan created: $planId');
+  1986→      return StudyPlanModel.fromJson(planResponse);
+  1987→    } on sb.PostgrestException catch (e) {
+  1988→      _mapPostgrestException(e);
+  1989→    } catch (e) {
+  1990→      if (e is ServerException) rethrow;
+  1991→      _handleGenericException(e, 'suggest study plan');
+  1992→    }
+  1993→  }
+  1994→
+  1995→  // ═══════════════════════════════════════════════════════════════════════
+  1996→  // STUDENT GOALS
+  1997→  // ═══════════════════════════════════════════════════════════════════════
+  1998→
+  1999→  /// Gets all goals for a student, optionally filtered by status
+  2000→  /// and subject.
+
+[showing lines 1-2000 of 2525; use offset=2001 with limit to continue reading]

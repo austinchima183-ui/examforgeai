@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
@@ -91,7 +91,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
       ),
       body: aiState.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : _buildBody(context, aiState, teacherState),
     );
   }
@@ -129,7 +129,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
                   ref
                       .read(aiGradingProvider.notifier)
                       .loadPendingGradings(widget.examId);
-                }),
+                },),
 
               // ── Success message ──────────────────────────────────
               if (aiState.successMessage != null)
@@ -137,7 +137,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
 
               // ── Pending gradings list ────────────────────────────
               if (aiState.pendingGradings.isEmpty)
-                AppEmptyState(
+                const AppEmptyState(
                   icon: Icons.check_circle_outline_rounded,
                   title: 'All Graded!',
                   subtitle:
@@ -169,12 +169,12 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
   // ─── Batch Grading Progress ────────────────────────────────────────
 
   Widget _buildBatchGradingProgress(
-      BuildContext context, AiGradingState state) {
+      BuildContext context, AiGradingState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
     return AppCard(
-      color: cs.primaryContainer.withOpacity(0.3),
+      color: cs.primaryContainer.withValues(alpha: 0.3),
       child: Column(
         children: [
           Row(
@@ -266,7 +266,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
       ),
       child: Row(
@@ -294,7 +294,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
   // ─── Error Banner ──────────────────────────────────────────────────
 
   Widget _buildErrorBanner(BuildContext context, String error,
-      {required VoidCallback onRetry}) {
+      {required VoidCallback onRetry,}) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -305,13 +305,13 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.error_outline_rounded,
-                color: AppColors.errorOf(cs.brightness)),
+                color: AppColors.errorOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -346,13 +346,13 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.check_circle_rounded,
-                color: AppColors.successOf(cs.brightness)),
+                color: AppColors.successOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -397,7 +397,7 @@ class _TeacherGradingPageState extends ConsumerState<TeacherGradingPage> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
-              'Score must be between 0 and ${result.maxPossible}'),
+              'Score must be between 0 and ${result.maxPossible}',),
         ),
       );
       return;
@@ -519,10 +519,10 @@ class _GradingCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.primaryContainer.withOpacity(0.3),
+              color: cs.primaryContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Row(
@@ -572,7 +572,7 @@ class _GradingCard extends StatelessWidget {
                             style: tt.titleMedium?.copyWith(
                               fontWeight: AppTypography.wSemiBold,
                               color: _confidenceColor(
-                                  context, result.confidenceScore),
+                                  context, result.confidenceScore,),
                             ),
                           ),
                         ],
@@ -611,26 +611,26 @@ class _GradingCard extends StatelessWidget {
                   (s) => Chip(
                     avatar: Icon(Icons.add_circle_outline_rounded,
                         size: Spacings.smIcon,
-                        color: AppColors.successOf(cs.brightness)),
+                        color: AppColors.successOf(cs.brightness),),
                     label: Text(s,
                         style: tt.bodySmall?.copyWith(
-                            color: AppColors.successOf(cs.brightness))),
+                            color: AppColors.successOf(cs.brightness),),),
                     side: BorderSide.none,
                     backgroundColor: AppColors.successOf(cs.brightness)
-                        .withOpacity(isDark ? 0.15 : 0.08),
+                        .withValues(alpha: isDark ? 0.15 : 0.08),
                   ),
                 ),
                 ...result.weaknesses.map(
                   (w) => Chip(
                     avatar: Icon(Icons.remove_circle_outline_rounded,
                         size: Spacings.smIcon,
-                        color: AppColors.warningOf(cs.brightness)),
+                        color: AppColors.warningOf(cs.brightness),),
                     label: Text(w,
                         style: tt.bodySmall?.copyWith(
-                            color: AppColors.warningOf(cs.brightness))),
+                            color: AppColors.warningOf(cs.brightness),),),
                     side: BorderSide.none,
                     backgroundColor: AppColors.warningOf(cs.brightness)
-                        .withOpacity(isDark ? 0.15 : 0.08),
+                        .withValues(alpha: isDark ? 0.15 : 0.08),
                   ),
                 ),
               ],
@@ -647,7 +647,7 @@ class _GradingCard extends StatelessWidget {
                 child: TextField(
                   controller: overrideController,
                   keyboardType: const TextInputType.numberWithOptions(
-                      decimal: true),
+                      decimal: true,),
                   decoration: InputDecoration(
                     labelText: 'Override Score',
                     hintText: '0 – ${result.maxPossible.toStringAsFixed(0)}',
@@ -761,7 +761,7 @@ class _GradingCard extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(

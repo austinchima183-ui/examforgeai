@@ -3,19 +3,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
-import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
-import '../../../../../shared/widgets/app_stat_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
+import '../../../../../shared/widgets/app_stat_card.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../../../../config/dependency_injection.dart';
 import '../../providers/exam_monitor_provider.dart';
 import '../../widgets/exam_timer_widget.dart';
 import '../../widgets/student_progress_card.dart';
@@ -80,7 +79,7 @@ class _ExamMonitorPageState extends ConsumerState<ExamMonitorPage> {
               ),
               decoration: BoxDecoration(
                 color: AppColors.successOf(cs.brightness)
-                    .withOpacity(context.isDarkMode ? 0.20 : 0.10),
+                    .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
@@ -122,7 +121,7 @@ class _ExamMonitorPageState extends ConsumerState<ExamMonitorPage> {
             )
           : exam == null
               ? const Center(
-                  child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+                  child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
               : RefreshIndicator(
                   onRefresh: () =>
                       ref.read(examMonitorProvider.notifier).refreshStats(),
@@ -227,7 +226,7 @@ class _ExamMonitorPageState extends ConsumerState<ExamMonitorPage> {
             ButtonSegment(value: MonitorFilter.all, label: Text('All')),
             ButtonSegment(value: MonitorFilter.active, label: Text('Active')),
             ButtonSegment(
-                value: MonitorFilter.disconnected, label: Text('Offline')),
+                value: MonitorFilter.disconnected, label: Text('Offline'),),
             ButtonSegment(value: MonitorFilter.flagged, label: Text('Flagged')),
           ],
           selected: {_filter},
@@ -335,7 +334,7 @@ class _ExamMonitorPageState extends ConsumerState<ExamMonitorPage> {
         ),
         const SizedBox(height: Spacings.md),
         if (events.isEmpty)
-          AppEmptyState(
+          const AppEmptyState(
             icon: Icons.shield_outlined,
             title: 'No Events',
             subtitle: 'No monitoring events detected so far.',

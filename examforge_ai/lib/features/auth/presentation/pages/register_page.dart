@@ -3,16 +3,15 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/password_strength_indicator.dart';
-import '../../../../config/dependency_injection.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 
 /// Registration page for creating a new account.
@@ -62,7 +61,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     if (!_agreedToTerms) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('Please agree to the terms and conditions')),
+            content: Text('Please agree to the terms and conditions'),),
       );
       return;
     }
@@ -259,7 +258,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                             value: _agreedToTerms,
                             onChanged: (value) {
                               setState(
-                                  () => _agreedToTerms = value ?? false);
+                                  () => _agreedToTerms = value ?? false,);
                             },
                           ),
                         ),
@@ -267,7 +266,7 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
                         Expanded(
                           child: GestureDetector(
                             onTap: () => setState(
-                                () => _agreedToTerms = !_agreedToTerms),
+                                () => _agreedToTerms = !_agreedToTerms,),
                             child: RichText(
                               text: TextSpan(
                                 style: tt.bodySmall?.copyWith(
@@ -394,9 +393,9 @@ class _RegisterPageState extends ConsumerState<RegisterPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.errorLight.withOpacity(0.5),
+        color: AppColors.errorLight.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
-        border: Border.all(color: cs.error.withOpacity(0.3)),
+        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

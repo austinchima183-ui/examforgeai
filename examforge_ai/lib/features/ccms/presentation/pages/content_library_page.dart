@@ -21,7 +21,7 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
   String _searchQuery = '';
   String _sortBy = 'date';
   bool _isGridView = false;
-  bool _filterExpanded = false;
+  final bool _filterExpanded = false;
 
   @override
   void initState() {
@@ -43,11 +43,13 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
-    var items = contentState.contentItems.where((item) {
+    final items = contentState.contentItems.where((item) {
       if (_searchQuery.isNotEmpty &&
           !item.title
               .toLowerCase()
-              .contains(_searchQuery.toLowerCase())) return false;
+              .contains(_searchQuery.toLowerCase())) {
+        return false;
+      }
       return true;
     }).toList();
 
@@ -82,11 +84,11 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
             icon: const Icon(Icons.sort_rounded),
             itemBuilder: (context) => [
               const PopupMenuItem(
-                  value: 'date', child: Text('Sort by Date')),
+                  value: 'date', child: Text('Sort by Date'),),
               const PopupMenuItem(
-                  value: 'quality', child: Text('Sort by Quality')),
+                  value: 'quality', child: Text('Sort by Quality'),),
               const PopupMenuItem(
-                  value: 'usage', child: Text('Sort by Usage')),
+                  value: 'usage', child: Text('Sort by Usage'),),
             ],
           ),
         ],
@@ -237,7 +239,7 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
                 item.title,
                 style: tt.titleSmall?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface),
+                    color: cs.onSurface,),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -245,7 +247,7 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
               Text(
                 item.status.label,
                 style: tt.bodySmall?.copyWith(
-                    color: cs.onSurfaceVariant),
+                    color: cs.onSurfaceVariant,),
               ),
               const Spacer(),
               Row(
@@ -256,7 +258,7 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
                   Text(
                     '${item.usageCount} views',
                     style: tt.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant),
+                        color: cs.onSurfaceVariant,),
                   ),
                 ],
               ),
@@ -283,7 +285,7 @@ class _ContentLibraryPageState extends ConsumerState<ContentLibraryPage> {
       contentType: contentType,
       difficultyLevel: difficulty,
       status: status,
-    ));
+    ),);
     ref.read(contentProvider.notifier).loadContentItems();
   }
 }

@@ -4,7 +4,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/offline_entities.dart';
 import '../../domain/repositories/offline_repository.dart';
-import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 
 /// Parameters for [GetDraftsUseCase].
@@ -28,8 +27,8 @@ class GetDraftsUseCase {
 
   Future<Result<List<DraftWork>>> call(GetDraftsParams params) async {
     if (params.userId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'User ID cannot be empty'),
       );
     }
 

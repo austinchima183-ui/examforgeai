@@ -1,4 +1,3 @@
-import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../entities/school_management_entities.dart';
 import '../repositories/school_management_repository.dart';

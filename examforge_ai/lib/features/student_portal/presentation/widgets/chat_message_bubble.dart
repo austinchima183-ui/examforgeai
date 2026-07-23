@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // CHAT MESSAGE BUBBLE
@@ -99,7 +98,7 @@ class ChatMessageBubble extends StatelessWidget {
       width: 32,
       height: 32,
       decoration: BoxDecoration(
-        color: cs.primary.withOpacity(context.isDarkMode ? 0.25 : 0.12),
+        color: cs.primary.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
         shape: BoxShape.circle,
       ),
       child: Icon(
@@ -212,7 +211,7 @@ class ChatMessageBubble extends StatelessWidget {
             fontWeight: AppTypography.wBold,
             color: baseColor,
           ),
-        ));
+        ),);
       }
 
       // Parse inline formatting: **bold**, *italic*, `code`
@@ -240,7 +239,7 @@ class ChatMessageBubble extends StatelessWidget {
             fontWeight: AppTypography.wBold,
             color: baseColor,
           ),
-        ));
+        ),);
       } else if (match.group(3) != null) {
         // Italic
         spans.add(TextSpan(
@@ -249,7 +248,7 @@ class ChatMessageBubble extends StatelessWidget {
             fontStyle: FontStyle.italic,
             color: baseColor,
           ),
-        ));
+        ),);
       } else if (match.group(4) != null) {
         // Inline code
         spans.add(TextSpan(
@@ -257,10 +256,10 @@ class ChatMessageBubble extends StatelessWidget {
           style: TextStyle(
             fontFamily: 'monospace',
             fontSize: 13,
-            backgroundColor: baseColor.withOpacity(0.12),
+            backgroundColor: baseColor.withValues(alpha: 0.12),
             color: baseColor,
           ),
-        ));
+        ),);
       }
 
       lastEnd = match.end;

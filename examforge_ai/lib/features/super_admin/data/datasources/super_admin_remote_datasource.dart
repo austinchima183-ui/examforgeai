@@ -1,7 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../../../core/errors/exceptions.dart';
 import '../../../../../core/network/paginated_query_mixin.dart';
+import '../../../../core/errors/exceptions.dart';
 import '../../../../core/utils/logger.dart';
 import '../models/super_admin_models.dart';
 
@@ -794,7 +794,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
         filterQuery = filterQuery.lte('created_at', endDate.toIso8601String());
       }
 
-      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+      final transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
 
       final response = await transformQuery;
       AppLogger.info('Audit log count: ${response.length}');
@@ -1057,7 +1057,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
         filterQuery = filterQuery.eq('is_active', isActive);
       }
 
-      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+      final transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
 
       final response = await transformQuery;
       AppLogger.info('School count: ${response.length}');
@@ -1369,7 +1369,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
         filterQuery = filterQuery.eq('is_active', isActive);
       }
 
-      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+      final transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
 
       final response = await transformQuery;
       AppLogger.info('User count: ${response.length}');
@@ -2139,7 +2139,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
         filterQuery = filterQuery.eq('status', status);
       }
 
-      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+      final transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
 
       final response = await transformQuery;
       AppLogger.info('Ticket count: ${response.length}');
@@ -2425,7 +2425,7 @@ class SuperAdminRemoteDataSourceImpl implements SuperAdminRemoteDataSource {
         filterQuery = filterQuery.eq('status', status);
       }
 
-      var transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
+      final transformQuery = filterQuery.limit(PaginatedQueryMixin.maxPageSize);
 
       final response = await transformQuery;
       AppLogger.info('Marketplace content count: ${response.length}');

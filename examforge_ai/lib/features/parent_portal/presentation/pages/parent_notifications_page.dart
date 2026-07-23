@@ -260,7 +260,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
       background: Container(
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
-        color: AppColors.errorOf(context.colorScheme.brightness).withOpacity(0.1),
+        color: AppColors.errorOf(context.colorScheme.brightness).withValues(alpha: 0.1),
         child: Icon(
           Icons.archive_outlined,
           color: AppColors.errorOf(context.colorScheme.brightness),
@@ -287,9 +287,9 @@ class _State extends ConsumerState<ParentNotificationsPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: isUnread
-            ? cs.primaryContainer.withOpacity(0.1)
+            ? cs.primaryContainer.withValues(alpha: 0.1)
             : cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: InkWell(
@@ -330,7 +330,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: categoryColor.withOpacity(0.12),
+                    color: categoryColor.withValues(alpha: 0.12),
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: Icon(
@@ -429,8 +429,8 @@ class _State extends ConsumerState<ParentNotificationsPage> {
           child: Column(
             children: List.generate(
               6,
-              (_) => Padding(
-                padding: const EdgeInsets.only(bottom: Spacings.md),
+              (_) => const Padding(
+                padding: EdgeInsets.only(bottom: Spacings.md),
                 child: Row(
                   children: [
                     AppLoadingShimmer.box(
@@ -438,7 +438,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
                       height: 40,
                       borderRadius: Spacings.borderRadiusMd,
                     ),
-                    const SizedBox(width: Spacings.md),
+                    SizedBox(width: Spacings.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -448,7 +448,7 @@ class _State extends ConsumerState<ParentNotificationsPage> {
                             height: 14,
                             borderRadius: Spacings.borderRadiusSm,
                           ),
-                          const SizedBox(height: Spacings.sm),
+                          SizedBox(height: Spacings.sm),
                           AppLoadingShimmer.box(
                             height: 12,
                             borderRadius: Spacings.borderRadiusSm,

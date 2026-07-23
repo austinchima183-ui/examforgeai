@@ -2,27 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/question_entities.dart';
 import '../providers/question_editor_provider.dart';
-import '../widgets/question_type_badge.dart';
-import '../widgets/difficulty_badge.dart';
 import '../widgets/answer_options_editor.dart';
+import '../widgets/fill_in_blank_editor.dart';
 import '../widgets/matching_pairs_editor.dart';
 import '../widgets/ordering_items_editor.dart';
-import '../widgets/fill_in_blank_editor.dart';
 import '../widgets/question_preview_card.dart';
-import '../../../../config/dependency_injection.dart';
+import '../widgets/question_type_badge.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -362,11 +359,11 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
             ),
             decoration: BoxDecoration(
               color: isSelected
-                  ? cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.08)
+                  ? cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.08)
                   : cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: isSelected ? cs.primary : cs.outlineVariant.withOpacity(0.5),
+                color: isSelected ? cs.primary : cs.outlineVariant.withValues(alpha: 0.5),
                 width: isSelected ? 2.0 : 1.0,
               ),
             ),
@@ -744,11 +741,11 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
               child: Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(context.isDarkMode ? 0.15 : 0.06,
+                  color: color.withValues(alpha: context.isDarkMode ? 0.15 : 0.06,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -867,7 +864,7 @@ class _QuestionEditorPageState extends ConsumerState<QuestionEditorPage> {
                   tag.name,
                   style: tt.bodySmall?.copyWith(color: cs.onSurface),
                 ),
-                deleteIcon: Icon(
+                deleteIcon: const Icon(
                   Icons.close_rounded,
                   size: Spacings.smIcon,
                 ),

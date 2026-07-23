@@ -31,7 +31,7 @@ class GenerateResourceUseCase {
       return const FailureResult(Failure.validation(
         message: 'Subject is required',
         fieldErrors: {'subject': 'Subject cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateResource({
       'resourceType': params.resourceType.value,

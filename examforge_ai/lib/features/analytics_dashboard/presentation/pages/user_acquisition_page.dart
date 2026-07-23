@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/analytics_dashboard_entities.dart';
 import '../providers/analytics_dashboard_provider.dart';
 import '../widgets/trend_chart.dart';
 
@@ -75,7 +74,7 @@ class _UserAcquisitionPageState extends ConsumerState<UserAcquisitionPage> {
                           Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                             Text(entry.key, style: theme.textTheme.bodyMedium),
                             Text('${(rate * 100).toStringAsFixed(1)}%', style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
-                          ]),
+                          ],),
                           const SizedBox(height: 4),
                           ClipRRect(
                             borderRadius: BorderRadius.circular(4),
@@ -98,12 +97,12 @@ class _UserAcquisitionPageState extends ConsumerState<UserAcquisitionPage> {
                       padding: const EdgeInsets.all(16),
                       child: Column(
                         children: [
-                          Row(children: [
-                            const Expanded(child: Text('Cohort', style: TextStyle(fontWeight: FontWeight.w600))),
-                            const Expanded(child: Text('Day 1', style: TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-                            const Expanded(child: Text('Day 7', style: TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-                            const Expanded(child: Text('Day 30', style: TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
-                          ]),
+                          const Row(children: [
+                            Expanded(child: Text('Cohort', style: TextStyle(fontWeight: FontWeight.w600))),
+                            Expanded(child: Text('Day 1', style: TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
+                            Expanded(child: Text('Day 7', style: TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
+                            Expanded(child: Text('Day 30', style: TextStyle(fontWeight: FontWeight.w600), textAlign: TextAlign.center)),
+                          ],),
                           const Divider(),
                           ..._buildRetentionRows(provider.retentionData!),
                         ],
@@ -130,7 +129,7 @@ class _UserAcquisitionPageState extends ConsumerState<UserAcquisitionPage> {
           Expanded(child: Text('${((cohort['day1'] as num?)?.toDouble() ?? 0 * 100).toStringAsFixed(0)}%', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13))),
           Expanded(child: Text('${((cohort['day7'] as num?)?.toDouble() ?? 0 * 100).toStringAsFixed(0)}%', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13))),
           Expanded(child: Text('${((cohort['day30'] as num?)?.toDouble() ?? 0 * 100).toStringAsFixed(0)}%', textAlign: TextAlign.center, style: const TextStyle(fontSize: 13))),
-        ]),
+        ],),
       );
     }).toList();
   }

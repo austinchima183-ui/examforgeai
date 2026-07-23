@@ -2,20 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../routing/route_names.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/school_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -577,15 +576,15 @@ class _SchoolSettingsPageState extends ConsumerState<SchoolSettingsPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.info.withOpacity(isDark ? 0.10 : 0.06),
+        color: AppColors.info.withValues(alpha: isDark ? 0.10 : 0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
+          color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
         ),
       ),
       child: Row(
         children: [
-          Icon(Icons.info_outline_rounded, size: Spacings.mdIcon, color: AppColors.info),
+          const Icon(Icons.info_outline_rounded, size: Spacings.mdIcon, color: AppColors.info),
           const SizedBox(width: Spacings.md),
           Expanded(
             child: Text(
@@ -617,7 +616,7 @@ class _SchoolSettingsPageState extends ConsumerState<SchoolSettingsPage> {
             Container(
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: planColor.withOpacity(isDark ? 0.20 : 0.12),
+                color: planColor.withValues(alpha: isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
               ),
               child: Icon(
@@ -672,16 +671,16 @@ class _SchoolSettingsPageState extends ConsumerState<SchoolSettingsPage> {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: AppColors.warning.withOpacity(isDark ? 0.10 : 0.06),
+              color: AppColors.warning.withValues(alpha: isDark ? 0.10 : 0.06),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
+                color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
               ),
             ),
             child: Row(
               children: [
-                Icon(Icons.warning_amber_rounded,
-                    size: Spacings.mdIcon, color: AppColors.warning),
+                const Icon(Icons.warning_amber_rounded,
+                    size: Spacings.mdIcon, color: AppColors.warning,),
                 const SizedBox(width: Spacings.md),
                 Expanded(
                   child: Text(
@@ -852,7 +851,7 @@ class _ToggleRow extends StatelessWidget {
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
             color: (isDestructive ? AppColors.error : cs.primary)
-                .withOpacity(isDark ? 0.20 : 0.12),
+                .withValues(alpha: isDark ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(
@@ -883,7 +882,7 @@ class _ToggleRow extends StatelessWidget {
         Switch(
           value: value,
           onChanged: onChanged,
-          activeColor: activeColor,
+          activeThumbColor: activeColor,
         ),
       ],
     );

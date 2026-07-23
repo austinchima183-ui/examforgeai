@@ -39,7 +39,7 @@ class AdmissionHubRepositoryImpl implements AdmissionHubRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on NetworkException catch (e) {
@@ -54,16 +54,16 @@ class AdmissionHubRepositoryImpl implements AdmissionHubRepository {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on CacheException catch (e) {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {
       AppLogger.error(
-          'Unexpected exception in AdmissionHubRepositoryImpl', error: e);
+          'Unexpected exception in AdmissionHubRepositoryImpl', error: e,);
       return FailureResult(Failure.server(
         message: e.toString(),
         statusCode: 500,
-      ));
+      ),);
     }
   }
 

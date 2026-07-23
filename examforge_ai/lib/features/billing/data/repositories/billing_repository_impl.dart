@@ -7,7 +7,6 @@ import '../../domain/repositories/billing_repository.dart';
 import '../datasources/billing_remote_datasource.dart';
 import '../datasources/flutterwave_datasource.dart';
 import '../models/billing_models.dart';
-import '../../../../features/billing/domain/repositories/billing_repository.dart';
 
 
 /// Implementation of [BillingRepository] that bridges domain layer
@@ -43,14 +42,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getSubscriptionPlans error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load subscription plans.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -64,14 +63,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getSubscriptionPlan error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load subscription plan.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -88,16 +87,16 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message, fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected upsertSubscriptionPlan error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to save subscription plan.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -119,14 +118,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getCurrentSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -152,12 +151,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getSubscriptions error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load subscriptions.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -188,16 +187,16 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message, fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected createSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to create subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -220,12 +219,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected upgradeSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to upgrade subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -246,12 +245,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected downgradeSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to downgrade subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -275,12 +274,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected cancelSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to cancel subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -301,12 +300,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected renewSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to renew subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -323,12 +322,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected pauseSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to pause subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -345,12 +344,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected resumeSubscription error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to resume subscription.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -384,14 +383,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected initializePayment error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to initialize payment.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -435,7 +434,7 @@ class BillingRepositoryImpl implements BillingRepository {
             return const FailureResult(Failure.server(
               message: 'Payment verification failed: duplicate transaction.',
               statusCode: 409,
-            ));
+            ),);
           }
         }
       }
@@ -461,14 +460,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected verifyPayment error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to verify payment.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -490,7 +489,7 @@ class BillingRepositoryImpl implements BillingRepository {
       );
       return existingTxs.any((tx) =>
           tx.flutterwaveTransactionId == flwTxId &&
-          tx.id != currentLocalTxId);
+          tx.id != currentLocalTxId,);
     } catch (e) {
       // If we can't check, err on the side of caution and allow
       // the transaction through. The amount verification above is
@@ -576,12 +575,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected processWebhookEvent error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to process webhook event.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -607,12 +606,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getTransactions error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load transactions.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -626,14 +625,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getTransaction error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load transaction.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -651,8 +650,8 @@ class BillingRepositoryImpl implements BillingRepository {
       if (flwTxId == null || flwTxId.isEmpty) {
         return const FailureResult(Failure.validation(
           message: 'Cannot refund: no Flutterwave transaction ID found.',
-          fieldErrors: const {},
-        ));
+          fieldErrors: {},
+        ),);
       }
 
       // Process refund via Flutterwave
@@ -677,12 +676,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected requestRefund error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to process refund.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -710,12 +709,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getInvoices error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load invoices.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -729,14 +728,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getInvoice error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load invoice.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -753,7 +752,7 @@ class BillingRepositoryImpl implements BillingRepository {
         'total': item.total,
         'tax_rate': item.taxRate,
         'tax_amount': item.taxAmount,
-      }).toList();
+      },).toList();
 
       final subtotal = lineItems.fold<double>(0, (sum, i) => sum + i.total);
       final taxAmount = lineItems.fold<double>(0, (sum, i) => sum + i.taxAmount);
@@ -774,12 +773,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected generateInvoice error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to generate invoice.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -800,12 +799,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getInvoicePdfUrl error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to get invoice PDF.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -827,12 +826,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getReceipts error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load receipts.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -844,7 +843,7 @@ class BillingRepositoryImpl implements BillingRepository {
       AppLogger.error('Unexpected getReceiptPdfUrl error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to get receipt PDF.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -865,14 +864,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getCreditBalance error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load credit balance.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -895,12 +894,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getCreditTransactions error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load credit transactions.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -925,18 +924,18 @@ class BillingRepositoryImpl implements BillingRepository {
       return const FailureResult(Failure.validation(
         message: 'Insufficient AI credits to perform this action.',
         fieldErrors: {'credits': 'Not enough credits available'},
-      ));
+      ),);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected consumeCredits error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to consume credits.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -961,12 +960,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected purchaseCredits error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to purchase credits.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -984,12 +983,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getCreditPacks error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load credit packs.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1011,14 +1010,14 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected validateCoupon error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to validate coupon.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1040,12 +1039,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected redeemCoupon error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to redeem coupon.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1065,12 +1064,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getCoupons error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load coupons.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1085,16 +1084,16 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message, fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected createCoupon error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to create coupon.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1109,12 +1108,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected updateCoupon error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to update coupon.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1137,12 +1136,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getOrCreateReferralCode error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to get referral code.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1162,12 +1161,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected applyReferralCode error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to apply referral code.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1187,12 +1186,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getReferralTracking error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load referral tracking.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1216,12 +1215,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getLicenses error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load licenses.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1240,12 +1239,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected revokeLicense error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to revoke license.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1263,12 +1262,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getSchoolBillingProfile error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load billing profile.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1287,12 +1286,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected updateSchoolBillingProfile error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to update billing profile.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1316,12 +1315,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getRevenueData error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load revenue data.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1335,12 +1334,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getBillingDashboardSummary error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load billing summary.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1364,12 +1363,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getBillingNotifications error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to load notifications.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1383,12 +1382,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected markNotificationRead error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to mark notification as read.', statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1407,12 +1406,12 @@ class BillingRepositoryImpl implements BillingRepository {
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message, statusCode: e.statusCode, data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected updateNotificationPreferences error', error: e);
       return const FailureResult(Failure.server(
         message: 'Failed to update notification preferences.', statusCode: 500,
-      ));
+      ),);
     }
   }
 

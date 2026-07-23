@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/communication_entities.dart';
 
@@ -39,7 +39,7 @@ class EventCard extends StatelessWidget {
   String _formatDate(DateTime dt) {
     const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${dt.day} ${months[dt.month]}';
   }
@@ -92,7 +92,7 @@ class EventCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -107,7 +107,7 @@ class EventCard extends StatelessWidget {
               fontSize: 10,
               fontWeight: AppTypography.wSemiBold,
               letterSpacing: AppTypography.lsCaption,
-              color: isDark ? color.withOpacity(0.9) : color,
+              color: isDark ? color.withValues(alpha: 0.9) : color,
             ),
           ),
         ],
@@ -128,7 +128,7 @@ class EventCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -137,7 +137,7 @@ class EventCard extends StatelessWidget {
           fontFamily: AppTypography.fontFamily,
           fontSize: 10,
           fontWeight: AppTypography.wSemiBold,
-          color: isDark ? color.withOpacity(0.9) : color,
+          color: isDark ? color.withValues(alpha: 0.9) : color,
         ),
       ),
     );
@@ -185,7 +185,7 @@ class EventCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.schedule_rounded,
-                  size: Spacings.smIcon, color: typeColor),
+                  size: Spacings.smIcon, color: typeColor,),
               const SizedBox(width: Spacings.xs),
               Text(
                 event.isAllDay
@@ -206,7 +206,7 @@ class EventCard extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.location_on_outlined,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 const SizedBox(width: Spacings.xs),
                 Expanded(
                   child: Text(
@@ -227,8 +227,8 @@ class EventCard extends StatelessWidget {
             const SizedBox(height: Spacings.sm),
             Row(
               children: [
-                Icon(Icons.videocam_outlined,
-                    size: Spacings.smIcon, color: AppColors.seed),
+                const Icon(Icons.videocam_outlined,
+                    size: Spacings.smIcon, color: AppColors.seed,),
                 const SizedBox(width: Spacings.xs),
                 Expanded(
                   child: Text(
@@ -250,7 +250,7 @@ class EventCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.people_outline_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${event.currentAttendees ?? event.attendeeIds.length}'
@@ -263,7 +263,7 @@ class EventCard extends StatelessWidget {
               if (event.isRecurring) ...[
                 const SizedBox(width: Spacings.md),
                 Icon(Icons.repeat_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   'Recurring',

@@ -45,7 +45,7 @@ class GetParentCalendarUseCase {
           'startDate': 'Start date must be before end date',
           'endDate': 'End date must be after start date',
         },
-      ));
+      ),);
     }
     return _repository.getCalendarEvents(
       startDate: params.startDate,

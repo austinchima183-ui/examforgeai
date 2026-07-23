@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // PRACTICE TIMER
@@ -85,7 +85,7 @@ class _PracticeTimerState extends State<PracticeTimer>
 
   Color _bgColor(BuildContext context) {
     final color = _timerColor(context);
-    return color.withOpacity(context.isDarkMode ? 0.20 : 0.10);
+    return color.withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
   }
 
   String _formatDuration(Duration d) {
@@ -161,7 +161,7 @@ class _PracticeTimerState extends State<PracticeTimer>
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.warningOf(cs.brightness)
-                            .withOpacity(context.isDarkMode ? 0.25 : 0.12),
+                            .withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Text(

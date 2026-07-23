@@ -21,11 +21,11 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:math';
 
+import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:equatable/equatable.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:connectivity_plus/connectivity_plus.dart';
 
 import '../../config/dependency_injection.dart';
 import '../errors/failures.dart';
@@ -435,12 +435,12 @@ class ConnectivityEngine extends StateNotifier<ConnectivityState> {
       AppLogger.warning('Latency measurement failed: ${e.message}');
       return FailureResult(Failure.network(
         message: 'Latency measurement failed: ${e.message}',
-      ));
+      ),);
     } catch (e) {
       AppLogger.warning('Latency measurement error: $e');
       return FailureResult(Failure.network(
         message: 'Latency measurement error: $e',
-      ));
+      ),);
     }
   }
 
@@ -468,9 +468,9 @@ class ConnectivityEngine extends StateNotifier<ConnectivityState> {
       final elapsedSeconds = stopwatch.elapsedMilliseconds / 1000.0;
 
       if (elapsedSeconds <= 0 || bytesDownloaded <= 0) {
-        return FailureResult(Failure.network(
+        return const FailureResult(Failure.network(
           message: 'Bandwidth estimation: insufficient data received',
-        ));
+        ),);
       }
 
       // Convert bytes/s → kilobits/s.
@@ -483,12 +483,12 @@ class ConnectivityEngine extends StateNotifier<ConnectivityState> {
       AppLogger.warning('Bandwidth estimation failed: ${e.message}');
       return FailureResult(Failure.network(
         message: 'Bandwidth estimation failed: ${e.message}',
-      ));
+      ),);
     } catch (e) {
       AppLogger.warning('Bandwidth estimation error: $e');
       return FailureResult(Failure.network(
         message: 'Bandwidth estimation error: $e',
-      ));
+      ),);
     }
   }
 

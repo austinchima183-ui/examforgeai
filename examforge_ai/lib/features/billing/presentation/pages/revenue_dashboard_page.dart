@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
-import '../../domain/entities/billing_entities.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../providers/revenue_provider.dart';
 import '../widgets/billing_widgets.dart';
 
@@ -68,7 +66,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
     final revenueState = ref.watch(revenueProvider);
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Revenue Dashboard'),
+      appBar: const AppAppBar(title: 'Revenue Dashboard'),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(
@@ -134,7 +132,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
           },
           style: ButtonStyle(
             visualDensity: VisualDensity.compact,
-            shape: WidgetStatePropertyAll(
+            shape: const WidgetStatePropertyAll(
               RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
@@ -287,8 +285,8 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
         const SizedBox(height: Spacings.md),
         Card(
           elevation: Spacings.elevationSm,
-          shadowColor: cs.shadow.withOpacity(0.06),
-          shape: RoundedRectangleBorder(
+          shadowColor: cs.shadow.withValues(alpha: 0.06),
+          shape: const RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
           ),
           child: Padding(
@@ -344,7 +342,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
                 Container(
                   height: height.clamp(4.0, 160.0),
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(0.7),
+                    color: cs.primary.withValues(alpha: 0.7),
                     borderRadius: const BorderRadius.vertical(
                       top: Radius.circular(4),
                     ),
@@ -423,7 +421,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withOpacity(0.5),
+              color: cs.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
           child: Padding(
@@ -526,7 +524,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withOpacity(0.5),
+              color: cs.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
           clipBehavior: Clip.antiAlias,
@@ -534,7 +532,7 @@ class _RevenueDashboardPageState extends ConsumerState<RevenueDashboardPage> {
             children: [
               // Header
               Container(
-                color: cs.surfaceContainerHighest.withOpacity(0.5),
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                 padding: const EdgeInsets.symmetric(
                   horizontal: Spacings.lg,
                   vertical: Spacings.md,

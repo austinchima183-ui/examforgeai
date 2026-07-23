@@ -2,10 +2,9 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // PERFORMANCE INDICATOR
@@ -72,7 +71,7 @@ class PerformanceIndicator extends StatelessWidget {
             painter: _PerformanceArcPainter(
               progress: score.clamp(0.0, 100.0) / 100.0,
               foregroundColor: fgColor,
-              backgroundColor: fgColor.withOpacity(isDark ? 0.15 : 0.10,
+              backgroundColor: fgColor.withValues(alpha: isDark ? 0.15 : 0.10,
               ),
               classAverageProgress: classAverage != null
                   ? (classAverage!.clamp(0.0, 100.0) / 100.0)

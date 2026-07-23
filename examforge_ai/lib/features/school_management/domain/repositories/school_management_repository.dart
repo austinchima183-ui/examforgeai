@@ -1,6 +1,5 @@
 import '../../../../core/utils/result.dart';
 import '../entities/school_management_entities.dart';
-import '../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 /// Abstract contract for all School Management operations.

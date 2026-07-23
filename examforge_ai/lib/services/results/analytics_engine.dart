@@ -28,7 +28,6 @@
 library;
 
 import 'package:examforge_ai/features/results/domain/entities/results_entities.dart';
-import '../../features/student_portal/domain/entities/student_portal_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -803,7 +802,7 @@ class AnalyticsEngine {
         rank: rank,
         score: _round2(result.overallPercentage),
         classId: result.classId,
-      ));
+      ),);
 
       lastRank = rank;
       lastScore = _round2(result.overallPercentage);
@@ -860,7 +859,7 @@ class AnalyticsEngine {
         max: max,
         count: count,
         percentage: _round2(percentage),
-      ));
+      ),);
     }
 
     return buckets;
@@ -1151,7 +1150,7 @@ class AnalyticsEngine {
         entityId: entries[i].key,
         rank: rank,
         score: score,
-      ));
+      ),);
 
       lastRank = rank;
       lastScore = score;

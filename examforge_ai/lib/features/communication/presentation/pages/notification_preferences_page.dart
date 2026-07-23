@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
@@ -191,7 +190,7 @@ class _State extends ConsumerState<NotificationPreferencesPage> {
           child: Center(
             child: Text(l, style: tt.labelSmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant)),
           ),
-        )).toList(),
+        ),).toList(),
       ),
     );
   }
@@ -225,7 +224,7 @@ class _State extends ConsumerState<NotificationPreferencesPage> {
                 materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
             ),
-          )),
+          ),),
         ],
       ),
     );
@@ -242,7 +241,7 @@ class _State extends ConsumerState<NotificationPreferencesPage> {
     return Card(
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingCard,
         child: Column(
@@ -324,7 +323,7 @@ class _State extends ConsumerState<NotificationPreferencesPage> {
     return Card(
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingCard,
         child: Column(

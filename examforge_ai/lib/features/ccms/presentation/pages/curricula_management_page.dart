@@ -104,14 +104,14 @@ class _CurriculaManagementPageState
                                         ),
                                       ),
                                       CurriculumTypeBadge(
-                                          type: curriculum.curriculumType),
+                                          type: curriculum.curriculumType,),
                                       const SizedBox(width: Spacings.sm),
                                       Switch(
                                         value: curriculum.isActive,
                                         onChanged: (v) {
                                           ref
                                               .read(
-                                                  curriculumProvider.notifier)
+                                                  curriculumProvider.notifier,)
                                               .updateCurriculum(curriculum.id, Curriculum(
                                                 id: curriculum.id,
                                                 name: curriculum.name,
@@ -129,9 +129,9 @@ class _CurriculaManagementPageState
                                                 createdAt:
                                                     curriculum.createdAt,
                                                 updatedAt: DateTime.now(),
-                                              ));
+                                              ),);
                                         },
-                                        activeColor: cs.primary,
+                                        activeThumbColor: cs.primary,
                                       ),
                                     ],
                                   ),
@@ -141,7 +141,7 @@ class _CurriculaManagementPageState
                                     Text(
                                       curriculum.description!,
                                       style: tt.bodySmall?.copyWith(
-                                          color: cs.onSurfaceVariant),
+                                          color: cs.onSurfaceVariant,),
                                       maxLines: 2,
                                       overflow: TextOverflow.ellipsis,
                                     ),
@@ -151,26 +151,26 @@ class _CurriculaManagementPageState
                                     children: [
                                       Icon(Icons.flag_rounded,
                                           size: 14,
-                                          color: cs.onSurfaceVariant),
+                                          color: cs.onSurfaceVariant,),
                                       const SizedBox(width: Spacings.xs),
                                       Text(curriculum.countryCode,
                                           style: tt.bodySmall?.copyWith(
-                                              color: cs.onSurfaceVariant)),
+                                              color: cs.onSurfaceVariant,),),
                                       if (curriculum.edition != null) ...[
                                         const SizedBox(width: Spacings.md),
                                         Icon(Icons.bookmark_outline_rounded,
                                             size: 14,
-                                            color: cs.onSurfaceVariant),
+                                            color: cs.onSurfaceVariant,),
                                         const SizedBox(width: Spacings.xs),
                                         Text('Ed: ${curriculum.edition}',
                                             style: tt.bodySmall?.copyWith(
-                                                color: cs.onSurfaceVariant)),
+                                                color: cs.onSurfaceVariant,),),
                                       ],
                                       const Spacer(),
                                       Text(
                                           _formatDate(curriculum.createdAt),
                                           style: tt.bodySmall?.copyWith(
-                                              color: cs.onSurfaceVariant)),
+                                              color: cs.onSurfaceVariant,),),
                                     ],
                                   ),
                                   const SizedBox(height: Spacings.sm),
@@ -231,7 +231,7 @@ class _CurriculaManagementPageState
                     Expanded(
                       child: Text(curriculum.name,
                           style: context.textTheme.headlineSmall?.copyWith(
-                              fontWeight: AppTypography.wSemiBold)),
+                              fontWeight: AppTypography.wSemiBold,),),
                     ),
                     AppIconButton(
                       icon: Icons.close_rounded,
@@ -246,20 +246,20 @@ class _CurriculaManagementPageState
                     const SizedBox(width: Spacings.sm),
                     Text('Code: ${curriculum.code}',
                         style: context.textTheme.bodySmall?.copyWith(
-                            color: context.colorScheme.onSurfaceVariant)),
+                            color: context.colorScheme.onSurfaceVariant,),),
                     if (curriculum.publisher != null) ...[
                       const SizedBox(width: Spacings.md),
                       Text('Publisher: ${curriculum.publisher}',
                           style: context.textTheme.bodySmall?.copyWith(
                               color:
-                                  context.colorScheme.onSurfaceVariant)),
+                                  context.colorScheme.onSurfaceVariant,),),
                     ],
                     if (curriculum.edition != null) ...[
                       const SizedBox(width: Spacings.md),
                       Text('Edition: ${curriculum.edition}',
                           style: context.textTheme.bodySmall?.copyWith(
                               color:
-                                  context.colorScheme.onSurfaceVariant)),
+                                  context.colorScheme.onSurfaceVariant,),),
                     ],
                   ],
                 ),
@@ -269,12 +269,12 @@ class _CurriculaManagementPageState
                 Text('Versions',
                     style: context.textTheme.titleMedium?.copyWith(
                         fontWeight: AppTypography.wSemiBold,
-                        color: context.colorScheme.primary)),
+                        color: context.colorScheme.primary,),),
                 const SizedBox(height: Spacings.sm),
                 if (versionState.versions.isEmpty)
                   Text('No versions available',
                       style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colorScheme.onSurfaceVariant))
+                          color: context.colorScheme.onSurfaceVariant,),)
                 else
                   ...versionState.versions.map((v) => Card(
                         child: ListTile(
@@ -284,10 +284,10 @@ class _CurriculaManagementPageState
                               ? Container(
                                   padding: const EdgeInsets.symmetric(
                                       horizontal: Spacings.sm,
-                                      vertical: 2),
+                                      vertical: 2,),
                                   decoration: BoxDecoration(
                                     color: AppColors.success
-                                        .withOpacity(0.15),
+                                        .withValues(alpha: 0.15),
                                     borderRadius:
                                         Spacings.borderRadiusSm,
                                   ),
@@ -297,24 +297,24 @@ class _CurriculaManagementPageState
                                               color: AppColors.success,
                                               fontWeight:
                                                   AppTypography
-                                                      .wSemiBold)),
+                                                      .wSemiBold,),),
                                 )
                               : null,
                           dense: true,
                         ),
-                      )),
+                      ),),
                 const SizedBox(height: Spacings.xl),
 
                 // Level Mappings
                 Text('Level Mappings',
                     style: context.textTheme.titleMedium?.copyWith(
                         fontWeight: AppTypography.wSemiBold,
-                        color: context.colorScheme.primary)),
+                        color: context.colorScheme.primary,),),
                 const SizedBox(height: Spacings.sm),
                 if (versionState.levelMappings.isEmpty)
                   Text('No level mappings',
                       style: context.textTheme.bodySmall?.copyWith(
-                          color: context.colorScheme.onSurfaceVariant))
+                          color: context.colorScheme.onSurfaceVariant,),)
                 else
                   ...versionState.levelMappings.map((m) => Card(
                         child: SwitchListTile(
@@ -324,11 +324,11 @@ class _CurriculaManagementPageState
                           subtitle: m.notes != null
                               ? Text(m.notes!,
                                   maxLines: 1,
-                                  overflow: TextOverflow.ellipsis)
+                                  overflow: TextOverflow.ellipsis,)
                               : null,
                           dense: true,
                         ),
-                      )),
+                      ),),
               ],
             ),
           );
@@ -359,21 +359,21 @@ class _CurriculaManagementPageState
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Name *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: codeCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Code',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<CurriculumType>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(
-                      labelText: 'Type *', border: OutlineInputBorder()),
+                      labelText: 'Type *', border: OutlineInputBorder(),),
                   items: CurriculumType.values
                       .map((t) =>
-                          DropdownMenuItem(value: t, child: Text(t.label)))
+                          DropdownMenuItem(value: t, child: Text(t.label)),)
                       .toList(),
                   onChanged: (v) => setState(() => type = v!),
                 ),
@@ -382,33 +382,33 @@ class _CurriculaManagementPageState
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: publisherCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Publisher',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: editionCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Edition',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: countryCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Country Code',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
               ],
             ),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Create',
               onPressed: () {
@@ -466,15 +466,15 @@ class _CurriculaManagementPageState
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Name *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<CurriculumType>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(
-                      labelText: 'Type', border: OutlineInputBorder()),
+                      labelText: 'Type', border: OutlineInputBorder(),),
                   items: CurriculumType.values
                       .map((t) =>
-                          DropdownMenuItem(value: t, child: Text(t.label)))
+                          DropdownMenuItem(value: t, child: Text(t.label)),)
                       .toList(),
                   onChanged: (v) => setState(() => type = v!),
                 ),
@@ -483,33 +483,33 @@ class _CurriculaManagementPageState
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: publisherCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Publisher',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: editionCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Edition',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: countryCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Country Code',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
               ],
             ),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Save',
               onPressed: () {
@@ -551,11 +551,11 @@ class _CurriculaManagementPageState
       builder: (context) => AlertDialog(
         title: const Text('Delete Curriculum'),
         content: Text(
-            'Are you sure you want to delete "${curriculum.name}"? This action cannot be undone.'),
+            'Are you sure you want to delete "${curriculum.name}"? This action cannot be undone.',),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Delete',
             onPressed: () {

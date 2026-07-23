@@ -68,7 +68,7 @@ class _RubricTableState extends State<RubricTable> {
           scrollDirection: Axis.horizontal,
           child: DataTable(
             headingRowColor: WidgetStatePropertyAll(
-              colorScheme.surfaceContainerHighest.withOpacity(0.5),
+              colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
             ),
             dataRowMinHeight: 56,
             dataRowMaxHeight: 120,
@@ -144,7 +144,7 @@ class _RubricTableState extends State<RubricTable> {
             Icon(
               Icons.table_chart_outlined,
               size: Spacings.xlIcon,
-              color: context.colorScheme.onSurfaceVariant.withOpacity(0.5),
+              color: context.colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
             ),
             const SizedBox(height: Spacings.md),
             Text(
@@ -241,7 +241,7 @@ class _RubricTableState extends State<RubricTable> {
         if (widget.isEditable)
           DataCell(
             IconButton(
-              icon: Icon(
+              icon: const Icon(
                 Icons.delete_outline,
                 size: Spacings.mdIcon - 4,
                 color: AppColors.error,
@@ -274,7 +274,7 @@ class _RubricTableState extends State<RubricTable> {
         vertical: Spacings.md,
       ),
       decoration: BoxDecoration(
-        color: context.colorScheme.surfaceContainerHighest.withOpacity(0.3),
+        color: context.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: Spacings.borderRadiusMd,
       ),
       child: Row(
@@ -308,9 +308,9 @@ class _RubricTableState extends State<RubricTable> {
       style: OutlinedButton.styleFrom(
         foregroundColor: context.colorScheme.primary,
         side: BorderSide(
-          color: context.colorScheme.outlineVariant.withOpacity(0.5),
+          color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
       ),
@@ -347,7 +347,7 @@ class _RubricTableState extends State<RubricTable> {
         level: levelKey,
         description: description ?? '',
         score: score ?? 0.0,
-      ));
+      ),);
     }
 
     _updateCriterion(criterionIndex, criterion.copyWith(levels: levels));
@@ -380,7 +380,7 @@ class _RubricTableState extends State<RubricTable> {
             score: 3.0,
           ),
         ],
-      ));
+      ),);
     });
     widget.onCriteriaChanged(List.from(_criteria));
   }
@@ -427,13 +427,13 @@ class _EditableText extends StatelessWidget {
         border: OutlineInputBorder(
           borderRadius: Spacings.borderRadiusSm,
           borderSide: BorderSide(
-            color: context.colorScheme.outlineVariant.withOpacity(0.5),
+            color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: Spacings.borderRadiusSm,
           borderSide: BorderSide(
-            color: context.colorScheme.outlineVariant.withOpacity(0.3),
+            color: context.colorScheme.outlineVariant.withValues(alpha: 0.3),
           ),
         ),
         focusedBorder: OutlineInputBorder(
@@ -487,14 +487,14 @@ class _LevelCellEditor extends StatelessWidget {
                 borderRadius: Spacings.borderRadiusSm,
                 borderSide: BorderSide(
                   color:
-                      context.colorScheme.outlineVariant.withOpacity(0.3),
+                      context.colorScheme.outlineVariant.withValues(alpha: 0.3),
                 ),
               ),
               enabledBorder: OutlineInputBorder(
                 borderRadius: Spacings.borderRadiusSm,
                 borderSide: BorderSide(
                   color:
-                      context.colorScheme.outlineVariant.withOpacity(0.3),
+                      context.colorScheme.outlineVariant.withValues(alpha: 0.3),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -530,14 +530,14 @@ class _LevelCellEditor extends StatelessWidget {
                   borderRadius: Spacings.borderRadiusSm,
                   borderSide: BorderSide(
                     color: context.colorScheme.outlineVariant
-                        .withOpacity(0.3),
+                        .withValues(alpha: 0.3),
                   ),
                 ),
                 enabledBorder: OutlineInputBorder(
                   borderRadius: Spacings.borderRadiusSm,
                   borderSide: BorderSide(
                     color: context.colorScheme.outlineVariant
-                        .withOpacity(0.3),
+                        .withValues(alpha: 0.3),
                   ),
                 ),
                 focusedBorder: OutlineInputBorder(

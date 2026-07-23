@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/super_admin_entities.dart';
@@ -73,7 +73,7 @@ class _BillingManagementPageState
     // Loading state
     if (state.isLoading && state.revenueAnalytics == null) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     // Error state
@@ -85,7 +85,7 @@ class _BillingManagementPageState
     final analytics = state.revenueAnalytics;
     if (analytics == null) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     return RefreshIndicator(
@@ -99,31 +99,31 @@ class _BillingManagementPageState
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Revenue Overview
-            SectionHeader(title: 'Revenue Overview'),
+            const SectionHeader(title: 'Revenue Overview'),
             Spacings.itemGap,
             _buildRevenueOverview(analytics, cs),
             Spacings.sectionGap,
 
             // Revenue by Billing Model
-            SectionHeader(title: 'Revenue by Billing Model'),
+            const SectionHeader(title: 'Revenue by Billing Model'),
             Spacings.itemGap,
             _buildRevenueByBillingModel(analytics, cs),
             Spacings.sectionGap,
 
             // Billing Alerts Row
-            SectionHeader(title: 'Billing Alerts'),
+            const SectionHeader(title: 'Billing Alerts'),
             Spacings.itemGap,
             _buildBillingAlerts(analytics, cs),
             Spacings.sectionGap,
 
             // Revenue Trends
-            SectionHeader(title: 'Revenue Trends'),
+            const SectionHeader(title: 'Revenue Trends'),
             Spacings.itemGap,
             _buildRevenueTrends(analytics, cs),
             Spacings.sectionGap,
 
             // Recent Transactions
-            SectionHeader(title: 'Recent Transactions'),
+            const SectionHeader(title: 'Recent Transactions'),
             Spacings.itemGap,
             _buildRecentTransactions(analytics, cs),
             const SizedBox(height: Spacings.xxl),
@@ -142,7 +142,7 @@ class _BillingManagementPageState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
+            const Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
             const SizedBox(height: Spacings.lg),
             Text(
               'Failed to load billing data',
@@ -156,7 +156,7 @@ class _BillingManagementPageState
               state.error ?? 'An unexpected error occurred.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -273,14 +273,14 @@ class _BillingManagementPageState
         name: _formatModelName(key),
         revenue: amount,
         color: _modelColor(entries.length),
-      ));
+      ),);
     });
 
     if (maxValue == 0) maxValue = 1; // Prevent division by zero
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -367,7 +367,7 @@ class _BillingManagementPageState
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        int crossAxisCount = width >= 900 ? 3 : (width >= 500 ? 2 : 1);
+        final int crossAxisCount = width >= 900 ? 3 : (width >= 500 ? 2 : 1);
 
         return GridView(
           shrinkWrap: true,
@@ -429,7 +429,7 @@ class _BillingManagementPageState
   }) {
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -438,7 +438,7 @@ class _BillingManagementPageState
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(icon, color: color, size: Spacings.mdIcon),
@@ -464,7 +464,7 @@ class _BillingManagementPageState
               subtitle,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 11,
-                color: cs.onSurface.withOpacity(0.5),
+                color: cs.onSurface.withValues(alpha: 0.5),
               ),
             ),
           ],
@@ -496,7 +496,7 @@ class _BillingManagementPageState
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -526,7 +526,7 @@ class _BillingManagementPageState
                       return Expanded(
                         child: Padding(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: Spacings.xs),
+                              horizontal: Spacings.xs,),
                           child: Column(
                             mainAxisAlignment: MainAxisAlignment.end,
                             children: [
@@ -535,7 +535,7 @@ class _BillingManagementPageState
                                 _formatCompactCurrency(revenue),
                                 style: AppTypography.wSemiBold.copyWith(
                                   fontSize: 10,
-                                  color: cs.onSurface.withOpacity(0.7),
+                                  color: cs.onSurface.withValues(alpha: 0.7),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -544,7 +544,7 @@ class _BillingManagementPageState
                               Container(
                                 height: heightPercent * 140,
                                 decoration: BoxDecoration(
-                                  color: cs.primary.withOpacity(0.8),
+                                  color: cs.primary.withValues(alpha: 0.8),
                                   borderRadius: const BorderRadius.only(
                                     topLeft:
                                         Radius.circular(Spacings.smRadius / 2),
@@ -560,7 +560,7 @@ class _BillingManagementPageState
                                 style: AppTypography.wRegular.copyWith(
                                   fontSize: 10,
                                   color:
-                                      cs.onSurface.withOpacity(0.5),
+                                      cs.onSurface.withValues(alpha: 0.5),
                                 ),
                                 textAlign: TextAlign.center,
                               ),
@@ -584,7 +584,7 @@ class _BillingManagementPageState
     if (month.length >= 7 && month.contains('-')) {
       const months = [
         '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+        'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
       ];
       final parts = month.split('-');
       final m = int.tryParse(parts[1]) ?? 0;
@@ -611,7 +611,7 @@ class _BillingManagementPageState
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
@@ -622,21 +622,21 @@ class _BillingManagementPageState
           columns: [
             DataColumn(
               label: Text('Period',
-                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+                  style: AppTypography.wSemiBold.copyWith(fontSize: 12),),
             ),
             DataColumn(
               label: Text('Revenue',
-                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+                  style: AppTypography.wSemiBold.copyWith(fontSize: 12),),
               numeric: true,
             ),
             DataColumn(
               label: Text('Growth',
-                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+                  style: AppTypography.wSemiBold.copyWith(fontSize: 12),),
               numeric: true,
             ),
             DataColumn(
               label: Text('Status',
-                  style: AppTypography.wSemiBold.copyWith(fontSize: 12)),
+                  style: AppTypography.wSemiBold.copyWith(fontSize: 12),),
             ),
           ],
           rows: recentEntries.map((entry) {
@@ -659,12 +659,12 @@ class _BillingManagementPageState
               DataCell(
                 Text(month,
                     style:
-                        AppTypography.wRegular.copyWith(fontSize: 13)),
+                        AppTypography.wRegular.copyWith(fontSize: 13),),
               ),
               DataCell(
                 Text(_formatCurrency(revenue),
                     style: AppTypography.wSemiBold.copyWith(
-                        fontSize: 13, color: cs.onSurface)),
+                        fontSize: 13, color: cs.onSurface,),),
               ),
               DataCell(
                 Text(
@@ -673,7 +673,7 @@ class _BillingManagementPageState
                       : '—',
                   style: AppTypography.wSemiBold.copyWith(
                     fontSize: 13,
-                    color: growth != null ? statusColor : cs.onSurface.withOpacity(0.4),
+                    color: growth != null ? statusColor : cs.onSurface.withValues(alpha: 0.4),
                   ),
                 ),
               ),
@@ -693,13 +693,13 @@ class _BillingManagementPageState
                           : (isPositive ? 'Healthy' : 'Review'),
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 12,
-                        color: cs.onSurface.withOpacity(0.6),
+                        color: cs.onSurface.withValues(alpha: 0.6),
                       ),
                     ),
                   ],
                 ),
               ),
-            ]);
+            ],);
           }).toList(),
         ),
       ),

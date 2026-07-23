@@ -1,8 +1,6 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
-import '../../domain/entities/marketplace_entities.dart';
 import '../../domain/repositories/marketplace_repository.dart';
-import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
 
 
 class IncrementProductViewParams {
@@ -16,7 +14,7 @@ class IncrementProductViewUseCase {
 
   Future<Result<bool>> call(IncrementProductViewParams params) async {
     if (params.productId.isEmpty) {
-      return FailureResult(Failure.validation(fieldErrors: const {}, message: 'Product ID is required'));
+      return const FailureResult(Failure.validation(fieldErrors: {}, message: 'Product ID is required'));
     }
     return _repository.incrementProductView(params.productId);
   }

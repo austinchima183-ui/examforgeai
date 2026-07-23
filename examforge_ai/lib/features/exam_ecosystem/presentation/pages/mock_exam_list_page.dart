@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/exam_ecosystem_entities.dart';
 import '../providers/exam_ecosystem_provider.dart';
@@ -68,7 +68,7 @@ class _MockExamListPageState extends ConsumerState<MockExamListPage> {
                         },
                       )
                     : null,
-                border: OutlineInputBorder(
+                border: const OutlineInputBorder(
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 contentPadding: Spacings.paddingInput,
@@ -218,7 +218,7 @@ class _MockExamListPageState extends ConsumerState<MockExamListPage> {
       filtered = filtered
           .where((e) =>
               e.title.toLowerCase().contains(query) ||
-              (e.description?.toLowerCase().contains(query) ?? false))
+              (e.description?.toLowerCase().contains(query) ?? false),)
           .toList();
     }
 
@@ -353,7 +353,7 @@ class _MockExamListPageState extends ConsumerState<MockExamListPage> {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: Spacings.borderRadiusFull,
       ),
       child: Text(

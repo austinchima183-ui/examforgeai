@@ -173,13 +173,13 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppLoadingShimmer.box(
+                  const AppLoadingShimmer.box(
                     width: 220,
                     height: 24,
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   const SizedBox(height: Spacings.sm),
-                  AppLoadingShimmer.box(
+                  const AppLoadingShimmer.box(
                     width: 180,
                     height: 16,
                     borderRadius: Spacings.borderRadiusSm,
@@ -189,9 +189,9 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
                   Row(
                     children: List.generate(
                       4,
-                      (_) => Expanded(
+                      (_) => const Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: Spacings.xs,
                           ),
                           child: AppLoadingShimmer.box(
@@ -214,7 +214,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppLoadingShimmer.box(
+                  const AppLoadingShimmer.box(
                     width: 160,
                     height: 18,
                     borderRadius: Spacings.borderRadiusSm,
@@ -229,7 +229,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
                     childAspectRatio: 1.2,
                     children: List.generate(
                       12,
-                      (_) => AppLoadingShimmer.box(
+                      (_) => const AppLoadingShimmer.box(
                         borderRadius: Spacings.borderRadiusMd,
                       ),
                     ),
@@ -246,7 +246,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppLoadingShimmer.box(
+                  const AppLoadingShimmer.box(
                     width: 140,
                     height: 18,
                     borderRadius: Spacings.borderRadiusSm,
@@ -259,7 +259,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
                       itemCount: 4,
                       separatorBuilder: (_, __) =>
                           const SizedBox(width: Spacings.md),
-                      itemBuilder: (_, __) => AppLoadingShimmer.box(
+                      itemBuilder: (_, __) => const AppLoadingShimmer.box(
                         width: 160,
                         borderRadius: Spacings.borderRadiusLg,
                       ),
@@ -392,56 +392,56 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
         route: RouteNames.worksheetCreate,
         color: theme.colorScheme.secondary,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.task_rounded,
         label: 'Assignment',
         route: RouteNames.assignmentCreate,
         color: Colors.orange,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.rate_review_rounded,
         label: 'Comments',
         route: RouteNames.reportCommentGenerator,
         color: Colors.teal,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.psychology_rounded,
         label: 'AI Assistant',
         route: RouteNames.contentAssistant,
         color: Colors.purple,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.folder_rounded,
         label: 'Resources',
         route: RouteNames.teachingResources,
         color: Colors.blueGrey,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.calendar_today_rounded,
         label: 'Planner',
         route: RouteNames.calendarPlanner,
         color: Colors.indigo,
       ),
       // NEW: Expansion quick actions
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.slideshow_rounded,
         label: 'Presentation',
         route: '/workspace/presentations/create',
         color: Colors.deepPurple,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.mail_rounded,
         label: 'Communication',
         route: '/workspace/communications/create',
         color: Colors.pink,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.grading_rounded,
         label: 'Rubric',
         route: '/workspace/rubrics/create',
         color: Colors.amber,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.checklist_rounded,
         label: 'Task',
         route: '/workspace/tasks',
@@ -513,7 +513,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -588,14 +588,14 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
                     horizontal: Spacings.md,
                     vertical: Spacings.sm,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.errorLight,
                     borderRadius: Spacings.borderRadiusFull,
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(
+                      const Icon(
                         Icons.warning_amber_rounded,
                         size: 16,
                         color: AppColors.error,
@@ -618,14 +618,14 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
                   horizontal: Spacings.md,
                   vertical: Spacings.sm,
                 ),
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.warningLight,
                   borderRadius: Spacings.borderRadiusFull,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.pending_outlined,
                       size: 16,
                       color: AppColors.warning,
@@ -657,7 +657,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -776,7 +776,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -844,7 +844,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -912,7 +912,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -965,7 +965,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
             shape: RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusLg,
               side: BorderSide(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: InkWell(
@@ -977,7 +977,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
                   children: [
                     Container(
                       padding: const EdgeInsets.all(Spacings.sm),
-                      decoration: BoxDecoration(
+                      decoration: const BoxDecoration(
                         color: AppColors.infoLight,
                         borderRadius: Spacings.borderRadiusSm,
                       ),
@@ -1052,7 +1052,7 @@ class _State extends ConsumerState<EnhancedWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -1312,7 +1312,7 @@ class _QuickStatCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: InkWell(
@@ -1327,7 +1327,7 @@ class _QuickStatCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: stat.color.withOpacity(0.12),
+                  color: stat.color.withValues(alpha: 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(stat.icon, color: stat.color, size: 18),
@@ -1340,7 +1340,7 @@ class _QuickStatCard extends StatelessWidget {
                   color: cs.onSurface,
                 ),
               ),
-              SizedBox(height: Spacings.xs),
+              const SizedBox(height: Spacings.xs),
               Text(
                 stat.title,
                 style: tt.labelSmall?.copyWith(
@@ -1392,7 +1392,7 @@ class _QuickActionCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: InkWell(
@@ -1406,7 +1406,7 @@ class _QuickActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: action.color.withOpacity(0.12),
+                  color: action.color.withValues(alpha: 0.12),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(action.icon, color: action.color, size: 24),
@@ -1454,7 +1454,7 @@ class _TodayClassCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Container(
@@ -1469,7 +1469,7 @@ class _TodayClassCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.xs),
                   decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.12),
+                    color: typeColor.withValues(alpha: 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Icon(typeIcon, color: typeColor, size: 16),
@@ -1564,7 +1564,7 @@ class _AssignmentCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -1610,7 +1610,7 @@ class _AssignmentCard extends StatelessWidget {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: priorityColor.withOpacity(0.12),
+                color: priorityColor.withValues(alpha: 0.12),
                 borderRadius: Spacings.borderRadiusFull,
               ),
               child: Text(
@@ -1672,7 +1672,7 @@ class _TeachingStatCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Container(
@@ -1685,7 +1685,7 @@ class _TeachingStatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: stat.color.withOpacity(0.12),
+                color: stat.color.withValues(alpha: 0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(stat.icon, color: stat.color, size: 20),
@@ -1737,7 +1737,7 @@ class _RecentDocumentCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Container(
@@ -1752,7 +1752,7 @@ class _RecentDocumentCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.12),
+                    color: typeColor.withValues(alpha: 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Icon(typeIcon, color: typeColor, size: 18),
@@ -1765,7 +1765,7 @@ class _RecentDocumentCard extends StatelessWidget {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.08),
+                      color: typeColor.withValues(alpha: 0.08),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
@@ -1900,7 +1900,7 @@ class _TemplateCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Container(
@@ -1919,7 +1919,7 @@ class _TemplateCard extends StatelessWidget {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: typeColor.withOpacity(0.08),
+                      color: typeColor.withValues(alpha: 0.08),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
@@ -2038,7 +2038,7 @@ class _UpcomingEventCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -2048,7 +2048,7 @@ class _UpcomingEventCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.12),
+                color: typeColor.withValues(alpha: 0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(typeIcon, color: typeColor, size: 20),
@@ -2153,7 +2153,7 @@ class _AiContentCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -2163,7 +2163,7 @@ class _AiContentCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.12),
+                color: typeColor.withValues(alpha: 0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(typeIcon, color: typeColor, size: 20),
@@ -2197,7 +2197,7 @@ class _AiContentCard extends StatelessWidget {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: typeColor.withOpacity(0.08),
+                color: typeColor.withValues(alpha: 0.08),
                 borderRadius: Spacings.borderRadiusFull,
               ),
               child: Text(

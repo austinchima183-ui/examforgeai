@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/extensions/datetime_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../providers/dashboard_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -210,7 +209,7 @@ class _ActivityTile extends StatelessWidget {
     final isDark = context.isDarkMode;
     final accentColor = item.color ?? cs.primary;
     final iconBgColor =
-        accentColor.withOpacity(isDark ? 0.20 : 0.12);
+        accentColor.withValues(alpha: isDark ? 0.20 : 0.12);
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Spacings.xs),

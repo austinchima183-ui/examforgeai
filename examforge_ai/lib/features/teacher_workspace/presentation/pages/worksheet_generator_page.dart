@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/usecases/create_worksheet_usecase.dart';
 import '../../domain/usecases/export_worksheet_usecase.dart';
@@ -132,14 +129,14 @@ class _WorksheetGeneratorPageState
           prev?.successMessage != next.successMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(next.successMessage!), backgroundColor: cs.primary),
+              content: Text(next.successMessage!), backgroundColor: cs.primary,),
         );
         ref.read(worksheetProvider.notifier).clearSuccessMessage();
       }
     });
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'AI Worksheet',
       ),
       body: state.isGenerating
@@ -198,7 +195,7 @@ class _WorksheetGeneratorPageState
   // ─── Form Section ─────────────────────────────────────────────────
 
   Widget _buildFormSection(
-      ColorScheme cs, TextTheme tt, WorksheetState state) {
+      ColorScheme cs, TextTheme tt, WorksheetState state,) {
     return Form(
       key: _formKey,
       child: AppCard(
@@ -312,7 +309,7 @@ class _WorksheetGeneratorPageState
   // ─── Result Header ────────────────────────────────────────────────
 
   Widget _buildResultHeader(
-      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet,) {
     return AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -343,7 +340,7 @@ class _WorksheetGeneratorPageState
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.auto_awesome,
-                          size: Spacings.smIcon, color: cs.onTertiaryContainer),
+                          size: Spacings.smIcon, color: cs.onTertiaryContainer,),
                       const SizedBox(width: Spacings.xs),
                       Text(
                         'AI Generated',
@@ -367,9 +364,9 @@ class _WorksheetGeneratorPageState
               _buildMetadataChip(cs, tt, Icons.book_outlined, worksheet.subject),
               if (worksheet.className != null)
                 _buildMetadataChip(
-                    cs, tt, Icons.school_outlined, worksheet.className!),
+                    cs, tt, Icons.school_outlined, worksheet.className!,),
               _buildMetadataChip(cs, tt, Icons.description_outlined,
-                  worksheet.worksheetType.label),
+                  worksheet.worksheetType.label,),
               _buildMetadataChip(
                 cs,
                 tt,
@@ -379,7 +376,7 @@ class _WorksheetGeneratorPageState
               ),
               if (worksheet.topic != null)
                 _buildMetadataChip(
-                    cs, tt, Icons.topic_outlined, worksheet.topic!),
+                    cs, tt, Icons.topic_outlined, worksheet.topic!,),
             ],
           ),
           const SizedBox(height: Spacings.md),
@@ -388,7 +385,7 @@ class _WorksheetGeneratorPageState
           Row(
             children: [
               Icon(Icons.history_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 'Version ${worksheet.version}',
@@ -402,7 +399,7 @@ class _WorksheetGeneratorPageState
   }
 
   Widget _buildMetadataChip(
-      ColorScheme cs, TextTheme tt, IconData icon, String label) {
+      ColorScheme cs, TextTheme tt, IconData icon, String label,) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: Spacings.sm,
@@ -432,7 +429,7 @@ class _WorksheetGeneratorPageState
   // ─── Instructions ─────────────────────────────────────────────────
 
   Widget _buildInstructions(
-      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet,) {
     if (worksheet.instructions == null ||
         worksheet.instructions!.isEmpty) {
       return const SizedBox.shrink();
@@ -468,7 +465,7 @@ class _WorksheetGeneratorPageState
   // ─── Questions List ───────────────────────────────────────────────
 
   Widget _buildQuestionsList(
-      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet,) {
     final questions = worksheet.questions;
     if (questions.isEmpty) {
       return AppCard(
@@ -508,7 +505,7 @@ class _WorksheetGeneratorPageState
   }
 
   Widget _buildQuestionCard(
-      ColorScheme cs, TextTheme tt, int number, Map<String, dynamic> question) {
+      ColorScheme cs, TextTheme tt, int number, Map<String, dynamic> question,) {
     final text = question['text'] as String? ?? question['question'] as String? ?? '';
     final type = question['type'] as String? ?? '';
     final marks = question['marks'] ?? question['mark'] ?? '';
@@ -558,7 +555,7 @@ class _WorksheetGeneratorPageState
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(
-                    '${marks} mark${marks == 1 ? '' : 's'}',
+                    '$marks mark${marks == 1 ? '' : 's'}',
                     style: tt.labelSmall?.copyWith(
                       color: cs.onSecondaryContainer,
                       fontWeight: AppTypography.wMedium,
@@ -609,7 +606,7 @@ class _WorksheetGeneratorPageState
   // ─── Answer Key (Collapsible) ─────────────────────────────────────
 
   Widget _buildAnswerKey(
-      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet,) {
     final answers = worksheet.answerKey;
     if (answers.isEmpty) return const SizedBox.shrink();
 
@@ -623,7 +620,7 @@ class _WorksheetGeneratorPageState
             child: Row(
               children: [
                 Icon(Icons.key_outlined,
-                    size: Spacings.mdIcon, color: cs.primary),
+                    size: Spacings.mdIcon, color: cs.primary,),
                 const SizedBox(width: Spacings.sm),
                 Text(
                   'Answer Key',
@@ -689,7 +686,7 @@ class _WorksheetGeneratorPageState
   // ─── Total Marks & Duration ───────────────────────────────────────
 
   Widget _buildMarksAndDuration(
-      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet,) {
     return Row(
       children: [
         // Total marks
@@ -698,7 +695,7 @@ class _WorksheetGeneratorPageState
             child: Column(
               children: [
                 Icon(Icons.grade_outlined,
-                    size: Spacings.lgIcon, color: cs.primary),
+                    size: Spacings.lgIcon, color: cs.primary,),
                 const SizedBox(height: Spacings.sm),
                 Text(
                   'Total Marks',
@@ -727,7 +724,7 @@ class _WorksheetGeneratorPageState
               child: Column(
                 children: [
                   Icon(Icons.timer_outlined,
-                      size: Spacings.lgIcon, color: cs.tertiary),
+                      size: Spacings.lgIcon, color: cs.tertiary,),
                   const SizedBox(height: Spacings.sm),
                   Text(
                     'Duration',

@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../domain/entities/marketplace_entities.dart';
-import '../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
+import '../../../../shared/widgets/widgets.dart';
+import '../../domain/entities/marketplace_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // MARKETPLACE SHARED WIDGETS
@@ -71,7 +71,7 @@ class ProductCard extends StatelessWidget {
                 height: 140,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
+                  color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(Spacings.mdRadius),
                   ),
@@ -94,13 +94,13 @@ class ProductCard extends StatelessWidget {
                   runSpacing: Spacings.xs,
                   children: [
                     if (product.isFree)
-                      _Badge(
+                      const _Badge(
                         label: 'Free',
                         backgroundColor: AppColors.success,
                         textColor: Colors.white,
                       ),
                     if (product.isAiGenerated)
-                      _Badge(
+                      const _Badge(
                         label: 'AI Generated',
                         backgroundColor: AppColors.info,
                         textColor: Colors.white,
@@ -125,8 +125,8 @@ class ProductCard extends StatelessWidget {
                     padding: const EdgeInsets.all(Spacings.xs),
                     decoration: BoxDecoration(
                       color: isDark
-                          ? AppColors.surfaceCardDark.withOpacity(0.8)
-                          : Colors.white.withOpacity(0.9),
+                          ? AppColors.surfaceCardDark.withValues(alpha: 0.8)
+                          : Colors.white.withValues(alpha: 0.9),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -475,19 +475,19 @@ class LicenseBadge extends StatelessWidget {
           isDark ? Colors.grey.shade300 : Colors.grey.shade700,
         ),
       MarketplaceLicenseType.teacher => (
-          isDark ? AppColors.infoDark.withOpacity(0.4) : AppColors.infoLight,
+          isDark ? AppColors.infoDark.withValues(alpha: 0.4) : AppColors.infoLight,
           isDark ? AppColors.infoLight : AppColors.info,
         ),
       MarketplaceLicenseType.school => (
-          isDark ? Colors.indigo.shade900.withOpacity(0.5) : Colors.indigo.shade100,
+          isDark ? Colors.indigo.shade900.withValues(alpha: 0.5) : Colors.indigo.shade100,
           isDark ? Colors.indigo.shade200 : Colors.indigo.shade700,
         ),
       MarketplaceLicenseType.department => (
-          isDark ? Colors.purple.shade900.withOpacity(0.5) : Colors.purple.shade100,
+          isDark ? Colors.purple.shade900.withValues(alpha: 0.5) : Colors.purple.shade100,
           isDark ? Colors.purple.shade200 : Colors.purple.shade700,
         ),
       MarketplaceLicenseType.enterprise => (
-          isDark ? AppColors.warningDark.withOpacity(0.4) : AppColors.warningLight,
+          isDark ? AppColors.warningDark.withValues(alpha: 0.4) : AppColors.warningLight,
           isDark ? AppColors.warningLight : AppColors.warning,
         ),
     };
@@ -684,7 +684,7 @@ class ReviewCard extends StatelessWidget {
               // Avatar placeholder
               CircleAvatar(
                 radius: 18,
-                backgroundColor: cs.primary.withOpacity(isDark ? 0.30 : 0.15),
+                backgroundColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
                 child: Text(
                   review.buyerId.isNotEmpty ? review.buyerId[0].toUpperCase() : '?',
                   style: tt.labelLarge?.copyWith(
@@ -709,7 +709,7 @@ class ReviewCard extends StatelessWidget {
                         ),
                         if (review.isVerifiedPurchase) ...[
                           const SizedBox(width: Spacings.xs),
-                          Icon(
+                          const Icon(
                             Icons.verified_rounded,
                             size: Spacings.smIcon,
                             color: AppColors.success,
@@ -795,10 +795,10 @@ class ReviewCard extends StatelessWidget {
               width: double.infinity,
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: cs.primaryContainer.withOpacity(isDark ? 0.2 : 0.3),
+                color: cs.primaryContainer.withValues(alpha: isDark ? 0.2 : 0.3),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.primary.withOpacity(0.2),
+                  color: cs.primary.withValues(alpha: 0.2),
                 ),
               ),
               child: Column(
@@ -1041,7 +1041,7 @@ class QualityScoreCard extends StatelessWidget {
                     size: Spacings.smIcon,
                     color: AppColors.errorOf(cs.brightness),
                   ),
-                  backgroundColor: AppColors.errorOf(cs.brightness).withOpacity(isDark ? 0.15 : 0.1,
+                  backgroundColor: AppColors.errorOf(cs.brightness).withValues(alpha: isDark ? 0.15 : 0.1,
                   ),
                   side: BorderSide.none,
                   padding: EdgeInsets.zero,
@@ -1069,7 +1069,7 @@ class QualityScoreCard extends StatelessWidget {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.lightbulb_outline_rounded,
                       size: Spacings.smIcon,
                       color: AppColors.warning,
@@ -1178,7 +1178,7 @@ class _ScoreBar extends StatelessWidget {
         SizedBox(
           width: 36,
           child: Text(
-            '${score.toStringAsFixed(0)}',
+            score.toStringAsFixed(0),
             style: tt.labelSmall?.copyWith(
               fontWeight: AppTypography.wSemiBold,
               color: color,
@@ -1264,7 +1264,7 @@ class SellerInfoCard extends StatelessWidget {
           // ── Avatar ───────────────────────────────────────────────────
           CircleAvatar(
             radius: 28,
-            backgroundColor: cs.primary.withOpacity(isDark ? 0.30 : 0.15),
+            backgroundColor: cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
             child: seller.avatarUrl != null
                 ? ClipOval(
                     child: Icon(
@@ -1306,7 +1306,7 @@ class SellerInfoCard extends StatelessWidget {
                     ),
                     if (seller.isVerified) ...[
                       const SizedBox(width: Spacings.xs),
-                      Icon(
+                      const Icon(
                         Icons.verified_rounded,
                         size: Spacings.mdIcon,
                         color: AppColors.info,
@@ -1551,7 +1551,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 width: 40,
                 height: 4,
                 decoration: BoxDecoration(
-                  color: cs.onSurfaceVariant.withOpacity(0.3),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
               ),
@@ -1569,10 +1569,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             const SizedBox(height: Spacings.xl),
 
             // ── Category dropdown ───────────────────────────────────────
-            _FilterLabel(label: 'Category'),
+            const _FilterLabel(label: 'Category'),
             const SizedBox(height: Spacings.xs),
             DropdownButtonFormField<MarketplaceCategoryEntity>(
-              value: _category,
+              initialValue: _category,
               decoration: InputDecoration(
                 hintText: 'All Categories',
                 border: OutlineInputBorder(
@@ -1596,10 +1596,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             const SizedBox(height: Spacings.lg),
 
             // ── Product type dropdown ───────────────────────────────────
-            _FilterLabel(label: 'Product Type'),
+            const _FilterLabel(label: 'Product Type'),
             const SizedBox(height: Spacings.xs),
             DropdownButtonFormField<MarketplaceProductType>(
-              value: _type,
+              initialValue: _type,
               decoration: InputDecoration(
                 hintText: 'All Types',
                 border: OutlineInputBorder(
@@ -1623,7 +1623,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             const SizedBox(height: Spacings.lg),
 
             // ── Subject input ───────────────────────────────────────────
-            _FilterLabel(label: 'Subject'),
+            const _FilterLabel(label: 'Subject'),
             const SizedBox(height: Spacings.xs),
             TextFormField(
               controller: _subjectController,
@@ -1638,10 +1638,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             const SizedBox(height: Spacings.lg),
 
             // ── Class level dropdown ────────────────────────────────────
-            _FilterLabel(label: 'Class Level'),
+            const _FilterLabel(label: 'Class Level'),
             const SizedBox(height: Spacings.xs),
             DropdownButtonFormField<String>(
-              value: _classLevel,
+              initialValue: _classLevel,
               decoration: InputDecoration(
                 hintText: 'All Levels',
                 border: OutlineInputBorder(
@@ -1660,10 +1660,10 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             const SizedBox(height: Spacings.lg),
 
             // ── Curriculum dropdown ─────────────────────────────────────
-            _FilterLabel(label: 'Curriculum'),
+            const _FilterLabel(label: 'Curriculum'),
             const SizedBox(height: Spacings.xs),
             DropdownButtonFormField<String>(
-              value: _curriculum,
+              initialValue: _curriculum,
               decoration: InputDecoration(
                 hintText: 'All Curricula',
                 border: OutlineInputBorder(
@@ -1682,7 +1682,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             const SizedBox(height: Spacings.lg),
 
             // ── Price range slider ──────────────────────────────────────
-            _FilterLabel(label: 'Price Range'),
+            const _FilterLabel(label: 'Price Range'),
             const SizedBox(height: Spacings.sm),
             RangeSlider(
               values: _priceRange,

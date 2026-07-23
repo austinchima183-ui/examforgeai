@@ -263,7 +263,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> deleteFeatureFlag(String flagId) async {
     try {
       await _remoteDataSource.deleteFeatureFlag(flagId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -554,7 +554,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> suspendSchool(String schoolId, String reason) async {
     try {
       await _remoteDataSource.suspendSchool(schoolId, reason);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -579,7 +579,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> reactivateSchool(String schoolId) async {
     try {
       await _remoteDataSource.reactivateSchool(schoolId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -604,7 +604,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> deleteSchool(String schoolId) async {
     try {
       await _remoteDataSource.deleteSchool(schoolId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -629,7 +629,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> verifySchool(String schoolId) async {
     try {
       await _remoteDataSource.verifySchool(schoolId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -745,7 +745,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> suspendUser(String userId, String reason) async {
     try {
       await _remoteDataSource.suspendUser(userId, reason);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -770,7 +770,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> activateUser(String userId) async {
     try {
       await _remoteDataSource.activateUser(userId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -795,7 +795,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> resetUserPassword(String userId) async {
     try {
       await _remoteDataSource.resetUserPassword(userId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -820,7 +820,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> changeUserRole(String userId, String newRole) async {
     try {
       await _remoteDataSource.changeUserRole(userId, newRole);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -873,7 +873,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> endImpersonation(String sessionId) async {
     try {
       await _remoteDataSource.endImpersonation(sessionId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -1055,7 +1055,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> deleteAIProvider(String providerId) async {
     try {
       await _remoteDataSource.deleteAIProvider(providerId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -1302,7 +1302,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> runHealthCheck(String serviceId) async {
     try {
       await _remoteDataSource.runHealthCheck(serviceId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -1327,7 +1327,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> runAllHealthChecks() async {
     try {
       await _remoteDataSource.runAllHealthChecks();
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -1911,7 +1911,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> markAllNotificationsRead({String? recipientId}) async {
     try {
       await _remoteDataSource.markAllNotificationsRead(recipientId: recipientId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -1936,7 +1936,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> dismissNotification(String notificationId) async {
     try {
       await _remoteDataSource.dismissNotification(notificationId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -2367,7 +2367,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> terminateSession(String sessionId) async {
     try {
       await _remoteDataSource.terminateSession(sessionId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -2417,7 +2417,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> lockUserAccount(String userId, String reason) async {
     try {
       await _remoteDataSource.lockUserAccount(userId, reason);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -2442,7 +2442,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> unlockUserAccount(String userId) async {
     try {
       await _remoteDataSource.unlockUserAccount(userId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -2659,7 +2659,7 @@ class SuperAdminRepositoryImpl implements SuperAdminRepository {
   Future<Result<void>> cancelMaintenanceWindow(String windowId) async {
     try {
       await _remoteDataSource.cancelMaintenanceWindow(windowId);
-      return Success(null);
+      return const Success(null);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {

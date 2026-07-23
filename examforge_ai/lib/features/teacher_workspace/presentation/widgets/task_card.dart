@@ -81,10 +81,10 @@ class TaskCard extends ConsumerWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
+          color: AppColors.error.withValues(alpha: 0.1),
           borderRadius: Spacings.borderRadiusMd,
         ),
-        child: Icon(Icons.delete, color: AppColors.error),
+        child: const Icon(Icons.delete, color: AppColors.error),
       ),
       child: _buildCard(context, isCompleted, isOverdue),
     );
@@ -102,8 +102,8 @@ class TaskCard extends ConsumerWidget {
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
           color: isOverdue
-              ? AppColors.error.withOpacity(0.5)
-              : colorScheme.outlineVariant.withOpacity(0.5),
+              ? AppColors.error.withValues(alpha: 0.5)
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: InkWell(
@@ -125,7 +125,7 @@ class TaskCard extends ConsumerWidget {
                       value: isCompleted,
                       onChanged: (value) =>
                           onCompletionChanged?.call(value ?? false),
-                      shape: RoundedRectangleBorder(
+                      shape: const RoundedRectangleBorder(
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                     ),
@@ -246,7 +246,7 @@ class _CategoryChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: colorScheme.surfaceContainerHighest.withOpacity(0.5),
+        color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Row(

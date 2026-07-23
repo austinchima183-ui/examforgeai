@@ -193,7 +193,7 @@ class FlashcardNotifier extends StateNotifier<FlashcardState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getFlashcardDecks(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: 1,
       pageSize: _pageSize,
     );
@@ -273,7 +273,7 @@ class FlashcardNotifier extends StateNotifier<FlashcardState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _createFlashcardDeck(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       subjectId: subjectId,
       topicId: topicId,
@@ -610,7 +610,7 @@ class FlashcardNotifier extends StateNotifier<FlashcardState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _generateFlashcards(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       title: title,
       subjectId: subjectId,

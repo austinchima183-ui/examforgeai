@@ -336,7 +336,7 @@ class _State extends ConsumerState<TeacherWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -389,7 +389,7 @@ class _State extends ConsumerState<TeacherWorkspaceDashboardPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -502,7 +502,7 @@ class _StatCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -514,7 +514,7 @@ class _StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: stat.color.withOpacity(0.12),
+                color: stat.color.withValues(alpha: 0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(stat.icon, color: stat.color, size: 20),
@@ -569,7 +569,7 @@ class _AiContentCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -675,7 +675,7 @@ class _DraftLessonPlanCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -728,7 +728,7 @@ class _DraftLessonPlanCard extends StatelessWidget {
                     horizontal: Spacings.sm,
                     vertical: Spacings.xs,
                   ),
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.warningLight,
                     borderRadius: Spacings.borderRadiusFull,
                   ),

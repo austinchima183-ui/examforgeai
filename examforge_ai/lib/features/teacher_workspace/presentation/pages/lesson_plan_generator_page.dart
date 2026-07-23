@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
-import '../../domain/usecases/generate_lesson_plan_usecase.dart';
 import '../../domain/usecases/create_lesson_plan_usecase.dart';
+import '../../domain/usecases/generate_lesson_plan_usecase.dart';
 import '../../domain/usecases/update_lesson_plan_usecase.dart';
 import '../providers/lesson_plan_provider.dart';
 import '../widgets/generate_questions_button.dart';
@@ -660,7 +659,7 @@ class _LessonPlanGeneratorPageState
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -868,7 +867,7 @@ class _LessonPlanGeneratorPageState
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -892,7 +891,7 @@ class _LessonPlanGeneratorPageState
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -981,7 +980,7 @@ class _LessonPlanGeneratorPageState
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Row(
@@ -991,7 +990,7 @@ class _LessonPlanGeneratorPageState
                     width: 24,
                     height: 24,
                     decoration: BoxDecoration(
-                      color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                      color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                       ),
                       shape: BoxShape.circle,
                     ),

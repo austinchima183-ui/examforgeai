@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../providers/referral_provider.dart';
 import '../widgets/billing_widgets.dart';
@@ -83,7 +83,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
     final tt = context.textTheme;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Referral Program'),
+      appBar: const AppAppBar(title: 'Referral Program'),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(
@@ -205,8 +205,8 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
     return Expanded(
       child: Card(
         elevation: Spacings.elevationSm,
-        shadowColor: cs.shadow.withOpacity(0.06),
-        shape: RoundedRectangleBorder(
+        shadowColor: cs.shadow.withValues(alpha: 0.06),
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(
@@ -218,7 +218,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(isDark ? 0.20 : 0.12),
+                  color: color.withValues(alpha: isDark ? 0.20 : 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, size: 18, color: color),
@@ -291,7 +291,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: ListTile(
@@ -303,7 +303,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12),
+            color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: const Icon(

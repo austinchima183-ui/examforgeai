@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
-import '../../../../../shared/widgets/app_stat_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../../../../config/dependency_injection.dart';
 import '../../providers/exam_results_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -78,7 +77,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
       ),
       body: state.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : SingleChildScrollView(
               padding: const EdgeInsets.all(Spacings.lg),
               child: Center(
@@ -117,14 +116,14 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
                             padding: const EdgeInsets.all(Spacings.md),
                             decoration: BoxDecoration(
                               color: AppColors.successOf(cs.brightness)
-                                  .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+                                  .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
                               borderRadius:
                                   BorderRadius.circular(Spacings.smRadius),
                             ),
                             child: Row(
                               children: [
                                 Icon(Icons.check_circle_rounded,
-                                    color: AppColors.successOf(cs.brightness)),
+                                    color: AppColors.successOf(cs.brightness),),
                                 const SizedBox(width: Spacings.sm),
                                 Text(
                                   state.successMessage!,
@@ -199,7 +198,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
     final results = _sortAndFilterResults(state.results);
 
     if (results.isEmpty) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.assignment_outlined,
         title: 'No Results Yet',
         subtitle: 'Results will appear here once students submit their exams.',
@@ -255,7 +254,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(Icons.sort_rounded,
-                            size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                            size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                         const SizedBox(width: Spacings.xs),
                         Text(
                           'Sort: ${_sortField.label}',
@@ -276,14 +275,14 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
                                   Icon(_sortAscending
                                       ? Icons.arrow_upward_rounded
                                       : Icons.arrow_downward_rounded,
-                                      size: 16)
+                                      size: 16,)
                                 else
                                   const SizedBox(width: 16),
                                 const SizedBox(width: Spacings.sm),
                                 Text(f.label),
                               ],
                             ),
-                          ))
+                          ),)
                       .toList(),
                 ),
               ],
@@ -346,7 +345,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
         decoration: BoxDecoration(
           border: Border(
             bottom: BorderSide(
-              color: cs.outlineVariant.withOpacity(0.3),
+              color: cs.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
         ),
@@ -407,7 +406,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
                   color: (result.grade != null
                           ? cs.primary
                           : cs.onSurfaceVariant)
-                      .withOpacity(context.isDarkMode ? 0.20 : 0.10),
+                      .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -454,7 +453,7 @@ class _ExamResultsPageState extends ConsumerState<ExamResultsPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -568,7 +567,7 @@ class _ResultDetailSheet extends StatelessWidget {
               width: 40,
               height: 4,
               decoration: BoxDecoration(
-                color: cs.onSurfaceVariant.withOpacity(0.3),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
@@ -612,7 +611,7 @@ class _ResultDetailSheet extends StatelessWidget {
                       vertical: Spacings.sm,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.primary.withOpacity(0.1),
+                      color: cs.primary.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(Spacings.mdRadius),
                     ),
                     child: Text(

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
@@ -14,7 +14,6 @@ import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/subject_provider.dart';
 import 'subject_form_page.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -284,7 +283,7 @@ class _SubjectListPageState extends ConsumerState<SubjectListPage> {
                     borderRadius: BorderRadius.circular(Spacings.mdRadius),
                   ),
                   child: Icon(Icons.menu_book_rounded,
-                      color: cs.onPrimaryContainer),
+                      color: cs.onPrimaryContainer,),
                 ),
                 const SizedBox(width: Spacings.md),
                 Expanded(
@@ -352,8 +351,8 @@ class _SubjectListPageState extends ConsumerState<SubjectListPage> {
             ),
             if (!subject.isActive)
               ListTile(
-                leading: Icon(Icons.check_circle_outline_rounded,
-                    color: AppColors.success),
+                leading: const Icon(Icons.check_circle_outline_rounded,
+                    color: AppColors.success,),
                 title: const Text('Reactivate Subject'),
                 contentPadding: EdgeInsets.zero,
                 onTap: () {
@@ -429,7 +428,7 @@ class _SubjectListPageState extends ConsumerState<SubjectListPage> {
               ),
               const SizedBox(height: Spacings.lg),
               DropdownButtonFormField<String>(
-                value: _categoryFilter,
+                initialValue: _categoryFilter,
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   prefixIcon: Icon(Icons.category_outlined),
@@ -524,7 +523,7 @@ class _SubjectCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: catColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: catColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(
@@ -585,7 +584,7 @@ class _SubjectCard extends StatelessWidget {
                         ),
                         decoration: BoxDecoration(
                           color:
-                              catColor.withOpacity(isDark ? 0.20 : 0.12),
+                              catColor.withValues(alpha: isDark ? 0.20 : 0.12),
                           borderRadius:
                               BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -616,7 +615,7 @@ class _SubjectCard extends StatelessWidget {
                   color: (subject.isCompulsory
                           ? AppColors.success
                           : AppColors.warning)
-                      .withOpacity(isDark ? 0.20 : 0.12),
+                      .withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -679,7 +678,7 @@ class _StatChip extends StatelessWidget {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

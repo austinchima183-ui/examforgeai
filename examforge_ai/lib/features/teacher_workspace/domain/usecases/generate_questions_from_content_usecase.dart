@@ -30,13 +30,13 @@ class GenerateQuestionsFromContentUseCase {
       return const FailureResult(Failure.validation(
         message: 'Resource type is required',
         fieldErrors: {'resourceType': 'Resource type cannot be empty'},
-      ));
+      ),);
     }
     if (params.resourceId.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Resource ID is required',
         fieldErrors: {'resourceId': 'Resource ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateQuestionsFromContent(
       params.resourceType,

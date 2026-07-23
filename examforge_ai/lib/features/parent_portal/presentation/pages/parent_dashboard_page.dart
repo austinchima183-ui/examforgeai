@@ -97,7 +97,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
             right: 8,
             child: Container(
               padding: const EdgeInsets.all(Spacings.xs),
-              decoration: BoxDecoration(
+              decoration: const BoxDecoration(
                 color: AppColors.error,
                 shape: BoxShape.circle,
               ),
@@ -220,13 +220,13 @@ class _State extends ConsumerState<ParentDashboardPage> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  AppLoadingShimmer.box(
+                  const AppLoadingShimmer.box(
                     width: 220,
                     height: 24,
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   const SizedBox(height: Spacings.sm),
-                  AppLoadingShimmer.box(
+                  const AppLoadingShimmer.box(
                     width: 180,
                     height: 16,
                     borderRadius: Spacings.borderRadiusSm,
@@ -240,7 +240,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
                       itemCount: 2,
                       separatorBuilder: (_, __) =>
                           const SizedBox(width: Spacings.md),
-                      itemBuilder: (_, __) => AppLoadingShimmer.box(
+                      itemBuilder: (_, __) => const AppLoadingShimmer.box(
                         width: 200,
                         borderRadius: Spacings.borderRadiusLg,
                       ),
@@ -251,9 +251,9 @@ class _State extends ConsumerState<ParentDashboardPage> {
                   Row(
                     children: List.generate(
                       4,
-                      (_) => Expanded(
+                      (_) => const Expanded(
                         child: Padding(
-                          padding: const EdgeInsets.symmetric(
+                          padding: EdgeInsets.symmetric(
                             horizontal: Spacings.xs,
                           ),
                           child: AppLoadingShimmer.box(
@@ -382,7 +382,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
       child: InkWell(
         onTap: () => context.go(
           '${RouteNames.parentPortal}/child/${child.studentId}',
@@ -549,7 +549,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
               child: Card(
                 elevation: Spacings.elevationNone,
                 color: cs.surfaceContainerLow,
-                shape: RoundedRectangleBorder(
+                shape: const RoundedRectangleBorder(
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Padding(
@@ -628,7 +628,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
             Card(
               elevation: Spacings.elevationNone,
               color: cs.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Padding(
@@ -647,7 +647,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
             ...insights.take(3).map((insight) => Padding(
                   padding: const EdgeInsets.only(bottom: Spacings.sm),
                   child: _buildInsightCard(context, insight),
-                )),
+                ),),
         ],
       ),
     );
@@ -665,7 +665,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
       ),
       child: Padding(
@@ -786,7 +786,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
             Card(
               elevation: Spacings.elevationNone,
               color: cs.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Padding(
@@ -805,7 +805,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
             ...events.map((event) => Padding(
                   padding: const EdgeInsets.only(bottom: Spacings.sm),
                   child: _buildEventCard(context, event),
-                )),
+                ),),
         ],
       ),
     );
@@ -823,7 +823,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
     return Card(
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
       ),
       child: Padding(
@@ -837,7 +837,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
                 vertical: Spacings.sm,
               ),
               decoration: BoxDecoration(
-                color: eventColor.withOpacity(0.1),
+                color: eventColor.withValues(alpha: 0.1),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Column(
@@ -941,7 +941,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
             Card(
               elevation: Spacings.elevationNone,
               color: cs.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Padding(
@@ -960,7 +960,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
             ...announcements.map((announcement) => Padding(
                   padding: const EdgeInsets.only(bottom: Spacings.sm),
                   child: _buildAnnouncementCard(context, announcement),
-                )),
+                ),),
         ],
       ),
     );
@@ -976,7 +976,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
     return Card(
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
       ),
       child: Padding(
@@ -1033,7 +1033,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
                           color: _priorityColor(
                             announcement.priority,
                             cs.brightness,
-                          ).withOpacity(0.15),
+                          ).withValues(alpha: 0.15),
                           borderRadius: Spacings.borderRadiusSm,
                         ),
                         child: Text(
@@ -1106,14 +1106,14 @@ class _State extends ConsumerState<ParentDashboardPage> {
                 child: Card(
                   elevation: Spacings.elevationNone,
                   color: cs.surfaceContainerLow,
-                  shape: RoundedRectangleBorder(
+                  shape: const RoundedRectangleBorder(
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: ListTile(
                     leading: CircleAvatar(
                       radius: 16,
                       backgroundColor: AppColors.warningOf(cs.brightness)
-                          .withOpacity(0.15),
+                          .withValues(alpha: 0.15),
                       child: Text(
                         '${child.pendingAssignmentsCount}',
                         style: tt.labelLarge?.copyWith(
@@ -1145,7 +1145,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
                     ),
                   ),
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -1175,7 +1175,7 @@ class _State extends ConsumerState<ParentDashboardPage> {
       child: Card(
         elevation: Spacings.elevationSm,
         color: cs.primaryContainer,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: InkWell(

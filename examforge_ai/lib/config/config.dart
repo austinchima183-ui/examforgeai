@@ -4,6 +4,7 @@
 /// ```dart
 /// import 'package:examforge_ai/config/config.dart';
 /// ```
+library;
 
 export 'app_config.dart';
 export 'dependency_injection.dart';

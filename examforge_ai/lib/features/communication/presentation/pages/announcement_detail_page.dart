@@ -9,7 +9,6 @@ import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
 import '../providers/announcement_provider.dart';
-import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType;
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -179,7 +178,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.xs),
           decoration: BoxDecoration(
-            color: priorityColor.withOpacity(0.12),
+            color: priorityColor.withValues(alpha: 0.12),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Text(
@@ -190,7 +189,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
         Container(
           padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.xs),
           decoration: BoxDecoration(
-            color: typeColor.withOpacity(0.12),
+            color: typeColor.withValues(alpha: 0.12),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Text(
@@ -202,7 +201,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.xs),
             decoration: BoxDecoration(
-              color: cs.primaryContainer.withOpacity(0.2),
+              color: cs.primaryContainer.withValues(alpha: 0.2),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: Row(
@@ -266,7 +265,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
         ...attachments.map((att) => Card(
           elevation: Spacings.elevationNone,
           color: cs.surfaceContainerHigh,
-          shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusSm),
+          shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusSm),
           child: ListTile(
             leading: Icon(Icons.insert_drive_file_outlined, color: cs.primary),
             title: Text(att['fileName'] ?? 'Attachment', style: tt.bodySmall, maxLines: 1, overflow: TextOverflow.ellipsis),
@@ -275,7 +274,7 @@ class _State extends ConsumerState<AnnouncementDetailPage> {
               onPressed: () {/* TODO: download */},
             ),
           ),
-        )),
+        ),),
         const SizedBox(height: Spacings.lg),
       ],
     );

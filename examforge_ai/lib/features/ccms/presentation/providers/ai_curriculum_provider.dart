@@ -95,7 +95,7 @@ class AiCurriculumNotifier extends StateNotifier<AiCurriculumState> {
       schoolId: schoolId,
       subjectId: subjectId,
       educationalLevelId: educationalLevelId,
-    ));
+    ),);
     result.fold(
       onSuccess: (config) {
         final updatedConfigs = [...state.configs];
@@ -157,7 +157,7 @@ class AiCurriculumNotifier extends StateNotifier<AiCurriculumState> {
       educationalLevelId: educationalLevelId,
       subjectId: subjectId,
       isActive: isActive,
-    ));
+    ),);
     result.fold(
       onSuccess: (rules) =>
           state = state.copyWith(generationRules: rules, isLoading: false),

@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
@@ -13,7 +13,6 @@ import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/timetable_provider.dart';
-import '../../providers/academic_session_provider.dart';
 import 'timetable_builder_page.dart';
 import 'timetable_view_page.dart';
 
@@ -277,7 +276,7 @@ class _TimetableListPageState extends ConsumerState<TimetableListPage> {
               const SizedBox(height: Spacings.lg),
               // Term filter
               DropdownButtonFormField<String>(
-                value: _termFilter,
+                initialValue: _termFilter,
                 decoration: const InputDecoration(
                   labelText: 'Term',
                   prefixIcon: Icon(Icons.calendar_view_week_outlined),
@@ -297,7 +296,7 @@ class _TimetableListPageState extends ConsumerState<TimetableListPage> {
               const SizedBox(height: Spacings.lg),
               // Type filter
               DropdownButtonFormField<String>(
-                value: _typeFilter,
+                initialValue: _typeFilter,
                 decoration: const InputDecoration(
                   labelText: 'Type',
                   prefixIcon: Icon(Icons.category_outlined),
@@ -398,7 +397,7 @@ class _TimetableCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(
@@ -433,7 +432,7 @@ class _TimetableCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
+                        color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -449,7 +448,7 @@ class _TimetableCard extends StatelessWidget {
                     if (timetable.className != null) ...[
                       const SizedBox(width: Spacings.sm),
                       Icon(Icons.class_outlined,
-                          size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                          size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                       const SizedBox(width: 2),
                       Flexible(
                         child: Text(
@@ -468,7 +467,7 @@ class _TimetableCard extends StatelessWidget {
                 Row(
                   children: [
                     Icon(Icons.calendar_view_week_outlined,
-                        size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                        size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                     const SizedBox(width: 2),
                     Text(
                       'Term: ${timetable.termId}',
@@ -478,7 +477,7 @@ class _TimetableCard extends StatelessWidget {
                     ),
                     const SizedBox(width: Spacings.md),
                     Icon(Icons.grid_view_outlined,
-                        size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                        size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                     const SizedBox(width: 2),
                     Text(
                       '${timetable.slots.length} slots',
@@ -501,7 +500,7 @@ class _TimetableCard extends StatelessWidget {
               color: (timetable.isPublished
                       ? AppColors.success
                       : cs.outline)
-                  .withOpacity(isDark ? 0.20 : 0.12),
+                  .withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.fullRadius),
             ),
             child: Text(

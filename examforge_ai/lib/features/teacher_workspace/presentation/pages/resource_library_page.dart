@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../providers/resource_library_provider.dart';
 import '../widgets/generate_questions_button.dart';
@@ -106,7 +106,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
           .where((r) =>
               r.updatedAt.isAfter(_filterDateRange!.start) &&
               r.updatedAt
-                  .isBefore(_filterDateRange!.end.add(const Duration(days: 1))))
+                  .isBefore(_filterDateRange!.end.add(const Duration(days: 1))),)
           .toList();
     }
 
@@ -292,7 +292,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
           ),
           if (selectedFolder != null) ...[
             Icon(Icons.chevron_right_rounded,
-                size: 16, color: cs.onSurfaceVariant),
+                size: 16, color: cs.onSurfaceVariant,),
             Text(
               selectedFolder.name,
               style: tt.labelMedium?.copyWith(
@@ -370,7 +370,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
             ),
             selected: state.selectedFolderId == null,
             selectedTileColor:
-                cs.primary.withOpacity(context.isDarkMode ? 0.15 : 0.08),
+                cs.primary.withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
@@ -400,7 +400,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
               ),
               selected: isSelected,
               selectedTileColor: cs.primary
-                  .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+                  .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
@@ -409,7 +409,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
                   .selectFolder(folder.id),
               trailing: IconButton(
                 icon: Icon(Icons.delete_outline_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 onPressed: () => _confirmDeleteFolder(folder.id, folder.name),
                 visualDensity: VisualDensity.compact,
                 tooltip: 'Delete folder',
@@ -640,7 +640,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
                     title: Text(itemLabel(item)),
                     trailing: isSelected
                         ? Icon(Icons.check_rounded,
-                            color: context.colorScheme.primary)
+                            color: context.colorScheme.primary,)
                         : null,
                     onTap: () {
                       onSelected(isSelected ? null : item);
@@ -745,7 +745,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -839,7 +839,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
                           vertical: 1,
                         ),
                         decoration: BoxDecoration(
-                          color: cs.outlineVariant.withOpacity(0.3),
+                          color: cs.outlineVariant.withValues(alpha: 0.3),
                           borderRadius:
                               BorderRadius.circular(Spacings.fullRadius),
                         ),
@@ -849,7 +849,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
                             color: cs.onSurfaceVariant,
                           ),
                         ),
-                      ))
+                      ),)
                   .toList(),
             ),
           ],
@@ -913,7 +913,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -1080,10 +1080,10 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
                               selected: _filterContentType == type,
                               onSelected: (_) {
                                 setSheetState(() =>
-                                    _filterContentType = type);
+                                    _filterContentType = type,);
                                 setState(() => _filterContentType = type);
                               },
-                            )),
+                            ),),
                       ],
                     ),
                     const SizedBox(height: Spacings.lg),
@@ -1253,31 +1253,31 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
         mainAxisSpacing: Spacings.md,
       ),
       itemCount: 6,
-      itemBuilder: (_, __) => AppCard(
+      itemBuilder: (_, __) => const AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const AppLoadingShimmer.box(width: 40, height: 40),
-                const SizedBox(width: Spacings.md),
-                const AppLoadingShimmer.box(width: 160, height: 16),
-                const Spacer(),
-                const AppLoadingShimmer.box(width: 24, height: 24),
+                AppLoadingShimmer.box(width: 40, height: 40),
+                SizedBox(width: Spacings.md),
+                AppLoadingShimmer.box(width: 160, height: 16),
+                Spacer(),
+                AppLoadingShimmer.box(width: 24, height: 24),
               ],
             ),
-            const SizedBox(height: Spacings.sm),
+            SizedBox(height: Spacings.sm),
             Row(
-              children: const [
+              children: [
                 AppLoadingShimmer.box(width: 80, height: 22),
                 SizedBox(width: Spacings.sm),
                 AppLoadingShimmer.box(width: 40, height: 22),
               ],
             ),
-            const SizedBox(height: Spacings.sm),
-            const AppLoadingShimmer.box(width: 120, height: 12),
-            const Spacer(),
-            const AppLoadingShimmer.box(width: double.infinity, height: 1),
+            SizedBox(height: Spacings.sm),
+            AppLoadingShimmer.box(width: 120, height: 12),
+            Spacer(),
+            AppLoadingShimmer.box(width: double.infinity, height: 1),
           ],
         ),
       ),
@@ -1285,7 +1285,7 @@ class _ResourceLibraryPageState extends ConsumerState<ResourceLibraryPage> {
   }
 
   Widget _buildEmptyState() {
-    return AppEmptyState(
+    return const AppEmptyState(
       icon: Icons.folder_open_outlined,
       title: 'Empty Library',
       subtitle: 'Your resource library is empty. Create resources from the Teaching Resources page and they will appear here.',

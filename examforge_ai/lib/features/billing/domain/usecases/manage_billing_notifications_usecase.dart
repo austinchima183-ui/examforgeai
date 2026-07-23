@@ -28,18 +28,18 @@ class GetBillingNotificationsUseCase {
     GetBillingNotificationsParams params,
   ) async {
     if (params.userId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'User ID cannot be empty'),
       );
     }
     if (params.page < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Per page must be at least 1'),
       );
     }
 
@@ -65,8 +65,8 @@ class MarkNotificationReadUseCase {
 
   Future<Result<void>> call(MarkNotificationReadParams params) async {
     if (params.notificationId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Notification ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Notification ID cannot be empty'),
       );
     }
 
@@ -94,13 +94,13 @@ class UpdateNotificationPreferencesUseCase {
 
   Future<Result<void>> call(UpdateNotificationPreferencesParams params) async {
     if (params.userId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'User ID cannot be empty'),
       );
     }
     if (params.preferences.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Preferences cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Preferences cannot be empty'),
       );
     }
 

@@ -3,11 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/product_detail_provider.dart';
 import '../widgets/marketplace_widgets.dart';
@@ -44,7 +44,7 @@ class ProductReviewsPage extends ConsumerStatefulWidget {
 class _ProductReviewsPageState extends ConsumerState<ProductReviewsPage> {
   _ReviewFilter _filter = _ReviewFilter.all;
   _ReviewSort _sort = _ReviewSort.mostRecent;
-  bool _hasPurchased = true; // Assumed for demo; real app checks
+  final bool _hasPurchased = true; // Assumed for demo; real app checks
 
   @override
   void initState() {
@@ -152,7 +152,7 @@ class _ProductReviewsPageState extends ConsumerState<ProductReviewsPage> {
     final reviews = _filteredReviews;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Reviews'),
+      appBar: const AppAppBar(title: 'Reviews'),
       body: state.isLoading && !state.hasReviews
           ? const Center(child: AppLoadingSpinner())
           : state.error != null && !state.hasReviews
@@ -180,7 +180,7 @@ class _ProductReviewsPageState extends ConsumerState<ProductReviewsPage> {
 
                           // ── Reviews List ────────────────────────────
                           if (reviews.isEmpty)
-                            SliverToBoxAdapter(
+                            const SliverToBoxAdapter(
                               child: AppEmptyState(
                                 icon: Icons.rate_review_outlined,
                                 title: 'No Reviews Match',
@@ -206,7 +206,7 @@ class _ProductReviewsPageState extends ConsumerState<ProductReviewsPage> {
                                         onHelpful: () {
                                           ref
                                               .read(
-                                                  productDetailProvider.notifier)
+                                                  productDetailProvider.notifier,)
                                               .voteReviewHelpful(
                                                 reviewId: review.id,
                                                 userId: 'current_user',
@@ -314,7 +314,7 @@ class _ProductReviewsPageState extends ConsumerState<ProductReviewsPage> {
                           ),
                         ),
                         const SizedBox(width: Spacings.xs),
-                        Icon(
+                        const Icon(
                           Icons.star_rounded,
                           size: Spacings.smIcon,
                           color: AppColors.warning,
@@ -374,7 +374,7 @@ class _ProductReviewsPageState extends ConsumerState<ProductReviewsPage> {
                 onSelected: (_) {
                   setState(() => _filter = filter);
                 },
-                selectedColor: context.colorScheme.primary.withOpacity(context.isDarkMode ? 0.25 : 0.15,
+                selectedColor: context.colorScheme.primary.withValues(alpha: context.isDarkMode ? 0.25 : 0.15,
                 ),
                 checkmarkColor: context.colorScheme.primary,
               ),

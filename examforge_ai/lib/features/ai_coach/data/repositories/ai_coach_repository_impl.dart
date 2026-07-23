@@ -39,7 +39,7 @@ class AiCoachRepositoryImpl implements AiCoachRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on NetworkException catch (e) {
@@ -54,16 +54,16 @@ class AiCoachRepositoryImpl implements AiCoachRepository {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on CacheException catch (e) {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {
       AppLogger.error(
-          'Unexpected exception in AiCoachRepositoryImpl', error: e);
+          'Unexpected exception in AiCoachRepositoryImpl', error: e,);
       return FailureResult(Failure.server(
         message: e.toString(),
         statusCode: 500,
-      ));
+      ),);
     }
   }
 

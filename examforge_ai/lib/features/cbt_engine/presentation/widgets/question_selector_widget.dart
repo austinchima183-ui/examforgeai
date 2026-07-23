@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../question_bank/domain/entities/question_entities.dart';
-import '../../../question_bank/presentation/widgets/question_type_badge.dart';
-import '../../../question_bank/presentation/widgets/difficulty_badge.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../question_bank/domain/entities/question_entities.dart';
+import '../../../question_bank/presentation/widgets/difficulty_badge.dart';
+import '../../../question_bank/presentation/widgets/question_type_badge.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION SELECTOR WIDGET
@@ -81,7 +79,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
       questions = questions
           .where((q) =>
               q.content.toLowerCase().contains(query) ||
-              q.subjectId.toLowerCase().contains(query))
+              q.subjectId.toLowerCase().contains(query),)
           .toList();
     }
 
@@ -191,7 +189,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
                   vertical: Spacings.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -225,7 +223,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
                   Icon(
                     Icons.search_off_rounded,
                     size: Spacings.xlIcon,
-                    color: cs.onSurfaceVariant.withOpacity(0.5),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   const SizedBox(height: Spacings.md),
                   Text(
@@ -316,7 +314,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
         // Type filter
         Expanded(
           child: DropdownButtonFormField<QuestionType?>(
-            value: _typeFilter,
+            initialValue: _typeFilter,
             hint: Text('All Types', style: tt.bodySmall),
             items: [
               const DropdownMenuItem<QuestionType?>(
@@ -326,7 +324,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
               ...QuestionType.values.map((type) => DropdownMenuItem(
                     value: type,
                     child: Text(type.label),
-                  )),
+                  ),),
             ],
             onChanged: (value) {
               setState(() => _typeFilter = value);
@@ -344,7 +342,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
         // Difficulty filter
         Expanded(
           child: DropdownButtonFormField<DifficultyLevel?>(
-            value: _difficultyFilter,
+            initialValue: _difficultyFilter,
             hint: Text('All Levels', style: tt.bodySmall),
             items: [
               const DropdownMenuItem<DifficultyLevel?>(
@@ -354,7 +352,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
               ...DifficultyLevel.values.map((level) => DropdownMenuItem(
                     value: level,
                     child: Text(level.label),
-                  )),
+                  ),),
             ],
             onChanged: (value) {
               setState(() => _difficultyFilter = value);
@@ -380,7 +378,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.5),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
       ),
       child: Row(
@@ -439,7 +437,7 @@ class _QuestionSelectorWidgetState extends State<QuestionSelectorWidget> {
       padding: const EdgeInsets.only(bottom: Spacings.sm),
       child: Material(
         color: isSelected
-            ? cs.primary.withOpacity(context.isDarkMode ? 0.12 : 0.06)
+            ? cs.primary.withValues(alpha: context.isDarkMode ? 0.12 : 0.06)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         child: InkWell(

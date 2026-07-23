@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/extensions/datetime_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/extensions/datetime_extensions.dart';
 import '../providers/notification_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -75,7 +75,7 @@ class NotificationItemWidget extends StatelessWidget {
         decoration: BoxDecoration(
           color: notification.isRead
               ? Colors.transparent
-              : cs.primary.withOpacity(isDark ? 0.08 : 0.05),
+              : cs.primary.withValues(alpha: isDark ? 0.08 : 0.05),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
         child: Padding(
@@ -91,7 +91,7 @@ class NotificationItemWidget extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
+                  color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -154,7 +154,7 @@ class NotificationItemWidget extends StatelessWidget {
                     Text(
                       notification.createdAt.timeAgo,
                       style: tt.labelSmall?.copyWith(
-                        color: cs.onSurfaceVariant.withOpacity(0.7),
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.7),
                       ),
                     ),
                   ],
@@ -179,10 +179,10 @@ class NotificationItemWidget extends StatelessWidget {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
+          color: AppColors.error.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
-        child: Icon(
+        child: const Icon(
           Icons.delete_outline_rounded,
           color: AppColors.error,
           size: Spacings.lgIcon,

@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/results_entities.dart';
-import '../../providers/results_providers.dart';
 import '../../providers/results_page_providers.dart';
+import '../../providers/results_providers.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // STUDENT RESULTS PAGE
@@ -68,7 +68,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
       ),
       body: state.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : state.error != null
               ? Center(
                   child: AppEmptyState(
@@ -146,7 +146,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
   // ─── Overall Score Card ──────────────────────────────────────────────
 
   Widget _buildOverallScoreCard(
-      BuildContext context, StudentOverallResultEntity overall) {
+      BuildContext context, StudentOverallResultEntity overall,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -164,7 +164,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             width: double.infinity,
             padding: const EdgeInsets.symmetric(vertical: Spacings.sm),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(isDark ? 0.15 : 0.08),
+              color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Text(
@@ -190,7 +190,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                 height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: cs.primary.withOpacity(isDark ? 0.15 : 0.08),
+                  color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.08),
                   border: Border.all(color: cs.primary, width: 3),
                 ),
                 child: Center(
@@ -226,15 +226,15 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                       _statRow(context, 'Grade', overall.overallGrade!),
                     if (overall.overallGpa != null)
                       _statRow(context, 'GPA',
-                          overall.overallGpa!.toStringAsFixed(2)),
+                          overall.overallGpa!.toStringAsFixed(2),),
                     _statRow(context, 'Position', overall.positionLabel),
                     _statRow(
-                        context, 'Subjects Passed', '${overall.subjectsPassed}'),
+                        context, 'Subjects Passed', '${overall.subjectsPassed}',),
                     _statRow(
-                        context, 'Subjects Failed', '${overall.subjectsFailed}'),
+                        context, 'Subjects Failed', '${overall.subjectsFailed}',),
                     if (overall.isPromoted != null)
                       _statRow(context, 'Promoted',
-                          overall.isPromoted! ? 'Yes' : 'No'),
+                          overall.isPromoted! ? 'Yes' : 'No',),
                   ],
                 ),
               ),
@@ -272,7 +272,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
   // ─── Subject Breakdown ───────────────────────────────────────────────
 
   Widget _buildSubjectBreakdown(
-      BuildContext context, List<StudentSubjectResultEntity> subjects) {
+      BuildContext context, List<StudentSubjectResultEntity> subjects,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -304,13 +304,13 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
         ...subjects.map((subject) => Padding(
               padding: const EdgeInsets.only(bottom: Spacings.md),
               child: _buildSubjectCard(context, subject),
-            )),
+            ),),
       ],
     );
   }
 
   Widget _buildSubjectCard(
-      BuildContext context, StudentSubjectResultEntity subject) {
+      BuildContext context, StudentSubjectResultEntity subject,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -362,7 +362,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                 height: 64,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: passColor.withOpacity(isDark ? 0.15 : 0.08),
+                  color: passColor.withValues(alpha: isDark ? 0.15 : 0.08),
                   border: Border.all(color: passColor, width: 2),
                 ),
                 child: Center(
@@ -392,7 +392,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                             ),
                             decoration: BoxDecoration(
                               color:
-                                  cs.primary.withOpacity(0.1),
+                                  cs.primary.withValues(alpha: 0.1),
                               borderRadius:
                                   BorderRadius.circular(Spacings.smRadius),
                             ),
@@ -454,9 +454,9 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                         decoration: BoxDecoration(
                           color: subject.deviationFromClassAverage! >= 0
                               ? AppColors.successOf(cs.brightness)
-                                  .withOpacity(isDark ? 0.15 : 0.08)
+                                  .withValues(alpha: isDark ? 0.15 : 0.08)
                               : AppColors.errorOf(cs.brightness)
-                                  .withOpacity(isDark ? 0.15 : 0.08),
+                                  .withValues(alpha: isDark ? 0.15 : 0.08),
                           borderRadius:
                               BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -483,7 +483,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
   // ─── Performance Trend ───────────────────────────────────────────────
 
   Widget _buildPerformanceTrend(
-      BuildContext context, StudentOverallResultEntity? overall) {
+      BuildContext context, StudentOverallResultEntity? overall,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -494,7 +494,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
           Row(
             children: [
               Icon(Icons.show_chart_rounded,
-                  size: Spacings.mdIcon, color: cs.primary),
+                  size: Spacings.mdIcon, color: cs.primary,),
               const SizedBox(width: Spacings.sm),
               Text(
                 'Performance Trend',
@@ -512,10 +512,10 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             width: double.infinity,
             height: 180,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withOpacity(0.3),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
                 style: BorderStyle.solid,
               ),
             ),
@@ -526,7 +526,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                   Icon(
                     Icons.insert_chart_outlined_rounded,
                     size: Spacings.xlIcon,
-                    color: cs.onSurfaceVariant.withOpacity(0.4),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.4),
                   ),
                   const SizedBox(height: Spacings.sm),
                   Text(
@@ -547,7 +547,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
   // ─── Strengths & Weaknesses ──────────────────────────────────────────
 
   Widget _buildStrengthsWeaknesses(
-      BuildContext context, List<StudentSubjectResultEntity> subjects) {
+      BuildContext context, List<StudentSubjectResultEntity> subjects,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -582,7 +582,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
               children: [
                 Icon(Icons.thumb_up_outlined,
                     size: Spacings.smIcon,
-                    color: AppColors.successOf(cs.brightness)),
+                    color: AppColors.successOf(cs.brightness),),
                 const SizedBox(width: Spacings.sm),
                 Text(
                   'Strengths',
@@ -596,7 +596,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             const SizedBox(height: Spacings.sm),
             ...allStrengths.take(5).map((strength) => Padding(
                   padding: const EdgeInsets.only(
-                      left: Spacings.lg, bottom: Spacings.xs),
+                      left: Spacings.lg, bottom: Spacings.xs,),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -617,7 +617,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                       ),
                     ],
                   ),
-                )),
+                ),),
           ],
 
           if (allStrengths.isNotEmpty && allWeaknesses.isNotEmpty)
@@ -629,7 +629,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
               children: [
                 Icon(Icons.warning_amber_rounded,
                     size: Spacings.smIcon,
-                    color: AppColors.errorOf(cs.brightness)),
+                    color: AppColors.errorOf(cs.brightness),),
                 const SizedBox(width: Spacings.sm),
                 Text(
                   'Areas for Improvement',
@@ -643,7 +643,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             const SizedBox(height: Spacings.sm),
             ...allWeaknesses.take(5).map((weakness) => Padding(
                   padding: const EdgeInsets.only(
-                      left: Spacings.lg, bottom: Spacings.xs),
+                      left: Spacings.lg, bottom: Spacings.xs,),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -664,7 +664,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                       ),
                     ],
                   ),
-                )),
+                ),),
           ],
         ],
       ),
@@ -674,7 +674,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
   // ─── AI Study Recommendations ────────────────────────────────────────
 
   Widget _buildAiRecommendations(
-      BuildContext context, StudentOverallResultEntity overall) {
+      BuildContext context, StudentOverallResultEntity overall,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -685,7 +685,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
           Row(
             children: [
               Icon(Icons.auto_awesome_rounded,
-                  size: Spacings.mdIcon, color: cs.primary),
+                  size: Spacings.mdIcon, color: cs.primary,),
               const SizedBox(width: Spacings.sm),
               Text(
                 'AI Study Recommendations',
@@ -722,7 +722,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
                     ),
                   ],
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -731,7 +731,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
   // ─── Teacher Comment ─────────────────────────────────────────────────
 
   Widget _buildTeacherComment(
-      BuildContext context, StudentOverallResultEntity overall) {
+      BuildContext context, StudentOverallResultEntity overall,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -743,7 +743,7 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
           Row(
             children: [
               Icon(Icons.rate_review_outlined,
-                  size: Spacings.mdIcon, color: cs.tertiary),
+                  size: Spacings.mdIcon, color: cs.tertiary,),
               const SizedBox(width: Spacings.sm),
               Text(
                 'Teacher\'s Comment',
@@ -759,10 +759,10 @@ class _StudentResultsPageState extends ConsumerState<StudentResultsPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.tertiary.withOpacity(isDark ? 0.10 : 0.05),
+              color: cs.tertiary.withValues(alpha: isDark ? 0.10 : 0.05),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.tertiary.withOpacity(0.2),
+                color: cs.tertiary.withValues(alpha: 0.2),
               ),
             ),
             child: Text(

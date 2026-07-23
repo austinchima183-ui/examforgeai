@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../question_bank/presentation/widgets/question_type_badge.dart';
-import '../../domain/entities/cbt_entities.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+import '../../domain/entities/cbt_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -158,7 +156,7 @@ class ExamCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.calendar_today_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${_formatDate(exam.startTime)} · ${_formatTime(exam.startTime)} – ${_formatTime(exam.endTime)}',
@@ -173,7 +171,7 @@ class ExamCard extends StatelessWidget {
             Row(
               children: [
                 Icon(Icons.people_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   '$completedStudents / $totalStudents completed',
@@ -266,7 +264,7 @@ class ExamCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -278,7 +276,7 @@ class ExamCard extends StatelessWidget {
             exam.status.label,
             style: tt.labelSmall?.copyWith(
               fontWeight: AppTypography.wSemiBold,
-              color: isDark ? color.withOpacity(0.9) : color,
+              color: isDark ? color.withValues(alpha: 0.9) : color,
             ),
           ),
         ],

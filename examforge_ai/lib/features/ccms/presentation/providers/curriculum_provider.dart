@@ -104,7 +104,7 @@ class CurriculumNotifier extends StateNotifier<CurriculumState> {
       countryCode: countryCode,
       curriculumType: curriculumType,
       isActive: isActive,
-    ));
+    ),);
     result.fold(
       onSuccess: (curricula) =>
           state = state.copyWith(curricula: curricula, isLoading: false),

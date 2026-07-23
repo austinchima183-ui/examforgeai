@@ -1,25 +1,22 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/models/user_role.dart';
+import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
-import '../../../../../routing/route_names.dart';
-import '../../../../../shared/models/user_role.dart';
-import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/homework_provider.dart';
 import '../../providers/class_provider.dart';
+import '../../providers/homework_provider.dart';
 import '../../providers/subject_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -322,7 +319,7 @@ class _HomeworkListPageState extends ConsumerState<HomeworkListPage>
               const SizedBox(height: Spacings.lg),
               // Class dropdown
               DropdownButtonFormField<String>(
-                value: _selectedClassId,
+                initialValue: _selectedClassId,
                 decoration: const InputDecoration(
                   labelText: 'Class',
                   prefixIcon: Icon(Icons.class_outlined),
@@ -347,7 +344,7 @@ class _HomeworkListPageState extends ConsumerState<HomeworkListPage>
               const SizedBox(height: Spacings.md),
               // Subject dropdown
               DropdownButtonFormField<String>(
-                value: _selectedSubjectId,
+                initialValue: _selectedSubjectId,
                 decoration: const InputDecoration(
                   labelText: 'Subject',
                   prefixIcon: Icon(Icons.book_outlined),
@@ -501,7 +498,7 @@ class _HomeworkCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: subjectBadgeColor.withOpacity(isDark ? 0.20 : 0.12),
+                  color: subjectBadgeColor.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -610,7 +607,7 @@ class _StatusBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(

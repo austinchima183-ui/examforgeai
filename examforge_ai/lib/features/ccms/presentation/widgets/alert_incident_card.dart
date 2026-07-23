@@ -42,7 +42,7 @@ class AlertIncidentCard extends StatelessWidget {
     final color = _severityColor(incident.severity);
 
     return AppCard(
-      borderColor: color.withOpacity(0.5),
+      borderColor: color.withValues(alpha: 0.5),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -51,7 +51,7 @@ class AlertIncidentCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+                  color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(_severityIcon(incident.severity), size: Spacings.mdIcon, color: color),
@@ -73,7 +73,7 @@ class AlertIncidentCard extends StatelessWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
                           decoration: BoxDecoration(
-                            color: color.withOpacity(0.15),
+                            color: color.withValues(alpha: 0.15),
                             borderRadius: Spacings.borderRadiusSm,
                           ),
                           child: Text(
@@ -110,7 +110,7 @@ class AlertIncidentCard extends StatelessWidget {
             const SizedBox(height: Spacings.xs),
             Row(
               children: [
-                Icon(Icons.check_circle_outline_rounded, size: 14, color: AppColors.success),
+                const Icon(Icons.check_circle_outline_rounded, size: 14, color: AppColors.success),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   'Resolved at ${_formatDate(incident.resolvedAt!)}',

@@ -24,10 +24,7 @@
 //   Savings:       ~$140/month (70% reduction)
 // ============================================================================
 
-import 'dart:convert';
 import 'dart:collection';
-
-import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // CACHE ENTRY
@@ -307,7 +304,7 @@ class AiCacheService {
 class PromptTokenOptimizer {
   /// Optimize a system prompt by removing unnecessary whitespace and comments.
   String optimizeSystemPrompt(String prompt) {
-    var optimized = prompt
+    final optimized = prompt
         .replaceAll(RegExp(r'\n{3,}'), '\n\n') // Collapse multiple blank lines
         .replaceAll(RegExp(r' {2,}'), ' ') // Collapse multiple spaces
         .trim();

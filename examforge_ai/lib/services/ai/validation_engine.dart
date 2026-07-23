@@ -95,7 +95,7 @@ class ValidationEngine {
           results.add(optionGrammar.copyWith(
             validationType: 'grammar_option',
             message: 'Option ${option['label'] ?? ""}: ${optionGrammar.message}',
-          ));
+          ),);
         }
       }
     }
@@ -336,7 +336,7 @@ class ValidationEngine {
     final optionTexts = options
         .map((o) => (o['text'] as String? ?? o['content'] as String? ?? '')
             .trim()
-            .toLowerCase())
+            .toLowerCase(),)
         .toList();
     if (optionTexts.toSet().length != optionTexts.length) {
       return ValidationResultEntity(
@@ -385,7 +385,7 @@ class ValidationEngine {
     if (options.length >= 3) {
       final lengths = options
           .map((o) =>
-              (o['text'] as String? ?? o['content'] as String? ?? '').length)
+              (o['text'] as String? ?? o['content'] as String? ?? '').length,)
           .toList();
       final avgLength = lengths.reduce((a, b) => a + b) / lengths.length;
       for (int i = 0; i < lengths.length; i++) {
@@ -425,7 +425,7 @@ class ValidationEngine {
 
     // Check for pronouns without clear antecedents
     final pronounPattern = RegExp(r'\b(it|they|this|that|these|those)\b',
-        caseSensitive: false);
+        caseSensitive: false,);
     final pronounMatches = pronounPattern.allMatches(content);
     if (pronounMatches.length > 2) {
       foundIndicators.add(
@@ -436,7 +436,7 @@ class ValidationEngine {
     // Check for "not" and "except" which can create confusion
     if (lowerContent.contains(' not ') && lowerContent.contains(' except ')) {
       foundIndicators.add(
-          'Double negative pattern detected (both "not" and "except")');
+          'Double negative pattern detected (both "not" and "except")',);
     }
 
     // Check for "which of the following" without a specific criteria
@@ -447,7 +447,7 @@ class ValidationEngine {
         !lowerContent.contains('are true') &&
         !lowerContent.contains('are correct')) {
       foundIndicators.add(
-          '"Which of the following" without clear selection criteria');
+          '"Which of the following" without clear selection criteria',);
     }
 
     if (foundIndicators.isEmpty) return null;
@@ -604,7 +604,7 @@ class ValidationEngine {
     // Check if the topic matches
     if (mapping.learningObjectives.isEmpty) {
       issues.add(
-          'No learning objectives defined in the curriculum mapping');
+          'No learning objectives defined in the curriculum mapping',);
     }
 
     if (issues.isEmpty) return null;
@@ -647,7 +647,7 @@ class ValidationEngine {
       final optionCount = question.answerOptions.length;
       if (question.difficulty == DifficultyLevel.easy && optionCount > 4) {
         issues.add(
-            'Easy questions typically have 3-4 options, but this has $optionCount');
+            'Easy questions typically have 3-4 options, but this has $optionCount',);
       }
       if (question.difficulty == DifficultyLevel.hard && optionCount < 4) {
         issues.add(

@@ -32,7 +32,7 @@ class CreateTaskUseCase {
       return const FailureResult(Failure.validation(
         message: 'Task title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createTask(params.task);
   }

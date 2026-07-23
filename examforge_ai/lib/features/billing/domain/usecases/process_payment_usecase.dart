@@ -36,18 +36,18 @@ class InitializePaymentUseCase {
     InitializePaymentParams params,
   ) async {
     if (params.amount <= 0) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Amount must be greater than 0'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Amount must be greater than 0'),
       );
     }
     if (params.email.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Email cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Email cannot be empty'),
       );
     }
     if (params.txRef.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Transaction reference cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Transaction reference cannot be empty'),
       );
     }
 
@@ -79,8 +79,8 @@ class VerifyPaymentUseCase {
     VerifyPaymentParams params,
   ) async {
     if (params.txRef.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Transaction reference cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Transaction reference cannot be empty'),
       );
     }
 
@@ -101,8 +101,8 @@ class ProcessWebhookUseCase {
 
   Future<Result<bool>> call(ProcessWebhookParams params) async {
     if (params.payload.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Webhook payload cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Webhook payload cannot be empty'),
       );
     }
 
@@ -130,13 +130,13 @@ class RequestRefundUseCase {
 
   Future<Result<TransactionEntity>> call(RequestRefundParams params) async {
     if (params.transactionId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Transaction ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Transaction ID cannot be empty'),
       );
     }
     if (params.amount <= 0) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Refund amount must be greater than 0'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Refund amount must be greater than 0'),
       );
     }
 
@@ -174,13 +174,13 @@ class GetTransactionsUseCase {
     GetTransactionsParams params,
   ) async {
     if (params.page < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Per page must be at least 1'),
       );
     }
 

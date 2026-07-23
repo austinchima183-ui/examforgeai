@@ -56,11 +56,15 @@ class _EducationalLevelsPageState
 
     final filteredLevels = state.levels.where((l) {
       if (_filterCategory != null &&
-          l.levelCategory != _filterCategory) return false;
+          l.levelCategory != _filterCategory) {
+        return false;
+      }
       if (_searchQuery.isNotEmpty &&
           !l.name
               .toLowerCase()
-              .contains(_searchQuery.toLowerCase())) return false;
+              .contains(_searchQuery.toLowerCase())) {
+        return false;
+      }
       return true;
     }).toList();
 
@@ -99,7 +103,7 @@ class _EducationalLevelsPageState
                 )
               : state.levels.isEmpty
                   ? AppEmptyState.noData(
-                      subtitle: 'No educational levels found')
+                      subtitle: 'No educational levels found',)
                   : TabBarView(
                       controller: _tabController,
                       children: _categoryTabs.map((category) {

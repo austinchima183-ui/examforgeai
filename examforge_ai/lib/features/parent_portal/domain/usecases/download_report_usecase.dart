@@ -43,19 +43,19 @@ class DownloadReportUseCase {
       return const FailureResult(Failure.validation(
         message: 'Student ID is required',
         fieldErrors: {'studentId': 'Student ID cannot be empty'},
-      ));
+      ),);
     }
     if (params.reportType.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Report type is required',
         fieldErrors: {'reportType': 'Report type cannot be empty'},
-      ));
+      ),);
     }
     if (params.format.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Format is required',
         fieldErrors: {'format': 'Format cannot be empty'},
-      ));
+      ),);
     }
     if (!_allowedFormats.contains(params.format.trim().toLowerCase())) {
       return FailureResult(Failure.validation(
@@ -63,7 +63,7 @@ class DownloadReportUseCase {
         fieldErrors: {
           'format': 'Must be one of: ${_allowedFormats.join(', ')}',
         },
-      ));
+      ),);
     }
     return _repository.downloadReport({
       'studentId': params.studentId,

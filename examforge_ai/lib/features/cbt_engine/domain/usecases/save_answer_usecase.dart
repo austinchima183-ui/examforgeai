@@ -62,7 +62,7 @@ class SaveAnswerUseCase {
         onSuccess: (_) =>
             const Failure.server(message: 'Unknown error', statusCode: 500),
         onFailure: (failure) => failure,
-      ));
+      ),);
     }
 
     final attempt = attemptResult.getOrElse(

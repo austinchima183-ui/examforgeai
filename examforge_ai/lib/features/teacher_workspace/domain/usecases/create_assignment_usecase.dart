@@ -20,7 +20,7 @@ class CreateAssignmentUseCase {
       return const FailureResult(Failure.validation(
         message: 'Assignment title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createAssignment(params.assignment);
   }

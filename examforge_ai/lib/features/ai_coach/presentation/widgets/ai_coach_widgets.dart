@@ -7,5 +7,5 @@
 /// ```
 library;
 
-export 'recommendation_card.dart';
 export 'milestone_tracker.dart';
+export 'recommendation_card.dart';

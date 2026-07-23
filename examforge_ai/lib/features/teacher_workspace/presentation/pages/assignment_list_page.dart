@@ -2,16 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../providers/assignment_provider.dart';
 import '../widgets/generate_questions_button.dart';
@@ -40,7 +40,7 @@ class _AssignmentListPageState extends ConsumerState<AssignmentListPage>
     _AssignmentStatusTab(label: 'All', status: null),
     _AssignmentStatusTab(label: 'Draft', status: AssignmentStatus.draft),
     _AssignmentStatusTab(
-        label: 'Published', status: AssignmentStatus.published),
+        label: 'Published', status: AssignmentStatus.published,),
     _AssignmentStatusTab(label: 'Closed', status: AssignmentStatus.closed),
     _AssignmentStatusTab(label: 'Graded', status: AssignmentStatus.graded),
   ];
@@ -86,7 +86,7 @@ class _AssignmentListPageState extends ConsumerState<AssignmentListPage>
         .where((a) =>
             a.title.toLowerCase().contains(query) ||
             a.subject.toLowerCase().contains(query) ||
-            (a.className?.toLowerCase().contains(query) ?? false))
+            (a.className?.toLowerCase().contains(query) ?? false),)
         .toList();
   }
 
@@ -333,7 +333,7 @@ class _AssignmentCard extends ConsumerWidget {
             children: [
               if (assignment.deadline != null) ...[
                 Icon(Icons.calendar_today_outlined,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   formatDate(assignment.deadline!),
@@ -350,7 +350,7 @@ class _AssignmentCard extends ConsumerWidget {
               if (assignment.isAiGenerated) ...[
                 const SizedBox(width: Spacings.md),
                 Icon(Icons.auto_awesome_rounded,
-                    size: Spacings.smIcon, color: cs.tertiary),
+                    size: Spacings.smIcon, color: cs.tertiary,),
               ],
             ],
           ),
@@ -388,19 +388,19 @@ class _StatusBadge extends StatelessWidget {
 
     final (bgColor, fgColor) = switch (status) {
       AssignmentStatus.draft => (
-          cs.onSurfaceVariant.withOpacity(isDark ? 0.25 : 0.12),
+          cs.onSurfaceVariant.withValues(alpha: isDark ? 0.25 : 0.12),
           cs.onSurfaceVariant,
         ),
       AssignmentStatus.published => (
-          cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+          cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
           cs.primary,
         ),
       AssignmentStatus.closed => (
-          cs.error.withOpacity(isDark ? 0.25 : 0.12),
+          cs.error.withValues(alpha: isDark ? 0.25 : 0.12),
           cs.error,
         ),
       AssignmentStatus.graded => (
-          cs.tertiary.withOpacity(isDark ? 0.25 : 0.12),
+          cs.tertiary.withValues(alpha: isDark ? 0.25 : 0.12),
           cs.tertiary,
         ),
     };

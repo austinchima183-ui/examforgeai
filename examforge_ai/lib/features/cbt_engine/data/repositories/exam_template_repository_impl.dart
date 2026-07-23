@@ -81,7 +81,7 @@ class ExamTemplateRepositoryImpl implements ExamTemplateRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -109,7 +109,7 @@ class ExamTemplateRepositoryImpl implements ExamTemplateRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -127,7 +127,7 @@ class ExamTemplateRepositoryImpl implements ExamTemplateRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -145,7 +145,7 @@ class ExamTemplateRepositoryImpl implements ExamTemplateRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -173,7 +173,7 @@ class ExamTemplateRepositoryImpl implements ExamTemplateRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -198,7 +198,7 @@ class ExamTemplateRepositoryImpl implements ExamTemplateRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -214,7 +214,7 @@ class ExamTemplateRepositoryImpl implements ExamTemplateRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }

@@ -440,7 +440,7 @@ Future<bool> showAccessiblyConfirm({
           onPressed: () => Navigator.of(context).pop(true),
           style: isDestructive
               ? TextButton.styleFrom(
-                  foregroundColor: Theme.of(context).colorScheme.error)
+                  foregroundColor: Theme.of(context).colorScheme.error,)
               : null,
           child: Text(confirmLabel),
         ),
@@ -476,7 +476,7 @@ class AccessiblyStatusIndicator extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.1),
+          color: color.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Row(
@@ -606,9 +606,9 @@ class _AccessiblyTimerDisplayState extends State<AccessiblyTimerDisplay> {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         decoration: BoxDecoration(
           color: widget.isCritical
-              ? Theme.of(context).colorScheme.error.withOpacity(0.1)
+              ? Theme.of(context).colorScheme.error.withValues(alpha: 0.1)
               : widget.isWarning
-                  ? Colors.orange.withOpacity(0.1)
+                  ? Colors.orange.withValues(alpha: 0.1)
                   : null,
           borderRadius: BorderRadius.circular(8),
           border: widget.isCritical
@@ -810,7 +810,7 @@ class _QuestionButton extends StatelessWidget {
                       right: 2,
                       child: Semantics(
                         label: 'Flagged',
-                        child: Icon(Icons.flag, size: 10, color: Colors.orange),
+                        child: const Icon(Icons.flag, size: 10, color: Colors.orange),
                       ),
                     ),
                 ],
@@ -832,9 +832,9 @@ class _QuestionButton extends StatelessWidget {
   }
 
   Color? _getBackgroundColor(BuildContext context) {
-    if (isCurrent) return Theme.of(context).colorScheme.primary.withOpacity(0.2);
-    if (isFlagged) return Colors.orange.withOpacity(0.1);
-    if (isAnswered) return Colors.green.withOpacity(0.1);
+    if (isCurrent) return Theme.of(context).colorScheme.primary.withValues(alpha: 0.2);
+    if (isFlagged) return Colors.orange.withValues(alpha: 0.1);
+    if (isAnswered) return Colors.green.withValues(alpha: 0.1);
     return null;
   }
 }

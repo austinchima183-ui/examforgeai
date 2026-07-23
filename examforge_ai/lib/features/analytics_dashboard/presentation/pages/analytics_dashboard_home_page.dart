@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../providers/analytics_dashboard_provider.dart';
 import '../widgets/metric_card.dart';
-import 'user_acquisition_page.dart';
-import 'revenue_analytics_page.dart';
 import 'release_notes_page.dart';
+import 'revenue_analytics_page.dart';
+import 'user_acquisition_page.dart';
 
 /// Main analytics dashboard page with charts and key metrics.
 class AnalyticsDashboardHomePage extends ConsumerStatefulWidget {
@@ -41,7 +42,7 @@ class _AnalyticsDashboardHomePageState extends ConsumerState<AnalyticsDashboardH
           Text(provider.error!, style: theme.textTheme.bodyLarge),
           const SizedBox(height: 16),
           ElevatedButton(onPressed: () => ref.read(analyticsDashboardProvider).loadAll(), child: const Text('Retry')),
-        ])),
+        ],),),
       );
     }
 
@@ -122,7 +123,7 @@ class _AnalyticsDashboardHomePageState extends ConsumerState<AnalyticsDashboardH
                   title: Text(entry.key, style: theme.textTheme.titleSmall),
                   trailing: Text(_formatNumber((entry.value as num?)?.toInt() ?? 0), style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 ),
-              )),
+              ),),
             ],
           ],
         ),
@@ -138,7 +139,7 @@ class _AnalyticsDashboardHomePageState extends ConsumerState<AnalyticsDashboardH
         leading: Container(
           width: 40,
           height: 40,
-          decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(8)),
+          decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(8)),
           child: Icon(icon, color: color, size: 20),
         ),
         title: Text(title),

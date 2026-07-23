@@ -24,13 +24,13 @@ class GetRevenueDataUseCase {
 
   Future<Result<List<RevenueDataPoint>>> call(GetRevenueDataParams params) async {
     if (params.periodType.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Period type cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Period type cannot be empty'),
       );
     }
     if (params.endDate.isBefore(params.startDate)) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'End date must be after start date'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'End date must be after start date'),
       );
     }
 

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/cart_provider.dart';
 import '../providers/order_provider.dart';
@@ -153,7 +153,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     }
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Checkout'),
+      appBar: const AppAppBar(title: 'Checkout'),
       body: cartState.isLoading && !cartState.hasItems
           ? const Center(child: AppLoadingSpinner())
           : !cartState.hasItems
@@ -267,7 +267,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       padding: const EdgeInsets.all(Spacings.lg),
       child: Row(
         children: [
-          Icon(Icons.local_offer_rounded, size: Spacings.mdIcon, color: AppColors.success),
+          const Icon(Icons.local_offer_rounded, size: Spacings.mdIcon, color: AppColors.success),
           const SizedBox(width: Spacings.sm),
           Expanded(
             child: Text(
@@ -451,14 +451,14 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
-    return Row(
+    return const Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
         _SecurityBadge(
           icon: Icons.lock_rounded,
           label: 'SSL Encrypted',
         ),
-        const SizedBox(width: Spacings.xl),
+        SizedBox(width: Spacings.xl),
         _SecurityBadge(
           icon: Icons.shield_rounded,
           label: 'Powered by Flutterwave',
@@ -478,7 +478,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
         color: cs.surface,
         border: Border(
           top: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -515,11 +515,11 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                   width: 96,
                   height: 96,
                   decoration: BoxDecoration(
-                    color: AppColors.successLight.withOpacity(context.isDarkMode ? 0.15 : 1.0,
+                    color: AppColors.successLight.withValues(alpha: context.isDarkMode ? 0.15 : 1.0,
                     ),
                     shape: BoxShape.circle,
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.check_circle_rounded,
                     size: Spacings.xlIcon,
                     color: AppColors.success,
@@ -553,7 +553,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                     vertical: Spacings.md,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.surfaceContainerHighest.withOpacity(0.5),
+                    color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: Row(
@@ -650,13 +650,13 @@ class _PaymentMethodCard extends StatelessWidget {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: isSelected
-              ? cs.primary.withOpacity(isDark ? 0.15 : 0.08)
+              ? cs.primary.withValues(alpha: isDark ? 0.15 : 0.08)
               : Colors.transparent,
           borderRadius: Spacings.borderRadiusMd,
           border: Border.all(
             color: isSelected
                 ? cs.primary
-                : cs.outlineVariant.withOpacity(0.5),
+                : cs.outlineVariant.withValues(alpha: 0.5),
             width: isSelected ? 2 : 1,
           ),
         ),
@@ -675,7 +675,7 @@ class _PaymentMethodCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Icon(

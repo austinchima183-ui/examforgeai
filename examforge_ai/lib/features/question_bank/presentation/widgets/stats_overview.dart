@@ -2,16 +2,16 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
+import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/question_entities.dart';
 import 'question_type_badge.dart';
-import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 
 
 // ─── StatsOverview ────────────────────────────────────────────────────────────
@@ -546,7 +546,7 @@ class StatsOverview extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(0.12),
+                  color: AppColors.success.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -642,7 +642,7 @@ class _ActivityItem extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: color.withOpacity(isDark ? 0.25 : 0.12),
+            color: color.withValues(alpha: isDark ? 0.25 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: color),

@@ -81,10 +81,10 @@ class DifficultyIndicator extends StatelessWidget {
             vertical: 2,
           ),
           decoration: BoxDecoration(
-            color: color.withOpacity(isDark ? 0.20 : 0.12),
+            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
             borderRadius: Spacings.borderRadiusSm,
             border: Border.all(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               width: 1,
             ),
           ),
@@ -119,17 +119,17 @@ class DifficultyIndicator extends StatelessWidget {
                   shape: BoxShape.circle,
                   color: filled
                       ? color
-                      : cs.outlineVariant.withOpacity(0.4),
+                      : cs.outlineVariant.withValues(alpha: 0.4),
                   border: filled
                       ? null
                       : Border.all(
-                          color: color.withOpacity(0.3),
+                          color: color.withValues(alpha: 0.3),
                           width: 1,
                         ),
                   boxShadow: filled
                       ? [
                           BoxShadow(
-                            color: color.withOpacity(0.4),
+                            color: color.withValues(alpha: 0.4),
                             blurRadius: 3,
                             offset: const Offset(0, 1),
                           ),

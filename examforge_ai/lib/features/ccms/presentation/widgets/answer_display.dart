@@ -179,10 +179,10 @@ class _VerificationBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
         border: Border.all(
-          color: color.withOpacity(0.25),
+          color: color.withValues(alpha: 0.25),
           width: 1,
         ),
       ),
@@ -225,10 +225,10 @@ class _CorrectAnswersSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(isDark ? 0.15 : 0.08),
+        color: AppColors.success.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: Spacings.borderRadiusMd,
         border: Border.all(
-          color: AppColors.success.withOpacity(0.3),
+          color: AppColors.success.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -237,7 +237,7 @@ class _CorrectAnswersSection extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.check_circle_outline_rounded,
                 size: 16,
                 color: AppColors.success,
@@ -270,7 +270,7 @@ class _CorrectAnswersSection extends StatelessWidget {
                       width: 20,
                       height: 20,
                       decoration: BoxDecoration(
-                        color: AppColors.success.withOpacity(0.2),
+                        color: AppColors.success.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: Center(
@@ -337,10 +337,10 @@ class _ExpandableSectionState extends State<_ExpandableSection> {
       padding: const EdgeInsets.only(top: Spacings.md),
       child: Container(
         decoration: BoxDecoration(
-          color: widget.color.withOpacity(widget.isDark ? 0.08 : 0.04),
+          color: widget.color.withValues(alpha: widget.isDark ? 0.08 : 0.04),
           borderRadius: Spacings.borderRadiusMd,
           border: Border.all(
-            color: widget.color.withOpacity(0.15),
+            color: widget.color.withValues(alpha: 0.15),
             width: 1,
           ),
         ),
@@ -420,10 +420,10 @@ class _WarningSection extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.warning.withOpacity(isDark ? 0.12 : 0.06),
+        color: AppColors.warning.withValues(alpha: isDark ? 0.12 : 0.06),
         borderRadius: Spacings.borderRadiusMd,
         border: Border.all(
-          color: AppColors.warning.withOpacity(0.3),
+          color: AppColors.warning.withValues(alpha: 0.3),
           width: 1,
         ),
       ),
@@ -454,7 +454,7 @@ class _WarningSection extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.close_rounded,
                     size: 14,
                     color: AppColors.error,
@@ -528,10 +528,10 @@ class _AlternativeAnswersSection extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: cs.primary
-                        .withOpacity(isDark ? 0.15 : 0.08),
+                        .withValues(alpha: isDark ? 0.15 : 0.08),
                     borderRadius: Spacings.borderRadiusSm,
                     border: Border.all(
-                      color: cs.primary.withOpacity(0.2),
+                      color: cs.primary.withValues(alpha: 0.2),
                       width: 1,
                     ),
                   ),

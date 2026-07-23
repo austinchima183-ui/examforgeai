@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/exam_template_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -179,7 +179,7 @@ class ExamTemplateCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.infoOf(cs.brightness)
-                        .withOpacity(isDark ? 0.25 : 0.10),
+                        .withValues(alpha: isDark ? 0.25 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Row(
@@ -252,7 +252,7 @@ class ExamTemplateCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -264,7 +264,7 @@ class ExamTemplateCard extends StatelessWidget {
             template.category.label,
             style: tt.labelSmall?.copyWith(
               fontWeight: AppTypography.wSemiBold,
-              color: isDark ? color.withOpacity(0.9) : color,
+              color: isDark ? color.withValues(alpha: 0.9) : color,
             ),
           ),
         ],

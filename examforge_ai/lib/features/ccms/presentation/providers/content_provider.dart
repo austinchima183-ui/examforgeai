@@ -179,7 +179,7 @@ class ContentNotifier extends StateNotifier<ContentState> {
       difficultyLevel: f.difficultyLevel,
       status: f.status,
       search: f.searchTerm,
-    ));
+    ),);
     result.fold(
       onSuccess: (items) => state = state.copyWith(
         contentItems: items,

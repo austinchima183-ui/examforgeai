@@ -2,20 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_card.dart';
-import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/homework_provider.dart';
 import '../../providers/class_provider.dart';
+import '../../providers/homework_provider.dart';
 import '../../providers/subject_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -265,7 +260,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ─── Homework Details ────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Homework Details',
                 icon: Icons.assignment_outlined,
               ),
@@ -298,7 +293,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Class & Subject ────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Class & Subject',
                 icon: Icons.school_outlined,
               ),
@@ -307,7 +302,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedClassId,
+                      initialValue: _selectedClassId,
                       decoration: const InputDecoration(
                         labelText: 'Class *',
                         prefixIcon: Icon(Icons.class_outlined),
@@ -317,7 +312,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
                           .map((c) => DropdownMenuItem<String>(
                                 value: c.id,
                                 child: Text(c.name),
-                              ))
+                              ),)
                           .toList(),
                       onChanged: (v) => setState(() => _selectedClassId = v),
                       validator: (v) => v == null ? 'Required' : null,
@@ -326,7 +321,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
                   const SizedBox(width: Spacings.md),
                   Expanded(
                     child: DropdownButtonFormField<String>(
-                      value: _selectedSubjectId,
+                      initialValue: _selectedSubjectId,
                       decoration: const InputDecoration(
                         labelText: 'Subject *',
                         prefixIcon: Icon(Icons.book_outlined),
@@ -336,7 +331,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
                           .map((s) => DropdownMenuItem<String>(
                                 value: s.id,
                                 child: Text(s.name),
-                              ))
+                              ),)
                           .toList(),
                       onChanged: (v) => setState(() => _selectedSubjectId = v),
                       validator: (v) => v == null ? 'Required' : null,
@@ -348,7 +343,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Marks & Deadline ───────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Marks & Deadline',
                 icon: Icons.timer_outlined,
               ),
@@ -406,14 +401,14 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
                 subtitle: const Text('Students can submit after the deadline'),
                 value: _allowLateSubmission,
                 onChanged: (v) => setState(() => _allowLateSubmission = v),
-                activeColor: cs.primary,
+                activeThumbColor: cs.primary,
                 contentPadding: EdgeInsets.zero,
               ),
 
               const SizedBox(height: Spacings.xxl),
 
               // ─── Attachments ────────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Attachments',
                 icon: Icons.attach_file_rounded,
               ),
@@ -428,7 +423,7 @@ class _HomeworkFormPageState extends ConsumerState<HomeworkFormPage> {
                           setState(() => _attachmentUrls.remove(url));
                         },
                       ),
-                    )),
+                    ),),
               OutlinedButton.icon(
                 onPressed: () {
                   // Future: file picker
@@ -498,7 +493,7 @@ class _FormSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: cs.primary),

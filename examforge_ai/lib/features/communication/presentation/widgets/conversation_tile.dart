@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/communication_entities.dart';
 import 'online_status_indicator.dart';
 
@@ -93,7 +93,7 @@ class ConversationTile extends StatelessWidget {
             backgroundImage: NetworkImage(conversation.avatarUrl!),
           ),
           if (_hasOnlineParticipant() && !isGroup)
-            Positioned(
+            const Positioned(
               right: -1,
               bottom: -1,
               child: OnlineStatusIndicator(
@@ -114,13 +114,13 @@ class ConversationTile extends StatelessWidget {
           decoration: BoxDecoration(
             color: isGroup
                 ? cs.tertiaryContainer
-                : cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+                : cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
             shape: BoxShape.circle,
           ),
           child: Center(
             child: isGroup
                 ? Icon(Icons.group_rounded,
-                    size: Spacings.mdIcon, color: cs.onTertiaryContainer)
+                    size: Spacings.mdIcon, color: cs.onTertiaryContainer,)
                 : Text(
                     _avatarInitial() ?? '?',
                     style: TextStyle(
@@ -135,7 +135,7 @@ class ConversationTile extends StatelessWidget {
           ),
         ),
         if (_hasOnlineParticipant() && !isGroup)
-          Positioned(
+          const Positioned(
             right: -1,
             bottom: -1,
             child: OnlineStatusIndicator(isOnline: true, size: 12),
@@ -158,7 +158,7 @@ class ConversationTile extends StatelessWidget {
       constraints: const BoxConstraints(minWidth: 20),
       child: Text(
         display,
-        style: TextStyle(
+        style: const TextStyle(
           fontFamily: AppTypography.fontFamily,
           fontSize: 10,
           fontWeight: AppTypography.wBold,
@@ -220,13 +220,13 @@ class ConversationTile extends StatelessWidget {
                               const SizedBox(width: Spacings.xs),
                               Icon(Icons.push_pin_rounded,
                                   size: Spacings.smIcon,
-                                  color: cs.onSurfaceVariant),
+                                  color: cs.onSurfaceVariant,),
                             ],
                             if (conversation.isMuted) ...[
                               const SizedBox(width: Spacings.xs),
                               Icon(Icons.notifications_off_rounded,
                                   size: Spacings.smIcon,
-                                  color: cs.onSurfaceVariant),
+                                  color: cs.onSurfaceVariant,),
                             ],
                           ],
                         ),

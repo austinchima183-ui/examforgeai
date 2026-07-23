@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/super_admin_entities.dart';
@@ -181,7 +181,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       subject: 'Welcome to ExamForge AI, {{user_name}}!',
       htmlBody: '<h1>Welcome!</h1><p>Hello {{user_name}}, ...</p>',
       category: 'onboarding',
-      variables: ['user_name', 'school_name'],
+      variables: const ['user_name', 'school_name'],
       isActive: true,
       createdAt: DateTime(2024, 1, 1),
       updatedAt: DateTime(2024, 6, 1),
@@ -193,7 +193,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       subject: 'Reset your ExamForge AI password',
       htmlBody: '<h1>Password Reset</h1><p>Click <a href="{{reset_link}}">here</a>...</p>',
       category: 'authentication',
-      variables: ['user_name', 'reset_link', 'expiry_hours'],
+      variables: const ['user_name', 'reset_link', 'expiry_hours'],
       isActive: true,
       createdAt: DateTime(2024, 1, 1),
       updatedAt: DateTime(2024, 3, 1),
@@ -205,7 +205,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       subject: 'Your {{plan_name}} subscription is active!',
       htmlBody: '<h1>Subscription Active</h1><p>Plan: {{plan_name}}...</p>',
       category: 'billing',
-      variables: ['user_name', 'plan_name', 'amount', 'next_billing_date'],
+      variables: const ['user_name', 'plan_name', 'amount', 'next_billing_date'],
       isActive: true,
       createdAt: DateTime(2024, 2, 1),
       updatedAt: DateTime(2024, 7, 1),
@@ -217,7 +217,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       subject: 'Reminder: {{exam_title}} starts {{start_time}}',
       htmlBody: '<h1>Exam Reminder</h1><p>{{exam_title}} at {{start_time}}...</p>',
       category: 'examination',
-      variables: ['student_name', 'exam_title', 'start_time', 'duration'],
+      variables: const ['student_name', 'exam_title', 'start_time', 'duration'],
       isActive: true,
       createdAt: DateTime(2024, 4, 1),
       updatedAt: DateTime(2024, 9, 1),
@@ -230,7 +230,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       title: 'Database Migration',
       description: 'Upgrading database schema for v2.5',
       status: MaintenanceStatus.scheduled,
-      affectedServices: ['Database', 'API'],
+      affectedServices: const ['Database', 'API'],
       startAt: DateTime(2025, 3, 15, 2, 0),
       endAt: DateTime(2025, 3, 15, 4, 0),
       isPlanned: true,
@@ -244,7 +244,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       title: 'AI Provider Switch',
       description: 'Switching primary AI provider endpoint',
       status: MaintenanceStatus.completed,
-      affectedServices: ['AI Service'],
+      affectedServices: const ['AI Service'],
       startAt: DateTime(2025, 2, 20, 1, 0),
       endAt: DateTime(2025, 2, 20, 1, 30),
       actualStartAt: DateTime(2025, 2, 20, 1, 0),
@@ -386,7 +386,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
   Widget _buildSettingsTab(PlatformSettingsState state, ColorScheme cs) {
     if (state.isLoading && state.settings.isEmpty) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     if (state.error != null && state.settings.isEmpty) {
@@ -402,7 +402,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -453,7 +453,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
         // ─── Settings List ──────────────────────────────────────────────
         Expanded(
           child: filteredSettings.isEmpty
-              ? AdminEmptyState(
+              ? const AdminEmptyState(
                   message: 'No settings found for this scope.',
                   icon: Icons.settings_outlined,
                 )
@@ -476,7 +476,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: InkWell(
         onTap: setting.isReadonly
             ? null
@@ -506,13 +506,13 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     const SizedBox(width: Spacings.sm),
                     StatusBadge(
                       label: 'Readonly',
-                      color: cs.onSurface.withOpacity(0.4),
+                      color: cs.onSurface.withValues(alpha: 0.4),
                       icon: Icons.lock_outline,
                     ),
                   ],
                   if (setting.isEncrypted) ...[
                     const SizedBox(width: Spacings.sm),
-                    StatusBadge(
+                    const StatusBadge(
                       label: 'Encrypted',
                       color: AppColors.error,
                       icon: Icons.enhanced_encryption_outlined,
@@ -529,7 +529,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     'Current Value: ',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 13,
-                      color: cs.onSurface.withOpacity(0.5),
+                      color: cs.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                   Expanded(
@@ -538,7 +538,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                       style: AppTypography.wMedium.copyWith(
                         fontSize: 13,
                         color: setting.isReadonly
-                            ? cs.onSurface.withOpacity(0.4)
+                            ? cs.onSurface.withValues(alpha: 0.4)
                             : cs.primary,
                       ),
                       maxLines: 1,
@@ -557,7 +557,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   setting.description!,
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withOpacity(0.5),
+                    color: cs.onSurface.withValues(alpha: 0.5),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -595,7 +595,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: Text('Edit: ${setting.key}'),
-          shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+          shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
           content: SizedBox(
             width: 480,
             child: Column(
@@ -607,7 +607,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     setting.description!,
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 13,
-                      color: Theme.of(ctx).colorScheme.onSurface.withOpacity(0.6),
+                      color: Theme.of(ctx).colorScheme.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const SizedBox(height: Spacings.lg),
@@ -701,7 +701,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
   Widget _buildFeatureFlagsTab(FeatureFlagsState state, ColorScheme cs) {
     if (state.isLoading && state.flags.isEmpty) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     if (state.error != null && state.flags.isEmpty) {
@@ -717,7 +717,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -784,7 +784,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
         borderRadius: Spacings.borderRadiusMd,
         side: flag.isActive
             ? BorderSide.none
-            : BorderSide(color: cs.outline.withOpacity(0.3)),
+            : BorderSide(color: cs.outline.withValues(alpha: 0.3)),
       ),
       child: Padding(
         padding: Spacings.paddingAll,
@@ -801,7 +801,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                       fontSize: 14,
                       color: flag.isActive
                           ? cs.onSurface
-                          : cs.onSurface.withOpacity(0.5),
+                          : cs.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                 ),
@@ -824,7 +824,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
               flag.key,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withOpacity(0.5),
+                color: cs.onSurface.withValues(alpha: 0.5),
                 fontFamily: 'monospace',
               ),
             ),
@@ -836,7 +836,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 flag.description!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 12,
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -853,7 +853,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     'Rollout: ',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withOpacity(0.5),
+                      color: cs.onSurface.withValues(alpha: 0.5),
                     ),
                   ),
                   Expanded(
@@ -893,13 +893,13 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   if (flag.startsAt != null) ...[
                     Icon(Icons.play_arrow_outlined,
                         size: Spacings.smIcon,
-                        color: cs.onSurface.withOpacity(0.4)),
+                        color: cs.onSurface.withValues(alpha: 0.4),),
                     const SizedBox(width: Spacings.xs),
                     Text(
                       'Starts: ${_formatDate(flag.startsAt)}',
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 11,
-                        color: cs.onSurface.withOpacity(0.5),
+                        color: cs.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                     const SizedBox(width: Spacings.md),
@@ -907,13 +907,13 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   if (flag.expiresAt != null) ...[
                     Icon(Icons.event_outlined,
                         size: Spacings.smIcon,
-                        color: cs.onSurface.withOpacity(0.4)),
+                        color: cs.onSurface.withValues(alpha: 0.4),),
                     const SizedBox(width: Spacings.xs),
                     Text(
                       'Expires: ${_formatDate(flag.expiresAt)}',
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 11,
-                        color: cs.onSurface.withOpacity(0.5),
+                        color: cs.onSurface.withValues(alpha: 0.5),
                       ),
                     ),
                   ],
@@ -938,7 +938,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setDialogState) => AlertDialog(
           title: const Text('Create Feature Flag'),
-          shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+          shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
           content: SizedBox(
             width: 480,
             child: Column(
@@ -963,7 +963,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 ),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<FeatureFlagType>(
-                  value: selectedType,
+                  initialValue: selectedType,
                   decoration: const InputDecoration(
                     labelText: 'Flag Type',
                     border: OutlineInputBorder(),
@@ -972,7 +972,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                       .map((t) => DropdownMenuItem(
                             value: t,
                             child: Text(t.label),
-                          ))
+                          ),)
                       .toList(),
                   onChanged: (v) {
                     if (v != null) setDialogState(() => selectedType = v);
@@ -1094,7 +1094,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
   Widget _buildPolicyCard(PlatformPolicy policy, ColorScheme cs) {
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Row(
@@ -1125,7 +1125,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 12,
                           fontFamily: 'monospace',
-                          color: cs.onSurface.withOpacity(0.5),
+                          color: cs.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                       const SizedBox(width: Spacings.lg),
@@ -1138,7 +1138,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                         'Effective: ${_formatDate(policy.effectiveDate)}',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 11,
-                          color: cs.onSurface.withOpacity(0.5),
+                          color: cs.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                     ],
@@ -1164,7 +1164,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Edit: ${policy.title}'),
-        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+        shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
         content: SizedBox(
           width: 560,
           child: TextField(
@@ -1239,7 +1239,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
   Widget _buildEmailTemplateCard(EmailTemplate template, ColorScheme cs) {
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Row(
@@ -1267,7 +1267,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     'Subject: ${template.subject}',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withOpacity(0.7),
+                      color: cs.onSurface.withValues(alpha: 0.7),
                     ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -1301,7 +1301,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                                       materialTapTargetSize:
                                           MaterialTapTargetSize.shrinkWrap,
                                       padding: EdgeInsets.zero,
-                                    ))
+                                    ),)
                                 .toList(),
                           ),
                         ),
@@ -1329,7 +1329,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text('Edit: ${template.name}'),
-        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+        shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
         content: SizedBox(
           width: 600,
           child: Column(
@@ -1366,7 +1366,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                     color: Theme.of(ctx)
                         .colorScheme
                         .onSurface
-                        .withOpacity(0.5),
+                        .withValues(alpha: 0.5),
                   ),
                 ),
               ],
@@ -1408,7 +1408,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
         // ─── Maintenance Mode Toggle ────────────────────────────────────
         Card(
           elevation: Spacings.elevationSm,
-          shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+          shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
           color: _maintenanceModeEnabled
               ? AppColors.errorLight
               : cs.surface,
@@ -1423,7 +1423,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   : 'Platform is running normally.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 13,
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
               ),
             ),
             secondary: Icon(
@@ -1463,7 +1463,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
         ..._maintenanceWindows.map((window) => Padding(
               padding: const EdgeInsets.only(bottom: Spacings.md),
               child: _buildMaintenanceWindowCard(window, cs),
-            )),
+            ),),
       ],
     );
   }
@@ -1488,7 +1488,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -1513,7 +1513,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                 window.description!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -1522,13 +1522,13 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
               children: [
                 Icon(Icons.access_time,
                     size: Spacings.smIcon,
-                    color: cs.onSurface.withOpacity(0.4)),
+                    color: cs.onSurface.withValues(alpha: 0.4),),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   '${_formatDate(window.startAt)} – ${_formatDate(window.endAt)}',
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withOpacity(0.5),
+                    color: cs.onSurface.withValues(alpha: 0.5),
                   ),
                 ),
                 if (window.affectedServices != null &&
@@ -1537,7 +1537,7 @@ class _GlobalSettingsPageState extends ConsumerState<GlobalSettingsPage>
                   ...window.affectedServices!.map((s) => Padding(
                         padding: const EdgeInsets.only(right: Spacings.xs),
                         child: StatusBadge(label: s, color: cs.primary),
-                      )),
+                      ),),
                 ],
               ],
             ),

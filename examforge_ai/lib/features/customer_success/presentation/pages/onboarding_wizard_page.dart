@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/customer_success_entities.dart';
 import '../providers/customer_success_provider.dart';
 import '../widgets/onboarding_step_widget.dart';
 

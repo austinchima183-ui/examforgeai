@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../domain/entities/offline_entities.dart';
 
 // ============================================================================
@@ -37,7 +37,7 @@ class ConnectivityBanner extends StatelessWidget {
 
     final isOffline = !connectivityInfo.isOnline;
     final backgroundColor = isOffline ? AppColors.error : AppColors.warning;
-    final textColor = Colors.white;
+    const textColor = Colors.white;
     final icon = isOffline ? Icons.cloud_off : Icons.signal_cellular_alt;
 
     return Material(
@@ -66,7 +66,7 @@ class ConnectivityBanner extends StatelessWidget {
                 Icon(
                   Icons.chevron_right,
                   size: Spacings.mdIcon,
-                  color: textColor.withOpacity(0.7),
+                  color: textColor.withValues(alpha: 0.7),
                 ),
               ],
             ),
@@ -115,7 +115,7 @@ class SyncStatusChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Row(
@@ -194,8 +194,8 @@ class OfflineIndicator extends StatelessWidget {
       height: size + 8,
       decoration: BoxDecoration(
         color: isAvailable
-            ? AppColors.success.withOpacity(0.1)
-            : context.colorScheme.surfaceVariant,
+            ? AppColors.success.withValues(alpha: 0.1)
+            : context.colorScheme.surfaceContainerHighest,
         shape: BoxShape.circle,
       ),
       child: Icon(
@@ -244,7 +244,7 @@ class DownloadProgressCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -351,7 +351,7 @@ class DownloadProgressCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.12),
+        color: color.withValues(alpha: 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -410,7 +410,7 @@ class DraftCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -422,7 +422,7 @@ class DraftCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: _typeColor.withOpacity(isDark ? 0.20 : 0.10),
+                color: _typeColor.withValues(alpha: isDark ? 0.20 : 0.10),
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Icon(
@@ -453,7 +453,7 @@ class DraftCard extends StatelessWidget {
                       ),
                       if (!draft.isSynced) ...[
                         const SizedBox(width: Spacings.xs),
-                        Icon(
+                        const Icon(
                           Icons.cloud_off,
                           size: Spacings.smIcon,
                           color: AppColors.warning,
@@ -582,11 +582,11 @@ class StorageUsageBar extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -796,7 +796,7 @@ class _SignalArcPainter extends CustomPainter {
       final radius = baseRadius + (i * size.width * 0.12);
       final isActive = i < arcCount;
       final paint = Paint()
-        ..color = isActive ? color : color.withOpacity(0.15)
+        ..color = isActive ? color : color.withValues(alpha: 0.15)
         ..strokeWidth = 2.5
         ..style = PaintingStyle.stroke
         ..strokeCap = StrokeCap.round;

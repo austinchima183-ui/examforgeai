@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_names.dart';
 
@@ -36,31 +35,31 @@ class WorkspaceQuickActions extends StatelessWidget {
         route: RouteNames.worksheetCreate,
         color: theme.colorScheme.secondary,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.task_rounded,
         label: 'Assignment',
         route: RouteNames.assignmentCreate,
         color: Colors.orange,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.rate_review_rounded,
         label: 'Comments',
         route: RouteNames.reportCommentGenerator,
         color: Colors.teal,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.psychology_rounded,
         label: 'AI Assistant',
         route: RouteNames.contentAssistant,
         color: Colors.purple,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.folder_rounded,
         label: 'Resources',
         route: RouteNames.teachingResources,
         color: Colors.blueGrey,
       ),
-      QuickActionData(
+      const QuickActionData(
         icon: Icons.calendar_today_rounded,
         label: 'Planner',
         route: RouteNames.calendarPlanner,
@@ -102,7 +101,7 @@ class _QuickActionCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: theme.colorScheme.outlineVariant.withOpacity(0.5),
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: InkWell(
@@ -116,7 +115,7 @@ class _QuickActionCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(10),
                 decoration: BoxDecoration(
-                  color: action.color.withOpacity(0.12),
+                  color: action.color.withValues(alpha: 0.12),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(action.icon, color: action.color, size: 24),

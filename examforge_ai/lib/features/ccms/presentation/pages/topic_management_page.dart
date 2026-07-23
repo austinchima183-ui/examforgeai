@@ -80,13 +80,13 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                       isDense: true,
                       border: OutlineInputBorder(),
                     ),
-                    value: _selectedSubjectId,
+                    initialValue: _selectedSubjectId,
                     items: [
                       const DropdownMenuItem(
-                          value: null, child: Text('Select Subject')),
+                          value: null, child: Text('Select Subject'),),
                       ...subjectState.subjects.map((s) =>
                           DropdownMenuItem(
-                              value: s.id, child: Text(s.name))),
+                              value: s.id, child: Text(s.name),),),
                     ],
                     onChanged: (v) {
                       setState(() => _selectedSubjectId = v);
@@ -111,13 +111,13 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                       isDense: true,
                       border: OutlineInputBorder(),
                     ),
-                    value: _selectedLevelId,
+                    initialValue: _selectedLevelId,
                     items: [
                       const DropdownMenuItem(
-                          value: null, child: Text('Select Level')),
+                          value: null, child: Text('Select Level'),),
                       ...levelState.levels.map((l) =>
                           DropdownMenuItem(
-                              value: l.id, child: Text(l.name))),
+                              value: l.id, child: Text(l.name),),),
                     ],
                     onChanged: (v) {
                       setState(() => _selectedLevelId = v);
@@ -135,12 +135,12 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
           if (_showCurriculumTree)
             Container(
               padding: const EdgeInsets.symmetric(
-                  horizontal: Spacings.lg, vertical: Spacings.sm),
-              color: cs.primaryContainer.withOpacity(0.3),
+                  horizontal: Spacings.lg, vertical: Spacings.sm,),
+              color: cs.primaryContainer.withValues(alpha: 0.3),
               child: Row(
                 children: [
                   Icon(Icons.account_tree_rounded,
-                      size: Spacings.smIcon, color: cs.primary),
+                      size: Spacings.smIcon, color: cs.primary,),
                   const SizedBox(width: Spacings.sm),
                   Text(
                     'Curriculum Tree View',
@@ -173,10 +173,10 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                             onRefresh: () => ref
                                 .read(topicProvider.notifier)
                                 .loadTopics(
-                                    subjectId: _selectedSubjectId),
+                                    subjectId: _selectedSubjectId,),
                             child: ListView.builder(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: Spacings.lg),
+                                  horizontal: Spacings.lg,),
                               itemCount: topicState.topics.length,
                               itemBuilder: (context, index) {
                                 final topic = topicState.topics[index];
@@ -193,7 +193,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                                           _confirmDeleteTopic(topic),
                                       onAddSubtopic: () =>
                                           _showCreateSubtopicDialog(
-                                              topic.id),
+                                              topic.id,),
                                     ),
                                     // Learning objectives under each topic
                                     if (topic.metadata != null &&
@@ -202,7 +202,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                                       Padding(
                                         padding: const EdgeInsets.only(
                                             left: Spacings.xxl,
-                                            bottom: Spacings.sm),
+                                            bottom: Spacings.sm,),
                                         child: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
@@ -213,9 +213,9 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                                                     Icons
                                                         .flag_outlined,
                                                     size: 14,
-                                                    color: cs.primary),
+                                                    color: cs.primary,),
                                                 const SizedBox(
-                                                    width: Spacings.xs),
+                                                    width: Spacings.xs,),
                                                 Text(
                                                     'Learning Objectives',
                                                     style: tt
@@ -225,15 +225,15 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                                                       fontWeight:
                                                           AppTypography
                                                               .wSemiBold,
-                                                    )),
+                                                    ),),
                                               ],
                                             ),
                                             const SizedBox(
-                                                height: Spacings.xs),
+                                                height: Spacings.xs,),
                                             ...(topic.metadata!['learningObjectives'] as List)
                                                 .map((obj) =>
                                                     LearningObjectiveChip(
-                                                        descriptionText: obj.toString()))
+                                                        descriptionText: obj.toString(),),),
                                           ],
                                         ),
                                       ),
@@ -268,14 +268,14 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Topic Name *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
                 const SizedBox(height: Spacings.md),
                 Row(
                   children: [
@@ -284,8 +284,8 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                           controller: durationCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Est. Duration (min)',
-                              border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number),
+                              border: OutlineInputBorder(),),
+                          keyboardType: TextInputType.number,),
                     ),
                     const SizedBox(width: Spacings.md),
                     Expanded(
@@ -293,8 +293,8 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                           controller: sortOrderCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Sort Order',
-                              border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number),
+                              border: OutlineInputBorder(),),
+                          keyboardType: TextInputType.number,),
                     ),
                   ],
                 ),
@@ -302,7 +302,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                 // Learning objectives
                 Text('Learning Objectives',
                     style: TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 12,
-                        color: Theme.of(context).primaryColor)),
+                        color: Theme.of(context).primaryColor,),),
                 const SizedBox(height: Spacings.sm),
                 ...objectives.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: Spacings.xs),
@@ -310,17 +310,17 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                         children: [
                           Expanded(
                               child: Text(e.value,
-                                  style: AppTypography.bodySmall!)),
+                                  style: AppTypography.bodySmall!,),),
                           IconButton(
                             icon: const Icon(Icons.close, size: 16),
                             onPressed: () {
                               setDialogState(
-                                  () => objectives.removeAt(e.key));
+                                  () => objectives.removeAt(e.key),);
                             },
                           ),
                         ],
                       ),
-                    )),
+                    ),),
                 Row(
                   children: [
                     Expanded(
@@ -329,7 +329,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                           decoration: const InputDecoration(
                               labelText: 'Add Objective',
                               border: OutlineInputBorder(),
-                              isDense: true),
+                              isDense: true,),
                           onSubmitted: (v) {
                             if (v.isNotEmpty) {
                               setDialogState(() {
@@ -337,7 +337,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                               });
                               _objectiveCtrl.clear();
                             }
-                          }),
+                          },),
                     ),
                     IconButton(
                       icon: const Icon(Icons.add_circle_outline),
@@ -358,7 +358,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Create',
               onPressed: () {
@@ -378,7 +378,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                   metadata: objectives.isEmpty ? null : {'learningObjectives': objectives},
                   createdAt: DateTime.now(),
                   updatedAt: DateTime.now(),
-                ));
+                ),);
                 Navigator.pop(context);
               },
             ),
@@ -393,11 +393,11 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
     final descCtrl =
         TextEditingController(text: topic.description ?? '');
     final durationCtrl = TextEditingController(
-        text: '${topic.estimatedDurationMinutes ?? ''}');
+        text: '${topic.estimatedDurationMinutes ?? ''}',);
     final sortOrderCtrl =
         TextEditingController(text: '${topic.sortOrder}');
     final objectives = List<String>.from(
-        (topic.metadata?['learningObjectives'] as List?)?.map((e) => e.toString()) ?? []);
+        (topic.metadata?['learningObjectives'] as List?)?.map((e) => e.toString()) ?? [],);
 
     showDialog(
       context: context,
@@ -412,14 +412,14 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Topic Name',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
                 const SizedBox(height: Spacings.md),
                 Row(
                   children: [
@@ -428,8 +428,8 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                           controller: durationCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Est. Duration (min)',
-                              border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number),
+                              border: OutlineInputBorder(),),
+                          keyboardType: TextInputType.number,),
                     ),
                     const SizedBox(width: Spacings.md),
                     Expanded(
@@ -437,15 +437,15 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                           controller: sortOrderCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Sort Order',
-                              border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number),
+                              border: OutlineInputBorder(),),
+                          keyboardType: TextInputType.number,),
                     ),
                   ],
                 ),
                 const SizedBox(height: Spacings.md),
                 Text('Learning Objectives',
                     style: TextStyle(fontWeight: AppTypography.wSemiBold, fontSize: 12,
-                        color: Theme.of(context).primaryColor)),
+                        color: Theme.of(context).primaryColor,),),
                 const SizedBox(height: Spacings.sm),
                 ...objectives.asMap().entries.map((e) => Padding(
                       padding: const EdgeInsets.only(bottom: Spacings.xs),
@@ -453,17 +453,17 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                         children: [
                           Expanded(
                               child: Text(e.value,
-                                  style: AppTypography.bodySmall!)),
+                                  style: AppTypography.bodySmall!,),),
                           IconButton(
                             icon: const Icon(Icons.close, size: 16),
                             onPressed: () {
                               setDialogState(
-                                  () => objectives.removeAt(e.key));
+                                  () => objectives.removeAt(e.key),);
                             },
                           ),
                         ],
                       ),
-                    )),
+                    ),),
                 Row(
                   children: [
                     Expanded(
@@ -472,7 +472,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                           decoration: const InputDecoration(
                               labelText: 'Add Objective',
                               border: OutlineInputBorder(),
-                              isDense: true),
+                              isDense: true,),
                           onSubmitted: (v) {
                             if (v.isNotEmpty) {
                               setDialogState(() {
@@ -480,7 +480,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                               });
                               _objectiveCtrl.clear();
                             }
-                          }),
+                          },),
                     ),
                     IconButton(
                       icon: const Icon(Icons.add_circle_outline),
@@ -501,7 +501,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Save',
               onPressed: () {
@@ -521,7 +521,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                   metadata: objectives.isEmpty ? topic.metadata : {'learningObjectives': objectives},
                   createdAt: topic.createdAt,
                   updatedAt: DateTime.now(),
-                ));
+                ),);
                 Navigator.pop(context);
               },
             ),
@@ -547,7 +547,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                 controller: nameCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Subtopic Name *',
-                    border: OutlineInputBorder())),
+                    border: OutlineInputBorder(),),),
             const SizedBox(height: Spacings.md),
             Row(
               children: [
@@ -556,8 +556,8 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                       controller: durationCtrl,
                       decoration: const InputDecoration(
                           labelText: 'Est. Duration (min)',
-                          border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number),
+                          border: OutlineInputBorder(),),
+                      keyboardType: TextInputType.number,),
                 ),
                 const SizedBox(width: Spacings.md),
                 Expanded(
@@ -565,8 +565,8 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                       controller: sortOrderCtrl,
                       decoration: const InputDecoration(
                           labelText: 'Sort Order',
-                          border: OutlineInputBorder()),
-                      keyboardType: TextInputType.number),
+                          border: OutlineInputBorder(),),
+                      keyboardType: TextInputType.number,),
                 ),
               ],
             ),
@@ -575,7 +575,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Create',
             onPressed: () {
@@ -590,7 +590,7 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
                 isActive: true,
                 createdAt: DateTime.now(),
                 updatedAt: DateTime.now(),
-              ));
+              ),);
               Navigator.pop(context);
             },
           ),
@@ -605,11 +605,11 @@ class _TopicManagementPageState extends ConsumerState<TopicManagementPage> {
       builder: (context) => AlertDialog(
         title: const Text('Delete Topic'),
         content: Text(
-            'Are you sure you want to delete "${topic.title}"? All subtopics will also be removed.'),
+            'Are you sure you want to delete "${topic.title}"? All subtopics will also be removed.',),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Delete',
             onPressed: () {

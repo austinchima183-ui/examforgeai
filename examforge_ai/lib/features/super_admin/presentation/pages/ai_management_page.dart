@@ -1,10 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/super_admin_entities.dart';
@@ -178,7 +177,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
                                   .toggleProvider(provider.id, !provider.isActive),
                               onEdit: () => _showEditProviderDialog(context, provider),
                             ),
-                          )),
+                          ),),
 
                         Spacings.sectionGap,
 
@@ -212,7 +211,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
               error,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: cs.onSurface.withOpacity(0.7),
+                color: cs.onSurface.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -292,7 +291,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
           height: 40,
           padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
           decoration: BoxDecoration(
-            border: Border.all(color: cs.outline.withOpacity(0.3)),
+            border: Border.all(color: cs.outline.withValues(alpha: 0.3)),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: DropdownButton<String?>(
@@ -358,7 +357,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: DataTable(
@@ -383,35 +382,35 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
                 DataCell(Text(
                   _formatTimestamp(log.createdAt),
                   style: AppTypography.wRegular.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   providerNameMap[log.providerId] ?? log.providerId.substring(0, 8),
                   style: AppTypography.wMedium.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   log.model,
                   style: AppTypography.wRegular.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   log.requestType,
                   style: AppTypography.wRegular.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   _formatNumber(log.inputTokens),
                   style: AppTypography.wRegular.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   _formatNumber(log.outputTokens),
                   style: AppTypography.wRegular.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   _formatNumber(log.totalTokens),
                   style: AppTypography.wSemiBold.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   '\$${log.cost.toStringAsFixed(4)}',
                   style: AppTypography.wSemiBold.copyWith(fontSize: 12),
-                )),
+                ),),
                 DataCell(Text(
                   '${log.latencyMs}ms',
                   style: AppTypography.wRegular.copyWith(
@@ -422,7 +421,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
                             ? AppColors.warning
                             : null,
                   ),
-                )),
+                ),),
                 DataCell(
                   StatusBadge(
                     label: isSuccess ? 'Success' : 'Failed',
@@ -443,7 +442,7 @@ class _AIManagementPageState extends ConsumerState<AIManagementPage> {
       text,
       style: AppTypography.wSemiBold.copyWith(
         fontSize: 12,
-        color: cs.onSurface.withOpacity(0.7),
+        color: cs.onSurface.withValues(alpha: 0.7),
       ),
     );
   }
@@ -814,7 +813,7 @@ class _ProviderCard extends StatelessWidget {
                                       vertical: Spacings.xs,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: cs.primary.withOpacity(0.1),
+                                      color: cs.primary.withValues(alpha: 0.1),
                                       borderRadius: Spacings.borderRadiusSm,
                                     ),
                                     child: Text(
@@ -833,7 +832,7 @@ class _ProviderCard extends StatelessWidget {
                               provider.slug,
                               style: AppTypography.wRegular.copyWith(
                                 fontSize: 12,
-                                color: cs.onSurface.withOpacity(0.5),
+                                color: cs.onSurface.withValues(alpha: 0.5),
                               ),
                             ),
                           ],
@@ -860,7 +859,7 @@ class _ProviderCard extends StatelessWidget {
                     'Monthly Budget',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withOpacity(0.6),
+                      color: cs.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   const Spacer(),
@@ -900,7 +899,7 @@ class _ProviderCard extends StatelessWidget {
                     'Current Spend: ',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 12,
-                      color: cs.onSurface.withOpacity(0.6),
+                      color: cs.onSurface.withValues(alpha: 0.6),
                     ),
                   ),
                   Text(
@@ -912,7 +911,7 @@ class _ProviderCard extends StatelessWidget {
                     '(No budget set)',
                     style: AppTypography.wRegular.copyWith(
                       fontSize: 11,
-                      color: cs.onSurface.withOpacity(0.4),
+                      color: cs.onSurface.withValues(alpha: 0.4),
                     ),
                   ),
                 ],
@@ -1004,13 +1003,13 @@ class _ProviderCard extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        Icon(icon, size: 14, color: cs.onSurface.withOpacity(0.5)),
+        Icon(icon, size: 14, color: cs.onSurface.withValues(alpha: 0.5)),
         const SizedBox(width: Spacings.xs),
         Text(
           label,
           style: AppTypography.wRegular.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withOpacity(0.7),
+            color: cs.onSurface.withValues(alpha: 0.7),
           ),
         ),
       ],

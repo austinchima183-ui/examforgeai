@@ -2,10 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../providers/onboarding_provider.dart';
 import '../widgets/onboarding_slide.dart';
@@ -153,7 +153,7 @@ class _OnboardingPageState extends ConsumerState<OnboardingPage>
                     'Skip',
                     style: tt.labelLarge?.copyWith(
                       color: isLastPage
-                          ? cs.onSurfaceVariant.withOpacity(0.38)
+                          ? cs.onSurfaceVariant.withValues(alpha: 0.38)
                           : cs.onSurfaceVariant,
                     ),
                   ),

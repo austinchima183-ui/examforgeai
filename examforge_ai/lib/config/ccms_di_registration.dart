@@ -8,31 +8,24 @@
 /// are defined in the main DI file: dependency_injection.dart
 library;
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:examforge_ai/config/dependency_injection.dart';
 import 'package:examforge_ai/features/ccms/data/datasources/ccms_remote_datasource.dart';
 import 'package:examforge_ai/features/ccms/data/repositories/ccms_repository_impl.dart';
 import 'package:examforge_ai/features/ccms/domain/repositories/ccms_repository.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/educational_level_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/curriculum_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/subject_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/topic_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/content_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/content_review_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/content_import_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/content_collection_usecases.dart';
 import 'package:examforge_ai/features/ccms/domain/usecases/ai_curriculum_usecases.dart';
 import 'package:examforge_ai/features/ccms/domain/usecases/answer_repository_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/content_collection_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/content_import_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/content_review_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/content_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/curriculum_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/deployment_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/educational_level_usecases.dart';
 import 'package:examforge_ai/features/ccms/domain/usecases/enterprise_security_usecases.dart';
 import 'package:examforge_ai/features/ccms/domain/usecases/monitoring_usecases.dart';
-import 'package:examforge_ai/features/ccms/domain/usecases/deployment_usecases.dart';
-import 'package:examforge_ai/features/ccms/presentation/providers/educational_level_provider.dart';
-import 'package:examforge_ai/features/ccms/presentation/providers/curriculum_provider.dart';
-import 'package:examforge_ai/features/ccms/presentation/providers/subject_provider.dart';
-import 'package:examforge_ai/features/ccms/presentation/providers/content_provider.dart';
-import 'package:examforge_ai/features/ccms/presentation/providers/ai_curriculum_provider.dart';
-import 'package:examforge_ai/features/ccms/presentation/providers/enterprise_provider.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/subject_usecases.dart';
+import 'package:examforge_ai/features/ccms/domain/usecases/topic_usecases.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ============================================================================
 // DATA LAYER - Datasource & Repository

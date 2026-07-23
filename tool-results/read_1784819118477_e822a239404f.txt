@@ -1,0 +1,1043 @@
+     1→// =============================================================================
+     2→// ExamForge AI — Offline Repository Implementation
+     3→// =============================================================================
+     4→//
+     5→// Implements [OfflineRepository] using both local and remote data sources.
+     6→//
+     7→// Strategy:
+     8→//   - Online operations: try remote first, cache locally on success.
+     9→//   - Offline operations: use local data source, queue mutations in sync
+    10→//     queue for later replay.
+    11→//   - Maps all exceptions to domain [Failure] types and wraps results
+    12→//     in [Result<T>].
+    13→// =============================================================================
+    14→
+    15→import '../../../../core/errors/exceptions.dart';
+    16→import '../../../../core/errors/failures.dart';
+    17→import '../../../../core/network/network_info.dart';
+    18→import '../../../../core/storage/cache_manager.dart';
+    19→import '../../../../core/sync/sync_engine.dart';
+    20→import '../../../../core/utils/logger.dart';
+    21→import '../../../../core/utils/result.dart';
+    22→import '../../domain/entities/offline_entities.dart';
+    23→import '../../domain/repositories/offline_repository.dart';
+    24→import '../datasources/offline_local_datasource.dart';
+    25→import '../datasources/offline_remote_datasource.dart';
+    26→
+    27→
+    28→// ═══════════════════════════════════════════════════════════════════════════════
+    29→// OFFLINE REPOSITORY IMPLEMENTATION
+    30→// ═══════════════════════════════════════════════════════════════════════════════
+    31→
+    32→/// Concrete implementation of [OfflineRepository] that coordinates
+    33→/// between local and remote data sources with an offline-first strategy.
+    34→///
+    35→/// When the device is online:
+    36→///   - Read operations try the remote source first and cache the result.
+    37→///   - Write operations go to the remote source and update the local cache.
+    38→///
+    39→/// When the device is offline:
+    40→///   - Read operations fall back to the local data source.
+    41→///   - Write operations are persisted locally and enqueued in the sync
+    42→///     queue for automatic replay when connectivity is restored.
+    43→class OfflineRepositoryImpl implements OfflineRepository {
+    44→  OfflineRepositoryImpl({
+    45→    required OfflineLocalDataSource localDataSource,
+    46→    required OfflineRemoteDataSource remoteDataSource,
+    47→    required NetworkInfo networkInfo,
+    48→    required CacheManager cacheManager,
+    49→    required SyncEngine syncEngine,
+    50→  })  : _localDataSource = localDataSource,
+    51→        _remoteDataSource = remoteDataSource,
+    52→        _networkInfo = networkInfo,
+    53→        _cacheManager = cacheManager,
+    54→        _syncEngine = syncEngine;
+    55→
+    56→  final OfflineLocalDataSource _localDataSource;
+    57→  final OfflineRemoteDataSource _remoteDataSource;
+    58→  final NetworkInfo _networkInfo;
+    59→  final CacheManager _cacheManager;
+    60→  final SyncEngine _syncEngine;
+    61→
+    62→  // ═══════════════════════════════════════════════════════════════════════
+    63→  // Helper: Convert exceptions to Failures
+    64→  // ═══════════════════════════════════════════════════════════════════════
+    65→
+    66→  Failure _mapExceptionToFailure(Object e) {
+    67→    if (e is AuthException) {
+    68→      return Failure.auth(message: e.message, code: e.code);
+    69→    } else if (e is ServerException) {
+    70→      return Failure.server(
+    71→        message: e.message,
+    72→        statusCode: e.statusCode,
+    73→        data: e.data,
+    74→      );
+    75→    } else if (e is CacheException) {
+    76→      return Failure.cache(message: e.message);
+    77→    } else if (e is NetworkException) {
+    78→      return Failure.network(message: e.message);
+    79→    } else if (e is ValidationException) {
+    80→      return Failure.validation(
+    81→        message: e.message,
+    82→        fieldErrors: e.fieldErrors,
+    83→      );
+    84→    } else if (e is NotFoundException) {
+    85→      return Failure.notFound(message: e.message);
+    86→    } else if (e is UnauthorizedException) {
+    87→      return Failure.unauthorized(message: e.message);
+    88→    } else if (e is ForbiddenException) {
+    89→      return Failure.forbidden(message: e.message);
+    90→    } else {
+    91→      AppLogger.error(
+    92→        'Unexpected exception in OfflineRepositoryImpl',
+    93→        error: e,
+    94→      );
+    95→      return Failure.server(
+    96→        message: 'An unexpected error occurred: $e',
+    97→        statusCode: 500,
+    98→      );
+    99→    }
+   100→  }
+   101→
+   102→  // ═══════════════════════════════════════════════════════════════════════
+   103→  // SYNC STATUS
+   104→  // ═══════════════════════════════════════════════════════════════════════
+   105→
+   106→  @override
+   107→  Future<Result<SyncStatusInfo>> getSyncStatus(String userId) async {
+   108→    try {
+   109→      // Sync status is always derived from local data (sync queue state).
+   110→      final status = _localDataSource.getSyncStatus(userId);
+   111→      return Success(status);
+   112→    } on CacheException catch (e) {
+   113→      return FailureResult(Failure.cache(message: e.message));
+   114→    } catch (e) {
+   115→      return FailureResult(_mapExceptionToFailure(e));
+   116→    }
+   117→  }
+   118→
+   119→  @override
+   120→  Future<Result<bool>> triggerSync(String userId) async {
+   121→    try {
+   122→      final isOnline = await _networkInfo.isConnected;
+   123→      if (!isOnline) {
+   124→        return const FailureResult(
+   125→          Failure.network(message: 'No network connection available'),
+   126→        );
+   127→      }
+   128→
+   129→      // Process the sync queue via SyncEngine.
+   130→      await _syncEngine.processQueue();
+   131→      return const Success(true);
+   132→    } on NetworkException catch (e) {
+   133→      return FailureResult(Failure.network(message: e.message));
+   134→    } on ServerException catch (e) {
+   135→      return FailureResult(Failure.server(
+   136→        message: e.message,
+   137→        statusCode: e.statusCode,
+   138→        data: e.data,
+   139→      ),);
+   140→    } catch (e) {
+   141→      return FailureResult(_mapExceptionToFailure(e));
+   142→    }
+   143→  }
+   144→
+   145→  // ═══════════════════════════════════════════════════════════════════════
+   146→  // OFFLINE RESOURCES
+   147→  // ═══════════════════════════════════════════════════════════════════════
+   148→
+   149→  @override
+   150→  Future<Result<List<OfflineResource>>> getOfflineResources(
+   151→    String userId, {
+   152→    String? resourceType,
+   153→  }) async {
+   154→    try {
+   155→      // Always read offline resources from local storage.
+   156→      final resources = await _localDataSource.getOfflineResources(
+   157→        userId,
+   158→        resourceType: resourceType,
+   159→      );
+   160→      return Success(resources);
+   161→    } on CacheException catch (e) {
+   162→      return FailureResult(Failure.cache(message: e.message));
+   163→    } catch (e) {
+   164→      return FailureResult(_mapExceptionToFailure(e));
+   165→    }
+   166→  }
+   167→
+   168→  @override
+   169→  Future<Result<bool>> downloadResourceForOffline(
+   170→    String userId,
+   171→    String resourceType,
+   172→    String resourceId,
+   173→  ) async {
+   174→    try {
+   175→      final isOnline = await _networkInfo.isConnected;
+   176→
+   177→      if (isOnline) {
+   178→        // Get the download URL from the server.
+   179→        final downloadUrl = await _remoteDataSource.getFileDownloadUrl(
+   180→          resourceType,
+   181→          resourceId,
+   182→        );
+   183→
+   184→        // Save the resource metadata locally.
+   185→        await _localDataSource.saveOfflineResource({
+   186→          'user_id': userId,
+   187→          'resource_type': resourceType,
+   188→          'resource_id': resourceId,
+   189→          'title': '$resourceType - $resourceId',
+   190→          'file_path': downloadUrl,
+   191→          'file_size_bytes': 0, // Updated when download completes
+   192→          'mime_type': 'application/octet-stream',
+   193→        });
+   194→
+   195→        // Enqueue the actual download in the sync queue.
+   196→        await _cacheManager.enqueueSync(
+   197→          userId: userId,
+   198→          tableName: 'resources',
+   199→          operation: 'download',
+   200→          payload: {
+   201→            'resource_type': resourceType,
+   202→            'resource_id': resourceId,
+   203→            'download_url': downloadUrl,
+   204→          },
+   205→          priority: 3,
+   206→        );
+   207→
+   208→        return const Success(true);
+   209→      } else {
+   210→        // Offline: queue the download for later.
+   211→        await _cacheManager.enqueueSync(
+   212→          userId: userId,
+   213→          tableName: 'resources',
+   214→          operation: 'download',
+   215→          payload: {
+   216→            'resource_type': resourceType,
+   217→            'resource_id': resourceId,
+   218→          },
+   219→          priority: 3,
+   220→        );
+   221→
+   222→        return const Success(true);
+   223→      }
+   224→    } on ServerException catch (e) {
+   225→      return FailureResult(Failure.server(
+   226→        message: e.message,
+   227→        statusCode: e.statusCode,
+   228→        data: e.data,
+   229→      ),);
+   230→    } on CacheException catch (e) {
+   231→      return FailureResult(Failure.cache(message: e.message));
+   232→    } catch (e) {
+   233→      return FailureResult(_mapExceptionToFailure(e));
+   234→    }
+   235→  }
+   236→
+   237→  @override
+   238→  Future<Result<bool>> removeOfflineResource(String resourceId) async {
+   239→    try {
+   240→      final result = await _localDataSource.removeOfflineResource(resourceId);
+   241→      return Success(result);
+   242→    } on CacheException catch (e) {
+   243→      return FailureResult(Failure.cache(message: e.message));
+   244→    } catch (e) {
+   245→      return FailureResult(_mapExceptionToFailure(e));
+   246→    }
+   247→  }
+   248→
+   249→  @override
+   250→  Future<Result<bool>> isResourceAvailableOffline(
+   251→    String userId,
+   252→    String resourceId,
+   253→  ) async {
+   254→    try {
+   255→      final available = await _cacheManager.isResourceAvailable(
+   256→        userId: userId,
+   257→        resourceId: resourceId,
+   258→      );
+   259→      return Success(available);
+   260→    } on CacheException catch (e) {
+   261→      return FailureResult(Failure.cache(message: e.message));
+   262→    } catch (e) {
+   263→      return FailureResult(_mapExceptionToFailure(e));
+   264→    }
+   265→  }
+   266→
+   267→  // ═══════════════════════════════════════════════════════════════════════
+   268→  // OFFLINE EXAMS
+   269→  // ═══════════════════════════════════════════════════════════════════════
+   270→
+   271→  @override
+   272→  Future<Result<List<OfflineExamConfig>>> getOfflineExamConfigs(
+   273→    String schoolId,
+   274→  ) async {
+   275→    try {
+   276→      final isOnline = await _networkInfo.isConnected;
+   277→
+   278→      if (isOnline) {
+   279→        // Try remote first.
+   280→        try {
+   281→          final remoteConfigs =
+   282→              await _remoteDataSource.getOfflineExamConfigs(schoolId);
+   283→
+   284→          final configs = remoteConfigs
+   285→              .map((data) => OfflineExamConfig(
+   286→                    id: data['id'] as String,
+   287→                    schoolId: data['school_id'] as String,
+   288→                    examId: data['exam_id'] as String,
+   289→                    allowsOffline: data['allows_offline'] as bool? ?? false,
+   290→                    offlineType: OfflineType.fromString(
+   291→                            data['offline_type'] as String?,) ??
+   292→                        OfflineType.none,
+   293→                    maxOfflineAttempts:
+   294→                        data['max_offline_attempts'] as int? ?? 0,
+   295→                    requiresOnlineSubmission:
+   296→                        data['requires_online_submission'] as bool? ?? true,
+   297→                    autoSubmitOnReconnect:
+   298→                        data['auto_submit_on_reconnect'] as bool? ?? false,
+   299→                    createdAt: data['created_at'] != null
+   300→                        ? DateTime.parse(data['created_at'] as String)
+   301→                        : DateTime.now(),
+   302→                  ),)
+   303→              .toList();
+   304→
+   305→          // Cache locally.
+   306→          await _cacheManager.cacheData(
+   307→            key: 'offline_exam_configs_$schoolId',
+   308→            userId: schoolId,
+   309→            resourceType: 'offline_exam_config',
+   310→            resourceId: schoolId,
+   311→            data: {'configs': remoteConfigs},
+   312→          );
+   313→
+   314→          return Success(configs);
+   315→        } on ServerException {
+   316→          // Fall back to local cache.
+   317→          AppLogger.warning(
+   318→            '[OfflineRepo] Remote configs fetch failed, falling back to cache',
+   319→          );
+   320→        }
+   321→      }
+   322→
+   323→      // Read from local cache.
+   324→      final cached = await _cacheManager.getCachedData(
+   325→        key: 'offline_exam_configs_$schoolId',
+   326→        userId: schoolId,
+   327→      );
+   328→
+   329→      if (cached != null && cached['configs'] != null) {
+   330→        final configsList =
+   331→            List<Map<String, dynamic>>.from(cached['configs'] as List);
+   332→        final configs = configsList
+   333→            .map((data) => OfflineExamConfig(
+   334→                  id: data['id'] as String,
+   335→                  schoolId: data['school_id'] as String,
+   336→                  examId: data['exam_id'] as String,
+   337→                  allowsOffline: data['allows_offline'] as bool? ?? false,
+   338→                  offlineType:
+   339→                      OfflineType.fromString(data['offline_type'] as String?) ??
+   340→                          OfflineType.none,
+   341→                  maxOfflineAttempts: data['max_offline_attempts'] as int? ?? 0,
+   342→                  requiresOnlineSubmission:
+   343→                      data['requires_online_submission'] as bool? ?? true,
+   344→                  autoSubmitOnReconnect:
+   345→                      data['auto_submit_on_reconnect'] as bool? ?? false,
+   346→                  createdAt: data['created_at'] != null
+   347→                      ? DateTime.parse(data['created_at'] as String)
+   348→                      : DateTime.now(),
+   349→                ),)
+   350→            .toList();
+   351→        return Success(configs);
+   352→      }
+   353→
+   354→      return const Success([]);
+   355→    } on CacheException catch (e) {
+   356→      return FailureResult(Failure.cache(message: e.message));
+   357→    } catch (e) {
+   358→      return FailureResult(_mapExceptionToFailure(e));
+   359→    }
+   360→  }
+   361→
+   362→  @override
+   363→  Future<Result<OfflineExamConfig>> updateOfflineExamConfig(
+   364→    OfflineExamConfig config,
+   365→  ) async {
+   366→    try {
+   367→      final isOnline = await _networkInfo.isConnected;
+   368→
+   369→      if (isOnline) {
+   370→        // Update on server (would use a proper Supabase call).
+   371→        // Cache the updated config locally.
+   372→        await _cacheManager.cacheData(
+   373→          key: 'offline_exam_config_${config.examId}',
+   374→          userId: config.schoolId,
+   375→          resourceType: 'offline_exam_config',
+   376→          resourceId: config.examId,
+   377→          data: {
+   378→            'id': config.id,
+   379→            'school_id': config.schoolId,
+   380→            'exam_id': config.examId,
+   381→            'allows_offline': config.allowsOffline,
+   382→            'offline_type': config.offlineType.value,
+   383→            'max_offline_attempts': config.maxOfflineAttempts,
+   384→            'requires_online_submission': config.requiresOnlineSubmission,
+   385→            'auto_submit_on_reconnect': config.autoSubmitOnReconnect,
+   386→          },
+   387→        );
+   388→      } else {
+   389→        // Queue for sync.
+   390→        await _cacheManager.enqueueSync(
+   391→          userId: config.schoolId,
+   392→          tableName: 'offline_exam_configs',
+   393→          operation: 'update',
+   394→          payload: {
+   395→            'id': config.id,
+   396→            'school_id': config.schoolId,
+   397→            'exam_id': config.examId,
+   398→            'allows_offline': config.allowsOffline,
+   399→            'offline_type': config.offlineType.value,
+   400→            'max_offline_attempts': config.maxOfflineAttempts,
+   401→            'requires_online_submission': config.requiresOnlineSubmission,
+   402→            'auto_submit_on_reconnect': config.autoSubmitOnReconnect,
+   403→          },
+   404→          recordId: config.id,
+   405→        );
+   406→      }
+   407→
+   408→      return Success(config);
+   409→    } on ServerException catch (e) {
+   410→      return FailureResult(Failure.server(
+   411→        message: e.message,
+   412→        statusCode: e.statusCode,
+   413→        data: e.data,
+   414→      ),);
+   415→    } on CacheException catch (e) {
+   416→      return FailureResult(Failure.cache(message: e.message));
+   417→    } catch (e) {
+   418→      return FailureResult(_mapExceptionToFailure(e));
+   419→    }
+   420→  }
+   421→
+   422→  @override
+   423→  Future<Result<OfflineExamAttempt>> saveOfflineExamAttempt(
+   424→    OfflineExamAttempt attempt,
+   425→  ) async {
+   426→    try {
+   427→      // Always save locally first.
+   428→      final savedAttempt = await _localDataSource.saveExamAttempt({
+   429→        'id': attempt.id,
+   430→        'exam_id': attempt.examId,
+   431→        'student_id': attempt.studentId,
+   432→        'school_id': attempt.schoolId,
+   433→        'attempt_data': attempt.attemptData,
+   434→        'answers': attempt.answers,
+   435→        'started_at': attempt.startedAt.toIso8601String(),
+   436→        'completed_at': attempt.completedAt?.toIso8601String(),
+   437→        'time_taken_seconds': attempt.timeTakenSeconds,
+   438→        'integrity_hash': attempt.integrityHash,
+   439→      });
+   440→
+   441→      // Try to sync immediately if online.
+   442→      final isOnline = await _networkInfo.isConnected;
+   443→      if (isOnline && attempt.completedAt != null) {
+   444→        try {
+   445→          await _remoteDataSource.syncExamAttempt(
+   446→            attempt.id,
+   447→            {
+   448→              'exam_id': attempt.examId,
+   449→              'student_id': attempt.studentId,
+   450→              'school_id': attempt.schoolId,
+   451→              'attempt_data': attempt.attemptData,
+   452→              'answers': attempt.answers,
+   453→              'started_at': attempt.startedAt.toIso8601String(),
+   454→              'completed_at': attempt.completedAt?.toIso8601String(),
+   455→              'time_taken_seconds': attempt.timeTakenSeconds,
+   456→              'integrity_hash': attempt.integrityHash,
+   457→            },
+   458→          );
+   459→
+   460→          // Mark as synced locally.
+   461→          await _localDataSource.markExamAttemptSynced(attempt.id);
+   462→
+   463→          return Success(savedAttempt.copyWith(
+   464→            syncStatus: AttemptSyncStatus.synced,
+   465→            syncedAt: DateTime.now(),
+   466→          ),);
+   467→        } on ServerException catch (e) {
+   468→          // Sync failed — keep as pending, queue for later.
+   469→          AppLogger.warning(
+   470→            '[OfflineRepo] Exam attempt sync failed, queued for later: ${e.message}',
+   471→          );
+   472→
+   473→          await _cacheManager.enqueueSync(
+   474→            userId: attempt.studentId,
+   475→            tableName: 'offline_exam_attempts',
+   476→            operation: 'sync',
+   477→            payload: {
+   478→              'attempt_id': attempt.id,
+   479→              'exam_id': attempt.examId,
+   480→              'student_id': attempt.studentId,
+   481→              'school_id': attempt.schoolId,
+   482→              'attempt_data': attempt.attemptData,
+   483→              'answers': attempt.answers,
+   484→              'integrity_hash': attempt.integrityHash,
+   485→            },
+   486→            recordId: attempt.id,
+   487→            priority: 2, // High priority
+   488→          );
+   489→        }
+   490→      } else if (attempt.completedAt != null) {
+   491→        // Offline — queue for sync.
+   492→        await _cacheManager.enqueueSync(
+   493→          userId: attempt.studentId,
+   494→          tableName: 'offline_exam_attempts',
+   495→          operation: 'sync',
+   496→          payload: {
+   497→            'attempt_id': attempt.id,
+   498→            'exam_id': attempt.examId,
+   499→            'student_id': attempt.studentId,
+   500→            'school_id': attempt.schoolId,
+   501→            'attempt_data': attempt.attemptData,
+   502→            'answers': attempt.answers,
+   503→            'integrity_hash': attempt.integrityHash,
+   504→          },
+   505→          recordId: attempt.id,
+   506→          priority: 2,
+   507→        );
+   508→      }
+   509→
+   510→      return Success(savedAttempt);
+   511→    } on CacheException catch (e) {
+   512→      return FailureResult(Failure.cache(message: e.message));
+   513→    } catch (e) {
+   514→      return FailureResult(_mapExceptionToFailure(e));
+   515→    }
+   516→  }
+   517→
+   518→  @override
+   519→  Future<Result<List<OfflineExamAttempt>>> getPendingExamAttempts(
+   520→    String studentId,
+   521→  ) async {
+   522→    try {
+   523→      final attempts =
+   524→          await _localDataSource.getPendingExamAttempts(studentId);
+   525→      return Success(attempts);
+   526→    } on CacheException catch (e) {
+   527→      return FailureResult(Failure.cache(message: e.message));
+   528→    } catch (e) {
+   529→      return FailureResult(_mapExceptionToFailure(e));
+   530→    }
+   531→  }
+   532→
+   533→  @override
+   534→  Future<Result<bool>> syncExamAttempt(String attemptId) async {
+   535→    try {
+   536→      final isOnline = await _networkInfo.isConnected;
+   537→      if (!isOnline) {
+   538→        return const FailureResult(
+   539→          Failure.network(message: 'Cannot sync while offline'),
+   540→        );
+   541→      }
+   542→
+   543→      // Get the attempt from local storage.
+   544→      final pendingAttempts =
+   545→          await _localDataSource.getPendingExamAttempts('');
+   546→      final attempt = pendingAttempts.where((a) => a.id == attemptId).firstOrNull;
+   547→
+   548→      if (attempt == null) {
+   549→        return FailureResult(
+   550→          Failure.notFound(message: 'Exam attempt not found: $attemptId'),
+   551→        );
+   552→      }
+   553→
+   554→      // Sync with server.
+   555→      await _remoteDataSource.syncExamAttempt(
+   556→        attemptId,
+   557→        {
+   558→          'exam_id': attempt.examId,
+   559→          'student_id': attempt.studentId,
+   560→          'school_id': attempt.schoolId,
+   561→          'attempt_data': attempt.attemptData,
+   562→          'answers': attempt.answers,
+   563→          'started_at': attempt.startedAt.toIso8601String(),
+   564→          'completed_at': attempt.completedAt?.toIso8601String(),
+   565→          'time_taken_seconds': attempt.timeTakenSeconds,
+   566→          'integrity_hash': attempt.integrityHash,
+   567→        },
+   568→      );
+   569→
+   570→      // Mark as synced locally.
+   571→      await _localDataSource.markExamAttemptSynced(attemptId);
+   572→
+   573→      return const Success(true);
+   574→    } on ServerException catch (e) {
+   575→      return FailureResult(Failure.server(
+   576→        message: e.message,
+   577→        statusCode: e.statusCode,
+   578→        data: e.data,
+   579→      ),);
+   580→    } on CacheException catch (e) {
+   581→      return FailureResult(Failure.cache(message: e.message));
+   582→    } catch (e) {
+   583→      return FailureResult(_mapExceptionToFailure(e));
+   584→    }
+   585→  }
+   586→
+   587→  // ═══════════════════════════════════════════════════════════════════════
+   588→  // DRAFTS
+   589→  // ═══════════════════════════════════════════════════════════════════════
+   590→
+   591→  @override
+   592→  Future<Result<List<DraftWork>>> getDrafts(
+   593→    String userId, {
+   594→    String? draftType,
+   595→  }) async {
+   596→    try {
+   597→      // Always read drafts from local storage.
+   598→      final drafts = await _localDataSource.getDrafts(
+   599→        userId,
+   600→        draftType: draftType,
+   601→      );
+   602→      return Success(drafts);
+   603→    } on CacheException catch (e) {
+   604→      return FailureResult(Failure.cache(message: e.message));
+   605→    } catch (e) {
+   606→      return FailureResult(_mapExceptionToFailure(e));
+   607→    }
+   608→  }
+   609→
+   610→  @override
+   611→  Future<Result<DraftWork>> saveDraft(DraftWork draft) async {
+   612→    try {
+   613→      // Always save locally first.
+   614→      final savedDraft = await _localDataSource.saveDraft({
+   615→        'id': draft.id,
+   616→        'user_id': draft.userId,
+   617→        'draft_type': draft.draftType.value,
+   618→        'title': draft.title,
+   619→        'content': draft.content,
+   620→        'school_id': draft.schoolId,
+   621→        'subject_id': draft.subjectId,
+   622→      });
+   623→
+   624→      final isOnline = await _networkInfo.isConnected;
+   625→      if (isOnline) {
+   626→        // Sync to server.
+   627→        try {
+   628→          await _remoteDataSource.syncDrafts([
+   629→            {
+   630→              'id': draft.id,
+   631→              'user_id': draft.userId,
+   632→              'draft_type': draft.draftType.value,
+   633→              'title': draft.title,
+   634→              'content': draft.content,
+   635→              'school_id': draft.schoolId,
+   636→              'subject_id': draft.subjectId,
+   637→              'last_edited_at': draft.lastEditedAt.toIso8601String(),
+   638→            },
+   639→          ]);
+   640→        } on ServerException catch (e) {
+   641→          // Remote sync failed — enqueue for later.
+   642→          AppLogger.warning(
+   643→            '[OfflineRepo] Draft sync failed, queued: ${e.message}',
+   644→          );
+   645→          await _cacheManager.enqueueSync(
+   646→            userId: draft.userId,
+   647→            tableName: 'drafts',
+   648→            operation: 'upsert',
+   649→            payload: {
+   650→              'id': draft.id,
+   651→              'draft_type': draft.draftType.value,
+   652→              'title': draft.title,
+   653→              'content': draft.content,
+   654→            },
+   655→            recordId: draft.id,
+   656→            priority: 5,
+   657→          );
+   658→        }
+   659→      } else {
+   660→        // Queue for later sync.
+   661→        await _cacheManager.enqueueSync(
+   662→          userId: draft.userId,
+   663→          tableName: 'drafts',
+   664→          operation: 'upsert',
+   665→          payload: {
+   666→            'id': draft.id,
+   667→            'draft_type': draft.draftType.value,
+   668→            'title': draft.title,
+   669→            'content': draft.content,
+   670→          },
+   671→          recordId: draft.id,
+   672→          priority: 5,
+   673→        );
+   674→      }
+   675→
+   676→      return Success(savedDraft);
+   677→    } on CacheException catch (e) {
+   678→      return FailureResult(Failure.cache(message: e.message));
+   679→    } catch (e) {
+   680→      return FailureResult(_mapExceptionToFailure(e));
+   681→    }
+   682→  }
+   683→
+   684→  @override
+   685→  Future<Result<bool>> deleteDraft(String draftId) async {
+   686→    try {
+   687→      final result = await _localDataSource.deleteDraft(draftId);
+   688→      return Success(result);
+   689→    } on CacheException catch (e) {
+   690→      return FailureResult(Failure.cache(message: e.message));
+   691→    } catch (e) {
+   692→      return FailureResult(_mapExceptionToFailure(e));
+   693→    }
+   694→  }
+   695→
+   696→  // ═══════════════════════════════════════════════════════════════════════
+   697→  // CONNECTIVITY
+   698→  // ═══════════════════════════════════════════════════════════════════════
+   699→
+   700→  @override
+   701→  Future<Result<ConnectivityInfo>> getConnectivityInfo() async {
+   702→    try {
+   703→      final isOnline = await _networkInfo.isConnected;
+   704→      final connectionType = await _networkInfo.connectionType;
+   705→
+   706→      return Success(ConnectivityInfo(
+   707→        isOnline: isOnline,
+   708→        connectionQuality: isOnline
+   709→            ? ConnectionQuality.good
+   710→            : ConnectionQuality.offline,
+   711→        connectionType: _parseConnectionType(connectionType),
+   712→        shouldReduceQuality: false,
+   713→        shouldDelaySync: !isOnline,
+   714→        shouldCompressUploads: false,
+   715→      ),);
+   716→    } catch (e) {
+   717→      return FailureResult(_mapExceptionToFailure(e));
+   718→    }
+   719→  }
+   720→
+   721→  // ═══════════════════════════════════════════════════════════════════════
+   722→  // DEVICE
+   723→  // ═══════════════════════════════════════════════════════════════════════
+   724→
+   725→  @override
+   726→  Future<Result<DeviceRegistration>> registerDevice(
+   727→    DeviceRegistration device,
+   728→  ) async {
+   729→    try {
+   730→      final isOnline = await _networkInfo.isConnected;
+   731→
+   732→      if (isOnline) {
+   733→        final response = await _remoteDataSource.registerDevice({
+   734→          'user_id': device.userId,
+   735→          'device_token': device.deviceToken,
+   736→          'platform': device.platform,
+   737→          'device_name': device.deviceName,
+   738→          'device_model': device.deviceModel,
+   739→          'os_version': device.osVersion,
+   740→          'app_version': device.appVersion,
+   741→          'is_active': device.isActive,
+   742→          'push_enabled': device.pushEnabled,
+   743→        });
+   744→
+   745→        return Success(DeviceRegistration(
+   746→          id: response['id'] as String? ?? device.id,
+   747→          userId: device.userId,
+   748→          deviceToken: device.deviceToken,
+   749→          platform: device.platform,
+   750→          deviceName: device.deviceName,
+   751→          deviceModel: device.deviceModel,
+   752→          osVersion: device.osVersion,
+   753→          appVersion: device.appVersion,
+   754→          isActive: true,
+   755→          lastActiveAt: DateTime.now(),
+   756→          pushEnabled: device.pushEnabled,
+   757→          createdAt: device.createdAt,
+   758→        ),);
+   759→      } else {
+   760→        // Queue device registration for later.
+   761→        await _cacheManager.enqueueSync(
+   762→          userId: device.userId,
+   763→          tableName: 'device_registrations',
+   764→          operation: 'upsert',
+   765→          payload: {
+   766→            'device_token': device.deviceToken,
+   767→            'platform': device.platform,
+   768→            'device_name': device.deviceName,
+   769→            'device_model': device.deviceModel,
+   770→          },
+   771→          priority: 4,
+   772→        );
+   773→
+   774→        return Success(device);
+   775→      }
+   776→    } on ServerException catch (e) {
+   777→      return FailureResult(Failure.server(
+   778→        message: e.message,
+   779→        statusCode: e.statusCode,
+   780→        data: e.data,
+   781→      ),);
+   782→    } catch (e) {
+   783→      return FailureResult(_mapExceptionToFailure(e));
+   784→    }
+   785→  }
+   786→
+   787→  @override
+   788→  Future<Result<bool>> unregisterDevice(String deviceId) async {
+   789→    try {
+   790→      final isOnline = await _networkInfo.isConnected;
+   791→
+   792→      if (isOnline) {
+   793→        return Success(await _remoteDataSource.unregisterDevice(deviceId));
+   794→      } else {
+   795→        // Queue for later.
+   796→        await _cacheManager.enqueueSync(
+   797→          userId: deviceId,
+   798→          tableName: 'device_registrations',
+   799→          operation: 'deactivate',
+   800→          payload: {'device_id': deviceId},
+   801→          recordId: deviceId,
+   802→          priority: 4,
+   803→        );
+   804→        return const Success(true);
+   805→      }
+   806→    } on ServerException catch (e) {
+   807→      return FailureResult(Failure.server(
+   808→        message: e.message,
+   809→        statusCode: e.statusCode,
+   810→        data: e.data,
+   811→      ),);
+   812→    } catch (e) {
+   813→      return FailureResult(_mapExceptionToFailure(e));
+   814→    }
+   815→  }
+   816→
+   817→  @override
+   818→  Future<Result<List<DeviceRegistration>>> getUserDevices(String userId) async {
+   819→    // Device list is primarily a server-side concern.
+   820→    // Fall back to empty list if offline.
+   821→    try {
+   822→      final isOnline = await _networkInfo.isConnected;
+   823→      if (!isOnline) {
+   824→        return const Success([]);
+   825→      }
+   826→
+   827→      // Would query Supabase for device list.
+   828→      // For now, return empty list (full implementation would
+   829→      // query the device_registrations table).
+   830→      return const Success([]);
+   831→    } catch (e) {
+   832→      return FailureResult(_mapExceptionToFailure(e));
+   833→    }
+   834→  }
+   835→
+   836→  // ═══════════════════════════════════════════════════════════════════════
+   837→  // FILE DOWNLOADS
+   838→  // ═══════════════════════════════════════════════════════════════════════
+   839→
+   840→  @override
+   841→  Future<Result<FileDownload>> startDownload(
+   842→    String userId,
+   843→    String resourceType,
+   844→    String resourceId,
+   845→    String fileUrl,
+   846→    String fileName,
+   847→  ) async {
+   848→    try {
+   849→      final download = await _localDataSource.saveDownload({
+   850→        'user_id': userId,
+   851→        'resource_type': resourceType,
+   852→        'resource_id': resourceId,
+   853→        'file_name': fileName,
+   854→        'file_url': fileUrl,
+   855→        'file_size_bytes': 0,
+   856→        'mime_type': 'application/octet-stream',
+   857→        'local_path': '',
+   858→      });
+   859→
+   860→      // Queue the actual download operation.
+   861→      await _cacheManager.enqueueSync(
+   862→        userId: userId,
+   863→        tableName: 'downloads',
+   864→        operation: 'download',
+   865→        payload: {
+   866→          'resource_type': resourceType,
+   867→          'resource_id': resourceId,
+   868→          'file_url': fileUrl,
+   869→          'file_name': fileName,
+   870→        },
+   871→        priority: 3,
+   872→      );
+   873→
+   874→      return Success(download);
+   875→    } on CacheException catch (e) {
+   876→      return FailureResult(Failure.cache(message: e.message));
+   877→    } catch (e) {
+   878→      return FailureResult(_mapExceptionToFailure(e));
+   879→    }
+   880→  }
+   881→
+   882→  @override
+   883→  Future<Result<List<FileDownload>>> getDownloads(
+   884→    String userId, {
+   885→    String? status,
+   886→  }) async {
+   887→    try {
+   888→      final downloads = await _localDataSource.getDownloads(
+   889→        userId,
+   890→        status: status,
+   891→      );
+   892→      return Success(downloads);
+   893→    } on CacheException catch (e) {
+   894→      return FailureResult(Failure.cache(message: e.message));
+   895→    } catch (e) {
+   896→      return FailureResult(_mapExceptionToFailure(e));
+   897→    }
+   898→  }
+   899→
+   900→  @override
+   901→  Future<Result<bool>> cancelDownload(String downloadId) async {
+   902→    try {
+   903→      return Success(
+   904→        await _localDataSource.updateDownloadStatus(downloadId, 'failed'),
+   905→      );
+   906→    } on CacheException catch (e) {
+   907→      return FailureResult(Failure.cache(message: e.message));
+   908→    } catch (e) {
+   909→      return FailureResult(_mapExceptionToFailure(e));
+   910→    }
+   911→  }
+   912→
+   913→  @override
+   914→  Future<Result<bool>> retryDownload(String downloadId) async {
+   915→    try {
+   916→      return Success(
+   917→        await _localDataSource.updateDownloadStatus(downloadId, 'pending'),
+   918→      );
+   919→    } on CacheException catch (e) {
+   920→      return FailureResult(Failure.cache(message: e.message));
+   921→    } catch (e) {
+   922→      return FailureResult(_mapExceptionToFailure(e));
+   923→    }
+   924→  }
+   925→
+   926→  // ═══════════════════════════════════════════════════════════════════════
+   927→  // ANALYTICS
+   928→  // ═══════════════════════════════════════════════════════════════════════
+   929→
+   930→  @override
+   931→  Future<Result<bool>> logUsageEvent(AppUsageEvent event) async {
+   932→    try {
+   933→      final isOnline = await _networkInfo.isConnected;
+   934→
+   935→      if (isOnline) {
+   936→        return Success(
+   937→          await _remoteDataSource.logUsageEvents([
+   938→            {
+   939→              'id': event.id,
+   940→              'user_id': event.userId,
+   941→              'event_type': event.eventType,
+   942→              'event_data': event.eventData,
+   943→              'session_id': event.sessionId,
+   944→              'app_version': event.appVersion,
+   945→              'platform': event.platform,
+   946→              'screen_name': event.screenName,
+   947→              'duration_ms': event.durationMs,
+   948→              'created_at': event.createdAt.toIso8601String(),
+   949→            },
+   950→          ]),
+   951→        );
+   952→      } else {
+   953→        // Queue for later.
+   954→        await _cacheManager.enqueueSync(
+   955→          userId: event.userId,
+   956→          tableName: 'app_usage_events',
+   957→          operation: 'insert',
+   958→          payload: {
+   959→            'event_type': event.eventType,
+   960→            'event_data': event.eventData,
+   961→            'session_id': event.sessionId,
+   962→          },
+   963→          priority: 8, // Low priority
+   964→        );
+   965→        return const Success(true);
+   966→      }
+   967→    } on ServerException catch (e) {
+   968→      return FailureResult(Failure.server(
+   969→        message: e.message,
+   970→        statusCode: e.statusCode,
+   971→        data: e.data,
+   972→      ),);
+   973→    } catch (e) {
+   974→      return FailureResult(_mapExceptionToFailure(e));
+   975→    }
+   976→  }
+   977→
+   978→  @override
+   979→  Future<Result<bool>> syncAnalyticsEvents(String userId) async {
+   980→    try {
+   981→      final isOnline = await _networkInfo.isConnected;
+   982→      if (!isOnline) {
+   983→        return const FailureResult(
+   984→          Failure.network(message: 'Cannot sync analytics while offline'),
+   985→        );
+   986→      }
+   987→
+   988→      // Get pending analytics sync items.
+   989→      final pendingItems = await _cacheManager.getPendingSyncItems(
+   990→        userId: userId,
+   991→      );
+   992→
+   993→      final analyticsItems = pendingItems
+   994→          .where((item) => item['tableName'] == 'app_usage_events')
+   995→          .map((item) => item['payload'] as Map<String, dynamic>)
+   996→          .toList();
+   997→
+   998→      if (analyticsItems.isEmpty) {
+   999→        return const Success(true);
+  1000→      }
+  1001→
+  1002→      final success =
+  1003→          await _remoteDataSource.logUsageEvents(analyticsItems);
+  1004→
+  1005→      // Mark synced items as completed.
+  1006→      for (final item in pendingItems
+  1007→          .where((item) => item['tableName'] == 'app_usage_events')) {
+  1008→        await _cacheManager.markSyncItemCompleted(id: item['id'] as String);
+  1009→      }
+  1010→
+  1011→      return Success(success);
+  1012→    } on ServerException catch (e) {
+  1013→      return FailureResult(Failure.server(
+  1014→        message: e.message,
+  1015→        statusCode: e.statusCode,
+  1016→        data: e.data,
+  1017→      ),);
+  1018→    } on CacheException catch (e) {
+  1019→      return FailureResult(Failure.cache(message: e.message));
+  1020→    } catch (e) {
+  1021→      return FailureResult(_mapExceptionToFailure(e));
+  1022→    }
+  1023→  }
+  1024→
+  1025→  // ═══════════════════════════════════════════════════════════════════════
+  1026→  // PRIVATE HELPERS
+  1027→  // ═══════════════════════════════════════════════════════════════════════
+  1028→
+  1029→  /// Parses a human-readable connection type string to a [ConnectionType].
+  1030→  ConnectionType _parseConnectionType(String type) {
+  1031→    switch (type.toLowerCase()) {
+  1032→      case 'wifi':
+  1033→        return ConnectionType.wifi;
+  1034→      case 'mobile':
+  1035→        return ConnectionType.mobile;
+  1036→      case 'ethernet':
+  1037→        return ConnectionType.ethernet;
+  1038→      default:
+  1039→        return ConnectionType.none;
+  1040→    }
+  1041→  }
+  1042→}
+  1043→

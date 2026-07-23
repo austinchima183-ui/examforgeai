@@ -3,19 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/question_entities.dart';
 import '../providers/collection_provider.dart';
 import '../widgets/collection_card.dart';
@@ -83,7 +82,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage>
           labelColor: cs.primary,
           unselectedLabelColor: cs.onSurfaceVariant,
           indicatorColor: cs.primary,
-          dividerColor: cs.outlineVariant.withOpacity(0.3),
+          dividerColor: cs.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
       body: Column(
@@ -192,7 +191,7 @@ class _CollectionsPageState extends ConsumerState<CollectionsPage>
     return collections
         .where((c) =>
             c.name.toLowerCase().contains(query) ||
-            (c.description?.toLowerCase().contains(query) ?? false))
+            (c.description?.toLowerCase().contains(query) ?? false),)
         .toList();
   }
 

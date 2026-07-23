@@ -34,7 +34,7 @@ class GetEngagementAnalyticsUseCase {
       return const FailureResult(Failure.validation(
         message: 'School ID is required',
         fieldErrors: {'schoolId': 'School ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.getEngagementAnalytics(params.schoolId);
   }

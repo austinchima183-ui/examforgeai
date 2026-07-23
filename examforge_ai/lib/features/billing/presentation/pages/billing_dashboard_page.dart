@@ -2,22 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_names.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/providers/auth_state_provider.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/billing_entities.dart';
-import '../providers/subscription_provider.dart';
 import '../providers/ai_credits_provider.dart';
-import '../providers/payment_provider.dart';
 import '../providers/billing_notification_provider.dart';
-import '../widgets/billing_widgets.dart';
+import '../providers/payment_provider.dart';
+import '../providers/subscription_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // BILLING DASHBOARD PAGE
@@ -60,7 +59,7 @@ class _State extends ConsumerState<BillingDashboardPage> {
     final userId = ref.read(userIdProvider);
     if (userId == null) return;
 
-    final subscriberType = BillingModel.teacherSaas;
+    const subscriberType = BillingModel.teacherSaas;
 
     ref.read(subscriptionProvider.notifier).loadCurrentSubscription(
           subscriberId: userId,
@@ -220,11 +219,11 @@ class _State extends ConsumerState<BillingDashboardPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -343,7 +342,7 @@ class _State extends ConsumerState<BillingDashboardPage> {
                     Icon(
                       Icons.info_outline_rounded,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withOpacity(0.5),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: Spacings.sm),
                     Text(
@@ -398,11 +397,11 @@ class _State extends ConsumerState<BillingDashboardPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -436,7 +435,7 @@ class _State extends ConsumerState<BillingDashboardPage> {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: accentColor.withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                      color: accentColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                       ),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
@@ -531,7 +530,7 @@ class _State extends ConsumerState<BillingDashboardPage> {
                     Icon(
                       Icons.bolt_outlined,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withOpacity(0.5),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: Spacings.sm),
                     Text(
@@ -589,11 +588,11 @@ class _State extends ConsumerState<BillingDashboardPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -660,11 +659,11 @@ class _State extends ConsumerState<BillingDashboardPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -698,7 +697,7 @@ class _State extends ConsumerState<BillingDashboardPage> {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.warningOf(cs.brightness).withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                      color: AppColors.warningOf(cs.brightness).withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                       ),
                       borderRadius: Spacings.borderRadiusSm,
                     ),
@@ -782,11 +781,11 @@ class _State extends ConsumerState<BillingDashboardPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -931,7 +930,7 @@ class _SubscriptionStatusBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: badgeColor.withOpacity(isDark ? 0.20 : 0.10),
+        color: badgeColor.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -977,10 +976,10 @@ class _QuickActionTile extends StatelessWidget {
       borderRadius: Spacings.borderRadiusMd,
       child: Container(
         decoration: BoxDecoration(
-          color: action.color.withOpacity(isDark ? 0.10 : 0.06),
+          color: action.color.withValues(alpha: isDark ? 0.10 : 0.06),
           borderRadius: Spacings.borderRadiusMd,
           border: Border.all(
-            color: action.color.withOpacity(0.2),
+            color: action.color.withValues(alpha: 0.2),
           ),
         ),
         child: Column(
@@ -1143,7 +1142,7 @@ class _TransactionTile extends StatelessWidget {
       leading: Container(
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: statusColor.withOpacity(isDark ? 0.15 : 0.08),
+          color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
           shape: BoxShape.circle,
         ),
         child: Icon(statusIcon, color: statusColor, size: Spacings.mdIcon),
@@ -1181,7 +1180,7 @@ class _TransactionTile extends StatelessWidget {
               vertical: 2,
             ),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(isDark ? 0.15 : 0.08),
+              color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: Text(

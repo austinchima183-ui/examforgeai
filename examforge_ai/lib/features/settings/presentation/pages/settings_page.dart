@@ -4,11 +4,11 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/theme_provider.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../providers/settings_provider.dart';
@@ -36,7 +36,7 @@ class SettingsPage extends ConsumerWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // ── Appearance Section ──────────────────────────────────
-            _SettingsSectionHeader(
+            const _SettingsSectionHeader(
               icon: Icons.palette_outlined,
               title: 'Appearance',
             ),
@@ -112,7 +112,7 @@ class SettingsPage extends ConsumerWidget {
             Spacings.sectionGap,
 
             // ── Notifications Section ────────────────────────────────
-            _SettingsSectionHeader(
+            const _SettingsSectionHeader(
               icon: Icons.notifications_outlined,
               title: 'Notifications',
             ),
@@ -178,7 +178,7 @@ class SettingsPage extends ConsumerWidget {
             Spacings.sectionGap,
 
             // ── Account Section ──────────────────────────────────────
-            _SettingsSectionHeader(
+            const _SettingsSectionHeader(
               icon: Icons.manage_accounts_outlined,
               title: 'Account',
             ),
@@ -248,7 +248,7 @@ class SettingsPage extends ConsumerWidget {
             Spacings.sectionGap,
 
             // ── Language Section ─────────────────────────────────────
-            _SettingsSectionHeader(
+            const _SettingsSectionHeader(
               icon: Icons.language_outlined,
               title: 'Language',
             ),
@@ -283,7 +283,7 @@ class SettingsPage extends ConsumerWidget {
             Spacings.sectionGap,
 
             // ── About Section ────────────────────────────────────────
-            _SettingsSectionHeader(
+            const _SettingsSectionHeader(
               icon: Icons.info_outline,
               title: 'About',
             ),
@@ -398,19 +398,19 @@ class SettingsPage extends ConsumerWidget {
             Spacings.sectionGap,
 
             // ── Danger Zone ──────────────────────────────────────────
-            _SettingsSectionHeader(
+            const _SettingsSectionHeader(
               icon: Icons.warning_amber_rounded,
               title: 'Danger Zone',
               color: AppColors.error,
             ),
             const SizedBox(height: Spacings.sm),
             AppCard(
-              borderColor: AppColors.error.withOpacity(0.3),
+              borderColor: AppColors.error.withValues(alpha: 0.3),
               child: Column(
                 children: [
                   ListTile(
                     contentPadding: EdgeInsets.zero,
-                    leading: Icon(
+                    leading: const Icon(
                       Icons.delete_forever_outlined,
                       color: AppColors.error,
                     ),
@@ -427,7 +427,7 @@ class SettingsPage extends ConsumerWidget {
                         color: cs.onSurfaceVariant,
                       ),
                     ),
-                    trailing: Icon(
+                    trailing: const Icon(
                       Icons.chevron_right_rounded,
                       color: AppColors.error,
                     ),
@@ -510,7 +510,7 @@ class SettingsPage extends ConsumerWidget {
                     ? Icon(Icons.check_circle, color: cs.primary)
                     : null,
                 onTap: () {
-                  final mode = ThemeMode.system;
+                  const mode = ThemeMode.system;
                   ref.read(settingsProvider.notifier).setThemeMode(mode);
                   ref.read(themeProvider.notifier).setThemeMode(mode);
                   Navigator.pop(context);
@@ -525,7 +525,7 @@ class SettingsPage extends ConsumerWidget {
                         ? Icon(Icons.check_circle, color: cs.primary)
                         : null,
                 onTap: () {
-                  final mode = ThemeMode.light;
+                  const mode = ThemeMode.light;
                   ref.read(settingsProvider.notifier).setThemeMode(mode);
                   ref.read(themeProvider.notifier).setThemeMode(mode);
                   Navigator.pop(context);
@@ -540,7 +540,7 @@ class SettingsPage extends ConsumerWidget {
                         ? Icon(Icons.check_circle, color: cs.primary)
                         : null,
                 onTap: () {
-                  final mode = ThemeMode.dark;
+                  const mode = ThemeMode.dark;
                   ref.read(settingsProvider.notifier).setThemeMode(mode);
                   ref.read(themeProvider.notifier).setThemeMode(mode);
                   Navigator.pop(context);
@@ -626,7 +626,7 @@ class SettingsPage extends ConsumerWidget {
   // ─── Sign Out ────────────────────────────────────────────────────
 
   Future<void> _handleSignOut(
-      BuildContext context, WidgetRef ref) async {
+      BuildContext context, WidgetRef ref,) async {
     final confirmed = await AppDialog.showConfirm(
       context: context,
       title: 'Sign Out',

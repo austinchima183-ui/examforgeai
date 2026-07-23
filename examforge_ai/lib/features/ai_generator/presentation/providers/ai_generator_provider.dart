@@ -10,10 +10,10 @@ import '../../domain/entities/ai_entities.dart';
 import '../../domain/usecases/generate_questions_usecase.dart';
 import '../../domain/usecases/get_generation_history_usecase.dart';
 import '../../domain/usecases/improve_question_usecase.dart';
+import '../../domain/usecases/manage_prompt_templates_usecase.dart';
 import '../../domain/usecases/review_generated_question_usecase.dart';
 import '../../domain/usecases/save_to_question_bank_usecase.dart';
 import '../../domain/usecases/validate_question_usecase.dart';
-import '../../domain/usecases/manage_prompt_templates_usecase.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // AI GENERATOR STATE

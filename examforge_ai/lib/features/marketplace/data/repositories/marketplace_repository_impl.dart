@@ -5,7 +5,6 @@ import '../../domain/entities/marketplace_entities.dart';
 import '../../domain/repositories/marketplace_repository.dart';
 import '../datasources/marketplace_remote_datasource.dart';
 import '../models/marketplace_models.dart';
-import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
 
 
 class MarketplaceRepositoryImpl implements MarketplaceRepository {
@@ -743,7 +742,7 @@ class MarketplaceRepositoryImpl implements MarketplaceRepository {
   Future<Result<bool>> recordDownload(String purchaseId) async {
     try {
       await remoteDataSource.recordDownload(purchaseId);
-      return Success(true);
+      return const Success(true);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on ServerException catch (e) {
@@ -1144,9 +1143,9 @@ class MarketplaceRepositoryImpl implements MarketplaceRepository {
         endDate: endDate,
       );
       if (models.isEmpty) {
-        return FailureResult(const Failure.notFound(
+        return const FailureResult(Failure.notFound(
           message: 'No seller analytics data found.',
-        ));
+        ),);
       }
       return Success(models.first.toEntity());
     } on AuthException catch (e) {
@@ -1173,9 +1172,9 @@ class MarketplaceRepositoryImpl implements MarketplaceRepository {
         endDate: endDate,
       );
       if (models.isEmpty) {
-        return FailureResult(const Failure.notFound(
+        return const FailureResult(Failure.notFound(
           message: 'No product analytics data found.',
-        ));
+        ),);
       }
       return Success(models.first.toEntity());
     } on AuthException catch (e) {

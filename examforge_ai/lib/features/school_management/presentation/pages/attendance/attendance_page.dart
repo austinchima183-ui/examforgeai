@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
@@ -14,8 +14,6 @@ import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/attendance_provider.dart';
 import '../../providers/class_provider.dart';
 import 'attendance_report_page.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 
@@ -95,7 +93,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                 : attendanceState.isLoading
                     ? const Center(
                         child: AppLoadingSpinner(
-                            size: AppLoadingSpinnerSize.large),
+                            size: AppLoadingSpinnerSize.large,),
                       )
                     : attendanceState.error != null
                         ? AppErrorState.genericError(
@@ -104,14 +102,14 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
                           )
                         : attendanceState.record == null ||
                                 attendanceState.entries.isEmpty
-                            ? AppEmptyState(
+                            ? const AppEmptyState(
                                 icon: Icons.group_outlined,
                                 title: 'No Students',
                                 subtitle:
                                     'No students found for this class.',
                               )
                             : _buildStudentList(
-                                context, attendanceState),
+                                context, attendanceState,),
           ),
 
           // ─── Summary & Save ──────────────────────────────────────────
@@ -142,7 +140,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           Expanded(
             flex: 2,
             child: DropdownButtonFormField<String>(
-              value: _selectedClassId,
+              initialValue: _selectedClassId,
               decoration: const InputDecoration(
                 labelText: 'Class',
                 prefixIcon: Icon(Icons.class_outlined, size: 20),
@@ -190,7 +188,7 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           Expanded(
             flex: 1,
             child: DropdownButtonFormField<String>(
-              value: _selectedTermId ?? 'current-term',
+              initialValue: _selectedTermId ?? 'current-term',
               decoration: const InputDecoration(
                 labelText: 'Term',
                 prefixIcon: Icon(Icons.calendar_view_week_outlined, size: 20),
@@ -229,15 +227,15 @@ class _AttendancePageState extends ConsumerState<AttendancePage> {
           ),
           const SizedBox(width: Spacings.sm),
           ActionChip(
-            avatar: Icon(Icons.check_circle_outline_rounded,
-                size: 16, color: AppColors.success),
+            avatar: const Icon(Icons.check_circle_outline_rounded,
+                size: 16, color: AppColors.success,),
             label: const Text('All Present'),
             onPressed: () => _markAll(AttendanceStatus.present),
           ),
           const SizedBox(width: Spacings.sm),
           ActionChip(
-            avatar: Icon(Icons.cancel_outlined,
-                size: 16, color: AppColors.error),
+            avatar: const Icon(Icons.cancel_outlined,
+                size: 16, color: AppColors.error,),
             label: const Text('All Absent'),
             onPressed: () => _markAll(AttendanceStatus.absent),
           ),
@@ -595,7 +593,7 @@ class _AttendanceEntryCard extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(_statusIcon(currentStatus), color: statusColor, size: 22),
@@ -676,7 +674,7 @@ class _StatusToggleGroup extends StatelessWidget {
               ),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? color.withOpacity(isDark ? 0.30 : 0.15)
+                    ? color.withValues(alpha: isDark ? 0.30 : 0.15)
                     : Colors.transparent,
                 borderRadius: BorderRadius.horizontal(
                   left: status == AttendanceStatus.present
@@ -759,7 +757,7 @@ class _SummaryChip extends StatelessWidget {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: color.withOpacity(isDark ? 0.20 : 0.12),
+            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Text(

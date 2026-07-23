@@ -43,7 +43,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
               Icon(Icons.card_giftcard, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
               Text('No referral programs yet', style: theme.textTheme.bodyLarge),
-            ]));
+            ],),);
           }
           return RefreshIndicator(
             onRefresh: () => provider.loadReferralPrograms(),
@@ -74,12 +74,12 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                 decoration: BoxDecoration(
-                  color: program.isActive ? Colors.green.withOpacity(0.15) : Colors.grey.withOpacity(0.15),
+                  color: program.isActive ? Colors.green.withValues(alpha: 0.15) : Colors.grey.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(program.isActive ? 'ACTIVE' : 'INACTIVE', style: theme.textTheme.labelSmall?.copyWith(color: program.isActive ? Colors.green : Colors.grey, fontWeight: FontWeight.w600)),
               ),
-            ]),
+            ],),
             const SizedBox(height: 8),
             Text(program.description, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant), maxLines: 2, overflow: TextOverflow.ellipsis),
             const SizedBox(height: 12),
@@ -107,7 +107,7 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
       Icon(icon, size: 16, color: theme.colorScheme.onSurfaceVariant),
       const SizedBox(width: 4),
       Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-    ]);
+    ],);
   }
 
   void _showCreateProgramDialog(BuildContext context) {
@@ -129,12 +129,12 @@ class _ReferralProgramPageState extends ConsumerState<ReferralProgramPage> {
               TextField(controller: codeCtrl, decoration: const InputDecoration(labelText: 'Referral Code', border: OutlineInputBorder())),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: rewardType,
+                initialValue: rewardType,
                 decoration: const InputDecoration(labelText: 'Reward Type', border: OutlineInputBorder()),
                 items: ['credit', 'discount', 'cash', 'feature_access'].map((t) => DropdownMenuItem(value: t, child: Text(t[0].toUpperCase() + t.substring(1)))).toList(),
                 onChanged: (v) => setDialogState(() => rewardType = v ?? 'credit'),
               ),
-            ]),
+            ],),
           ),
           actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')), ElevatedButton(onPressed: () => Navigator.pop(ctx), child: const Text('Create'))],
         ),

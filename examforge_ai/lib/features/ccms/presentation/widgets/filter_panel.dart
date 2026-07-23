@@ -169,7 +169,7 @@ class _FilterPanelState extends State<FilterPanel> {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                      color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
                       borderRadius: Spacings.borderRadiusFull,
                     ),
                     child: Text(
@@ -347,7 +347,7 @@ class _FilterPanelState extends State<FilterPanel> {
           border: const OutlineInputBorder(),
           contentPadding: Spacings.paddingInput,
         ),
-        value: selectedId,
+        initialValue: selectedId,
         hint: const Text('All'),
         items: [
           const DropdownMenuItem<String>(
@@ -385,7 +385,7 @@ class _FilterPanelState extends State<FilterPanel> {
           border: const OutlineInputBorder(),
           contentPadding: Spacings.paddingInput,
         ),
-        value: selected,
+        initialValue: selected,
         hint: const Text('All'),
         items: [
           DropdownMenuItem<T>(

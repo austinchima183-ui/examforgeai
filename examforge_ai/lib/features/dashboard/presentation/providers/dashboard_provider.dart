@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../routing/route_guards.dart';
 

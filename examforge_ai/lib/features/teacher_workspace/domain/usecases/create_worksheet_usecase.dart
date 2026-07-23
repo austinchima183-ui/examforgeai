@@ -18,7 +18,7 @@ class CreateWorksheetUseCase {
       return const FailureResult(Failure.validation(
         message: 'Worksheet title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createWorksheet(params.worksheet);
   }

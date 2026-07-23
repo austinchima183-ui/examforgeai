@@ -174,7 +174,7 @@ class _State extends ConsumerState<CalendarPage> {
       margin: const EdgeInsets.symmetric(horizontal: Spacings.lg, vertical: Spacings.md),
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: TableCalendar(
         focusedDay: _focusedMonth,
         firstDay: DateTime(2024, 1, 1),
@@ -189,7 +189,7 @@ class _State extends ConsumerState<CalendarPage> {
         eventLoader: (day) => _eventsForDay(day, state.events),
         calendarStyle: CalendarStyle(
           selectedDecoration: BoxDecoration(color: cs.primary, shape: BoxShape.circle),
-          todayDecoration: BoxDecoration(color: cs.primary.withOpacity(0.3), shape: BoxShape.circle),
+          todayDecoration: BoxDecoration(color: cs.primary.withValues(alpha: 0.3), shape: BoxShape.circle),
           markerDecoration: BoxDecoration(color: cs.tertiary, shape: BoxShape.circle),
         ),
         headerStyle: HeaderStyle(
@@ -226,7 +226,7 @@ class _State extends ConsumerState<CalendarPage> {
                 margin: const EdgeInsets.symmetric(horizontal: Spacings.xs),
                 padding: const EdgeInsets.symmetric(vertical: Spacings.md),
                 decoration: BoxDecoration(
-                  color: isSelected ? cs.primary : (isToday ? cs.primaryContainer.withOpacity(0.3) : Colors.transparent),
+                  color: isSelected ? cs.primary : (isToday ? cs.primaryContainer.withValues(alpha: 0.3) : Colors.transparent),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Column(
@@ -313,7 +313,7 @@ class _State extends ConsumerState<CalendarPage> {
       color: cs.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
-        side: BorderSide(color: typeColor.withOpacity(0.3), width: 1),
+        side: BorderSide(color: typeColor.withValues(alpha: 0.3), width: 1),
       ),
       child: InkWell(
         onTap: () {/* TODO: navigate to event detail */},
@@ -323,7 +323,7 @@ class _State extends ConsumerState<CalendarPage> {
           child: Row(
             children: [
               // Time column
-              Container(
+              SizedBox(
                 width: 56,
                 child: Column(
                   children: [
@@ -353,7 +353,7 @@ class _State extends ConsumerState<CalendarPage> {
                       children: [
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
-                          decoration: BoxDecoration(color: typeColor.withOpacity(0.12), borderRadius: Spacings.borderRadiusSm),
+                          decoration: BoxDecoration(color: typeColor.withValues(alpha: 0.12), borderRadius: Spacings.borderRadiusSm),
                           child: Text(event.eventType.label, style: tt.labelSmall?.copyWith(color: typeColor)),
                         ),
                         if (event.location != null) ...[

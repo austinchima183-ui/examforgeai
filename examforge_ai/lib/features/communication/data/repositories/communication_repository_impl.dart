@@ -5,8 +5,6 @@ import '../../../../core/utils/result.dart';
 import '../../domain/entities/communication_entities.dart';
 import '../../domain/repositories/communication_repository.dart';
 import '../datasources/communication_remote_datasource.dart';
-import '../models/communication_models.dart';
-import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType, CalendarEventEntity, CalendarEventType;
 
 
 class CommunicationRepositoryImpl implements CommunicationRepository {

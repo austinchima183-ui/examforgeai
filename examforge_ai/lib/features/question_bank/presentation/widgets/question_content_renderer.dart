@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/question_entities.dart';
 
 // ─── QuestionContentRenderer ──────────────────────────────────────────────────
@@ -230,10 +230,10 @@ class _AttachmentList extends StatelessWidget {
                   vertical: Spacings.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(context.isDarkMode ? 0.20 : 0.08),
+                  color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.08),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -285,7 +285,7 @@ class _ImageAttachment extends StatelessWidget {
         color: cs.surfaceContainerHigh,
         borderRadius: BorderRadius.circular(borderRadius),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -294,7 +294,7 @@ class _ImageAttachment extends StatelessWidget {
           Icon(
             Icons.image_outlined,
             size: isPreviewMode ? 40.0 : 28.0,
-            color: cs.onSurfaceVariant.withOpacity(0.5),
+            color: cs.onSurfaceVariant.withValues(alpha: 0.5),
           ),
           const SizedBox(height: Spacings.xs),
           Text(

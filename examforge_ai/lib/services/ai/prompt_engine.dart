@@ -100,7 +100,7 @@ class PromptEngine {
         'Blocking generation request.',
       );
       // Return a safe resolution that will result in an error message
-      return PromptResolution(
+      return const PromptResolution(
         systemPrompt: 'You are a helpful educational assistant.',
         userPrompt: 'The provided topic contains potentially unsafe content. '
             'Please revise and try again.',
@@ -122,7 +122,7 @@ class PromptEngine {
     final activeTemplates = templates
         .where((t) =>
             t.isActive &&
-            t.promptType == PromptType.questionGeneration)
+            t.promptType == PromptType.questionGeneration,)
         .toList();
 
     // Score each template based on how well it matches the input
@@ -240,52 +240,52 @@ class PromptEngine {
     switch (improvementType) {
       case 'clarity':
         buffer.writeln(
-            'Focus on making the question clearer and more unambiguous.');
+            'Focus on making the question clearer and more unambiguous.',);
         buffer.writeln('- Remove any confusing wording');
         buffer.writeln('- Ensure the question has a single correct interpretation');
         buffer.writeln('- Simplify complex sentence structures while preserving meaning');
       case 'distractors':
         buffer.writeln(
-            'Focus on improving the answer options/distractors.');
+            'Focus on improving the answer options/distractors.',);
         buffer.writeln('- Make incorrect options (distractors) more plausible');
         buffer.writeln('- Ensure distractors represent common misconceptions');
         buffer.writeln('- Make all options roughly the same length');
         buffer.writeln('- Avoid obviously wrong distractors');
       case 'difficulty':
         buffer.writeln(
-            'Focus on adjusting the difficulty level of the question.');
+            'Focus on adjusting the difficulty level of the question.',);
         buffer.writeln(
-            '- Current difficulty: ${question.difficulty.label}');
+            '- Current difficulty: ${question.difficulty.label}',);
         buffer.writeln(
-            '- Adjust cognitive demand appropriately');
+            '- Adjust cognitive demand appropriately',);
         buffer.writeln(
-            '- Align with Bloom\'s taxonomy level if specified');
+            '- Align with Bloom\'s taxonomy level if specified',);
       case 'explanation':
         buffer.writeln(
-            'Focus on creating or improving the explanation for this question.');
+            'Focus on creating or improving the explanation for this question.',);
         buffer.writeln('- Provide a clear, step-by-step explanation');
         buffer.writeln('- Explain why the correct answer is right');
         buffer.writeln('- Explain why each distractor is wrong');
         buffer.writeln(
-            '- Include relevant references or learning resources');
+            '- Include relevant references or learning resources',);
       case 'curriculum_alignment':
         buffer.writeln(
-            'Focus on improving curriculum alignment.');
+            'Focus on improving curriculum alignment.',);
         buffer.writeln(
-            '- Ensure the question directly assesses a learning objective');
+            '- Ensure the question directly assesses a learning objective',);
         buffer.writeln('- Use curriculum-appropriate terminology');
         buffer.writeln(
-            '- Align the difficulty with the expected level for this class');
+            '- Align the difficulty with the expected level for this class',);
       case 'grammar':
         buffer.writeln(
-            'Focus on correcting grammar and spelling errors.');
+            'Focus on correcting grammar and spelling errors.',);
         buffer.writeln('- Fix any grammatical errors');
         buffer.writeln('- Correct spelling mistakes');
         buffer.writeln(
-            '- Improve sentence structure while preserving meaning');
+            '- Improve sentence structure while preserving meaning',);
       default:
         buffer.writeln(
-            'Improve this question in any way that enhances its quality.');
+            'Improve this question in any way that enhances its quality.',);
     }
 
     if (customInstructions != null && customInstructions.isNotEmpty) {
@@ -327,12 +327,12 @@ class PromptEngine {
     buffer.writeln('  "improved_content": "The improved question text",');
     buffer.writeln('  "improved_answer_options": [');
     buffer.writeln(
-        '    {"label": "A", "text": "option text", "is_correct": false},');
+        '    {"label": "A", "text": "option text", "is_correct": false},',);
     buffer.writeln('    ...');
     buffer.writeln('  ],');
     buffer.writeln('  "improved_explanation": "The improved explanation",');
     buffer.writeln(
-        '  "improvement_notes": "Description of changes made"');
+        '  "improvement_notes": "Description of changes made"',);
     buffer.writeln('}');
 
     return buffer.toString();
@@ -433,7 +433,7 @@ class PromptEngine {
     buffer.writeln();
     buffer.writeln('--- DOCUMENT TEXT ---');
     // Truncate very long documents to avoid token limits
-    final maxChars = 50000;
+    const maxChars = 50000;
     if (extractedText.length > maxChars) {
       buffer.writeln(extractedText.substring(0, maxChars));
       buffer.writeln();
@@ -526,7 +526,7 @@ class PromptEngine {
           : null,
       improvedAnswerOptions: response['improved_answer_options'] != null
           ? List<Map<String, dynamic>>.from(
-              response['improved_answer_options'] as List)
+              response['improved_answer_options'] as List,)
           : null,
       improvementPrompt: null,
       inputTokens: null,
@@ -557,7 +557,7 @@ class PromptEngine {
             generatedQuestionId: questionId,
             validationType: result['type'] as String? ?? 'general',
             severity: ValidationSeverity.fromString(
-                    result['severity'] as String?) ??
+                    result['severity'] as String?,) ??
                 ValidationSeverity.info,
             message: result['message'] as String? ?? 'No message provided',
             suggestion: result['suggestion'] as String?,
@@ -565,7 +565,7 @@ class PromptEngine {
             resolvedBy: null,
             resolvedAt: null,
             createdAt: DateTime.now(),
-          ));
+          ),);
         }
       }
 
@@ -585,7 +585,7 @@ class PromptEngine {
           resolvedBy: null,
           resolvedAt: null,
           createdAt: DateTime.now(),
-        ));
+        ),);
       }
 
       return results;
@@ -793,10 +793,10 @@ Always return your response as a valid JSON object matching the requested format
     buffer.writeln('- Difficulty: ${input.difficulty.label}');
     if (input.bloomLevel != null) {
       buffer.writeln(
-          "- Bloom's Taxonomy Level: ${input.bloomLevel!.label}");
+          "- Bloom's Taxonomy Level: ${input.bloomLevel!.label}",);
     }
     buffer.writeln(
-        '- Question Type: ${input.questionType?.label ?? "Mixed"}');
+        '- Question Type: ${input.questionType?.label ?? "Mixed"}',);
     buffer.writeln('- Language: ${input.language}');
     if (input.examType != null) {
       buffer.writeln('- Exam Type: ${input.examType!.label}');

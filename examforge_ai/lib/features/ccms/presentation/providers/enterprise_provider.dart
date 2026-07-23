@@ -265,7 +265,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       endDate: endDate,
       limit: limit,
       offset: offset,
-    ));
+    ),);
     result.fold(
       onSuccess: (trail) =>
           state = state.copyWith(auditTrail: trail, isLoading: false),
@@ -302,7 +302,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       userId: userId,
       method: method,
       phoneNumber: phoneNumber,
-    ));
+    ),);
     result.fold(
       onSuccess: (config) =>
           state = state.copyWith(mfaConfig: config, isLoading: false),
@@ -321,7 +321,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
     final result = await _disableMfaUseCase(DisableMfaParams(
       userId: userId,
       verificationCode: verificationCode,
-    ));
+    ),);
     result.fold(
       onSuccess: (_) => state = state.copyWith(isLoading: false),
       onFailure: (failure) => state = state.copyWith(
@@ -339,7 +339,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
     final result = await _verifyMfaUseCase(VerifyMfaParams(
       userId: userId,
       verificationCode: verificationCode,
-    ));
+    ),);
     result.fold(
       onSuccess: (_) => state = state.copyWith(isLoading: false),
       onFailure: (failure) => state = state.copyWith(
@@ -363,7 +363,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       name: name,
       schoolId: schoolId,
       scopes: scopes,
-    ));
+    ),);
     result.fold(
       onSuccess: (key) => state = state.copyWith(
         apiKeys: [...state.apiKeys, key],
@@ -441,7 +441,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       isResolved: isResolved,
       limit: limit,
       offset: offset,
-    ));
+    ),);
     result.fold(
       onSuccess: (events) =>
           state = state.copyWith(securityEvents: events, isLoading: false),
@@ -464,7 +464,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       scope: scope,
       identifier: identifier,
       endpointPattern: endpoint,
-    ));
+    ),);
     result.fold(
       onSuccess: (isWithinLimit) => state = state.copyWith(
         rateLimitResult: isWithinLimit,
@@ -541,7 +541,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
     final result = await _getAlertRulesUseCase(GetAlertRulesParams(
       isActive: isActive,
       severity: severity,
-    ));
+    ),);
     result.fold(
       onSuccess: (rules) =>
           state = state.copyWith(alertRules: rules, isLoading: false),
@@ -585,7 +585,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       severity: severity,
       limit: limit,
       offset: offset,
-    ));
+    ),);
     result.fold(
       onSuccess: (incidents) =>
           state = state.copyWith(alertIncidents: incidents, isLoading: false),
@@ -604,7 +604,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
     final result = await _acknowledgeAlertUseCase(AcknowledgeAlertParams(
       incidentId: incidentId,
       acknowledgedBy: acknowledgedBy,
-    ));
+    ),);
     result.fold(
       onSuccess: (updated) {
         final list = state.alertIncidents
@@ -627,7 +627,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
     final result = await _resolveAlertUseCase(ResolveAlertParams(
       incidentId: incidentId,
       resolutionNotes: notes,
-    ));
+    ),);
     result.fold(
       onSuccess: (updated) {
         final list = state.alertIncidents
@@ -677,7 +677,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       startDate: startDate,
       endDate: endDate,
       limit: limit,
-    ));
+    ),);
     result.fold(
       onSuccess: (metrics) =>
           state = state.copyWith(metrics: metrics, isLoading: false),
@@ -729,7 +729,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       endDate: endDate,
       limit: limit,
       offset: offset,
-    ));
+    ),);
     result.fold(
       onSuccess: (logs) =>
           state = state.copyWith(performanceLogs: logs, isLoading: false),
@@ -773,7 +773,7 @@ class EnterpriseNotifier extends StateNotifier<EnterpriseState> {
       schoolId: schoolId,
       limit: limit,
       offset: offset,
-    ));
+    ),);
     result.fold(
       onSuccess: (reports) =>
           state = state.copyWith(errorReports: reports, isLoading: false),

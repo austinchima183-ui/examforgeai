@@ -4,7 +4,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/school_management_entities.dart';
 import '../../domain/repositories/school_management_repository.dart';
-import '../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -141,7 +140,7 @@ class SchoolListNotifier extends StateNotifier<SchoolListState> {
             : schools
                 .where((s) =>
                     s.name.toLowerCase().contains(query.toLowerCase()) ||
-                    s.code.toLowerCase().contains(query.toLowerCase()))
+                    s.code.toLowerCase().contains(query.toLowerCase()),)
                 .toList();
         state = state.copyWith(
           isLoading: false,

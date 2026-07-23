@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
@@ -12,8 +12,6 @@ import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/results_entities.dart';
 import '../../providers/results_providers.dart';
-import '../../providers/results_page_providers.dart' hide reportExportProvider;
-import '../../../../../features/results/domain/entities/results_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -67,7 +65,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
       ),
       body: state.isLoading && state.reports.isEmpty
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : _buildContent(context, state),
     );
   }
@@ -99,7 +97,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   // ─── Report Configuration ────────────────────────────────────────────
 
   Widget _buildReportConfig(
-      BuildContext context, ReportExportState state) {
+      BuildContext context, ReportExportState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -111,7 +109,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           Row(
             children: [
               Icon(Icons.description_outlined,
-                  size: Spacings.mdIcon, color: cs.primary),
+                  size: Spacings.mdIcon, color: cs.primary,),
               const SizedBox(width: Spacings.sm),
               Text(
                 'Generate Report',
@@ -182,14 +180,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: AppColors.errorOf(cs.brightness)
-                    .withOpacity(isDark ? 0.15 : 0.08),
+                    .withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
                 children: [
                   Icon(Icons.error_outline_rounded,
                       size: Spacings.mdIcon,
-                      color: AppColors.errorOf(cs.brightness)),
+                      color: AppColors.errorOf(cs.brightness),),
                   const SizedBox(width: Spacings.sm),
                   Expanded(
                     child: Text(
@@ -212,14 +210,14 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: AppColors.successOf(cs.brightness)
-                    .withOpacity(isDark ? 0.15 : 0.08),
+                    .withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Row(
                 children: [
                   Icon(Icons.check_circle_outline_rounded,
                       size: Spacings.mdIcon,
-                      color: AppColors.successOf(cs.brightness)),
+                      color: AppColors.successOf(cs.brightness),),
                   const SizedBox(width: Spacings.sm),
                   Expanded(
                     child: Text(
@@ -245,7 +243,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
 
-    final types = ReportType.values;
+    const types = ReportType.values;
 
     return Wrap(
       spacing: Spacings.sm,
@@ -260,12 +258,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               _selectedReportType = type;
             });
           },
-          selectedColor: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
-          backgroundColor: cs.surfaceContainerHighest.withOpacity(0.3),
+          selectedColor: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+          backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
           side: BorderSide(
             color: isSelected
                 ? cs.primary
-                : cs.outlineVariant.withOpacity(0.5),
+                : cs.outlineVariant.withValues(alpha: 0.5),
           ),
           labelStyle: tt.bodySmall?.copyWith(
             fontWeight:
@@ -284,7 +282,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
 
-    final formats = ReportFormat.values;
+    const formats = ReportFormat.values;
 
     return Wrap(
       spacing: Spacings.sm,
@@ -301,7 +299,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(icon, size: Spacings.smIcon,
-                  color: isSelected ? cs.primary : cs.onSurfaceVariant),
+                  color: isSelected ? cs.primary : cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(format.label),
             ],
@@ -312,12 +310,12 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
               _selectedFormat = format;
             });
           },
-          selectedColor: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
-          backgroundColor: cs.surfaceContainerHighest.withOpacity(0.3),
+          selectedColor: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
+          backgroundColor: cs.surfaceContainerHighest.withValues(alpha: 0.3),
           side: BorderSide(
             color: isSelected
                 ? cs.primary
-                : cs.outlineVariant.withOpacity(0.5),
+                : cs.outlineVariant.withValues(alpha: 0.5),
           ),
           labelStyle: tt.bodySmall?.copyWith(
             fontWeight:
@@ -350,7 +348,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 // TODO: Load from data source
               ],
               onChanged: (v) => setState(() => _selectedClassId = v),
-            )),
+            ),),
             const SizedBox(width: Spacings.md),
             Expanded(child: _buildFilterDropdown(
               context,
@@ -361,7 +359,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 // TODO: Load from data source
               ],
               onChanged: (v) => setState(() => _selectedSubjectId = v),
-            )),
+            ),),
             const SizedBox(width: Spacings.md),
             Expanded(child: _buildFilterDropdown(
               context,
@@ -372,7 +370,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                 // TODO: Load from data source
               ],
               onChanged: (v) => setState(() => _selectedSessionId = v),
-            )),
+            ),),
           ],
         );
       }
@@ -407,7 +405,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ),
         ],
       );
-    });
+    },);
   }
 
   Widget _buildFilterDropdown(
@@ -433,10 +431,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         ),
         const SizedBox(height: Spacings.xs),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           hint: Text(hint, style: tt.bodyMedium?.copyWith(
             color: cs.onSurfaceVariant,
-          )),
+          ),),
           decoration: InputDecoration(
             isDense: true,
             contentPadding: const EdgeInsets.symmetric(
@@ -494,7 +492,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
   // ─── Recent Reports ──────────────────────────────────────────────────
 
   Widget _buildRecentReports(
-      BuildContext context, ReportExportState state) {
+      BuildContext context, ReportExportState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -507,7 +505,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         Row(
           children: [
             Icon(Icons.history_rounded,
-                size: Spacings.mdIcon, color: cs.onSurfaceVariant),
+                size: Spacings.mdIcon, color: cs.onSurfaceVariant,),
             const SizedBox(width: Spacings.sm),
             Text(
               'Recent Reports',
@@ -529,10 +527,10 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
         const SizedBox(height: Spacings.md),
 
         if (reports.isEmpty)
-          AppCard(
+          const AppCard(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.all(Spacings.xl),
+                padding: EdgeInsets.all(Spacings.xl),
                 child: AppEmptyState(
                   icon: Icons.folder_open_outlined,
                   title: 'No Reports Yet',
@@ -546,13 +544,13 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
           ...reports.map((report) => Padding(
                 padding: const EdgeInsets.only(bottom: Spacings.md),
                 child: _buildReportItem(context, report),
-              )),
+              ),),
       ],
     );
   }
 
   Widget _buildReportItem(
-      BuildContext context, ReportExportEntity report) {
+      BuildContext context, ReportExportEntity report,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -585,7 +583,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: formatColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: formatColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Center(
@@ -627,7 +625,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       ),
                       decoration: BoxDecoration(
                         color: cs.primary
-                            .withOpacity(isDark ? 0.15 : 0.08),
+                            .withValues(alpha: isDark ? 0.15 : 0.08),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -648,7 +646,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       ),
                       decoration: BoxDecoration(
                         color:
-                            formatColor.withOpacity(isDark ? 0.15 : 0.08),
+                            formatColor.withValues(alpha: isDark ? 0.15 : 0.08),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -669,7 +667,7 @@ class _ReportsPageState extends ConsumerState<ReportsPage> {
                       ),
                       decoration: BoxDecoration(
                         color:
-                            statusColor.withOpacity(isDark ? 0.15 : 0.08),
+                            statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),

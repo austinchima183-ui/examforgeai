@@ -7,10 +7,10 @@ import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/admission_hub_entities.dart';
 import '../providers/admission_hub_provider.dart';
 import '../widgets/admission_hub_widgets.dart';
-import 'university_search_page.dart';
 import 'admission_checker_page.dart';
-import 'post_utme_center_page.dart';
 import 'admission_checklist_page.dart';
+import 'post_utme_center_page.dart';
+import 'university_search_page.dart';
 
 /// Dashboard page for the Admission Hub feature.
 ///
@@ -299,7 +299,7 @@ class _AdmissionHubDashboardPageState
         selected: isSelected,
         onSelected: (_) => onSelected(),
         backgroundColor: context.colorScheme.surface,
-        selectedColor: AppColors.primary.withOpacity(0.15),
+        selectedColor: AppColors.primary.withValues(alpha: 0.15),
         checkmarkColor: AppColors.primary,
         labelStyle: TextStyle(
           color: isSelected ? AppColors.primary : context.colorScheme.onSurface,
@@ -359,7 +359,7 @@ class _QuickActionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,

@@ -92,17 +92,17 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected generateQuestions error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'An unexpected error occurred during generation.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -130,15 +130,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getGeneratedQuestions error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve generated questions.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -156,15 +156,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getGeneratedQuestion error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve generated question.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -190,15 +190,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected approveQuestion error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to approve question.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -217,15 +217,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected rejectQuestion error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to reject question.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -244,15 +244,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected requestRevision error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to request revision.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -294,15 +294,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected improveQuestion error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to improve question.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -346,15 +346,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected acceptImprovement error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to accept improvement.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -378,15 +378,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected validateQuestion error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to validate question.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -409,13 +409,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected uploadDocument error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to upload document.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -443,15 +443,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected processDocument error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to process document.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -481,15 +481,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected saveToQuestionBank error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to save question to bank.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -518,13 +518,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getPromptTemplates error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve prompt templates.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -540,15 +540,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getPromptTemplate error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve prompt template.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -568,13 +568,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected createPromptTemplate error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to create prompt template.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -597,15 +597,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected updatePromptTemplate error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to update prompt template.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -625,13 +625,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getProviderConfigs error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve provider configs.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -647,15 +647,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getProviderConfig error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve provider config.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -686,13 +686,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getGenerationHistory error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve generation history.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -710,15 +710,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getGenerationRequest error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve generation request.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -751,13 +751,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getUsageStats error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve usage stats.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -777,13 +777,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getDashboardStats error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve dashboard stats.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -811,13 +811,13 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected getCurriculumMappings error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to retrieve curriculum mappings.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -837,15 +837,15 @@ class AiGeneratorRepositoryImpl implements AiGeneratorRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected cancelGeneration error', error: e);
-      return FailureResult(Failure.server(
+      return const FailureResult(Failure.server(
         message: 'Failed to cancel generation.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 }

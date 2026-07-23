@@ -6,7 +6,6 @@ import '../../domain/entities/school_management_entities.dart';
 import '../../domain/repositories/school_management_repository.dart';
 import '../datasources/school_management_remote_datasource.dart';
 import '../models/school_management_models.dart';
-import '../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 /// Concrete implementation of [SchoolManagementRepository] that delegates
@@ -80,7 +79,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -102,7 +101,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -120,7 +119,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -138,7 +137,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -164,7 +163,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -189,7 +188,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -213,7 +212,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -231,7 +230,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -247,7 +246,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -273,7 +272,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -297,7 +296,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -315,7 +314,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -333,7 +332,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -359,7 +358,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -383,7 +382,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -401,7 +400,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -433,7 +432,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -473,7 +472,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -494,7 +493,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -512,7 +511,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -538,7 +537,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -562,7 +561,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -580,7 +579,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -610,7 +609,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -636,7 +635,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -660,7 +659,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -678,7 +677,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -704,7 +703,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -733,7 +732,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -751,7 +750,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -770,7 +769,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -796,7 +795,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -820,7 +819,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -838,7 +837,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -856,7 +855,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -874,7 +873,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -894,7 +893,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -912,7 +911,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -935,7 +934,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -957,7 +956,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -975,7 +974,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -991,7 +990,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1009,7 +1008,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1027,7 +1026,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1053,7 +1052,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1077,7 +1076,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1095,7 +1094,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1123,7 +1122,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1149,7 +1148,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1173,7 +1172,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1191,7 +1190,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1209,7 +1208,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1233,7 +1232,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1255,12 +1254,12 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1284,7 +1283,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1302,7 +1301,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1320,7 +1319,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1348,7 +1347,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1374,7 +1373,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1398,7 +1397,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1419,9 +1418,9 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         type: attendanceType,
       );
       if (model == null) {
-        return FailureResult(Failure.notFound(
+        return const FailureResult(Failure.notFound(
           message: 'Attendance record not found for the specified criteria',
-        ));
+        ),);
       }
       return Success(model.toEntity());
     } on NotFoundException catch (e) {
@@ -1431,7 +1430,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1463,7 +1462,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1497,13 +1496,13 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         lowAttendees: _parseStudentAttendanceDetails(
           data['low_attendees'] as List<dynamic>? ?? [],
         ),
-      ));
+      ),);
     } on ServerException catch (e) {
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1527,12 +1526,12 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1558,7 +1557,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1582,7 +1581,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1600,7 +1599,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1618,7 +1617,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1650,7 +1649,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1668,7 +1667,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1690,7 +1689,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1712,7 +1711,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1731,7 +1730,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1757,7 +1756,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1781,7 +1780,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1799,7 +1798,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1827,7 +1826,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1845,7 +1844,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1871,7 +1870,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1895,7 +1894,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1913,7 +1912,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1945,7 +1944,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1963,7 +1962,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1985,7 +1984,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2013,7 +2012,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2032,7 +2031,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2054,7 +2053,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2075,7 +2074,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2096,7 +2095,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2118,7 +2117,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2142,7 +2141,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2162,7 +2161,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2184,7 +2183,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2211,7 +2210,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2235,7 +2234,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2255,7 +2254,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2274,7 +2273,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -2310,7 +2309,7 @@ class SchoolManagementRepositoryImpl implements SchoolManagementRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }

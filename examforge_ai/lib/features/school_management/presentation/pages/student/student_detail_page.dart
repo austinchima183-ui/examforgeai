@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/student_provider.dart';
 
@@ -103,7 +101,7 @@ class _StudentDetailPageState extends ConsumerState<StudentDetailPage>
               .map((tab) => Tab(
                     icon: Icon(tab.icon, size: Spacings.smIcon),
                     text: tab.label,
-                  ))
+                  ),)
               .toList(),
         ),
       ),
@@ -159,8 +157,8 @@ class _StudentDetailPageState extends ConsumerState<StudentDetailPage>
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            TextField(
-              decoration: const InputDecoration(
+            const TextField(
+              decoration: InputDecoration(
                 labelText: 'Parent ID or Email',
                 prefixIcon: Icon(Icons.search_rounded),
               ),
@@ -183,7 +181,7 @@ class _StudentDetailPageState extends ConsumerState<StudentDetailPage>
               title: const Text('Primary Contact'),
               value: false,
               onChanged: (_) {},
-              activeColor: cs.primary,
+              activeThumbColor: cs.primary,
             ),
           ],
         ),
@@ -270,7 +268,7 @@ class _ProfileHeader extends StatelessWidget {
         color: cs.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -281,7 +279,7 @@ class _ProfileHeader extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: student.avatarUrl != null
@@ -332,7 +330,7 @@ class _ProfileHeader extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: cs.primary.withOpacity(isDark ? 0.20 : 0.08),
+                          color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.08),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
                         child: Text(
@@ -351,7 +349,7 @@ class _ProfileHeader extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
+                        color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -390,7 +388,7 @@ class _InfoTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Personal Details Section
-          _SectionHeader(title: 'Personal Information'),
+          const _SectionHeader(title: 'Personal Information'),
           const SizedBox(height: Spacings.sm),
           _InfoRow(label: 'Date of Birth', value: _formatDate(student.dateOfBirth)),
           _InfoRow(label: 'Gender', value: student.gender ?? '—'),
@@ -402,7 +400,7 @@ class _InfoTab extends StatelessWidget {
           const SizedBox(height: Spacings.xl),
 
           // Medical Information Section
-          _SectionHeader(title: 'Medical Information'),
+          const _SectionHeader(title: 'Medical Information'),
           const SizedBox(height: Spacings.sm),
           _InfoRow(label: 'Blood Group', value: student.bloodGroup ?? '—'),
           _InfoRow(label: 'Genotype', value: student.genotype ?? '—'),
@@ -411,7 +409,7 @@ class _InfoTab extends StatelessWidget {
           const SizedBox(height: Spacings.xl),
 
           // Emergency Contact Section
-          _SectionHeader(title: 'Emergency Contact'),
+          const _SectionHeader(title: 'Emergency Contact'),
           const SizedBox(height: Spacings.sm),
           _InfoRow(label: 'Name', value: student.emergencyContactName ?? '—'),
           _InfoRow(label: 'Phone', value: student.emergencyContactPhone ?? '—'),
@@ -420,7 +418,7 @@ class _InfoTab extends StatelessWidget {
           const SizedBox(height: Spacings.xl),
 
           // Admission Information Section
-          _SectionHeader(title: 'Admission Information'),
+          const _SectionHeader(title: 'Admission Information'),
           const SizedBox(height: Spacings.sm),
           _InfoRow(label: 'Admission Number', value: student.admissionNumber),
           _InfoRow(label: 'Admission Date', value: _formatDate(student.admissionDate)),
@@ -519,10 +517,10 @@ class _ParentsTab extends StatelessWidget {
                         width: 40,
                         height: 40,
                         decoration: BoxDecoration(
-                          color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
+                          color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
                           shape: BoxShape.circle,
                         ),
-                        child: Icon(
+                        child: const Icon(
                           Icons.person_rounded,
                           color: AppColors.info,
                           size: Spacings.mdIcon,
@@ -558,7 +556,7 @@ class _ParentsTab extends StatelessWidget {
                                       vertical: 2,
                                     ),
                                     decoration: BoxDecoration(
-                                      color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12,
+                                      color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12,
                                       ),
                                       borderRadius: BorderRadius.circular(
                                         Spacings.fullRadius,
@@ -580,7 +578,7 @@ class _ParentsTab extends StatelessWidget {
                         ),
                       ),
                       IconButton(
-                        icon: Icon(
+                        icon: const Icon(
                           Icons.link_off_rounded,
                           color: AppColors.error,
                           size: Spacings.mdIcon,
@@ -652,7 +650,7 @@ class _PromotionHistoryTab extends StatelessWidget {
                       Expanded(
                         child: Container(
                           width: 2,
-                          color: cs.outlineVariant.withOpacity(0.5),
+                          color: cs.outlineVariant.withValues(alpha: 0.5),
                         ),
                       ),
                   ],
@@ -675,7 +673,7 @@ class _PromotionHistoryTab extends StatelessWidget {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: statusColor.withOpacity(isDark ? 0.20 : 0.12,
+                                color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12,
                                 ),
                                 borderRadius: BorderRadius.circular(
                                   Spacings.fullRadius,

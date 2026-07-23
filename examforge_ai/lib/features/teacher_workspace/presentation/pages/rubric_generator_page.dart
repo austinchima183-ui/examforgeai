@@ -2,19 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
-import '../../domain/entities/teacher_workspace_entities.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../../domain/usecases/generate_rubric_usecase.dart';
-import '../../domain/usecases/create_rubric_usecase.dart';
 import '../providers/rubric_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -226,7 +223,7 @@ class _RubricGeneratorPageState extends ConsumerState<RubricGeneratorPage> {
                 level: level,
                 description: '',
                 score: 0,
-              ))
+              ),)
           .toList(),
     );
 
@@ -447,7 +444,7 @@ class _RubricGeneratorPageState extends ConsumerState<RubricGeneratorPage> {
         ),
         const SizedBox(height: Spacings.xs),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           hint: Text(hint),
           decoration: InputDecoration(
             border: OutlineInputBorder(
@@ -459,7 +456,7 @@ class _RubricGeneratorPageState extends ConsumerState<RubricGeneratorPage> {
               .map((item) => DropdownMenuItem(
                     value: item,
                     child: Text(item),
-                  ))
+                  ),)
               .toList(),
           onChanged: onChanged,
           validator: isRequired
@@ -690,7 +687,7 @@ class _RubricGeneratorPageState extends ConsumerState<RubricGeneratorPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -712,7 +709,7 @@ class _RubricGeneratorPageState extends ConsumerState<RubricGeneratorPage> {
 
   Widget _buildRubricGrid(RubricEntity rubric) {
     final cs = context.colorScheme;
-    final levels = RubricCriterionLevel.values;
+    const levels = RubricCriterionLevel.values;
 
     return AppCard(
       padding: EdgeInsets.zero,
@@ -777,7 +774,7 @@ class _RubricGeneratorPageState extends ConsumerState<RubricGeneratorPage> {
                   ),
                 ),
               ),
-            )),
+            ),),
         const DataColumn(label: Text('')),
       ],
       rows: rubric.criteria.asMap().entries.map((entry) {

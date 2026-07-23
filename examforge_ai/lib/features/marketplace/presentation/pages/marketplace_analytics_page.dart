@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 
 
@@ -63,7 +63,7 @@ class _MarketplaceAnalyticsPageState
               .map((tab) => Tab(
                     text: tab.label,
                     icon: Icon(tab.icon),
-                  ))
+                  ),)
               .toList(),
         ),
       ),
@@ -77,7 +77,7 @@ class _MarketplaceAnalyticsPageState
           ),
 
           // ── Overview Stats ───────────────────────────────────────────
-          _OverviewStatsBar(),
+          const _OverviewStatsBar(),
 
           // ── Tab Content ──────────────────────────────────────────────
           Expanded(
@@ -190,7 +190,7 @@ class _OverviewStatsBar extends StatelessWidget {
         vertical: Spacings.md,
       ),
       child: isMobile
-          ? Column(
+          ? const Column(
               children: [
                 Row(
                   children: [
@@ -204,7 +204,7 @@ class _OverviewStatsBar extends StatelessWidget {
                         color: AppColors.info,
                       ),
                     ),
-                    const SizedBox(width: Spacings.sm),
+                    SizedBox(width: Spacings.sm),
                     Expanded(
                       child: AppStatCard(
                         title: 'Total Sellers',
@@ -217,7 +217,7 @@ class _OverviewStatsBar extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: Spacings.sm),
+                SizedBox(height: Spacings.sm),
                 Row(
                   children: [
                     Expanded(
@@ -230,7 +230,7 @@ class _OverviewStatsBar extends StatelessWidget {
                         color: AppColors.warning,
                       ),
                     ),
-                    const SizedBox(width: Spacings.sm),
+                    SizedBox(width: Spacings.sm),
                     Expanded(
                       child: AppStatCard(
                         title: 'Total Orders',
@@ -243,7 +243,7 @@ class _OverviewStatsBar extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: Spacings.sm),
+                SizedBox(height: Spacings.sm),
                 Row(
                   children: [
                     Expanded(
@@ -256,7 +256,7 @@ class _OverviewStatsBar extends StatelessWidget {
                         color: AppColors.warning,
                       ),
                     ),
-                    const SizedBox(width: Spacings.sm),
+                    SizedBox(width: Spacings.sm),
                     Expanded(
                       child: AppStatCard(
                         title: 'Active Users',
@@ -271,7 +271,7 @@ class _OverviewStatsBar extends StatelessWidget {
                 ),
               ],
             )
-          : Row(
+          : const Row(
               children: [
                 Expanded(
                   child: AppStatCard(
@@ -283,7 +283,7 @@ class _OverviewStatsBar extends StatelessWidget {
                     color: AppColors.info,
                   ),
                 ),
-                const SizedBox(width: Spacings.sm),
+                SizedBox(width: Spacings.sm),
                 Expanded(
                   child: AppStatCard(
                     title: 'Total Sellers',
@@ -294,7 +294,7 @@ class _OverviewStatsBar extends StatelessWidget {
                     color: AppColors.success,
                   ),
                 ),
-                const SizedBox(width: Spacings.sm),
+                SizedBox(width: Spacings.sm),
                 Expanded(
                   child: AppStatCard(
                     title: 'Total Revenue',
@@ -305,7 +305,7 @@ class _OverviewStatsBar extends StatelessWidget {
                     color: AppColors.warning,
                   ),
                 ),
-                const SizedBox(width: Spacings.sm),
+                SizedBox(width: Spacings.sm),
                 Expanded(
                   child: AppStatCard(
                     title: 'Total Orders',
@@ -316,7 +316,7 @@ class _OverviewStatsBar extends StatelessWidget {
                     color: AppColors.info,
                   ),
                 ),
-                const SizedBox(width: Spacings.sm),
+                SizedBox(width: Spacings.sm),
                 Expanded(
                   child: AppStatCard(
                     title: 'Avg. Rating',
@@ -327,7 +327,7 @@ class _OverviewStatsBar extends StatelessWidget {
                     color: AppColors.warning,
                   ),
                 ),
-                const SizedBox(width: Spacings.sm),
+                SizedBox(width: Spacings.sm),
                 Expanded(
                   child: AppStatCard(
                     title: 'Active Users',
@@ -353,9 +353,8 @@ class _ChartPlaceholder extends StatelessWidget {
   const _ChartPlaceholder({
     required this.title,
     required this.height,
-    this.color,
     this.child,
-  });
+  }) : color = null;
 
   final String title;
   final double height;
@@ -383,10 +382,10 @@ class _ChartPlaceholder extends StatelessWidget {
           height: height,
           width: double.infinity,
           decoration: BoxDecoration(
-            color: chartColor.withOpacity(context.isDarkMode ? 0.30 : 0.15),
+            color: chartColor.withValues(alpha: context.isDarkMode ? 0.30 : 0.15),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             border: Border.all(
-              color: cs.outlineVariant.withOpacity(0.3),
+              color: cs.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
           child: child ??
@@ -445,21 +444,21 @@ class _RevenueTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacings.sm),
-          _RevenueSourceCard(
+          const _RevenueSourceCard(
             label: 'Product Sales',
             amount: 3200000,
             percentage: 66.7,
             color: AppColors.info,
           ),
           const SizedBox(height: Spacings.sm),
-          _RevenueSourceCard(
+          const _RevenueSourceCard(
             label: 'AI Credits',
             amount: 960000,
             percentage: 20.0,
             color: AppColors.success,
           ),
           const SizedBox(height: Spacings.sm),
-          _RevenueSourceCard(
+          const _RevenueSourceCard(
             label: 'Commissions',
             amount: 640000,
             percentage: 13.3,
@@ -489,15 +488,15 @@ class _RevenueTab extends StatelessWidget {
                   fraction: item.$3,
                   color: cs.primary,
                 ),
-              )),
+              ),),
           Spacings.sectionGap,
 
           // ── Revenue by License Type ───────────────────────────────
-          _ChartPlaceholder(
+          const _ChartPlaceholder(
             title: 'Revenue by License Type',
             height: 120,
             child: Padding(
-              padding: const EdgeInsets.all(Spacings.lg),
+              padding: EdgeInsets.all(Spacings.lg),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
@@ -690,7 +689,7 @@ class _LicenseTypeChip extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+            color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Text(
@@ -738,10 +737,10 @@ class _ProductsTab extends StatelessWidget {
               padding: const EdgeInsets.all(Spacings.lg),
               child: _DonutPlaceholder(
                 segments: [
-                  _DonutSegment(label: 'Question Banks', value: 0.30, color: AppColors.info),
-                  _DonutSegment(label: 'Exam Templates', value: 0.25, color: AppColors.success),
-                  _DonutSegment(label: 'Lesson Notes', value: 0.20, color: AppColors.warning),
-                  _DonutSegment(label: 'Worksheets', value: 0.15, color: AppColors.error),
+                  const _DonutSegment(label: 'Question Banks', value: 0.30, color: AppColors.info),
+                  const _DonutSegment(label: 'Exam Templates', value: 0.25, color: AppColors.success),
+                  const _DonutSegment(label: 'Lesson Notes', value: 0.20, color: AppColors.warning),
+                  const _DonutSegment(label: 'Worksheets', value: 0.15, color: AppColors.error),
                   _DonutSegment(label: 'Other', value: 0.10, color: cs.onSurfaceVariant),
                 ],
               ),
@@ -762,17 +761,17 @@ class _ProductsTab extends StatelessWidget {
             spacing: Spacings.sm,
             runSpacing: Spacings.sm,
             children: [
-              _StatusChip(
+              const _StatusChip(
                 label: 'Approved',
                 count: 892,
                 color: AppColors.success,
               ),
-              _StatusChip(
+              const _StatusChip(
                 label: 'Pending',
                 count: 156,
                 color: AppColors.warning,
               ),
-              _StatusChip(
+              const _StatusChip(
                 label: 'Rejected',
                 count: 43,
                 color: AppColors.error,
@@ -808,7 +807,7 @@ class _ProductsTab extends StatelessWidget {
                   icon: item.$3,
                   iconColor: AppColors.info,
                 ),
-              )),
+              ),),
           Spacings.sectionGap,
 
           // ── Most Downloaded Products ───────────────────────────────
@@ -833,7 +832,7 @@ class _ProductsTab extends StatelessWidget {
                   icon: item.$3,
                   iconColor: AppColors.success,
                 ),
-              )),
+              ),),
           Spacings.sectionGap,
 
           // ── Category Performance ───────────────────────────────────
@@ -858,7 +857,7 @@ class _ProductsTab extends StatelessWidget {
                   fraction: item.$3,
                   color: cs.primary,
                 ),
-              )),
+              ),),
           const SizedBox(height: Spacings.xxl),
         ],
       ),
@@ -888,7 +887,7 @@ class _StatusChip extends StatelessWidget {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -942,14 +941,14 @@ class _SellersTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Seller Growth Chart ────────────────────────────────────
-          _ChartPlaceholder(
+          const _ChartPlaceholder(
             title: 'Seller Growth',
             height: 180,
             child: Padding(
-              padding: const EdgeInsets.all(Spacings.lg),
+              padding: EdgeInsets.all(Spacings.lg),
               child: _BarChartPlaceholder(
-                values: const [0.3, 0.4, 0.5, 0.55, 0.65, 0.8],
-                labels: const ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'],
+                values: [0.3, 0.4, 0.5, 0.55, 0.65, 0.8],
+                labels: ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'],
                 color: AppColors.success,
               ),
             ),
@@ -981,7 +980,7 @@ class _SellersTab extends StatelessWidget {
                       ? AppColors.warning
                       : cs.onSurfaceVariant,
                 ),
-              )),
+              ),),
           Spacings.sectionGap,
 
           // ── Seller Status Distribution ─────────────────────────────
@@ -993,7 +992,7 @@ class _SellersTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacings.sm),
-          Row(
+          const Row(
             children: [
               Expanded(
                 child: AppStatCard(
@@ -1003,7 +1002,7 @@ class _SellersTab extends StatelessWidget {
                   color: AppColors.success,
                 ),
               ),
-              const SizedBox(width: Spacings.sm),
+              SizedBox(width: Spacings.sm),
               Expanded(
                 child: AppStatCard(
                   title: 'Suspended',
@@ -1012,7 +1011,7 @@ class _SellersTab extends StatelessWidget {
                   color: AppColors.error,
                 ),
               ),
-              const SizedBox(width: Spacings.sm),
+              SizedBox(width: Spacings.sm),
               Expanded(
                 child: AppStatCard(
                   title: 'Pending',
@@ -1034,24 +1033,24 @@ class _SellersTab extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacings.sm),
-          AppCard(
+          const AppCard(
             child: Column(
               children: [
                 _MetricRow(
                   label: 'Avg. Products per Seller',
                   value: '3.6',
                 ),
-                const Divider(height: Spacings.lg),
+                Divider(height: Spacings.lg),
                 _MetricRow(
                   label: 'Avg. Revenue per Seller',
                   value: '₦14.0K',
                 ),
-                const Divider(height: Spacings.lg),
+                Divider(height: Spacings.lg),
                 _MetricRow(
                   label: 'Avg. Rating',
                   value: '4.4 ★',
                 ),
-                const Divider(height: Spacings.lg),
+                Divider(height: Spacings.lg),
                 _MetricRow(
                   label: 'Avg. Response Time',
                   value: '2.3 hrs',
@@ -1119,14 +1118,14 @@ class _UsersTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // ── Buyer Growth Chart ─────────────────────────────────────
-          _ChartPlaceholder(
+          const _ChartPlaceholder(
             title: 'Buyer Growth',
             height: 180,
             child: Padding(
-              padding: const EdgeInsets.all(Spacings.lg),
+              padding: EdgeInsets.all(Spacings.lg),
               child: _BarChartPlaceholder(
-                values: const [0.35, 0.5, 0.6, 0.7, 0.8, 0.9],
-                labels: const ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'],
+                values: [0.35, 0.5, 0.6, 0.7, 0.8, 0.9],
+                labels: ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'],
                 color: AppColors.info,
               ),
             ),
@@ -1134,11 +1133,11 @@ class _UsersTab extends StatelessWidget {
           Spacings.sectionGap,
 
           // ── Purchase Frequency ─────────────────────────────────────
-          _ChartPlaceholder(
+          const _ChartPlaceholder(
             title: 'Purchase Frequency Distribution',
             height: 140,
             child: Padding(
-              padding: const EdgeInsets.all(Spacings.lg),
+              padding: EdgeInsets.all(Spacings.lg),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 crossAxisAlignment: CrossAxisAlignment.end,
@@ -1154,14 +1153,14 @@ class _UsersTab extends StatelessWidget {
           Spacings.sectionGap,
 
           // ── Average Order Value Trend ──────────────────────────────
-          _ChartPlaceholder(
+          const _ChartPlaceholder(
             title: 'Average Order Value Trend',
             height: 140,
             child: Padding(
-              padding: const EdgeInsets.all(Spacings.lg),
+              padding: EdgeInsets.all(Spacings.lg),
               child: _BarChartPlaceholder(
-                values: const [0.6, 0.55, 0.65, 0.7, 0.68, 0.75],
-                labels: const ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'],
+                values: [0.6, 0.55, 0.65, 0.7, 0.68, 0.75],
+                labels: ['Aug', 'Sep', 'Oct', 'Nov', 'Dec', 'Jan'],
                 color: AppColors.warning,
               ),
             ),
@@ -1191,7 +1190,7 @@ class _UsersTab extends StatelessWidget {
                   icon: Icons.person_outlined,
                   iconColor: AppColors.info,
                 ),
-              )),
+              ),),
           Spacings.sectionGap,
 
           // ── Retention Rate ─────────────────────────────────────────
@@ -1229,7 +1228,7 @@ class _UsersTab extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: Spacings.sm),
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     _MetricRow(
@@ -1284,7 +1283,7 @@ class _BarChartPlaceholder extends StatelessWidget {
                 width: 32,
                 height: (v * 120).clamp(8, 120).toDouble(),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.7),
+                  color: color.withValues(alpha: 0.7),
                   borderRadius: const BorderRadius.vertical(
                     top: Radius.circular(Spacings.smRadius),
                   ),
@@ -1306,7 +1305,7 @@ class _BarChartPlaceholder extends StatelessWidget {
                       ),
                       textAlign: TextAlign.center,
                     ),
-                  ))
+                  ),)
               .toList(),
         ),
       ],
@@ -1447,7 +1446,7 @@ class _FrequencyBar extends StatelessWidget {
           width: 36,
           height: barHeight,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.7),
+            color: color.withValues(alpha: 0.7),
             borderRadius: const BorderRadius.vertical(
               top: Radius.circular(Spacings.smRadius),
             ),

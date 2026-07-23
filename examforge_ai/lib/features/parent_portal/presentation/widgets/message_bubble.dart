@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/parent_portal_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -132,7 +131,7 @@ class MessageBubble extends StatelessWidget {
                           Text(
                             _formatTime(message.createdAt),
                             style: tt.labelSmall?.copyWith(
-                              color: textColor.withOpacity(0.7),
+                              color: textColor.withValues(alpha: 0.7),
                               fontSize: 10,
                             ),
                           ),
@@ -171,7 +170,7 @@ class MessageBubble extends StatelessWidget {
       decoration: BoxDecoration(
         color: isMe
             ? cs.primaryContainer
-            : cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+            : cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -202,7 +201,7 @@ class MessageBubble extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: textColor.withOpacity(0.1),
+        color: textColor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -211,13 +210,13 @@ class MessageBubble extends StatelessWidget {
           Icon(
             Icons.attach_file_rounded,
             size: Spacings.smIcon,
-            color: textColor.withOpacity(0.8),
+            color: textColor.withValues(alpha: 0.8),
           ),
           const SizedBox(width: Spacings.xs),
           Text(
             '${message.attachments.length} attachment${message.attachments.length == 1 ? '' : 's'}',
             style: tt.labelSmall?.copyWith(
-              color: textColor.withOpacity(0.8),
+              color: textColor.withValues(alpha: 0.8),
               fontWeight: AppTypography.wMedium,
             ),
           ),
@@ -238,7 +237,7 @@ class MessageBubble extends StatelessWidget {
       return Icon(
         Icons.check_rounded,
         size: 14,
-        color: textColor.withOpacity(0.5),
+        color: textColor.withValues(alpha: 0.5),
       );
     }
 
@@ -248,7 +247,7 @@ class MessageBubble extends StatelessWidget {
       size: 14,
       color: isRead
           ? Colors.lightBlueAccent
-          : textColor.withOpacity(0.5),
+          : textColor.withValues(alpha: 0.5),
     );
   }
 

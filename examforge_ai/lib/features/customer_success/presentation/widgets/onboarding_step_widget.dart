@@ -35,7 +35,7 @@ class OnboardingStepWidget extends StatelessWidget {
               width: 80,
               height: 80,
               decoration: BoxDecoration(
-                color: _getStepColor().withOpacity(0.15),
+                color: _getStepColor().withValues(alpha: 0.15),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -156,7 +156,7 @@ class OnboardingStepWidget extends StatelessWidget {
                     Expanded(child: Text(tip.toString(), style: theme.textTheme.bodyMedium)),
                   ],
                 ),
-              )),
+              ),),
             ],
             if (links != null && links.isNotEmpty) ...[
               const SizedBox(height: 12),
@@ -170,9 +170,9 @@ class OnboardingStepWidget extends StatelessWidget {
                     const Icon(Icons.open_in_new, size: 16),
                     const SizedBox(width: 4),
                     Text(link.toString(), style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.primary)),
-                  ]),
+                  ],),
                 ),
-              )),
+              ),),
             ],
           ],
         ),

@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart' hide dashboardProvider;
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../config/dependency_injection.dart' hide dashboardProvider;
+import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 import '../../../../routing/route_guards.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_summary.dart';
@@ -14,7 +15,6 @@ import '../widgets/recent_activity_list.dart';
 import '../widgets/stat_card_row.dart';
 import '../widgets/welcome_section.dart';
 import 'teacher_dashboard_page.dart' show ResponsiveLayout;
-import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 
 
 /// Dashboard for users with the **school-admin** role.
@@ -204,19 +204,19 @@ class SchoolAdminDashboardPage extends ConsumerWidget {
               icon: Icons.people_outline_rounded,
               color: cs.primary,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'Manage Classes',
               subtitle: 'Class rooms and assignments',
               icon: Icons.class_outlined,
               color: AppColors.info,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'View Reports',
               subtitle: 'School-wide analytics',
               icon: Icons.analytics_outlined,
               color: AppColors.success,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'School Settings',
               subtitle: 'Configure school details',
               icon: Icons.settings_outlined,
@@ -229,7 +229,7 @@ class SchoolAdminDashboardPage extends ConsumerWidget {
   }
 
   Widget _buildRecentActivity(
-      BuildContext context, DashboardState state) {
+      BuildContext context, DashboardState state,) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

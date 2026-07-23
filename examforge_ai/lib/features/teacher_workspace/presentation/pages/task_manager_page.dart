@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../providers/task_manager_provider.dart';
 
@@ -162,7 +160,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
         .entries
         .map((e) => e.key == subtaskIndex
             ? e.value.copyWith(isCompleted: !e.value.isCompleted)
-            : e.value)
+            : e.value,)
         .toList();
 
     ref.read(taskManagerProvider.notifier).updateTask(
@@ -317,7 +315,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
         .where((t) =>
             t.dueDate != null &&
             t.dueDate!.isBefore(DateTime.now()) &&
-            t.status != TaskStatus.completed)
+            t.status != TaskStatus.completed,)
         .length;
 
     return Padding(
@@ -382,10 +380,10 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
         vertical: Spacings.md,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.15 : 0.08),
+        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: color.withOpacity(0.3),
+          color: color.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -436,7 +434,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
                   isSelected: _filterCategory == cat,
                   onTap: () => setState(() => _filterCategory = cat),
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -586,7 +584,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
                     ),
                     decoration: BoxDecoration(
                       color: isOverdue
-                          ? AppColors.error.withOpacity(isDark ? 0.20 : 0.10)
+                          ? AppColors.error.withValues(alpha: isDark ? 0.20 : 0.10)
                           : cs.surfaceContainerHigh,
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
@@ -623,7 +621,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.secondaryContainer.withOpacity(0.5),
+                    color: cs.secondaryContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -644,7 +642,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.tertiaryContainer.withOpacity(0.5),
+                      color: cs.tertiaryContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
                     child: Row(
@@ -923,7 +921,7 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -1175,8 +1173,8 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
     return ListView.builder(
       padding: const EdgeInsets.all(Spacings.lg),
       itemCount: 5,
-      itemBuilder: (ctx, i) => Padding(
-        padding: const EdgeInsets.only(bottom: Spacings.md),
+      itemBuilder: (ctx, i) => const Padding(
+        padding: EdgeInsets.only(bottom: Spacings.md),
         child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -1184,19 +1182,19 @@ class _TaskManagerPageState extends ConsumerState<TaskManagerPage>
               Row(
                 children: [
                   AppLoadingShimmer.box(width: 24, height: 24),
-                  const SizedBox(width: Spacings.md),
+                  SizedBox(width: Spacings.md),
                   Expanded(child: AppLoadingShimmer.box(width: double.infinity, height: 16)),
-                  const SizedBox(width: Spacings.sm),
+                  SizedBox(width: Spacings.sm),
                   AppLoadingShimmer.box(width: 12, height: 12),
                 ],
               ),
-              const SizedBox(height: Spacings.md),
+              SizedBox(height: Spacings.md),
               AppLoadingShimmer.box(width: double.infinity, height: 14),
-              const SizedBox(height: Spacings.sm),
+              SizedBox(height: Spacings.sm),
               Row(
                 children: [
                   AppLoadingShimmer.box(width: 80, height: 12),
-                  const SizedBox(width: Spacings.sm),
+                  SizedBox(width: Spacings.sm),
                   AppLoadingShimmer.box(width: 60, height: 12),
                 ],
               ),

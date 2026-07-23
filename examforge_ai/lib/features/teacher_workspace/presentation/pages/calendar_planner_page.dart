@@ -1,20 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/usecases/create_event_usecase.dart';
 import '../providers/calendar_planner_provider.dart';
@@ -217,7 +214,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
   }
 
   String _colorToHex(Color c) =>
-      '#${(c.value & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+      '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
 
   Color _hexToColor(String? hex) {
     if (hex == null || hex.isEmpty) return _kPresetColors.first;
@@ -515,7 +512,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
         Divider(
           height: 1,
           thickness: 1,
-          color: context.colorScheme.outlineVariant.withOpacity(0.3),
+          color: context.colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
 
         // Events for selected date
@@ -719,7 +716,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
               color: isSelected
                   ? cs.primary
                   : isToday
-                      ? cs.primary.withOpacity(0.08)
+                      ? cs.primary.withValues(alpha: 0.08)
                       : Colors.transparent,
               borderRadius: BorderRadius.circular(Spacings.smRadius),
               border: isToday && !isSelected
@@ -847,7 +844,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                             color: isSelected
                                 ? cs.primary
                                 : isToday
-                                    ? cs.primary.withOpacity(0.12)
+                                    ? cs.primary.withValues(alpha: 0.12)
                                     : Colors.transparent,
                             shape: BoxShape.circle,
                           ),
@@ -946,12 +943,12 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                                 border: Border(
                                   bottom: BorderSide(
                                     color: cs.outlineVariant
-                                        .withOpacity(0.3),
+                                        .withValues(alpha: 0.3),
                                     width: 0.5,
                                   ),
                                   right: BorderSide(
                                     color: cs.outlineVariant
-                                        .withOpacity(0.3),
+                                        .withValues(alpha: 0.3),
                                     width: 0.5,
                                   ),
                                 ),
@@ -969,13 +966,13 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                                         vertical: 1,
                                       ),
                                       decoration: BoxDecoration(
-                                        color: eventColor.withOpacity(context.isDarkMode ? 0.30 : 0.15,
+                                        color: eventColor.withValues(alpha: context.isDarkMode ? 0.30 : 0.15,
                                         ),
                                         borderRadius: BorderRadius.circular(
                                           Spacings.xs,
                                         ),
                                         border: Border.all(
-                                          color: eventColor.withOpacity(0.5,
+                                          color: eventColor.withValues(alpha: 0.5,
                                           ),
                                           width: 0.5,
                                         ),
@@ -1082,7 +1079,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                         decoration: BoxDecoration(
                           color: hourEvents.isNotEmpty
                               ? cs.primary
-                              : cs.outlineVariant.withOpacity(0.5),
+                              : cs.outlineVariant.withValues(alpha: 0.5),
                           shape: BoxShape.circle,
                         ),
                       ),
@@ -1090,7 +1087,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                         child: VerticalDivider(
                           width: 1,
                           thickness: 1,
-                          color: cs.outlineVariant.withOpacity(0.3),
+                          color: cs.outlineVariant.withValues(alpha: 0.3),
                         ),
                       ),
                     ],
@@ -1149,10 +1146,10 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
         margin: const EdgeInsets.only(bottom: Spacings.sm),
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: eventColor.withOpacity(isDark ? 0.18 : 0.08),
+          color: eventColor.withValues(alpha: isDark ? 0.18 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
           border: Border.all(
-            color: eventColor.withOpacity(0.3),
+            color: eventColor.withValues(alpha: 0.3),
           ),
         ),
         child: Row(
@@ -1226,8 +1223,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
               ),
               const Spacer(),
               Text(
-                _formatMonthYear(_selectedDate).split(' ').first +
-                    ' ${_selectedDate.day}',
+                '${_formatMonthYear(_selectedDate).split(' ').first} ${_selectedDate.day}',
                 style: tt.bodySmall?.copyWith(
                   color: cs.onSurfaceVariant,
                 ),
@@ -1239,7 +1235,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
         // Events list
         Expanded(
           child: events.isEmpty
-              ? AppEmptyState(
+              ? const AppEmptyState(
                   icon: Icons.event_available_rounded,
                   title: 'No Events',
                   subtitle: 'No events scheduled for this day. Tap + to add one.',
@@ -1402,7 +1398,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
         vertical: 1,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -1458,7 +1454,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                       margin: const EdgeInsets.only(bottom: Spacings.lg),
                       decoration: BoxDecoration(
                         color: ctx.colorScheme.onSurfaceVariant
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -1605,7 +1601,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                             boxShadow: isSelected
                                 ? [
                                     BoxShadow(
-                                      color: color.withOpacity(0.4),
+                                      color: color.withValues(alpha: 0.4),
                                       blurRadius: 6,
                                       offset: const Offset(0, 2),
                                     ),
@@ -1613,7 +1609,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
                                 : null,
                           ),
                           child: isSelected
-                              ? Icon(
+                              ? const Icon(
                                   Icons.check_rounded,
                                   color: Colors.white,
                                   size: 18,
@@ -1695,7 +1691,7 @@ class _CalendarPlannerPageState extends ConsumerState<CalendarPlannerPage>
       child: InputDecorator(
         decoration: InputDecoration(
           labelText: label,
-          prefixIcon: Icon(Icons.schedule_rounded, size: Spacings.mdIcon),
+          prefixIcon: const Icon(Icons.schedule_rounded, size: Spacings.mdIcon),
         ),
         child: Text(
           _formatTime(time),

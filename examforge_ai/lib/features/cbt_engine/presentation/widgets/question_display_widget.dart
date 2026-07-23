@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../question_bank/domain/entities/question_entities.dart';
-import '../../../question_bank/presentation/widgets/question_type_badge.dart';
 import '../../../question_bank/presentation/widgets/difficulty_badge.dart';
+import '../../../question_bank/presentation/widgets/question_type_badge.dart';
 import '../../domain/entities/cbt_entities.dart';
 import 'answer_input_widget.dart';
 
@@ -136,7 +136,7 @@ class QuestionDisplayWidget extends StatelessWidget {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Center(
@@ -172,7 +172,7 @@ class QuestionDisplayWidget extends StatelessWidget {
                     ),
                     decoration: BoxDecoration(
                       color: AppColors.infoOf(cs.brightness)
-                          .withOpacity(context.isDarkMode ? 0.20 : 0.10),
+                          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -205,7 +205,7 @@ class QuestionDisplayWidget extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: AppColors.warningOf(cs.brightness)
-                            .withOpacity(context.isDarkMode ? 0.25 : 0.12),
+                            .withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.smRadius),
                       ),
                       child: Row(
@@ -250,7 +250,7 @@ class QuestionDisplayWidget extends StatelessWidget {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: SelectableText(
@@ -300,7 +300,7 @@ class QuestionDisplayWidget extends StatelessWidget {
                 color: cs.surfaceContainerHighest,
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Row(

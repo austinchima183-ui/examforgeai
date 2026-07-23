@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
+import '../../core/extensions/context_extensions.dart';
 import '../../core/themes/app_typography.dart';
 import '../../core/themes/spacings.dart';
-import '../../core/extensions/context_extensions.dart';
 import 'app_button.dart';
 
 // ─── AppEmptyState ────────────────────────────────────────────────────────────
@@ -156,7 +156,7 @@ class AppEmptyState extends StatelessWidget {
                   child: Icon(
                     icon,
                     size: iconSize,
-                    color: cs.onSurfaceVariant.withOpacity(0.5),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                 ),
 

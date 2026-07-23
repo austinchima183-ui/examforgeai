@@ -60,17 +60,17 @@ class StudentPortalRemoteDatasource {
       case 'PGRST116':
         throw NotFoundException(message: e.message);
       case '23505':
-        throw ServerException(
+        throw const ServerException(
           message: 'A record with this data already exists.',
           statusCode: 409,
         );
       case '23503':
-        throw ServerException(
+        throw const ServerException(
           message: 'Referenced record not found.',
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException(
+        throw const ForbiddenException(
           message: 'You do not have permission for this action.',
         );
       default:
@@ -529,7 +529,7 @@ class StudentPortalRemoteDatasource {
       if (isCorrect) {
         await _supabase.rpc('increment_practice_correct_count', params: {
           'session_id': sessionId,
-        });
+        },);
       }
 
       AppLogger.info('Practice answer submitted successfully');
@@ -1249,7 +1249,7 @@ class StudentPortalRemoteDatasource {
         final flashcardAgg = json['flashcards'] as List<dynamic>?;
 
         // Compute due count from flashcards (cards where next_review <= now)
-        int dueCount = 0;
+        const int dueCount = 0;
         // The aggregate count from Supabase gives total, we need a
         // separate query for due count — use a fallback approach
         return FlashcardDeckModel.fromJson({
@@ -1535,7 +1535,7 @@ class StudentPortalRemoteDatasource {
       // 4. Compute next review date
       final nextReview = DateTime.now().add(Duration(
         milliseconds: (interval * 24 * 60 * 60 * 1000).round(),
-      ));
+      ),);
 
       // 5. Persist the updated SM-2 state
       final response = await _supabase

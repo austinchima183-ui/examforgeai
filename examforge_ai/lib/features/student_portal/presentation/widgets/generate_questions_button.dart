@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // GENERATE QUESTIONS BUTTON (Student Portal)
@@ -141,7 +141,7 @@ class _GenerateQuestionsButtonState extends State<GenerateQuestionsButton> {
             vertical: Spacings.sm,
           ),
           decoration: BoxDecoration(
-            color: AppColors.success.withOpacity(context.isDarkMode ? 0.25 : 0.12),
+            color: AppColors.success.withValues(alpha: context.isDarkMode ? 0.25 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Row(

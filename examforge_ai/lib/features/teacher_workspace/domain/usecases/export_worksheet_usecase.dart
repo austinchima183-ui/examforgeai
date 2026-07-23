@@ -22,7 +22,7 @@ class ExportWorksheetUseCase {
       return const FailureResult(Failure.validation(
         message: 'Worksheet ID is required',
         fieldErrors: {'worksheetId': 'Worksheet ID cannot be empty'},
-      ));
+      ),);
     }
     const validFormats = ['pdf', 'docx', 'html'];
     if (!validFormats.contains(params.format.toLowerCase())) {
@@ -31,7 +31,7 @@ class ExportWorksheetUseCase {
         fieldErrors: {
           'format': 'Format must be one of: ${validFormats.join(', ')}',
         },
-      ));
+      ),);
     }
     return _repository.exportWorksheet(
       params.worksheetId,

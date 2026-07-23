@@ -400,7 +400,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
         filterQuery = filterQuery.eq('grade_type', gradeType);
       }
 
-      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + limit - 1);
+      final transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + limit - 1);
 
       final response = await transformQuery;
 
@@ -517,7 +517,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       return AiGradingResultModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get AI grading by answer failed', error: e);
@@ -621,7 +621,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       return TeacherFeedbackModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get teacher feedback by answer failed', error: e);
@@ -852,7 +852,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       return StudentOverallResultModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get student overall result failed', error: e);
@@ -962,7 +962,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       return TopicMasteryModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get topic mastery failed', error: e);
@@ -1121,7 +1121,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       return ClassPerformanceModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get class performance failed', error: e);
@@ -1227,7 +1227,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       return SchoolPerformanceModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get school performance failed', error: e);
@@ -1299,14 +1299,14 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
         filterQuery = filterQuery.eq('academic_session_id', academicSessionId);
       }
 
-      var transformQuery = filterQuery.order('computed_at', ascending: false).limit(1);
+      final transformQuery = filterQuery.order('computed_at', ascending: false).limit(1);
 
       final response = await transformQuery;
 
       if (response.isEmpty) return null;
 
       return AnalyticsSnapshotModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get analytics snapshot failed', error: e);
@@ -1405,7 +1405,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       final mappedJson = _mapDashboardWidgets(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
 
       return DashboardConfigurationModel.fromJson(mappedJson);
@@ -1596,7 +1596,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       }
 
       final offset = (page - 1) * perPage;
-      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
+      final transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
 
       final response = await transformQuery;
 
@@ -1694,7 +1694,7 @@ class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
       if (response.isEmpty) return null;
 
       return ResultLockModel.fromJson(
-        response.first as Map<String, dynamic>,
+        response.first,
       );
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Get result lock failed', error: e);

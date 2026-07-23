@@ -2,10 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // LEARNING STREAK BADGE
@@ -119,7 +117,7 @@ class _LearningStreakBadgeState extends State<LearningStreakBadge>
             boxShadow: _isHighStreak
                 ? [
                     BoxShadow(
-                      color: streakColor.withOpacity(0.4 + 0.3 * _glowController.value),
+                      color: streakColor.withValues(alpha: 0.4 + 0.3 * _glowController.value),
                       blurRadius: glowRadius,
                       spreadRadius: 2.0,
                     ),

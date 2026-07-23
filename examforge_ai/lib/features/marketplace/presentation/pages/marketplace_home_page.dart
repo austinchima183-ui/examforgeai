@@ -1,17 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
-import '../providers/marketplace_provider.dart';
 import '../providers/cart_provider.dart';
+import '../providers/marketplace_provider.dart';
 import '../widgets/marketplace_widgets.dart';
-import 'marketplace_search_page.dart';
 import 'category_products_page.dart';
+import 'marketplace_search_page.dart';
 import 'product_detail_page.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -134,7 +134,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
                   right: 4,
                   child: Container(
                     padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.error,
                       shape: BoxShape.circle,
                     ),
@@ -218,7 +218,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
     return Container(
       margin: const EdgeInsets.all(Spacings.lg),
       padding: const EdgeInsets.all(Spacings.xl),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: AppColors.brandGradient,
         borderRadius: Spacings.borderRadiusLg,
       ),
@@ -236,7 +236,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
           Text(
             'Find question banks, lesson notes, exam templates, and more from trusted educators.',
             style: tt.bodyMedium?.copyWith(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
             ),
           ),
           const SizedBox(height: Spacings.lg),
@@ -249,24 +249,24 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
                 vertical: Spacings.md,
               ),
               decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
+                color: Colors.white.withValues(alpha: 0.2),
                 borderRadius: Spacings.borderRadiusLg,
                 border: Border.all(
-                  color: Colors.white.withOpacity(0.3),
+                  color: Colors.white.withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
                 children: [
                   Icon(
                     Icons.search_rounded,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     size: Spacings.mdIcon,
                   ),
                   const SizedBox(width: Spacings.sm),
                   Text(
                     'Search resources...',
                     style: tt.bodyMedium?.copyWith(
-                      color: Colors.white.withOpacity(0.7),
+                      color: Colors.white.withValues(alpha: 0.7),
                     ),
                   ),
                 ],
@@ -325,7 +325,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
       children: [
         _buildSectionHeader('Featured Products', onSeeAll: () {
           // Navigate to all featured
-        }),
+        },),
         SizedBox(
           height: 280,
           child: ListView.separated(
@@ -357,7 +357,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
       children: [
         _buildSectionHeader('Trending Now', onSeeAll: () {
           // Navigate to all trending
-        }),
+        },),
         SizedBox(
           height: 280,
           child: ListView.separated(
@@ -393,7 +393,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
       children: [
         _buildSectionHeader('Browse Categories', onSeeAll: () {
           // Show all categories
-        }),
+        },),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
           child: GridView.builder(
@@ -433,7 +433,7 @@ class _MarketplaceHomePageState extends ConsumerState<MarketplaceHomePage> {
       children: [
         _buildSectionHeader('Recommended for You', onSeeAll: () {
           // Navigate to all recommended
-        }),
+        },),
         ListView.separated(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),

@@ -69,7 +69,7 @@ class ConfirmPasswordInput
       : _password = password,
         super.pure('');
   const ConfirmPasswordInput.dirty(
-      {required String password, String value = ''})
+      {required String password, String value = '',})
       : _password = password,
         super.dirty(value);
 

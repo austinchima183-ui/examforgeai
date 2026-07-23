@@ -3,12 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ai_entities.dart';
-import '../../../question_bank/domain/entities/question_entities.dart';
 import '../providers/ai_review_provider.dart';
 import '../widgets/ai_widgets.dart';
 
@@ -374,7 +372,7 @@ class _AiReviewPageState extends ConsumerState<AiReviewPage>
                       height: 4,
                       decoration: BoxDecoration(
                         color: context.colorScheme.onSurfaceVariant
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),

@@ -3,19 +3,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/question_entities.dart';
 import '../../domain/usecases/import_questions_usecase.dart';
 import '../providers/import_export_provider.dart';
@@ -145,7 +144,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.2 : 0.1),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Text(
@@ -169,9 +168,9 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
 
     final borderColor = _isDragging
         ? cs.primary
-        : cs.outlineVariant.withOpacity(0.6);
+        : cs.outlineVariant.withValues(alpha: 0.6);
     final bgColor = _isDragging
-        ? cs.primary.withOpacity(isDark ? 0.15 : 0.06)
+        ? cs.primary.withValues(alpha: isDark ? 0.15 : 0.06)
         : cs.surfaceContainerLow;
 
     return GestureDetector(
@@ -200,7 +199,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.lg),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.15 : 0.08),
+                  color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.08),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
@@ -266,7 +265,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
                 value: f.value,
                 label: Text(f.label),
                 icon: Icon(f.icon, size: Spacings.smIcon),
-              ))
+              ),)
           .toList(),
       selected: {_selectedFormat},
       onSelectionChanged: (selected) {
@@ -519,7 +518,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
         scrollDirection: Axis.horizontal,
         child: DataTable(
           headingRowColor: WidgetStatePropertyAll(
-            cs.primary.withOpacity(isDark ? 0.15 : 0.06),
+            cs.primary.withValues(alpha: isDark ? 0.15 : 0.06),
           ),
           columns: columns
               .map((col) => DataColumn(
@@ -530,7 +529,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
                         color: cs.primary,
                       ),
                     ),
-                  ))
+                  ),)
               .toList(),
           rows: _previewRows.take(5).map((row) {
             return DataRow(
@@ -544,7 +543,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      ))
+                      ),)
                   .toList(),
             );
           }).toList(),
@@ -674,7 +673,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
         ),
         Text(
           label,
-          style: tt.bodySmall?.copyWith(color: color.withOpacity(0.7)),
+          style: tt.bodySmall?.copyWith(color: color.withValues(alpha: 0.7)),
         ),
       ],
     );
@@ -700,7 +699,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.successOf(cs.brightness)
-                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
+                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -808,7 +807,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
         ),
         Text(
           label,
-          style: tt.bodySmall?.copyWith(color: color.withOpacity(0.7)),
+          style: tt.bodySmall?.copyWith(color: color.withValues(alpha: 0.7)),
         ),
       ],
     );
@@ -917,7 +916,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.errorOf(cs.brightness)
-                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
+                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -980,7 +979,7 @@ class _QuestionImportPageState extends ConsumerState<QuestionImportPage> {
           'Answer': 'Option A',
           'Difficulty': 'medium',
           'Marks': '2',
-        });
+        },);
   }
 
   void _startImport() {

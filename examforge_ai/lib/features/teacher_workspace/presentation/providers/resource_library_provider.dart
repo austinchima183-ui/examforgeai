@@ -89,7 +89,7 @@ class ResourceLibraryState {
         .where((r) =>
             r.title.toLowerCase().contains(query) ||
             (r.subject?.toLowerCase().contains(query) ?? false) ||
-            (r.description?.toLowerCase().contains(query) ?? false))
+            (r.description?.toLowerCase().contains(query) ?? false),)
         .toList();
   }
 

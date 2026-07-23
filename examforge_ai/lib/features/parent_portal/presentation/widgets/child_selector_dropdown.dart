@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/parent_portal_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -109,7 +108,7 @@ class ChildSelectorDropdown extends StatelessWidget {
                       Icon(Icons.check_rounded, size: Spacings.mdIcon, color: cs.primary),
                   ],
                 ),
-              ))
+              ),)
           .toList(),
       child: _buildChildChip(context, selected, cs, tt, isDark, enabled: true),
     );
@@ -131,10 +130,10 @@ class ChildSelectorDropdown extends StatelessWidget {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: cs.primary.withOpacity(isDark ? 0.15 : 0.08),
+        color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
         border: Border.all(
-          color: cs.primary.withOpacity(0.2),
+          color: cs.primary.withValues(alpha: 0.2),
         ),
       ),
       child: Row(
@@ -191,7 +190,7 @@ class ChildSelectorDropdown extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: cs.primary.withOpacity(isDark ? 0.25 : 0.15),
+        color: cs.primary.withValues(alpha: isDark ? 0.25 : 0.15),
         shape: BoxShape.circle,
       ),
       child: Center(

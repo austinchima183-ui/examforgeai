@@ -157,7 +157,7 @@ class BillingNotificationNotifier
                     metadata: n.metadata,
                     createdAt: n.createdAt,
                   )
-                : n)
+                : n,)
             .toList();
         state = state.copyWith(
           notifications: updatedNotifications,

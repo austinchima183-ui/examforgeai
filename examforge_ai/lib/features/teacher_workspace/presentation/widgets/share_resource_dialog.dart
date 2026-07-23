@@ -6,10 +6,8 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../school_management/domain/entities/school_management_entities.dart';
 import '../../../school_management/presentation/providers/teacher_provider.dart';
-import '../../domain/entities/workspace_expansion_entities.dart';
 import '../../domain/usecases/share_resource_usecase.dart';
 import '../providers/collaboration_provider.dart';
-import '../../../../config/dependency_injection.dart' hide collaborationProvider;
 
 
 /// A dialog for sharing a resource with a colleague.
@@ -108,9 +106,9 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
               TextField(
                 controller: _searchController,
                 onChanged: _onSearchChanged,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Search teachers by name...',
-                  prefixIcon: const Icon(Icons.search, size: 20),
+                  prefixIcon: Icon(Icons.search, size: 20),
                   isDense: true,
                   contentPadding: Spacings.paddingInput,
                   border: OutlineInputBorder(
@@ -145,7 +143,7 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
               TextField(
                 controller: _messageController,
                 maxLines: 3,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   hintText: 'Add a message (optional)',
                   isDense: true,
                   contentPadding: Spacings.paddingInput,
@@ -238,7 +236,7 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
             leading: CircleAvatar(
               radius: 16,
               backgroundColor:
-                  context.colorScheme.primary.withOpacity(0.12),
+                  context.colorScheme.primary.withValues(alpha: 0.12),
               child: Text(
                 (teacher.fullName ?? '?').substring(0, 1).toUpperCase(),
                 style: context.textTheme.labelMedium?.copyWith(
@@ -278,7 +276,7 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
       avatar: CircleAvatar(
         radius: 12,
         backgroundColor:
-            context.colorScheme.primary.withOpacity(0.12),
+            context.colorScheme.primary.withValues(alpha: 0.12),
         child: Text(
           (_selectedTeacher!.fullName ?? '?').substring(0, 1).toUpperCase(),
           style: context.textTheme.labelSmall?.copyWith(
@@ -300,7 +298,7 @@ class _ShareResourceDialogState extends ConsumerState<ShareResourceDialog> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: BorderSide(
-          color: context.colorScheme.outlineVariant.withOpacity(0.5),
+          color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
     );
@@ -409,7 +407,7 @@ class _PermissionToggle extends StatelessWidget {
       onChanged: enabled ? onChanged : null,
       dense: true,
       contentPadding: EdgeInsets.zero,
-      activeColor: context.colorScheme.primary,
+      activeThumbColor: context.colorScheme.primary,
     );
   }
 }

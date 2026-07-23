@@ -1,7 +1,4 @@
 import '../../domain/entities/results_entities.dart';
-import '../../../../features/dashboard/presentation/providers/dashboard_provider.dart';
-import '../../../../features/results/domain/entities/results_entities.dart';
-import '../../../../features/student_portal/domain/entities/student_portal_entities.dart';
 
 
 
@@ -203,7 +200,7 @@ class GradeScaleModel {
     final List<GradeScaleEntryModel> entries = rawEntries is List
         ? rawEntries
             .map(
-                (e) => GradeScaleEntryModel.fromJson(e as Map<String, dynamic>))
+                (e) => GradeScaleEntryModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <GradeScaleEntryModel>[];
 
@@ -1074,7 +1071,7 @@ class StudentSubjectResultModel {
   // ─── Entity Conversion ─────────────────────────────────────────────
 
   factory StudentSubjectResultModel.fromEntity(
-      StudentSubjectResultEntity entity) {
+      StudentSubjectResultEntity entity,) {
     return StudentSubjectResultModel(
       id: entity.id,
       studentId: entity.studentId,
@@ -1417,7 +1414,7 @@ class StudentOverallResultModel {
   // ─── Entity Conversion ─────────────────────────────────────────────
 
   factory StudentOverallResultModel.fromEntity(
-      StudentOverallResultEntity entity) {
+      StudentOverallResultEntity entity,) {
     return StudentOverallResultModel(
       id: entity.id,
       studentId: entity.studentId,
@@ -1943,7 +1940,7 @@ class DashboardWidgetConfigModel {
   // ─── Entity Conversion ─────────────────────────────────────────────
 
   factory DashboardWidgetConfigModel.fromEntity(
-      DashboardWidgetConfigEntity entity) {
+      DashboardWidgetConfigEntity entity,) {
     return DashboardWidgetConfigModel(
       id: entity.id,
       dashboardId: entity.dashboardId,
@@ -2107,7 +2104,7 @@ class DashboardConfigurationModel {
     final List<DashboardWidgetConfigModel> widgetList = rawWidgets is List
         ? rawWidgets
             .map((e) =>
-                DashboardWidgetConfigModel.fromJson(e as Map<String, dynamic>))
+                DashboardWidgetConfigModel.fromJson(e as Map<String, dynamic>),)
             .toList()
         : <DashboardWidgetConfigModel>[];
 
@@ -2157,7 +2154,7 @@ class DashboardConfigurationModel {
   // ─── Entity Conversion ─────────────────────────────────────────────
 
   factory DashboardConfigurationModel.fromEntity(
-      DashboardConfigurationEntity entity) {
+      DashboardConfigurationEntity entity,) {
     return DashboardConfigurationModel(
       id: entity.id,
       schoolId: entity.schoolId,

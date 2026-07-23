@@ -32,17 +32,14 @@
 
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
 
 import 'package:equatable/equatable.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:uuid/uuid.dart';
 
 import '../../config/dependency_injection.dart';
 import '../connectivity/connectivity_engine.dart';
-import '../errors/exceptions.dart';
 import '../errors/failures.dart';
 import '../storage/cache_manager.dart';
 import '../storage/local_database.dart';
@@ -1216,10 +1213,10 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
 
         case SyncOperationType.update:
           if (item.recordId == null) {
-            return FailureResult(Failure.validation(
+            return const FailureResult(Failure.validation(
               message: 'Cannot update without a recordId',
               fieldErrors: {},
-            ));
+            ),);
           }
           await table.update(item.payload).eq('id', item.recordId!);
           AppLogger.debug(
@@ -1228,10 +1225,10 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
 
         case SyncOperationType.delete:
           if (item.recordId == null) {
-            return FailureResult(Failure.validation(
+            return const FailureResult(Failure.validation(
               message: 'Cannot delete without a recordId',
               fieldErrors: {},
-            ));
+            ),);
           }
           await table.delete().eq('id', item.recordId!);
           AppLogger.debug(
@@ -1246,7 +1243,7 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
       // Update local cache to reflect the synced state.
       await _updateLocalCache(item);
 
-      return Success(null);
+      return const Success(null);
     } on sb.PostgrestException catch (e) {
       AppLogger.warning(
         'SyncEngine: Supabase error for ${item.id}: ${e.message} '
@@ -1259,43 +1256,43 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
           message: e.message,
           statusCode: 409,
           data: e.details,
-        ));
+        ),);
       }
       if (e.code == '422' || e.code == '400') {
         return FailureResult(Failure.validation(
           message: e.message,
           fieldErrors: {},
-        ));
+        ),);
       }
       if (e.code == '401') {
         return FailureResult(Failure.unauthorized(
           message: e.message,
-        ));
+        ),);
       }
       if (e.code == '403') {
         return FailureResult(Failure.forbidden(
           message: e.message,
-        ));
+        ),);
       }
       if (e.code == '404') {
         return FailureResult(Failure.notFound(
           message: e.message,
-        ));
+        ),);
       }
       return FailureResult(Failure.server(
         message: e.message,
         statusCode: int.tryParse(e.code ?? '') ?? 500,
-      ));
+      ),);
     } on sb.AuthException catch (e) {
       return FailureResult(Failure.auth(
         message: e.message,
         code: 'auth_error',
-      ));
+      ),);
     } catch (e) {
       // Assume network-level error for any other exception.
       return FailureResult(Failure.network(
         message: e.toString(),
-      ));
+      ),);
     }
   }
 
@@ -1553,7 +1550,7 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
             i.status == SyncStatus.failed &&
             i.isRetryable &&
             (i.nextRetryAt == null ||
-                DateTime.now().isAfter(i.nextRetryAt!)))
+                DateTime.now().isAfter(i.nextRetryAt!)),)
         .toList();
 
     if (retryable.isEmpty) {
@@ -1775,7 +1772,7 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
                         )
                       : null,
                   createdAt: DateTime.parse(m['createdAt'] as String),
-                ))
+                ),)
             .where((c) => c.resolution == ConflictResolution.manual)
             .toList();
       }
@@ -1806,7 +1803,7 @@ class SyncEngine extends StateNotifier<SyncEngineState> {
                 'resolution': c.resolution.value,
                 'resolvedData': c.resolvedData,
                 'createdAt': c.createdAt.toIso8601String(),
-              })
+              },)
           .toList();
 
       await _cacheManager.cacheData(
@@ -2265,7 +2262,7 @@ mixin OfflineAwareRepository {
 
         // Return the remote result even if caching fails.
         return result;
-      } catch (e, st) {
+      } catch (e) {
         AppLogger.warning(
           'OfflineAwareRepository: remote call failed, '
           'falling back to local — $e',

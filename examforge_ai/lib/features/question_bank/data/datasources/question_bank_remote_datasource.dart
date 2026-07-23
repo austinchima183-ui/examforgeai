@@ -582,7 +582,7 @@ class QuestionBankRemoteDataSourceImpl
 
       return response
           .map((json) =>
-              AnswerOptionModel.fromJson(json as Map<String, dynamic>))
+              AnswerOptionModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -613,7 +613,7 @@ class QuestionBankRemoteDataSourceImpl
             .map((o) => {
                   ...o,
                   'question_id': questionId,
-                })
+                },)
             .toList();
 
         await _supabase
@@ -657,7 +657,7 @@ class QuestionBankRemoteDataSourceImpl
       final response = await query.order('usage_count', ascending: false).limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) =>
-              QuestionTagModel.fromJson(json as Map<String, dynamic>))
+              QuestionTagModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -708,7 +708,7 @@ class QuestionBankRemoteDataSourceImpl
           .map((tagId) => {
                 'question_id': questionId,
                 'tag_id': tagId,
-              })
+              },)
           .toList();
 
       await _supabase.from(_tagRelationsTable).insert(relations);
@@ -976,14 +976,14 @@ class QuestionBankRemoteDataSourceImpl
       }
 
       filterQuery = filterQuery.eq('is_active', true);
-      var transformQuery = filterQuery.order('sort_order');
+      final transformQuery = filterQuery.order('sort_order');
 
       // PERF: Added limit to prevent unbounded query on question_collections
       final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => QuestionCollectionModel.fromJson(
-                json as Map<String, dynamic>,
-              ))
+                json,
+              ),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1140,14 +1140,14 @@ class QuestionBankRemoteDataSourceImpl
         filterQuery = filterQuery.eq('shared_with', sharedWith);
       }
 
-      var transformQuery = filterQuery.order('created_at', ascending: false);
+      final transformQuery = filterQuery.order('created_at', ascending: false);
 
       // PERF: Added limit to prevent unbounded query on question_shares
       final response = await transformQuery.limit(PaginatedQueryMixin.defaultPageSize);
       return response
           .map((json) => QuestionShareModel.fromJson(
-                json as Map<String, dynamic>,
-              ))
+                json,
+              ),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1410,7 +1410,7 @@ class QuestionBankRemoteDataSourceImpl
       // Most used questions (top 5)
       final sortedByUsage = List<Map<String, dynamic>>.from(allQuestions)
         ..sort((a, b) => (b['usage_count'] as int? ?? 0)
-            .compareTo(a['usage_count'] as int? ?? 0));
+            .compareTo(a['usage_count'] as int? ?? 0),);
       final mostUsed = sortedByUsage
           .take(5)
           .map((q) => QuestionModel.fromJson(q))
@@ -1457,7 +1457,7 @@ class QuestionBankRemoteDataSourceImpl
 
       return response
           .map((json) =>
-              TopicModel.fromJson(json as Map<String, dynamic>))
+              TopicModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1482,7 +1482,7 @@ class QuestionBankRemoteDataSourceImpl
 
       return response
           .map((json) =>
-              SubtopicModel.fromJson(json as Map<String, dynamic>))
+              SubtopicModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1507,14 +1507,14 @@ class QuestionBankRemoteDataSourceImpl
       }
 
       filterQuery = filterQuery.eq('is_active', true);
-      var transformQuery = filterQuery.order('sort_order');
+      final transformQuery = filterQuery.order('sort_order');
 
       // PERF: Added limit to prevent unbounded query on question_categories
       final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => QuestionCategoryModel.fromJson(
-                json as Map<String, dynamic>,
-              ))
+                json,
+              ),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1539,14 +1539,14 @@ class QuestionBankRemoteDataSourceImpl
       }
 
       filterQuery = filterQuery.eq('is_active', true);
-      var transformQuery = filterQuery.order('start_date');
+      final transformQuery = filterQuery.order('start_date');
 
       // PERF: Added limit to prevent unbounded query on academic_sessions
       final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map((json) => AcademicSessionModel.fromJson(
-                json as Map<String, dynamic>,
-              ))
+                json,
+              ),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1578,8 +1578,8 @@ class QuestionBankRemoteDataSourceImpl
 
       return response
           .map((json) => QuestionVersionModel.fromJson(
-                json as Map<String, dynamic>,
-              ))
+                json,
+              ),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);

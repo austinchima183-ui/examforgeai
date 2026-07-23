@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/models/user_role.dart';
+import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
-import '../../../../../shared/models/user_role.dart';
-import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/document_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -389,7 +388,7 @@ class _DocumentCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: iconColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: iconColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(
@@ -425,7 +424,7 @@ class _DocumentCard extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: (document.isPublic ? AppColors.success : AppColors.warning)
-                            .withOpacity(isDark ? 0.20 : 0.12),
+                            .withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -496,7 +495,7 @@ class _DocumentCard extends StatelessWidget {
               if (isAdmin)
                 IconButton(
                   onPressed: onDelete,
-                  icon: Icon(Icons.delete_outline_rounded, color: AppColors.error),
+                  icon: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
                   tooltip: 'Delete',
                   constraints: const BoxConstraints(),
                   padding: const EdgeInsets.all(Spacings.sm),

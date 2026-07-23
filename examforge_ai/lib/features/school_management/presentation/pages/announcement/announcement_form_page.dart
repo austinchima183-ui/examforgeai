@@ -2,19 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/announcement_provider.dart';
 import '../../providers/class_provider.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 
@@ -199,7 +194,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ─── Content ────────────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Content',
                 icon: Icons.article_outlined,
               ),
@@ -227,7 +222,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Type & Priority ────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Type & Priority',
                 icon: Icons.label_outlined,
               ),
@@ -236,7 +231,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                 children: [
                   Expanded(
                     child: DropdownButtonFormField<AnnouncementType>(
-                      value: _selectedType,
+                      initialValue: _selectedType,
                       decoration: const InputDecoration(
                         labelText: 'Type',
                         prefixIcon: Icon(Icons.category_outlined),
@@ -246,7 +241,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                           .map((t) => DropdownMenuItem(
                                 value: t,
                                 child: Text(t.label),
-                              ))
+                              ),)
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedType = v);
@@ -256,7 +251,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                   const SizedBox(width: Spacings.md),
                   Expanded(
                     child: DropdownButtonFormField<AnnouncementPriority>(
-                      value: _selectedPriority,
+                      initialValue: _selectedPriority,
                       decoration: const InputDecoration(
                         labelText: 'Priority',
                         prefixIcon: Icon(Icons.flag_outlined),
@@ -266,7 +261,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                           .map((p) => DropdownMenuItem(
                                 value: p,
                                 child: Text(p.label),
-                              ))
+                              ),)
                           .toList(),
                       onChanged: (v) {
                         if (v != null) setState(() => _selectedPriority = v);
@@ -279,13 +274,13 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Target Audience ────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Target Audience',
                 icon: Icons.group_outlined,
               ),
               const SizedBox(height: Spacings.md),
               DropdownButtonFormField<String>(
-                value: _targetAudience,
+                initialValue: _targetAudience,
                 decoration: const InputDecoration(
                   labelText: 'Audience',
                   prefixIcon: Icon(Icons.public_outlined),
@@ -295,7 +290,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                     .map((opt) => DropdownMenuItem(
                           value: opt.$1,
                           child: Text(opt.$2),
-                        ))
+                        ),)
                     .toList(),
                 onChanged: (v) {
                   if (v != null) setState(() => _targetAudience = v);
@@ -330,7 +325,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                           }
                         });
                       },
-                      selectedColor: cs.primary.withOpacity(0.20),
+                      selectedColor: cs.primary.withValues(alpha: 0.20),
                       checkmarkColor: cs.primary,
                     );
                   }).toList(),
@@ -340,7 +335,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Options ────────────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Options',
                 icon: Icons.tune_rounded,
               ),
@@ -350,7 +345,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                 subtitle: const Text('Pinned announcements appear at the top'),
                 value: _isPinned,
                 onChanged: (v) => setState(() => _isPinned = v),
-                activeColor: cs.primary,
+                activeThumbColor: cs.primary,
                 contentPadding: EdgeInsets.zero,
               ),
               const SizedBox(height: Spacings.md),
@@ -370,7 +365,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Attachments ────────────────────────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Attachments',
                 icon: Icons.attach_file_rounded,
               ),
@@ -385,7 +380,7 @@ class _AnnouncementFormPageState extends ConsumerState<AnnouncementFormPage> {
                           setState(() => _attachmentUrls.remove(url));
                         },
                       ),
-                    )),
+                    ),),
               OutlinedButton.icon(
                 onPressed: () {
                   // Future: file picker
@@ -455,7 +450,7 @@ class _FormSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: cs.primary),

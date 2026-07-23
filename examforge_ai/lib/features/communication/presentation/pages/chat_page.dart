@@ -10,8 +10,8 @@ import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
 import '../../domain/usecases/send_message_usecase.dart';
-import '../providers/message_provider.dart';
 import '../providers/conversation_provider.dart';
+import '../providers/message_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // CHAT PAGE
@@ -240,7 +240,7 @@ class _State extends ConsumerState<ChatPage> {
                     Text(
                       ' (edited)',
                       style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        color: isSent ? cs.onPrimary.withOpacity(0.7) : cs.onSurfaceVariant,
+                        color: isSent ? cs.onPrimary.withValues(alpha: 0.7) : cs.onSurfaceVariant,
                         fontStyle: FontStyle.italic,
                       ),
                     ),
@@ -253,7 +253,7 @@ class _State extends ConsumerState<ChatPage> {
                       Text(
                         _formatMessageTime(message.createdAt),
                         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          color: isSent ? cs.onPrimary.withOpacity(0.7) : cs.onSurfaceVariant,
+                          color: isSent ? cs.onPrimary.withValues(alpha: 0.7) : cs.onSurfaceVariant,
                         ),
                       ),
                       if (isSent) ...[
@@ -261,7 +261,7 @@ class _State extends ConsumerState<ChatPage> {
                         Icon(
                           message.readBy.length > 1 ? Icons.done_all : Icons.done,
                           size: Spacings.smIcon,
-                          color: isSent ? cs.onPrimary.withOpacity(0.7) : cs.onSurfaceVariant,
+                          color: isSent ? cs.onPrimary.withValues(alpha: 0.7) : cs.onSurfaceVariant,
                         ),
                       ],
                     ],
@@ -314,7 +314,7 @@ class _State extends ConsumerState<ChatPage> {
       margin: const EdgeInsets.only(bottom: Spacings.xs),
       padding: const EdgeInsets.all(Spacings.sm),
       decoration: BoxDecoration(
-        color: (isSent ? cs.onPrimary : cs.primary).withOpacity(0.1),
+        color: (isSent ? cs.onPrimary : cs.primary).withValues(alpha: 0.1),
         borderRadius: Spacings.borderRadiusSm,
         border: Border(left: BorderSide(color: isSent ? cs.onPrimary : cs.primary, width: 3)),
       ),
@@ -323,7 +323,7 @@ class _State extends ConsumerState<ChatPage> {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: Theme.of(context).textTheme.labelSmall?.copyWith(
-          color: isSent ? cs.onPrimary.withOpacity(0.8) : cs.onSurfaceVariant,
+          color: isSent ? cs.onPrimary.withValues(alpha: 0.8) : cs.onSurfaceVariant,
         ),
       ),
     );
@@ -340,7 +340,7 @@ class _State extends ConsumerState<ChatPage> {
           decoration: BoxDecoration(
             borderRadius: Spacings.borderRadiusSm,
             border: Border.all(
-              color: (isSent ? AppColors.seed : AppColors.info).withOpacity(0.3),
+              color: (isSent ? AppColors.seed : AppColors.info).withValues(alpha: 0.3),
             ),
           ),
           child: Row(
@@ -384,7 +384,7 @@ class _State extends ConsumerState<ChatPage> {
             borderRadius: Spacings.borderRadiusFull,
           ),
           child: Text('${e.key} ${e.value}', style: Theme.of(context).textTheme.labelSmall),
-        )).toList(),
+        ),).toList(),
       ),
     );
   }
@@ -454,7 +454,7 @@ class _State extends ConsumerState<ChatPage> {
                 controller: _messageController,
                 decoration: InputDecoration(
                   hintText: 'Type a message…',
-                  border: OutlineInputBorder(
+                  border: const OutlineInputBorder(
                     borderRadius: Spacings.borderRadiusXl,
                     borderSide: BorderSide.none,
                   ),
@@ -561,7 +561,7 @@ class _State extends ConsumerState<ChatPage> {
               ref.read(messageProvider.notifier).addReaction(message.id, e);
             },
             child: Text(e, style: const TextStyle(fontSize: 28)),
-          )).toList(),
+          ),).toList(),
         ),
       ),
     );

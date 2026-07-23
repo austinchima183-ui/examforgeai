@@ -6,9 +6,7 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/parent_portal_entities.dart';
 import '../providers/parent_calendar_provider.dart';
 
@@ -134,8 +132,8 @@ class _State extends ConsumerState<ParentCalendarPage> {
         icon: Icon(Icons.keyboard_arrow_down, color: cs.onSurface, size: Spacings.mdIcon),
         underline: const SizedBox.shrink(),
         style: tt.labelMedium?.copyWith(color: cs.onSurface),
-        items: [
-          const DropdownMenuItem<String>(
+        items: const [
+          DropdownMenuItem<String>(
             value: null,
             child: Text('All Children'),
           ),
@@ -354,7 +352,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
               color: isSelected
                   ? cs.primary
                   : isToday
-                      ? cs.primaryContainer.withOpacity(0.3)
+                      ? cs.primaryContainer.withValues(alpha: 0.3)
                       : Colors.transparent,
               shape: BoxShape.circle,
             ),
@@ -399,7 +397,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(
@@ -440,7 +438,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(
@@ -470,7 +468,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
                     color: isSelected
                         ? cs.primary
                         : isToday
-                            ? cs.primaryContainer.withOpacity(0.3)
+                            ? cs.primaryContainer.withValues(alpha: 0.3)
                             : Colors.transparent,
                     borderRadius: Spacings.borderRadiusMd,
                   ),
@@ -588,7 +586,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
           side: BorderSide(
-            color: typeColor.withOpacity(0.3),
+            color: typeColor.withValues(alpha: 0.3),
             width: 1,
           ),
         ),
@@ -606,7 +604,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: typeColor.withOpacity(0.12),
+                    color: typeColor.withValues(alpha: 0.12),
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: Icon(
@@ -757,7 +755,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
     return events.any((event) =>
         event.startTime.year == date.year &&
         event.startTime.month == date.month &&
-        event.startTime.day == date.day);
+        event.startTime.day == date.day,);
   }
 
   /// Returns the events that fall on the given [date].
@@ -769,7 +767,7 @@ class _State extends ConsumerState<ParentCalendarPage> {
         .where((event) =>
             event.startTime.year == date.year &&
             event.startTime.month == date.month &&
-            event.startTime.day == date.day)
+            event.startTime.day == date.day,)
         .toList()
       ..sort((a, b) => a.startTime.compareTo(b.startTime));
   }

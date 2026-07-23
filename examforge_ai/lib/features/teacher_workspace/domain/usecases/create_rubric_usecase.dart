@@ -32,7 +32,7 @@ class CreateRubricUseCase {
       return const FailureResult(Failure.validation(
         message: 'Rubric title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createRubric(params.rubric);
   }

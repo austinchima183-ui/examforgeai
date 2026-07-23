@@ -1,8 +1,8 @@
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
+import '../../../question_bank/domain/entities/question_entities.dart';
 import '../entities/cbt_entities.dart';
 import '../repositories/cbt_repository.dart';
-import '../../../question_bank/domain/entities/question_entities.dart';
 
 
 /// Parameters for the [GetLiveExamStatsUseCase].
@@ -40,7 +40,7 @@ class GetLiveExamStatsUseCase {
         onSuccess: (_) =>
             const Failure.server(message: 'Unknown error', statusCode: 500),
         onFailure: (failure) => failure,
-      ));
+      ),);
     }
 
     final exam = examResult.getOrElse(

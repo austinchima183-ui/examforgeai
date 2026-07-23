@@ -41,7 +41,7 @@ class AskParentAssistantUseCase {
       return const FailureResult(Failure.validation(
         message: 'Question is required',
         fieldErrors: {'question': 'Question cannot be empty'},
-      ));
+      ),);
     }
     return _repository.askAssistant({
       'question': params.question,

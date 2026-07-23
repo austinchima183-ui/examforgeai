@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/cbt_entities.dart';
+import '../../domain/repositories/cbt_repository.dart';
 import '../../domain/usecases/get_exam_results_usecase.dart';
 import '../../domain/usecases/get_exam_statistics_usecase.dart';
 import '../../domain/usecases/grade_exam_usecase.dart';
-import '../../domain/repositories/cbt_repository.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM RESULTS STATE
@@ -238,7 +238,7 @@ class ExamResultsNotifier extends StateNotifier<ExamResultsState> {
             .map((r) => r.copyWith(
                   isReleased: true,
                   releasedAt: DateTime.now(),
-                ))
+                ),)
             .toList();
 
         state = state.copyWith(

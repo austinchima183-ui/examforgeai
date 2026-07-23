@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION NAVIGATION PANEL
@@ -80,7 +80,7 @@ class QuestionNavigator extends StatelessWidget {
       case QuestionNavStatus.current:
         return cs.primary;
       case QuestionNavStatus.unanswered:
-        return cs.onSurfaceVariant.withOpacity(0.3);
+        return cs.onSurfaceVariant.withValues(alpha: 0.3);
       case QuestionNavStatus.flagged:
         return AppColors.warningOf(cs.brightness);
     }
@@ -105,14 +105,14 @@ class QuestionNavigator extends StatelessWidget {
     switch (status) {
       case QuestionNavStatus.answered:
         return AppColors.successOf(cs.brightness)
-            .withOpacity(isDark ? 0.25 : 0.15);
+            .withValues(alpha: isDark ? 0.25 : 0.15);
       case QuestionNavStatus.current:
-        return cs.primary.withOpacity(isDark ? 0.25 : 0.15);
+        return cs.primary.withValues(alpha: isDark ? 0.25 : 0.15);
       case QuestionNavStatus.unanswered:
         return cs.surfaceContainerHighest;
       case QuestionNavStatus.flagged:
         return AppColors.warningOf(cs.brightness)
-            .withOpacity(isDark ? 0.25 : 0.15);
+            .withValues(alpha: isDark ? 0.25 : 0.15);
     }
   }
 
@@ -228,10 +228,10 @@ class QuestionNavigator extends StatelessWidget {
             _legendItem(context, Colors.grey, 'Unanswered'),
             const SizedBox(width: Spacings.md),
             _legendItem(
-                context, AppColors.successOf(cs.brightness), 'Answered'),
+                context, AppColors.successOf(cs.brightness), 'Answered',),
             const SizedBox(width: Spacings.md),
             _legendItem(
-                context, AppColors.warningOf(cs.brightness), 'Flagged'),
+                context, AppColors.warningOf(cs.brightness), 'Flagged',),
           ],
         ),
       ],
@@ -245,7 +245,7 @@ class QuestionNavigator extends StatelessWidget {
           color: cs.surface,
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           border: Border.all(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         child: Column(
@@ -270,7 +270,7 @@ class QuestionNavigator extends StatelessWidget {
           top: Radius.circular(Spacings.lgRadius),
         ),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -301,7 +301,7 @@ class QuestionNavigator extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -314,7 +314,7 @@ class QuestionNavigator extends StatelessWidget {
             style: TextStyle(
               fontSize: 12.0,
               fontWeight: AppTypography.wSemiBold,
-              color: isDark ? color.withOpacity(0.9) : color,
+              color: isDark ? color.withValues(alpha: 0.9) : color,
             ),
           ),
         ],
@@ -331,7 +331,7 @@ class QuestionNavigator extends StatelessWidget {
           width: 10,
           height: 10,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.3),
+            color: color.withValues(alpha: 0.3),
             shape: BoxShape.circle,
             border: Border.all(color: color, width: 1.5),
           ),

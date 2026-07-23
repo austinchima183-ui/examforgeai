@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../../domain/repositories/marketplace_repository.dart';
-import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
 
 
 class GetProductParams {
@@ -22,6 +21,6 @@ class GetProductUseCase {
     if (params.slug != null) {
       return _repository.getProductBySlug(params.slug!);
     }
-    return FailureResult(ServerFailure(message: 'Either productId or slug must be provided', statusCode: 400));
+    return const FailureResult(ServerFailure(message: 'Either productId or slug must be provided', statusCode: 400));
   }
 }

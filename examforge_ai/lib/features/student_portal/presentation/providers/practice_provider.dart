@@ -174,7 +174,7 @@ class PracticeNotifier extends StateNotifier<PracticeState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getPracticeSessions(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: 1,
       pageSize: _pageSize,
     );
@@ -211,7 +211,7 @@ class PracticeNotifier extends StateNotifier<PracticeState> {
     final nextPage = state.currentPage + 1;
 
     final result = await _getPracticeSessions(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: nextPage,
       pageSize: _pageSize,
     );
@@ -255,7 +255,7 @@ class PracticeNotifier extends StateNotifier<PracticeState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _createPracticeSession(
-      studentId: _studentId!,
+      studentId: _studentId,
       subjectId: subjectId,
       topicId: topicId,
       difficulty: difficulty,

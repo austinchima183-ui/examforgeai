@@ -2,20 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_card.dart';
-import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/teacher_provider.dart';
 import '../../providers/school_provider.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
+import '../../providers/teacher_provider.dart';
 
 
 
@@ -199,7 +193,7 @@ class _TeacherFormPageState extends ConsumerState<TeacherFormPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ─── Personal Information Section ──────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Personal Information',
                 icon: Icons.person_outline_rounded,
               ),
@@ -277,7 +271,7 @@ class _TeacherFormPageState extends ConsumerState<TeacherFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Employment Information Section ────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Employment Information',
                 icon: Icons.work_outline_rounded,
               ),
@@ -400,7 +394,7 @@ class _FormSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: cs.primary),

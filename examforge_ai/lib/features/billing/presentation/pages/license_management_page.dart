@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../providers/license_provider.dart';
 import '../widgets/billing_widgets.dart';
@@ -74,7 +74,7 @@ class _LicenseManagementPageState
     final tt = context.textTheme;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'License Management'),
+      appBar: const AppAppBar(title: 'License Management'),
       body: Column(
         children: [
           // ── Seat Usage Overview ────────────────────────────────────
@@ -120,7 +120,7 @@ class _LicenseManagementPageState
         color: cs.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -148,7 +148,7 @@ class _LicenseManagementPageState
                       value: totalSeats > 0 ? usedSeats / totalSeats : 0,
                       strokeWidth: 5,
                       backgroundColor:
-                          progressColor.withOpacity(isDark ? 0.20 : 0.12),
+                          progressColor.withValues(alpha: isDark ? 0.20 : 0.12),
                       valueColor: AlwaysStoppedAnimation(progressColor),
                       strokeCap: StrokeCap.round,
                     ),

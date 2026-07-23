@@ -28,7 +28,7 @@ class ModuleCard extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: _getColorFromCode(module.colorCode).withOpacity(0.15),
+                      color: _getColorFromCode(module.colorCode).withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Center(child: Text(module.name.substring(0, 2).toUpperCase(), style: TextStyle(fontWeight: FontWeight.bold, color: _getColorFromCode(module.colorCode), fontSize: 14))),
@@ -37,7 +37,7 @@ class ModuleCard extends StatelessWidget {
                   if (module.isPremium)
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                      decoration: BoxDecoration(color: Colors.amber.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+                      decoration: BoxDecoration(color: Colors.amber.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
                       child: const Text('PRO', style: TextStyle(color: Colors.amber, fontWeight: FontWeight.w600, fontSize: 10)),
                     ),
                 ],

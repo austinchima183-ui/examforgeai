@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
@@ -13,10 +13,8 @@ import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/class_provider.dart';
-import '../../providers/teacher_provider.dart';
 import 'class_detail_page.dart';
 import 'class_form_page.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -299,7 +297,7 @@ class _ClassListPageState extends ConsumerState<ClassListPage> {
               ),
               const SizedBox(height: Spacings.lg),
               DropdownButtonFormField<String>(
-                value: _academicYearFilter,
+                initialValue: _academicYearFilter,
                 decoration: const InputDecoration(
                   labelText: 'Academic Year',
                   prefixIcon: Icon(Icons.calendar_today_outlined),
@@ -380,7 +378,7 @@ class _ClassCard extends StatelessWidget {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 ),
                 child: Icon(Icons.class_rounded, color: cs.primary, size: 20),
@@ -417,7 +415,7 @@ class _ClassCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: (classEntity.isActive ? AppColors.success : AppColors.warning)
-                      .withOpacity(isDark ? 0.20 : 0.12),
+                      .withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -525,7 +523,7 @@ class _ClassListTile extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(Icons.class_rounded, color: cs.primary),
@@ -572,17 +570,17 @@ class _ClassListTile extends StatelessWidget {
                   children: [
                     if (classEntity.gradeLevel != null) ...[
                       Icon(Icons.stairs_outlined,
-                          size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                          size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                       const SizedBox(width: 2),
                       Text(
                         'Grade ${classEntity.gradeLevel}',
                         style: tt.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant),
+                            color: cs.onSurfaceVariant,),
                       ),
                       const SizedBox(width: Spacings.sm),
                     ],
                     Icon(Icons.person_outline_rounded,
-                        size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                        size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                     const SizedBox(width: 2),
                     Flexible(
                       child: Text(
@@ -629,7 +627,7 @@ class _ClassListTile extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: (classEntity.isActive ? AppColors.success : AppColors.warning)
-                      .withOpacity(isDark ? 0.20 : 0.12),
+                      .withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(

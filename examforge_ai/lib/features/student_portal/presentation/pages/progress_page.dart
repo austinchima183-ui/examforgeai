@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Progress analytics page.
 ///
@@ -89,7 +89,7 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
                           indicator: BoxDecoration(
                             color: cs.primary,
                             borderRadius: BorderRadius.circular(
-                                Spacings.mdRadius),
+                                Spacings.mdRadius,),
                           ),
                           dividerColor: Colors.transparent,
                           tabs: const [
@@ -158,7 +158,7 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
 
                         // AI suggestions
                         _buildAiSuggestions(
-                            context, progressState.latestProgress!),
+                            context, progressState.latestProgress!,),
                       ],
                     ],
                   ),
@@ -221,7 +221,7 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
   // ═══════════════════════════════════════════════════════════════════════
 
   Widget _buildScoreTrendChart(
-      BuildContext context, ProgressState state) {
+      BuildContext context, ProgressState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -275,7 +275,7 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
               SizedBox(
                 height: 200,
                 child: CustomPaint(
-                  size: Size(double.infinity, 200),
+                  size: const Size(double.infinity, 200),
                   painter: _BarChartPainter(
                     scores: scores,
                     primaryColor: cs.primary,
@@ -304,7 +304,7 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
   // ═══════════════════════════════════════════════════════════════════════
 
   Widget _buildLearningStreak(
-      BuildContext context, ProgressState state) {
+      BuildContext context, ProgressState state,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final streak = state.learningStreak;
@@ -328,9 +328,9 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
                     color: Colors.white,
                   ),
                 ),
-                Text(
+                const Text(
                   '🔥',
-                  style: const TextStyle(fontSize: 24),
+                  style: TextStyle(fontSize: 24),
                 ),
               ],
             ),
@@ -431,10 +431,10 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius: BorderRadius.circular(
-                            Spacings.fullRadius),
+                            Spacings.fullRadius,),
                       ),
                       child: Text(
                         '${topic.scorePct.toStringAsFixed(0)}%',
@@ -458,7 +458,7 @@ class _ProgressPageState extends ConsumerState<ProgressPage>
   // ═══════════════════════════════════════════════════════════════════════
 
   Widget _buildAiSuggestions(
-      BuildContext context, StudentProgressEntity progress) {
+      BuildContext context, StudentProgressEntity progress,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -596,7 +596,7 @@ class _BarChartPainter extends CustomPainter {
 
       canvas.drawRRect(
         rect,
-        Paint()..color = primaryColor.withOpacity(0.8),
+        Paint()..color = primaryColor.withValues(alpha: 0.8),
       );
 
       // Score label

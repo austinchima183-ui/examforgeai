@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/exam_ecosystem_entities.dart';
 
 /// Card widget showing an examination body with logo, name, and type badge.
@@ -121,7 +120,7 @@ class ExamBodyCard extends StatelessWidget {
       width: size,
       height: size,
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Center(
@@ -147,7 +146,7 @@ class ExamBodyCard extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: Spacings.borderRadiusFull,
       ),
       child: Row(

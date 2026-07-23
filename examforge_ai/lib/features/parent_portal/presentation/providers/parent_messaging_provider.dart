@@ -4,8 +4,8 @@ import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/parent_portal_entities.dart';
-import '../../domain/usecases/get_parent_messages_usecase.dart';
 import '../../domain/usecases/get_message_threads_usecase.dart';
+import '../../domain/usecases/get_parent_messages_usecase.dart';
 import '../../domain/usecases/mark_message_read_usecase.dart';
 import '../../domain/usecases/send_parent_message_usecase.dart';
 

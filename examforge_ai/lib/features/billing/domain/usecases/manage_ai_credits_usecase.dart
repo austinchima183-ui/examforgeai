@@ -24,8 +24,8 @@ class GetCreditBalanceUseCase {
     GetCreditBalanceParams params,
   ) async {
     if (params.ownerId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Owner ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Owner ID cannot be empty'),
       );
     }
 
@@ -62,18 +62,18 @@ class GetCreditTransactionsUseCase {
     GetCreditTransactionsParams params,
   ) async {
     if (params.ownerId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Owner ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Owner ID cannot be empty'),
       );
     }
     if (params.page < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Per page must be at least 1'),
       );
     }
 
@@ -115,18 +115,18 @@ class ConsumeCreditsUseCase {
     ConsumeCreditsParams params,
   ) async {
     if (params.ownerId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Owner ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Owner ID cannot be empty'),
       );
     }
     if (params.credits <= 0) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Credits must be greater than 0'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Credits must be greater than 0'),
       );
     }
     if (params.featureName.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Feature name cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Feature name cannot be empty'),
       );
     }
 
@@ -165,13 +165,13 @@ class PurchaseCreditsUseCase {
     PurchaseCreditsParams params,
   ) async {
     if (params.ownerId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Owner ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Owner ID cannot be empty'),
       );
     }
     if (params.creditPackId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Credit pack ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Credit pack ID cannot be empty'),
       );
     }
 

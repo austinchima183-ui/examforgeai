@@ -1,20 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/teacher_provider.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -98,7 +94,7 @@ class _TeacherDetailPageState extends ConsumerState<TeacherDetailPage>
               .map((tab) => Tab(
                     icon: Icon(tab.icon, size: Spacings.smIcon),
                     text: tab.label,
-                  ))
+                  ),)
               .toList(),
         ),
       ),
@@ -129,7 +125,7 @@ class _TeacherDetailPageState extends ConsumerState<TeacherDetailPage>
                             children: [
                               _TeacherInfoTab(teacher: state.teacher!),
                               _AssignedSubjectsTab(
-                                  teacher: state.teacher!),
+                                  teacher: state.teacher!,),
                               _AssignedClassesTab(teacher: state.teacher!),
                               _TimetableTab(teacher: state.teacher!),
                             ],
@@ -163,7 +159,7 @@ class _TeacherProfileHeader extends StatelessWidget {
         color: cs.surfaceContainerLow,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -174,7 +170,7 @@ class _TeacherProfileHeader extends StatelessWidget {
             width: 64,
             height: 64,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
             child: teacher.avatarUrl != null
@@ -216,7 +212,7 @@ class _TeacherProfileHeader extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.info.withOpacity(isDark ? 0.20 : 0.08,
+                          color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.08,
                           ),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -237,7 +233,7 @@ class _TeacherProfileHeader extends StatelessWidget {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: cs.primary.withOpacity(isDark ? 0.20 : 0.08,
+                          color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.08,
                           ),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
@@ -258,7 +254,7 @@ class _TeacherProfileHeader extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: _employmentTypeColor(teacher.employmentType)
-                            .withOpacity(isDark ? 0.20 : 0.12),
+                            .withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -312,30 +308,30 @@ class _TeacherInfoTab extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Personal Details
-          _SectionTitle(title: 'Personal Information'),
+          const _SectionTitle(title: 'Personal Information'),
           const SizedBox(height: Spacings.sm),
           _InfoRow(label: 'Employee ID', value: teacher.employeeId),
           _InfoRow(
-              label: 'Date of Birth', value: _formatDate(teacher.dateOfBirth)),
+              label: 'Date of Birth', value: _formatDate(teacher.dateOfBirth),),
           _InfoRow(label: 'Gender', value: teacher.gender ?? '—'),
           _InfoRow(
-              label: 'Email', value: teacher.email ?? '—'),
+              label: 'Email', value: teacher.email ?? '—',),
           _InfoRow(
-              label: 'Phone', value: teacher.phone ?? '—'),
+              label: 'Phone', value: teacher.phone ?? '—',),
 
           const SizedBox(height: Spacings.xl),
 
           // Employment Information
-          _SectionTitle(title: 'Employment Information'),
+          const _SectionTitle(title: 'Employment Information'),
           const SizedBox(height: Spacings.sm),
           _InfoRow(
-              label: 'Qualification', value: teacher.qualification ?? '—'),
+              label: 'Qualification', value: teacher.qualification ?? '—',),
           _InfoRow(
-              label: 'Specialization', value: teacher.specialization ?? '—'),
+              label: 'Specialization', value: teacher.specialization ?? '—',),
           _InfoRow(
-              label: 'Department', value: teacher.departmentName ?? '—'),
+              label: 'Department', value: teacher.departmentName ?? '—',),
           _InfoRow(
-              label: 'Employment Type', value: teacher.employmentType.label),
+              label: 'Employment Type', value: teacher.employmentType.label,),
           _InfoRow(
             label: 'Start Date',
             value: _formatDate(teacher.employmentStartDate),
@@ -415,11 +411,11 @@ class _AssignedSubjectsTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12,
+                    color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.menu_book_rounded,
                     size: Spacings.mdIcon,
                     color: AppColors.info,
@@ -489,7 +485,7 @@ class _AssignedClassesTab extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.12,
+                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),

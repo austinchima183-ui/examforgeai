@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart' hide dashboardProvider;
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../config/dependency_injection.dart' hide dashboardProvider;
+import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 import '../../../../routing/route_guards.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_summary.dart';
@@ -13,7 +14,6 @@ import '../widgets/quick_actions_grid.dart';
 import '../widgets/recent_activity_list.dart';
 import '../widgets/stat_card_row.dart';
 import '../widgets/welcome_section.dart';
-import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 
 
 /// Dashboard for users with the **super-admin** role.
@@ -222,19 +222,19 @@ class SuperAdminDashboardPage extends ConsumerWidget {
               icon: Icons.domain_outlined,
               color: cs.primary,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'System Reports',
               subtitle: 'Platform-wide analytics',
               icon: Icons.analytics_outlined,
               color: AppColors.info,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'Platform Settings',
               subtitle: 'Configure global settings',
               icon: Icons.settings_outlined,
               color: AppColors.warning,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'User Management',
               subtitle: 'Administer all platform users',
               icon: Icons.admin_panel_settings_outlined,
@@ -247,7 +247,7 @@ class SuperAdminDashboardPage extends ConsumerWidget {
   }
 
   Widget _buildRecentActivity(
-      BuildContext context, DashboardState state) {
+      BuildContext context, DashboardState state,) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,

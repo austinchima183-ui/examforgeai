@@ -98,7 +98,7 @@ class ExamTemplateRemoteDataSourceImpl
             .map((s) => {
                   ...s,
                   'template_id': templateId,
-                })
+                },)
             .toList();
         await _supabase
             .from(_templateSectionsTable)
@@ -112,7 +112,7 @@ class ExamTemplateRemoteDataSourceImpl
             .map((r) => {
                   ...r,
                   'template_id': templateId,
-                })
+                },)
             .toList();
         await _supabase
             .from(_selectionRulesTable)
@@ -178,7 +178,7 @@ class ExamTemplateRemoteDataSourceImpl
           filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
       final offset = (page - 1) * perPage;
 
-      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
+      final transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
 
       final response = await transformQuery;
 

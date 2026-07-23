@@ -40,14 +40,14 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } on UnauthorizedException catch (e) {
@@ -56,11 +56,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected createQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -82,14 +82,14 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } on UnauthorizedException catch (e) {
@@ -98,11 +98,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected updateQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -118,7 +118,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -129,11 +129,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected deleteQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -149,7 +149,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -163,7 +163,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -182,7 +182,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -199,7 +199,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -219,7 +219,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on UnauthorizedException catch (e) {
@@ -231,7 +231,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -249,18 +249,18 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on UnauthorizedException catch (e) {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getQuestionCount error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -280,7 +280,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -291,11 +291,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected publishQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -311,7 +311,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -322,11 +322,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected archiveQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -342,7 +342,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -353,11 +353,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected restoreQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -374,7 +374,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -385,11 +385,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected duplicateQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -413,7 +413,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on UnauthorizedException catch (e) {
@@ -422,11 +422,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected moveQuestions error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -449,7 +449,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -458,11 +458,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getAnswerOptions error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -487,14 +487,14 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } on UnauthorizedException catch (e) {
@@ -503,11 +503,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected updateAnswerOptions error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -533,7 +533,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
@@ -541,7 +541,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -558,20 +558,20 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected createTag error in repository', error: e);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -590,7 +590,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -599,11 +599,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected addTagsToQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -622,7 +622,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -631,11 +631,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected removeTagFromQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -655,18 +655,18 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on UnauthorizedException catch (e) {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected toggleFavorite error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -688,18 +688,18 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on UnauthorizedException catch (e) {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getFavorites error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -715,7 +715,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
@@ -723,7 +723,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -747,21 +747,21 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } catch (e) {
       AppLogger.error('Unexpected createCollection error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -783,7 +783,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -794,11 +794,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected updateCollection error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -814,7 +814,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -825,11 +825,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected deleteCollection error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -853,16 +853,16 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getCollections error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -884,7 +884,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -899,7 +899,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -921,7 +921,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -936,7 +936,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -960,7 +960,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -973,7 +973,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1002,7 +1002,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -1013,11 +1013,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected shareQuestion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1033,7 +1033,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -1045,7 +1045,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1065,16 +1065,16 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getSharedQuestions error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1098,14 +1098,14 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on UnauthorizedException catch (e) {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
@@ -1113,7 +1113,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1131,18 +1131,18 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getImportStatus error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1162,14 +1162,14 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on ValidationException catch (e) {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on UnauthorizedException catch (e) {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
@@ -1177,7 +1177,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1195,18 +1195,18 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getExportStatus error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1233,18 +1233,18 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on UnauthorizedException catch (e) {
       return FailureResult(Failure.unauthorized(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected searchQuestions error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1267,7 +1267,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
@@ -1275,7 +1275,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1291,7 +1291,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
@@ -1299,7 +1299,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1315,7 +1315,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
@@ -1323,7 +1323,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1342,16 +1342,16 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getCategories error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1371,7 +1371,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } catch (e) {
@@ -1382,7 +1382,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1405,18 +1405,18 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
       return FailureResult(Failure.notFound(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected getVersionHistory error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -1436,7 +1436,7 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on NetworkException catch (e) {
       return FailureResult(Failure.network(message: e.message));
     } on NotFoundException catch (e) {
@@ -1447,11 +1447,11 @@ class QuestionBankRepositoryImpl implements QuestionBankRepository {
       return FailureResult(Failure.forbidden(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected restoreVersion error in repository',
-          error: e);
+          error: e,);
       return const FailureResult(Failure.server(
         message: 'An unexpected error occurred.',
         statusCode: 500,
-      ));
+      ),);
     }
   }
 }

@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/commission_provider.dart';
 
@@ -89,7 +89,7 @@ class _CommissionManagementPageState
               .map((tab) => Tab(
                     text: tab.label,
                     icon: Icon(tab.icon),
-                  ))
+                  ),)
               .toList(),
         ),
       ),
@@ -289,7 +289,7 @@ class _CommissionManagementPageState
                       ),
                       value: isActive,
                       onChanged: (v) => isActiveNotifier.value = v,
-                      activeColor: AppColors.success,
+                      activeThumbColor: AppColors.success,
                     );
                   },
                 ),
@@ -311,7 +311,9 @@ class _CommissionManagementPageState
                       onPressed: () {
                         if (!formKey.currentState!.validate()) return;
                         if (productTypeNotifier.value == null ||
-                            licenseTypeNotifier.value == null) return;
+                            licenseTypeNotifier.value == null) {
+                          return;
+                        }
 
                         final rateValue =
                             double.parse(rateController.text) / 100;
@@ -501,7 +503,7 @@ class _CommissionRateCard extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: rateColor.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+                  color: rateColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -560,8 +562,8 @@ class _CommissionRateCard extends StatelessWidget {
                 ),
                 decoration: BoxDecoration(
                   color: rate.isCurrentlyEffective
-                      ? AppColors.success.withOpacity(context.isDarkMode ? 0.20 : 0.12)
-                      : cs.onSurfaceVariant.withOpacity(0.12),
+                      ? AppColors.success.withValues(alpha: context.isDarkMode ? 0.20 : 0.12)
+                      : cs.onSurfaceVariant.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
                 child: Text(
@@ -627,7 +629,7 @@ class _CommissionRecordsTabState extends State<_CommissionRecordsTab> {
             r.commissionType.label
                 .toLowerCase()
                 .contains(_searchQuery.toLowerCase()) ||
-            r.orderItemId.toLowerCase().contains(_searchQuery.toLowerCase()))
+            r.orderItemId.toLowerCase().contains(_searchQuery.toLowerCase()),)
         .toList();
   }
 
@@ -650,7 +652,7 @@ class _CommissionRecordsTabState extends State<_CommissionRecordsTab> {
     }
 
     if (widget.records.isEmpty) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.receipt_long_outlined,
         title: 'No Commission Records',
         subtitle: 'Commission records will appear here once orders are placed.',
@@ -772,7 +774,7 @@ class _CommissionRecordCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: rateColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+              color: rateColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
@@ -881,7 +883,7 @@ class _SellerPayoutsTab extends StatelessWidget {
             ),
             child: Column(
               children: [
-                Icon(
+                const Icon(
                   Icons.rocket_launch_outlined,
                   size: Spacings.xlIcon,
                   color: Colors.white,
@@ -900,7 +902,7 @@ class _SellerPayoutsTab extends StatelessWidget {
                   'You\'ll be able to process batch payouts, set minimum '
                   'thresholds, and track payment history.',
                   style: tt.bodyMedium?.copyWith(
-                    color: Colors.white.withOpacity(0.9),
+                    color: Colors.white.withValues(alpha: 0.9),
                   ),
                   textAlign: TextAlign.center,
                 ),
@@ -1042,7 +1044,7 @@ class _PayoutPreviewCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+              color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
@@ -1075,7 +1077,7 @@ class _PayoutPreviewCard extends StatelessWidget {
               vertical: 2.0,
             ),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+              color: statusColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.fullRadius),
             ),

@@ -63,7 +63,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
               ...PromptType.values.map((type) => PopupMenuItem<PromptType?>(
                     value: type,
                     child: Text(type.label),
-                  )),
+                  ),),
             ],
           ),
         ],
@@ -86,7 +86,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
   ) {
     if (state.isLoading && state.templates.isEmpty) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     if (state.error != null && state.templates.isEmpty) {
@@ -196,7 +196,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                           height: 4,
                           decoration: BoxDecoration(
                             color: context.colorScheme.onSurfaceVariant
-                                .withOpacity(0.3),
+                                .withValues(alpha: 0.3),
                             borderRadius: BorderRadius.circular(2),
                           ),
                         ),
@@ -260,7 +260,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                       onChanged: (val) {
                                         if (val != null) {
                                           setModalState(
-                                              () => selectedType = val);
+                                              () => selectedType = val,);
                                         }
                                       },
                                       itemLabel: (t) => t.label,
@@ -274,7 +274,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                       selectedItem: selectedProvider,
                                       onChanged: (val) {
                                         setModalState(
-                                            () => selectedProvider = val);
+                                            () => selectedProvider = val,);
                                       },
                                       itemLabel: (p) => p.displayName,
                                     ),
@@ -313,7 +313,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                 onChanged: (val) {
                                   setModalState(() => chainOfThought = val);
                                 },
-                                activeColor: context.colorScheme.primary,
+                                activeThumbColor: context.colorScheme.primary,
                               ),
                               const SizedBox(height: Spacings.md),
 
@@ -379,7 +379,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                         variables.add(const PromptVariable(
                                           name: 'new_variable',
                                           description: 'New variable',
-                                        ));
+                                        ),);
                                       });
                                     },
                                     variant: AppIconButtonVariant.tonal,
@@ -401,7 +401,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                               else
                                 ...variables.map((v) => Padding(
                                       padding: const EdgeInsets.only(
-                                          bottom: Spacings.sm),
+                                          bottom: Spacings.sm,),
                                       child: Row(
                                         children: [
                                           Container(
@@ -411,10 +411,10 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                             ),
                                             decoration: BoxDecoration(
                                               color: context.colorScheme.primary
-                                                  .withOpacity(0.1),
+                                                  .withValues(alpha: 0.1),
                                               borderRadius:
                                                   BorderRadius.circular(
-                                                      Spacings.xs),
+                                                      Spacings.xs,),
                                             ),
                                             child: Text(
                                               '{{${v.name}}}',
@@ -429,7 +429,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                             ),
                                           ),
                                           const SizedBox(
-                                              width: Spacings.sm),
+                                              width: Spacings.sm,),
                                           Expanded(
                                             child: Text(
                                               v.description ?? v.name,
@@ -453,11 +453,11 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                             size: AppButtonSize.small,
                                             color: AppColors.errorOf(
                                                 context
-                                                    .colorScheme.brightness),
+                                                    .colorScheme.brightness,),
                                           ),
                                         ],
                                       ),
-                                    )),
+                                    ),),
 
                               const SizedBox(height: Spacings.md),
 
@@ -480,9 +480,9 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                         fewShotExamples.add(const FewShotExample(
                                           input: {'question': 'Example input'},
                                           output: {
-                                            'answer': 'Example output'
+                                            'answer': 'Example output',
                                           },
-                                        ));
+                                        ),);
                                       });
                                     },
                                     variant: AppIconButtonVariant.tonal,
@@ -507,7 +507,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                   final idx = entry.key;
                                   return Padding(
                                     padding: const EdgeInsets.only(
-                                        bottom: Spacings.sm),
+                                        bottom: Spacings.sm,),
                                     child: AppCard(
                                       child: Row(
                                         children: [
@@ -535,7 +535,7 @@ class _AiPromptsPageState extends ConsumerState<AiPromptsPage> {
                                                 AppIconButtonVariant.standard,
                                             size: AppButtonSize.small,
                                             color: AppColors.errorOf(context
-                                                .colorScheme.brightness),
+                                                .colorScheme.brightness,),
                                           ),
                                         ],
                                       ),

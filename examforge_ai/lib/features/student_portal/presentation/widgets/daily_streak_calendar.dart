@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/student_portal_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -84,7 +84,7 @@ class DailyStreakCalendar extends StatelessWidget {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -169,13 +169,13 @@ class DailyStreakCalendar extends StatelessWidget {
       if (day.studyMinutes >= 120) {
         bgColor = AppColors.success;
       } else if (day.studyMinutes >= 60) {
-        bgColor = AppColors.success.withOpacity(0.7);
+        bgColor = AppColors.success.withValues(alpha: 0.7);
       } else {
-        bgColor = AppColors.success.withOpacity(0.4);
+        bgColor = AppColors.success.withValues(alpha: 0.4);
       }
     } else {
       bgColor = isDark
-          ? cs.surfaceContainerHighest.withOpacity(0.3)
+          ? cs.surfaceContainerHighest.withValues(alpha: 0.3)
           : cs.surfaceContainerHighest;
     }
 
@@ -221,9 +221,9 @@ class DailyStreakCalendar extends StatelessWidget {
       children: [
         _legendBox(cs.surfaceContainerHighest, 'None', tt),
         const SizedBox(width: Spacings.xs),
-        _legendBox(AppColors.success.withOpacity(0.4), 'Low', tt),
+        _legendBox(AppColors.success.withValues(alpha: 0.4), 'Low', tt),
         const SizedBox(width: Spacings.xs),
-        _legendBox(AppColors.success.withOpacity(0.7), 'Mid', tt),
+        _legendBox(AppColors.success.withValues(alpha: 0.7), 'Mid', tt),
         const SizedBox(width: Spacings.xs),
         _legendBox(AppColors.success, 'High', tt),
       ],

@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
-import '../../core/utils/logger.dart';
 import '../../../core/performance/ai_cache_service.dart';
+import '../../core/utils/logger.dart';
 import '../../features/ai_generator/domain/entities/ai_entities.dart';
 import '../../features/question_bank/domain/entities/question_entities.dart';
 import 'ai_provider_interface.dart';
@@ -331,7 +331,7 @@ class AiService {
           params: {
             'subject': input.subjectId,
             'topic': input.topicId,
-            'difficulty': input.difficulty?.name,
+            'difficulty': input.difficulty.name,
             'question_type': input.questionType?.name,
             'count': input.numQuestions,
             'class_level': input.classId,
@@ -396,7 +396,7 @@ class AiService {
           params: {
             'subject': input.subjectId,
             'topic': input.topicId,
-            'difficulty': input.difficulty?.name,
+            'difficulty': input.difficulty.name,
             'question_type': input.questionType?.name,
             'count': input.numQuestions,
             'class_level': input.classId,
@@ -456,7 +456,7 @@ class AiService {
           _promptEngine.parseGeneratedQuestions(parsedJson, request);
 
       // 6. Validate questions (optional)
-      Map<int, List<ValidationResultEntity>> validationResults = {};
+      final Map<int, List<ValidationResultEntity>> validationResults = {};
       if (validateOnGenerate) {
         for (int i = 0; i < questions.length; i++) {
           final validations =
@@ -504,7 +504,7 @@ class AiService {
     } catch (e) {
       stopwatch.stop();
       AppLogger.error('Question generation failed for request $requestId',
-          error: e);
+          error: e,);
 
       return GenerationResult(
         questions: [],
@@ -516,7 +516,7 @@ class AiService {
           modelName: '',
           generationType: PromptType.questionGeneration,
           status: GenerationStatus.failed,
-          inputParams: {},
+          inputParams: const {},
           systemPrompt: '',
           userPrompt: '',
           errorMessage: e.toString(),
@@ -652,7 +652,7 @@ class AiService {
       );
     } catch (e) {
       AppLogger.error('Streaming generation failed for request $requestId',
-          error: e);
+          error: e,);
       yield progress = progress.copyWith(
         status: GenerationProgressStatus.failed,
         error: e.toString(),
@@ -754,14 +754,14 @@ class AiService {
           inputTokens: result.inputTokens,
           outputTokens: result.outputTokens,
           cost: _estimateCost(
-              providerType, result.inputTokens, result.outputTokens),
+              providerType, result.inputTokens, result.outputTokens,),
         ),
         original: question,
         generationTime: stopwatch.elapsed,
         inputTokens: result.inputTokens,
         outputTokens: result.outputTokens,
         cost: _estimateCost(
-            providerType, result.inputTokens, result.outputTokens),
+            providerType, result.inputTokens, result.outputTokens,),
       );
     } catch (e) {
       stopwatch.stop();
@@ -848,7 +848,7 @@ class AiService {
       }
 
       // Step 1: Document extraction (if text not yet extracted)
-      String extractedText = document.extractedText ?? '';
+      final String extractedText = document.extractedText ?? '';
 
       if (extractedText.isEmpty) {
         // In production, this would call a document parsing service
@@ -860,7 +860,7 @@ class AiService {
 
       // Step 2: AI-based topic and objective extraction
       extractionStopwatch = Duration(
-          milliseconds: totalStopwatch.elapsed.inMilliseconds);
+          milliseconds: totalStopwatch.elapsed.inMilliseconds,);
 
       final extractionPrompt = _promptEngine.buildDocumentExtractionPrompt(
         extractedText,
@@ -888,12 +888,12 @@ class AiService {
           extractedText: extractedText,
           identifiedTopics: extractionJson['identified_topics'] != null
               ? List<Map<String, dynamic>>.from(
-                  extractionJson['identified_topics'] as List)
+                  extractionJson['identified_topics'] as List,)
               : document.identifiedTopics,
           suggestedObjectives:
               extractionJson['suggested_objectives'] != null
                   ? List<Map<String, dynamic>>.from(
-                      extractionJson['suggested_objectives'] as List)
+                      extractionJson['suggested_objectives'] as List,)
                   : document.suggestedObjectives,
           status: DocumentStatus.completed,
           processedAt: DateTime.now(),
@@ -902,9 +902,7 @@ class AiService {
 
       // Step 3: Generate questions from extracted content
       final generationInput = input.copyWith(
-        customInstructions: (input.customInstructions ?? '') +
-            '\n\nBased on the following document content:\n'
-            '${extractedText.substring(0, extractedText.length > 8000 ? 8000 : extractedText.length)}',
+        customInstructions: '${input.customInstructions ?? ''}\n\nBased on the following document content:\n${extractedText.substring(0, extractedText.length > 8000 ? 8000 : extractedText.length)}',
       );
 
       // Use a built-in template list (empty = will use defaults)

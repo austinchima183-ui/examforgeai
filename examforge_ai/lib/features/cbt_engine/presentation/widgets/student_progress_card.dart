@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../domain/entities/cbt_entities.dart';
 import '../../../../shared/widgets/app_card.dart';
+import '../../domain/entities/cbt_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // STUDENT PROGRESS CARD
@@ -81,7 +81,7 @@ class StudentProgressCard extends StatelessWidget {
 
     return AppCard(
       borderColor: isSuspicious
-          ? AppColors.errorOf(cs.brightness).withOpacity(0.5)
+          ? AppColors.errorOf(cs.brightness).withValues(alpha: 0.5)
           : null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -94,7 +94,7 @@ class StudentProgressCard extends StatelessWidget {
                 children: [
                   CircleAvatar(
                     radius: 20,
-                    backgroundColor: cs.primary.withOpacity(0.15),
+                    backgroundColor: cs.primary.withValues(alpha: 0.15),
                     child: Text(
                       studentName.isNotEmpty
                           ? studentName[0].toUpperCase()
@@ -153,7 +153,7 @@ class StudentProgressCard extends StatelessWidget {
                             ),
                             decoration: BoxDecoration(
                               color: AppColors.errorOf(cs.brightness)
-                                  .withOpacity(isDark ? 0.25 : 0.12),
+                                  .withValues(alpha: isDark ? 0.25 : 0.12),
                               borderRadius:
                                   BorderRadius.circular(Spacings.smRadius),
                             ),
@@ -197,11 +197,11 @@ class StudentProgressCard extends StatelessWidget {
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
                 color: AppColors.errorOf(cs.brightness)
-                    .withOpacity(isDark ? 0.15 : 0.08),
+                    .withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
                   color: AppColors.errorOf(cs.brightness)
-                      .withOpacity(0.3),
+                      .withValues(alpha: 0.3),
                 ),
               ),
               child: Row(
@@ -330,7 +330,7 @@ class StudentProgressCard extends StatelessWidget {
                 ),
                 style: OutlinedButton.styleFrom(
                   side: BorderSide(
-                    color: AppColors.errorOf(cs.brightness).withOpacity(0.5),
+                    color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.5),
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(Spacings.smRadius),

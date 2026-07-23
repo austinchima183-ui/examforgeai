@@ -4,7 +4,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/offline_entities.dart';
 import '../../domain/repositories/offline_repository.dart';
-import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 
 /// Parameters for [SaveDraftUseCase].
@@ -24,18 +23,18 @@ class SaveDraftUseCase {
 
   Future<Result<DraftWork>> call(SaveDraftParams params) async {
     if (params.draft.id.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Draft ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Draft ID cannot be empty'),
       );
     }
     if (params.draft.userId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'User ID cannot be empty'),
       );
     }
     if (params.draft.title.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Draft title cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Draft title cannot be empty'),
       );
     }
 

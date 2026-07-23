@@ -77,16 +77,16 @@ class _WeakTopicsPageState extends ConsumerState<WeakTopicsPage> {
                       margin: const EdgeInsets.all(16),
                       padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
-                        color: AppColors.warning.withOpacity(0.1),
+                        color: AppColors.warning.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                         border: Border.all(
-                          color: AppColors.warning.withOpacity(0.3),
+                          color: AppColors.warning.withValues(alpha: 0.3),
                         ),
                       ),
                       child: Row(
                         children: [
-                          Icon(Icons.trending_down,
-                              color: AppColors.warning, size: 28),
+                          const Icon(Icons.trending_down,
+                              color: AppColors.warning, size: 28,),
                           const SizedBox(width: 12),
                           Expanded(
                             child: Column(
@@ -180,7 +180,7 @@ class _WeakTopicsPageState extends ConsumerState<WeakTopicsPage> {
                                     onPractice: () =>
                                         _practiceTopic(topic),
                                     onReview: () => _reviewTopic(topic),
-                                  )),
+                                  ),),
 
                               const SizedBox(height: 16),
                             ],
@@ -231,7 +231,7 @@ class _SeverityBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Row(
@@ -293,7 +293,7 @@ class _WeakTopicCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: BorderSide(
-          color: severityColor.withOpacity(0.3),
+          color: severityColor.withValues(alpha: 0.3),
         ),
       ),
       child: Padding(
@@ -317,7 +317,7 @@ class _WeakTopicCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                   decoration: BoxDecoration(
-                    color: severityColor.withOpacity(0.1),
+                    color: severityColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
@@ -349,7 +349,7 @@ class _WeakTopicCard extends StatelessWidget {
                     child: LinearProgressIndicator(
                       value: topic.accuracy / 100,
                       backgroundColor:
-                          context.colorScheme.outlineVariant.withOpacity(0.3),
+                          context.colorScheme.outlineVariant.withValues(alpha: 0.3),
                       color: severityColor,
                       minHeight: 6,
                     ),
@@ -384,8 +384,8 @@ class _WeakTopicCard extends StatelessWidget {
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.lightbulb_outline,
-                              size: 14, color: AppColors.info),
+                          const Icon(Icons.lightbulb_outline,
+                              size: 14, color: AppColors.info,),
                           const SizedBox(width: 6),
                           Expanded(
                             child: Text(
@@ -411,7 +411,7 @@ class _WeakTopicCard extends StatelessWidget {
                     label: const Text('Review'),
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.primary,
-                      side: BorderSide(color: AppColors.primary),
+                      side: const BorderSide(color: AppColors.primary),
                     ),
                   ),
                 ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/extensions/context_extensions.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/themes/app_typography.dart';
 import '../../core/themes/spacings.dart';
-import '../../core/extensions/context_extensions.dart';
 import 'app_button.dart';
 
 // ─── AppErrorState ────────────────────────────────────────────────────────────
@@ -132,7 +132,7 @@ class _AppErrorStateState extends State<AppErrorState>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
-    ));
+    ),);
 
     _controller.forward();
   }
@@ -172,7 +172,7 @@ class _AppErrorStateState extends State<AppErrorState>
                     child: Container(
                       padding: const EdgeInsets.all(Spacings.lg),
                       decoration: BoxDecoration(
-                        color: AppColors.errorOf(cs.brightness).withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                        color: AppColors.errorOf(cs.brightness).withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                         ),
                         shape: BoxShape.circle,
                       ),

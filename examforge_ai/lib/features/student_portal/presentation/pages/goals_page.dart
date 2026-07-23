@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Student goals page with progress tracking.
 ///
@@ -135,7 +135,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                                   goal: goal,
                                   onUpdateProgress: () =>
                                       _showUpdateProgressDialog(
-                                          context, goal),
+                                          context, goal,),
                                   onMarkAchieved: () {
                                     ref
                                         .read(goalsProvider.notifier)
@@ -192,20 +192,20 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                     ),
                     const SizedBox(height: Spacings.md),
                     DropdownButtonFormField<String>(
-                      value: selectedSubject,
+                      initialValue: selectedSubject,
                       decoration: const InputDecoration(
                         labelText: 'Subject (optional)',
                         border: OutlineInputBorder(),
                       ),
                       items: const [
                         DropdownMenuItem(
-                            value: 'math', child: Text('Mathematics')),
+                            value: 'math', child: Text('Mathematics'),),
                         DropdownMenuItem(
-                            value: 'english', child: Text('English')),
+                            value: 'english', child: Text('English'),),
                         DropdownMenuItem(
-                            value: 'biology', child: Text('Biology')),
+                            value: 'biology', child: Text('Biology'),),
                         DropdownMenuItem(
-                            value: 'physics', child: Text('Physics')),
+                            value: 'physics', child: Text('Physics'),),
                       ],
                       onChanged: (value) {
                         setDialogState(() => selectedSubject = value);
@@ -228,13 +228,13 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                         SizedBox(
                           width: 80,
                           child: DropdownButtonFormField<String>(
-                            value: '%',
+                            initialValue: '%',
                             items: const [
                               DropdownMenuItem(value: '%', child: Text('%')),
                               DropdownMenuItem(
-                                  value: 'pts', child: Text('pts')),
+                                  value: 'pts', child: Text('pts'),),
                               DropdownMenuItem(
-                                  value: 'hrs', child: Text('hrs')),
+                                  value: 'hrs', child: Text('hrs'),),
                             ],
                             onChanged: (value) {},
                           ),
@@ -243,7 +243,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                     ),
                     const SizedBox(height: Spacings.md),
                     DropdownButtonFormField<GoalPriority>(
-                      value: priority,
+                      initialValue: priority,
                       decoration: const InputDecoration(
                         labelText: 'Priority',
                         border: OutlineInputBorder(),
@@ -252,7 +252,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                           .map((p) => DropdownMenuItem(
                                 value: p,
                                 child: Text(p.label),
-                              ))
+                              ),)
                           .toList(),
                       onChanged: (value) {
                         if (value != null) {
@@ -266,12 +266,12 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                       leading: const Icon(Icons.calendar_today),
                       title: Text(deadline != null
                           ? 'Deadline: ${deadline!.day}/${deadline!.month}/${deadline!.year}'
-                          : 'Set Deadline (optional)'),
+                          : 'Set Deadline (optional)',),
                       onTap: () async {
                         final picked = await showDatePicker(
                           context: context,
                           initialDate: DateTime.now().add(
-                              const Duration(days: 30)),
+                              const Duration(days: 30),),
                           firstDate: DateTime.now(),
                           lastDate: DateTime.now()
                               .add(const Duration(days: 365)),
@@ -300,7 +300,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
                       targetValue: targetController.text.trim().isEmpty
                           ? null
                           : double.tryParse(
-                              targetController.text.trim()),
+                              targetController.text.trim(),),
                       priority: priority,
                       deadline: deadline,
                     );
@@ -316,7 +316,7 @@ class _GoalsPageState extends ConsumerState<GoalsPage> {
   }
 
   void _showUpdateProgressDialog(
-      BuildContext context, StudentGoalEntity goal) {
+      BuildContext context, StudentGoalEntity goal,) {
     final controller = TextEditingController(
       text: goal.currentValue.toStringAsFixed(1),
     );
@@ -463,7 +463,7 @@ class _GoalCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                  color: statusColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.fullRadius),
@@ -483,7 +483,7 @@ class _GoalCard extends StatelessWidget {
                   vertical: 2,
                 ),
                 decoration: BoxDecoration(
-                  color: priorityColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                  color: priorityColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.fullRadius),

@@ -80,7 +80,7 @@ class _FeedbackPageState extends ConsumerState<FeedbackPage> with SingleTickerPr
               selected: _selectedType == type,
               onSelected: (_) => setState(() => _selectedType = type),
               selectedColor: theme.colorScheme.primaryContainer,
-            )).toList(),
+            ),).toList(),
           ),
           const SizedBox(height: 20),
           Text('Priority', style: theme.textTheme.titleSmall),
@@ -174,13 +174,13 @@ class _FeedbackPageState extends ConsumerState<FeedbackPage> with SingleTickerPr
               children: [
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: statusColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                  decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                   child: Text(submission.status.toUpperCase(), style: theme.textTheme.labelSmall?.copyWith(color: statusColor, fontWeight: FontWeight.w600)),
                 ),
                 const SizedBox(width: 8),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(color: priorityColor.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+                  decoration: BoxDecoration(color: priorityColor.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
                   child: Text(submission.priority.toUpperCase(), style: theme.textTheme.labelSmall?.copyWith(color: priorityColor, fontWeight: FontWeight.w600)),
                 ),
                 const Spacer(),
@@ -200,7 +200,7 @@ class _FeedbackPageState extends ConsumerState<FeedbackPage> with SingleTickerPr
                   const Icon(Icons.check_circle, size: 16, color: Colors.green),
                   const SizedBox(width: 8),
                   Expanded(child: Text(submission.resolution!, style: theme.textTheme.bodySmall?.copyWith(color: Colors.green.shade800))),
-                ]),
+                ],),
               ),
             ],
             const SizedBox(height: 8),

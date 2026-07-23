@@ -50,7 +50,7 @@ class AddCommentUseCase {
       return const FailureResult(Failure.validation(
         message: 'Comment content is required',
         fieldErrors: {'content': 'Content cannot be empty'},
-      ));
+      ),);
     }
     return _repository.addComment(params.toMap());
   }

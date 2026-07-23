@@ -342,7 +342,7 @@ class ProductDetailNotifier extends StateNotifier<ProductDetailState> {
           reviews: state.reviews
               .map((r) => r.id == reviewId
                   ? r.copyWith(helpfulCount: r.helpfulCount + 1)
-                  : r)
+                  : r,)
               .toList(),
         );
         AppLogger.info('Voted review helpful: $reviewId');

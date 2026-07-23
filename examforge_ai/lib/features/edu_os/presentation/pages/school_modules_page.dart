@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../config/dependency_injection.dart';
 import '../../domain/entities/edu_os_entities.dart';
-import '../providers/edu_os_provider.dart';
-import '../widgets/module_card.dart';
 import '../widgets/module_tier_badge.dart';
 
 /// Page showing a school's active modules and subscription status.
@@ -59,7 +57,7 @@ class SchoolModulesPage extends ConsumerWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                color: _getColorFromCode(module?.colorCode).withOpacity(0.15),
+                color: _getColorFromCode(module?.colorCode).withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Center(child: Text(module?.name.substring(0, 2).toUpperCase() ?? '??', style: TextStyle(fontWeight: FontWeight.bold, color: _getColorFromCode(module?.colorCode)))),
@@ -73,7 +71,7 @@ class SchoolModulesPage extends ConsumerWidget {
                     Text(module?.name ?? 'Unknown Module', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
                     const SizedBox(width: 8),
                     if (module != null) ModuleTierBadge(tier: module.moduleTier),
-                  ]),
+                  ],),
                   const SizedBox(height: 4),
                   Text('${sub.moduleTier.label} tier • ${sub.isEnabled ? "Active" : "Disabled"}', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
                   if (sub.expiresAt != null)

@@ -572,13 +572,13 @@ class ExamEcosystemRepositoryImpl implements ExamEcosystemRepository {
       if (startDate != null) {
         entities = entities
             .where((a) => a.scheduledDate.isAfter(startDate) ||
-                a.scheduledDate.isAtSameMomentAs(startDate))
+                a.scheduledDate.isAtSameMomentAs(startDate),)
             .toList();
       }
       if (endDate != null) {
         entities = entities
             .where((a) => a.scheduledDate.isBefore(endDate) ||
-                a.scheduledDate.isAtSameMomentAs(endDate))
+                a.scheduledDate.isAtSameMomentAs(endDate),)
             .toList();
       }
 

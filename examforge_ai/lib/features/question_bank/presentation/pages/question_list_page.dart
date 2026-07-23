@@ -4,27 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
+import '../../../../config/dependency_injection.dart' hide questionFilterProvider;
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../shared/widgets/app_search_bar.dart';
 import '../../domain/entities/question_entities.dart';
-import '../providers/question_provider.dart';
 import '../providers/question_filter_provider.dart';
+import '../providers/question_provider.dart';
 import '../widgets/question_card.dart';
 import '../widgets/question_filter_panel.dart';
-import '../widgets/question_type_badge.dart';
-import '../widgets/difficulty_badge.dart';
-import '../../../../config/dependency_injection.dart' hide questionFilterProvider;
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -214,7 +209,7 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                   Icon(Icons.schedule_rounded),
                   SizedBox(width: Spacings.md),
                   Text('Newest First'),
-                ]),
+                ],),
               ),
               const PopupMenuItem(
                 value: 'sort_oldest',
@@ -222,7 +217,7 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                   Icon(Icons.history_rounded),
                   SizedBox(width: Spacings.md),
                   Text('Oldest First'),
-                ]),
+                ],),
               ),
               const PopupMenuItem(
                 value: 'sort_most_used',
@@ -230,7 +225,7 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                   Icon(Icons.bar_chart_rounded),
                   SizedBox(width: Spacings.md),
                   Text('Most Used'),
-                ]),
+                ],),
               ),
               const PopupMenuItem(
                 value: 'sort_a_z',
@@ -238,7 +233,7 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                   Icon(Icons.sort_by_alpha_rounded),
                   SizedBox(width: Spacings.md),
                   Text('A → Z'),
-                ]),
+                ],),
               ),
             ],
           ),
@@ -289,7 +284,7 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
         label: 'Difficulty: ${filter.difficulty!.label}',
         onRemove: () =>
             ref.read(questionFilterProvider.notifier).updateDifficulty(null),
-      ));
+      ),);
     }
     if (filter.questionType != null) {
       chips.add(_FilterChipData(
@@ -297,21 +292,21 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
         onRemove: () => ref
             .read(questionFilterProvider.notifier)
             .updateQuestionType(null),
-      ));
+      ),);
     }
     if (filter.examType != null) {
       chips.add(_FilterChipData(
         label: 'Exam: ${filter.examType!.label}',
         onRemove: () =>
             ref.read(questionFilterProvider.notifier).updateExamType(null),
-      ));
+      ),);
     }
     for (final tag in filter.tags) {
       chips.add(_FilterChipData(
         label: '#$tag',
         onRemove: () =>
             ref.read(questionFilterProvider.notifier).removeTag(tag),
-      ));
+      ),);
     }
 
     if (chips.isEmpty) return const SizedBox.shrink();
@@ -338,7 +333,7 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
                       color: cs.onSurface,
                     ),
                   ),
-                  deleteIcon: Icon(
+                  deleteIcon: const Icon(
                     Icons.close_rounded,
                     size: Spacings.smIcon,
                   ),
@@ -600,7 +595,7 @@ class _QuestionListPageState extends ConsumerState<QuestionListPage> {
         color: cs.surfaceContainerHigh,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.08),
+            color: Colors.black.withValues(alpha: 0.08),
             blurRadius: 8,
             offset: const Offset(0, -2),
           ),

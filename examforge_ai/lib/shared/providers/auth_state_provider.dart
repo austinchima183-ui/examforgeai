@@ -24,7 +24,6 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../config/dependency_injection.dart';
 import '../../config/supabase_config.dart';
-import '../../core/utils/logger.dart';
 import '../models/user_role.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

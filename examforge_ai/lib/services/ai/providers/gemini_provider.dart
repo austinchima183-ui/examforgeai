@@ -36,7 +36,7 @@ class GeminiProvider implements AiProviderInterface {
           baseUrl: baseUrl,
           connectTimeout: const Duration(seconds: 30),
           receiveTimeout: const Duration(seconds: 120),
-        ));
+        ),);
 
   final String? _apiKey;
   final String _baseUrl;
@@ -46,7 +46,7 @@ class GeminiProvider implements AiProviderInterface {
 
   /// Whether to route AI calls through Supabase Edge Functions.
   bool get _useEdgeFunctions =>
-      (_apiKey == null || _apiKey!.isEmpty) && _supabaseClient != null;
+      (_apiKey == null || _apiKey.isEmpty) && _supabaseClient != null;
 
   // ─── Edge Function Names ──────────────────────────────────────────
   static const _aiCompleteFunction = 'ai-complete';
@@ -334,7 +334,7 @@ class GeminiProvider implements AiProviderInterface {
                   isDone: true,
                   inputTokens: usageMetadata?['promptTokenCount'] as int?,
                   outputTokens: usageMetadata?['candidatesTokenCount'] as int?,
-                ));
+                ),);
               }
             }
           } on FormatException {
@@ -451,10 +451,10 @@ class GeminiProvider implements AiProviderInterface {
       if (totalTokens != null) return totalTokens;
     } on DioException catch (e) {
       AppLogger.debug('Gemini countTokens endpoint failed, '
-          'falling back to estimation', error: e);
+          'falling back to estimation', error: e,);
     } catch (e) {
       AppLogger.debug('Gemini countTokens endpoint failed, '
-          'falling back to estimation', error: e);
+          'falling back to estimation', error: e,);
     }
 
     return estimatedTokens.clamp(1, capabilities.maxContextTokens);

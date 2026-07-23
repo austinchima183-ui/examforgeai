@@ -69,7 +69,7 @@ class GenerateCommunicationUseCase {
       return const FailureResult(Failure.validation(
         message: 'Purpose is required',
         fieldErrors: {'purpose': 'Purpose cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateCommunication(params.toMap());
   }

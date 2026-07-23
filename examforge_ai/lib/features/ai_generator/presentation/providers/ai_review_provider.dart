@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/ai_entities.dart';
+import '../../domain/repositories/ai_generator_repository.dart';
 import '../../domain/usecases/improve_question_usecase.dart';
 import '../../domain/usecases/review_generated_question_usecase.dart';
 import '../../domain/usecases/save_to_question_bank_usecase.dart';
 import '../../domain/usecases/validate_question_usecase.dart';
-import '../../domain/repositories/ai_generator_repository.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // AI REVIEW STATE

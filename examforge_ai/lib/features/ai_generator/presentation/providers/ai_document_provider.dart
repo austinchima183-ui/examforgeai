@@ -3,8 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/ai_entities.dart';
-import '../../domain/usecases/upload_document_usecase.dart';
 import '../../domain/repositories/ai_generator_repository.dart';
+import '../../domain/usecases/upload_document_usecase.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // AI DOCUMENT STATE

@@ -39,7 +39,7 @@ class GetChildPerformanceUseCase {
       return const FailureResult(Failure.validation(
         message: 'Student ID is required',
         fieldErrors: {'studentId': 'Student ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.getChildPerformance(
       studentId: params.studentId,

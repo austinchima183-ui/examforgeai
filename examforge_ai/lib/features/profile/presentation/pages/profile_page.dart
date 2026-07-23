@@ -4,10 +4,10 @@ import 'package:go_router/go_router.dart';
 
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/constants/app_constants.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_guards.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -245,7 +245,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           gradient: AppColors.brandGradient,
                           boxShadow: [
                             BoxShadow(
-                              color: AppColors.seed.withOpacity(0.3),
+                              color: AppColors.seed.withValues(alpha: 0.3),
                               blurRadius: 20,
                               offset: const Offset(0, 8),
                             ),
@@ -536,7 +536,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                     ],
                   ),
                   const Divider(height: Spacings.xxl),
-                  Row(
+                  const Row(
                     children: [
                       Expanded(
                         child: _ActivityStat(
@@ -546,7 +546,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           color: AppColors.info,
                         ),
                       ),
-                      const SizedBox(width: Spacings.md),
+                      SizedBox(width: Spacings.md),
                       Expanded(
                         child: _ActivityStat(
                           icon: Icons.library_books_outlined,
@@ -555,7 +555,7 @@ class _ProfilePageState extends ConsumerState<ProfilePage>
                           color: AppColors.success,
                         ),
                       ),
-                      const SizedBox(width: Spacings.md),
+                      SizedBox(width: Spacings.md),
                       Expanded(
                         child: _ActivityStat(
                           icon: Icons.trending_up_rounded,
@@ -674,7 +674,7 @@ class _ActivityStat extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.md),
           decoration: BoxDecoration(
-            color: color.withOpacity(isDark ? 0.20 : 0.12),
+            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
             shape: BoxShape.circle,
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: color),

@@ -4,16 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../core/utils/input_validator.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../providers/auth_provider.dart';
-import '../../../../config/dependency_injection.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 
 /// Email verification page — shown after registration to prompt the
@@ -345,7 +343,7 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage>
                   child: Container(
                     width: 100,
                     height: 100,
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       color: AppColors.successLight,
                       shape: BoxShape.circle,
                     ),
@@ -385,9 +383,9 @@ class _VerifyEmailPageState extends ConsumerState<VerifyEmailPage>
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.errorLight.withOpacity(0.5),
+        color: AppColors.errorLight.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
-        border: Border.all(color: cs.error.withOpacity(0.3)),
+        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

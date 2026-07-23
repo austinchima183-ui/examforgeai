@@ -1,17 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
-import '../providers/seller_provider.dart';
-import '../providers/purchase_provider.dart';
-import '../providers/cart_provider.dart';
-import '../providers/order_provider.dart';
 import '../providers/marketplace_notification_provider.dart';
+import '../providers/purchase_provider.dart';
 import '../widgets/marketplace_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -280,7 +277,7 @@ class _PurchaseCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(
@@ -312,7 +309,7 @@ class _PurchaseCard extends ConsumerWidget {
                             vertical: Spacings.xs,
                           ),
                           decoration: BoxDecoration(
-                            color: licenseBadgeColor.withOpacity(isDark ? 0.20 : 0.12,
+                            color: licenseBadgeColor.withValues(alpha: isDark ? 0.20 : 0.12,
                             ),
                             borderRadius: Spacings.borderRadiusSm,
                           ),
@@ -375,7 +372,7 @@ class _PurchaseCard extends ConsumerWidget {
                   ),
                 ),
               ] else ...[
-                Icon(
+                const Icon(
                   Icons.all_inclusive_rounded,
                   size: Spacings.smIcon,
                   color: AppColors.success,
@@ -398,10 +395,10 @@ class _PurchaseCard extends ConsumerWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withOpacity(0.5),
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: Spacings.borderRadiusSm,
                 border: Border.all(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Row(
@@ -569,7 +566,7 @@ class _WishlistTab extends StatelessWidget {
                           horizontal: Spacings.sm,
                           vertical: Spacings.xs,
                         ),
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           color: AppColors.success,
                           borderRadius: Spacings.borderRadiusSm,
                         ),
@@ -711,7 +708,7 @@ class _DownloadItem extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: Icon(
@@ -880,7 +877,7 @@ class _SavedSearchCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: Icon(

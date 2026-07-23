@@ -1,6 +1,5 @@
 import '../../../../core/utils/result.dart';
 import '../entities/marketplace_entities.dart';
-import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
 
 
 /// Abstract contract for the marketplace repository.

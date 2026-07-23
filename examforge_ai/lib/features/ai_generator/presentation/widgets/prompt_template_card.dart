@@ -287,7 +287,7 @@ class _Badge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.xs),
       ),
       child: Text(
@@ -322,7 +322,7 @@ class _InfoChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.15 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.15 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(

@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../domain/entities/exam_template_entities.dart';
 import '../../../domain/entities/cbt_entities.dart';
-import '../../../../../config/dependency_injection.dart';
+import '../../../domain/entities/exam_template_entities.dart';
 import '../../providers/submission_receipt_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -59,7 +59,7 @@ class SubmissionReceiptPage extends ConsumerWidget {
                   ),
                 )
               : receipt == null
-                  ? Center(
+                  ? const Center(
                       child: AppEmptyState(
                         icon: Icons.receipt_long_outlined,
                         title: 'No Receipt',
@@ -127,7 +127,7 @@ class SubmissionReceiptPage extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 ),
                 child: Icon(
@@ -173,7 +173,7 @@ class SubmissionReceiptPage extends ConsumerWidget {
               color: cs.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(Spacings.smRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Row(
@@ -518,10 +518,10 @@ class SubmissionReceiptPage extends ConsumerWidget {
             width: double.infinity,
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(isDark ? 0.15 : 0.08),
+              color: statusColor.withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: statusColor.withOpacity(0.3),
+                color: statusColor.withValues(alpha: 0.3),
               ),
             ),
             child: Row(
@@ -657,10 +657,10 @@ class SubmissionReceiptPage extends ConsumerWidget {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.12 : 0.06),
+        color: color.withValues(alpha: isDark ? 0.12 : 0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: color.withOpacity(0.2),
+          color: color.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -751,7 +751,7 @@ class SubmissionReceiptPage extends ConsumerWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -763,7 +763,7 @@ class SubmissionReceiptPage extends ConsumerWidget {
             type.label,
             style: tt.labelSmall?.copyWith(
               fontWeight: AppTypography.wSemiBold,
-              color: isDark ? color.withOpacity(0.9) : color,
+              color: isDark ? color.withValues(alpha: 0.9) : color,
             ),
           ),
         ],

@@ -2,26 +2,24 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_button.dart';
-import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../domain/entities/question_entities.dart';
-import '../providers/question_provider.dart';
-import '../providers/question_bank_stats_provider.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../providers/collection_provider.dart';
-import '../widgets/stats_overview.dart';
-import '../widgets/question_card.dart';
+import '../providers/question_bank_stats_provider.dart';
+import '../providers/question_provider.dart';
 import '../widgets/collection_card.dart';
-import '../../../../config/dependency_injection.dart';
+import '../widgets/question_card.dart';
+import '../widgets/stats_overview.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -172,7 +170,7 @@ class _QuestionBankDashboardPageState
               mainAxisSpacing: Spacings.md,
               children: List.generate(
                 4,
-                (_) => AppLoadingShimmer.box(height: 120),
+                (_) => const AppLoadingShimmer.box(height: 120),
               ),
             ),
           ),
@@ -412,10 +410,10 @@ class _QuestionBankDashboardPageState
             children: [
               Row(
                 children: [
-                  Icon(
+                  const Icon(
                     Icons.favorite_rounded,
                     size: Spacings.mdIcon,
-                    color: const Color(0xFFE11D48),
+                    color: Color(0xFFE11D48),
                   ),
                   const SizedBox(width: Spacings.sm),
                   Text(
@@ -627,10 +625,10 @@ class _ErrorBanner extends StatelessWidget {
       margin: const EdgeInsets.all(Spacings.lg),
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.errorOf(cs.brightness).withOpacity(0.08),
+        color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.errorOf(cs.brightness).withOpacity(0.3),
+          color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.3),
         ),
       ),
       child: Row(

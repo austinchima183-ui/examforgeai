@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
 import '../../domain/entities/billing_entities.dart';
-import '../providers/payment_provider.dart';
 import '../providers/coupon_provider.dart';
+import '../providers/payment_provider.dart';
 import '../providers/subscription_provider.dart';
 import '../widgets/billing_widgets.dart';
 
@@ -216,7 +214,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       SnackBar(
         content: Text(message),
         behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
       ),
@@ -234,7 +232,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
     final couponState = ref.watch(couponProvider);
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Checkout',
       ),
       body: SingleChildScrollView(
@@ -303,7 +301,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
                 style: FilledButton.styleFrom(
                   padding: Spacings.paddingButton,
-                  shape: RoundedRectangleBorder(
+                  shape: const RoundedRectangleBorder(
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   backgroundColor: AppColors.warning,
@@ -347,8 +345,8 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.06),
-      shape: RoundedRectangleBorder(
+      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
       child: Padding(
@@ -417,7 +415,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
                 ),
                 decoration: BoxDecoration(
                   color: AppColors.success
-                      .withOpacity(isDark ? 0.20 : 0.10),
+                      .withValues(alpha: isDark ? 0.20 : 0.10),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Text(
@@ -446,7 +444,7 @@ class _CheckoutPageState extends ConsumerState<CheckoutPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(

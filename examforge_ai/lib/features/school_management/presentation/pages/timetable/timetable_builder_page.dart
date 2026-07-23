@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/timetable_provider.dart';
 import '../../providers/subject_provider.dart';
 import '../../providers/teacher_provider.dart';
-import '../../../../../config/dependency_injection.dart';
+import '../../providers/timetable_provider.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -119,13 +118,13 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
               padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
               child: Chip(
                 avatar: const Icon(Icons.warning_amber_rounded,
-                    color: AppColors.error, size: 18),
+                    color: AppColors.error, size: 18,),
                 label: const Text('Conflicts'),
                 labelStyle: tt.labelSmall?.copyWith(
                   color: AppColors.error,
                   fontWeight: AppTypography.wSemiBold,
                 ),
-                backgroundColor: AppColors.error.withOpacity(0.1),
+                backgroundColor: AppColors.error.withValues(alpha: 0.1),
                 side: BorderSide.none,
                 padding: EdgeInsets.zero,
               ),
@@ -256,7 +255,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
                   return _buildSlotCell(context, day, period, slot, hasConflict);
                 }),
               ],
-            )),
+            ),),
       ],
     );
   }
@@ -339,7 +338,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
         child: Container(
           padding: const EdgeInsets.all(Spacings.xs),
           decoration: BoxDecoration(
-            color: AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
+            color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
             border: hasConflict
                 ? Border.all(color: AppColors.error, width: 2)
                 : null,
@@ -348,8 +347,8 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.free_breakfast_outlined,
-                    size: 16, color: AppColors.warning),
+                const Icon(Icons.free_breakfast_outlined,
+                    size: 16, color: AppColors.warning,),
                 Text(
                   slot.breakLabel ?? 'Break',
                   style: tt.labelSmall?.copyWith(
@@ -375,11 +374,11 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
         child: Container(
           padding: const EdgeInsets.all(Spacings.xs),
           decoration: BoxDecoration(
-            color: subjectColor.withOpacity(isDark ? 0.20 : 0.10),
+            color: subjectColor.withValues(alpha: isDark ? 0.20 : 0.10),
             border: hasConflict
                 ? Border.all(color: AppColors.error, width: 2)
                 : Border.all(
-                    color: subjectColor.withOpacity(0.3), width: 1),
+                    color: subjectColor.withValues(alpha: 0.3), width: 1,),
           ),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
@@ -431,7 +430,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
           child: Icon(
             Icons.add_rounded,
             size: 20,
-            color: cs.outline.withOpacity(0.5),
+            color: cs.outline.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -514,7 +513,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
               children: [
                 // Subject selector
                 DropdownButtonFormField<String>(
-                  value: selectedSubjectId,
+                  initialValue: selectedSubjectId,
                   decoration: const InputDecoration(
                     labelText: 'Subject',
                     prefixIcon: Icon(Icons.book_outlined),
@@ -537,7 +536,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
 
                 // Teacher selector (auto-filtered by subject)
                 DropdownButtonFormField<String>(
-                  value: selectedTeacherId,
+                  initialValue: selectedTeacherId,
                   decoration: const InputDecoration(
                     labelText: 'Teacher',
                     prefixIcon: Icon(Icons.person_outline_rounded),
@@ -571,7 +570,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
 
                 // Time range
                 DropdownButtonFormField<String>(
-                  value: selectedTimeRange,
+                  initialValue: selectedTimeRange,
                   decoration: const InputDecoration(
                     labelText: 'Time Range',
                     prefixIcon: Icon(Icons.access_time_rounded),
@@ -656,7 +655,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 DropdownButtonFormField<DayOfWeek>(
-                  value: selectedDay,
+                  initialValue: selectedDay,
                   decoration: const InputDecoration(
                     labelText: 'Day',
                     prefixIcon: Icon(Icons.calendar_today_outlined),
@@ -665,7 +664,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
                       .map((d) => DropdownMenuItem(
                             value: d,
                             child: Text(d.label),
-                          ))
+                          ),)
                       .toList(),
                   onChanged: (value) {
                     setDialogState(() => selectedDay = value);
@@ -673,7 +672,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
                 ),
                 const SizedBox(height: Spacings.lg),
                 DropdownButtonFormField<int>(
-                  value: selectedPeriod,
+                  initialValue: selectedPeriod,
                   decoration: const InputDecoration(
                     labelText: 'Period',
                     prefixIcon: Icon(Icons.access_time_rounded),
@@ -682,7 +681,7 @@ class _TimetableBuilderPageState extends ConsumerState<TimetableBuilderPage> {
                       .map((p) => DropdownMenuItem(
                             value: p,
                             child: Text('Period $p'),
-                          ))
+                          ),)
                       .toList(),
                   onChanged: (value) {
                     setDialogState(() => selectedPeriod = value);

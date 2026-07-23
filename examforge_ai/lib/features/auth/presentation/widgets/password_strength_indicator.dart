@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 /// Password strength level enumeration.
 enum PasswordStrengthLevel {
@@ -196,7 +196,7 @@ class _StrengthBar extends StatelessWidget {
             ),
             height: 4,
             decoration: BoxDecoration(
-              color: isFilled ? activeColor : cs.outlineVariant.withOpacity(0.3),
+              color: isFilled ? activeColor : cs.outlineVariant.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -296,13 +296,13 @@ class _CriteriaChip extends StatelessWidget {
       ),
       decoration: BoxDecoration(
         color: isMet
-            ? AppColors.successLight.withOpacity(0.5)
+            ? AppColors.successLight.withValues(alpha: 0.5)
             : Colors.transparent,
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border.all(
           color: isMet
-              ? AppColors.success.withOpacity(0.3)
-              : colorScheme.outlineVariant.withOpacity(0.3),
+              ? AppColors.success.withValues(alpha: 0.3)
+              : colorScheme.outlineVariant.withValues(alpha: 0.3),
         ),
       ),
       child: Row(

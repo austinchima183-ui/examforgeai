@@ -17,7 +17,7 @@ class ToggleFavoriteUseCase {
       return const FailureResult(Failure.validation(
         message: 'Resource ID is required',
         fieldErrors: {'resourceId': 'Resource ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.toggleFavorite(params.resourceId);
   }

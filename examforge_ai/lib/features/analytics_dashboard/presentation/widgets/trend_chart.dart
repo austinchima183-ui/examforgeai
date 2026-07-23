@@ -123,7 +123,7 @@ class _LineChartPainter extends CustomPainter {
     fillPath.lineTo(0, chartHeight);
     fillPath.close();
 
-    final fillPaint = Paint()..color = color.withOpacity(0.1)..style = PaintingStyle.fill;
+    final fillPaint = Paint()..color = color.withValues(alpha: 0.1)..style = PaintingStyle.fill;
     canvas.drawPath(fillPath, fillPaint);
 
     // Draw line

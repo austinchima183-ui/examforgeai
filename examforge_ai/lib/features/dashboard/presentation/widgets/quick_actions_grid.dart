@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_card.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -134,7 +134,7 @@ class _AnimatedActionCardState extends State<_AnimatedActionCard>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
-    ));
+    ),);
 
     _controller.forward();
   }

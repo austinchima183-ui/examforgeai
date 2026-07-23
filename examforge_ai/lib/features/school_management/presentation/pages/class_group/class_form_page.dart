@@ -1,14 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/class_provider.dart';
 import '../../providers/teacher_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -197,7 +196,7 @@ class _ClassFormPageState extends ConsumerState<ClassFormPage> {
 
               // ─── Grade Level ────────────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _gradeLevelController.text.isNotEmpty
+                initialValue: _gradeLevelController.text.isNotEmpty
                     ? _gradeLevelController.text
                     : null,
                 decoration: const InputDecoration(
@@ -208,7 +207,7 @@ class _ClassFormPageState extends ConsumerState<ClassFormPage> {
                     .map((level) => DropdownMenuItem(
                           value: level,
                           child: Text(level),
-                        ))
+                        ),)
                     .toList(),
                 onChanged: (value) {
                   if (value != null) {
@@ -220,7 +219,7 @@ class _ClassFormPageState extends ConsumerState<ClassFormPage> {
 
               // ─── Academic Year ──────────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _selectedAcademicYear,
+                initialValue: _selectedAcademicYear,
                 decoration: const InputDecoration(
                   labelText: 'Academic Year *',
                   prefixIcon: Icon(Icons.calendar_today_outlined),
@@ -229,7 +228,7 @@ class _ClassFormPageState extends ConsumerState<ClassFormPage> {
                     .map((year) => DropdownMenuItem(
                           value: year,
                           child: Text(year),
-                        ))
+                        ),)
                     .toList(),
                 validator: (value) {
                   if (value == null || value.isEmpty) {
@@ -245,7 +244,7 @@ class _ClassFormPageState extends ConsumerState<ClassFormPage> {
 
               // ─── Class Teacher ──────────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _selectedTeacherId,
+                initialValue: _selectedTeacherId,
                 decoration: const InputDecoration(
                   labelText: 'Class Teacher',
                   prefixIcon: Icon(Icons.person_outline_rounded),
@@ -261,7 +260,7 @@ class _ClassFormPageState extends ConsumerState<ClassFormPage> {
                         child: Text(
                           teacher.fullName ?? 'Unknown Teacher',
                         ),
-                      )),
+                      ),),
                 ],
                 onChanged: (value) {
                   setState(() => _selectedTeacherId = value);
@@ -309,7 +308,7 @@ class _ClassFormPageState extends ConsumerState<ClassFormPage> {
                 ),
                 value: _isActive,
                 onChanged: (value) => setState(() => _isActive = value),
-                activeColor: cs.primary,
+                activeThumbColor: cs.primary,
                 contentPadding: EdgeInsets.zero,
               ),
               const SizedBox(height: Spacings.xxxl),

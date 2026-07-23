@@ -34,7 +34,7 @@ class _ReleaseNotesPageState extends ConsumerState<ReleaseNotesPage> {
               Icon(Icons.new_releases_outlined, size: 64, color: Colors.grey.shade400),
               const SizedBox(height: 16),
               Text('No release notes yet', style: theme.textTheme.bodyLarge),
-            ]));
+            ],),);
           }
           return RefreshIndicator(
             onRefresh: () => provider.loadReleaseNotes(),
@@ -103,7 +103,7 @@ class _ReleaseNotesPageState extends ConsumerState<ReleaseNotesPage> {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
       child: Text(label, style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
     );
   }
@@ -129,10 +129,10 @@ class _ReleaseNotesPageState extends ConsumerState<ReleaseNotesPage> {
               Text('v${note.version}', style: TextStyle(color: Theme.of(context).colorScheme.primary, fontWeight: FontWeight.w600)),
               const SizedBox(width: 12),
               Text(_formatDate(note.createdAt)),
-            ]),
+            ],),
             const Divider(height: 24),
             Text(note.content, style: Theme.of(context).textTheme.bodyLarge),
-          ]),
+          ],),
         ),
       ),
     );

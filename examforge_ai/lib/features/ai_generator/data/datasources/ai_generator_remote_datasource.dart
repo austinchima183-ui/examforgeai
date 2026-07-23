@@ -323,7 +323,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
       final response = await transformQuery;
       return response
           .map<GenerationRequestModel>(
-              (json) => GenerationRequestModel.fromJson(json))
+              (json) => GenerationRequestModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -402,7 +402,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       return response
           .map<GeneratedQuestionModel>(
-              (json) => GeneratedQuestionModel.fromJson(json))
+              (json) => GeneratedQuestionModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -491,7 +491,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
       }
       if (filters.containsKey('generation_request_id')) {
         filterQuery = filterQuery.eq('generation_request_id',
-            filters['generation_request_id'] as String);
+            filters['generation_request_id'] as String,);
       }
 
       var transformQuery = filterQuery.order('created_at', ascending: false);
@@ -504,7 +504,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
       final response = await transformQuery;
       return response
           .map<GeneratedQuestionModel>(
-              (json) => GeneratedQuestionModel.fromJson(json))
+              (json) => GeneratedQuestionModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -645,7 +645,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       if (response.isEmpty) {
         throw const NotFoundException(message: 
-            'Generated question not found for revision request.');
+            'Generated question not found for revision request.',);
       }
 
       AppLogger.info('Question revision requested: $id');
@@ -770,7 +770,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       return response
           .map<QuestionImprovementModel>(
-              (json) => QuestionImprovementModel.fromJson(json))
+              (json) => QuestionImprovementModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -830,7 +830,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       return response
           .map<ValidationResultModel>(
-              (json) => ValidationResultModel.fromJson(json))
+              (json) => ValidationResultModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -856,7 +856,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       return response
           .map<ValidationResultModel>(
-              (json) => ValidationResultModel.fromJson(json))
+              (json) => ValidationResultModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1022,7 +1022,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
       final response = await transformQuery;
       return response
           .map<DocumentUploadModel>(
-              (json) => DocumentUploadModel.fromJson(json))
+              (json) => DocumentUploadModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1058,11 +1058,11 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       if (response.isEmpty) {
         throw const NotFoundException(message: 
-            'Generated question not found for save-to-bank.');
+            'Generated question not found for save-to-bank.',);
       }
 
       AppLogger.info(
-          'Question saved to bank: $generatedQuestionId -> $questionBankId');
+          'Question saved to bank: $generatedQuestionId -> $questionBankId',);
       return GeneratedQuestionModel.fromJson(response.first);
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1199,7 +1199,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<PromptTemplateModel>(
-              (json) => PromptTemplateModel.fromJson(json))
+              (json) => PromptTemplateModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1218,7 +1218,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
       // Use an RPC call to atomically increment the usage_count
       await _supabase.rpc('increment_template_usage', params: {
         'template_id': id,
-      });
+      },);
     } on sb.PostgrestException catch (e) {
       // If the RPC doesn't exist, fall back to a manual update
       if (e.code == '42883') {
@@ -1356,7 +1356,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       return response
           .map<AiProviderConfigModel>(
-              (json) => AiProviderConfigModel.fromJson(json))
+              (json) => AiProviderConfigModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1498,7 +1498,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .select();
 
       return GenerationQueueModel.fromJson(
-          updated.isNotEmpty ? updated.first : entry);
+          updated.isNotEmpty ? updated.first : entry,);
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
     } on NotFoundException {
@@ -1526,7 +1526,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
       return response
           .map<GenerationQueueModel>(
-              (json) => GenerationQueueModel.fromJson(json))
+              (json) => GenerationQueueModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1602,7 +1602,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<AiUsageStatsModel>(
-              (json) => AiUsageStatsModel.fromJson(json))
+              (json) => AiUsageStatsModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);
@@ -1641,7 +1641,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
 
         final questions = await filteredQuery;
 
-        int totalGenerated = questions.length;
+        final int totalGenerated = questions.length;
         int totalApproved = 0;
         int totalRejected = 0;
         int pendingReview = 0;
@@ -1763,7 +1763,7 @@ class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
           .limit(PaginatedQueryMixin.dropdownPageSize);
       return response
           .map<CurriculumMappingModel>(
-              (json) => CurriculumMappingModel.fromJson(json))
+              (json) => CurriculumMappingModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       throw _mapPostgrestException(e);

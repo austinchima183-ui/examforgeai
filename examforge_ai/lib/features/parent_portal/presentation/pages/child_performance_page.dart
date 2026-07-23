@@ -1,12 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
@@ -155,7 +153,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
               child: Column(
                 children: [
                   // Overall card shimmer
-                  AppLoadingShimmer.box(
+                  const AppLoadingShimmer.box(
                     height: 180,
                     borderRadius: Spacings.borderRadiusLg,
                   ),
@@ -163,8 +161,8 @@ class _State extends ConsumerState<ChildPerformancePage> {
                   // Subject items shimmer
                   ...List.generate(
                     4,
-                    (_) => Padding(
-                      padding: const EdgeInsets.only(bottom: Spacings.md),
+                    (_) => const Padding(
+                      padding: EdgeInsets.only(bottom: Spacings.md),
                       child: AppLoadingShimmer.box(
                         height: 72,
                         borderRadius: Spacings.borderRadiusMd,
@@ -198,7 +196,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: Card(
         elevation: Spacings.elevationSm,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(
@@ -350,7 +348,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
             Card(
               elevation: Spacings.elevationNone,
               color: cs.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Padding(
@@ -369,7 +367,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
             ...subjects.map((subject) => Padding(
                   padding: const EdgeInsets.only(bottom: Spacings.sm),
                   child: _buildSubjectCard(context, subject),
-                )),
+                ),),
         ],
       ),
     );
@@ -389,7 +387,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
     return Card(
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
       ),
       child: Padding(
@@ -503,7 +501,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Padding(
@@ -513,7 +511,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
               Icon(
                 Icons.show_chart_outlined,
                 size: Spacings.xlIcon,
-                color: cs.onSurfaceVariant.withOpacity(0.4),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.4),
               ),
               const SizedBox(height: Spacings.md),
               Text(
@@ -559,7 +557,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
             Card(
               elevation: Spacings.elevationNone,
               color: cs.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Padding(
@@ -578,7 +576,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
             ...remarks.map((remark) => Padding(
                   padding: const EdgeInsets.only(bottom: Spacings.sm),
                   child: _buildRemarkCard(context, remark),
-                )),
+                ),),
         ],
       ),
     );
@@ -594,7 +592,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
     return Card(
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
       ),
       child: Padding(
@@ -682,7 +680,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
               padding: const EdgeInsets.symmetric(
                 vertical: Spacings.md,
               ),
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
             ),
@@ -696,7 +694,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
               _buildFormatChip(context, 'Excel', Icons.table_chart_outlined),
               const SizedBox(width: Spacings.sm),
               _buildFormatChip(
-                  context, 'Printable', Icons.print_outlined),
+                  context, 'Printable', Icons.print_outlined,),
             ],
           ),
         ],
@@ -721,7 +719,7 @@ class _State extends ConsumerState<ChildPerformancePage> {
         color: cs.surfaceContainerLow,
         borderRadius: Spacings.borderRadiusSm,
         border: Border.all(
-          color: cs.outline.withOpacity(0.3),
+          color: cs.outline.withValues(alpha: 0.3),
         ),
       ),
       child: Row(

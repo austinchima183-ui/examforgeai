@@ -2,16 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../providers/auth_provider.dart';
-import '../providers/auth_form_provider.dart';
-import '../../../../config/dependency_injection.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 
 /// Professional login page with email/password authentication.
@@ -40,7 +38,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
   final _passwordController = TextEditingController();
   final _emailFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
-  bool _obscurePassword = true;
+  final bool _obscurePassword = true;
   bool _rememberMe = false;
 
   @override
@@ -182,7 +180,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                             const SizedBox(width: Spacings.sm),
                             GestureDetector(
                               onTap: () => setState(
-                                  () => _rememberMe = !_rememberMe),
+                                  () => _rememberMe = !_rememberMe,),
                               child: Text(
                                 'Remember me',
                                 style: tt.bodySmall?.copyWith(
@@ -197,7 +195,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
                               context.go(RouteNames.forgotPassword),
                           style: TextButton.styleFrom(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: Spacings.sm),
+                                horizontal: Spacings.sm,),
                             minimumSize: Size.zero,
                             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           ),
@@ -318,9 +316,9 @@ class _LoginPageState extends ConsumerState<LoginPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.errorLight.withOpacity(0.5),
+        color: AppColors.errorLight.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
-        border: Border.all(color: cs.error.withOpacity(0.3)),
+        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [
@@ -371,7 +369,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               // Placeholder for Google Sign-In
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('Google Sign-In coming soon')),
+                    content: Text('Google Sign-In coming soon'),),
               );
             },
             icon: const Icon(Icons.g_mobiledata, size: Spacings.lgIcon),
@@ -391,7 +389,7 @@ class _LoginPageState extends ConsumerState<LoginPage> {
               // Placeholder for Apple Sign-In
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(
-                    content: Text('Apple Sign-In coming soon')),
+                    content: Text('Apple Sign-In coming soon'),),
               );
             },
             icon: const Icon(Icons.apple, size: Spacings.lgIcon),

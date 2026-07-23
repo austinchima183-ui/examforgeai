@@ -3,7 +3,6 @@ import 'package:equatable/equatable.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/repositories/offline_repository.dart';
-import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 
 /// Parameters for [TriggerSyncUseCase].
@@ -23,8 +22,8 @@ class TriggerSyncUseCase {
 
   Future<Result<bool>> call(TriggerSyncParams params) async {
     if (params.userId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'User ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'User ID cannot be empty'),
       );
     }
 

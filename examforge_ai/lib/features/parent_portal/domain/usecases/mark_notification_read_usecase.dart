@@ -31,7 +31,7 @@ class MarkNotificationReadUseCase {
       return const FailureResult(Failure.validation(
         message: 'Notification ID is required',
         fieldErrors: {'notificationId': 'Notification ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.markNotificationRead(params.notificationId);
   }

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/communication_entities.dart';
 
@@ -62,7 +62,7 @@ class ForumPostCard extends StatelessWidget {
       width: 28,
       height: 28,
       decoration: BoxDecoration(
-        color: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+        color: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -120,13 +120,13 @@ class ForumPostCard extends StatelessWidget {
                 ),
               ),
               if (post.isPinned) ...[
-                Icon(Icons.push_pin_rounded,
-                    size: Spacings.smIcon, color: AppColors.seed),
+                const Icon(Icons.push_pin_rounded,
+                    size: Spacings.smIcon, color: AppColors.seed,),
                 const SizedBox(width: Spacings.xs),
               ],
               if (post.isLocked)
                 Icon(Icons.lock_outline_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.sm),
               Text(
                 _relativeTime(post.createdAt),
@@ -166,7 +166,7 @@ class ForumPostCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.chat_bubble_outline_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${post.commentCount}',
@@ -176,7 +176,7 @@ class ForumPostCard extends StatelessWidget {
               ),
               const SizedBox(width: Spacings.lg),
               Icon(Icons.thumb_up_outlined,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${post.likeCount}',
@@ -187,7 +187,7 @@ class ForumPostCard extends StatelessWidget {
               if (post.attachments.isNotEmpty) ...[
                 const SizedBox(width: Spacings.lg),
                 Icon(Icons.attach_file_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   '${post.attachments.length}',

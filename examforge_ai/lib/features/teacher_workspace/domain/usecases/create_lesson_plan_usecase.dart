@@ -18,7 +18,7 @@ class CreateLessonPlanUseCase {
       return const FailureResult(Failure.validation(
         message: 'Lesson plan title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createLessonPlan(params.plan);
   }

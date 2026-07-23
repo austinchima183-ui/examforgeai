@@ -404,7 +404,7 @@ class ReadinessNotifier extends StateNotifier<ReadinessState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     final result = await _repository.getUserReadiness(
-      userId: _userId!,
+      userId: _userId,
       examBodyId: examBodyId,
     );
 
@@ -436,7 +436,7 @@ class ReadinessNotifier extends StateNotifier<ReadinessState> {
 
     final result = await _calculateReadiness(
       CalculateReadinessParams(
-        userId: _userId!,
+        userId: _userId,
         examBodyId: examBodyId,
         subjectId: subjectId,
       ),
@@ -466,7 +466,7 @@ class ReadinessNotifier extends StateNotifier<ReadinessState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     final result = await _getExamReadiness(
-      GetExamReadinessParams(userId: _userId!, examBodyId: examBodyId),
+      GetExamReadinessParams(userId: _userId, examBodyId: examBodyId),
     );
 
     result.fold(
@@ -620,7 +620,7 @@ class StudyPlanNotifier extends StateNotifier<StudyPlanState> {
     state = state.copyWith(isLoading: true, clearError: true);
 
     final result = await _getStudyPlans(
-      GetStudyPlansParams(userId: _userId!),
+      GetStudyPlansParams(userId: _userId),
     );
 
     result.fold(
@@ -713,7 +713,7 @@ class StudyPlanNotifier extends StateNotifier<StudyPlanState> {
 
     final result = await _generateAiStudyPlan(
       GenerateAiStudyPlanParams(
-        userId: _userId!,
+        userId: _userId,
         examBodyId: examBodyId,
         subjectId: subjectId,
         educationalLevelId: educationalLevelId,

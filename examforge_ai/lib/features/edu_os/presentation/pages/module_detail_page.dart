@@ -54,8 +54,8 @@ class _ModuleDetailPageState extends State<ModuleDetailPage> {
                         const SizedBox(width: 8),
                         _buildStatusChip(theme, module.moduleStatus),
                         const Spacer(),
-                        if (module.isCore) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), borderRadius: BorderRadius.circular(4)), child: const Text('CORE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10))),
-                      ]),
+                        if (module.isCore) Container(padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2), decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), borderRadius: BorderRadius.circular(4)), child: const Text('CORE', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600, fontSize: 10))),
+                      ],),
                       const SizedBox(height: 16),
                       Text(module.name, style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white)),
                       const SizedBox(height: 4),
@@ -81,8 +81,8 @@ class _ModuleDetailPageState extends State<ModuleDetailPage> {
                       Icon(Icons.check_circle, size: 18, color: Colors.green.shade600),
                       const SizedBox(width: 8),
                       Expanded(child: Text('${entry.key}: ${entry.value}', style: theme.textTheme.bodyMedium)),
-                    ]),
-                  )),
+                    ],),
+                  ),),
                   const SizedBox(height: 20),
                 ],
 
@@ -108,7 +108,7 @@ class _ModuleDetailPageState extends State<ModuleDetailPage> {
                     child: Column(children: [
                       Text('\$${price.toStringAsFixed(2)}', style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold, color: theme.colorScheme.primary)),
                       Text(_isYearly ? '/year (save ${((1 - module.pricingYearly / (module.pricingMonthly * 12)) * 100).toStringAsFixed(0)}%)' : '/month', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                    ]),
+                    ],),
                   ),
                   const SizedBox(height: 24),
                 ],
@@ -147,7 +147,7 @@ class _ModuleDetailPageState extends State<ModuleDetailPage> {
     }
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(4)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(4)),
       child: Text(status.label, style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
     );
   }
@@ -175,7 +175,7 @@ class _ModuleDetailPageState extends State<ModuleDetailPage> {
           Text('Status: ${sub.isEnabled ? "Enabled" : "Disabled"}'),
           Text('Tier: ${sub.moduleTier.label}'),
           if (sub.expiresAt != null) Text('Expires: ${sub.expiresAt!.toLocal().toString().substring(0, 10)}'),
-        ]),
+        ],),
         actions: [
           TextButton(onPressed: () { Navigator.pop(ctx); provider.unsubscribeFromModule(sub.id); }, child: const Text('Unsubscribe', style: TextStyle(color: Colors.red))),
           TextButton(onPressed: () { Navigator.pop(ctx); provider.toggleModuleEnabled(sub.id, !sub.isEnabled); }, child: Text(sub.isEnabled ? 'Disable' : 'Enable')),

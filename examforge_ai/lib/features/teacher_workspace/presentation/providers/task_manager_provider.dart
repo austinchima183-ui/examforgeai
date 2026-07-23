@@ -60,7 +60,7 @@ class TaskManagerState {
       .where((t) =>
           t.dueDate != null &&
           t.dueDate!.isBefore(DateTime.now()) &&
-          t.status != TaskStatus.completed)
+          t.status != TaskStatus.completed,)
       .length;
 
   /// Creates a copy of this state with the given fields replaced.

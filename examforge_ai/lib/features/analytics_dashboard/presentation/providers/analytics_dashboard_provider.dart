@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../../core/network/api_client.dart';
-import '../../domain/entities/analytics_dashboard_entities.dart';
-import '../../domain/usecases/analytics_dashboard_usecases.dart';
-import '../../domain/repositories/analytics_dashboard_repository.dart';
 import '../../data/datasources/analytics_dashboard_remote_datasource.dart';
 import '../../data/repositories/analytics_dashboard_repository_impl.dart';
+import '../../domain/entities/analytics_dashboard_entities.dart';
+import '../../domain/repositories/analytics_dashboard_repository.dart';
+import '../../domain/usecases/analytics_dashboard_usecases.dart';
 
 /// Provider that manages Analytics Dashboard feature state.
 class AnalyticsDashboardProvider extends ChangeNotifier {
@@ -73,49 +73,49 @@ class AnalyticsDashboardProvider extends ChangeNotifier {
     _setLoading(true); _setError(null);
     final result = await _getAnalyticsSummary(GetAnalyticsSummaryParams(schoolId: schoolId));
     result.fold(onSuccess: (summary) { _analyticsSummary = summary; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadDailyMetrics({required String schoolId, required String metricName, required DateTime startDate, required DateTime endDate}) async {
     final result = await _getDailyMetrics(GetDailyMetricsParams(schoolId: schoolId, metricName: metricName, startDate: startDate, endDate: endDate));
     result.fold(onSuccess: (metrics) { _dailyMetrics = metrics; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadEventCounts({String? schoolId}) async {
     final result = await _getEventCounts(GetEventCountsParams(schoolId: schoolId));
     result.fold(onSuccess: (counts) { _eventCounts = counts; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadFeatureAdoption({String? schoolId}) async {
     final result = await _getFeatureAdoption(GetFeatureAdoptionParams(schoolId: schoolId));
     result.fold(onSuccess: (adoption) { _featureAdoption = adoption; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadRetentionData({String? schoolId}) async {
     final result = await _getRetentionData(GetRetentionDataParams(schoolId: schoolId));
     result.fold(onSuccess: (data) { _retentionData = data; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadChurnData({String? schoolId}) async {
     final result = await _getChurnData(GetChurnDataParams(schoolId: schoolId));
     result.fold(onSuccess: (data) { _churnData = data; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadRevenueMetrics({DateTime? startDate, DateTime? endDate}) async {
     final result = await _getRevenueMetrics(GetRevenueMetricsParams(startDate: startDate, endDate: endDate));
     result.fold(onSuccess: (metrics) { _revenueMetrics = metrics; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadReleaseNotes({bool? isPublished}) async {
     final result = await _getReleaseNotes(GetReleaseNotesParams(isPublished: isPublished));
     result.fold(onSuccess: (notes) { _releaseNotes = notes; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadAll({String? schoolId}) async {

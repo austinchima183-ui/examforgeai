@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../providers/invoice_provider.dart';
-import '../widgets/billing_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // INVOICE DETAIL PAGE
@@ -51,9 +50,9 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
     final invoiceState = ref.watch(invoiceProvider);
 
     if (invoiceState.isLoading) {
-      return Scaffold(
+      return const Scaffold(
         appBar: AppAppBar(title: 'Invoice'),
-        body: const Center(
+        body: Center(
           child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
         ),
       );
@@ -61,7 +60,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
 
     if (invoiceState.error != null) {
       return Scaffold(
-        appBar: AppAppBar(title: 'Invoice'),
+        appBar: const AppAppBar(title: 'Invoice'),
         body: AppErrorState.genericError(
           message: invoiceState.error,
           onRetry: () => ref.read(invoiceProvider.notifier).loadInvoice(
@@ -74,7 +73,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
     final invoice = invoiceState.currentInvoice;
     if (invoice == null) {
       return Scaffold(
-        appBar: AppAppBar(title: 'Invoice'),
+        appBar: const AppAppBar(title: 'Invoice'),
         body: AppErrorState.genericError(
           message: 'Invoice not found.',
           onRetry: () => ref.read(invoiceProvider.notifier).loadInvoice(
@@ -142,7 +141,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
                 label: const Text('Download PDF'),
                 style: FilledButton.styleFrom(
                   padding: Spacings.paddingButton,
-                  shape: RoundedRectangleBorder(
+                  shape: const RoundedRectangleBorder(
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                 ),
@@ -165,8 +164,8 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.06),
-      shape: RoundedRectangleBorder(
+      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
       child: Padding(
@@ -192,7 +191,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
                   ),
                   decoration: BoxDecoration(
                     color:
-                        statusColor.withOpacity(isDark ? 0.20 : 0.12),
+                        statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Text(
@@ -245,7 +244,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
                           ),
                           if (invoice.isOverdue) ...[
                             const SizedBox(width: Spacings.xs),
-                            Icon(
+                            const Icon(
                               Icons.error_rounded,
                               size: 12,
                               color: AppColors.error,
@@ -283,7 +282,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -352,7 +351,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       clipBehavior: Clip.antiAlias,
@@ -360,7 +359,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
         children: [
           // Header row
           Container(
-            color: cs.surfaceContainerHighest.withOpacity(0.5),
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
             padding: const EdgeInsets.symmetric(
               horizontal: Spacings.lg,
               vertical: Spacings.md,
@@ -492,7 +491,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -548,7 +547,7 @@ class _InvoiceDetailPageState extends ConsumerState<InvoiceDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(

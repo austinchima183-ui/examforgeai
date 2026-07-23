@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../providers/collaboration_provider.dart';
 
@@ -188,7 +188,7 @@ class _SharedResourcesPageState extends ConsumerState<SharedResourcesPage>
               .map((tab) => Tab(
                     icon: Icon(tab.icon),
                     text: tab.label,
-                  ))
+                  ),)
               .toList(),
           labelColor: cs.primary,
           unselectedLabelColor: cs.onSurfaceVariant,
@@ -296,7 +296,7 @@ class _SharedResourcesPageState extends ConsumerState<SharedResourcesPage>
           Row(
             children: [
               Icon(Icons.person_outline_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 tab == _SharedResourceTab.sharedByMe
@@ -321,7 +321,7 @@ class _SharedResourcesPageState extends ConsumerState<SharedResourcesPage>
               child: Row(
                 children: [
                   Icon(Icons.chat_bubble_outline_rounded,
-                      size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                      size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                   const SizedBox(width: Spacings.xs),
                   Expanded(
                     child: Text(
@@ -440,7 +440,7 @@ class _SharedResourcesPageState extends ConsumerState<SharedResourcesPage>
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -466,26 +466,26 @@ class _SharedResourcesPageState extends ConsumerState<SharedResourcesPage>
     return ListView.builder(
       padding: Spacings.paddingScreen,
       itemCount: 5,
-      itemBuilder: (_, __) => Padding(
-        padding: const EdgeInsets.only(bottom: Spacings.md),
+      itemBuilder: (_, __) => const Padding(
+        padding: EdgeInsets.only(bottom: Spacings.md),
         child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const AppLoadingShimmer.box(width: 40, height: 40),
-                  const SizedBox(width: Spacings.sm),
-                  const AppLoadingShimmer.box(width: 150, height: 16),
-                  const Spacer(),
-                  const AppLoadingShimmer.box(width: 80, height: 12),
+                  AppLoadingShimmer.box(width: 40, height: 40),
+                  SizedBox(width: Spacings.sm),
+                  AppLoadingShimmer.box(width: 150, height: 16),
+                  Spacer(),
+                  AppLoadingShimmer.box(width: 80, height: 12),
                 ],
               ),
-              const SizedBox(height: Spacings.sm),
-              const AppLoadingShimmer.box(width: 200, height: 14),
-              const SizedBox(height: Spacings.sm),
+              SizedBox(height: Spacings.sm),
+              AppLoadingShimmer.box(width: 200, height: 14),
+              SizedBox(height: Spacings.sm),
               Row(
-                children: const [
+                children: [
                   AppLoadingShimmer.box(width: 60, height: 22),
                   SizedBox(width: Spacings.sm),
                   AppLoadingShimmer.box(width: 50, height: 22),

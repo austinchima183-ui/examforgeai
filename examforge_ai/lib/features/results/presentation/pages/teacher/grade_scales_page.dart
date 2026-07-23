@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/utils/result.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
@@ -50,12 +50,12 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
     final state = ref.watch(gradeScaleProvider);
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Grade Scales',
       ),
       body: state.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : _buildBody(context, state),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => _showCreateDialog(context),
@@ -142,14 +142,14 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
             vertical: Spacings.sm,
           ),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+            color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
               Icon(Icons.straighten_rounded,
-                  size: Spacings.mdIcon, color: cs.primary),
+                  size: Spacings.mdIcon, color: cs.primary,),
               const SizedBox(width: Spacings.sm),
               Text(
                 '${state.scaleCount} scale${state.scaleCount != 1 ? 's' : ''}',
@@ -170,7 +170,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
             ),
             decoration: BoxDecoration(
               color: AppColors.successOf(cs.brightness)
-                  .withOpacity(isDark ? 0.15 : 0.08),
+                  .withValues(alpha: isDark ? 0.15 : 0.08),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Row(
@@ -178,7 +178,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
               children: [
                 Icon(Icons.star_rounded,
                     size: Spacings.mdIcon,
-                    color: AppColors.successOf(cs.brightness)),
+                    color: AppColors.successOf(cs.brightness),),
                 const SizedBox(width: Spacings.sm),
                 Text(
                   'Default: ${state.defaultScale!.name}',
@@ -212,7 +212,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
   // ─── Edit Dialog ───────────────────────────────────────────────────
 
   Future<void> _showEditDialog(
-      BuildContext context, GradeScaleEntity scale) async {
+      BuildContext context, GradeScaleEntity scale,) async {
     final result = await AppDialog.showCustom<GradeScaleEntity>(
       context: context,
       builder: (ctx) => _GradeScaleFormDialog(scale: scale),
@@ -226,7 +226,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
   // ─── Delete Confirmation ───────────────────────────────────────────
 
   Future<void> _confirmDelete(
-      BuildContext context, GradeScaleEntity scale) async {
+      BuildContext context, GradeScaleEntity scale,) async {
     final confirmed = await AppDialog.showConfirm(
       context: context,
       title: 'Delete "${scale.name}"?',
@@ -239,7 +239,7 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
     if (confirmed == true) {
       ref.read(gradeScaleProvider.notifier).deleteGradeScale(
             scale.id,
-            deleteRemote: (id) async => Success(null),
+            deleteRemote: (id) async => const Success(null),
           );
     }
   }
@@ -267,13 +267,13 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.errorOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.error_outline_rounded,
-                color: AppColors.errorOf(cs.brightness)),
+                color: AppColors.errorOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -312,13 +312,13 @@ class _GradeScalesPageState extends ConsumerState<GradeScalesPage> {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: AppColors.successOf(cs.brightness)
-              .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+              .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Row(
           children: [
             Icon(Icons.check_circle_rounded,
-                color: AppColors.successOf(cs.brightness)),
+                color: AppColors.successOf(cs.brightness),),
             const SizedBox(width: Spacings.sm),
             Expanded(
               child: Text(
@@ -375,7 +375,7 @@ class _GradeScaleCard extends StatelessWidget {
                       padding: const EdgeInsets.all(Spacings.sm),
                       decoration: BoxDecoration(
                         color: cs.primary
-                            .withOpacity(isDark ? 0.20 : 0.12),
+                            .withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius:
                             BorderRadius.circular(Spacings.smRadius),
                       ),
@@ -439,7 +439,7 @@ class _GradeScaleCard extends StatelessWidget {
                   ),
                   decoration: BoxDecoration(
                     color: AppColors.successOf(cs.brightness)
-                        .withOpacity(isDark ? 0.20 : 0.10),
+                        .withValues(alpha: isDark ? 0.20 : 0.10),
                     borderRadius:
                         BorderRadius.circular(Spacings.smRadius),
                   ),
@@ -448,7 +448,7 @@ class _GradeScaleCard extends StatelessWidget {
                     children: [
                       Icon(Icons.star_rounded,
                           size: 12,
-                          color: AppColors.successOf(cs.brightness)),
+                          color: AppColors.successOf(cs.brightness),),
                       const SizedBox(width: 2),
                       Text(
                         'Default',
@@ -506,9 +506,9 @@ class _GradeScaleCard extends StatelessWidget {
                     ),
                   ),
                   side: BorderSide(
-                    color: cs.outlineVariant.withOpacity(0.5),
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
                   ),
-                  backgroundColor: entryColor.withOpacity(isDark ? 0.08 : 0.04),
+                  backgroundColor: entryColor.withValues(alpha: isDark ? 0.08 : 0.04),
                   visualDensity: VisualDensity.compact,
                 );
               }).toList(),
@@ -614,7 +614,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
 
         // Type dropdown
         DropdownButtonFormField<GradeType>(
-          value: _selectedType,
+          initialValue: _selectedType,
           decoration: InputDecoration(
             labelText: 'Grade Type',
             prefixIcon: const Icon(Icons.category_rounded),
@@ -626,7 +626,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
               .map((t) => DropdownMenuItem(
                     value: t,
                     child: Text(t.label),
-                  ))
+                  ),)
               .toList(),
           onChanged: (v) {
             if (v != null) setState(() => _selectedType = v);
@@ -669,7 +669,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
                     minPercentage: 0,
                     maxPercentage: 100,
                     isPassing: true,
-                  ));
+                  ),);
                 });
               },
               iconSize: Spacings.mdIcon,
@@ -735,7 +735,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
             width: 70,
             child: TextField(
               controller: TextEditingController(
-                  text: entry.minPercentage.toStringAsFixed(0)),
+                  text: entry.minPercentage.toStringAsFixed(0),),
               decoration: const InputDecoration(
                 labelText: 'Min %',
                 isDense: true,
@@ -751,7 +751,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
             width: 70,
             child: TextField(
               controller: TextEditingController(
-                  text: entry.maxPercentage.toStringAsFixed(0)),
+                  text: entry.maxPercentage.toStringAsFixed(0),),
               decoration: const InputDecoration(
                 labelText: 'Max %',
                 isDense: true,
@@ -776,7 +776,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
                   color: (entry.isPassing
                           ? AppColors.successOf(cs.brightness)
                           : AppColors.errorOf(cs.brightness))
-                      .withOpacity(context.isDarkMode ? 0.15 : 0.08),
+                      .withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
                   borderRadius:
                       BorderRadius.circular(Spacings.smRadius),
                 ),
@@ -834,7 +834,7 @@ class _GradeScaleFormDialogState extends State<_GradeScaleFormDialog> {
                 gpaValue: e.value.gpaValue,
                 isPassing: e.value.isPassing,
                 sortOrder: e.key,
-              ))
+              ),)
           .toList(),
       createdAt: widget.scale?.createdAt ?? now,
       updatedAt: now,

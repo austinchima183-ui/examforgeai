@@ -1,17 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/timetable_provider.dart';
 import '../../providers/subject_provider.dart';
-import '../../../../../config/dependency_injection.dart';
+import '../../providers/timetable_provider.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -163,14 +161,14 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
                       vertical: Spacings.xs,
                     ),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12),
+                      color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12),
                       borderRadius: BorderRadius.circular(Spacings.fullRadius),
                     ),
                     child: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle_rounded,
-                            size: 14, color: AppColors.success),
+                        const Icon(Icons.check_circle_rounded,
+                            size: 14, color: AppColors.success,),
                         const SizedBox(width: Spacings.xs),
                         Text(
                           'Published',
@@ -189,7 +187,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
                 children: [
                   if (timetable.className != null) ...[
                     Icon(Icons.class_outlined,
-                        size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                        size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                     const SizedBox(width: Spacings.xs),
                     Text(
                       timetable.className!,
@@ -200,7 +198,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
                     const SizedBox(width: Spacings.md),
                   ],
                   Icon(Icons.calendar_view_week_outlined,
-                      size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                      size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                   const SizedBox(width: Spacings.xs),
                   Text(
                     'Term: ${timetable.termId}',
@@ -210,7 +208,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
                   ),
                   const SizedBox(width: Spacings.md),
                   Icon(Icons.grid_view_outlined,
-                      size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                      size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                   const SizedBox(width: Spacings.xs),
                   Text(
                     '${timetable.slots.length} slots',
@@ -288,7 +286,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Row(
@@ -443,13 +441,13 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
     if (slot.isBreak) {
       return Container(
         padding: const EdgeInsets.all(Spacings.sm),
-        color: AppColors.warning.withOpacity(isDark ? 0.20 : 0.12),
+        color: AppColors.warning.withValues(alpha: isDark ? 0.20 : 0.12),
         child: Center(
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              Icon(Icons.free_breakfast_outlined,
-                  size: 16, color: AppColors.warning),
+              const Icon(Icons.free_breakfast_outlined,
+                  size: 16, color: AppColors.warning,),
               const SizedBox(height: 2),
               Text(
                 slot.breakLabel ?? 'Break',
@@ -473,7 +471,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.xs),
       decoration: BoxDecoration(
-        color: subjectColor.withOpacity(isDark ? 0.20 : 0.10),
+        color: subjectColor.withValues(alpha: isDark ? 0.20 : 0.10),
         border: Border(
           left: BorderSide(color: subjectColor, width: 3),
         ),
@@ -496,7 +494,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
             Row(
               children: [
                 Icon(Icons.person_outline_rounded,
-                    size: 10, color: cs.onSurfaceVariant),
+                    size: 10, color: cs.onSurfaceVariant,),
                 const SizedBox(width: 2),
                 Expanded(
                   child: Text(
@@ -517,7 +515,7 @@ class _TimetableViewPageState extends ConsumerState<TimetableViewPage> {
             Row(
               children: [
                 Icon(Icons.meeting_room_outlined,
-                    size: 10, color: cs.outline),
+                    size: 10, color: cs.outline,),
                 const SizedBox(width: 2),
                 Expanded(
                   child: Text(

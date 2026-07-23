@@ -1,6 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../domain/entities/results_entities.dart';
 import '../providers/results_providers.dart';
 
 // ═══════════════════════════════════════════════════════════════════════

@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../providers/lesson_plan_provider.dart';
 import '../widgets/generate_questions_button.dart';
@@ -91,7 +90,7 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
               p.title.toLowerCase().contains(query) ||
               p.subject.toLowerCase().contains(query) ||
               (p.className?.toLowerCase().contains(query) ?? false) ||
-              (p.topic?.toLowerCase().contains(query) ?? false))
+              (p.topic?.toLowerCase().contains(query) ?? false),)
           .toList();
     }
 
@@ -479,7 +478,7 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                    color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Row(
@@ -626,7 +625,7 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -652,24 +651,24 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
     return ListView.builder(
       padding: Spacings.paddingScreen,
       itemCount: 5,
-      itemBuilder: (_, __) => Padding(
-        padding: const EdgeInsets.only(bottom: Spacings.md),
+      itemBuilder: (_, __) => const Padding(
+        padding: EdgeInsets.only(bottom: Spacings.md),
         child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const AppLoadingShimmer.box(width: 200, height: 16),
-                  const Spacer(),
-                  const AppLoadingShimmer.box(width: 60, height: 20),
+                  AppLoadingShimmer.box(width: 200, height: 16),
+                  Spacer(),
+                  AppLoadingShimmer.box(width: 60, height: 20),
                 ],
               ),
-              const SizedBox(height: Spacings.sm),
-              const AppLoadingShimmer.box(width: 150, height: 14),
-              const SizedBox(height: Spacings.sm),
+              SizedBox(height: Spacings.sm),
+              AppLoadingShimmer.box(width: 150, height: 14),
+              SizedBox(height: Spacings.sm),
               Row(
-                children: const [
+                children: [
                   AppLoadingShimmer.box(width: 80, height: 22),
                   SizedBox(width: Spacings.sm),
                   AppLoadingShimmer.box(width: 60, height: 22),
@@ -677,8 +676,8 @@ class _LessonPlanListPageState extends ConsumerState<LessonPlanListPage> {
                   AppLoadingShimmer.box(width: 70, height: 22),
                 ],
               ),
-              const SizedBox(height: Spacings.md),
-              const AppLoadingShimmer.box(width: 120, height: 12),
+              SizedBox(height: Spacings.md),
+              AppLoadingShimmer.box(width: 120, height: 12),
             ],
           ),
         ),

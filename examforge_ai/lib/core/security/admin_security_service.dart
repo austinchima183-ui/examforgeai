@@ -205,7 +205,7 @@ class AdminAuditEntry {
 class AdminSecurityService {
   AdminSecurityService._();
 
-  static final _secureStorage = const FlutterSecureStorage(
+  static const _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
 
@@ -227,7 +227,7 @@ class AdminSecurityService {
       resource: 'admin_session',
       timestamp: DateTime.now(),
       success: true,
-    ));
+    ),);
 
     AppLogger.info('AdminSecurityService: Session started for user $userId');
   }
@@ -264,7 +264,7 @@ class AdminSecurityService {
       resource: 'admin_session',
       timestamp: DateTime.now(),
       success: true,
-    ));
+    ),);
 
     AppLogger.info('AdminSecurityService: Session ended for user $userId');
   }
@@ -306,7 +306,7 @@ class AdminSecurityService {
         timestamp: DateTime.now(),
         success: false,
         details: {'role': role, 'required_permission': permission.value},
-      ));
+      ),);
 
       return false;
     }
@@ -347,7 +347,7 @@ class AdminSecurityService {
           'attempt_count': tracker.attemptCount,
           'lockout_duration_minutes': kLockoutDuration.inMinutes,
         },
-      ));
+      ),);
     }
   }
 

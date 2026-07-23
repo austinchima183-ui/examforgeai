@@ -39,7 +39,7 @@ class _AffiliateProgramPageState extends ConsumerState<AffiliateProgramPage> {
               Text('No affiliates yet', style: theme.textTheme.bodyLarge),
               const SizedBox(height: 8),
               Text('Invite partners to join your affiliate program', style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            ]));
+            ],),);
           }
           return RefreshIndicator(
             onRefresh: () => provider.loadAffiliates(),
@@ -104,7 +104,7 @@ class _AffiliateProgramPageState extends ConsumerState<AffiliateProgramPage> {
             Row(
               children: [
                 CircleAvatar(
-                  backgroundColor: _getStatusColor(affiliate.status).withOpacity(0.15),
+                  backgroundColor: _getStatusColor(affiliate.status).withValues(alpha: 0.15),
                   child: Text(affiliate.affiliateCode.substring(0, 2).toUpperCase(), style: TextStyle(color: _getStatusColor(affiliate.status), fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(width: 12),
@@ -112,7 +112,7 @@ class _AffiliateProgramPageState extends ConsumerState<AffiliateProgramPage> {
                   child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                     Text('Code: ${affiliate.affiliateCode}', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
                     Text('${affiliate.referralsCount} referrals • ${affiliate.commissionRate}% commission', style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-                  ]),
+                  ],),
                 ),
                 _buildStatusChip(theme, affiliate.status),
               ],
@@ -144,7 +144,7 @@ class _AffiliateProgramPageState extends ConsumerState<AffiliateProgramPage> {
     final color = _getStatusColor(status);
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(color: color.withOpacity(0.15), borderRadius: BorderRadius.circular(6)),
+      decoration: BoxDecoration(color: color.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(6)),
       child: Text(status.label.toUpperCase(), style: theme.textTheme.labelSmall?.copyWith(color: color, fontWeight: FontWeight.w600)),
     );
   }

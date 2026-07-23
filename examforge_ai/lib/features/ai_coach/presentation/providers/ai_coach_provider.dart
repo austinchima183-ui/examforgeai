@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/failures.dart';
-import '../../../../core/utils/logger.dart';
 import '../../data/datasources/ai_coach_remote_datasource.dart';
 import '../../data/repositories/ai_coach_repository_impl.dart';
 import '../../domain/entities/ai_coach_entities.dart';
@@ -174,7 +173,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getCoachSessions(
-      userId: _userId!,
+      userId: _userId,
       page: 1,
       pageSize: _pageSize,
     );
@@ -203,7 +202,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
 
     final nextPage = state.currentPage + 1;
     final result = await _getCoachSessions(
-      userId: _userId!,
+      userId: _userId,
       page: nextPage,
       pageSize: _pageSize,
     );
@@ -233,7 +232,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _createCoachSession(
-      userId: _userId!,
+      userId: _userId,
       sessionType: sessionType,
       context: context,
     );
@@ -308,7 +307,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     state = state.copyWith(isLoadingRecommendations: true, error: null);
 
     final result = await _getRecommendations(
-      userId: _userId!,
+      userId: _userId,
       activeOnly: true,
     );
 
@@ -364,7 +363,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     );
 
     final result = await _generateStudyPlan(
-      userId: _userId!,
+      userId: _userId,
       focusSubjectId: focusSubjectId,
       durationDays: durationDays,
       targetExamTypes: targetExamTypes,
@@ -394,7 +393,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     state = state.copyWith(isDetectingWeakTopics: true, error: null);
 
     final result = await _detectWeakTopics(
-      userId: _userId!,
+      userId: _userId,
       subjectId: subjectId,
     );
 
@@ -429,7 +428,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     );
 
     final result = await _predictReadiness(
-      userId: _userId!,
+      userId: _userId,
       examType: examType,
       targetDate: targetDate,
     );
@@ -457,7 +456,7 @@ class AiCoachNotifier extends StateNotifier<AiCoachState> {
     if (_userId == null) return;
     state = state.copyWith(isLoadingMessage: true, error: null);
 
-    final result = await _getMotivationalMessage(userId: _userId!);
+    final result = await _getMotivationalMessage(userId: _userId);
 
     result.fold(
       onSuccess: (message) {

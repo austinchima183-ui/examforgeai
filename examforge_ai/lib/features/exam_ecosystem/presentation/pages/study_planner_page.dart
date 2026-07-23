@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/exam_ecosystem_entities.dart';
 import '../providers/exam_ecosystem_provider.dart';
@@ -176,16 +176,16 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: const Color(0xFF8B5CF6).withOpacity(0.1),
+                          color: const Color(0xFF8B5CF6).withValues(alpha: 0.1),
                           borderRadius: Spacings.borderRadiusFull,
                         ),
                         child: Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                            Icon(
+                            const Icon(
                               Icons.auto_awesome_rounded,
                               size: 12,
-                              color: const Color(0xFF8B5CF6),
+                              color: Color(0xFF8B5CF6),
                             ),
                             const SizedBox(width: 2),
                             Text(
@@ -281,7 +281,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                       Icon(
                         Icons.event_available_outlined,
                         size: 48,
-                        color: cs.onSurfaceVariant.withOpacity(0.5),
+                        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       const SizedBox(height: Spacings.md),
                       Text(
@@ -335,7 +335,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                 width: 40,
                 height: 40,
                 decoration: BoxDecoration(
-                  color: activityColor.withOpacity(0.1),
+                  color: activityColor.withValues(alpha: 0.1),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -398,7 +398,7 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                             vertical: 1,
                           ),
                           decoration: BoxDecoration(
-                            color: activityColor.withOpacity(0.1),
+                            color: activityColor.withValues(alpha: 0.1),
                             borderRadius: Spacings.borderRadiusFull,
                           ),
                           child: Text(
@@ -434,8 +434,8 @@ class _StudyPlannerPageState extends ConsumerState<StudyPlannerPage> {
                   ),
                   decoration: BoxDecoration(
                     color: activity.performanceScore! >= 70
-                        ? AppColors.success.withOpacity(0.1)
-                        : AppColors.warning.withOpacity(0.1),
+                        ? AppColors.success.withValues(alpha: 0.1)
+                        : AppColors.warning.withValues(alpha: 0.1),
                     borderRadius: Spacings.borderRadiusFull,
                   ),
                   child: Text(
@@ -710,7 +710,7 @@ class _CreatePlanDialogState extends State<_CreatePlanDialog> {
             ),
             const SizedBox(height: Spacings.md),
             DropdownButtonFormField<String>(
-              value: _selectedBodyId,
+              initialValue: _selectedBodyId,
               decoration: const InputDecoration(
                 labelText: 'Exam Body',
                 border: OutlineInputBorder(),
@@ -719,7 +719,7 @@ class _CreatePlanDialogState extends State<_CreatePlanDialog> {
                   .map((b) => DropdownMenuItem(
                         value: b.id,
                         child: Text(b.name),
-                      ))
+                      ),)
                   .toList(),
               onChanged: (value) => setState(() => _selectedBodyId = value),
             ),
@@ -819,11 +819,11 @@ class _AiGenerateDialogState extends State<_AiGenerateDialog> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Row(
+      title: const Row(
         children: [
-          const Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6)),
-          const SizedBox(width: Spacings.sm),
-          const Text('AI Study Plan'),
+          Icon(Icons.auto_awesome_rounded, color: Color(0xFF8B5CF6)),
+          SizedBox(width: Spacings.sm),
+          Text('AI Study Plan'),
         ],
       ),
       content: SingleChildScrollView(
@@ -838,7 +838,7 @@ class _AiGenerateDialogState extends State<_AiGenerateDialog> {
             ),
             const SizedBox(height: Spacings.md),
             DropdownButtonFormField<String>(
-              value: _selectedBodyId,
+              initialValue: _selectedBodyId,
               decoration: const InputDecoration(
                 labelText: 'Exam Body',
                 border: OutlineInputBorder(),
@@ -847,7 +847,7 @@ class _AiGenerateDialogState extends State<_AiGenerateDialog> {
                   .map((b) => DropdownMenuItem(
                         value: b.id,
                         child: Text(b.name),
-                      ))
+                      ),)
                   .toList(),
               onChanged: (value) => setState(() => _selectedBodyId = value),
             ),

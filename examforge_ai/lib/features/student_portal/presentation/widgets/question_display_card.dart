@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION DISPLAY CARD
@@ -155,13 +155,13 @@ class QuestionDisplayCard extends StatelessWidget {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: typeColor.withOpacity(isDark ? 0.25 : 0.12),
+            color: typeColor.withValues(alpha: isDark ? 0.25 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 14, color: isDark ? typeColor.withOpacity(0.9) : typeColor),
+              Icon(icon, size: 14, color: isDark ? typeColor.withValues(alpha: 0.9) : typeColor),
               const SizedBox(width: Spacings.xs),
               Text(
                 label,
@@ -170,7 +170,7 @@ class QuestionDisplayCard extends StatelessWidget {
                   fontSize: 11,
                   fontWeight: AppTypography.wSemiBold,
                   letterSpacing: AppTypography.lsLabel,
-                  color: isDark ? typeColor.withOpacity(0.9) : typeColor,
+                  color: isDark ? typeColor.withValues(alpha: 0.9) : typeColor,
                 ),
               ),
             ],
@@ -184,7 +184,7 @@ class QuestionDisplayCard extends StatelessWidget {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: diffColor.withOpacity(isDark ? 0.25 : 0.12),
+            color: diffColor.withValues(alpha: isDark ? 0.25 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Text(
@@ -194,7 +194,7 @@ class QuestionDisplayCard extends StatelessWidget {
               fontSize: 11,
               fontWeight: AppTypography.wSemiBold,
               letterSpacing: AppTypography.lsLabel,
-              color: isDark ? diffColor.withOpacity(0.9) : diffColor,
+              color: isDark ? diffColor.withValues(alpha: 0.9) : diffColor,
             ),
           ),
         ),
@@ -229,15 +229,15 @@ class QuestionDisplayCard extends StatelessWidget {
         Color? textColor;
 
         if (isCorrect) {
-          bgColor = AppColors.successLight.withOpacity(context.isDarkMode ? 0.25 : 1.0);
+          bgColor = AppColors.successLight.withValues(alpha: context.isDarkMode ? 0.25 : 1.0);
           borderColor = AppColors.success;
           textColor = AppColors.success;
         } else if (isWrong) {
-          bgColor = AppColors.errorLight.withOpacity(context.isDarkMode ? 0.25 : 1.0);
+          bgColor = AppColors.errorLight.withValues(alpha: context.isDarkMode ? 0.25 : 1.0);
           borderColor = AppColors.error;
           textColor = AppColors.error;
         } else if (isSelected) {
-          bgColor = cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10);
+          bgColor = cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
           borderColor = cs.primary;
           textColor = cs.primary;
         } else {
@@ -289,9 +289,9 @@ class QuestionDisplayCard extends StatelessWidget {
                     ),
                   ),
                   if (isCorrect)
-                    Icon(Icons.check_circle_rounded, size: Spacings.mdIcon, color: AppColors.success),
+                    const Icon(Icons.check_circle_rounded, size: Spacings.mdIcon, color: AppColors.success),
                   if (isWrong)
-                    Icon(Icons.cancel_rounded, size: Spacings.mdIcon, color: AppColors.error),
+                    const Icon(Icons.cancel_rounded, size: Spacings.mdIcon, color: AppColors.error),
                 ],
               ),
             ),
@@ -350,15 +350,15 @@ class QuestionDisplayCard extends StatelessWidget {
     Color textColor = cs.onSurface;
 
     if (isCorrect) {
-      bgColor = AppColors.successLight.withOpacity(context.isDarkMode ? 0.25 : 1.0);
+      bgColor = AppColors.successLight.withValues(alpha: context.isDarkMode ? 0.25 : 1.0);
       borderColor = AppColors.success;
       textColor = AppColors.success;
     } else if (isWrong) {
-      bgColor = AppColors.errorLight.withOpacity(context.isDarkMode ? 0.25 : 1.0);
+      bgColor = AppColors.errorLight.withValues(alpha: context.isDarkMode ? 0.25 : 1.0);
       borderColor = AppColors.error;
       textColor = AppColors.error;
     } else if (isSelected) {
-      bgColor = cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10);
+      bgColor = cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
       borderColor = cs.primary;
       textColor = cs.primary;
     }

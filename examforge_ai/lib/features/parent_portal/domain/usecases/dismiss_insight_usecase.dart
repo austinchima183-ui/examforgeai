@@ -31,7 +31,7 @@ class DismissInsightUseCase {
       return const FailureResult(Failure.validation(
         message: 'Insight ID is required',
         fieldErrors: {'insightId': 'Insight ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.dismissInsight(params.insightId);
   }

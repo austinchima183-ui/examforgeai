@@ -5,8 +5,8 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/student_portal_entities.dart';
-import '../../domain/usecases/student_portal_usecases.dart';
 import '../../domain/repositories/student_portal_repository.dart';
+import '../../domain/usecases/student_portal_usecases.dart';
 import 'student_dashboard_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -163,11 +163,11 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     // Load both progress history and latest snapshot in parallel.
     final results = await Future.wait([
       _getProgress(
-        studentId: _studentId!,
+        studentId: _studentId,
         period: state.selectedPeriod,
         subjectId: state.selectedSubjectId,
       ),
-      _getLatestProgress(studentId: _studentId!),
+      _getLatestProgress(studentId: _studentId),
     ]);
 
     final historyResult =
@@ -220,7 +220,7 @@ class ProgressNotifier extends StateNotifier<ProgressState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _repository.getDailyActivity(
-      studentId: _studentId!,
+      studentId: _studentId,
       startDate: startDate,
       endDate: endDate,
     );

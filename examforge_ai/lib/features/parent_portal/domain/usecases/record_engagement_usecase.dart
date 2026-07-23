@@ -2,7 +2,6 @@ import 'package:equatable/equatable.dart';
 
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
-import '../entities/parent_portal_entities.dart';
 import '../repositories/parent_portal_repository.dart';
 
 /// Parameters for [RecordEngagementUseCase].
@@ -41,13 +40,13 @@ class RecordEngagementUseCase {
       return const FailureResult(Failure.validation(
         message: 'Metric type is required',
         fieldErrors: {'metricType': 'Metric type cannot be empty'},
-      ));
+      ),);
     }
     if (params.studentId.trim().isEmpty) {
       return const FailureResult(Failure.validation(
         message: 'Student ID is required',
         fieldErrors: {'studentId': 'Student ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.recordEngagement({
       'metricType': params.metricType,

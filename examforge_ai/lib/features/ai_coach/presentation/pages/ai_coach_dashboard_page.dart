@@ -77,7 +77,7 @@ class _AiCoachDashboardPageState
                     gradient: LinearGradient(
                       colors: [
                         AppColors.primary,
-                        AppColors.primary.withOpacity(0.8),
+                        AppColors.primary.withValues(alpha: 0.8),
                       ],
                     ),
                     borderRadius: BorderRadius.circular(16),
@@ -396,7 +396,7 @@ class _ReadinessCard extends StatelessWidget {
           child: Column(
             children: [
               Icon(Icons.psychology_outlined,
-                  size: 48, color: context.colorScheme.onSurfaceVariant),
+                  size: 48, color: context.colorScheme.onSurfaceVariant,),
               const SizedBox(height: 12),
               Text(
                 'Readiness prediction not available',
@@ -441,7 +441,7 @@ class _ReadinessCard extends StatelessWidget {
                       CircularProgressIndicator(
                         value: score / 100,
                         backgroundColor:
-                            context.colorScheme.outlineVariant.withOpacity(0.3),
+                            context.colorScheme.outlineVariant.withValues(alpha: 0.3),
                         color: scoreColor,
                         strokeWidth: 8,
                       ),
@@ -540,14 +540,14 @@ class _ReadinessCard extends StatelessWidget {
                                 padding: const EdgeInsets.only(bottom: 2),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.check_circle,
-                                        size: 14, color: AppColors.success),
+                                    const Icon(Icons.check_circle,
+                                        size: 14, color: AppColors.success,),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(s,
                                           style:
                                               context.textTheme.bodySmall,
-                                          overflow: TextOverflow.ellipsis),
+                                          overflow: TextOverflow.ellipsis,),
                                     ),
                                   ],
                                 ),
@@ -576,14 +576,14 @@ class _ReadinessCard extends StatelessWidget {
                                 padding: const EdgeInsets.only(bottom: 2),
                                 child: Row(
                                   children: [
-                                    Icon(Icons.trending_up,
-                                        size: 14, color: AppColors.warning),
+                                    const Icon(Icons.trending_up,
+                                        size: 14, color: AppColors.warning,),
                                     const SizedBox(width: 4),
                                     Expanded(
                                       child: Text(s,
                                           style:
                                               context.textTheme.bodySmall,
-                                          overflow: TextOverflow.ellipsis),
+                                          overflow: TextOverflow.ellipsis,),
                                     ),
                                   ],
                                 ),
@@ -619,7 +619,7 @@ class _QuickActionButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: color.withOpacity(0.1),
+      color: color.withValues(alpha: 0.1),
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
         onTap: onTap,

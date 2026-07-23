@@ -20,8 +20,7 @@ class _AnswerOptionItem extends StatelessWidget {
     required this.onMarksChanged,
     required this.onExplanationChanged,
     this.onDelete,
-    this.showDragHandle = true,
-  });
+  }) : showDragHandle = true;
 
   final int index;
   final AnswerOptionEntity option;
@@ -49,13 +48,13 @@ class _AnswerOptionItem extends StatelessWidget {
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
         color: option.isCorrect
-            ? AppColors.success.withOpacity(isDark ? 0.15 : 0.06)
+            ? AppColors.success.withValues(alpha: isDark ? 0.15 : 0.06)
             : cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
           color: option.isCorrect
-              ? AppColors.success.withOpacity(0.4)
-              : cs.outlineVariant.withOpacity(0.5),
+              ? AppColors.success.withValues(alpha: 0.4)
+              : cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -70,7 +69,7 @@ class _AnswerOptionItem extends StatelessWidget {
                   child: Icon(
                     Icons.drag_indicator_rounded,
                     size: Spacings.mdIcon,
-                    color: cs.onSurfaceVariant.withOpacity(0.4),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.4),
                   ),
                 ),
 
@@ -79,7 +78,7 @@ class _AnswerOptionItem extends StatelessWidget {
                 width: 28.0,
                 height: 28.0,
                 decoration: BoxDecoration(
-                  color: correctColor.withOpacity(isDark ? 0.25 : 0.12),
+                  color: correctColor.withValues(alpha: isDark ? 0.25 : 0.12),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -136,7 +135,7 @@ class _AnswerOptionItem extends StatelessWidget {
                 icon: Icon(
                   Icons.close_rounded,
                   size: Spacings.mdIcon,
-                  color: cs.onSurfaceVariant.withOpacity(0.5),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                 ),
                 onPressed: onDelete,
                 tooltip: 'Remove option',
@@ -161,7 +160,7 @@ class _AnswerOptionItem extends StatelessWidget {
             decoration: InputDecoration(
               hintText: 'Enter option $_optionLetter content…',
               hintStyle: tt.bodyMedium?.copyWith(
-                color: cs.onSurfaceVariant.withOpacity(0.5),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
@@ -175,7 +174,7 @@ class _AnswerOptionItem extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 borderSide: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -239,7 +238,7 @@ class _AnswerOptionItem extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 borderSide: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               focusedBorder: OutlineInputBorder(

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/super_admin_entities.dart';
@@ -211,7 +211,7 @@ class _MarketplaceManagementPageState
   Widget _buildPendingReviewTab(MarketplaceManagementState state, ColorScheme cs) {
     if (state.isLoading && state.pendingContent.isEmpty) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     if (state.error != null && state.pendingContent.isEmpty) {
@@ -227,7 +227,7 @@ class _MarketplaceManagementPageState
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -263,7 +263,7 @@ class _MarketplaceManagementPageState
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -289,14 +289,14 @@ class _MarketplaceManagementPageState
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => Icon(
                               Icons.image_outlined,
-                              color: cs.onSurface.withOpacity(0.3),
+                              color: cs.onSurface.withValues(alpha: 0.3),
                             ),
                           ),
                         )
                       : Icon(
                           Icons.inventory_2_outlined,
                           size: Spacings.lgIcon,
-                          color: cs.onSurface.withOpacity(0.3),
+                          color: cs.onSurface.withValues(alpha: 0.3),
                         ),
                 ),
                 const SizedBox(width: Spacings.md),
@@ -327,7 +327,7 @@ class _MarketplaceManagementPageState
                         'Author: ${content.authorId}',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withOpacity(0.6),
+                          color: cs.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                     ],
@@ -374,7 +374,7 @@ class _MarketplaceManagementPageState
               content.description,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 13,
-                color: cs.onSurface.withOpacity(0.7),
+                color: cs.onSurface.withValues(alpha: 0.7),
               ),
               maxLines: 3,
               overflow: TextOverflow.ellipsis,
@@ -395,8 +395,8 @@ class _MarketplaceManagementPageState
                           visualDensity: VisualDensity.compact,
                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                           padding: const EdgeInsets.symmetric(
-                              horizontal: Spacings.sm),
-                        ))
+                              horizontal: Spacings.sm,),
+                        ),)
                     .toList(),
               ),
             ],
@@ -436,13 +436,13 @@ class _MarketplaceManagementPageState
                   style: FilledButton.styleFrom(
                     foregroundColor: const Color(0xFFD97706),
                   ),
-                  child: Row(
+                  child: const Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.star_outline,
-                          size: Spacings.mdIcon, color: const Color(0xFFD97706)),
-                      const SizedBox(width: Spacings.xs),
-                      const Text('Feature'),
+                          size: Spacings.mdIcon, color: Color(0xFFD97706),),
+                      SizedBox(width: Spacings.xs),
+                      Text('Feature'),
                     ],
                   ),
                 ),
@@ -461,7 +461,7 @@ class _MarketplaceManagementPageState
   Widget _buildAllContentTab(MarketplaceManagementState state, ColorScheme cs) {
     if (state.isLoading && state.allContent.isEmpty) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     if (state.error != null && state.allContent.isEmpty) {
@@ -477,7 +477,7 @@ class _MarketplaceManagementPageState
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -636,7 +636,7 @@ class _MarketplaceManagementPageState
                             DataCell(Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.star, size: 14, color: AppColors.warning),
+                                const Icon(Icons.star, size: 14, color: AppColors.warning),
                                 const SizedBox(width: Spacings.xs),
                                 Text(
                                   _formatRating(content.ratingAverage),
@@ -646,11 +646,11 @@ class _MarketplaceManagementPageState
                                   ' (${content.ratingCount})',
                                   style: AppTypography.wRegular.copyWith(
                                     fontSize: 11,
-                                    color: cs.onSurface.withOpacity(0.5),
+                                    color: cs.onSurface.withValues(alpha: 0.5),
                                   ),
                                 ),
                               ],
-                            )),
+                            ),),
                             // Price
                             DataCell(Text(_formatPrice(content.price))),
                             // Reviewed By
@@ -660,9 +660,9 @@ class _MarketplaceManagementPageState
                                 fontSize: 12,
                                 color: content.reviewedBy != null
                                     ? cs.onSurface
-                                    : cs.onSurface.withOpacity(0.4),
+                                    : cs.onSurface.withValues(alpha: 0.4),
                               ),
-                            )),
+                            ),),
                             // Created
                             DataCell(Text(_formatDate(content.createdAt))),
                             // Actions
@@ -734,7 +734,7 @@ class _MarketplaceManagementPageState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Reject Content'),
-        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+        shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
         content: SizedBox(
           width: 440,
           child: Column(
@@ -781,7 +781,7 @@ class _MarketplaceManagementPageState
               ref
                   .read(marketplaceManagementProvider.notifier)
                   .rejectContent(
-                      content.id, _rejectReasonController.text.trim());
+                      content.id, _rejectReasonController.text.trim(),);
               Navigator.of(ctx).pop();
             },
             style: FilledButton.styleFrom(
@@ -801,14 +801,14 @@ class _MarketplaceManagementPageState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.flag_outlined, color: Colors.orange, size: Spacings.lgIcon),
-            const SizedBox(width: Spacings.sm),
-            const Text('Flag Content'),
+            SizedBox(width: Spacings.sm),
+            Text('Flag Content'),
           ],
         ),
-        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+        shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
         content: SizedBox(
           width: 440,
           child: Column(
@@ -877,15 +877,15 @@ class _MarketplaceManagementPageState
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Row(
+        title: const Row(
           children: [
             Icon(Icons.delete_outline,
-                color: AppColors.error, size: Spacings.lgIcon),
-            const SizedBox(width: Spacings.sm),
-            const Text('Remove Content'),
+                color: AppColors.error, size: Spacings.lgIcon,),
+            SizedBox(width: Spacings.sm),
+            Text('Remove Content'),
           ],
         ),
-        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+        shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
         content: Text(
           'Are you sure you want to permanently remove "${content.title}"? '
           'This action cannot be undone.',
@@ -926,7 +926,7 @@ class _MarketplaceManagementPageState
       context: context,
       builder: (ctx) => AlertDialog(
         title: Text(content.title),
-        shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
+        shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusLg),
         content: SizedBox(
           width: 520,
           child: Column(
@@ -964,7 +964,7 @@ class _MarketplaceManagementPageState
                 _buildDetailRow('Curriculum', content.curriculum!, cs),
               _buildDetailRow('Downloads', '${content.downloadCount}', cs),
               _buildDetailRow(
-                  'Rating', '${_formatRating(content.ratingAverage)} (${content.ratingCount} reviews)', cs),
+                  'Rating', '${_formatRating(content.ratingAverage)} (${content.ratingCount} reviews)', cs,),
               if (content.reviewedBy != null)
                 _buildDetailRow('Reviewed By', content.reviewedBy!, cs),
               if (content.reviewedAt != null)
@@ -983,7 +983,7 @@ class _MarketplaceManagementPageState
                 content.description,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
               ),
 
@@ -1001,11 +1001,11 @@ class _MarketplaceManagementPageState
                   children: content.tags!
                       .map((tag) => Chip(
                             label: Text(tag,
-                                style: AppTypography.wRegular.copyWith(fontSize: 11)),
+                                style: AppTypography.wRegular.copyWith(fontSize: 11),),
                             visualDensity: VisualDensity.compact,
                             materialTapTargetSize:
                                 MaterialTapTargetSize.shrinkWrap,
-                          ))
+                          ),)
                       .toList(),
                 ),
               ],
@@ -1016,14 +1016,14 @@ class _MarketplaceManagementPageState
                 Container(
                   padding: Spacings.paddingAllMd,
                   decoration: BoxDecoration(
-                    color: Colors.orange.withOpacity(0.1),
+                    color: Colors.orange.withValues(alpha: 0.1),
                     borderRadius: Spacings.borderRadiusSm,
                     border: Border.all(
-                        color: Colors.orange.withOpacity(0.3)),
+                        color: Colors.orange.withValues(alpha: 0.3),),
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.flag, size: Spacings.mdIcon, color: Colors.orange),
+                      const Icon(Icons.flag, size: Spacings.mdIcon, color: Colors.orange),
                       const SizedBox(width: Spacings.sm),
                       Expanded(
                         child: Column(
@@ -1073,7 +1073,7 @@ class _MarketplaceManagementPageState
               label,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withOpacity(0.5),
+                color: cs.onSurface.withValues(alpha: 0.5),
               ),
             ),
           ),

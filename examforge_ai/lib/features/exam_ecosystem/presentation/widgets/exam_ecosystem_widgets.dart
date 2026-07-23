@@ -4,6 +4,7 @@
 /// ```dart
 /// import 'package:examforge_ai/features/exam_ecosystem/presentation/widgets/exam_ecosystem_widgets.dart';
 /// ```
+library;
 
 export 'exam_body_card.dart' show ExamBodyCard;
 export 'readiness_score_ring.dart' show ReadinessScoreRing;

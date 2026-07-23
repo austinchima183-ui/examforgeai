@@ -20,7 +20,7 @@ class SuggestScheduleUseCase {
       return const FailureResult(Failure.validation(
         message: 'Schedule preferences are required',
         fieldErrors: {'preferences': 'Preferences cannot be empty'},
-      ));
+      ),);
     }
     return _repository.suggestSchedule(params.preferences);
   }

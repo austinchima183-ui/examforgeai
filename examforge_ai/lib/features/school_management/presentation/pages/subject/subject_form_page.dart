@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/subject_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -195,7 +194,7 @@ class _SubjectFormPageState extends ConsumerState<SubjectFormPage> {
 
               // ─── Category ───────────────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _selectedCategory,
+                initialValue: _selectedCategory,
                 decoration: const InputDecoration(
                   labelText: 'Category',
                   prefixIcon: Icon(Icons.category_outlined),
@@ -303,7 +302,7 @@ class _SubjectFormPageState extends ConsumerState<SubjectFormPage> {
                 value: _isSchoolSpecific,
                 onChanged: (value) =>
                     setState(() => _isSchoolSpecific = value),
-                activeColor: cs.primary,
+                activeThumbColor: cs.primary,
                 contentPadding: EdgeInsets.zero,
               ),
               const SizedBox(height: Spacings.md),
@@ -326,7 +325,7 @@ class _SubjectFormPageState extends ConsumerState<SubjectFormPage> {
                 ),
                 value: _isActive,
                 onChanged: (value) => setState(() => _isActive = value),
-                activeColor: cs.primary,
+                activeThumbColor: cs.primary,
                 contentPadding: EdgeInsets.zero,
               ),
               const SizedBox(height: Spacings.xxxl),

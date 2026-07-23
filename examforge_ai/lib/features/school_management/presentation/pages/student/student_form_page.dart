@@ -2,19 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../../core/themes/app_colors.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_card.dart';
-import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/student_provider.dart';
 import '../../providers/class_provider.dart';
-import '../../../../../config/dependency_injection.dart';
+import '../../providers/student_provider.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -231,7 +226,7 @@ class _StudentFormPageState extends ConsumerState<StudentFormPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // ─── Personal Information Section ──────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Personal Information',
                 icon: Icons.person_outline_rounded,
               ),
@@ -354,7 +349,7 @@ class _StudentFormPageState extends ConsumerState<StudentFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Admission Information Section ─────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Admission Information',
                 icon: Icons.school_outlined,
               ),
@@ -415,7 +410,7 @@ class _StudentFormPageState extends ConsumerState<StudentFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Contact Information Section ───────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Contact Information',
                 icon: Icons.location_on_outlined,
               ),
@@ -466,7 +461,7 @@ class _StudentFormPageState extends ConsumerState<StudentFormPage> {
               const SizedBox(height: Spacings.xxl),
 
               // ─── Medical Information Section ───────────────────────
-              _FormSectionHeader(
+              const _FormSectionHeader(
                 title: 'Medical Information',
                 icon: Icons.medical_services_outlined,
               ),
@@ -587,7 +582,7 @@ class _FormSectionHeader extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Icon(icon, size: Spacings.mdIcon, color: cs.primary),

@@ -5,8 +5,8 @@ import '../../../../core/utils/logger.dart';
 import '../../domain/entities/question_entities.dart';
 import '../../domain/repositories/question_bank_repository.dart';
 import '../../domain/usecases/create_question_usecase.dart';
-import '../../domain/usecases/update_question_usecase.dart';
 import '../../domain/usecases/manage_question_status_usecase.dart';
+import '../../domain/usecases/update_question_usecase.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUESTION EDITOR STATE
@@ -382,7 +382,7 @@ class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
   }
 
   /// Sets the subject and loads the available topics.
-  void setSubject(String? subjectId) async {
+  Future<void> setSubject(String? subjectId) async {
     state = state.copyWith(
       selectedSubjectId: subjectId,
       selectedTopicId: null,
@@ -397,7 +397,7 @@ class QuestionEditorNotifier extends StateNotifier<QuestionEditorState> {
   }
 
   /// Sets the topic and loads the available subtopics.
-  void setTopic(String? topicId) async {
+  Future<void> setTopic(String? topicId) async {
     state = state.copyWith(
       selectedTopicId: topicId,
       selectedSubtopicId: null,

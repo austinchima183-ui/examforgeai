@@ -1,20 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/report_provider.dart';
 import '../../providers/class_provider.dart';
-import '../../../../../config/dependency_injection.dart';
+import '../../providers/report_provider.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -132,7 +130,7 @@ class _StudentReportPageState extends ConsumerState<StudentReportPage> {
     }
 
     if (state.studentReport.isEmpty) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.people_outline_rounded,
         title: 'No Student Data',
         subtitle: 'Student report data will appear here once available.',
@@ -387,7 +385,7 @@ class _StudentReportPageState extends ConsumerState<StudentReportPage> {
               ),
               const SizedBox(height: Spacings.lg),
               DropdownButtonFormField<String>(
-                value: _selectedClassId,
+                initialValue: _selectedClassId,
                 decoration: const InputDecoration(
                   labelText: 'Class',
                   prefixIcon: Icon(Icons.class_outlined),
@@ -500,10 +498,10 @@ class _ExportButton extends StatelessWidget {
     return OutlinedButton.icon(
       onPressed: isExporting ? null : onPressed,
       icon: isExporting
-          ? SizedBox(
+          ? const SizedBox(
               width: Spacings.smIcon,
               height: Spacings.smIcon,
-              child: const CircularProgressIndicator(strokeWidth: 2),
+              child: CircularProgressIndicator(strokeWidth: 2),
             )
           : Icon(icon, size: Spacings.smIcon),
       label: Text(label),

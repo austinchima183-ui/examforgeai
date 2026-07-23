@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/moderation_provider.dart';
 import '../widgets/marketplace_widgets.dart';
@@ -136,7 +136,7 @@ class _MarketplaceModerationPageState
               .map((tab) => Tab(
                     text: tab.label,
                     icon: Icon(tab.icon),
-                  ))
+                  ),)
               .toList(),
         ),
       ),
@@ -229,7 +229,7 @@ class _StatChip extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.xs),
           decoration: BoxDecoration(
-            color: color.withOpacity(isDark ? 0.20 : 0.12),
+            color: color.withValues(alpha: isDark ? 0.20 : 0.12),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Icon(icon, size: Spacings.smIcon, color: color),
@@ -270,7 +270,7 @@ class _PendingProductsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (products.isEmpty && !isLoading) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.check_circle_outline_rounded,
         title: 'No Pending Products',
         subtitle: 'All products have been reviewed.',
@@ -394,7 +394,7 @@ class _PendingProductCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: ProductTypeIcon(
@@ -467,7 +467,7 @@ class _PendingProductCard extends ConsumerWidget {
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: AppColors.infoLight.withOpacity(isDark ? 0.15 : 1.0),
+              color: AppColors.infoLight.withValues(alpha: isDark ? 0.15 : 1.0),
               borderRadius: Spacings.borderRadiusSm,
             ),
             child: Text(
@@ -611,7 +611,7 @@ class _ReportedReviewsTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (reviews.isEmpty && !isLoading) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.check_circle_outline_rounded,
         title: 'No Reported Reviews',
         subtitle: 'All reviews are in good standing.',
@@ -661,7 +661,7 @@ class _ReportedReviewCard extends ConsumerWidget {
               CircleAvatar(
                 radius: 16,
                 backgroundColor:
-                    cs.primary.withOpacity(isDark ? 0.30 : 0.15),
+                    cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
                 child: Text(
                   review.buyerId.isNotEmpty
                       ? review.buyerId[0].toUpperCase()
@@ -699,13 +699,13 @@ class _ReportedReviewCard extends ConsumerWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: AppColors.errorLight.withOpacity(isDark ? 0.15 : 1.0),
+                  color: AppColors.errorLight.withValues(alpha: isDark ? 0.15 : 1.0),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(
+                    const Icon(
                       Icons.flag_rounded,
                       size: Spacings.smIcon,
                       color: AppColors.error,
@@ -892,7 +892,7 @@ class _SellersTabState extends ConsumerState<_SellersTab> {
         // ── Seller list ──────────────────────────────────────────────
         Expanded(
           child: sellers.isEmpty && !widget.isLoading
-              ? AppEmptyState(
+              ? const AppEmptyState(
                   icon: Icons.storefront_outlined,
                   title: 'No Sellers Found',
                   subtitle: 'Try adjusting your search or filter.',
@@ -903,7 +903,7 @@ class _SellersTabState extends ConsumerState<_SellersTab> {
                       .loadSellers(),
                   child: ListView.separated(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: Spacings.lg),
+                        horizontal: Spacings.lg,),
                     itemCount: sellers.length,
                     separatorBuilder: (_, __) =>
                         const SizedBox(height: Spacings.md),
@@ -959,7 +959,7 @@ class _SellerCard extends ConsumerWidget {
           CircleAvatar(
             radius: 24,
             backgroundColor:
-                cs.primary.withOpacity(isDark ? 0.30 : 0.15),
+                cs.primary.withValues(alpha: isDark ? 0.30 : 0.15),
             child: seller.displayName.isNotEmpty
                 ? Text(
                     seller.displayName[0].toUpperCase(),
@@ -1082,7 +1082,7 @@ class _StatusBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(
@@ -1112,7 +1112,7 @@ class _DisputesTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (disputes.isEmpty && !isLoading) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.check_circle_outline_rounded,
         title: 'No Open Disputes',
         subtitle: 'All disputes have been resolved.',
@@ -1163,7 +1163,7 @@ class _DisputeCard extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
+                  color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Icon(
@@ -1388,7 +1388,7 @@ class _DisputeStatusBadge extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(

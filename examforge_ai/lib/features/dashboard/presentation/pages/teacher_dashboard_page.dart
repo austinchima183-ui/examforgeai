@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart' hide dashboardProvider;
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../config/dependency_injection.dart' hide dashboardProvider;
+import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 import '../../../../routing/route_guards.dart';
 import '../providers/dashboard_provider.dart';
 import '../widgets/notification_summary.dart';
@@ -13,7 +14,6 @@ import '../widgets/quick_actions_grid.dart';
 import '../widgets/recent_activity_list.dart';
 import '../widgets/stat_card_row.dart';
 import '../widgets/welcome_section.dart';
-import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 
 
 /// Dashboard for users with the **teacher** role.
@@ -219,19 +219,19 @@ class TeacherDashboardPage extends ConsumerWidget {
               icon: Icons.add_circle_outline_rounded,
               color: cs.primary,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'Question Bank',
               subtitle: 'Browse and manage questions',
               icon: Icons.library_books_outlined,
               color: AppColors.info,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'Grade Exams',
               subtitle: 'Review and grade submissions',
               icon: Icons.grading_outlined,
               color: AppColors.success,
             ),
-            QuickAction(
+            const QuickAction(
               title: 'View Reports',
               subtitle: 'Student performance analytics',
               icon: Icons.analytics_outlined,

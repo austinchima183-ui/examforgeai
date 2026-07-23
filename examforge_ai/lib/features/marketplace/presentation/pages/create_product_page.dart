@@ -1,15 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
-import '../providers/seller_provider.dart';
 import '../providers/quality_check_provider.dart';
-import '../widgets/marketplace_widgets.dart';
+import '../providers/seller_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // CREATE / EDIT PRODUCT PAGE
@@ -364,7 +363,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
       if (mounted) {
         _showSuccess(isDraft
             ? 'Draft saved successfully'
-            : 'Product submitted for review');
+            : 'Product submitted for review',);
         Navigator.of(context).pop();
       }
     } catch (e) {
@@ -457,7 +456,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
-          bottom: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+          bottom: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       child: Row(
@@ -488,7 +487,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                     ),
                     child: Center(
                       child: isCompleted
-                          ? Icon(Icons.check, size: 16, color: Colors.white)
+                          ? const Icon(Icons.check, size: 16, color: Colors.white)
                           : Text(
                               '${index + 1}',
                               style: tt.labelSmall?.copyWith(
@@ -532,7 +531,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                       width: 24,
                       color: isCompleted
                           ? AppColors.success
-                          : cs.outlineVariant.withOpacity(0.5),
+                          : cs.outlineVariant.withValues(alpha: 0.5),
                     ),
                     const SizedBox(width: Spacings.sm),
                   ],
@@ -827,7 +826,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
               child: AppCard(
                 borderColor: isSelected ? cs.primary : null,
                 color: isSelected
-                    ? cs.primary.withOpacity(0.05)
+                    ? cs.primary.withValues(alpha: 0.05)
                     : null,
                 onTap: () => setState(() => _selectedLicenseType = type),
                 child: Row(
@@ -907,11 +906,11 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                 Container(
                   padding: const EdgeInsets.all(Spacings.sm),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                    color: AppColors.info.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
-                  child: Icon(
+                  child: const Icon(
                     Icons.auto_awesome,
                     size: Spacings.mdIcon,
                     color: AppColors.info,
@@ -1023,7 +1022,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
                         color: cs.surfaceContainerHighest,
                         borderRadius: BorderRadius.circular(Spacings.mdRadius),
                         border: Border.all(
-                          color: cs.outlineVariant.withOpacity(0.5),
+                          color: cs.outlineVariant.withValues(alpha: 0.5),
                         ),
                       ),
                       child: Column(
@@ -1156,7 +1155,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
           // AI Summary
           Row(
             children: [
-              Icon(Icons.auto_awesome, size: Spacings.mdIcon, color: AppColors.info),
+              const Icon(Icons.auto_awesome, size: Spacings.mdIcon, color: AppColors.info),
               const SizedBox(width: Spacings.sm),
               Text(
                 'AI Summary',
@@ -1189,7 +1188,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
           if (widget.productId != null) ...[
             Row(
               children: [
-                Icon(Icons.fact_check_outlined, size: Spacings.mdIcon, color: AppColors.success),
+                const Icon(Icons.fact_check_outlined, size: Spacings.mdIcon, color: AppColors.success),
                 const SizedBox(width: Spacings.sm),
                 Text(
                   'Quality Check',
@@ -1245,10 +1244,10 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
         width: width,
         height: height,
         decoration: BoxDecoration(
-          color: cs.surfaceContainerHighest.withOpacity(0.5),
+          color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           border: Border.all(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
             strokeAlign: BorderSide.strokeAlignOutside,
           ),
         ),
@@ -1282,7 +1281,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
             : AppColors.error;
 
     return AppCard(
-      color: statusColor.withOpacity(0.05),
+      color: statusColor.withValues(alpha: 0.05),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1322,7 +1321,7 @@ class _CreateProductPageState extends ConsumerState<CreateProductPage> {
       decoration: BoxDecoration(
         color: cs.surface,
         border: Border(
-          top: BorderSide(color: cs.outlineVariant.withOpacity(0.5)),
+          top: BorderSide(color: cs.outlineVariant.withValues(alpha: 0.5)),
         ),
       ),
       child: SafeArea(

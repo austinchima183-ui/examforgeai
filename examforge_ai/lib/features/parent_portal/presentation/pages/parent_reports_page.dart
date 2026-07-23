@@ -7,7 +7,6 @@ import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/parent_portal_entities.dart';
 import '../providers/parent_reports_provider.dart';
 
@@ -77,7 +76,7 @@ class _State extends ConsumerState<ParentReportsPage> {
     final reportsState = ref.watch(parentReportsProvider);
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Reports & Downloads',
       ),
       body: _buildBody(context, reportsState),
@@ -132,7 +131,7 @@ class _State extends ConsumerState<ParentReportsPage> {
         vertical: Spacings.sm,
       ),
       child: DropdownButtonFormField<String>(
-        value: _selectedChildId,
+        initialValue: _selectedChildId,
         decoration: InputDecoration(
           labelText: 'Select Child',
           labelStyle: tt.labelMedium?.copyWith(
@@ -140,7 +139,7 @@ class _State extends ConsumerState<ParentReportsPage> {
           ),
           filled: true,
           fillColor: cs.surfaceContainerHighest,
-          border: OutlineInputBorder(
+          border: const OutlineInputBorder(
             borderRadius: Spacings.borderRadiusMd,
             borderSide: BorderSide.none,
           ),
@@ -149,9 +148,9 @@ class _State extends ConsumerState<ParentReportsPage> {
             vertical: Spacings.md,
           ),
         ),
-        items: [
+        items: const [
           // TODO: Populate with actual children from dashboard state
-          const DropdownMenuItem<String>(
+          DropdownMenuItem<String>(
             value: null,
             child: Text('All Children'),
           ),
@@ -181,8 +180,8 @@ class _State extends ConsumerState<ParentReportsPage> {
       ),
       child: Card(
         elevation: Spacings.elevationNone,
-        color: AppColors.infoOf(cs.brightness).withOpacity(0.08),
-        shape: RoundedRectangleBorder(
+        color: AppColors.infoOf(cs.brightness).withValues(alpha: 0.08),
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Padding(
@@ -232,8 +231,8 @@ class _State extends ConsumerState<ParentReportsPage> {
       ),
       child: Card(
         elevation: Spacings.elevationNone,
-        color: AppColors.errorOf(cs.brightness).withOpacity(0.08),
-        shape: RoundedRectangleBorder(
+        color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.08),
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Padding(
@@ -298,7 +297,7 @@ class _State extends ConsumerState<ParentReportsPage> {
                 context,
                 report,
                 state,
-              )),
+              ),),
         ],
       ),
     );
@@ -320,7 +319,7 @@ class _State extends ConsumerState<ParentReportsPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Padding(
@@ -332,7 +331,7 @@ class _State extends ConsumerState<ParentReportsPage> {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: cs.primaryContainer.withOpacity(0.3),
+                  color: cs.primaryContainer.withValues(alpha: 0.3),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(
@@ -416,7 +415,7 @@ class _State extends ConsumerState<ParentReportsPage> {
                                     report.type,
                                     selectedFormat,
                                   ),
-                          icon: Icon(
+                          icon: const Icon(
                             Icons.download,
                             size: Spacings.smIcon,
                           ),
@@ -481,7 +480,7 @@ class _State extends ConsumerState<ParentReportsPage> {
                   context,
                   download,
                   state,
-                )),
+                ),),
         ],
       ),
     );
@@ -502,7 +501,7 @@ class _State extends ConsumerState<ParentReportsPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Padding(

@@ -136,16 +136,16 @@ class StudentDashboardNotifier extends StateNotifier<StudentDashboardState> {
 
     // Run all dashboard queries in parallel for faster load.
     final results = await Future.wait([
-      _getDashboardStats(studentId: _studentId!),
-      _getConversations(studentId: _studentId!, page: 1, pageSize: 5),
-      _getNotifications(studentId: _studentId!, page: 1, pageSize: 5),
+      _getDashboardStats(studentId: _studentId),
+      _getConversations(studentId: _studentId, page: 1, pageSize: 5),
+      _getNotifications(studentId: _studentId, page: 1, pageSize: 5),
       _getSubmissions(
-        studentId: _studentId!,
+        studentId: _studentId,
         page: 1,
         pageSize: 5,
         status: SubmissionStatus.draft,
       ),
-      _getPracticeSessions(studentId: _studentId!, page: 1, pageSize: 5),
+      _getPracticeSessions(studentId: _studentId, page: 1, pageSize: 5),
     ]);
 
     // Extract results, checking for failures.

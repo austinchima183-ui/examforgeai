@@ -80,7 +80,7 @@ class HelpArticleCard extends StatelessWidget {
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     visualDensity: VisualDensity.compact,
                     padding: EdgeInsets.zero,
-                  )).toList(),
+                  ),).toList(),
                 ),
               ],
             ],

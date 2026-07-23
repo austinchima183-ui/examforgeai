@@ -1,13 +1,13 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../../core/network/api_client.dart';
-import '../../domain/entities/marketing_entities.dart';
-import '../../domain/usecases/marketing_usecases.dart';
-import '../../domain/repositories/marketing_repository.dart';
 import '../../data/datasources/marketing_remote_datasource.dart';
 import '../../data/repositories/marketing_repository_impl.dart';
+import '../../domain/entities/marketing_entities.dart';
+import '../../domain/repositories/marketing_repository.dart';
+import '../../domain/usecases/marketing_usecases.dart';
 
 /// Provider that manages Marketing feature state.
 class MarketingProvider extends ChangeNotifier {
@@ -58,35 +58,35 @@ class MarketingProvider extends ChangeNotifier {
     _setLoading(true); _setError(null);
     final result = await _getBlogPosts(GetBlogPostsParams(status: status));
     result.fold(onSuccess: (posts) { _blogPosts = posts; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadEmailCampaigns({String? status}) async {
     _setLoading(true); _setError(null);
     final result = await _getEmailCampaigns(GetEmailCampaignsParams(status: status));
     result.fold(onSuccess: (campaigns) { _emailCampaigns = campaigns; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadReferralPrograms({String? schoolId}) async {
     _setLoading(true); _setError(null);
     final result = await _getReferralPrograms(GetReferralProgramsParams(schoolId: schoolId, isActive: true));
     result.fold(onSuccess: (programs) { _referralPrograms = programs; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadAffiliates({AffiliateStatus? status}) async {
     _setLoading(true); _setError(null);
     final result = await _getAffiliates(GetAffiliatesParams(status: status));
     result.fold(onSuccess: (affiliates) { _affiliates = affiliates; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadLandingPages() async {
     _setLoading(true); _setError(null);
     final result = await _getLandingPages(const GetLandingPagesParams());
     result.fold(onSuccess: (pages) { _landingPages = pages; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadAll() async {

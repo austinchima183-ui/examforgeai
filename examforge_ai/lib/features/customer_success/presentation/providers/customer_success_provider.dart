@@ -1,12 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../../config/dependency_injection.dart';
-import '../../../../core/network/api_client.dart';
-import '../../domain/entities/customer_success_entities.dart';
-import '../../domain/usecases/customer_success_usecases.dart';
-import '../../domain/repositories/customer_success_repository.dart';
 import '../../data/datasources/customer_success_remote_datasource.dart';
 import '../../data/repositories/customer_success_repository_impl.dart';
+import '../../domain/entities/customer_success_entities.dart';
+import '../../domain/repositories/customer_success_repository.dart';
+import '../../domain/usecases/customer_success_usecases.dart';
 
 /// Provider that manages Customer Success state for the entire feature.
 class CustomerSuccessProvider extends ChangeNotifier {
@@ -121,7 +121,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
       },
     );
@@ -144,7 +144,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
       },
     );
   }
@@ -154,7 +154,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
       userId: userId,
       onboardingFlowId: flowId,
       data: data,
-    ));
+    ),);
     result.fold(
       onSuccess: (progress) {
         final idx = _onboardingProgress.indexWhere((p) => p.onboardingFlowId == flowId);
@@ -178,7 +178,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
       },
     );
   }
@@ -187,7 +187,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
     final result = await _skipOnboardingStep(SkipOnboardingStepParams(
       userId: userId,
       onboardingFlowId: flowId,
-    ));
+    ),);
     result.fold(
       onSuccess: (progress) {
         final idx = _onboardingProgress.indexWhere((p) => p.onboardingFlowId == flowId);
@@ -211,7 +211,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
       },
     );
   }
@@ -242,7 +242,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
       },
     );
@@ -269,7 +269,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
       },
     );
@@ -294,7 +294,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
       },
     );
@@ -321,7 +321,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
       },
     );
@@ -348,7 +348,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
       priority: priority,
       attachments: attachments,
       metadata: metadata,
-    ));
+    ),);
     return result.fold(
       onSuccess: (submission) {
         _feedbackSubmissions.insert(0, submission);
@@ -365,7 +365,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
         return false;
       },
@@ -391,7 +391,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
       },
     );
@@ -418,7 +418,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
       },
     );
@@ -437,7 +437,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
       title: title,
       description: description,
       category: category,
-    ));
+    ),);
     return result.fold(
       onSuccess: (request) {
         _featureRequests.insert(0, request);
@@ -454,7 +454,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
         _setLoading(false);
         return false;
       },
@@ -465,7 +465,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
     final result = await _voteFeatureRequest(VoteFeatureRequestParams(
       featureRequestId: featureRequestId,
       userId: userId,
-    ));
+    ),);
     result.fold(
       onSuccess: (updated) {
         final idx = _featureRequests.indexWhere((r) => r.id == featureRequestId);
@@ -487,7 +487,7 @@ class CustomerSuccessProvider extends ChangeNotifier {
           notFound: (msg) => msg,
           unauthorized: (msg) => msg,
           forbidden: (msg) => msg,
-        ));
+        ),);
       },
     );
   }

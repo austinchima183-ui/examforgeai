@@ -1,15 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
-import '../providers/seller_provider.dart';
-import '../providers/quality_check_provider.dart';
-import '../widgets/marketplace_widgets.dart';
 import 'create_product_page.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -268,7 +265,7 @@ class _AiResourceGeneratorPageState
       subject: _subjectCtrl.text,
       classLevel: _selectedClassLevel ?? '',
       generatedAt: DateTime.now(),
-    ));
+    ),);
 
     // Keep only last 5
     if (_history.length > 5) {
@@ -348,7 +345,7 @@ class _AiResourceGeneratorPageState
 
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => CreateProductPage(
+        builder: (_) => const CreateProductPage(
           // Pass pre-populated data as route arguments would be ideal,
           // but since CreateProductPage doesn't accept them directly,
           // we navigate and the user has the generated content ready.
@@ -430,12 +427,12 @@ class _AiResourceGeneratorPageState
 
   Widget _buildDisclaimerBanner(ColorScheme cs, TextTheme tt) {
     return AppCard(
-      color: AppColors.infoLight.withOpacity(context.isDarkMode ? 0.15 : 1.0),
-      borderColor: AppColors.info.withOpacity(0.3),
+      color: AppColors.infoLight.withValues(alpha: context.isDarkMode ? 0.15 : 1.0),
+      borderColor: AppColors.info.withValues(alpha: 0.3),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(Icons.info_outline, color: AppColors.info, size: Spacings.mdIcon),
+          const Icon(Icons.info_outline, color: AppColors.info, size: Spacings.mdIcon),
           const SizedBox(width: Spacings.md),
           Expanded(
             child: Column(
@@ -495,7 +492,7 @@ class _AiResourceGeneratorPageState
             return AppCard(
               borderColor: isSelected ? cs.primary : null,
               color: isSelected
-                  ? cs.primary.withOpacity(0.05)
+                  ? cs.primary.withValues(alpha: 0.05)
                   : null,
               onTap: () => setState(() {
                 _selectedType = type;
@@ -509,7 +506,7 @@ class _AiResourceGeneratorPageState
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
                       color: (isSelected ? cs.primary : type.color)
-                          .withOpacity(context.isDarkMode ? 0.20 : 0.12),
+                          .withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Icon(
@@ -664,7 +661,7 @@ class _AiResourceGeneratorPageState
       children: [
         Row(
           children: [
-            Icon(Icons.auto_awesome, color: AppColors.success, size: Spacings.mdIcon),
+            const Icon(Icons.auto_awesome, color: AppColors.success, size: Spacings.mdIcon),
             const SizedBox(width: Spacings.sm),
             Text(
               'Generated Content',
@@ -826,7 +823,7 @@ class _AiResourceGeneratorPageState
                               Icon(
                                 Icons.history,
                                 size: Spacings.xlIcon,
-                                color: cs.onSurfaceVariant.withOpacity(0.5),
+                                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                               ),
                               const SizedBox(height: Spacings.md),
                               Text(
@@ -861,7 +858,7 @@ class _AiResourceGeneratorPageState
                                   vertical: Spacings.xs,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.successLight.withOpacity(context.isDarkMode ? 0.15 : 1.0,
+                                  color: AppColors.successLight.withValues(alpha: context.isDarkMode ? 0.15 : 1.0,
                                   ),
                                   borderRadius:
                                       BorderRadius.circular(Spacings.smRadius),
@@ -909,9 +906,9 @@ enum _ResourceType {
   worksheets(label: 'Worksheets', icon: Icons.assignment_outlined, color: AppColors.success),
   assessments(label: 'Assessments', icon: Icons.quiz_outlined, color: AppColors.warning),
   practiceQuestions(label: 'Practice Questions', icon: Icons.help_outline, color: AppColors.seed),
-  flashcards(label: 'Flashcards', icon: Icons.style_outlined, color: const Color(0xFFEC4899)),
-  slides(label: 'Slides', icon: Icons.slideshow_outlined, color: const Color(0xFF06B6D4)),
-  studyGuides(label: 'Study Guides', icon: Icons.school_outlined, color: const Color(0xFF8B5CF6));
+  flashcards(label: 'Flashcards', icon: Icons.style_outlined, color: Color(0xFFEC4899)),
+  slides(label: 'Slides', icon: Icons.slideshow_outlined, color: Color(0xFF06B6D4)),
+  studyGuides(label: 'Study Guides', icon: Icons.school_outlined, color: Color(0xFF8B5CF6));
 
   const _ResourceType({
     required this.label,

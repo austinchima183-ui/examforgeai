@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ─── Onboarding Data Model ───────────────────────────────────────────────────
 
@@ -88,7 +87,7 @@ class _OnboardingSlideState extends State<OnboardingSlide>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: const Interval(0.1, 0.7, curve: Curves.easeOutCubic),
-    ));
+    ),);
 
     _scaleAnimation = Tween<double>(
       begin: 0.8,
@@ -96,7 +95,7 @@ class _OnboardingSlideState extends State<OnboardingSlide>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: const Interval(0.0, 0.6, curve: Curves.easeOutBack),
-    ));
+    ),);
 
     if (widget.isActive) {
       _controller.forward();
@@ -149,7 +148,7 @@ class _OnboardingSlideState extends State<OnboardingSlide>
                     boxShadow: [
                       BoxShadow(
                         color: widget.data.gradient.colors.first
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                         blurRadius: 32,
                         offset: const Offset(0, 16),
                       ),
@@ -160,7 +159,7 @@ class _OnboardingSlideState extends State<OnboardingSlide>
                       width: illustrationSize * 0.65,
                       height: illustrationSize * 0.65,
                       decoration: BoxDecoration(
-                        color: Colors.white.withOpacity(0.2),
+                        color: Colors.white.withValues(alpha: 0.2),
                         shape: BoxShape.circle,
                       ),
                       child: Icon(

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../domain/entities/customer_success_entities.dart';
 import '../providers/customer_success_provider.dart';
 import '../widgets/feature_request_card.dart';
 
@@ -148,7 +147,7 @@ class _FeatureRequestsPageState extends ConsumerState<FeatureRequestsPage> {
                 TextField(controller: descController, decoration: const InputDecoration(labelText: 'Description', border: OutlineInputBorder()), maxLines: 4),
                 const SizedBox(height: 12),
                 DropdownButtonFormField<String>(
-                  value: category,
+                  initialValue: category,
                   decoration: const InputDecoration(labelText: 'Category', border: OutlineInputBorder()),
                   items: ['general', 'content', 'exams', 'ui', 'performance', 'integration'].map((c) => DropdownMenuItem(value: c, child: Text(c[0].toUpperCase() + c.substring(1)))).toList(),
                   onChanged: (v) => setDialogState(() => category = v ?? 'general'),

@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../../domain/usecases/generate_oral_questions_usecase.dart';
-import '../../domain/usecases/create_oral_questions_usecase.dart';
 import '../providers/oral_question_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -389,7 +388,7 @@ class _OralQuestionGeneratorPageState
         ),
         const SizedBox(height: Spacings.xs),
         DropdownButtonFormField<String>(
-          value: value,
+          initialValue: value,
           hint: Text(hint),
           decoration: InputDecoration(
             border: OutlineInputBorder(
@@ -401,7 +400,7 @@ class _OralQuestionGeneratorPageState
               .map((item) => DropdownMenuItem(
                     value: item,
                     child: Text(item),
-                  ))
+                  ),)
               .toList(),
           onChanged: onChanged,
           validator: isRequired
@@ -439,7 +438,7 @@ class _OralQuestionGeneratorPageState
         ),
         const SizedBox(height: Spacings.xs),
         DropdownButtonFormField<T>(
-          value: value,
+          initialValue: value,
           decoration: InputDecoration(
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(Spacings.smRadius),
@@ -450,7 +449,7 @@ class _OralQuestionGeneratorPageState
               .map((item) => DropdownMenuItem(
                     value: item,
                     child: Text(itemLabel(item)),
-                  ))
+                  ),)
               .toList(),
           onChanged: onChanged,
         ),
@@ -694,7 +693,7 @@ class _OralQuestionGeneratorPageState
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -1063,7 +1062,7 @@ class _OralQuestionCardState extends State<_OralQuestionCard> {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

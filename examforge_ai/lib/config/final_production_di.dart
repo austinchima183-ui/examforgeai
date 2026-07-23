@@ -4,50 +4,38 @@
 // Marketing, EduOS, Analytics Dashboard
 // ============================================================================
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 import 'package:examforge_ai/config/dependency_injection.dart';
-
-// Domain
-import 'package:examforge_ai/features/exam_ecosystem/domain/repositories/exam_ecosystem_repository.dart';
-import 'package:examforge_ai/features/exam_ecosystem/domain/usecases/exam_ecosystem_usecases.dart';
+import 'package:examforge_ai/features/admission_hub/data/datasources/admission_hub_remote_datasource.dart';
+import 'package:examforge_ai/features/admission_hub/data/repositories/admission_hub_repository_impl.dart';
 import 'package:examforge_ai/features/admission_hub/domain/repositories/admission_hub_repository.dart';
 import 'package:examforge_ai/features/admission_hub/domain/usecases/admission_hub_usecases.dart';
+import 'package:examforge_ai/features/ai_coach/data/datasources/ai_coach_remote_datasource.dart';
+import 'package:examforge_ai/features/ai_coach/data/repositories/ai_coach_repository_impl.dart';
 import 'package:examforge_ai/features/ai_coach/domain/repositories/ai_coach_repository.dart';
 import 'package:examforge_ai/features/ai_coach/domain/usecases/ai_coach_usecases.dart';
-import 'package:examforge_ai/features/customer_success/domain/repositories/customer_success_repository.dart';
-import 'package:examforge_ai/features/customer_success/domain/usecases/customer_success_usecases.dart';
-import 'package:examforge_ai/features/marketing/domain/repositories/marketing_repository.dart';
-import 'package:examforge_ai/features/marketing/domain/usecases/marketing_usecases.dart';
-import 'package:examforge_ai/features/edu_os/domain/repositories/edu_os_repository.dart';
-import 'package:examforge_ai/features/edu_os/domain/usecases/edu_os_usecases.dart' hide GetAnalyticsSummaryUseCase;
+import 'package:examforge_ai/features/analytics_dashboard/data/datasources/analytics_dashboard_remote_datasource.dart';
+import 'package:examforge_ai/features/analytics_dashboard/data/repositories/analytics_dashboard_repository_impl.dart';
 import 'package:examforge_ai/features/analytics_dashboard/domain/repositories/analytics_dashboard_repository.dart';
 import 'package:examforge_ai/features/analytics_dashboard/domain/usecases/analytics_dashboard_usecases.dart';
-
+import 'package:examforge_ai/features/customer_success/data/datasources/customer_success_remote_datasource.dart';
+import 'package:examforge_ai/features/customer_success/data/repositories/customer_success_repository_impl.dart';
+import 'package:examforge_ai/features/customer_success/domain/repositories/customer_success_repository.dart';
+import 'package:examforge_ai/features/customer_success/domain/usecases/customer_success_usecases.dart';
+import 'package:examforge_ai/features/edu_os/data/datasources/edu_os_remote_datasource.dart';
+import 'package:examforge_ai/features/edu_os/data/repositories/edu_os_repository_impl.dart';
+import 'package:examforge_ai/features/edu_os/domain/repositories/edu_os_repository.dart';
+import 'package:examforge_ai/features/edu_os/domain/usecases/edu_os_usecases.dart' hide GetAnalyticsSummaryUseCase;
 // Data
 import 'package:examforge_ai/features/exam_ecosystem/data/datasources/exam_ecosystem_remote_datasource.dart';
 import 'package:examforge_ai/features/exam_ecosystem/data/repositories/exam_ecosystem_repository_impl.dart';
-import 'package:examforge_ai/features/admission_hub/data/datasources/admission_hub_remote_datasource.dart';
-import 'package:examforge_ai/features/admission_hub/data/repositories/admission_hub_repository_impl.dart';
-import 'package:examforge_ai/features/ai_coach/data/datasources/ai_coach_remote_datasource.dart';
-import 'package:examforge_ai/features/ai_coach/data/repositories/ai_coach_repository_impl.dart';
-import 'package:examforge_ai/features/customer_success/data/datasources/customer_success_remote_datasource.dart';
-import 'package:examforge_ai/features/customer_success/data/repositories/customer_success_repository_impl.dart';
+// Domain
+import 'package:examforge_ai/features/exam_ecosystem/domain/repositories/exam_ecosystem_repository.dart';
+import 'package:examforge_ai/features/exam_ecosystem/domain/usecases/exam_ecosystem_usecases.dart';
 import 'package:examforge_ai/features/marketing/data/datasources/marketing_remote_datasource.dart';
 import 'package:examforge_ai/features/marketing/data/repositories/marketing_repository_impl.dart';
-import 'package:examforge_ai/features/edu_os/data/datasources/edu_os_remote_datasource.dart';
-import 'package:examforge_ai/features/edu_os/data/repositories/edu_os_repository_impl.dart';
-import 'package:examforge_ai/features/analytics_dashboard/data/datasources/analytics_dashboard_remote_datasource.dart';
-import 'package:examforge_ai/features/analytics_dashboard/data/repositories/analytics_dashboard_repository_impl.dart';
-
-// Presentation
-import 'package:examforge_ai/features/exam_ecosystem/presentation/providers/exam_ecosystem_provider.dart';
-import 'package:examforge_ai/features/admission_hub/presentation/providers/admission_hub_provider.dart';
-import 'package:examforge_ai/features/ai_coach/presentation/providers/ai_coach_provider.dart';
-import 'package:examforge_ai/features/customer_success/presentation/providers/customer_success_provider.dart';
-import 'package:examforge_ai/features/marketing/presentation/providers/marketing_provider.dart';
-import 'package:examforge_ai/features/edu_os/presentation/providers/edu_os_provider.dart';
-import 'package:examforge_ai/features/analytics_dashboard/presentation/providers/analytics_dashboard_provider.dart';
+import 'package:examforge_ai/features/marketing/domain/repositories/marketing_repository.dart';
+import 'package:examforge_ai/features/marketing/domain/usecases/marketing_usecases.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM ECOSYSTEM

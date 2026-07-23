@@ -51,21 +51,21 @@ class _RevenueAnalyticsPageState extends ConsumerState<RevenueAnalyticsPage> {
                   Expanded(child: MetricCard(title: 'MRR', value: '\$${_formatMoney(mrr)}', icon: Icons.trending_up, color: Colors.green, trend: mrrGrowth)),
                   const SizedBox(width: 12),
                   Expanded(child: MetricCard(title: 'ARR', value: '\$${_formatMoney(arr)}', icon: Icons.show_chart, color: Colors.teal)),
-                ]),
+                ],),
                 const SizedBox(height: 12),
 
                 Row(children: [
                   Expanded(child: MetricCard(title: 'ARPU', value: '\$${arpu.toStringAsFixed(2)}', icon: Icons.person_outline, color: Colors.purple)),
                   const SizedBox(width: 12),
                   Expanded(child: MetricCard(title: 'LTV', value: '\$${_formatMoney(ltv)}', icon: Icons.account_balance_wallet_outlined, color: Colors.amber)),
-                ]),
+                ],),
                 const SizedBox(height: 12),
 
                 Row(children: [
                   Expanded(child: MetricCard(title: 'CAC', value: '\$${_formatMoney(cac)}', icon: Icons.campaign_outlined, color: Colors.orange)),
                   const SizedBox(width: 12),
                   Expanded(child: MetricCard(title: 'LTV:CAC', value: cac > 0 ? '${(ltv / cac).toStringAsFixed(1)}x' : 'N/A', icon: Icons.balance, color: ltv / cac > 3 ? Colors.green : Colors.red)),
-                ]),
+                ],),
                 const SizedBox(height: 24),
 
                 // Revenue Trend

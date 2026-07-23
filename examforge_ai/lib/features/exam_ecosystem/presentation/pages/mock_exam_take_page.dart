@@ -3,10 +3,10 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/exam_ecosystem_entities.dart';
 import '../providers/exam_ecosystem_provider.dart';
 
@@ -128,7 +128,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
           },
           onFailure: (failure) {
             ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(content: Text('Failed to submit exam')),
+              const SnackBar(content: Text('Failed to submit exam')),
             );
           },
         );
@@ -312,7 +312,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                             const EdgeInsets.only(bottom: Spacings.md),
                         child: Material(
                           color: isSelected
-                              ? AppColors.info.withOpacity(0.1)
+                              ? AppColors.info.withValues(alpha: 0.1)
                               : cs.surfaceContainerLow,
                           borderRadius: Spacings.borderRadiusMd,
                           child: InkWell(
@@ -333,7 +333,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                                         width: 2,
                                       )
                                     : Border.all(
-                                        color: cs.outline.withOpacity(0.3,
+                                        color: cs.outline.withValues(alpha: 0.3,
                                         ),
                                       ),
                               ),
@@ -414,9 +414,9 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
       ),
       decoration: BoxDecoration(
         color: isCritical
-            ? AppColors.error.withOpacity(0.1)
+            ? AppColors.error.withValues(alpha: 0.1)
             : isLow
-                ? AppColors.warning.withOpacity(0.1)
+                ? AppColors.warning.withValues(alpha: 0.1)
                 : cs.surfaceContainerLow,
       ),
       child: Row(
@@ -469,7 +469,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
         color: Theme.of(context).colorScheme.surfaceContainerHigh,
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.05),
+            color: Colors.black.withValues(alpha: 0.05),
             blurRadius: 4,
             offset: const Offset(0, -2),
           ),
@@ -552,9 +552,9 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                       ),
                       Row(
                         children: [
-                          _LegendDot(color: AppColors.success, label: 'Answered'),
+                          const _LegendDot(color: AppColors.success, label: 'Answered'),
                           const SizedBox(width: Spacings.sm),
-                          _LegendDot(color: AppColors.warning, label: 'Flagged'),
+                          const _LegendDot(color: AppColors.warning, label: 'Flagged'),
                           const SizedBox(width: Spacings.sm),
                           _LegendDot(
                             color: Theme.of(context).colorScheme.outline,
@@ -588,10 +588,10 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                         bgColor = AppColors.info;
                         textColor = Colors.white;
                       } else if (isFlagged) {
-                        bgColor = AppColors.warning.withOpacity(0.2);
+                        bgColor = AppColors.warning.withValues(alpha: 0.2);
                         textColor = AppColors.warning;
                       } else if (isAnswered) {
-                        bgColor = AppColors.success.withOpacity(0.2);
+                        bgColor = AppColors.success.withValues(alpha: 0.2);
                         textColor = AppColors.success;
                       } else {
                         bgColor = Theme.of(context)
@@ -627,7 +627,7 @@ class _MockExamTakePageState extends ConsumerState<MockExamTakePage> {
                                 ),
                               ),
                               if (isFlagged && !isCurrent)
-                                Positioned(
+                                const Positioned(
                                   top: 2,
                                   right: 2,
                                   child: Icon(

@@ -197,7 +197,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       }
 
       AppLogger.info(
-          'Password reset successful for user: ${response.user!.id}');
+          'Password reset successful for user: ${response.user!.id}',);
     } on sb.AuthException catch (e) {
       throw _mapAuthException(e);
     } on AuthException {
@@ -291,7 +291,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
       AppLogger.info('User signed out via Supabase');
     } on sb.AuthException catch (e) {
       AppLogger.warning(
-          'Supabase sign-out failed, clearing local: ${e.message}');
+          'Supabase sign-out failed, clearing local: ${e.message}',);
     } catch (e) {
       AppLogger.warning('Unexpected sign-out error, clearing local: $e');
     }

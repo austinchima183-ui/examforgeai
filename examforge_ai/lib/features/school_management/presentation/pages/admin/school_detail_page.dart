@@ -2,20 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../routing/route_names.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
-import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../../routing/route_names.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/school_provider.dart';
-import '../../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -105,7 +104,7 @@ class _SchoolDetailPageState extends ConsumerState<SchoolDetailPage>
               .map((tab) => Tab(
                     icon: Icon(tab.icon, size: Spacings.mdIcon),
                     text: tab.label,
-                  ))
+                  ),)
               .toList(),
         ),
       ),
@@ -121,7 +120,7 @@ class _SchoolDetailPageState extends ConsumerState<SchoolDetailPage>
                       .loadSchool(widget.schoolId),
                 )
               : state.school == null
-                  ? AppEmptyState(
+                  ? const AppEmptyState(
                       icon: Icons.school_outlined,
                       title: 'School Not Found',
                       subtitle: 'The school you are looking for does not exist.',
@@ -176,8 +175,8 @@ class _SchoolDetailPageState extends ConsumerState<SchoolDetailPage>
               onTap: () => Navigator.pop(ctx),
             ),
             ListTile(
-              leading: Icon(Icons.delete_outline_rounded, color: AppColors.error),
-              title: Text(
+              leading: const Icon(Icons.delete_outline_rounded, color: AppColors.error),
+              title: const Text(
                 'Delete School',
                 style: TextStyle(color: AppColors.error),
               ),
@@ -234,7 +233,7 @@ class _OverviewTab extends StatelessWidget {
             width: 72,
             height: 72,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.lgRadius),
             ),
             child: school.logoUrl != null
@@ -300,8 +299,8 @@ class _OverviewTab extends StatelessWidget {
                       ),
                       decoration: BoxDecoration(
                         color: school.isActive
-                            ? AppColors.success.withOpacity(isDark ? 0.20 : 0.12)
-                            : AppColors.error.withOpacity(isDark ? 0.20 : 0.12),
+                            ? AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12)
+                            : AppColors.error.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -513,7 +512,7 @@ class _BranchesTab extends ConsumerWidget {
                                   vertical: 2,
                                 ),
                                 decoration: BoxDecoration(
-                                  color: AppColors.warning.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                                  color: AppColors.warning.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                                   ),
                                   borderRadius:
                                       BorderRadius.circular(Spacings.fullRadius),
@@ -673,8 +672,8 @@ class _DepartmentsTab extends ConsumerWidget {
                               ),
                               decoration: BoxDecoration(
                                 color: dept.isActive
-                                    ? AppColors.success.withOpacity(context.isDarkMode ? 0.20 : 0.12)
-                                    : cs.onSurface.withOpacity(0.08),
+                                    ? AppColors.success.withValues(alpha: context.isDarkMode ? 0.20 : 0.12)
+                                    : cs.onSurface.withValues(alpha: 0.08),
                                 borderRadius:
                                     BorderRadius.circular(Spacings.fullRadius),
                               ),
@@ -711,7 +710,7 @@ class _DepartmentsTab extends ConsumerWidget {
   }
 
   void _showDepartmentDialog(BuildContext context, WidgetRef ref,
-      {DepartmentEntity? department}) {
+      {DepartmentEntity? department,}) {
     final isEdit = department != null;
     final nameCtrl = TextEditingController(text: department?.name);
     final codeCtrl = TextEditingController(text: department?.code);
@@ -956,7 +955,7 @@ class _StatCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: color.withOpacity(isDark ? 0.20 : 0.12),
+                color: color.withValues(alpha: isDark ? 0.20 : 0.12),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Icon(icon, size: Spacings.mdIcon, color: color),

@@ -38,7 +38,7 @@ class _MonitoringDashboardPageState
     final isDesktop = context.isDesktop;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Monitoring Dashboard'),
+      appBar: const AppAppBar(title: 'Monitoring Dashboard'),
       body: state.isLoading &&
               state.metrics.isEmpty &&
               state.alertIncidents.isEmpty
@@ -61,7 +61,7 @@ class _MonitoringDashboardPageState
                     Text('System Metrics',
                         style: tt.titleLarge?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurface)),
+                            color: cs.onSurface,),),
                     const SizedBox(height: Spacings.md),
                     _buildMetricsGrid(isDesktop),
                     Spacings.sectionGap,
@@ -70,7 +70,7 @@ class _MonitoringDashboardPageState
                     Text('Active Alerts',
                         style: tt.titleLarge?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurface)),
+                            color: cs.onSurface,),),
                     const SizedBox(height: Spacings.md),
                     if (state.alertIncidents.isEmpty)
                       AppEmptyState.noData(subtitle: 'No active alerts')
@@ -85,11 +85,11 @@ class _MonitoringDashboardPageState
                                   .read(monitoringProvider.notifier)
                                   .acknowledgeAlert(
                                       incidentId: incident.id,
-                                      acknowledgedBy: 'current_user'),
+                                      acknowledgedBy: 'current_user',),
                               onResolve: () =>
                                   _showResolveDialog(incident.id),
                             ),
-                          )),
+                          ),),
                     Spacings.sectionGap,
 
                     // ── Alert Rules ────────────────────────────────
@@ -99,7 +99,7 @@ class _MonitoringDashboardPageState
                         Text('Alert Rules',
                             style: tt.titleLarge?.copyWith(
                                 fontWeight: AppTypography.wSemiBold,
-                                color: cs.onSurface)),
+                                color: cs.onSurface,),),
                         AppButton(
                           label: 'Add Rule',
                           onPressed: _showCreateAlertRuleDialog,
@@ -112,7 +112,7 @@ class _MonitoringDashboardPageState
                     if (state.alertRules.isEmpty)
                       Text('No alert rules configured',
                           style: tt.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant))
+                              color: cs.onSurfaceVariant,),)
                     else
                       ...state.alertRules.map((rule) => Card(
                             child: ListTile(
@@ -122,7 +122,7 @@ class _MonitoringDashboardPageState
                               ),
                               title: Text(rule.name),
                               subtitle: Text(
-                                  '${rule.severity.label} · ${rule.metricName} ${rule.conditionOperator} ${rule.thresholdValue}'),
+                                  '${rule.severity.label} · ${rule.metricName} ${rule.conditionOperator} ${rule.thresholdValue}',),
                               trailing: AppIconButton(
                                 icon: Icons.edit_outlined,
                                 onPressed: () =>
@@ -131,42 +131,42 @@ class _MonitoringDashboardPageState
                                 size: AppButtonSize.small,
                               ),
                             ),
-                          )),
+                          ),),
                     Spacings.sectionGap,
 
                     // ── Slow Operations ────────────────────────────
                     Text('Slow Operations',
                         style: tt.titleLarge?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurface)),
+                            color: cs.onSurface,),),
                     const SizedBox(height: Spacings.md),
                     if (state.performanceLogs.isEmpty)
                       Text('No slow operations detected',
                           style: tt.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant))
+                              color: cs.onSurfaceVariant,),)
                     else
                       ...state.performanceLogs.take(5).map((log) => Card(
                             child: ListTile(
-                              leading: Icon(Icons.speed_rounded,
-                                  color: AppColors.warning),
+                              leading: const Icon(Icons.speed_rounded,
+                                  color: AppColors.warning,),
                               title: Text(
-                                  '${log.operationType}: ${log.operationName}'),
+                                  '${log.operationType}: ${log.operationName}',),
                               subtitle: Text(
-                                  'Duration: ${log.durationMs}ms · ${_formatDate(log.createdAt)}'),
+                                  'Duration: ${log.durationMs}ms · ${_formatDate(log.createdAt)}',),
                             ),
-                          )),
+                          ),),
                     Spacings.sectionGap,
 
                     // ── Error Reports ──────────────────────────────
                     Text('Error Reports',
                         style: tt.titleLarge?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurface)),
+                            color: cs.onSurface,),),
                     const SizedBox(height: Spacings.md),
                     if (state.errorReports.isEmpty)
                       Text('No error reports',
                           style: tt.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant))
+                              color: cs.onSurfaceVariant,),)
                     else
                       ...state.errorReports.take(5).map((report) => Card(
                             child: ListTile(
@@ -176,11 +176,11 @@ class _MonitoringDashboardPageState
                                       : Icons.error_outline_rounded,
                                   color: report.isResolved
                                       ? AppColors.success
-                                      : AppColors.error),
+                                      : AppColors.error,),
                               title: Text(report.errorType),
                               subtitle: Text(report.errorMessage,
                                   maxLines: 1,
-                                  overflow: TextOverflow.ellipsis),
+                                  overflow: TextOverflow.ellipsis,),
                               trailing: report.isResolved
                                   ? null
                                   : AppButton(
@@ -189,19 +189,19 @@ class _MonitoringDashboardPageState
                                           .read(monitoringProvider.notifier)
                                           .resolveError(
                                               errorId: report.id,
-                                              resolvedBy: 'current_user'),
+                                              resolvedBy: 'current_user',),
                                       variant: AppButtonVariant.text,
                                       size: AppButtonSize.small,
                                     ),
                             ),
-                          )),
+                          ),),
                     Spacings.sectionGap,
 
                     // ── AI Usage Metrics ───────────────────────────
                     Text('AI Usage Metrics',
                         style: tt.titleLarge?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurface)),
+                            color: cs.onSurface,),),
                     const SizedBox(height: Spacings.md),
                     _buildAiUsageMetrics(isDesktop, cs, tt),
                     Spacings.sectionGap,
@@ -211,7 +211,7 @@ class _MonitoringDashboardPageState
                       Text('CCMS Statistics',
                           style: tt.titleLarge?.copyWith(
                               fontWeight: AppTypography.wSemiBold,
-                              color: cs.onSurface)),
+                              color: cs.onSurface,),),
                       const SizedBox(height: Spacings.md),
                       _buildStatsGrid(state.ccmsStats!, isDesktop),
                     ],
@@ -265,7 +265,7 @@ class _MonitoringDashboardPageState
   }
 
   Widget _buildAiUsageMetrics(
-      bool isDesktop, ColorScheme cs, TextTheme tt) {
+      bool isDesktop, ColorScheme cs, TextTheme tt,) {
     final state = ref.watch(monitoringProvider);
     final aiGenerated = state.ccmsStats?.aiGeneratedContent ?? 0;
     final totalContent = state.ccmsStats?.totalContent ?? 0;
@@ -321,22 +321,22 @@ class _MonitoringDashboardPageState
         StatOverviewCard(
             title: 'Total Content',
             value: '${stats.totalContent}',
-            icon: Icons.article_rounded),
+            icon: Icons.article_rounded,),
         StatOverviewCard(
             title: 'Published',
             value: '${stats.publishedContent}',
             icon: Icons.publish_rounded,
-            color: AppColors.success),
+            color: AppColors.success,),
         StatOverviewCard(
             title: 'AI Generated',
             value: '${stats.aiGeneratedContent}',
             icon: Icons.auto_awesome_rounded,
-            color: const Color(0xFF7C3AED)),
+            color: const Color(0xFF7C3AED),),
         StatOverviewCard(
             title: 'Avg Quality',
             value: stats.avgQualityScore.toStringAsFixed(1),
             icon: Icons.star_rounded,
-            color: AppColors.warning),
+            color: AppColors.warning,),
       ],
     );
   }
@@ -351,12 +351,12 @@ class _MonitoringDashboardPageState
             controller: notesCtrl,
             decoration: const InputDecoration(
                 labelText: 'Resolution Notes',
-                border: OutlineInputBorder()),
-            maxLines: 3),
+                border: OutlineInputBorder(),),
+            maxLines: 3,),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Resolve',
             onPressed: () {
@@ -364,7 +364,7 @@ class _MonitoringDashboardPageState
                   .read(monitoringProvider.notifier)
                   .resolveAlert(
                       incidentId: incidentId,
-                      resolutionNotes: notesCtrl.text);
+                      resolutionNotes: notesCtrl.text,);
               Navigator.pop(context);
             },
           ),
@@ -393,25 +393,25 @@ class _MonitoringDashboardPageState
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Rule Name *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: metricCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Metric Name *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 Row(
                   children: [
                     Expanded(
                       child: DropdownButtonFormField<String>(
-                        value: condition,
+                        initialValue: condition,
                         decoration: const InputDecoration(
                             labelText: 'Condition',
-                            border: OutlineInputBorder()),
+                            border: OutlineInputBorder(),),
                         items: ['>', '>=', '<', '<=', '==', '!=']
                             .map((c) => DropdownMenuItem(
-                                value: c, child: Text(c)))
+                                value: c, child: Text(c),),)
                             .toList(),
                         onChanged: (v) =>
                             setDialogState(() => condition = v!),
@@ -423,20 +423,20 @@ class _MonitoringDashboardPageState
                           controller: thresholdCtrl,
                           decoration: const InputDecoration(
                               labelText: 'Threshold',
-                              border: OutlineInputBorder()),
-                          keyboardType: TextInputType.number),
+                              border: OutlineInputBorder(),),
+                          keyboardType: TextInputType.number,),
                     ),
                   ],
                 ),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<AlertSeverity>(
-                  value: severity,
+                  initialValue: severity,
                   decoration: const InputDecoration(
                       labelText: 'Severity',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(),),
                   items: AlertSeverity.values
                       .map((s) => DropdownMenuItem(
-                          value: s, child: Text(s.label)))
+                          value: s, child: Text(s.label),),)
                       .toList(),
                   onChanged: (v) =>
                       setDialogState(() => severity = v!),
@@ -447,7 +447,7 @@ class _MonitoringDashboardPageState
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Create',
               onPressed: () {
@@ -493,23 +493,23 @@ class _MonitoringDashboardPageState
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Rule Name',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: thresholdCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Threshold',
-                        border: OutlineInputBorder()),
-                    keyboardType: TextInputType.number),
+                        border: OutlineInputBorder(),),
+                    keyboardType: TextInputType.number,),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<AlertSeverity>(
-                  value: severity,
+                  initialValue: severity,
                   decoration: const InputDecoration(
                       labelText: 'Severity',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(),),
                   items: AlertSeverity.values
                       .map((s) => DropdownMenuItem(
-                          value: s, child: Text(s.label)))
+                          value: s, child: Text(s.label),),)
                       .toList(),
                   onChanged: (v) =>
                       setDialogState(() => severity = v!),
@@ -520,7 +520,7 @@ class _MonitoringDashboardPageState
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Save',
               onPressed: () => Navigator.pop(context),

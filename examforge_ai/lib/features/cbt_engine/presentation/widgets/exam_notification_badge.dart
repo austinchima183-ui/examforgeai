@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../config/dependency_injection.dart';
 import '../providers/exam_notification_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -138,7 +138,7 @@ class _ExamNotificationBadgeState extends ConsumerState<ExamNotificationBadge>
         ),
         boxShadow: [
           BoxShadow(
-            color: AppColors.errorOf(cs.brightness).withOpacity(0.3),
+            color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.3),
             blurRadius: 4.0,
             offset: const Offset(0, 1),
           ),
@@ -190,7 +190,7 @@ class _ExamNotificationBadgeState extends ConsumerState<ExamNotificationBadge>
                 width: 40.0,
                 height: 4.0,
                 decoration: BoxDecoration(
-                  color: cs.onSurfaceVariant.withOpacity(0.3),
+                  color: cs.onSurfaceVariant.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(Spacings.fullRadius),
                 ),
               ),
@@ -237,7 +237,7 @@ class _ExamNotificationBadgeState extends ConsumerState<ExamNotificationBadge>
                               Icons.notifications_none_rounded,
                               size: Spacings.xlIcon,
                               color: cs.onSurfaceVariant
-                                  .withOpacity(0.5),
+                                  .withValues(alpha: 0.5),
                             ),
                             const SizedBox(height: Spacings.md),
                             Text(
@@ -355,11 +355,11 @@ class _NotificationTile extends StatelessWidget {
       ),
       tileColor: notification.isRead
           ? null
-          : cs.primary.withOpacity(isDark ? 0.08 : 0.04),
+          : cs.primary.withValues(alpha: isDark ? 0.08 : 0.04),
       leading: Container(
         padding: const EdgeInsets.all(Spacings.sm),
         decoration: BoxDecoration(
-          color: color.withOpacity(isDark ? 0.20 : 0.12),
+          color: color.withValues(alpha: isDark ? 0.20 : 0.12),
           borderRadius: BorderRadius.circular(Spacings.smRadius),
         ),
         child: Icon(_typeIcon(), size: Spacings.mdIcon, color: color),

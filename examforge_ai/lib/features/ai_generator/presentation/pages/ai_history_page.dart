@@ -55,7 +55,7 @@ class _AiHistoryPageState extends ConsumerState<AiHistoryPage> {
     final isMobile = context.isMobile;
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Generation History',
       ),
       body: Column(
@@ -98,7 +98,7 @@ class _AiHistoryPageState extends ConsumerState<AiHistoryPage> {
 
     return Container(
       padding: const EdgeInsets.all(Spacings.lg),
-      color: cs.surfaceContainerHighest.withOpacity(0.3),
+      color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
       child: Row(
         children: [
           _SummaryStat(
@@ -183,12 +183,12 @@ class _AiHistoryPageState extends ConsumerState<AiHistoryPage> {
               ...AiProvider.values.map((p) => PopupMenuItem(
                     value: 'provider_${p.value}',
                     child: Text(p.displayName),
-                  )),
+                  ),),
               const PopupMenuDivider(),
               ...GenerationStatus.values.map((s) => PopupMenuItem(
                     value: 'status_${s.value}',
                     child: Text(s.label),
-                  )),
+                  ),),
             ],
           ),
         ],
@@ -230,7 +230,7 @@ class _AiHistoryPageState extends ConsumerState<AiHistoryPage> {
     }
 
     if (history.isEmpty) {
-      return AppEmptyState(
+      return const AppEmptyState(
         icon: Icons.history_rounded,
         title: 'No Generation History',
         subtitle: 'Start generating questions to see your history here.',
@@ -303,7 +303,7 @@ class _AiHistoryPageState extends ConsumerState<AiHistoryPage> {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(statusIcon, size: Spacings.mdIcon, color: statusColor),

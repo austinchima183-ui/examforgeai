@@ -88,16 +88,16 @@ class _ContentCollectionsPageState
                                     Icon(
                                         Icons.collections_bookmark_rounded,
                                         size: Spacings.lgIcon,
-                                        color: cs.primary),
+                                        color: cs.primary,),
                                     const SizedBox(width: Spacings.sm),
                                     Expanded(
                                       child: Text(collection.name,
                                           style: tt.titleSmall?.copyWith(
                                               fontWeight:
-                                                  AppTypography.wSemiBold),
+                                                  AppTypography.wSemiBold,),
                                           maxLines: 1,
                                           overflow:
-                                              TextOverflow.ellipsis),
+                                              TextOverflow.ellipsis,),
                                     ),
                                     PopupMenuButton<String>(
                                       onSelected: (v) {
@@ -111,10 +111,10 @@ class _ContentCollectionsPageState
                                       itemBuilder: (context) => [
                                         const PopupMenuItem(
                                             value: 'edit',
-                                            child: Text('Edit')),
+                                            child: Text('Edit'),),
                                         const PopupMenuItem(
                                             value: 'delete',
-                                            child: Text('Delete')),
+                                            child: Text('Delete'),),
                                       ],
                                     ),
                                   ],
@@ -122,14 +122,14 @@ class _ContentCollectionsPageState
                                 const SizedBox(height: Spacings.sm),
                                 Text('${collection.contentCount} items',
                                     style: tt.bodyMedium?.copyWith(
-                                        color: cs.onSurfaceVariant)),
+                                        color: cs.onSurfaceVariant,),),
                                 if (collection.description != null) ...[
                                   const SizedBox(height: Spacings.xs),
                                   Text(collection.description!,
                                       style: tt.bodySmall?.copyWith(
-                                          color: cs.onSurfaceVariant),
+                                          color: cs.onSurfaceVariant,),
                                       maxLines: 2,
-                                      overflow: TextOverflow.ellipsis),
+                                      overflow: TextOverflow.ellipsis,),
                                 ],
                                 const Spacer(),
                                 Row(
@@ -137,21 +137,21 @@ class _ContentCollectionsPageState
                                     if (collection.isPublic) ...[
                                       Icon(Icons.public_rounded,
                                           size: 14,
-                                          color: cs.onSurfaceVariant),
+                                          color: cs.onSurfaceVariant,),
                                       const SizedBox(width: Spacings.xs),
                                       Text('Public',
                                           style: tt.bodySmall?.copyWith(
                                               color:
-                                                  cs.onSurfaceVariant)),
+                                                  cs.onSurfaceVariant,),),
                                     ] else ...[
                                       Icon(Icons.lock_outline_rounded,
                                           size: 14,
-                                          color: cs.onSurfaceVariant),
+                                          color: cs.onSurfaceVariant,),
                                       const SizedBox(width: Spacings.xs),
                                       Text('Private',
                                           style: tt.bodySmall?.copyWith(
                                               color:
-                                                  cs.onSurfaceVariant)),
+                                                  cs.onSurfaceVariant,),),
                                     ],
                                   ],
                                 ),
@@ -182,21 +182,21 @@ class _ContentCollectionsPageState
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Name *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
                 const SizedBox(height: Spacings.md),
                 SwitchListTile(
                   value: isPublic,
                   onChanged: (v) =>
                       setDialogState(() => isPublic = v),
                   title: const Text('Public'),
-                  activeColor: Theme.of(context).primaryColor,
+                  activeThumbColor: Theme.of(context).primaryColor,
                 ),
               ],
             ),
@@ -204,7 +204,7 @@ class _ContentCollectionsPageState
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Create',
               onPressed: () {
@@ -224,7 +224,7 @@ class _ContentCollectionsPageState
                       contentCount: 0,
                       createdAt: DateTime.now(),
                       updatedAt: DateTime.now(),
-                    ));
+                    ),);
                 Navigator.pop(context);
               },
             ),
@@ -253,21 +253,21 @@ class _ContentCollectionsPageState
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Name',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
                 const SizedBox(height: Spacings.md),
                 SwitchListTile(
                   value: isPublic,
                   onChanged: (v) =>
                       setDialogState(() => isPublic = v),
                   title: const Text('Public'),
-                  activeColor: Theme.of(context).primaryColor,
+                  activeThumbColor: Theme.of(context).primaryColor,
                 ),
               ],
             ),
@@ -275,7 +275,7 @@ class _ContentCollectionsPageState
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Save',
               onPressed: () {
@@ -295,7 +295,7 @@ class _ContentCollectionsPageState
                       contentCount: collection.contentCount,
                       createdAt: collection.createdAt,
                       updatedAt: DateTime.now(),
-                    ));
+                    ),);
                 Navigator.pop(context);
               },
             ),
@@ -311,11 +311,11 @@ class _ContentCollectionsPageState
       builder: (context) => AlertDialog(
         title: const Text('Delete Collection'),
         content: Text(
-            'Are you sure you want to delete "${collection.name}"? Items in the collection will not be deleted.'),
+            'Are you sure you want to delete "${collection.name}"? Items in the collection will not be deleted.',),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Delete',
             onPressed: () {
@@ -350,7 +350,7 @@ class _ContentCollectionsPageState
                   Expanded(
                     child: Text(collection.name,
                         style: context.textTheme.headlineSmall?.copyWith(
-                            fontWeight: AppTypography.wSemiBold)),
+                            fontWeight: AppTypography.wSemiBold,),),
                   ),
                   AppIconButton(
                     icon: Icons.close_rounded,
@@ -362,7 +362,7 @@ class _ContentCollectionsPageState
                 const SizedBox(height: Spacings.sm),
                 Text(collection.description!,
                     style: context.textTheme.bodyMedium?.copyWith(
-                        color: context.colorScheme.onSurfaceVariant)),
+                        color: context.colorScheme.onSurfaceVariant,),),
               ],
               const SizedBox(height: Spacings.lg),
               Row(
@@ -370,7 +370,7 @@ class _ContentCollectionsPageState
                 children: [
                   Text(
                       '${collection.contentCount} items in this collection',
-                      style: context.textTheme.bodyLarge),
+                      style: context.textTheme.bodyLarge,),
                   AppButton(
                     label: 'Add Item',
                     onPressed: () {
@@ -386,11 +386,11 @@ class _ContentCollectionsPageState
               // Placeholder for content items list with reorder support
               if (collection.contentCount == 0)
                 AppEmptyState.noData(
-                    subtitle: 'No items in this collection')
+                    subtitle: 'No items in this collection',)
               else
                 Text('Content items will appear here with drag handles for reordering.',
                     style: context.textTheme.bodySmall?.copyWith(
-                        color: context.colorScheme.onSurfaceVariant)),
+                        color: context.colorScheme.onSurfaceVariant,),),
             ],
           ),
         ),

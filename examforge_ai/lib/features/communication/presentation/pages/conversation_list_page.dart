@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
@@ -180,7 +178,7 @@ class _State extends ConsumerState<ConversationListPage> with SingleTickerProvid
     return Dismissible(
       key: ValueKey(conv.id),
       background: Container(
-        color: AppColors.warningOf(cs.brightness).withOpacity(0.1),
+        color: AppColors.warningOf(cs.brightness).withValues(alpha: 0.1),
         alignment: Alignment.centerLeft,
         padding: const EdgeInsets.only(left: Spacings.xl),
         child: Icon(
@@ -189,7 +187,7 @@ class _State extends ConsumerState<ConversationListPage> with SingleTickerProvid
         ),
       ),
       secondaryBackground: Container(
-        color: AppColors.infoOf(cs.brightness).withOpacity(0.1),
+        color: AppColors.infoOf(cs.brightness).withValues(alpha: 0.1),
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         child: Icon(Icons.archive_outlined, color: AppColors.infoOf(cs.brightness)),
@@ -313,25 +311,25 @@ class _State extends ConsumerState<ConversationListPage> with SingleTickerProvid
         child: Padding(
           padding: const EdgeInsets.all(Spacings.lg),
           child: Column(
-            children: List.generate(8, (_) => Padding(
-              padding: const EdgeInsets.only(bottom: Spacings.lg),
+            children: List.generate(8, (_) => const Padding(
+              padding: EdgeInsets.only(bottom: Spacings.lg),
               child: Row(
                 children: [
                   AppLoadingShimmer.box(width: 48, height: 48, shape: BoxShape.circle),
-                  const SizedBox(width: Spacings.md),
+                  SizedBox(width: Spacings.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         AppLoadingShimmer.box(width: 160, height: 14, borderRadius: Spacings.borderRadiusSm),
-                        const SizedBox(height: Spacings.sm),
+                        SizedBox(height: Spacings.sm),
                         AppLoadingShimmer.box(height: 12, borderRadius: Spacings.borderRadiusSm),
                       ],
                     ),
                   ),
                 ],
               ),
-            )),
+            ),),
           ),
         ),
       ),

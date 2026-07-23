@@ -156,7 +156,7 @@ class _State extends ConsumerState<ChildProfilePage> {
           children: [
             const SizedBox(height: Spacings.xxl),
             // Avatar shimmer
-            Center(
+            const Center(
               child: AppLoadingShimmer.box(
                 width: 80,
                 height: 80,
@@ -165,7 +165,7 @@ class _State extends ConsumerState<ChildProfilePage> {
             ),
             const SizedBox(height: Spacings.lg),
             // Name shimmer
-            Center(
+            const Center(
               child: AppLoadingShimmer.box(
                 width: 180,
                 height: 20,
@@ -173,7 +173,7 @@ class _State extends ConsumerState<ChildProfilePage> {
               ),
             ),
             const SizedBox(height: Spacings.sm),
-            Center(
+            const Center(
               child: AppLoadingShimmer.box(
                 width: 140,
                 height: 14,
@@ -188,14 +188,14 @@ class _State extends ConsumerState<ChildProfilePage> {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: List.generate(
                   4,
-                  (_) => Column(
+                  (_) => const Column(
                     children: [
                       AppLoadingShimmer.box(
                         width: 48,
                         height: 48,
                         shape: BoxShape.circle,
                       ),
-                      const SizedBox(height: Spacings.sm),
+                      SizedBox(height: Spacings.sm),
                       AppLoadingShimmer.box(
                         width: 60,
                         height: 12,
@@ -208,8 +208,8 @@ class _State extends ConsumerState<ChildProfilePage> {
             ),
             const SizedBox(height: Spacings.xl),
             // Info card shimmer
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
+            const Padding(
+              padding: EdgeInsets.symmetric(horizontal: Spacings.lg),
               child: AppLoadingShimmer.box(
                 height: 200,
                 borderRadius: Spacings.borderRadiusLg,
@@ -376,7 +376,7 @@ class _State extends ConsumerState<ChildProfilePage> {
                     width: 48,
                     height: 48,
                     decoration: BoxDecoration(
-                      color: action.color.withOpacity(0.12),
+                      color: action.color.withValues(alpha: 0.12),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -417,7 +417,7 @@ class _State extends ConsumerState<ChildProfilePage> {
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: Card(
         elevation: Spacings.elevationSm,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(

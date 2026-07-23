@@ -375,7 +375,7 @@ class ExamTemplateNotifier extends StateNotifier<ExamTemplateState> {
         final updatedList = state.templates
             .map((t) => t.id == templateId
                 ? t.copyWith(usageCount: t.usageCount + 1)
-                : t)
+                : t,)
             .toList();
         state = state.copyWith(
           isCreating: false,

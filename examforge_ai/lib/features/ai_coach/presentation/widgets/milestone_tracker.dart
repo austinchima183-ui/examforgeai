@@ -52,7 +52,7 @@ class MilestoneTracker extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: progressPct / 100,
                   backgroundColor:
-                      context.colorScheme.outlineVariant.withOpacity(0.3),
+                      context.colorScheme.outlineVariant.withValues(alpha: 0.3),
                   color: AppColors.primary,
                   minHeight: 8,
                 ),
@@ -150,7 +150,7 @@ class _MilestoneTile extends StatelessWidget {
                     ),
                   ),
                   child: isCompleted
-                      ? Icon(
+                      ? const Icon(
                           Icons.check,
                           size: 14,
                           color: Colors.white,
@@ -158,7 +158,7 @@ class _MilestoneTile extends StatelessWidget {
                       : isCurrent
                           ? Container(
                               margin: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 color: Colors.white,
                                 shape: BoxShape.circle,
                               ),
@@ -174,7 +174,7 @@ class _MilestoneTile extends StatelessWidget {
                       color: isCompleted
                           ? AppColors.success
                           : context.colorScheme.outlineVariant
-                              .withOpacity(0.5),
+                              .withValues(alpha: 0.5),
                     ),
                   ),
               ],
@@ -237,7 +237,7 @@ class _MilestoneTile extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: AppColors.primary.withOpacity(0.1),
+                        color: AppColors.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(

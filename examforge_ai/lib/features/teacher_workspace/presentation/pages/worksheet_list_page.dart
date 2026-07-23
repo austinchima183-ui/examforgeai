@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/usecases/export_worksheet_usecase.dart';
 import '../providers/worksheet_provider.dart';
@@ -67,7 +65,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
           .where((w) =>
               w.title.toLowerCase().contains(query) ||
               w.subject.toLowerCase().contains(query) ||
-              (w.topic?.toLowerCase().contains(query) ?? false))
+              (w.topic?.toLowerCase().contains(query) ?? false),)
           .toList();
     }
 
@@ -147,7 +145,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
                         });
                       },
                       child: Text('Clear All',
-                          style: tt.bodyMedium?.copyWith(color: cs.error)),
+                          style: tt.bodyMedium?.copyWith(color: cs.error),),
                     ),
                 ],
               ),
@@ -158,7 +156,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
                   style: tt.labelMedium?.copyWith(
                     color: cs.primary,
                     fontWeight: AppTypography.wSemiBold,
-                  )),
+                  ),),
               const SizedBox(height: Spacings.sm),
               Wrap(
                 spacing: Spacings.sm,
@@ -184,7 +182,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
                   style: tt.labelMedium?.copyWith(
                     color: cs.primary,
                     fontWeight: AppTypography.wSemiBold,
-                  )),
+                  ),),
               const SizedBox(height: Spacings.sm),
               Wrap(
                 spacing: Spacings.sm,
@@ -240,7 +238,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
           prev?.successMessage != next.successMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(next.successMessage!), backgroundColor: cs.primary),
+              content: Text(next.successMessage!), backgroundColor: cs.primary,),
         );
         ref.read(worksheetProvider.notifier).clearSuccessMessage();
       }
@@ -283,10 +281,10 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
   // ─── Body ─────────────────────────────────────────────────────────
 
   Widget _buildBody(ColorScheme cs, TextTheme tt, WorksheetState state,
-      List<WorksheetEntity> filteredWorksheets) {
+      List<WorksheetEntity> filteredWorksheets,) {
     if (state.isLoading) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     if (state.error != null && state.worksheets.isEmpty) {
@@ -336,7 +334,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
   // ─── Worksheet Card ───────────────────────────────────────────────
 
   Widget _buildWorksheetCard(
-      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet) {
+      ColorScheme cs, TextTheme tt, WorksheetEntity worksheet,) {
     return AppCard(
       onTap: () {
         context.push('/workspace/worksheet/generator');
@@ -362,7 +360,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
                 Padding(
                   padding: const EdgeInsets.only(left: Spacings.sm),
                   child: Icon(Icons.auto_awesome,
-                      size: Spacings.smIcon, color: cs.tertiary),
+                      size: Spacings.smIcon, color: cs.tertiary,),
                 ),
             ],
           ),
@@ -407,7 +405,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
           Row(
             children: [
               Icon(Icons.quiz_outlined,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${worksheet.questions.length} questions',
@@ -415,7 +413,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
               ),
               const SizedBox(width: Spacings.md),
               Icon(Icons.grade_outlined,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${worksheet.totalMarks.toInt()} marks',
@@ -424,7 +422,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
               if (worksheet.durationMinutes != null) ...[
                 const SizedBox(width: Spacings.md),
                 Icon(Icons.timer_outlined,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   '${worksheet.durationMinutes} min',
@@ -445,7 +443,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
                 onSelected: (format) =>
                     _exportWorksheet(worksheet.id, format),
                 position: PopupMenuPosition.under,
-                child: AppButton(
+                child: const AppButton(
                   label: 'Export',
                   onPressed: null, // handled by popup
                   variant: AppButtonVariant.outlined,
@@ -454,9 +452,9 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
                 ),
                 itemBuilder: (ctx) => [
                   const PopupMenuItem(
-                      value: 'pdf', child: Text('Export as PDF')),
+                      value: 'pdf', child: Text('Export as PDF'),),
                   const PopupMenuItem(
-                      value: 'docx', child: Text('Export as DOCX')),
+                      value: 'docx', child: Text('Export as DOCX'),),
                 ],
               ),
               const SizedBox(width: Spacings.sm),
@@ -477,7 +475,7 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
   // ─── Badge Helpers ────────────────────────────────────────────────
 
   Widget _buildBadge(ColorScheme cs, TextTheme tt, String label,
-      Color bgColor, Color fgColor) {
+      Color bgColor, Color fgColor,) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: Spacings.sm,
@@ -500,9 +498,9 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
   Color _difficultyColor(ColorScheme cs, String difficulty) {
     switch (difficulty) {
       case 'easy':
-        return Color(0xFFDCFCE7); // green-100
+        return const Color(0xFFDCFCE7); // green-100
       case 'hard':
-        return Color(0xFFFEE2E2); // red-100
+        return const Color(0xFFFEE2E2); // red-100
       default:
         return cs.tertiaryContainer;
     }
@@ -511,9 +509,9 @@ class _WorksheetListPageState extends ConsumerState<WorksheetListPage> {
   Color _difficultyOnColor(ColorScheme cs, String difficulty) {
     switch (difficulty) {
       case 'easy':
-        return Color(0xFF166534); // green-800
+        return const Color(0xFF166534); // green-800
       case 'hard':
-        return Color(0xFF991B1B); // red-800
+        return const Color(0xFF991B1B); // red-800
       default:
         return cs.onTertiaryContainer;
     }

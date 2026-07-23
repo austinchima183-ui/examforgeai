@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../domain/entities/offline_entities.dart';
 import '../providers/offline_provider.dart';
 import '../widgets/offline_widgets.dart';
@@ -107,8 +106,8 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
-      shape: RoundedRectangleBorder(
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusXl,
       ),
       child: Container(
@@ -119,8 +118,8 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
             colors: [
-              qualityColor.withOpacity(0.1),
-              qualityColor.withOpacity(0.05),
+              qualityColor.withValues(alpha: 0.1),
+              qualityColor.withValues(alpha: 0.05),
             ],
           ),
           borderRadius: Spacings.borderRadiusXl,
@@ -159,11 +158,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -247,11 +246,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -320,8 +319,8 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
           ),
           decoration: BoxDecoration(
             color: isActive
-                ? AppColors.warning.withOpacity(0.1)
-                : AppColors.success.withOpacity(0.1),
+                ? AppColors.warning.withValues(alpha: 0.1)
+                : AppColors.success.withValues(alpha: 0.1),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Text(
@@ -344,11 +343,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Container(
@@ -361,7 +360,7 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
             Icon(
               Icons.show_chart,
               size: Spacings.xlIcon,
-              color: cs.onSurfaceVariant.withOpacity(0.4),
+              color: cs.onSurfaceVariant.withValues(alpha: 0.4),
             ),
             const SizedBox(height: Spacings.md),
             Text(
@@ -374,7 +373,7 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
             Text(
               'Chart will appear as data is collected',
               style: tt.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant.withOpacity(0.7),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.7),
               ),
             ),
           ],
@@ -392,11 +391,11 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -437,7 +436,7 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
                 ),
               ],
             ),
-          )).toList(),
+          ),).toList(),
         ),
       ),
     );
@@ -472,17 +471,17 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
   List<_ConnectionTip> _getTips(ConnectivityInfo info) {
     if (!info.isOnline) {
       return [
-        _ConnectionTip(
+        const _ConnectionTip(
           icon: Icons.wifi_off,
           title: 'Check your connection',
           description: 'Make sure Wi-Fi or mobile data is turned on and you have a stable connection.',
         ),
-        _ConnectionTip(
+        const _ConnectionTip(
           icon: Icons.airplanemode_active,
           title: 'Airplane mode',
           description: 'If airplane mode is on, turn it off to restore connectivity.',
         ),
-        _ConnectionTip(
+        const _ConnectionTip(
           icon: Icons.cloud_off,
           title: 'Work offline',
           description: 'Your downloaded resources and saved drafts are still available offline.',
@@ -492,17 +491,17 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
 
     if (info.connectionQuality == ConnectionQuality.limited) {
       return [
-        _ConnectionTip(
+        const _ConnectionTip(
           icon: Icons.signal_cellular_alt,
           title: 'Weak signal',
           description: 'Try moving closer to your Wi-Fi router or to an area with better mobile coverage.',
         ),
-        _ConnectionTip(
+        const _ConnectionTip(
           icon: Icons.image_outlined,
           title: 'Reduced quality mode',
           description: 'Images and media are being served in reduced quality to save bandwidth.',
         ),
-        _ConnectionTip(
+        const _ConnectionTip(
           icon: Icons.download_for_offline,
           title: 'Download for later',
           description: 'Download resources while on a strong connection for seamless offline access.',
@@ -511,12 +510,12 @@ class _State extends ConsumerState<ConnectivityStatusPage> {
     }
 
     return [
-      _ConnectionTip(
+      const _ConnectionTip(
         icon: Icons.download_for_offline,
         title: 'Download resources',
         description: 'Great connection! Now is a good time to download resources for offline use.',
       ),
-      _ConnectionTip(
+      const _ConnectionTip(
         icon: Icons.sync,
         title: 'Sync pending items',
         description: 'Sync any pending exam attempts or drafts while you have a strong connection.',

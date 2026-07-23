@@ -54,7 +54,7 @@ class _AdmissionChecklistPageState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: _selectedUniversityId,
+                    initialValue: _selectedUniversityId,
                     decoration: InputDecoration(
                       labelText: 'University',
                       prefixIcon: const Icon(Icons.school_outlined),
@@ -85,7 +85,7 @@ class _AdmissionChecklistPageState
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    value: _selectedDepartmentId,
+                    initialValue: _selectedDepartmentId,
                     decoration: InputDecoration(
                       labelText: 'Department',
                       prefixIcon: const Icon(Icons.book_outlined),
@@ -158,7 +158,7 @@ class _AdmissionChecklistPageState
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: AppColors.primary.withOpacity(0.1),
+            color: AppColors.primary.withValues(alpha: 0.1),
             borderRadius: BorderRadius.circular(16),
           ),
           child: Column(
@@ -198,7 +198,7 @@ class _AdmissionChecklistPageState
               onToggle: () {
                 // Toggle completion via provider
               },
-            )),
+            ),),
       ],
     );
   }
@@ -220,7 +220,7 @@ class _AdmissionChecklistPageState
             gradient: LinearGradient(
               colors: [
                 AppColors.primary,
-                AppColors.primary.withOpacity(0.8),
+                AppColors.primary.withValues(alpha: 0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(16),
@@ -298,7 +298,7 @@ class _AdmissionChecklistPageState
           const SizedBox(height: 8),
           ...checklist.deadlines.map((deadline) => _DeadlineCard(
                 deadline: deadline,
-              )),
+              ),),
           const SizedBox(height: 20),
         ],
 
@@ -313,7 +313,7 @@ class _AdmissionChecklistPageState
           const SizedBox(height: 8),
           ...checklist.documents.map((doc) => _DocumentTile(
                 document: doc,
-              )),
+              ),),
           const SizedBox(height: 20),
         ],
 
@@ -396,7 +396,7 @@ class _ChecklistItemTile extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(10),
         side: isCompleted
-            ? BorderSide(color: AppColors.success.withOpacity(0.5))
+            ? BorderSide(color: AppColors.success.withValues(alpha: 0.5))
             : BorderSide.none,
       ),
       child: ListTile(
@@ -433,7 +433,7 @@ class _ChecklistItemTile extends StatelessWidget {
           ],
         ),
         trailing: isCompleted
-            ? Icon(Icons.check_circle, color: AppColors.success, size: 20)
+            ? const Icon(Icons.check_circle, color: AppColors.success, size: 20)
             : null,
       ),
     );
@@ -482,7 +482,7 @@ class _CategoryBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(4),
       ),
       child: Row(
@@ -519,7 +519,7 @@ class _DeadlineCard extends StatelessWidget {
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
-      color: isPast ? AppColors.error.withOpacity(0.1) : null,
+      color: isPast ? AppColors.error.withValues(alpha: 0.1) : null,
       child: ListTile(
         leading: Icon(
           isPast ? Icons.event_busy : Icons.event_outlined,

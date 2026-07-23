@@ -4,6 +4,7 @@
 /// ```dart
 /// import 'package:examforge_ai/services/services.dart';
 /// ```
+library;
 
 export 'auth_service.dart';
 export 'notification_service.dart';

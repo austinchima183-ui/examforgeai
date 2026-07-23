@@ -87,7 +87,7 @@ class _HelpCenterPageState extends ConsumerState<HelpCenterPage> {
                       ..._categories.map((cat) => _buildCategoryChip(cat, _selectedCategory == cat, () {
                         setState(() => _selectedCategory = cat);
                         provider.loadHelpArticles(category: cat);
-                      })),
+                      }),),
                     ],
                   ),
                 ),
@@ -185,7 +185,7 @@ class _HelpCenterPageState extends ConsumerState<HelpCenterPage> {
                     label: Text(tag, style: theme.textTheme.labelSmall),
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                     visualDensity: VisualDensity.compact,
-                  )).toList(),
+                  ),).toList(),
                 ),
               ],
             ],
@@ -220,7 +220,7 @@ class _HelpCenterPageState extends ConsumerState<HelpCenterPage> {
                   Text(article.category, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.primary)),
                   const SizedBox(width: 12),
                   Text('${article.helpfulCount} found helpful', style: Theme.of(context).textTheme.bodySmall),
-                ]),
+                ],),
                 const Divider(height: 24),
                 Text(article.content, style: Theme.of(context).textTheme.bodyLarge),
                 const SizedBox(height: 24),

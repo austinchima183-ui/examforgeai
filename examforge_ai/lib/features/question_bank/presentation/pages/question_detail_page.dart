@@ -2,29 +2,25 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_card.dart';
 import '../../../../shared/widgets/app_button.dart';
+import '../../../../shared/widgets/app_card.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/models/user_role.dart';
-import '../../../../shared/providers/auth_state_provider.dart';
 import '../../domain/entities/question_entities.dart';
 import '../providers/question_provider.dart';
-import '../providers/collection_provider.dart';
-import '../widgets/question_type_badge.dart';
 import '../widgets/difficulty_badge.dart';
 import '../widgets/question_content_renderer.dart';
-import '../widgets/collection_card.dart';
-import '../../../../config/dependency_injection.dart';
+import '../widgets/question_type_badge.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -125,7 +121,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                     Icon(Icons.share_outlined),
                     SizedBox(width: Spacings.md),
                     Text('Share'),
-                  ]),
+                  ],),
                 ),
                 PopupMenuItem(
                   value: 'archive',
@@ -323,7 +319,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -332,7 +328,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
           fontFamily: AppTypography.fontFamily,
           fontSize: 11.0,
           fontWeight: AppTypography.wSemiBold,
-          color: isDark ? color.withOpacity(0.9) : color,
+          color: isDark ? color.withValues(alpha: 0.9) : color,
         ),
       ),
     );
@@ -361,7 +357,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(context.isDarkMode ? 0.25 : 0.08,
+                color: AppColors.error.withValues(alpha: context.isDarkMode ? 0.25 : 0.08,
                 ),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
@@ -411,7 +407,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
         children: [
           Row(
             children: [
-              Icon(
+              const Icon(
                 Icons.check_circle_outline_rounded,
                 size: Spacings.mdIcon,
                 color: AppColors.success,
@@ -468,14 +464,14 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
               color: isCorrect
-                  ? AppColors.success.withOpacity(context.isDarkMode ? 0.15 : 0.06,
+                  ? AppColors.success.withValues(alpha: context.isDarkMode ? 0.15 : 0.06,
                     )
                   : cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
                 color: isCorrect
-                    ? AppColors.success.withOpacity(0.4)
-                    : cs.outlineVariant.withOpacity(0.5),
+                    ? AppColors.success.withValues(alpha: 0.4)
+                    : cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Row(
@@ -503,7 +499,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   height: 24.0,
                   decoration: BoxDecoration(
                     color: isCorrect
-                        ? AppColors.success.withOpacity(0.15)
+                        ? AppColors.success.withValues(alpha: 0.15)
                         : cs.secondaryContainer,
                     shape: BoxShape.circle,
                   ),
@@ -529,7 +525,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   ),
                 ),
                 if (isCorrect)
-                  Icon(
+                  const Icon(
                     Icons.check_rounded,
                     size: Spacings.mdIcon,
                     color: AppColors.success,
@@ -556,7 +552,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Row(
@@ -565,7 +561,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   child: Container(
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF2563EB).withOpacity(0.08),
+                      color: const Color(0xFF2563EB).withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -576,8 +572,8 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                     ),
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: Spacings.sm),
                   child: Icon(
                     Icons.arrow_forward_rounded,
                     size: Spacings.mdIcon,
@@ -588,7 +584,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   child: Container(
                     padding: const EdgeInsets.all(Spacings.sm),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withOpacity(0.08),
+                      color: AppColors.success.withValues(alpha: 0.08),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -626,7 +622,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Row(
@@ -635,7 +631,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   width: 28.0,
                   height: 28.0,
                   decoration: BoxDecoration(
-                    color: AppColors.success.withOpacity(0.12),
+                    color: AppColors.success.withValues(alpha: 0.12),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -677,7 +673,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
               color: cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Row(
@@ -688,7 +684,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFD97706).withOpacity(0.12),
+                    color: const Color(0xFFD97706).withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(
@@ -712,12 +708,12 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                               ),
                               decoration: BoxDecoration(
                                 color: AppColors.success
-                                    .withOpacity(0.08),
+                                    .withValues(alpha: 0.08),
                                 borderRadius:
                                     BorderRadius.circular(Spacings.smRadius),
                                 border: Border.all(
                                   color: AppColors.success
-                                      .withOpacity(0.3),
+                                      .withValues(alpha: 0.3),
                                 ),
                               ),
                               child: Text(
@@ -727,7 +723,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                                   fontWeight: AppTypography.wMedium,
                                 ),
                               ),
-                            ))
+                            ),)
                         .toList(),
                   ),
                 ),
@@ -748,15 +744,15 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.lg),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.06),
+        color: AppColors.success.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.success.withOpacity(0.3),
+          color: AppColors.success.withValues(alpha: 0.3),
         ),
       ),
       child: Row(
         children: [
-          Icon(
+          const Icon(
             Icons.check_circle_rounded,
             size: Spacings.lgIcon,
             color: AppColors.success,
@@ -782,10 +778,10 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
       width: double.infinity,
       padding: const EdgeInsets.all(Spacings.lg),
       decoration: BoxDecoration(
-        color: AppColors.success.withOpacity(0.06),
+        color: AppColors.success.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.success.withOpacity(0.3),
+          color: AppColors.success.withValues(alpha: 0.3),
         ),
       ),
       child: Column(
@@ -894,7 +890,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
 
     return AppCard(
       padding: const EdgeInsets.all(Spacings.lg),
-      borderColor: AppColors.warningOf(cs.brightness).withOpacity(0.3),
+      borderColor: AppColors.warningOf(cs.brightness).withValues(alpha: 0.3),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -962,23 +958,23 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
             runSpacing: Spacings.md,
             children: [
               _metadataItem(Icons.book_outlined, 'Subject',
-                  question.subjectId.isNotEmpty ? question.subjectId : 'N/A'),
+                  question.subjectId.isNotEmpty ? question.subjectId : 'N/A',),
               if (question.topicId != null)
                 _metadataItem(Icons.topic_outlined, 'Topic', question.topicId!),
               if (question.subtopicId != null)
                 _metadataItem(
-                    Icons.subdirectory_arrow_right_rounded, 'Subtopic', question.subtopicId!),
+                    Icons.subdirectory_arrow_right_rounded, 'Subtopic', question.subtopicId!,),
               _metadataItem(
-                  Icons.signal_cellular_alt_rounded, 'Difficulty', question.difficulty.label),
+                  Icons.signal_cellular_alt_rounded, 'Difficulty', question.difficulty.label,),
               if (question.examType != null)
                 _metadataItem(Icons.school_outlined, 'Exam Type', question.examType!.label),
               _metadataItem(Icons.star_outline_rounded, 'Marks', '${question.marks}'),
               if (question.negativeMarks > 0)
                 _metadataItem(
-                    Icons.remove_circle_outline_rounded, 'Negative', '-${question.negativeMarks}'),
+                    Icons.remove_circle_outline_rounded, 'Negative', '-${question.negativeMarks}',),
               if (question.timeAllowedSeconds != null)
                 _metadataItem(Icons.timer_outlined, 'Time',
-                    _formatDuration(question.timeAllowedSeconds!)),
+                    _formatDuration(question.timeAllowedSeconds!),),
             ],
           ),
         ],
@@ -1044,7 +1040,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: cs.secondaryContainer.withOpacity(0.6),
+                color: cs.secondaryContainer.withValues(alpha: 0.6),
                 borderRadius: BorderRadius.circular(Spacings.fullRadius),
               ),
               child: Text(
@@ -1106,7 +1102,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   color: cs.surfaceContainerHigh,
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: cs.outlineVariant.withOpacity(0.5),
+                    color: cs.outlineVariant.withValues(alpha: 0.5),
                   ),
                 ),
                 child: Column(
@@ -1115,7 +1111,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                     Icon(
                       Icons.image_outlined,
                       size: 28.0,
-                      color: cs.onSurfaceVariant.withOpacity(0.5),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                     ),
                     const SizedBox(height: Spacings.xs),
                     Text(
@@ -1146,11 +1142,11 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   vertical: Spacings.sm,
                 ),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(context.isDarkMode ? 0.20 : 0.08,
+                  color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.08,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: color.withOpacity(0.3),
+                    color: color.withValues(alpha: 0.3),
                   ),
                 ),
                 child: Row(
@@ -1420,7 +1416,7 @@ class _QuestionDetailPageState extends ConsumerState<QuestionDetailPage> {
                   Expanded(
                     child: Container(
                       width: 2.0,
-                      color: cs.outlineVariant.withOpacity(0.5),
+                      color: cs.outlineVariant.withValues(alpha: 0.5),
                     ),
                   ),
                 ],

@@ -67,7 +67,7 @@ class StudyPlannerState {
         .where((t) =>
             t.scheduledDate.year == selectedDate!.year &&
             t.scheduledDate.month == selectedDate!.month &&
-            t.scheduledDate.day == selectedDate!.day)
+            t.scheduledDate.day == selectedDate!.day,)
         .toList();
   }
 
@@ -131,7 +131,7 @@ class StudyPlannerNotifier extends StateNotifier<StudyPlannerState> {
         _schoolId = schoolId,
         super(StudyPlannerState(
           selectedDate: DateTime.now(),
-        ));
+        ),);
 
   final GetStudyPlansUseCase _getStudyPlans;
   final CreateStudyPlanUseCase _createStudyPlan;
@@ -150,7 +150,7 @@ class StudyPlannerNotifier extends StateNotifier<StudyPlannerState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getStudyPlans(
-      studentId: _studentId!,
+      studentId: _studentId,
       isActive: true,
     );
 
@@ -205,7 +205,7 @@ class StudyPlannerNotifier extends StateNotifier<StudyPlannerState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _createStudyPlan(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       title: title,
       description: description,
@@ -409,7 +409,7 @@ class StudyPlannerNotifier extends StateNotifier<StudyPlannerState> {
     state = state.copyWith(isSuggesting: true, error: null);
 
     final result = await _suggestStudyPlan(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       focusSubjectId: focusSubjectId,
     );

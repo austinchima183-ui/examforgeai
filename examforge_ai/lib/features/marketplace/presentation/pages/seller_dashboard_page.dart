@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
-import '../../domain/entities/marketplace_entities.dart';
-import '../providers/seller_provider.dart';
-import '../providers/purchase_provider.dart';
-import '../providers/cart_provider.dart';
-import '../providers/order_provider.dart';
-import '../providers/marketplace_notification_provider.dart';
-import '../widgets/marketplace_widgets.dart';
 import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
+import '../../domain/entities/marketplace_entities.dart';
+import '../providers/marketplace_notification_provider.dart';
+import '../providers/seller_provider.dart';
+import '../widgets/marketplace_widgets.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -375,7 +372,7 @@ class _OverviewTab extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: isHighest
                                     ? cs.primary
-                                    : cs.primary.withOpacity(isDark ? 0.30 : 0.20,
+                                    : cs.primary.withValues(alpha: isDark ? 0.30 : 0.20,
                                       ),
                                 borderRadius: const BorderRadius.vertical(
                                   top: Radius.circular(Spacings.smRadius),
@@ -436,7 +433,7 @@ class _OverviewTab extends StatelessWidget {
         ),
         const SizedBox(height: Spacings.md),
         // Placeholder for recent orders (would come from order provider)
-        AppInfoCard(
+        const AppInfoCard(
           icon: Icons.receipt_long_rounded,
           title: 'No Recent Orders',
           subtitle: 'Orders will appear here when customers purchase your products.',
@@ -460,7 +457,7 @@ class _OverviewTab extends StatelessWidget {
           ),
         ),
         const SizedBox(height: Spacings.md),
-        AppInfoCard(
+        const AppInfoCard(
           icon: Icons.rate_review_rounded,
           title: 'No Reviews Yet',
           subtitle: 'Reviews from buyers will appear here.',
@@ -560,7 +557,7 @@ class _SellerProfileHeader extends StatelessWidget {
             backgroundImage:
                 avatarUrl != null ? NetworkImage(avatarUrl) : null,
             backgroundColor:
-                cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+                cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
             child: avatarUrl == null
                 ? Text(
                     displayName.substring(0, 1).toUpperCase(),
@@ -592,7 +589,7 @@ class _SellerProfileHeader extends StatelessWidget {
                     ),
                     if (isVerified) ...[
                       const SizedBox(width: Spacings.sm),
-                      Icon(
+                      const Icon(
                         Icons.verified_rounded,
                         size: Spacings.mdIcon,
                         color: AppColors.info,
@@ -771,7 +768,7 @@ class _SellerProductCard extends ConsumerWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: typeColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: typeColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: Spacings.borderRadiusMd,
             ),
             child: ProductTypeIcon(
@@ -808,7 +805,7 @@ class _SellerProductCard extends ConsumerWidget {
                         vertical: Spacings.xs,
                       ),
                       decoration: BoxDecoration(
-                        color: statusColor.withOpacity(isDark ? 0.20 : 0.12),
+                        color: statusColor.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(
@@ -849,7 +846,7 @@ class _SellerProductCard extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(width: Spacings.md),
-                    Icon(
+                    const Icon(
                       Icons.star_rounded,
                       size: Spacings.smIcon,
                       color: AppColors.warning,
@@ -882,7 +879,7 @@ class _SellerProductCard extends ConsumerWidget {
               Icons.more_vert_rounded,
               color: cs.onSurfaceVariant,
             ),
-            shape: RoundedRectangleBorder(
+            shape: const RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusMd,
             ),
             onSelected: (value) {
@@ -932,7 +929,7 @@ class _SellerProductCard extends ConsumerWidget {
                   ],
                 ),
               ),
-              PopupMenuItem(
+              const PopupMenuItem(
                 value: 'delete',
                 child: Row(
                   children: [
@@ -941,7 +938,7 @@ class _SellerProductCard extends ConsumerWidget {
                       size: Spacings.mdIcon,
                       color: AppColors.error,
                     ),
-                    const SizedBox(width: Spacings.sm),
+                    SizedBox(width: Spacings.sm),
                     Text(
                       'Delete',
                       style: TextStyle(color: AppColors.error),
@@ -1145,7 +1142,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
                             decoration: BoxDecoration(
                               color: heights[index] >= 0.9
                                   ? cs.primary
-                                  : cs.primary.withOpacity(isDark ? 0.30 : 0.20,
+                                  : cs.primary.withValues(alpha: isDark ? 0.30 : 0.20,
                                     ),
                               borderRadius: const BorderRadius.vertical(
                                 top: Radius.circular(Spacings.smRadius),
@@ -1187,7 +1184,7 @@ class _AnalyticsTabState extends State<_AnalyticsTab> {
         ),
         const SizedBox(height: Spacings.md),
         if (widget.state.products.isEmpty)
-          AppInfoCard(
+          const AppInfoCard(
             icon: Icons.trending_up_rounded,
             title: 'No Data Yet',
             subtitle: 'Analytics data will appear once you have sales.',
@@ -1285,7 +1282,7 @@ class _ProductTypeBreakdown extends StatelessWidget {
     final tt = context.textTheme;
 
     if (products.isEmpty) {
-      return AppInfoCard(
+      return const AppInfoCard(
         icon: Icons.pie_chart_outline_rounded,
         title: 'No Data',
         subtitle: 'Product type breakdown will appear with more products.',
@@ -1387,7 +1384,7 @@ class _EarningsTab extends StatelessWidget {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(Spacings.xl),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             gradient: AppColors.brandGradient,
             borderRadius: Spacings.borderRadiusLg,
           ),
@@ -1397,7 +1394,7 @@ class _EarningsTab extends StatelessWidget {
               Text(
                 'Total Earnings',
                 style: tt.titleMedium?.copyWith(
-                  color: Colors.white.withOpacity(0.9),
+                  color: Colors.white.withValues(alpha: 0.9),
                 ),
               ),
               const SizedBox(height: Spacings.sm),
@@ -1421,7 +1418,7 @@ class _EarningsTab extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: AppColors.success.withOpacity(isDark ? 0.20 : 0.12,
+                  color: AppColors.success.withValues(alpha: isDark ? 0.20 : 0.12,
                   ),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
@@ -1453,7 +1450,7 @@ class _EarningsTab extends StatelessWidget {
                   ],
                 ),
               ),
-              AppButton(
+              const AppButton(
                 label: 'Withdraw',
                 onPressed: null,
                 variant: AppButtonVariant.tonal,
@@ -1542,7 +1539,7 @@ class _EarningsTab extends StatelessWidget {
         ),
         const SizedBox(height: Spacings.md),
         if (commissionRecords.isEmpty)
-          AppEmptyState(
+          const AppEmptyState(
             icon: Icons.receipt_long_outlined,
             title: 'No Commission Records',
             subtitle: 'Records will appear when you make sales.',
@@ -1550,12 +1547,12 @@ class _EarningsTab extends StatelessWidget {
         else
           ...commissionRecords.map((record) => _CommissionRecordCard(
                 record: record,
-              )),
+              ),),
 
         const SizedBox(height: Spacings.xl),
 
         // Withdraw button (disabled / coming soon)
-        AppButton(
+        const AppButton(
           label: 'Withdraw Funds (Coming Soon)',
           onPressed: null,
           variant: AppButtonVariant.elevated,

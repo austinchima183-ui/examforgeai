@@ -1,19 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../domain/entities/billing_entities.dart';
+import '../providers/invoice_provider.dart';
 import '../providers/school_billing_provider.dart';
 import '../providers/subscription_provider.dart';
-import '../providers/invoice_provider.dart';
-import '../providers/ai_credits_provider.dart';
 import '../widgets/billing_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -81,7 +78,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
     final invoiceState = ref.watch(invoiceProvider);
 
     return Scaffold(
-      appBar: AppAppBar(title: 'School Billing'),
+      appBar: const AppAppBar(title: 'School Billing'),
       body: RefreshIndicator(
         onRefresh: _refresh,
         child: SingleChildScrollView(
@@ -145,8 +142,8 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
     if (subscription == null) {
       return Card(
         elevation: Spacings.elevationSm,
-        shadowColor: cs.shadow.withOpacity(0.06),
-        shape: RoundedRectangleBorder(
+        shadowColor: cs.shadow.withValues(alpha: 0.06),
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(
@@ -181,7 +178,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
                 },
                 style: FilledButton.styleFrom(
                   padding: Spacings.paddingButton,
-                  shape: RoundedRectangleBorder(
+                  shape: const RoundedRectangleBorder(
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                 ),
@@ -198,8 +195,8 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.06),
-      shape: RoundedRectangleBorder(
+      shadowColor: cs.shadow.withValues(alpha: 0.06),
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
       ),
       child: Padding(
@@ -455,7 +452,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusLg,
         side: BorderSide(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Padding(
@@ -542,7 +539,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withOpacity(0.5),
+              color: cs.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
           child: Padding(
@@ -659,7 +656,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
             shape: RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusLg,
               side: BorderSide(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Padding(
@@ -682,7 +679,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: ListTile(
@@ -715,7 +712,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
                           vertical: 2,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(0.12),
+                          color: AppColors.success.withValues(alpha: 0.12),
                           borderRadius: Spacings.borderRadiusSm,
                         ),
                         child: Text(
@@ -758,7 +755,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
           shape: RoundedRectangleBorder(
             borderRadius: Spacings.borderRadiusLg,
             side: BorderSide(
-              color: cs.outlineVariant.withOpacity(0.5),
+              color: cs.outlineVariant.withValues(alpha: 0.5),
             ),
           ),
           child: Padding(
@@ -854,7 +851,7 @@ class _SchoolBillingPageState extends ConsumerState<SchoolBillingPage> {
             shape: RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusLg,
               side: BorderSide(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Padding(

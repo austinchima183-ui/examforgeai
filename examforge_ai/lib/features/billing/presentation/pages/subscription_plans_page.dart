@@ -2,15 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../core/themes/app_colors.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/billing_entities.dart';
 import '../providers/subscription_provider.dart';
 import '../widgets/billing_widgets.dart';
@@ -137,7 +137,7 @@ class _SubscriptionPlansPageState
     final state = ref.watch(subscriptionProvider);
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Subscription Plans',
       ),
       body: state.isLoading
@@ -248,7 +248,7 @@ class _SubscriptionPlansPageState
           Switch(
             value: isAnnual,
             onChanged: _onBillingCycleChanged,
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           const SizedBox(width: Spacings.sm),
           Text(
@@ -267,7 +267,7 @@ class _SubscriptionPlansPageState
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: AppColors.successLight.withOpacity(0.2),
+                color: AppColors.successLight.withValues(alpha: 0.2),
                 borderRadius: Spacings.borderRadiusSm,
               ),
               child: Text(
@@ -350,11 +350,11 @@ class _SubscriptionPlansPageState
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: Card(
         elevation: Spacings.elevationSm,
-        shadowColor: cs.shadow.withOpacity(0.08),
+        shadowColor: cs.shadow.withValues(alpha: 0.08),
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
           side: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         clipBehavior: Clip.antiAlias,
@@ -364,16 +364,16 @@ class _SubscriptionPlansPageState
             gradient: isDark
                 ? LinearGradient(
                     colors: [
-                      cs.primaryContainer.withOpacity(0.3),
-                      cs.tertiaryContainer.withOpacity(0.15),
+                      cs.primaryContainer.withValues(alpha: 0.3),
+                      cs.tertiaryContainer.withValues(alpha: 0.15),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
                   )
                 : LinearGradient(
                     colors: [
-                      cs.primaryContainer.withOpacity(0.5),
-                      cs.tertiaryContainer.withOpacity(0.3),
+                      cs.primaryContainer.withValues(alpha: 0.5),
+                      cs.tertiaryContainer.withValues(alpha: 0.3),
                     ],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -416,7 +416,7 @@ class _SubscriptionPlansPageState
                     padding: const EdgeInsets.symmetric(
                       vertical: Spacings.md,
                     ),
-                    shape: RoundedRectangleBorder(
+                    shape: const RoundedRectangleBorder(
                       borderRadius: Spacings.borderRadiusMd,
                     ),
                     textStyle: tt.labelLarge?.copyWith(

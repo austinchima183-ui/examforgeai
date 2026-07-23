@@ -90,7 +90,7 @@ class AiProvidersRegistry {
       } catch (e) {
         AppLogger.warning(
             'Provider ${provider.providerType.displayName} health check failed',
-            error: e);
+            error: e,);
       }
     }
     return results;
@@ -142,7 +142,7 @@ class AiProvidersRegistry {
         baseUrl: openaiBaseUrl,
         defaultModel: openaiModel,
         supabaseClient: supabaseClient,
-      ));
+      ),);
     } else {
       AppLogger.warning('No OpenAI API key or Supabase client; skipping OpenAI registration');
     }
@@ -154,7 +154,7 @@ class AiProvidersRegistry {
         baseUrl: geminiBaseUrl,
         defaultModel: geminiModel,
         supabaseClient: supabaseClient,
-      ));
+      ),);
     } else {
       AppLogger.warning('No Gemini API key or Supabase client; skipping Gemini registration');
     }

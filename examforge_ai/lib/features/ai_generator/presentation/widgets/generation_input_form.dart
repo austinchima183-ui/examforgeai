@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/widgets.dart';
@@ -131,7 +130,7 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
     if (current.keywords.contains(keyword.trim())) return;
     _updateInput(current.copyWith(
       keywords: [...current.keywords, keyword.trim()],
-    ));
+    ),);
     _keywordsController.clear();
   }
 
@@ -143,7 +142,7 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
     );
     _updateInput(current.copyWith(
       keywords: current.keywords.where((k) => k != keyword).toList(),
-    ));
+    ),);
   }
 
   @override
@@ -177,7 +176,7 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
                   subjectId: item.id,
                   topicId: '',
                   subtopicId: null,
-                ));
+                ),);
               }
             },
             itemLabel: (item) => item.label,
@@ -200,7 +199,7 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
                 _updateInput(input.copyWith(
                   topicId: item.id,
                   subtopicId: null,
-                ));
+                ),);
               }
             },
             itemLabel: (item) => item.label,
@@ -325,10 +324,10 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
                   if (input != null) {
                     _updateInput(input.copyWith(
                       questionType: selected ? type : null,
-                    ));
+                    ),);
                   }
                 },
-                selectedColor: cs.primary.withOpacity(context.isDarkMode ? 0.25 : 0.15,
+                selectedColor: cs.primary.withValues(alpha: context.isDarkMode ? 0.25 : 0.15,
                 ),
               );
             }).toList(),
@@ -380,7 +379,7 @@ class _GenerationInputFormState extends State<GenerationInputForm> {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                  color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),

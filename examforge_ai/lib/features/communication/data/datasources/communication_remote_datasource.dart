@@ -287,17 +287,17 @@ class CommunicationRemoteDataSourceImpl
       case 'PGRST116':
         throw NotFoundException(message: e.message);
       case '23505':
-        throw ServerException(
+        throw const ServerException(
           message: 'A record with this data already exists.',
           statusCode: 409,
         );
       case '23503':
-        throw ServerException(
+        throw const ServerException(
           message: 'Referenced record not found.',
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException(
+        throw const ForbiddenException(
           message: 'You do not have permission for this action.',
         );
       default:
@@ -712,14 +712,14 @@ class CommunicationRemoteDataSourceImpl
         filterQuery = filterQuery.eq('priority', priority);
       }
 
-      var transformQuery = filterQuery
+      final transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
       final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} announcements');
       return response
-          .map((e) => AnnouncementModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => AnnouncementModel.fromJson(e))
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -857,7 +857,7 @@ class CommunicationRemoteDataSourceImpl
         filterQuery = filterQuery.eq('is_read', isRead);
       }
 
-      var transformQuery = filterQuery
+      final transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
@@ -865,7 +865,7 @@ class CommunicationRemoteDataSourceImpl
       AppLogger.info('Fetched ${response.length} notifications');
       return response
           .map((e) =>
-              CommunicationNotificationModel.fromJson(e as Map<String, dynamic>))
+              CommunicationNotificationModel.fromJson(e),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -989,14 +989,14 @@ class CommunicationRemoteDataSourceImpl
         filterQuery = filterQuery.eq('forum_type', type);
       }
 
-      var transformQuery = filterQuery
+      final transformQuery = filterQuery
           .order('last_activity_at', ascending: false, nullsFirst: true)
           .range((page - 1) * perPage, page * perPage - 1);
 
       final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} forums');
       return response
-          .map((e) => DiscussionForumModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => DiscussionForumModel.fromJson(e))
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -1068,7 +1068,7 @@ class CommunicationRemoteDataSourceImpl
           .range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} forum posts');
       return response
-          .map((e) => ForumPostModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => ForumPostModel.fromJson(e))
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -1157,7 +1157,7 @@ class CommunicationRemoteDataSourceImpl
           .range((page - 1) * perPage, page * perPage - 1);
       AppLogger.info('Fetched ${response.length} forum comments');
       return response
-          .map((e) => ForumCommentModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => ForumCommentModel.fromJson(e))
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -1214,14 +1214,14 @@ class CommunicationRemoteDataSourceImpl
         filterQuery = filterQuery.lte('start_time', endDate.toIso8601String());
       }
 
-      var transformQuery = filterQuery
+      final transformQuery = filterQuery
           .order('start_time', ascending: true)
           .range((page - 1) * perPage, page * perPage - 1);
 
       final response = await transformQuery;
       AppLogger.info('Fetched ${response.length} calendar events');
       return response
-          .map((e) => CalendarEventModel.fromJson(e as Map<String, dynamic>))
+          .map((e) => CalendarEventModel.fromJson(e))
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -1541,7 +1541,7 @@ class CommunicationRemoteDataSourceImpl
         filterQuery = filterQuery.eq('document_type', documentType);
       }
 
-      var transformQuery = filterQuery
+      final transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
@@ -1549,7 +1549,7 @@ class CommunicationRemoteDataSourceImpl
       AppLogger.info('Fetched ${response.length} knowledge documents');
       return response
           .map((e) =>
-              SchoolKnowledgeDocumentModel.fromJson(e as Map<String, dynamic>))
+              SchoolKnowledgeDocumentModel.fromJson(e),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -1722,7 +1722,7 @@ class CommunicationRemoteDataSourceImpl
         filterQuery = filterQuery.eq('resource_type', resourceType);
       }
 
-      var transformQuery = filterQuery
+      final transformQuery = filterQuery
           .order('created_at', ascending: false)
           .range((page - 1) * perPage, page * perPage - 1);
 
@@ -1730,7 +1730,7 @@ class CommunicationRemoteDataSourceImpl
       AppLogger.info('Fetched ${response.length} audit logs');
       return response
           .map((e) =>
-              CommunicationAuditLogModel.fromJson(e as Map<String, dynamic>))
+              CommunicationAuditLogModel.fromJson(e),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);

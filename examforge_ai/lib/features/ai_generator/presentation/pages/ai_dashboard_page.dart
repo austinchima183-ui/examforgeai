@@ -9,7 +9,6 @@ import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ai_entities.dart';
 import '../providers/ai_stats_provider.dart';
-import '../widgets/ai_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // AI DASHBOARD PAGE
@@ -207,7 +206,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
             .map((card) => Expanded(child: Padding(
                   padding: const EdgeInsets.only(right: Spacings.md),
                   child: card,
-                )))
+                ),),)
             .toList(),
       );
     }
@@ -273,7 +272,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
             .map((a) => Padding(
                   padding: const EdgeInsets.only(bottom: Spacings.sm),
                   child: a,
-                ))
+                ),)
             .toList(),
       );
     }
@@ -283,7 +282,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
           .map((a) => Expanded(child: Padding(
                 padding: const EdgeInsets.only(right: Spacings.md),
                 child: a,
-              )))
+              ),),)
           .toList(),
     );
   }
@@ -315,7 +314,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
                     shape: BoxShape.circle,
                     color: hasUsage
                         ? AppColors.successOf(cs.brightness)
-                        : cs.onSurfaceVariant.withOpacity(0.3),
+                        : cs.onSurfaceVariant.withValues(alpha: 0.3),
                   ),
                 ),
                 const SizedBox(width: Spacings.md),
@@ -350,7 +349,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
                     color: (hasUsage
                             ? AppColors.successOf(cs.brightness)
                             : cs.onSurfaceVariant)
-                        .withOpacity(isDark ? 0.20 : 0.10),
+                        .withValues(alpha: isDark ? 0.20 : 0.10),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Text(
@@ -383,7 +382,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
     final costByProvider = stats?.costByProvider ?? {};
 
     if (costByProvider.isEmpty) {
-      return AppCard(
+      return const AppCard(
         child: AppEmptyState(
           icon: Icons.bar_chart_rounded,
           title: 'No Usage Data',
@@ -493,7 +492,7 @@ class _AiDashboardPageState extends ConsumerState<AiDashboardPage> {
     final recent = stats?.recentGenerations ?? [];
 
     if (recent.isEmpty) {
-      return AppCard(
+      return const AppCard(
         child: AppEmptyState(
           icon: Icons.history_rounded,
           title: 'No Recent Generations',

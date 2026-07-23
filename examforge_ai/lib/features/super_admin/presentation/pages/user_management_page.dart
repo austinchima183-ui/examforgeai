@@ -1,16 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
+
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../routing/route_names.dart';
 import '../../domain/entities/super_admin_entities.dart';
 import '../providers/super_admin_providers.dart';
 import '../widgets/super_admin_widgets.dart';
-import '../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -194,10 +193,10 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
   // ─── Body ────────────────────────────────────────────────────────────────
 
   Widget _buildBody(
-      BuildContext context, UserManagementState state, ColorScheme cs) {
+      BuildContext context, UserManagementState state, ColorScheme cs,) {
     if (state.isLoading && state.users.isEmpty) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     if (state.error != null && state.users.isEmpty) {
@@ -213,7 +212,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -255,7 +254,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 '${state.totalCount} user${state.totalCount == 1 ? '' : 's'}',
                 style: AppTypography.wMedium.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -319,7 +318,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
   // ─── User List ───────────────────────────────────────────────────────────
 
   Widget _buildUserList(
-      BuildContext context, UserManagementState state, ColorScheme cs) {
+      BuildContext context, UserManagementState state, ColorScheme cs,) {
     return RefreshIndicator(
       onRefresh: () async => _loadData(),
       child: ListView.separated(
@@ -365,14 +364,14 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withOpacity(0.7),
+                    .withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: Spacings.lg),
             TextField(
               controller: _suspendReasonController,
               maxLines: 3,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Reason for suspension',
                 hintText: 'Provide a reason...',
                 border: OutlineInputBorder(
@@ -424,7 +423,7 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
       builder: (dialogContext) => AlertDialog(
         title: Row(
           children: [
-            Icon(Icons.warning_amber_rounded, color: AppColors.warning),
+            const Icon(Icons.warning_amber_rounded, color: AppColors.warning),
             const SizedBox(width: Spacings.sm),
             Text(
               'Impersonate User',
@@ -440,15 +439,15 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
             Container(
               padding: Spacings.paddingAll,
               decoration: BoxDecoration(
-                color: AppColors.warningLight.withOpacity(0.3),
+                color: AppColors.warningLight.withValues(alpha: 0.3),
                 borderRadius: Spacings.borderRadiusMd,
                 border:
-                    Border.all(color: AppColors.warning.withOpacity(0.4)),
+                    Border.all(color: AppColors.warning.withValues(alpha: 0.4)),
               ),
               child: Row(
                 children: [
-                  Icon(Icons.shield_outlined,
-                      size: Spacings.mdIcon, color: AppColors.warning),
+                  const Icon(Icons.shield_outlined,
+                      size: Spacings.mdIcon, color: AppColors.warning,),
                   const SizedBox(width: Spacings.sm),
                   Expanded(
                     child: Text(
@@ -470,14 +469,14 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withOpacity(0.7),
+                    .withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: Spacings.lg),
             TextField(
               controller: _impersonateReasonController,
               maxLines: 3,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Reason for impersonation',
                 hintText: 'Provide a justified reason...',
                 border: OutlineInputBorder(
@@ -553,13 +552,13 @@ class _UserManagementPageState extends ConsumerState<UserManagementPage> {
                       color: Theme.of(context)
                           .colorScheme
                           .onSurface
-                          .withOpacity(0.7),
+                          .withValues(alpha: 0.7),
                     ),
                   ),
                   const SizedBox(height: Spacings.lg),
                   DropdownButtonFormField<String>(
-                    value: selectedRole,
-                    decoration: InputDecoration(
+                    initialValue: selectedRole,
+                    decoration: const InputDecoration(
                       labelText: 'New Role',
                       border: OutlineInputBorder(
                         borderRadius: Spacings.borderRadiusMd,
@@ -642,7 +641,7 @@ class _UserManagementCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -654,7 +653,7 @@ class _UserManagementCard extends StatelessWidget {
                 // Avatar
                 CircleAvatar(
                   radius: 20,
-                  backgroundColor: roleClr.withOpacity(0.12),
+                  backgroundColor: roleClr.withValues(alpha: 0.12),
                   child: Icon(
                     _roleIcon(user.role),
                     size: Spacings.mdIcon,
@@ -682,7 +681,7 @@ class _UserManagementCard extends StatelessWidget {
                           ),
                           if (user.isEmailVerified) ...[
                             const SizedBox(width: Spacings.xs),
-                            Icon(
+                            const Icon(
                               Icons.verified_rounded,
                               size: 14,
                               color: AppColors.success,
@@ -694,7 +693,7 @@ class _UserManagementCard extends StatelessWidget {
                         user.email,
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withOpacity(0.5),
+                          color: cs.onSurface.withValues(alpha: 0.5),
                         ),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
@@ -729,7 +728,7 @@ class _UserManagementCard extends StatelessWidget {
                   Icon(
                     Icons.domain_outlined,
                     size: Spacings.smIcon,
-                    color: cs.onSurface.withOpacity(0.5),
+                    color: cs.onSurface.withValues(alpha: 0.5),
                   ),
                   const SizedBox(width: Spacings.xs),
                   Flexible(
@@ -737,7 +736,7 @@ class _UserManagementCard extends StatelessWidget {
                       user.schoolName!,
                       style: AppTypography.wRegular.copyWith(
                         fontSize: 12,
-                        color: cs.onSurface.withOpacity(0.6),
+                        color: cs.onSurface.withValues(alpha: 0.6),
                       ),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
@@ -749,14 +748,14 @@ class _UserManagementCard extends StatelessWidget {
                 Icon(
                   Icons.access_time_rounded,
                   size: Spacings.smIcon,
-                  color: cs.onSurface.withOpacity(0.5),
+                  color: cs.onSurface.withValues(alpha: 0.5),
                 ),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   _formatLastLogin(user.lastLoginAt),
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withOpacity(0.6),
+                    color: cs.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],

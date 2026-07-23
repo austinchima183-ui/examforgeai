@@ -68,34 +68,34 @@ class EduOsProvider extends ChangeNotifier {
     _setLoading(true); _setError(null);
     final result = await _getModules(GetModulesParams(status: status, tier: tier));
     result.fold(onSuccess: (modules) { _modules = modules; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadModuleByCode(String code) async {
     _setLoading(true); _setError(null);
     final result = await _getModuleByCode(GetModuleByCodeParams(code: code));
     result.fold(onSuccess: (module) { _selectedModule = module; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<void> loadSubscriptions(String schoolId, {bool? isEnabled}) async {
     _setLoading(true); _setError(null);
     final result = await _getModuleSubscriptions(GetModuleSubscriptionsParams(schoolId: schoolId, isEnabled: isEnabled));
     result.fold(onSuccess: (subs) { _subscriptions = subs; _setLoading(false); },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); },);
   }
 
   Future<bool> subscribeToModule(String schoolId, String moduleId, ModuleTier tier) async {
     _setLoading(true); _setError(null);
     final result = await _subscribeModule(SubscribeModuleParams(schoolId: schoolId, moduleId: moduleId, tier: tier));
     return result.fold(onSuccess: (sub) { _subscriptions.add(sub); _setLoading(false); return true; },
-      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); return false; });
+      onFailure: (f) { _setError(_extractMessage(f)); _setLoading(false); return false; },);
   }
 
   Future<bool> unsubscribeFromModule(String subscriptionId) async {
     final result = await _unsubscribeModule(UnsubscribeModuleParams(subscriptionId: subscriptionId));
     return result.fold(onSuccess: (_) { _subscriptions.removeWhere((s) => s.id == subscriptionId); notifyListeners(); return true; },
-      onFailure: (f) { _setError(_extractMessage(f)); return false; });
+      onFailure: (f) { _setError(_extractMessage(f)); return false; },);
   }
 
   Future<void> toggleModuleEnabled(String subscriptionId, bool enable) async {
@@ -106,19 +106,19 @@ class EduOsProvider extends ChangeNotifier {
       final idx = _subscriptions.indexWhere((s) => s.id == subscriptionId);
       if (idx >= 0) _subscriptions[idx] = sub;
       notifyListeners();
-    }, onFailure: (f) { _setError(_extractMessage(f)); });
+    }, onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadModuleApis(String moduleId) async {
     final result = await _getModuleApis(GetModuleApisParams(moduleId: moduleId));
     result.fold(onSuccess: (apis) { _moduleApis = apis; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   Future<void> loadAnalyticsSummary(String schoolId) async {
     final result = await _getAnalyticsSummary(GetAnalyticsSummaryParams(schoolId: schoolId));
     result.fold(onSuccess: (summary) { _analyticsSummary = summary; notifyListeners(); },
-      onFailure: (f) { _setError(_extractMessage(f)); });
+      onFailure: (f) { _setError(_extractMessage(f)); },);
   }
 
   void selectModule(EduosModule module) {

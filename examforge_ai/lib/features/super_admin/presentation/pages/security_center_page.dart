@@ -1,14 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/super_admin_entities.dart';
 import '../providers/super_admin_providers.dart';
 import '../widgets/super_admin_widgets.dart';
-import '../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -179,7 +180,7 @@ class _SecurityCenterPageState extends ConsumerState<SecurityCenterPage>
       ),
       body: state.isLoading && state.auditLogs.isEmpty && state.loginEntries.isEmpty
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : state.error != null &&
                   state.auditLogs.isEmpty &&
                   state.loginEntries.isEmpty &&
@@ -204,7 +205,7 @@ class _SecurityCenterPageState extends ConsumerState<SecurityCenterPage>
                         tabs: _tabs,
                         labelColor: cs.primary,
                         unselectedLabelColor:
-                            cs.onSurface.withOpacity(0.6),
+                            cs.onSurface.withValues(alpha: 0.6),
                         indicatorColor: cs.primary,
                         indicatorSize: TabBarIndicatorSize.tab,
                         isScrollable: true,
@@ -262,13 +263,13 @@ class _SecurityCenterPageState extends ConsumerState<SecurityCenterPage>
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline,
-                size: Spacings.xlIcon, color: cs.error),
+                size: Spacings.xlIcon, color: cs.error,),
             const SizedBox(height: Spacings.lg),
             Text(
               error,
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: cs.onSurface.withOpacity(0.7),
+                color: cs.onSurface.withValues(alpha: 0.7),
               ),
               textAlign: TextAlign.center,
             ),
@@ -330,15 +331,15 @@ class _AuditLogsTab extends StatelessWidget {
                         'Category',
                         style: AppTypography.wSemiBold.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withOpacity(0.6),
+                          color: cs.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
                       DropdownButtonFormField<AuditCategory?>(
-                        value: filterCategory,
-                        decoration: InputDecoration(
+                        initialValue: filterCategory,
+                        decoration: const InputDecoration(
                           border: OutlineInputBorder(
-                              borderRadius: Spacings.borderRadiusMd),
+                              borderRadius: Spacings.borderRadiusMd,),
                           contentPadding: Spacings.paddingInput,
                           isDense: true,
                         ),
@@ -369,15 +370,15 @@ class _AuditLogsTab extends StatelessWidget {
                         'Severity',
                         style: AppTypography.wSemiBold.copyWith(
                           fontSize: 12,
-                          color: cs.onSurface.withOpacity(0.6),
+                          color: cs.onSurface.withValues(alpha: 0.6),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
                       DropdownButtonFormField<AuditSeverity?>(
-                        value: filterSeverity,
-                        decoration: InputDecoration(
+                        initialValue: filterSeverity,
+                        decoration: const InputDecoration(
                           border: OutlineInputBorder(
-                              borderRadius: Spacings.borderRadiusMd),
+                              borderRadius: Spacings.borderRadiusMd,),
                           contentPadding: Spacings.paddingInput,
                           isDense: true,
                         ),
@@ -411,7 +412,7 @@ class _AuditLogsTab extends StatelessWidget {
                   '${logs.length} log ${logs.length == 1 ? 'entry' : 'entries'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withOpacity(0.6),
+                    color: cs.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -430,7 +431,7 @@ class _AuditLogsTab extends StatelessWidget {
           ),
         ],
       );
-    });
+    },);
   }
 }
 
@@ -453,11 +454,11 @@ class _AuditLogDataTable extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: Spacings.xl),
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(
-            cs.surfaceContainerHighest.withOpacity(0.5),
+            cs.surfaceContainerHighest.withValues(alpha: 0.5),
           ),
           headingTextStyle: AppTypography.wSemiBold.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withOpacity(0.7),
+            color: cs.onSurface.withValues(alpha: 0.7),
           ),
           dataTextStyle: AppTypography.wRegular.copyWith(
             fontSize: 13,
@@ -482,12 +483,12 @@ class _AuditLogDataTable extends StatelessWidget {
               DataCell(Text(
                 _formatTimestamp(log.createdAt),
                 style: AppTypography.wRegular.copyWith(fontSize: 12),
-              )),
+              ),),
               // Actor
               DataCell(Text(
                 log.actorEmail ?? log.actorId ?? 'System',
                 style: AppTypography.wMedium.copyWith(fontSize: 12),
-              )),
+              ),),
               // Action
               DataCell(ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 200),
@@ -496,21 +497,21 @@ class _AuditLogDataTable extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),
-              )),
+              ),),
               // Category
               DataCell(Text(log.category.label)),
               // Severity badge
               DataCell(StatusBadge(
                 label: log.severity.label,
                 color: sevColor,
-              )),
+              ),),
               // Resource Type
               DataCell(Text(log.resourceType ?? '—')),
               // IP Address
               DataCell(Text(log.ipAddress ?? '—')),
               // Duration
               DataCell(Text(_formatDuration(log.durationMs))),
-            ]);
+            ],);
           }).toList(),
         ),
       ),
@@ -558,7 +559,7 @@ class _LoginMonitoringTab extends StatelessWidget {
                   '${state.loginEntries.length} ${state.loginEntries.length == 1 ? 'entry' : 'entries'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withOpacity(0.6),
+                    color: cs.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -576,7 +577,7 @@ class _LoginMonitoringTab extends StatelessWidget {
           ),
         ],
       );
-    });
+    },);
   }
 }
 
@@ -599,11 +600,11 @@ class _LoginMonitoringDataTable extends StatelessWidget {
         padding: const EdgeInsets.only(bottom: Spacings.xl),
         child: DataTable(
           headingRowColor: WidgetStateProperty.all(
-            cs.surfaceContainerHighest.withOpacity(0.5),
+            cs.surfaceContainerHighest.withValues(alpha: 0.5),
           ),
           headingTextStyle: AppTypography.wSemiBold.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withOpacity(0.7),
+            color: cs.onSurface.withValues(alpha: 0.7),
           ),
           dataTextStyle: AppTypography.wRegular.copyWith(
             fontSize: 13,
@@ -625,7 +626,7 @@ class _LoginMonitoringDataTable extends StatelessWidget {
             return DataRow(
               color: WidgetStateProperty.all(
                 !isSuccess
-                    ? AppColors.error.withOpacity(0.06)
+                    ? AppColors.error.withValues(alpha: 0.06)
                     : null,
               ),
               cells: [
@@ -633,12 +634,12 @@ class _LoginMonitoringDataTable extends StatelessWidget {
                 DataCell(Text(
                   _formatTimestamp(entry.createdAt),
                   style: AppTypography.wRegular.copyWith(fontSize: 12),
-                )),
+                ),),
                 // User
                 DataCell(Text(
                   entry.email ?? entry.userId ?? 'Unknown',
                   style: AppTypography.wMedium.copyWith(fontSize: 12),
-                )),
+                ),),
                 // Role
                 DataCell(Text(entry.role ?? '—')),
                 // Status badge
@@ -646,7 +647,7 @@ class _LoginMonitoringDataTable extends StatelessWidget {
                   label: isSuccess ? 'Success' : 'Failed',
                   color: isSuccess ? AppColors.success : AppColors.error,
                   icon: isSuccess ? Icons.check_circle : Icons.cancel,
-                )),
+                ),),
                 // IP Address
                 DataCell(Text(entry.ipAddress ?? '—')),
                 // Country
@@ -654,7 +655,7 @@ class _LoginMonitoringDataTable extends StatelessWidget {
                   [entry.city, entry.country]
                       .where((e) => e != null)
                       .join(', '),
-                )),
+                ),),
                 // Device
                 DataCell(Tooltip(
                   message: entry.userAgent ?? 'Unknown',
@@ -662,7 +663,7 @@ class _LoginMonitoringDataTable extends StatelessWidget {
                     entry.deviceFingerprint ?? '—',
                     overflow: TextOverflow.ellipsis,
                   ),
-                )),
+                ),),
               ],
             );
           }).toList(),
@@ -693,7 +694,7 @@ class _ActiveSessionsTab extends StatelessWidget {
                   '${state.activeSessions.length} active ${state.activeSessions.length == 1 ? 'session' : 'sessions'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withOpacity(0.6),
+                    color: cs.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
               ],
@@ -726,7 +727,7 @@ class _ActiveSessionsTab extends StatelessWidget {
           ),
         ],
       );
-    });
+    },);
   }
 }
 
@@ -757,7 +758,7 @@ class _ActiveSessionCard extends StatelessWidget {
       elevation: session.isCurrent
           ? Spacings.elevationMd
           : Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -781,7 +782,7 @@ class _ActiveSessionCard extends StatelessWidget {
                   ),
                 ),
                 if (session.isCurrent)
-                  StatusBadge(
+                  const StatusBadge(
                     label: 'Current',
                     color: AppColors.success,
                     icon: Icons.check_circle,
@@ -945,7 +946,7 @@ class _SuspiciousActivityTab extends StatelessWidget {
                   '${state.suspiciousActivity.length} ${state.suspiciousActivity.length == 1 ? 'alert' : 'alerts'}',
                   style: AppTypography.wMedium.copyWith(
                     fontSize: 13,
-                    color: cs.onSurface.withOpacity(0.6),
+                    color: cs.onSurface.withValues(alpha: 0.6),
                   ),
                 ),
                 const Spacer(),
@@ -981,14 +982,14 @@ class _SuspiciousActivityTab extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final activity = state.suspiciousActivity[index];
                         return _SuspiciousActivityCard(
-                            activity: activity);
+                            activity: activity,);
                       },
                     ),
                   ),
           ),
         ],
       );
-    });
+    },);
   }
 }
 
@@ -1016,7 +1017,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
       shape: RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
         side: isLocked
-            ? BorderSide(color: AppColors.error.withOpacity(0.4))
+            ? BorderSide(color: AppColors.error.withValues(alpha: 0.4))
             : BorderSide.none,
       ),
       child: Padding(
@@ -1042,13 +1043,13 @@ class _SuspiciousActivityCard extends StatelessWidget {
                   ),
                 ),
                 if (isLocked)
-                  StatusBadge(
+                  const StatusBadge(
                     label: 'Locked',
                     color: AppColors.error,
                     icon: Icons.lock,
                   )
                 else
-                  StatusBadge(
+                  const StatusBadge(
                     label: 'Active',
                     color: AppColors.warning,
                     icon: Icons.warning_amber,
@@ -1078,7 +1079,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
                   icon: Icons.schedule_rounded,
                   label: 'Last Attempt',
                   value: lastAttempt,
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
               ],
             ),
@@ -1089,7 +1090,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
                 width: double.infinity,
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.error.withOpacity(0.08),
+                  color: AppColors.error.withValues(alpha: 0.08),
                   borderRadius: Spacings.borderRadiusSm,
                 ),
                 child: Text(
@@ -1118,7 +1119,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
                       },
                       child: const Text('Unlock'),
                     );
-                  })
+                  },)
                 else
                   FilledButton(
                     onPressed: () => _showLockDialog(context, userId),
@@ -1187,11 +1188,11 @@ class _SuspiciousActivityCard extends StatelessWidget {
               const SizedBox(height: Spacings.lg),
               TextField(
                 controller: reasonController,
-                decoration: InputDecoration(
+                decoration: const InputDecoration(
                   labelText: 'Reason',
                   hintText: 'Enter reason for locking this account',
                   border: OutlineInputBorder(
-                      borderRadius: Spacings.borderRadiusMd),
+                      borderRadius: Spacings.borderRadiusMd,),
                 ),
                 maxLines: 3,
                 textCapitalization: TextCapitalization.sentences,
@@ -1223,7 +1224,7 @@ class _SuspiciousActivityCard extends StatelessWidget {
             ),
           ],
         );
-      }),
+      },),
     );
   }
 

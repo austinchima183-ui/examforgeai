@@ -100,7 +100,7 @@ class _EduOsDashboardPageState extends ConsumerState<EduOsDashboardPage> with Si
         Icon(Icons.widgets_outlined, size: 64, color: Colors.grey.shade400),
         const SizedBox(height: 16),
         Text('No modules found', style: theme.textTheme.bodyLarge),
-      ]));
+      ],),);
     }
 
     return RefreshIndicator(

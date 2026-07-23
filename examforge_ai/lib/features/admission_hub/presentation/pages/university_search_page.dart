@@ -90,7 +90,7 @@ class _UniversitySearchPageState extends ConsumerState<UniversitySearchPage> {
               color: context.colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, 2),
                 ),
@@ -138,7 +138,7 @@ class _UniversitySearchPageState extends ConsumerState<UniversitySearchPage> {
                     // University type dropdown
                     Expanded(
                       child: DropdownButtonFormField<UniversityType?>(
-                        value: _selectedType,
+                        initialValue: _selectedType,
                         decoration: InputDecoration(
                           labelText: 'Type',
                           border: OutlineInputBorder(
@@ -174,7 +174,7 @@ class _UniversitySearchPageState extends ConsumerState<UniversitySearchPage> {
                     // State dropdown
                     Expanded(
                       child: DropdownButtonFormField<String?>(
-                        value: _selectedState,
+                        initialValue: _selectedState,
                         decoration: InputDecoration(
                           labelText: 'State',
                           border: OutlineInputBorder(

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
@@ -166,7 +165,7 @@ class _State extends ConsumerState<ForumPostDetailPage> {
             if (post.isPinned)
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
-                decoration: BoxDecoration(color: cs.primaryContainer.withOpacity(0.3), borderRadius: Spacings.borderRadiusSm),
+                decoration: BoxDecoration(color: cs.primaryContainer.withValues(alpha: 0.3), borderRadius: Spacings.borderRadiusSm),
                 child: Row(children: [Icon(Icons.push_pin, size: Spacings.smIcon, color: cs.primary), const SizedBox(width: Spacings.xs), Text('Pinned', style: tt.labelSmall?.copyWith(color: cs.primary))]),
               ),
           ],
@@ -195,7 +194,7 @@ class _State extends ConsumerState<ForumPostDetailPage> {
               trailing: Icon(Icons.download_outlined, color: cs.primary),
               contentPadding: const EdgeInsets.symmetric(horizontal: Spacings.md),
             ),
-          )),
+          ),),
         ],
 
         // ─── Actions ─────────────────────────────────────────
@@ -314,7 +313,7 @@ class _State extends ConsumerState<ForumPostDetailPage> {
                 controller: _commentController,
                 decoration: InputDecoration(
                   hintText: 'Add a comment…',
-                  border: OutlineInputBorder(
+                  border: const OutlineInputBorder(
                     borderRadius: Spacings.borderRadiusXl,
                     borderSide: BorderSide.none,
                   ),

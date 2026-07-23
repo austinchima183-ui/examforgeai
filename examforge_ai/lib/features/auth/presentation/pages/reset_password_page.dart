@@ -2,16 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_text_field.dart';
-import '../providers/auth_provider.dart';
 import '../widgets/password_strength_indicator.dart';
-import '../../../../config/dependency_injection.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 
 /// Reset password page — the deep-link target from the password-reset
@@ -154,7 +153,7 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
                           return 'Must contain at least one digit';
                         }
                         if (!RegExp(
-                                r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]')
+                                r'[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]',)
                             .hasMatch(value)) {
                           return 'Must contain at least one special character';
                         }
@@ -228,9 +227,9 @@ class _ResetPasswordPageState extends ConsumerState<ResetPasswordPage> {
     return Container(
       padding: const EdgeInsets.all(Spacings.md),
       decoration: BoxDecoration(
-        color: AppColors.errorLight.withOpacity(0.5),
+        color: AppColors.errorLight.withValues(alpha: 0.5),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
-        border: Border.all(color: cs.error.withOpacity(0.3)),
+        border: Border.all(color: cs.error.withValues(alpha: 0.3)),
       ),
       child: Row(
         children: [

@@ -12,9 +12,9 @@ class ModuleTierBadge extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
       decoration: BoxDecoration(
-        color: tier.displayColor.withOpacity(0.15),
+        color: tier.displayColor.withValues(alpha: 0.15),
         borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: tier.displayColor.withOpacity(0.3)),
+        border: Border.all(color: tier.displayColor.withValues(alpha: 0.3)),
       ),
       child: Text(
         tier.label,

@@ -52,9 +52,9 @@ class SubjectCard extends StatelessWidget {
                     padding: EdgeInsets.zero,
                   ),
                   if (subject.isElective)
-                    Chip(
-                      label: const Text('Elective', style: TextStyle(fontSize: 10, color: Colors.purple)),
-                      avatar: const Icon(Icons.check_circle_outline, size: 12, color: Colors.purple),
+                    const Chip(
+                      label: Text('Elective', style: TextStyle(fontSize: 10, color: Colors.purple)),
+                      avatar: Icon(Icons.check_circle_outline, size: 12, color: Colors.purple),
                       visualDensity: VisualDensity.compact,
                       padding: EdgeInsets.zero,
                     ),

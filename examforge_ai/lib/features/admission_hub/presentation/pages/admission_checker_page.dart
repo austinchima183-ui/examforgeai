@@ -3,8 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
-import '../../../../shared/widgets/widgets.dart';
-import '../../domain/entities/admission_hub_entities.dart';
 import '../providers/admission_hub_provider.dart';
 import '../widgets/admission_hub_widgets.dart';
 
@@ -104,12 +102,12 @@ class _AdmissionCheckerPageState
               Container(
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: AppColors.primary.withOpacity(0.1),
+                  color: AppColors.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Row(
                   children: [
-                    Icon(Icons.info_outline, color: AppColors.primary),
+                    const Icon(Icons.info_outline, color: AppColors.primary),
                     const SizedBox(width: 12),
                     Expanded(
                       child: Text(
@@ -126,7 +124,7 @@ class _AdmissionCheckerPageState
 
               // ─── University Selection ─────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _selectedUniversityId,
+                initialValue: _selectedUniversityId,
                 decoration: InputDecoration(
                   labelText: 'University',
                   prefixIcon: const Icon(Icons.school_outlined),
@@ -157,7 +155,7 @@ class _AdmissionCheckerPageState
 
               // ─── Department Selection ─────────────────────────────────
               DropdownButtonFormField<String>(
-                value: _selectedDepartmentId,
+                initialValue: _selectedDepartmentId,
                 decoration: InputDecoration(
                   labelText: 'Department / Course',
                   prefixIcon: const Icon(Icons.book_outlined),
@@ -290,7 +288,7 @@ class _AdmissionCheckerPageState
                             ),
                             decoration: BoxDecoration(
                               color: _getGradeColor(result['grade'] as String)
-                                  .withOpacity(0.15),
+                                  .withValues(alpha: 0.15),
                               borderRadius: BorderRadius.circular(6),
                             ),
                             child: Text(
@@ -366,7 +364,7 @@ class _AdmissionCheckerPageState
             mainAxisSize: MainAxisSize.min,
             children: [
               DropdownButtonFormField<String>(
-                value: subject,
+                initialValue: subject,
                 decoration: const InputDecoration(
                   labelText: 'Subject',
                 ),
@@ -377,7 +375,7 @@ class _AdmissionCheckerPageState
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
-                value: grade,
+                initialValue: grade,
                 decoration: const InputDecoration(
                   labelText: 'Grade',
                 ),

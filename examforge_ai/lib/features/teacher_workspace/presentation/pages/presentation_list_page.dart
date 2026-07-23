@@ -2,19 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../routing/route_names.dart';
-import '../../domain/entities/teacher_workspace_entities.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../providers/presentation_provider.dart';
 
@@ -82,7 +79,7 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
   }
 
   List<PresentationEntity> _applyLocalFilters(
-      List<PresentationEntity> presentations) {
+      List<PresentationEntity> presentations,) {
     var filtered = presentations;
 
     // Search filter
@@ -92,7 +89,7 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
           .where((p) =>
               p.title.toLowerCase().contains(query) ||
               (p.topic?.toLowerCase().contains(query) ?? false) ||
-              p.presentationType.label.toLowerCase().contains(query))
+              p.presentationType.label.toLowerCase().contains(query),)
           .toList();
     }
 
@@ -233,7 +230,7 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
                   isSelected: _filterType == type,
                   onTap: () => setState(() => _filterType = type),
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -303,7 +300,7 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -423,7 +420,7 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
                     vertical: 2,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withOpacity(0.5),
+                    color: cs.primaryContainer.withValues(alpha: 0.5),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
@@ -495,22 +492,22 @@ class _PresentationListPageState extends ConsumerState<PresentationListPage> {
         childAspectRatio: 0.72,
       ),
       itemCount: 6,
-      itemBuilder: (ctx, i) => AppCard(
+      itemBuilder: (ctx, i) => const AppCard(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 AppLoadingShimmer.box(width: 40, height: 40),
-                const Spacer(),
+                Spacer(),
                 AppLoadingShimmer.box(width: 24, height: 24),
               ],
             ),
-            const SizedBox(height: Spacings.md),
+            SizedBox(height: Spacings.md),
             AppLoadingShimmer.box(width: 180, height: 16),
-            const SizedBox(height: Spacings.sm),
+            SizedBox(height: Spacings.sm),
             AppLoadingShimmer.box(width: 120, height: 14),
-            const SizedBox(height: Spacings.md),
+            SizedBox(height: Spacings.md),
             AppLoadingShimmer.box(width: 80, height: 12),
           ],
         ),

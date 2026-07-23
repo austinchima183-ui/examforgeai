@@ -117,9 +117,9 @@ class _State extends ConsumerState<ChildAttendancePage> {
             .refreshAttendance(
               widget.studentId,
               startDate: DateTime(
-                  _selectedMonth.year, _selectedMonth.month, 1),
+                  _selectedMonth.year, _selectedMonth.month, 1,),
               endDate: DateTime(
-                  _selectedMonth.year, _selectedMonth.month + 1, 0),
+                  _selectedMonth.year, _selectedMonth.month + 1, 0,),
             );
       },
       child: SingleChildScrollView(
@@ -168,11 +168,11 @@ class _State extends ConsumerState<ChildAttendancePage> {
   // ═══════════════════════════════════════════════════════════════════════
 
   Widget _buildShimmerLoading(BuildContext context) {
-    return SingleChildScrollView(
-      physics: const NeverScrollableScrollPhysics(),
+    return const SingleChildScrollView(
+      physics: NeverScrollableScrollPhysics(),
       child: AppLoadingShimmer(
         child: Padding(
-          padding: const EdgeInsets.all(Spacings.lg),
+          padding: EdgeInsets.all(Spacings.lg),
           child: Column(
             children: [
               // Summary card shimmer
@@ -180,13 +180,13 @@ class _State extends ConsumerState<ChildAttendancePage> {
                 height: 180,
                 borderRadius: Spacings.borderRadiusLg,
               ),
-              const SizedBox(height: Spacings.xl),
+              SizedBox(height: Spacings.xl),
               // Month selector shimmer
               AppLoadingShimmer.box(
                 height: 48,
                 borderRadius: Spacings.borderRadiusMd,
               ),
-              const SizedBox(height: Spacings.md),
+              SizedBox(height: Spacings.md),
               // Calendar shimmer
               AppLoadingShimmer.box(
                 height: 280,
@@ -219,7 +219,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: Card(
         elevation: Spacings.elevationSm,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(
@@ -319,7 +319,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
           width: 40,
           height: 40,
           decoration: BoxDecoration(
-            color: color.withOpacity(0.12),
+            color: color.withValues(alpha: 0.12),
             shape: BoxShape.circle,
           ),
           child: Center(
@@ -358,7 +358,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Padding(
@@ -446,7 +446,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: Card(
         elevation: Spacings.elevationSm,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusLg,
         ),
         child: Padding(
@@ -466,7 +466,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
                               ),
                             ),
                           ),
-                        ))
+                        ),)
                     .toList(),
               ),
               const SizedBox(height: Spacings.sm),
@@ -598,7 +598,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
                 color: entry.bgColor,
                 borderRadius: Spacings.borderRadiusSm,
                 border: Border.all(
-                  color: entry.color.withOpacity(0.4),
+                  color: entry.color.withValues(alpha: 0.4),
                 ),
               ),
             ),
@@ -652,7 +652,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: Padding(
@@ -709,7 +709,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
             Card(
               elevation: Spacings.elevationNone,
               color: cs.surfaceContainerLow,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
               child: Padding(
@@ -737,7 +737,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
                 child: Card(
                   elevation: Spacings.elevationNone,
                   color: cs.surfaceContainerLow,
-                  shape: RoundedRectangleBorder(
+                  shape: const RoundedRectangleBorder(
                     borderRadius: Spacings.borderRadiusMd,
                   ),
                   child: ListTile(
@@ -792,7 +792,7 @@ class _State extends ConsumerState<ChildAttendancePage> {
             padding: const EdgeInsets.symmetric(
               vertical: Spacings.md,
             ),
-            shape: RoundedRectangleBorder(
+            shape: const RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusMd,
             ),
           ),

@@ -33,7 +33,7 @@ class GenerateAssignmentUseCase {
       return const FailureResult(Failure.validation(
         message: 'Subject is required',
         fieldErrors: {'subject': 'Subject cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateAssignment({
       'subject': params.subject,

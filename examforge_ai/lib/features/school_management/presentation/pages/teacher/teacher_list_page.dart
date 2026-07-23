@@ -1,23 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_button.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
-import '../../../../../routing/route_names.dart';
 import '../../../domain/entities/school_management_entities.dart';
-import '../../providers/teacher_provider.dart';
 import '../../providers/school_provider.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
+import '../../providers/teacher_provider.dart';
 
 
 
@@ -268,7 +264,7 @@ class _TeacherListPageState extends ConsumerState<TeacherListPage> {
               ),
               const SizedBox(height: Spacings.lg),
               DropdownButtonFormField<String>(
-                value: _departmentFilter,
+                initialValue: _departmentFilter,
                 decoration: const InputDecoration(
                   labelText: 'Department',
                   prefixIcon: Icon(Icons.account_tree_outlined),
@@ -281,7 +277,7 @@ class _TeacherListPageState extends ConsumerState<TeacherListPage> {
                   ...departments.map((d) => DropdownMenuItem<String>(
                         value: d.id,
                         child: Text(d.name),
-                      )),
+                      ),),
                 ],
                 onChanged: (value) {
                   setState(() => _departmentFilter = value);
@@ -338,7 +334,7 @@ class _TeacherCard extends StatelessWidget {
             width: 48,
             height: 48,
             decoration: BoxDecoration(
-              color: cs.primary.withOpacity(isDark ? 0.20 : 0.12),
+              color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: teacher.avatarUrl != null
@@ -437,7 +433,7 @@ class _TeacherCard extends StatelessWidget {
               vertical: Spacings.xs,
             ),
             decoration: BoxDecoration(
-              color: empColor.withOpacity(isDark ? 0.20 : 0.12),
+              color: empColor.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.fullRadius),
             ),
             child: Text(

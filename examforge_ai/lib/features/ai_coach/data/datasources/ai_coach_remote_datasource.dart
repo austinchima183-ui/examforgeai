@@ -82,17 +82,17 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
       case 'PGRST116':
         throw NotFoundException(message: e.message);
       case '23505':
-        throw ServerException(
+        throw const ServerException(
           message: 'A record with this data already exists.',
           statusCode: 409,
         );
       case '23503':
-        throw ServerException(
+        throw const ServerException(
           message: 'Referenced record not found.',
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException(
+        throw const ForbiddenException(
           message: 'You do not have permission for this action.',
         );
       default:
@@ -160,13 +160,13 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
       }
 
       final offset = (page - 1) * pageSize;
-      var transformQuery = filterQuery.order('updated_at', ascending: false).range(offset, offset + pageSize - 1);
+      final transformQuery = filterQuery.order('updated_at', ascending: false).range(offset, offset + pageSize - 1);
 
       final response = await transformQuery;
 
       return response
           .map<AiCoachSessionModel>(
-              (json) => AiCoachSessionModel.fromJson(json as Map<String, dynamic>))
+              (json) => AiCoachSessionModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);
@@ -236,12 +236,12 @@ class AiCoachRemoteDatasourceImpl implements AiCoachRemoteDatasource {
       }
 
       // PERF: Added limit to prevent unbounded query on ai_coach_recommendations
-      var transformQuery = filterQuery.order('created_at', ascending: false).limit(limit);
+      final transformQuery = filterQuery.order('created_at', ascending: false).limit(limit);
       final response = await transformQuery;
 
       return response
           .map<AiCoachRecommendationModel>((json) =>
-              AiCoachRecommendationModel.fromJson(json as Map<String, dynamic>))
+              AiCoachRecommendationModel.fromJson(json),)
           .toList();
     } on sb.PostgrestException catch (e) {
       _mapPostgrestException(e);

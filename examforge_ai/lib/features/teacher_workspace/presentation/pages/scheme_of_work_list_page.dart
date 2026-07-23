@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../providers/scheme_of_work_provider.dart';
 import '../widgets/generate_questions_button.dart';
@@ -65,7 +63,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
           .where((s) =>
               s.title.toLowerCase().contains(query) ||
               s.subject.toLowerCase().contains(query) ||
-              (s.className?.toLowerCase().contains(query) ?? false))
+              (s.className?.toLowerCase().contains(query) ?? false),)
           .toList();
     }
 
@@ -135,7 +133,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
                         });
                       },
                       child: Text('Clear All',
-                          style: tt.bodyMedium?.copyWith(color: cs.error)),
+                          style: tt.bodyMedium?.copyWith(color: cs.error),),
                     ),
                 ],
               ),
@@ -146,7 +144,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
                   style: tt.labelMedium?.copyWith(
                     color: cs.primary,
                     fontWeight: AppTypography.wSemiBold,
-                  )),
+                  ),),
               const SizedBox(height: Spacings.sm),
               Wrap(
                 spacing: Spacings.sm,
@@ -172,7 +170,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
                   style: tt.labelMedium?.copyWith(
                     color: cs.primary,
                     fontWeight: AppTypography.wSemiBold,
-                  )),
+                  ),),
               const SizedBox(height: Spacings.sm),
               Wrap(
                 spacing: Spacings.sm,
@@ -228,7 +226,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
           prev?.successMessage != next.successMessage) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text(next.successMessage!), backgroundColor: cs.primary),
+              content: Text(next.successMessage!), backgroundColor: cs.primary,),
         );
         ref.read(schemeOfWorkProvider.notifier).clearSuccessMessage();
       }
@@ -271,7 +269,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
   // ─── Body ─────────────────────────────────────────────────────────
 
   Widget _buildBody(ColorScheme cs, TextTheme tt, SchemeOfWorkState state,
-      List<SchemeOfWorkEntity> filteredSchemes) {
+      List<SchemeOfWorkEntity> filteredSchemes,) {
     if (state.isLoading) {
       return const Center(child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
     }
@@ -321,7 +319,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
   // ─── Scheme Card ──────────────────────────────────────────────────
 
   Widget _buildSchemeCard(
-      ColorScheme cs, TextTheme tt, SchemeOfWorkEntity scheme) {
+      ColorScheme cs, TextTheme tt, SchemeOfWorkEntity scheme,) {
     return AppCard(
       onTap: () {
         // Navigate to detail/view page
@@ -348,7 +346,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
                 Padding(
                   padding: const EdgeInsets.only(left: Spacings.sm),
                   child: Icon(Icons.auto_awesome,
-                      size: Spacings.smIcon, color: cs.tertiary),
+                      size: Spacings.smIcon, color: cs.tertiary,),
                 ),
             ],
           ),
@@ -421,7 +419,7 @@ class _SchemeOfWorkListPageState extends ConsumerState<SchemeOfWorkListPage> {
   }
 
   Widget _buildBadge(ColorScheme cs, TextTheme tt, String label,
-      Color bgColor, Color fgColor) {
+      Color bgColor, Color fgColor,) {
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: Spacings.sm,

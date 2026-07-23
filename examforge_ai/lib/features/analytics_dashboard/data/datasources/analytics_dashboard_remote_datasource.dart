@@ -17,7 +17,7 @@ class AnalyticsDashboardRemoteDatasource {
       if (schoolId != null) 'school_id': schoolId,
       if (startDate != null) 'start_date': startDate.toIso8601String(),
       if (endDate != null) 'end_date': endDate.toIso8601String(),
-    });
+    },);
     return Map<String, dynamic>.from(response.data as Map);
   }
 
@@ -26,7 +26,7 @@ class AnalyticsDashboardRemoteDatasource {
       'school_id': schoolId, 'metric_name': metricName,
       'start_date': startDate.toIso8601String().substring(0, 10),
       'end_date': endDate.toIso8601String().substring(0, 10),
-    });
+    },);
     final data = response.data as List?;
     return data?.map((e) => DailyAnalyticModel.fromJson(e as Map<String, dynamic>)).toList() ?? [];
   }
@@ -36,7 +36,7 @@ class AnalyticsDashboardRemoteDatasource {
       if (schoolId != null) 'school_id': schoolId,
       if (startDate != null) 'start_date': startDate.toIso8601String(),
       if (endDate != null) 'end_date': endDate.toIso8601String(),
-    });
+    },);
     return Map<String, dynamic>.from(response.data as Map);
   }
 

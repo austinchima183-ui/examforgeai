@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/spacings.dart';
 
 // ─── MessageInput ─────────────────────────────────────────────────────────────
 
@@ -86,7 +84,7 @@ class _MessageInputState extends State<MessageInput> {
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: cs.surfaceContainerHighest.withOpacity(0.5),
+        color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
         border: Border(
           top: BorderSide(color: cs.outlineVariant),
         ),
@@ -149,7 +147,7 @@ class _MessageInputState extends State<MessageInput> {
             color: cs.surface,
             border: Border(
               top: BorderSide(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
           ),
@@ -163,7 +161,7 @@ class _MessageInputState extends State<MessageInput> {
                   Icons.attach_file_rounded,
                   color: widget.isEnabled
                       ? cs.onSurfaceVariant
-                      : cs.onSurfaceVariant.withOpacity(0.4),
+                      : cs.onSurfaceVariant.withValues(alpha: 0.4),
                   size: Spacings.mdIcon,
                 ),
                 padding: const EdgeInsets.all(Spacings.sm),
@@ -190,7 +188,7 @@ class _MessageInputState extends State<MessageInput> {
                   decoration: InputDecoration(
                     hintText: 'Type a message...',
                     hintStyle: tt.bodyMedium?.copyWith(
-                      color: cs.onSurfaceVariant.withOpacity(0.6),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     border: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(Spacings.xlRadius),
@@ -198,7 +196,7 @@ class _MessageInputState extends State<MessageInput> {
                     ),
                     filled: true,
                     fillColor: cs.surfaceContainerHighest
-                        .withOpacity(0.5),
+                        .withValues(alpha: 0.5),
                     contentPadding: const EdgeInsets.symmetric(
                       horizontal: Spacings.lg,
                       vertical: Spacings.md,
@@ -217,7 +215,7 @@ class _MessageInputState extends State<MessageInput> {
                     decoration: BoxDecoration(
                       color: widget.isEnabled
                           ? cs.primary
-                          : cs.primary.withOpacity(0.4),
+                          : cs.primary.withValues(alpha: 0.4),
                       shape: BoxShape.circle,
                     ),
                     child: Icon(
@@ -241,7 +239,7 @@ class _MessageInputState extends State<MessageInput> {
                     Icons.mic_rounded,
                     color: widget.isEnabled
                         ? cs.onSurfaceVariant
-                        : cs.onSurfaceVariant.withOpacity(0.4),
+                        : cs.onSurfaceVariant.withValues(alpha: 0.4),
                     size: Spacings.mdIcon,
                   ),
                   padding: const EdgeInsets.all(Spacings.sm),

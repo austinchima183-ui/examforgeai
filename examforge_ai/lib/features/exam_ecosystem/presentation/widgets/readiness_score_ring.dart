@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/exam_ecosystem_entities.dart';
 
 /// Circular progress indicator for readiness score.
@@ -122,7 +122,7 @@ class _ReadinessScoreRingState extends State<ReadinessScoreRing>
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final fgColor = _levelColor();
-    final bgColor = fgColor.withOpacity(context.isDarkMode ? 0.20 : 0.10);
+    final bgColor = fgColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -159,7 +159,7 @@ class _ReadinessScoreRingState extends State<ReadinessScoreRing>
                         widget.level.label,
                         style: tt.labelSmall?.copyWith(
                           fontWeight: AppTypography.wSemiBold,
-                          color: fgColor.withOpacity(0.8),
+                          color: fgColor.withValues(alpha: 0.8),
                           fontSize: 10,
                         ),
                       ),

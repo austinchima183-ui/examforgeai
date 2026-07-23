@@ -42,7 +42,7 @@ class _AnswerRepositoryPageState
     final tt = context.textTheme;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Answer Repository'),
+      appBar: const AppAppBar(title: 'Answer Repository'),
       body: SingleChildScrollView(
         padding: Spacings.paddingScreen,
         child: Column(
@@ -52,7 +52,7 @@ class _AnswerRepositoryPageState
             Text('Select Content Item',
                 style: tt.titleMedium?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.sm),
             TextField(
               controller: _searchCtrl,
@@ -81,16 +81,16 @@ class _AnswerRepositoryPageState
             const SizedBox(height: Spacings.md),
             if (contentState.contentItems.isNotEmpty)
               DropdownButtonFormField<String>(
-                value: _selectedContentItemId,
+                initialValue: _selectedContentItemId,
                 decoration: const InputDecoration(
                     labelText: 'Content Item',
-                    border: OutlineInputBorder()),
+                    border: OutlineInputBorder(),),
                 items: contentState.contentItems
                     .take(20)
                     .map((c) => DropdownMenuItem(
                         value: c.id,
                         child: Text(c.title,
-                            overflow: TextOverflow.ellipsis)))
+                            overflow: TextOverflow.ellipsis,),),)
                     .toList(),
                 onChanged: (v) {
                   setState(() => _selectedContentItemId = v);
@@ -134,7 +134,7 @@ class _AnswerRepositoryPageState
                       }
                     },
                     onEdit: () => _showEditAnswerDialog(
-                        answerState.answerEntry!),
+                        answerState.answerEntry!,),
                   ),
                   Spacings.sectionGap,
 
@@ -170,14 +170,14 @@ class _AnswerRepositoryPageState
                     Text('Common Mistakes',
                         style: tt.titleMedium?.copyWith(
                             fontWeight: AppTypography.wSemiBold,
-                            color: cs.onSurface)),
+                            color: cs.onSurface,),),
                     const SizedBox(height: Spacings.sm),
                     ...answerState.answerEntry!.commonMistakes!
                         .asMap()
                         .entries
                         .map((e) => Padding(
                               padding: const EdgeInsets.only(
-                                  bottom: Spacings.sm),
+                                  bottom: Spacings.sm,),
                               child: AppCard(
                                 child: Row(
                                   crossAxisAlignment:
@@ -188,7 +188,7 @@ class _AnswerRepositoryPageState
                                           const EdgeInsets.all(Spacings.xs),
                                       decoration: BoxDecoration(
                                         color: AppColors.warning
-                                            .withOpacity(0.15),
+                                            .withValues(alpha: 0.15),
                                         borderRadius:
                                             Spacings.borderRadiusSm,
                                       ),
@@ -196,17 +196,17 @@ class _AnswerRepositoryPageState
                                           style: tt.labelSmall?.copyWith(
                                               color: AppColors.warning,
                                               fontWeight:
-                                                  AppTypography.wSemiBold)),
+                                                  AppTypography.wSemiBold,),),
                                     ),
                                     const SizedBox(width: Spacings.sm),
                                     Expanded(
                                       child: Text(e.value.toString(),
-                                          style: tt.bodyMedium),
+                                          style: tt.bodyMedium,),
                                     ),
                                   ],
                                 ),
                               ),
-                            )),
+                            ),),
                     Spacings.sectionGap,
                   ],
 
@@ -224,7 +224,7 @@ class _AnswerRepositoryPageState
                             } else {
                               ref
                                   .read(
-                                      answerRepositoryProvider.notifier)
+                                      answerRepositoryProvider.notifier,)
                                   .verifyAnswer(
                                     entryId:
                                         answerState.answerEntry!.id,
@@ -245,7 +245,7 @@ class _AnswerRepositoryPageState
                         child: AppButton(
                           label: 'Edit Answer',
                           onPressed: () => _showEditAnswerDialog(
-                              answerState.answerEntry!),
+                              answerState.answerEntry!,),
                           variant: AppButtonVariant.outlined,
                           icon: Icons.edit_rounded,
                         ),
@@ -256,7 +256,7 @@ class _AnswerRepositoryPageState
               )
             else
               AppEmptyState.noData(
-                  subtitle: 'Select a content item to view its answer'),
+                  subtitle: 'Select a content item to view its answer',),
           ],
         ),
       ),
@@ -267,7 +267,7 @@ class _AnswerRepositoryPageState
     final answerCtrl =
         TextEditingController(text: entry.correctAnswers.isNotEmpty ? entry.correctAnswers.first['text'] as String? ?? '' : '');
     final explanationCtrl = TextEditingController(
-        text: entry.stepByStepExplanation ?? '');
+        text: entry.stepByStepExplanation ?? '',);
     final schemeCtrl =
         TextEditingController(text: entry.markingScheme?.toString() ?? '');
 
@@ -283,7 +283,7 @@ class _AnswerRepositoryPageState
                 controller: answerCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Correct Answer *',
-                    border: OutlineInputBorder()),
+                    border: OutlineInputBorder(),),
               ),
               const SizedBox(height: Spacings.md),
               TextField(
@@ -291,7 +291,7 @@ class _AnswerRepositoryPageState
                 decoration: const InputDecoration(
                     labelText: 'Step-by-Step Explanation',
                     border: OutlineInputBorder(),
-                    alignLabelWithHint: true),
+                    alignLabelWithHint: true,),
                 maxLines: 5,
               ),
               const SizedBox(height: Spacings.md),
@@ -300,7 +300,7 @@ class _AnswerRepositoryPageState
                 decoration: const InputDecoration(
                     labelText: 'Marking Scheme',
                     border: OutlineInputBorder(),
-                    alignLabelWithHint: true),
+                    alignLabelWithHint: true,),
                 maxLines: 4,
               ),
             ],
@@ -309,7 +309,7 @@ class _AnswerRepositoryPageState
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Save',
             onPressed: () {
@@ -365,14 +365,14 @@ class _AnswerSection extends StatelessWidget {
           const SizedBox(width: Spacings.xs),
           Text(title,
               style: tt.titleMedium?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.primary)),
-        ]),
+                  fontWeight: AppTypography.wSemiBold, color: cs.primary,),),
+        ],),
         const SizedBox(height: Spacings.sm),
         Container(
           width: double.infinity,
           padding: Spacings.paddingCard,
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withOpacity(0.3),
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
             borderRadius: Spacings.borderRadiusMd,
           ),
           child: Text(content, style: tt.bodyMedium),

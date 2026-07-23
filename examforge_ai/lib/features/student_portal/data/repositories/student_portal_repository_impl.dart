@@ -44,7 +44,7 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on AuthException catch (e) {
       return FailureResult(Failure.auth(message: e.message, code: e.code));
     } on NetworkException catch (e) {
@@ -59,16 +59,16 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
       return FailureResult(Failure.validation(
         message: e.message,
         fieldErrors: e.fieldErrors,
-      ));
+      ),);
     } on CacheException catch (e) {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {
       AppLogger.error('Unexpected exception in StudentPortalRepositoryImpl',
-          error: e);
+          error: e,);
       return FailureResult(Failure.server(
         message: e.toString(),
         statusCode: 500,
-      ));
+      ),);
     }
   }
 
@@ -310,7 +310,7 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
                     'url': a.url,
                     'size': a.size,
                     'type': a.type,
-                  })
+                  },)
               .toList(),
         );
         return model.toEntity();
@@ -332,7 +332,7 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
                     'url': a.url,
                     'size': a.size,
                     'type': a.type,
-                  })
+                  },)
               .toList(),
         );
         return model.toEntity();
@@ -460,7 +460,7 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
         )
             .catchError((error) {
           AppLogger.error('Process document edge function failed',
-              error: error);
+              error: error,);
         });
 
         return DocumentChatModel.fromJson(response).toEntity();
@@ -700,7 +700,7 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
         return models
             .map((m) => m.toEntity(
                   tasks: const [], // Tasks are already embedded via fromJson
-                ))
+                ),)
             .toList();
       });
 
@@ -732,7 +732,7 @@ class StudentPortalRepositoryImpl implements StudentPortalRepository {
                     'scheduled_date': t.scheduledDate,
                     'start_time': t.startTime,
                     'end_time': t.endTime,
-                  })
+                  },)
               .toList(),
         );
         return model.toEntity();

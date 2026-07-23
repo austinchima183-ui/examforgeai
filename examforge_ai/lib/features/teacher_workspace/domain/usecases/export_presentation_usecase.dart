@@ -38,7 +38,7 @@ class ExportPresentationUseCase {
       return const FailureResult(Failure.validation(
         message: 'Presentation ID is required',
         fieldErrors: {'presentationId': 'Presentation ID cannot be empty'},
-      ));
+      ),);
     }
     const validFormats = ['pdf', 'pptx', 'html'];
     if (!validFormats.contains(params.format.toLowerCase())) {
@@ -47,7 +47,7 @@ class ExportPresentationUseCase {
         fieldErrors: {
           'format': 'Format must be one of: ${validFormats.join(', ')}',
         },
-      ));
+      ),);
     }
     return _repository.exportPresentation(
       params.presentationId,

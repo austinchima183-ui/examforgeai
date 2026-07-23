@@ -1,5 +1,4 @@
 import '../../domain/entities/school_management_entities.dart';
-import '../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2080,9 +2079,9 @@ class TimetableSlotModel {
     final startParts = startTime.split(':');
     final endParts = endTime.split(':');
     final startDt = DateTime(now.year, now.month, now.day,
-        int.parse(startParts[0]), int.parse(startParts[1]));
+        int.parse(startParts[0]), int.parse(startParts[1]),);
     final endDt = DateTime(now.year, now.month, now.day,
-        int.parse(endParts[0]), int.parse(endParts[1]));
+        int.parse(endParts[0]), int.parse(endParts[1]),);
     return TimetableSlotEntity(
       id: id,
       timetableId: timetableId,

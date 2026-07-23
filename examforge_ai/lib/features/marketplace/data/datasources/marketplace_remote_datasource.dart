@@ -697,7 +697,7 @@ class MarketplaceRemoteDataSourceImpl implements MarketplaceRemoteDataSource {
       }
 
       // Apply sort
-      var transformQuery = _applySortBy(filterQuery, sortBy);
+      final transformQuery = _applySortBy(filterQuery, sortBy);
 
       final response = await transformQuery.range(offset, offset + limit - 1);
 

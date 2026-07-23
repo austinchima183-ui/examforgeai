@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
-import '../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/ai_coach_entities.dart';
 import '../providers/ai_coach_provider.dart';
 
@@ -176,7 +175,7 @@ class _CoachChatPageState extends ConsumerState<CoachChatPage> {
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  SizedBox(
+                  const SizedBox(
                     width: 16,
                     height: 16,
                     child: CircularProgressIndicator(
@@ -202,7 +201,7 @@ class _CoachChatPageState extends ConsumerState<CoachChatPage> {
               color: context.colorScheme.surface,
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.05),
+                  color: Colors.black.withValues(alpha: 0.05),
                   blurRadius: 4,
                   offset: const Offset(0, -2),
                 ),
@@ -258,7 +257,7 @@ class _CoachChatPageState extends ConsumerState<CoachChatPage> {
             Icon(
               Icons.psychology_outlined,
               size: 64,
-              color: AppColors.primary.withOpacity(0.5),
+              color: AppColors.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: 16),
             Text(
@@ -380,8 +379,8 @@ class _ChatBubble extends StatelessWidget {
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.auto_awesome,
-                        size: 14, color: AppColors.primary),
+                    const Icon(Icons.auto_awesome,
+                        size: 14, color: AppColors.primary,),
                     const SizedBox(width: 4),
                     Text(
                       'AI Coach',
@@ -421,7 +420,7 @@ class _SuggestedPrompt extends StatelessWidget {
     return ActionChip(
       label: Text(label),
       onPressed: onTap,
-      avatar: Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
+      avatar: const Icon(Icons.auto_awesome, size: 14, color: AppColors.primary),
     );
   }
 }

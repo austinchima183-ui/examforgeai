@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/question_entities.dart';
 
@@ -83,9 +83,9 @@ class CollectionCard extends StatelessWidget {
                         collection.coverImageUrl!.isNotEmpty
                     ? _CoverImage(url: collection.coverImageUrl!)
                     : Container(
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           gradient: AppColors.brandGradient,
-                          borderRadius: const BorderRadius.only(
+                          borderRadius: BorderRadius.only(
                             topLeft: Radius.circular(Spacings.mdRadius),
                             topRight: Radius.circular(Spacings.mdRadius),
                           ),
@@ -94,7 +94,7 @@ class CollectionCard extends StatelessWidget {
                           child: Icon(
                             Icons.collections_bookmark_rounded,
                             size: 40.0,
-                            color: Colors.white.withOpacity(0.7),
+                            color: Colors.white.withValues(alpha: 0.7),
                           ),
                         ),
                       ),
@@ -110,7 +110,7 @@ class CollectionCard extends StatelessWidget {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.black.withOpacity(0.6),
+                    color: Colors.black.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Row(
@@ -148,7 +148,7 @@ class CollectionCard extends StatelessWidget {
                           vertical: 2.0,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.info.withOpacity(0.9),
+                          color: AppColors.info.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
                         child: Row(
@@ -179,7 +179,7 @@ class CollectionCard extends StatelessWidget {
                           vertical: 2.0,
                         ),
                         decoration: BoxDecoration(
-                          color: AppColors.success.withOpacity(0.9),
+                          color: AppColors.success.withValues(alpha: 0.9),
                           borderRadius: BorderRadius.circular(Spacings.smRadius),
                         ),
                         child: Row(
@@ -248,7 +248,7 @@ class CollectionCard extends StatelessWidget {
                     Icon(
                       Icons.person_outline_rounded,
                       size: Spacings.smIcon,
-                      color: cs.onSurfaceVariant.withOpacity(0.6),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     const SizedBox(width: Spacings.xs),
                     Flexible(
@@ -267,7 +267,7 @@ class CollectionCard extends StatelessWidget {
                     Icon(
                       Icons.access_time_rounded,
                       size: Spacings.smIcon,
-                      color: cs.onSurfaceVariant.withOpacity(0.6),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.6),
                     ),
                     const SizedBox(width: Spacings.xs),
                     Text(
@@ -334,9 +334,9 @@ class _CoverImage extends StatelessWidget {
 
     // Since we can't load actual URLs in this context, show a placeholder
     return Container(
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: AppColors.coolGradient,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           topLeft: Radius.circular(Spacings.mdRadius),
           topRight: Radius.circular(Spacings.mdRadius),
         ),
@@ -348,13 +348,13 @@ class _CoverImage extends StatelessWidget {
             Icon(
               Icons.image_rounded,
               size: 32.0,
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
             ),
             const SizedBox(height: Spacings.xs),
             Text(
               'Cover Image',
               style: context.textTheme.bodySmall?.copyWith(
-                color: Colors.white.withOpacity(0.7),
+                color: Colors.white.withValues(alpha: 0.7),
               ),
             ),
           ],

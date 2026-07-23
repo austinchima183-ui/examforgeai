@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/app_typography.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../shared/widgets/app_card.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
+import '../../../../shared/widgets/app_card.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -144,7 +142,7 @@ class _AnimatedStatCardState extends State<_AnimatedStatCard>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: Curves.easeOutCubic,
-    ));
+    ),);
 
     _countAnimation = Tween<double>(
       begin: 0,
@@ -152,7 +150,7 @@ class _AnimatedStatCardState extends State<_AnimatedStatCard>
     ).animate(CurvedAnimation(
       parent: _controller,
       curve: const Interval(0.2, 1.0, curve: Curves.easeOut),
-    ));
+    ),);
 
     _controller.forward();
   }

@@ -75,7 +75,7 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           side: BorderSide(
-            color: colorScheme.outlineVariant.withOpacity(0.5),
+            color: colorScheme.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
         color: isDark ? AppColors.surfaceCardDark : AppColors.surfaceCardLight,
@@ -88,8 +88,8 @@ class AppTheme {
         style: ElevatedButton.styleFrom(
           backgroundColor: colorScheme.primary,
           foregroundColor: colorScheme.onPrimary,
-          disabledBackgroundColor: colorScheme.onSurface.withOpacity(0.12),
-          disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
+          disabledBackgroundColor: colorScheme.onSurface.withValues(alpha: 0.12),
+          disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
           elevation: 0,
           shadowColor: Colors.transparent,
           padding: const EdgeInsets.symmetric(
@@ -110,7 +110,7 @@ class AppTheme {
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
           foregroundColor: colorScheme.primary,
-          disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
+          disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
           padding: const EdgeInsets.symmetric(
             horizontal: Spacings.xl,
             vertical: Spacings.md,
@@ -130,7 +130,7 @@ class AppTheme {
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
           foregroundColor: colorScheme.primary,
-          disabledForegroundColor: colorScheme.onSurface.withOpacity(0.38),
+          disabledForegroundColor: colorScheme.onSurface.withValues(alpha: 0.38),
           padding: const EdgeInsets.symmetric(
             horizontal: Spacings.lg,
             vertical: Spacings.md,
@@ -178,7 +178,7 @@ class AppTheme {
         disabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           borderSide: BorderSide(
-            color: colorScheme.onSurface.withOpacity(0.12),
+            color: colorScheme.onSurface.withValues(alpha: 0.12),
           ),
         ),
         hintStyle: textTheme.bodyMedium?.copyWith(
@@ -230,7 +230,7 @@ class AppTheme {
           ),
         ),
         showDragHandle: true,
-        dragHandleColor: colorScheme.onSurfaceVariant.withOpacity(0.4),
+        dragHandleColor: colorScheme.onSurfaceVariant.withValues(alpha: 0.4),
         dragHandleSize: const Size(32, 4),
       ),
 
@@ -331,7 +331,7 @@ class AppTheme {
       chipTheme: ChipThemeData(
         backgroundColor: colorScheme.surfaceContainerLow,
         deleteIconColor: colorScheme.onSurfaceVariant,
-        disabledColor: colorScheme.onSurface.withOpacity(0.12),
+        disabledColor: colorScheme.onSurface.withValues(alpha: 0.12),
         selectedColor: colorScheme.secondaryContainer,
         secondarySelectedColor: colorScheme.primaryContainer,
         labelStyle: textTheme.labelLarge?.copyWith(
@@ -385,10 +385,10 @@ class AppTheme {
         dividerHeight: 1,
         overlayColor: WidgetStateProperty.resolveWith<Color?>((states) {
           if (states.contains(WidgetState.pressed)) {
-            return colorScheme.primary.withOpacity(0.12);
+            return colorScheme.primary.withValues(alpha: 0.12);
           }
           if (states.contains(WidgetState.hovered)) {
-            return colorScheme.primary.withOpacity(0.08);
+            return colorScheme.primary.withValues(alpha: 0.08);
           }
           return null;
         }),
@@ -473,7 +473,7 @@ class AppTheme {
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
-            return colorScheme.onSurface.withOpacity(0.12);
+            return colorScheme.onSurface.withValues(alpha: 0.12);
           }
           if (states.contains(WidgetState.selected)) {
             return colorScheme.primary;
@@ -487,7 +487,7 @@ class AppTheme {
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
             if (states.contains(WidgetState.selected)) {
-              return colorScheme.onSurface.withOpacity(0.38);
+              return colorScheme.onSurface.withValues(alpha: 0.38);
             }
             return Colors.transparent;
           }
@@ -501,7 +501,7 @@ class AppTheme {
             if (states.contains(WidgetState.selected)) {
               return colorScheme.surface;
             }
-            return colorScheme.onSurface.withOpacity(0.38);
+            return colorScheme.onSurface.withValues(alpha: 0.38);
           }
           return colorScheme.onPrimary;
         }),
@@ -516,9 +516,9 @@ class AppTheme {
         fillColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.disabled)) {
             if (states.contains(WidgetState.selected)) {
-              return colorScheme.onSurface.withOpacity(0.38);
+              return colorScheme.onSurface.withValues(alpha: 0.38);
             }
-            return colorScheme.onSurfaceVariant.withOpacity(0.38);
+            return colorScheme.onSurfaceVariant.withValues(alpha: 0.38);
           }
           if (states.contains(WidgetState.selected)) {
             return colorScheme.primary;
@@ -557,9 +557,9 @@ class AppTheme {
       scrollbarTheme: ScrollbarThemeData(
         thumbColor: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.dragged)) {
-            return colorScheme.primary.withOpacity(0.6);
+            return colorScheme.primary.withValues(alpha: 0.6);
           }
-          return colorScheme.onSurfaceVariant.withOpacity(0.3);
+          return colorScheme.onSurfaceVariant.withValues(alpha: 0.3);
         }),
         radius: const Radius.circular(Spacings.smRadius),
         thickness: WidgetStateProperty.all(6),

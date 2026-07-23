@@ -33,7 +33,7 @@ class AppTypography {
 
   // ─── Light Text Theme ─────────────────────────────────────────────────────
 
-  static final TextTheme lightTextTheme = TextTheme(
+  static const TextTheme lightTextTheme = TextTheme(
     // Display
     displayLarge: TextStyle(
       fontFamily: fontFamily,
@@ -41,7 +41,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsDisplay,
       height: 1.12,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
     displayMedium: TextStyle(
       fontFamily: fontFamily,
@@ -49,7 +49,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsDisplay,
       height: 1.16,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
     displaySmall: TextStyle(
       fontFamily: fontFamily,
@@ -57,7 +57,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: 0.0,
       height: 1.22,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
 
     // Headline
@@ -67,7 +67,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsHeadline,
       height: 1.25,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
     headlineMedium: TextStyle(
       fontFamily: fontFamily,
@@ -75,7 +75,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsHeadline,
       height: 1.29,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
     headlineSmall: TextStyle(
       fontFamily: fontFamily,
@@ -83,7 +83,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsHeadline,
       height: 1.33,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
 
     // Title
@@ -93,7 +93,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsTitle,
       height: 1.27,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
     titleMedium: TextStyle(
       fontFamily: fontFamily,
@@ -101,7 +101,7 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsTitle,
       height: 1.50,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
     titleSmall: TextStyle(
       fontFamily: fontFamily,
@@ -109,7 +109,7 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsTitle,
       height: 1.43,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
 
     // Body
@@ -119,7 +119,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsBody,
       height: 1.50,
-      color: const Color(0xFF374151),
+      color: Color(0xFF374151),
     ),
     bodyMedium: TextStyle(
       fontFamily: fontFamily,
@@ -127,7 +127,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsBody,
       height: 1.43,
-      color: const Color(0xFF374151),
+      color: Color(0xFF374151),
     ),
     bodySmall: TextStyle(
       fontFamily: fontFamily,
@@ -135,7 +135,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsBody,
       height: 1.33,
-      color: const Color(0xFF4B5563),
+      color: Color(0xFF4B5563),
     ),
 
     // Label
@@ -145,7 +145,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsLabel,
       height: 1.43,
-      color: const Color(0xFF1A1A2E),
+      color: Color(0xFF1A1A2E),
     ),
     labelMedium: TextStyle(
       fontFamily: fontFamily,
@@ -153,7 +153,7 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsLabel,
       height: 1.33,
-      color: const Color(0xFF4B5563),
+      color: Color(0xFF4B5563),
     ),
     labelSmall: TextStyle(
       fontFamily: fontFamily,
@@ -161,13 +161,13 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsLabel,
       height: 1.45,
-      color: const Color(0xFF6B7280),
+      color: Color(0xFF6B7280),
     ),
   );
 
   // ─── Dark Text Theme ──────────────────────────────────────────────────────
 
-  static final TextTheme darkTextTheme = TextTheme(
+  static const TextTheme darkTextTheme = TextTheme(
     // Display
     displayLarge: TextStyle(
       fontFamily: fontFamily,
@@ -175,7 +175,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsDisplay,
       height: 1.12,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
     displayMedium: TextStyle(
       fontFamily: fontFamily,
@@ -183,7 +183,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsDisplay,
       height: 1.16,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
     displaySmall: TextStyle(
       fontFamily: fontFamily,
@@ -191,7 +191,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: 0.0,
       height: 1.22,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
 
     // Headline
@@ -201,7 +201,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsHeadline,
       height: 1.25,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
     headlineMedium: TextStyle(
       fontFamily: fontFamily,
@@ -209,7 +209,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsHeadline,
       height: 1.29,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
     headlineSmall: TextStyle(
       fontFamily: fontFamily,
@@ -217,7 +217,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsHeadline,
       height: 1.33,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
 
     // Title
@@ -227,7 +227,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsTitle,
       height: 1.27,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
     titleMedium: TextStyle(
       fontFamily: fontFamily,
@@ -235,7 +235,7 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsTitle,
       height: 1.50,
-      color: const Color(0xFFE5E7EB),
+      color: Color(0xFFE5E7EB),
     ),
     titleSmall: TextStyle(
       fontFamily: fontFamily,
@@ -243,7 +243,7 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsTitle,
       height: 1.43,
-      color: const Color(0xFFE5E7EB),
+      color: Color(0xFFE5E7EB),
     ),
 
     // Body
@@ -253,7 +253,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsBody,
       height: 1.50,
-      color: const Color(0xFFD1D5DB),
+      color: Color(0xFFD1D5DB),
     ),
     bodyMedium: TextStyle(
       fontFamily: fontFamily,
@@ -261,7 +261,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsBody,
       height: 1.43,
-      color: const Color(0xFFD1D5DB),
+      color: Color(0xFFD1D5DB),
     ),
     bodySmall: TextStyle(
       fontFamily: fontFamily,
@@ -269,7 +269,7 @@ class AppTypography {
       fontWeight: wRegular,
       letterSpacing: lsBody,
       height: 1.33,
-      color: const Color(0xFF9CA3AF),
+      color: Color(0xFF9CA3AF),
     ),
 
     // Label
@@ -279,7 +279,7 @@ class AppTypography {
       fontWeight: wSemiBold,
       letterSpacing: lsLabel,
       height: 1.43,
-      color: const Color(0xFFF9FAFB),
+      color: Color(0xFFF9FAFB),
     ),
     labelMedium: TextStyle(
       fontFamily: fontFamily,
@@ -287,7 +287,7 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsLabel,
       height: 1.33,
-      color: const Color(0xFF9CA3AF),
+      color: Color(0xFF9CA3AF),
     ),
     labelSmall: TextStyle(
       fontFamily: fontFamily,
@@ -295,7 +295,7 @@ class AppTypography {
       fontWeight: wMedium,
       letterSpacing: lsLabel,
       height: 1.45,
-      color: const Color(0xFF9CA3AF),
+      color: Color(0xFF9CA3AF),
     ),
   );
 

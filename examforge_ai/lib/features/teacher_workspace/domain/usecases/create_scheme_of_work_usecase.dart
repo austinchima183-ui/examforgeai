@@ -20,7 +20,7 @@ class CreateSchemeOfWorkUseCase {
       return const FailureResult(Failure.validation(
         message: 'Scheme of work title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createSchemeOfWork(params.scheme);
   }

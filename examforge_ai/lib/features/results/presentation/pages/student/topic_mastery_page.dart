@@ -1,18 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/results_entities.dart';
-import '../../providers/results_providers.dart';
 import '../../providers/results_page_providers.dart';
-import '../../../../../features/student_portal/domain/entities/student_portal_entities.dart';
+import '../../providers/results_providers.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -61,7 +60,7 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
       ),
       body: state.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : state.error != null
               ? Center(
                   child: AppEmptyState(
@@ -122,7 +121,7 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
   // ─── Mastery Summary ─────────────────────────────────────────────────
 
   Widget _buildMasterySummary(
-      BuildContext context, List<TopicMasteryEntity> topics) {
+      BuildContext context, List<TopicMasteryEntity> topics,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -136,7 +135,7 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
         .where((t) =>
             t.masteryLevel == MasteryLevel.beginner ||
             t.masteryLevel == MasteryLevel.developing ||
-            t.masteryLevel == MasteryLevel.notStarted)
+            t.masteryLevel == MasteryLevel.notStarted,)
         .length;
 
     return Row(
@@ -195,9 +194,9 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
         vertical: Spacings.md,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.15 : 0.08),
+        color: color.withValues(alpha: isDark ? 0.15 : 0.08),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
-        border: Border.all(color: color.withOpacity(0.3)),
+        border: Border.all(color: color.withValues(alpha: 0.3)),
       ),
       child: Column(
         children: [
@@ -227,7 +226,7 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
     return Row(
       children: [
         Icon(Icons.filter_list_rounded,
-            size: Spacings.mdIcon, color: cs.onSurfaceVariant),
+            size: Spacings.mdIcon, color: cs.onSurfaceVariant,),
         const SizedBox(width: Spacings.sm),
         Text(
           'Subject: ',
@@ -237,7 +236,7 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
         ),
         Expanded(
           child: DropdownButtonFormField<String>(
-            value: widget.subjectId,
+            initialValue: widget.subjectId,
             decoration: InputDecoration(
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
@@ -278,7 +277,7 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
   // ─── Topic Mastery Grid ──────────────────────────────────────────────
 
   Widget _buildTopicGrid(
-      BuildContext context, List<TopicMasteryEntity> topics) {
+      BuildContext context, List<TopicMasteryEntity> topics,) {
     final isDesktop = context.isDesktop;
     final isTablet = context.isTablet;
 
@@ -295,7 +294,7 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
                             Spacings.md * (crossAxisCount - 1)) /
                         crossAxisCount,
                     child: _buildTopicCard(context, topic),
-                  ))
+                  ),)
               .toList(),
         );
       },
@@ -337,10 +336,10 @@ class _TopicMasteryPageState extends ConsumerState<TopicMasteryPage> {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: masteryColor.withOpacity(isDark ? 0.20 : 0.12),
+                  color: masteryColor.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                   border: Border.all(
-                    color: masteryColor.withOpacity(0.4),
+                    color: masteryColor.withValues(alpha: 0.4),
                   ),
                 ),
                 child: Text(

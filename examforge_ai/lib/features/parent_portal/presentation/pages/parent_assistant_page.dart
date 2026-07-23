@@ -7,8 +7,6 @@ import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/parent_portal_entities.dart';
 import '../providers/parent_assistant_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -130,7 +128,7 @@ class _State extends ConsumerState<ParentAssistantPage> {
         horizontal: Spacings.lg,
         vertical: Spacings.sm,
       ),
-      color: AppColors.warningOf(cs.brightness).withOpacity(0.1),
+      color: AppColors.warningOf(cs.brightness).withValues(alpha: 0.1),
       child: Row(
         children: [
           Icon(
@@ -171,8 +169,8 @@ class _State extends ConsumerState<ParentAssistantPage> {
         ),
         underline: const SizedBox.shrink(),
         style: tt.labelMedium?.copyWith(color: cs.onSurface),
-        items: [
-          const DropdownMenuItem<String>(
+        items: const [
+          DropdownMenuItem<String>(
             value: null,
             child: Text('All Children'),
           ),
@@ -425,7 +423,7 @@ class _State extends ConsumerState<ParentAssistantPage> {
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusSm,
                 side: BorderSide(
-                  color: cs.primary.withOpacity(0.3),
+                  color: cs.primary.withValues(alpha: 0.3),
                 ),
               ),
             ),
@@ -475,7 +473,7 @@ class _State extends ConsumerState<ParentAssistantPage> {
                 ),
                 filled: true,
                 fillColor: cs.surfaceContainerHighest,
-                border: OutlineInputBorder(
+                border: const OutlineInputBorder(
                   borderRadius: Spacings.borderRadiusMd,
                   borderSide: BorderSide.none,
                 ),

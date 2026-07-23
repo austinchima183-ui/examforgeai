@@ -2,15 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../providers/presentation_provider.dart';
@@ -55,7 +54,7 @@ class _PresentationGeneratorPageState
   final List<TextEditingController> _slideBodyControllers = [];
   final List<TextEditingController> _slideNotesControllers = [];
   bool _isEditing = false;
-  String _exportFormat = 'PDF';
+  final String _exportFormat = 'PDF';
 
   @override
   void dispose() {
@@ -715,7 +714,7 @@ class _PresentationGeneratorPageState
                 width: 28,
                 height: 28,
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                   shape: BoxShape.circle,
                 ),
                 child: Center(
@@ -772,7 +771,7 @@ class _PresentationGeneratorPageState
                 color: cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 border: Border.all(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Text(
@@ -813,7 +812,7 @@ class _PresentationGeneratorPageState
                 width: double.infinity,
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: cs.tertiaryContainer.withOpacity(0.3),
+                  color: cs.tertiaryContainer.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -843,7 +842,7 @@ class _PresentationGeneratorPageState
         vertical: Spacings.sm,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

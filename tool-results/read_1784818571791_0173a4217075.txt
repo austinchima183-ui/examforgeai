@@ -1,0 +1,1046 @@
+     1→/// Responsive / Adaptive UI Framework for ExamForge AI.
+     2→///
+     3→/// Provides a complete set of primitives for building layouts that adapt
+     4→/// gracefully across mobile, tablet, desktop, and large-desktop viewports.
+     5→///
+     6→/// **Key concepts:**
+     7→/// - [ScreenBreakpoint] – declarative breakpoint definition with grid metadata
+     8→/// - [ScreenSize] – enum representation of the current size class
+     9→/// - [ResponsiveLayout] – widget that picks a builder per breakpoint
+    10→/// - [AdaptiveScaffold] – scaffold whose navigation adapts automatically
+    11→/// - [AdaptiveGrid] – responsive grid based on breakpoint columns
+    12→/// - [ResponsiveValue] – value resolution per screen size
+    13→/// - [ResponsivePadding] – EdgeInsets that adapts per screen size
+    14→/// - [AdaptiveDialog] – dialog / bottom-sheet selection per form-factor
+    15→/// - [AdaptiveCard] – card layout that reflows by breakpoint
+    16→/// - [screenSizeProvider] – Riverpod provider for the current [ScreenSize]
+    17→///
+    18→/// All breakpoints follow Material 3 adaptive layout guidance and are
+    19→/// customisable through the [ScreenBreakpoint] predefined constants.
+    20→library;
+    21→
+    22→import 'package:equatable/equatable.dart';
+    23→import 'package:flutter/material.dart';
+    24→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    25→
+    26→import '../themes/app_colors.dart';
+    27→import '../themes/app_typography.dart';
+    28→import '../themes/spacings.dart';
+    29→
+    30→// ═══════════════════════════════════════════════════════════════════════════════
+    31→// ScreenSize Enum
+    32→// ═══════════════════════════════════════════════════════════════════════════════
+    33→
+    34→/// Enumerates the four adaptive size-classes used throughout ExamForge AI.
+    35→///
+    36→/// Each value maps to a [ScreenBreakpoint] that defines its pixel range,
+    37→/// column count, margin, and gutter.
+    38→enum ScreenSize {
+    39→  /// Handset / small phone – width < 600 px
+    40→  mobile,
+    41→
+    42→  /// Tablet / small laptop – 600–1023 px
+    43→  tablet,
+    44→
+    45→  /// Standard desktop – 1024–1439 px
+    46→  desktop,
+    47→
+    48→  /// Wide desktop / ultra-wide – >= 1440 px
+    49→  largeDesktop;
+    50→
+    51→  /// Determines the [ScreenSize] from a raw [width] value.
+    52→  ///
+    53→  /// ```dart
+    54→  /// final size = ScreenSize.fromWidth(MediaQuery.of(context).size.width);
+    55→  /// ```
+    56→  static ScreenSize fromWidth(double width) {
+    57→    if (width >= 1440) return ScreenSize.largeDesktop;
+    58→    if (width >= 1024) return ScreenSize.desktop;
+    59→    if (width >= 600) return ScreenSize.tablet;
+    60→    return ScreenSize.mobile;
+    61→  }
+    62→}
+    63→
+    64→// ═══════════════════════════════════════════════════════════════════════════════
+    65→// ScreenBreakpoint
+    66→// ═══════════════════════════════════════════════════════════════════════════════
+    67→
+    68→/// A declarative breakpoint definition with grid-layout metadata.
+    69→///
+    70→/// Each breakpoint carries its own column count, margin, and gutter so that
+    71→/// grid-based layouts can be driven entirely by the active breakpoint.
+    72→///
+    73→/// ```dart
+    74→/// final bp = ScreenBreakpoint.mobile;
+    75→/// print(bp.columns); // 4
+    76→/// ```
+    77→class ScreenBreakpoint extends Equatable {
+    78→  /// Human-readable name (e.g. "mobile", "tablet").
+    79→  final String name;
+    80→
+    81→  /// Minimum inclusive width in logical pixels.
+    82→  final double minWidth;
+    83→
+    84→  /// Maximum exclusive width in logical pixels.
+    85→  ///
+    86→  /// `null` means unbounded (applies to the largest breakpoint).
+    87→  final double? maxWidth;
+    88→
+    89→  /// Number of grid columns at this breakpoint.
+    90→  final int columns;
+    91→
+    92→  /// Outer margin in logical pixels.
+    93→  final double margin;
+    94→
+    95→  /// Gutter between columns in logical pixels.
+    96→  final double gutter;
+    97→
+    98→  const ScreenBreakpoint({
+    99→    required this.name,
+   100→    required this.minWidth,
+   101→    this.maxWidth,
+   102→    required this.columns,
+   103→    required this.margin,
+   104→    required this.gutter,
+   105→  });
+   106→
+   107→  // ─── Predefined Breakpoints ─────────────────────────────────────────────
+   108→
+   109→  /// Mobile: 0–599 px, 4 columns, 16 px margin, 8 px gutter.
+   110→  static const ScreenBreakpoint mobile = ScreenBreakpoint(
+   111→    name: 'mobile',
+   112→    minWidth: 0,
+   113→    maxWidth: 599,
+   114→    columns: 4,
+   115→    margin: 16,
+   116→    gutter: 8,
+   117→  );
+   118→
+   119→  /// Tablet: 600–1023 px, 8 columns, 32 px margin, 16 px gutter.
+   120→  static const ScreenBreakpoint tablet = ScreenBreakpoint(
+   121→    name: 'tablet',
+   122→    minWidth: 600,
+   123→    maxWidth: 1023,
+   124→    columns: 8,
+   125→    margin: 32,
+   126→    gutter: 16,
+   127→  );
+   128→
+   129→  /// Desktop: 1024–1439 px, 12 columns, 64 px margin, 24 px gutter.
+   130→  static const ScreenBreakpoint desktop = ScreenBreakpoint(
+   131→    name: 'desktop',
+   132→    minWidth: 1024,
+   133→    maxWidth: 1439,
+   134→    columns: 12,
+   135→    margin: 64,
+   136→    gutter: 24,
+   137→  );
+   138→
+   139→  /// Large desktop: 1440+ px, 12 columns, 80 px margin, 24 px gutter.
+   140→  static const ScreenBreakpoint largeDesktop = ScreenBreakpoint(
+   141→    name: 'largeDesktop',
+   142→    minWidth: 1440,
+   143→    maxWidth: null,
+   144→    columns: 12,
+   145→    margin: 80,
+   146→    gutter: 24,
+   147→  );
+   148→
+   149→  /// All predefined breakpoints in ascending order.
+   150→  static const List<ScreenBreakpoint> values = [
+   151→    mobile,
+   152→    tablet,
+   153→    desktop,
+   154→    largeDesktop,
+   155→  ];
+   156→
+   157→  /// Returns `true` if [width] falls within this breakpoint's range.
+   158→  bool contains(double width) {
+   159→    if (width < minWidth) return false;
+   160→    if (maxWidth != null && width > maxWidth!) return false;
+   161→    return true;
+   162→  }
+   163→
+   164→  /// Resolves the matching [ScreenBreakpoint] for the given [width].
+   165→  static ScreenBreakpoint fromWidth(double width) {
+   166→    for (final bp in values.reversed) {
+   167→      if (width >= bp.minWidth) return bp;
+   168→    }
+   169→    return mobile;
+   170→  }
+   171→
+   172→  /// Maps this breakpoint to its corresponding [ScreenSize] enum value.
+   173→  ScreenSize get screenSize {
+   174→    switch (name) {
+   175→      case 'mobile':
+   176→        return ScreenSize.mobile;
+   177→      case 'tablet':
+   178→        return ScreenSize.tablet;
+   179→      case 'desktop':
+   180→        return ScreenSize.desktop;
+   181→      case 'largeDesktop':
+   182→        return ScreenSize.largeDesktop;
+   183→      default:
+   184→        return ScreenSize.mobile;
+   185→    }
+   186→  }
+   187→
+   188→  @override
+   189→  List<Object?> get props => [name, minWidth, maxWidth, columns, margin, gutter];
+   190→
+   191→  @override
+   192→  String toString() =>
+   193→      'ScreenBreakpoint($name, $minWidth-${maxWidth ?? '∞'}, '
+   194→      'cols=$columns, margin=$margin, gutter=$gutter)';
+   195→}
+   196→
+   197→// ═══════════════════════════════════════════════════════════════════════════════
+   198→// screenSizeProvider
+   199→// ═══════════════════════════════════════════════════════════════════════════════
+   200→
+   201→/// Riverpod provider that exposes the current [ScreenSize].
+   202→///
+   203→/// Reads [MediaQuery] width and maps it via [ScreenSize.fromWidth].
+   204→/// Use this provider whenever you need the current size class outside
+   205→/// of a widget build method.
+   206→///
+   207→/// ```dart
+   208→/// final size = ref.watch(screenSizeProvider);
+   209→/// if (size == ScreenSize.mobile) { … }
+   210→/// ```
+   211→final screenSizeProvider = Provider<ScreenSize>((ref) {
+   212→  // This provider requires a [MediaQuery] ancestor. In widget tests,
+   213→  // wrap with [MediaQuery] or override this provider.
+   214→  // We use `ref.watch` on nothing – the value is computed per-read.
+   215→  // For real reactivity, wrap this in a ConsumerWidget that watches
+   216→  // MediaQuery, or use a StateProvider that is updated on layout change.
+   217→  //
+   218→  // In practice, use [ScreenSize.fromWidth] directly inside build methods
+   219→  // with [MediaQuery.of(context).size.width], or use [ResponsiveLayout].
+   220→  return ScreenSize.mobile; // default; override in ProviderScope overrides
+   221→});
+   222→
+   223→/// Provider that returns the active [ScreenBreakpoint] for a given width.
+   224→///
+   225→/// Override in your `ProviderScope` with the actual screen width:
+   226→/// ```dart
+   227→/// ProviderScope(
+   228→///   overrides: [
+   229→///     screenBreakpointProvider.overrideWith((ref) {
+   230→///       final width = MediaQuery.of(context).size.width;
+   231→///       return ScreenBreakpoint.fromWidth(width);
+   232→///     }),
+   233→///   ],
+   234→/// )
+   235→/// ```
+   236→final screenBreakpointProvider = Provider<ScreenBreakpoint>((ref) {
+   237→  return ScreenBreakpoint.mobile;
+   238→});
+   239→
+   240→// ═══════════════════════════════════════════════════════════════════════════════
+   241→// ResponsiveLayout
+   242→// ═══════════════════════════════════════════════════════════════════════════════
+   243→
+   244→/// A widget that selects a layout builder based on the current screen width.
+   245→///
+   246→/// Uses [LayoutBuilder] and [MediaQuery] to determine the active
+   247→/// [ScreenBreakpoint] and invokes the matching builder.
+   248→///
+   249→/// If a builder for the current size class is not provided, the next
+   250→/// smaller builder is used as a fallback chain:
+   251→/// `largeDesktop → desktop → tablet → mobile`.
+   252→///
+   253→/// ```dart
+   254→/// ResponsiveLayout(
+   255→///   mobile: () => const MobileView(),
+   256→///   tablet: () => const TabletView(),
+   257→///   desktop: () => const DesktopView(),
+   258→/// )
+   259→/// ```
+   260→class ResponsiveLayout extends StatelessWidget {
+   261→  /// Builder invoked when the viewport is mobile-sized.
+   262→  final WidgetBuilder mobile;
+   263→
+   264→  /// Builder invoked when the viewport is tablet-sized.
+   265→  ///
+   266→  /// Falls back to [mobile] if null.
+   267→  final WidgetBuilder? tablet;
+   268→
+   269→  /// Builder invoked when the viewport is desktop-sized.
+   270→  ///
+   271→  /// Falls back to [tablet] then [mobile] if null.
+   272→  final WidgetBuilder? desktop;
+   273→
+   274→  /// Builder invoked when the viewport is large-desktop-sized.
+   275→  ///
+   276→  /// Falls back to [desktop] → [tablet] → [mobile] if null.
+   277→  final WidgetBuilder? largeDesktop;
+   278→
+   279→  const ResponsiveLayout({
+   280→    super.key,
+   281→    required this.mobile,
+   282→    this.tablet,
+   283→    this.desktop,
+   284→    this.largeDesktop,
+   285→  });
+   286→
+   287→  @override
+   288→  Widget build(BuildContext context) {
+   289→    return LayoutBuilder(
+   290→      builder: (context, constraints) {
+   291→        final width = constraints.maxWidth;
+   292→        final screenSize = ScreenSize.fromWidth(width);
+   293→        final builder = _resolveBuilder(screenSize);
+   294→        return builder(context);
+   295→      },
+   296→    );
+   297→  }
+   298→
+   299→  /// Resolves the correct builder using a fallback chain.
+   300→  WidgetBuilder _resolveBuilder(ScreenSize size) {
+   301→    switch (size) {
+   302→      case ScreenSize.largeDesktop:
+   303→        return largeDesktop ?? desktop ?? tablet ?? mobile;
+   304→      case ScreenSize.desktop:
+   305→        return desktop ?? tablet ?? mobile;
+   306→      case ScreenSize.tablet:
+   307→        return tablet ?? mobile;
+   308→      case ScreenSize.mobile:
+   309→        return mobile;
+   310→    }
+   311→  }
+   312→}
+   313→
+   314→// ═══════════════════════════════════════════════════════════════════════════════
+   315→// AdaptiveScaffold
+   316→// ═══════════════════════════════════════════════════════════════════════════════
+   317→
+   318→/// A responsive scaffold that automatically adapts its navigation pattern.
+   319→///
+   320→/// - **Mobile** (< 600 px): [BottomNavigationBar]
+   321→/// - **Tablet** (600–1023 px): [NavigationRail]
+   322→/// - **Desktop / Large** (>= 1024 px): Permanent [NavigationDrawer]
+   323→///
+   324→/// The scaffold follows Material 3 navigation guidelines and ensures
+   325→/// consistent destination selection across all navigation types.
+   326→///
+   327→/// ```dart
+   328→/// AdaptiveScaffold(
+   329→///   destinations: [
+   330→///     NavigationDestination(icon: Icon(Icons.home), label: 'Home'),
+   331→///     NavigationDestination(icon: Icon(Icons.settings), label: 'Settings'),
+   332→///   ],
+   333→///   selectedIndex: 0,
+   334→///   onDestinationSelected: (i) => setState(() => _index = i),
+   335→///   body: const HomeView(),
+   336→/// )
+   337→/// ```
+   338→class AdaptiveScaffold extends StatelessWidget {
+   339→  /// The navigation destinations shared across all navigation types.
+   340→  final List<NavigationDestination> destinations;
+   341→
+   342→  /// The widget displayed as the scaffold body.
+   343→  final Widget body;
+   344→
+   345→  /// Currently selected destination index.
+   346→  final int selectedIndex;
+   347→
+   348→  /// Callback when the user selects a different destination.
+   349→  final ValueChanged<int> onDestinationSelected;
+   350→
+   351→  /// Optional [AppBar] displayed at the top of the scaffold.
+   352→  final PreferredSizeWidget? appBar;
+   353→
+   354→  /// Optional floating action button.
+   355→  final Widget? floatingActionButton;
+   356→
+   357→  const AdaptiveScaffold({
+   358→    super.key,
+   359→    required this.destinations,
+   360→    required this.body,
+   361→    required this.selectedIndex,
+   362→    required this.onDestinationSelected,
+   363→    this.appBar,
+   364→    this.floatingActionButton,
+   365→  });
+   366→
+   367→  @override
+   368→  Widget build(BuildContext context) {
+   369→    final width = MediaQuery.of(context).size.width;
+   370→    final screenSize = ScreenSize.fromWidth(width);
+   371→
+   372→    switch (screenSize) {
+   373→      case ScreenSize.mobile:
+   374→        return _buildMobileScaffold();
+   375→      case ScreenSize.tablet:
+   376→        return _buildTabletScaffold();
+   377→      case ScreenSize.desktop:
+   378→      case ScreenSize.largeDesktop:
+   379→        return _buildDesktopScaffold();
+   380→    }
+   381→  }
+   382→
+   383→  // ─── Mobile: BottomNavigationBar ───────────────────────────────────────
+   384→
+   385→  Widget _buildMobileScaffold() {
+   386→    return Scaffold(
+   387→      appBar: appBar,
+   388→      body: body,
+   389→      floatingActionButton: floatingActionButton,
+   390→      bottomNavigationBar: NavigationBar(
+   391→        selectedIndex: selectedIndex,
+   392→        onDestinationSelected: onDestinationSelected,
+   393→        destinations: destinations,
+   394→        animationDuration: const Duration(milliseconds: 300),
+   395→      ),
+   396→    );
+   397→  }
+   398→
+   399→  // ─── Tablet: NavigationRail ────────────────────────────────────────────
+   400→
+   401→  Widget _buildTabletScaffold() {
+   402→    return Scaffold(
+   403→      appBar: appBar,
+   404→      body: Row(
+   405→        children: [
+   406→          NavigationRail(
+   407→            selectedIndex: selectedIndex,
+   408→            onDestinationSelected: onDestinationSelected,
+   409→            destinations: destinations
+   410→                .map((d) => NavigationRailDestination(
+   411→                      icon: d.icon,
+   412→                      selectedIcon: d.selectedIcon,
+   413→                      label: Text(d.label),
+   414→                    ),)
+   415→                .toList(),
+   416→            leading: floatingActionButton,
+   417→            labelType: NavigationRailLabelType.all,
+   418→          ),
+   419→          const VerticalDivider(thickness: 1, width: 1),
+   420→          Expanded(child: body),
+   421→        ],
+   422→      ),
+   423→    );
+   424→  }
+   425→
+   426→  // ─── Desktop/Large: NavigationDrawer (permanent) ──────────────────────
+   427→
+   428→  Widget _buildDesktopScaffold() {
+   429→    return Scaffold(
+   430→      appBar: appBar,
+   431→      body: Row(
+   432→        children: [
+   433→          NavigationDrawer(
+   434→            selectedIndex: selectedIndex,
+   435→            onDestinationSelected: onDestinationSelected,
+   436→            children: [
+   437→              Padding(
+   438→                padding: const EdgeInsets.fromLTRB(
+   439→                  Spacings.lg,
+   440→                  Spacings.lg,
+   441→                  Spacings.lg,
+   442→                  Spacings.md,
+   443→                ),
+   444→                child: Text(
+   445→                  'ExamForge AI',
+   446→                  style: AppTypography.lightTextTheme.titleMedium?.copyWith(
+   447→                    color: AppColors.seed,
+   448→                  ),
+   449→                ),
+   450→              ),
+   451→              const Divider(),
+   452→              ...destinations,
+   453→            ],
+   454→          ),
+   455→          const VerticalDivider(thickness: 1, width: 1),
+   456→          Expanded(child: body),
+   457→        ],
+   458→      ),
+   459→    );
+   460→  }
+   461→}
+   462→
+   463→// ═══════════════════════════════════════════════════════════════════════════════
+   464→// AdaptiveGrid
+   465→// ═══════════════════════════════════════════════════════════════════════════════
+   466→
+   467→/// A responsive grid layout that derives its column count from the
+   468→/// active [ScreenBreakpoint].
+   469→///
+   470→/// Internally uses [SliverGridDelegateWithFixedCrossAxisCount] with column
+   471→/// count, spacing, and aspect ratio driven by the current viewport width.
+   472→///
+   473→/// ```dart
+   474→/// AdaptiveGrid(
+   475→///   children: [
+   476→///     GridTile(child: Card(child: Text('A'))),
+   477→///     GridTile(child: Card(child: Text('B'))),
+   478→///   ],
+   479→/// )
+   480→/// ```
+   481→class AdaptiveGrid extends StatelessWidget {
+   482→  /// The grid children.
+   483→  final List<Widget> children;
+   484→
+   485→  /// Horizontal spacing between grid items.
+   486→  ///
+   487→  /// Defaults to the gutter of the active breakpoint.
+   488→  final double? crossAxisSpacing;
+   489→
+   490→  /// Vertical spacing between grid items.
+   491→  ///
+   492→  /// Defaults to the gutter of the active breakpoint.
+   493→  final double? mainAxisSpacing;
+   494→
+   495→  /// Aspect ratio of each grid tile.
+   496→  ///
+   497→  /// Defaults to 1.0 (square tiles).
+   498→  final double childAspectRatio;
+   499→
+   500→  const AdaptiveGrid({
+   501→    super.key,
+   502→    required this.children,
+   503→    this.crossAxisSpacing,
+   504→    this.mainAxisSpacing,
+   505→    this.childAspectRatio = 1.0,
+   506→  });
+   507→
+   508→  @override
+   509→  Widget build(BuildContext context) {
+   510→    final width = MediaQuery.of(context).size.width;
+   511→    final breakpoint = ScreenBreakpoint.fromWidth(width);
+   512→
+   513→    return GridView.count(
+   514→      crossAxisCount: breakpoint.columns,
+   515→      crossAxisSpacing: crossAxisSpacing ?? breakpoint.gutter,
+   516→      mainAxisSpacing: mainAxisSpacing ?? breakpoint.gutter,
+   517→      childAspectRatio: childAspectRatio,
+   518→      padding: EdgeInsets.symmetric(horizontal: breakpoint.margin),
+   519→      shrinkWrap: true,
+   520→      physics: const NeverScrollableScrollPhysics(),
+   521→      children: children,
+   522→    );
+   523→  }
+   524→}
+   525→
+   526→// ═══════════════════════════════════════════════════════════════════════════════
+   527→// ResponsiveValue<T>
+   528→// ═══════════════════════════════════════════════════════════════════════════════
+   529→
+   530→/// Returns a different value of type [T] based on the current screen size.
+   531→///
+   532→/// Uses a fallback chain so you only need to specify values where they
+   533→/// differ from the next-smaller size class:
+   534→/// `largeDesktop → desktop → tablet → mobile`.
+   535→///
+   536→/// ```dart
+   537→/// final columns = ResponsiveValue<int>(
+   538→///   mobile: 1,
+   539→///   tablet: 2,
+   540→///   desktop: 3,
+   541→/// ).resolve(context);
+   542→/// ```
+   543→class ResponsiveValue<T> {
+   544→  /// Value used on mobile-sized viewports. **Required** – serves as the
+   545→  /// ultimate fallback.
+   546→  final T mobile;
+   547→
+   548→  /// Value used on tablet-sized viewports. Falls back to [mobile].
+   549→  final T? tablet;
+   550→
+   551→  /// Value used on desktop-sized viewports. Falls back to [tablet] → [mobile].
+   552→  final T? desktop;
+   553→
+   554→  /// Value used on large-desktop-sized viewports.
+   555→  /// Falls back to [desktop] → [tablet] → [mobile].
+   556→  final T? largeDesktop;
+   557→
+   558→  const ResponsiveValue({
+   559→    required this.mobile,
+   560→    this.tablet,
+   561→    this.desktop,
+   562→    this.largeDesktop,
+   563→  });
+   564→
+   565→  /// Resolves the appropriate value for the current screen size.
+   566→  ///
+   567→  /// Uses [MediaQuery.of(context)] to determine width and maps it to
+   568→  /// a [ScreenSize], then walks the fallback chain.
+   569→  T resolve(BuildContext context) {
+   570→    final width = MediaQuery.of(context).size.width;
+   571→    final screenSize = ScreenSize.fromWidth(width);
+   572→    return resolveForSize(screenSize);
+   573→  }
+   574→
+   575→  /// Resolves the value for a specific [ScreenSize] without a context.
+   576→  T resolveForSize(ScreenSize size) {
+   577→    switch (size) {
+   578→      case ScreenSize.largeDesktop:
+   579→        return largeDesktop ?? resolveForSize(ScreenSize.desktop);
+   580→      case ScreenSize.desktop:
+   581→        return desktop ?? resolveForSize(ScreenSize.tablet);
+   582→      case ScreenSize.tablet:
+   583→        return tablet ?? mobile;
+   584→      case ScreenSize.mobile:
+   585→        return mobile;
+   586→    }
+   587→  }
+   588→}
+   589→
+   590→// ═══════════════════════════════════════════════════════════════════════════════
+   591→// ResponsivePadding
+   592→// ═══════════════════════════════════════════════════════════════════════════════
+   593→
+   594→/// An [EdgeInsets] that adapts to the current screen size.
+   595→///
+   596→/// Provides per-breakpoint padding values with a fallback chain:
+   597→/// unspecified values default to the next-smaller breakpoint's value.
+   598→///
+   599→/// ```dart
+   600→/// ResponsivePadding(
+   601→///   mobile: EdgeInsets.all(16),
+   602→///   tablet: EdgeInsets.all(24),
+   603→///   desktop: EdgeInsets.all(32),
+   604→/// ).resolve(context)
+   605→/// ```
+   606→class ResponsivePadding {
+   607→  /// Padding for mobile-sized viewports.
+   608→  final EdgeInsets mobile;
+   609→
+   610→  /// Padding for tablet-sized viewports. Defaults to [mobile].
+   611→  final EdgeInsets? tablet;
+   612→
+   613→  /// Padding for desktop-sized viewports. Defaults to [tablet] → [mobile].
+   614→  final EdgeInsets? desktop;
+   615→
+   616→  /// Padding for large-desktop-sized viewports.
+   617→  /// Defaults to [desktop] → [tablet] → [mobile].
+   618→  final EdgeInsets? largeDesktop;
+   619→
+   620→  const ResponsivePadding({
+   621→    this.mobile = const EdgeInsets.all(16),
+   622→    this.tablet,
+   623→    this.desktop,
+   624→    this.largeDesktop,
+   625→  });
+   626→
+   627→  /// Resolves the appropriate [EdgeInsets] for the current screen size.
+   628→  EdgeInsets resolve(BuildContext context) {
+   629→    final width = MediaQuery.of(context).size.width;
+   630→    final screenSize = ScreenSize.fromWidth(width);
+   631→    return resolveForSize(screenSize);
+   632→  }
+   633→
+   634→  /// Resolves the padding for a specific [ScreenSize] without a context.
+   635→  EdgeInsets resolveForSize(ScreenSize size) {
+   636→    switch (size) {
+   637→      case ScreenSize.largeDesktop:
+   638→        return largeDesktop ?? resolveForSize(ScreenSize.desktop);
+   639→      case ScreenSize.desktop:
+   640→        return desktop ?? resolveForSize(ScreenSize.tablet);
+   641→      case ScreenSize.tablet:
+   642→        return tablet ?? mobile;
+   643→      case ScreenSize.mobile:
+   644→        return mobile;
+   645→    }
+   646→  }
+   647→}
+   648→
+   649→// ═══════════════════════════════════════════════════════════════════════════════
+   650→// AdaptiveDialog
+   651→// ═══════════════════════════════════════════════════════════════════════════════
+   652→
+   653→/// Shows dialog content appropriately for the current form-factor.
+   654→///
+   655→/// - **Mobile**: Material bottom sheet (easier thumb reach)
+   656→/// - **Tablet / Desktop / Large**: Centered Material dialog
+   657→///
+   658→/// ```dart
+   659→/// AdaptiveDialog.show(
+   660→///   context: context,
+   661→///   title: 'Confirm',
+   662→///   content: Text('Delete this item?'),
+   663→///   actions: [
+   664→///     TextButton(onPressed: () => Navigator.pop(context), child: Text('Cancel')),
+   665→///     FilledButton(onPressed: () => handleDelete(), child: Text('Delete')),
+   666→///   ],
+   667→/// );
+   668→/// ```
+   669→class AdaptiveDialog {
+   670→  AdaptiveDialog._();
+   671→
+   672→  /// Shows an adaptive dialog or bottom sheet.
+   673→  ///
+   674→  /// [context] – the parent [BuildContext].
+   675→  /// [title] – optional dialog title.
+   676→  /// [content] – the dialog body widget.
+   677→  /// [actions] – optional action buttons (placed at the bottom).
+   678→  /// [isDismissible] – whether the user can dismiss by tapping outside.
+   679→  static Future<T?> show<T>({
+   680→    required BuildContext context,
+   681→    String? title,
+   682→    required Widget content,
+   683→    List<Widget>? actions,
+   684→    bool isDismissible = true,
+   685→    bool useRootNavigator = true,
+   686→  }) {
+   687→    final width = MediaQuery.of(context).size.width;
+   688→    final screenSize = ScreenSize.fromWidth(width);
+   689→
+   690→    if (screenSize == ScreenSize.mobile) {
+   691→      return _showBottomSheet<T>(
+   692→        context: context,
+   693→        title: title,
+   694→        content: content,
+   695→        actions: actions,
+   696→        isDismissible: isDismissible,
+   697→        useRootNavigator: useRootNavigator,
+   698→      );
+   699→    } else {
+   700→      return _showDialog<T>(
+   701→        context: context,
+   702→        title: title,
+   703→        content: content,
+   704→        actions: actions,
+   705→        isDismissible: isDismissible,
+   706→        useRootNavigator: useRootNavigator,
+   707→      );
+   708→    }
+   709→  }
+   710→
+   711→  // ─── Mobile: BottomSheet ───────────────────────────────────────────────
+   712→
+   713→  static Future<T?> _showBottomSheet<T>({
+   714→    required BuildContext context,
+   715→    String? title,
+   716→    required Widget content,
+   717→    List<Widget>? actions,
+   718→    bool isDismissible = true,
+   719→    bool useRootNavigator = true,
+   720→  }) {
+   721→    return showModalBottomSheet<T>(
+   722→      context: context,
+   723→      isDismissible: isDismissible,
+   724→      useRootNavigator: useRootNavigator,
+   725→      isScrollControlled: true,
+   726→      shape: const RoundedRectangleBorder(
+   727→        borderRadius: BorderRadius.vertical(
+   728→          top: Radius.circular(Spacings.lgRadius),
+   729→        ),
+   730→      ),
+   731→      builder: (context) {
+   732→        return SafeArea(
+   733→          child: Column(
+   734→            mainAxisSize: MainAxisSize.min,
+   735→            children: [
+   736→              // Drag handle
+   737→              Padding(
+   738→                padding: const EdgeInsets.only(top: Spacings.md),
+   739→                child: Center(
+   740→                  child: Container(
+   741→                    width: 32,
+   742→                    height: 4,
+   743→                    decoration: BoxDecoration(
+   744→                      color: Theme.of(context).colorScheme.outlineVariant,
+   745→                      borderRadius: Spacings.borderRadiusFull,
+   746→                    ),
+   747→                  ),
+   748→                ),
+   749→              ),
+   750→              if (title != null)
+   751→                Padding(
+   752→                  padding: const EdgeInsets.fromLTRB(
+   753→                    Spacings.xl,
+   754→                    Spacings.lg,
+   755→                    Spacings.xl,
+   756→                    Spacings.sm,
+   757→                  ),
+   758→                  child: Row(
+   759→                    children: [
+   760→                      Expanded(
+   761→                        child: Text(
+   762→                          title,
+   763→                          style: Theme.of(context).textTheme.titleLarge,
+   764→                        ),
+   765→                      ),
+   766→                      IconButton(
+   767→                        icon: const Icon(Icons.close),
+   768→                        onPressed: () => Navigator.of(context).pop(),
+   769→                      ),
+   770→                    ],
+   771→                  ),
+   772→                ),
+   773→              Padding(
+   774→                padding: EdgeInsets.fromLTRB(
+   775→                  Spacings.xl,
+   776→                  title == null ? Spacings.lg : 0,
+   777→                  Spacings.xl,
+   778→                  Spacings.lg,
+   779→                ),
+   780→                child: content,
+   781→              ),
+   782→              if (actions != null && actions.isNotEmpty)
+   783→                Padding(
+   784→                  padding: const EdgeInsets.fromLTRB(
+   785→                    Spacings.xl,
+   786→                    0,
+   787→                    Spacings.xl,
+   788→                    Spacings.xl,
+   789→                  ),
+   790→                  child: Row(
+   791→                    mainAxisAlignment: MainAxisAlignment.end,
+   792→                    children: actions,
+   793→                  ),
+   794→                ),
+   795→            ],
+   796→          ),
+   797→        );
+   798→      },
+   799→    );
+   800→  }
+   801→
+   802→  // ─── Tablet/Desktop: Center Dialog ─────────────────────────────────────
+   803→
+   804→  static Future<T?> _showDialog<T>({
+   805→    required BuildContext context,
+   806→    String? title,
+   807→    required Widget content,
+   808→    List<Widget>? actions,
+   809→    bool isDismissible = true,
+   810→    bool useRootNavigator = true,
+   811→  }) {
+   812→    return showDialog<T>(
+   813→      context: context,
+   814→      barrierDismissible: isDismissible,
+   815→      useRootNavigator: useRootNavigator,
+   816→      builder: (context) {
+   817→        return AlertDialog(
+   818→          title: title != null ? Text(title) : null,
+   819→          content: content,
+   820→          actions: actions,
+   821→          actionsAlignment: MainAxisAlignment.end,
+   822→        );
+   823→      },
+   824→    );
+   825→  }
+   826→}
+   827→
+   828→// ═══════════════════════════════════════════════════════════════════════════════
+   829→// AdaptiveCard
+   830→// ═══════════════════════════════════════════════════════════════════════════════
+   831→
+   832→/// A card that adjusts its internal layout based on screen size.
+   833→///
+   834→/// - **Mobile**: Full-width vertical layout (image on top, content below)
+   835→/// - **Tablet**: 2-column horizontal layout
+   836→/// - **Desktop / Large**: 3-column horizontal layout
+   837→///
+   838→/// ```dart
+   839→/// AdaptiveCard(
+   840→///   imageUrl: 'https://example.com/image.png',
+   841→///   title: 'Exam Tips',
+   842→///   subtitle: 'Top 10 strategies',
+   843→///   content: Text('Detailed description...'),
+   844→///   onTap: () => navigateToDetail(),
+   845→/// )
+   846→/// ```
+   847→class AdaptiveCard extends StatelessWidget {
+   848→  /// Optional leading image URL.
+   849→  final String? imageUrl;
+   850→
+   851→  /// Card title.
+   852→  final String title;
+   853→
+   854→  /// Optional subtitle text.
+   855→  final String? subtitle;
+   856→
+   857→  /// Content widget displayed in the body area.
+   858→  final Widget? content;
+   859→
+   860→  /// Optional trailing action widget (e.g. icon button).
+   861→  final Widget? trailing;
+   862→
+   863→  /// Optional tap handler – wraps the card in an [InkWell].
+   864→  final VoidCallback? onTap;
+   865→
+   866→  /// Optional semantic label for accessibility.
+   867→  final String? semanticLabel;
+   868→
+   869→  const AdaptiveCard({
+   870→    super.key,
+   871→    this.imageUrl,
+   872→    required this.title,
+   873→    this.subtitle,
+   874→    this.content,
+   875→    this.trailing,
+   876→    this.onTap,
+   877→    this.semanticLabel,
+   878→  });
+   879→
+   880→  @override
+   881→  Widget build(BuildContext context) {
+   882→    final width = MediaQuery.of(context).size.width;
+   883→    final screenSize = ScreenSize.fromWidth(width);
+   884→
+   885→    switch (screenSize) {
+   886→      case ScreenSize.mobile:
+   887→        return _buildVerticalCard(context, 1);
+   888→      case ScreenSize.tablet:
+   889→        return _buildHorizontalCard(context, 2);
+   890→      case ScreenSize.desktop:
+   891→      case ScreenSize.largeDesktop:
+   892→        return _buildHorizontalCard(context, 3);
+   893→    }
+   894→  }
+   895→
+   896→  // ─── Vertical Card (Mobile) ────────────────────────────────────────────
+   897→
+   898→  Widget _buildVerticalCard(BuildContext context, int flex) {
+   899→    return Semantics(
+   900→      label: semanticLabel,
+   901→      button: onTap != null,
+   902→      child: Card(
+   903→        clipBehavior: Clip.antiAlias,
+   904→        elevation: Spacings.elevationSm,
+   905→        shape: const RoundedRectangleBorder(
+   906→          borderRadius: Spacings.borderRadiusLg,
+   907→        ),
+   908→        child: InkWell(
+   909→          onTap: onTap,
+   910→          borderRadius: Spacings.borderRadiusLg,
+   911→          child: Column(
+   912→            crossAxisAlignment: CrossAxisAlignment.stretch,
+   913→            mainAxisSize: MainAxisSize.min,
+   914→            children: [
+   915→              if (imageUrl != null)
+   916→                _buildImage(context, height: 160),
+   917→              Padding(
+   918→                padding: Spacings.paddingCard,
+   919→                child: Column(
+   920→                  crossAxisAlignment: CrossAxisAlignment.start,
+   921→                  children: [
+   922→                    Row(
+   923→                      children: [
+   924→                        Expanded(
+   925→                          child: Text(
+   926→                            title,
+   927→                            style: Theme.of(context).textTheme.titleMedium,
+   928→                            maxLines: 2,
+   929→                            overflow: TextOverflow.ellipsis,
+   930→                          ),
+   931→                        ),
+   932→                        if (trailing != null) trailing!,
+   933→                      ],
+   934→                    ),
+   935→                    if (subtitle != null) ...[
+   936→                      const SizedBox(height: Spacings.xs),
+   937→                      Text(
+   938→                        subtitle!,
+   939→                        style: Theme.of(context).textTheme.bodySmall,
+   940→                        maxLines: 1,
+   941→                        overflow: TextOverflow.ellipsis,
+   942→                      ),
+   943→                    ],
+   944→                    if (content != null) ...[
+   945→                      const SizedBox(height: Spacings.sm),
+   946→                      DefaultTextStyle(
+   947→                        style: Theme.of(context).textTheme.bodyMedium!,
+   948→                        child: content!,
+   949→                      ),
+   950→                    ],
+   951→                  ],
+   952→                ),
+   953→              ),
+   954→            ],
+   955→          ),
+   956→        ),
+   957→      ),
+   958→    );
+   959→  }
+   960→
+   961→  // ─── Horizontal Card (Tablet/Desktop) ──────────────────────────────────
+   962→
+   963→  Widget _buildHorizontalCard(BuildContext context, int imageFlex) {
+   964→    final contentFlex = imageFlex == 2 ? 3 : 4;
+   965→    return Semantics(
+   966→      label: semanticLabel,
+   967→      button: onTap != null,
+   968→      child: Card(
+   969→        clipBehavior: Clip.antiAlias,
+   970→        elevation: Spacings.elevationSm,
+   971→        shape: const RoundedRectangleBorder(
+   972→          borderRadius: Spacings.borderRadiusLg,
+   973→        ),
+   974→        child: InkWell(
+   975→          onTap: onTap,
+   976→          borderRadius: Spacings.borderRadiusLg,
+   977→          child: Row(
+   978→            children: [
+   979→              if (imageUrl != null)
+   980→                Expanded(
+   981→                  flex: imageFlex,
+   982→                  child: _buildImage(context, height: null),
+   983→                ),
+   984→              Expanded(
+   985→                flex: contentFlex,
+   986→                child: Padding(
+   987→                  padding: Spacings.paddingCard,
+   988→                  child: Column(
+   989→                    crossAxisAlignment: CrossAxisAlignment.start,
+   990→                    mainAxisSize: MainAxisSize.min,
+   991→                    children: [
+   992→                      Row(
+   993→                        children: [
+   994→                          Expanded(
+   995→                            child: Text(
+   996→                              title,
+   997→                              style: Theme.of(context).textTheme.titleMedium,
+   998→                              maxLines: 2,
+   999→                              overflow: TextOverflow.ellipsis,
+  1000→                            ),
+  1001→                          ),
+  1002→                          if (trailing != null) trailing!,
+  1003→                        ],
+  1004→                      ),
+  1005→                      if (subtitle != null) ...[
+  1006→                        const SizedBox(height: Spacings.xs),
+  1007→                        Text(
+  1008→                          subtitle!,
+  1009→                          style: Theme.of(context).textTheme.bodySmall,
+  1010→                          maxLines: 1,
+  1011→                          overflow: TextOverflow.ellipsis,
+  1012→                        ),
+  1013→                      ],
+  1014→                      if (content != null) ...[
+  1015→                        const SizedBox(height: Spacings.sm),
+  1016→                        DefaultTextStyle(
+  1017→                          style: Theme.of(context).textTheme.bodyMedium!,
+  1018→                          child: content!,
+  1019→                        ),
+  1020→                      ],
+  1021→                    ],
+  1022→                  ),
+  1023→                ),
+  1024→              ),
+  1025→            ],
+  1026→          ),
+  1027→        ),
+  1028→      ),
+  1029→    );
+  1030→  }
+  1031→
+  1032→  // ─── Image ─────────────────────────────────────────────────────────────
+  1033→
+  1034→  Widget _buildImage(BuildContext context, {required double? height}) {
+  1035→    // Placeholder – in production replace with CachedNetworkImage.
+  1036→    return Container(
+  1037→      height: height,
+  1038→      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+  1039→      child: const Icon(
+  1040→        Icons.image_outlined,
+  1041→        size: Spacings.xlIcon,
+  1042→      ),
+  1043→    );
+  1044→  }
+  1045→}
+  1046→

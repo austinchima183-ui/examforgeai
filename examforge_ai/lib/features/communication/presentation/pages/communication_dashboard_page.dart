@@ -12,9 +12,9 @@ import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
 import '../../domain/usecases/get_announcements_usecase.dart';
+import '../providers/announcement_provider.dart';
 import '../providers/communication_dashboard_provider.dart';
 import '../providers/conversation_provider.dart';
-import '../providers/announcement_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // COMMUNICATION DASHBOARD PAGE
@@ -172,7 +172,7 @@ class _State extends ConsumerState<CommunicationDashboardPage> {
       decoration: BoxDecoration(
         color: cs.surfaceContainerLow,
         borderRadius: Spacings.borderRadiusMd,
-        border: Border.all(color: cs.outlineVariant.withOpacity(0.3)),
+        border: Border.all(color: cs.outlineVariant.withValues(alpha: 0.3)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -248,7 +248,7 @@ class _State extends ConsumerState<CommunicationDashboardPage> {
     final tt = Theme.of(context).textTheme;
 
     return Material(
-      color: cs.primaryContainer.withOpacity(0.15),
+      color: cs.primaryContainer.withValues(alpha: 0.15),
       borderRadius: Spacings.borderRadiusMd,
       child: InkWell(
         onTap: action.onTap,

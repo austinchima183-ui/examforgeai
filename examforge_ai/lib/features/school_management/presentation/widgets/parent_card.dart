@@ -42,9 +42,9 @@ class ParentCard extends StatelessWidget {
                           child: Text(parent.fullName ?? 'Unknown', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis),
                         ),
                         if (_isPrimaryContact)
-                          Chip(
-                            avatar: const Icon(Icons.star, size: 12, color: Colors.amber),
-                            label: const Text('Primary', style: TextStyle(fontSize: 10)),
+                          const Chip(
+                            avatar: Icon(Icons.star, size: 12, color: Colors.amber),
+                            label: Text('Primary', style: TextStyle(fontSize: 10)),
                             visualDensity: VisualDensity.compact,
                             padding: EdgeInsets.zero,
                           ),

@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/communication_entities.dart';
 
@@ -72,7 +72,7 @@ class ForumCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(
@@ -87,7 +87,7 @@ class ForumCard extends StatelessWidget {
               fontSize: 10,
               fontWeight: AppTypography.wSemiBold,
               letterSpacing: AppTypography.lsCaption,
-              color: isDark ? color.withOpacity(0.9) : color,
+              color: isDark ? color.withValues(alpha: 0.9) : color,
             ),
           ),
         ],
@@ -116,11 +116,11 @@ class ForumCard extends StatelessWidget {
               const Spacer(),
               if (forum.isPinned)
                 Icon(Icons.push_pin_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               if (forum.isLocked) ...[
                 const SizedBox(width: Spacings.xs),
                 Icon(Icons.lock_outline_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               ],
             ],
           ),
@@ -162,7 +162,7 @@ class ForumCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.people_outline_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${forum.memberCount}',
@@ -172,7 +172,7 @@ class ForumCard extends StatelessWidget {
               ),
               const SizedBox(width: Spacings.md),
               Icon(Icons.article_outlined,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 '${forum.postCount} posts',
@@ -182,7 +182,7 @@ class ForumCard extends StatelessWidget {
               ),
               const Spacer(),
               Icon(Icons.access_time_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 _relativeTime(forum.lastActivityAt),

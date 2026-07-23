@@ -340,7 +340,7 @@ class DeviceService {
   Future<bool> isCameraAvailable() async {
     if (kIsWeb) return false;
     try {
-      return await _imagePicker.supportsImageSource(ImageSource.camera);
+      return _imagePicker.supportsImageSource(ImageSource.camera);
     } catch (e) {
       AppLogger.warning('Camera availability check failed', error: e);
       return false;
@@ -530,8 +530,8 @@ class DeviceService {
     try {
       final xfile = await _imagePicker.pickImage(
         source: source,
-        maxWidth: maxWidth != null ? maxWidth : null,
-        maxHeight: maxHeight != null ? maxHeight : null,
+        maxWidth: maxWidth,
+        maxHeight: maxHeight,
         imageQuality: quality,
       );
       if (xfile == null) {

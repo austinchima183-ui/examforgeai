@@ -91,17 +91,17 @@ class ParentPortalRemoteDataSourceImpl
       case 'PGRST116':
         throw NotFoundException(message: e.message);
       case '23505':
-        throw ServerException(
+        throw const ServerException(
           message: 'A record with this data already exists.',
           statusCode: 409,
         );
       case '23503':
-        throw ServerException(
+        throw const ServerException(
           message: 'Referenced record not found.',
           statusCode: 404,
         );
       case '42501':
-        throw ForbiddenException(message: 'You do not have permission for this action.');
+        throw const ForbiddenException(message: 'You do not have permission for this action.');
       default:
         throw ServerException(
           message: e.message,

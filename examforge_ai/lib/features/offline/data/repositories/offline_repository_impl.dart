@@ -23,7 +23,6 @@ import '../../domain/entities/offline_entities.dart';
 import '../../domain/repositories/offline_repository.dart';
 import '../datasources/offline_local_datasource.dart';
 import '../datasources/offline_remote_datasource.dart';
-import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -137,7 +136,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -227,7 +226,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on CacheException catch (e) {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {
@@ -289,7 +288,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
                     examId: data['exam_id'] as String,
                     allowsOffline: data['allows_offline'] as bool? ?? false,
                     offlineType: OfflineType.fromString(
-                            data['offline_type'] as String?) ??
+                            data['offline_type'] as String?,) ??
                         OfflineType.none,
                     maxOfflineAttempts:
                         data['max_offline_attempts'] as int? ?? 0,
@@ -300,7 +299,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
                     createdAt: data['created_at'] != null
                         ? DateTime.parse(data['created_at'] as String)
                         : DateTime.now(),
-                  ))
+                  ),)
               .toList();
 
           // Cache locally.
@@ -347,7 +346,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
                   createdAt: data['created_at'] != null
                       ? DateTime.parse(data['created_at'] as String)
                       : DateTime.now(),
-                ))
+                ),)
             .toList();
         return Success(configs);
       }
@@ -412,7 +411,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on CacheException catch (e) {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {
@@ -464,7 +463,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
           return Success(savedAttempt.copyWith(
             syncStatus: AttemptSyncStatus.synced,
             syncedAt: DateTime.now(),
-          ));
+          ),);
         } on ServerException catch (e) {
           // Sync failed — keep as pending, queue for later.
           AppLogger.warning(
@@ -577,7 +576,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on CacheException catch (e) {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {
@@ -713,7 +712,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         shouldReduceQuality: false,
         shouldDelaySync: !isOnline,
         shouldCompressUploads: false,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -756,7 +755,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
           lastActiveAt: DateTime.now(),
           pushEnabled: device.pushEnabled,
           createdAt: device.createdAt,
-        ));
+        ),);
       } else {
         // Queue device registration for later.
         await _cacheManager.enqueueSync(
@@ -779,7 +778,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -809,7 +808,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -970,7 +969,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } catch (e) {
       return FailureResult(_mapExceptionToFailure(e));
     }
@@ -1015,7 +1014,7 @@ class OfflineRepositoryImpl implements OfflineRepository {
         message: e.message,
         statusCode: e.statusCode,
         data: e.data,
-      ));
+      ),);
     } on CacheException catch (e) {
       return FailureResult(Failure.cache(message: e.message));
     } catch (e) {

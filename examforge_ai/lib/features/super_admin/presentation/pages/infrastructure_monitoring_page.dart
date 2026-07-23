@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/super_admin_entities.dart';
@@ -87,7 +87,7 @@ class _InfrastructureMonitoringPageState
     // Loading state
     if (state.isLoading && state.services.isEmpty) {
       return const Center(
-          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
+          child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),);
     }
 
     // Error state
@@ -150,7 +150,7 @@ class _InfrastructureMonitoringPageState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
+            const Icon(Icons.error_outline_rounded, size: 64, color: AppColors.error),
             const SizedBox(height: Spacings.lg),
             Text(
               'Failed to load infrastructure data',
@@ -164,7 +164,7 @@ class _InfrastructureMonitoringPageState
               state.error ?? 'An unexpected error occurred.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -192,7 +192,7 @@ class _InfrastructureMonitoringPageState
     final unhealthyCount = services
         .where((s) =>
             s.healthStatus == HealthStatus.unhealthy ||
-            s.healthStatus == HealthStatus.down)
+            s.healthStatus == HealthStatus.down,)
         .length;
     final maintenanceCount = services
         .where((s) => s.healthStatus == HealthStatus.maintenance)
@@ -212,7 +212,7 @@ class _InfrastructureMonitoringPageState
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -265,9 +265,9 @@ class _InfrastructureMonitoringPageState
   Widget _buildHealthStatChip(String label, int count, Color color) {
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: Spacings.md, vertical: Spacings.sm),
+          horizontal: Spacings.md, vertical: Spacings.sm,),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.1),
+        color: color.withValues(alpha: 0.1),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Row(
@@ -384,7 +384,7 @@ class _InfrastructureMonitoringPageState
   // ─── Maintenance Windows ────────────────────────────────────────────────
 
   Widget _buildMaintenanceWindows(
-      InfrastructureMonitoringState state, ColorScheme cs) {
+      InfrastructureMonitoringState state, ColorScheme cs,) {
     final windows = state.maintenanceWindows;
 
     if (windows.isEmpty) {
@@ -396,7 +396,7 @@ class _InfrastructureMonitoringPageState
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -551,7 +551,7 @@ class _InfrastructureMonitoringPageState
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
                             content: Text(
-                                'Title, start time, and end time are required')),
+                                'Title, start time, and end time are required',),),
                       );
                       return;
                     }
@@ -589,7 +589,7 @@ class _InfrastructureMonitoringPageState
   // ─── Date/Time Picker Helper ─────────────────────────────────────────────
 
   Future<DateTime?> _pickDateTime(
-      BuildContext context, DateTime? initial) async {
+      BuildContext context, DateTime? initial,) async {
     final date = await showDatePicker(
       context: context,
       initialDate: initial ?? DateTime.now().add(const Duration(days: 1)),
@@ -619,7 +619,7 @@ class _InfrastructureMonitoringPageState
   static String _monthShort(int month) {
     const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return months[month];
   }
@@ -643,7 +643,7 @@ class _ServiceStatusCard extends StatelessWidget {
   final ColorScheme cs;
 
   Color _responseTimeColor(int? ms) {
-    if (ms == null) return cs.onSurface.withOpacity(0.4);
+    if (ms == null) return cs.onSurface.withValues(alpha: 0.4);
     if (ms < 500) return AppColors.success;
     if (ms < 2000) return AppColors.warning;
     return AppColors.error;
@@ -692,7 +692,7 @@ class _ServiceStatusCard extends StatelessWidget {
                 ),
                 if (service.isCritical) ...[
                   const SizedBox(width: Spacings.sm),
-                  StatusBadge(
+                  const StatusBadge(
                     label: 'Critical',
                     color: AppColors.error,
                     icon: Icons.warning_amber,
@@ -753,7 +753,7 @@ class _ServiceStatusCard extends StatelessWidget {
               icon: Icons.schedule,
               label: 'Last Check',
               value: _formatLastCheck(service.lastCheckAt),
-              valueColor: cs.onSurface.withOpacity(0.6),
+              valueColor: cs.onSurface.withValues(alpha: 0.6),
             ),
 
             const Spacer(),
@@ -775,7 +775,7 @@ class _ServiceStatusCard extends StatelessWidget {
                 ),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(
-                      horizontal: Spacings.md, vertical: Spacings.sm),
+                      horizontal: Spacings.md, vertical: Spacings.sm,),
                   textStyle: AppTypography.wSemiBold.copyWith(fontSize: 12),
                 ),
               ),
@@ -794,13 +794,13 @@ class _ServiceStatusCard extends StatelessWidget {
   }) {
     return Row(
       children: [
-        Icon(icon, size: 14, color: cs.onSurface.withOpacity(0.4)),
+        Icon(icon, size: 14, color: cs.onSurface.withValues(alpha: 0.4)),
         const SizedBox(width: Spacings.sm),
         Text(
           label,
           style: AppTypography.wRegular.copyWith(
             fontSize: 12,
-            color: cs.onSurface.withOpacity(0.6),
+            color: cs.onSurface.withValues(alpha: 0.6),
           ),
         ),
         const Spacer(),
@@ -840,7 +840,7 @@ class _MaintenanceWindowTile extends StatelessWidget {
       case MaintenanceStatus.completed:
         return AppColors.success;
       case MaintenanceStatus.cancelled:
-        return cs.onSurface.withOpacity(0.4);
+        return cs.onSurface.withValues(alpha: 0.4);
     }
   }
 
@@ -860,7 +860,7 @@ class _MaintenanceWindowTile extends StatelessWidget {
   String _formatDateTime(DateTime dt) {
     const months = [
       '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'
+      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
     ];
     return '${months[dt.month]} ${dt.day}, ${dt.year} '
         '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
@@ -898,7 +898,7 @@ class _MaintenanceWindowTile extends StatelessWidget {
             window.description!,
             style: AppTypography.wRegular.copyWith(
               fontSize: 13,
-              color: cs.onSurface.withOpacity(0.7),
+              color: cs.onSurface.withValues(alpha: 0.7),
             ),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
@@ -908,24 +908,24 @@ class _MaintenanceWindowTile extends StatelessWidget {
         Row(
           children: [
             Icon(Icons.play_arrow, size: 14,
-                color: cs.onSurface.withOpacity(0.5)),
+                color: cs.onSurface.withValues(alpha: 0.5),),
             const SizedBox(width: Spacings.xs),
             Text(
               _formatDateTime(window.startAt),
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
               ),
             ),
             const SizedBox(width: Spacings.lg),
             Icon(Icons.stop, size: 14,
-                color: cs.onSurface.withOpacity(0.5)),
+                color: cs.onSurface.withValues(alpha: 0.5),),
             const SizedBox(width: Spacings.xs),
             Text(
               _formatDateTime(window.endAt),
               style: AppTypography.wRegular.copyWith(
                 fontSize: 12,
-                color: cs.onSurface.withOpacity(0.6),
+                color: cs.onSurface.withValues(alpha: 0.6),
               ),
             ),
           ],

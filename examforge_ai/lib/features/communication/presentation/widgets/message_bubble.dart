@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/communication_entities.dart';
 import 'attachment_preview.dart';
 
@@ -72,7 +72,7 @@ class MessageBubble extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: Spacings.sm),
       padding: const EdgeInsets.all(Spacings.sm),
       decoration: BoxDecoration(
-        color: textColor.withOpacity(0.08),
+        color: textColor.withValues(alpha: 0.08),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
         border: Border(
           left: BorderSide(color: cs.primary, width: 3),
@@ -99,7 +99,7 @@ class MessageBubble extends StatelessWidget {
             style: TextStyle(
               fontFamily: AppTypography.fontFamily,
               fontSize: 12,
-              color: textColor.withOpacity(0.7),
+              color: textColor.withValues(alpha: 0.7),
               height: 1.3,
             ),
             maxLines: 2,
@@ -132,17 +132,17 @@ class MessageBubble extends StatelessWidget {
             vertical: 2,
           ),
           decoration: BoxDecoration(
-            color: cs.surfaceContainerHighest.withOpacity(0.7),
+            color: cs.surfaceContainerHighest.withValues(alpha: 0.7),
             borderRadius: BorderRadius.circular(Spacings.fullRadius),
             border: Border.all(
-              color: cs.outlineVariant.withOpacity(0.3),
+              color: cs.outlineVariant.withValues(alpha: 0.3),
             ),
           ),
           child: Text(
             '${e.key} ${e.value}',
             style: const TextStyle(fontSize: 12, height: 1.3),
           ),
-        )).toList(),
+        ),).toList(),
       ),
     );
   }
@@ -160,7 +160,7 @@ class MessageBubble extends StatelessWidget {
             .map((a) => AttachmentPreview(
                   attachment: a,
                   textColor: textColor,
-                ))
+                ),)
             .toList(),
       ),
     );
@@ -222,11 +222,11 @@ class MessageBubble extends StatelessWidget {
             if (onDelete != null)
               ListTile(
                 leading: Icon(Icons.delete_outline_rounded,
-                    color: AppColors.errorOf(cs.brightness)),
+                    color: AppColors.errorOf(cs.brightness),),
                 title: Text('Delete',
                     style: context.textTheme.bodyMedium?.copyWith(
                       color: AppColors.errorOf(cs.brightness),
-                    )),
+                    ),),
                 onTap: () { Navigator.pop(context); onDelete!(); },
               ),
           ],
@@ -336,7 +336,7 @@ class MessageBubble extends StatelessWidget {
                                 style: TextStyle(
                                   fontSize: 10,
                                   color:
-                                      textColor.withOpacity(0.6),
+                                      textColor.withValues(alpha: 0.6),
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -346,7 +346,7 @@ class MessageBubble extends StatelessWidget {
                               _formatTime(message.createdAt),
                               style: tt.labelSmall?.copyWith(
                                 color:
-                                    textColor.withOpacity(0.7),
+                                    textColor.withValues(alpha: 0.7),
                                 fontSize: 10,
                               ),
                             ),
@@ -359,7 +359,7 @@ class MessageBubble extends StatelessWidget {
                                 size: 14,
                                 color: message.readBy.isNotEmpty
                                     ? Colors.lightBlueAccent
-                                    : textColor.withOpacity(0.5),
+                                    : textColor.withValues(alpha: 0.5),
                               ),
                             ],
                           ],

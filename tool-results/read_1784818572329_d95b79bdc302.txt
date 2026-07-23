@@ -1,0 +1,962 @@
+     1→/// Accessibility Framework for ExamForge AI.
+     2→///
+     3→/// Provides a comprehensive set of tools, widgets, and providers that ensure
+     4→/// the application is usable by everyone, including users who rely on screen
+     5→/// readers, keyboard navigation, high-contrast modes, or colorblind filters.
+     6→///
+     7→/// **Key concepts:**
+     8→/// - [AccessibilitySettings] – immutable settings model persisted via SharedPreferences
+     9→/// - [ColorblindMode] – enhanced enum with color-filter matrix support
+    10→/// - [AccessibilityNotifier] – StateNotifier that manages settings + persistence
+    11→/// - [AccessibleText] – Text widget that auto-applies scale, bold, and semantics
+    12→/// - [AccessibleButton] – button with minimum touch target, focus ring, and semantics
+    13→/// - [AccessibleImage] – image with required semantic label and colorblind filter
+    14→/// - [HighContrastTheme] – generates high-contrast Material 3 theme overrides
+    15→/// - [ScreenReaderHelper] – announcements, tooltips, and live regions
+    16→/// - [FocusTraversalHelper] – keyboard tab order and shortcut actions
+    17→/// - Provider suite for reactive access to accessibility state
+    18→library;
+    19→
+    20→import 'dart:convert';
+    21→
+    22→import 'package:equatable/equatable.dart';
+    23→import 'package:flutter/material.dart';
+    24→import 'package:flutter/semantics.dart';
+    25→import 'package:flutter/services.dart';
+    26→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    27→import 'package:shared_preferences/shared_preferences.dart';
+    28→
+    29→import '../themes/spacings.dart';
+    30→import '../utils/logger.dart';
+    31→
+    32→// ═══════════════════════════════════════════════════════════════════════════════
+    33→// ColorblindMode Enum
+    34→// ═══════════════════════════════════════════════════════════════════════════════
+    35→
+    36→/// Represents the different types of color vision deficiency that
+    37→/// [AccessibleImage] and [AccessibilitySettings] can accommodate.
+    38→///
+    39→/// Each value provides a [colorFilter] getter that returns a
+    40→/// [ColorFilter] matrix appropriate for simulating / compensating
+    41→/// that deficiency, or `null` when no filter is needed.
+    42→enum ColorblindMode {
+    43→  /// No color vision deficiency – normal vision.
+    44→  none('None', 'none'),
+    45→
+    46→  /// Red-blind (protanopia) – cannot perceive red light.
+    47→  protanopia('Protanopia', 'protanopia'),
+    48→
+    49→  /// Green-blind (deuteranopia) – cannot perceive green light.
+    50→  deuteranopia('Deuteranopia', 'deuteranopia'),
+    51→
+    52→  /// Blue-blind (tritanopia) – cannot perceive blue light.
+    53→  tritanopia('Tritanopia', 'tritanopia'),
+    54→
+    55→  /// Total color blindness (achromatopsia) – no color perception.
+    56→  achromatopsia('Achromatopsia', 'achromatopsia');
+    57→
+    58→  const ColorblindMode(this.displayName, this.jsonKey);
+    59→
+    60→  /// Human-readable name suitable for UI display.
+    61→  final String displayName;
+    62→
+    63→  /// Key used for JSON serialization.
+    64→  final String jsonKey;
+    65→
+    66→  /// Returns a [ColorFilter] matrix for this colorblind mode,
+    67→  /// or `null` when [none] (no filter needed).
+    68→  ///
+    69→  /// Matrices sourced from widely-used colorblind simulation research
+    70→  /// (Machado, Oliveira, Fernandes 2009).
+    71→  ColorFilter? get colorFilter {
+    72→    const List<double> identity = <double>[
+    73→      1, 0, 0, 0, 0, //
+    74→      0, 1, 0, 0, 0, //
+    75→      0, 0, 1, 0, 0, //
+    76→      0, 0, 0, 1, 0, //
+    77→    ];
+    78→
+    79→    const List<double> protanopiaMatrix = <double>[
+    80→      0.567, 0.433, 0, 0, 0, //
+    81→      0.558, 0.442, 0, 0, 0, //
+    82→      0, 0.242, 0.758, 0, 0, //
+    83→      0, 0, 0, 1, 0, //
+    84→    ];
+    85→
+    86→    const List<double> deuteranopiaMatrix = <double>[
+    87→      0.625, 0.375, 0, 0, 0, //
+    88→      0.7, 0.3, 0, 0, 0, //
+    89→      0, 0.3, 0.7, 0, 0, //
+    90→      0, 0, 0, 1, 0, //
+    91→    ];
+    92→
+    93→    const List<double> tritanopiaMatrix = <double>[
+    94→      0.95, 0.05, 0, 0, 0, //
+    95→      0, 0.433, 0.567, 0, 0, //
+    96→      0, 0.475, 0.525, 0, 0, //
+    97→      0, 0, 0, 1, 0, //
+    98→    ];
+    99→
+   100→    const List<double> achromatopsiaMatrix = <double>[
+   101→      0.299, 0.587, 0.114, 0, 0, //
+   102→      0.299, 0.587, 0.114, 0, 0, //
+   103→      0.299, 0.587, 0.114, 0, 0, //
+   104→      0, 0, 0, 1, 0, //
+   105→    ];
+   106→
+   107→    switch (this) {
+   108→      case ColorblindMode.none:
+   109→        return null;
+   110→      case ColorblindMode.protanopia:
+   111→        return const ColorFilter.matrix(protanopiaMatrix);
+   112→      case ColorblindMode.deuteranopia:
+   113→        return const ColorFilter.matrix(deuteranopiaMatrix);
+   114→      case ColorblindMode.tritanopia:
+   115→        return const ColorFilter.matrix(tritanopiaMatrix);
+   116→      case ColorblindMode.achromatopsia:
+   117→        return const ColorFilter.matrix(achromatopsiaMatrix);
+   118→    }
+   119→  }
+   120→
+   121→  /// Parses a [ColorblindMode] from its [jsonKey].
+   122→  static ColorblindMode fromJsonKey(String key) {
+   123→    return ColorblindMode.values.firstWhere(
+   124→      (mode) => mode.jsonKey == key,
+   125→      orElse: () => ColorblindMode.none,
+   126→    );
+   127→  }
+   128→}
+   129→
+   130→// ═══════════════════════════════════════════════════════════════════════════════
+   131→// AccessibilitySettings
+   132→// ═══════════════════════════════════════════════════════════════════════════════
+   133→
+   134→/// Immutable model holding all accessibility preferences for the current user.
+   135→///
+   136→/// Instances are managed by [AccessibilityNotifier] and persisted to
+   137→/// [SharedPreferences] so they survive app restarts.
+   138→class AccessibilitySettings extends Equatable {
+   139→  /// Text scale multiplier. Clamped to 0.8–2.0. Defaults to 1.0.
+   140→  final double textScaleFactor;
+   141→
+   142→  /// Whether high-contrast mode is enabled.
+   143→  final bool isHighContrast;
+   144→
+   145→  /// Whether a screen reader is currently active.
+   146→  final bool isScreenReaderEnabled;
+   147→
+   148→  /// Whether reduce-motion is enabled (disables animations).
+   149→  final bool isReduceMotion;
+   150→
+   151→  /// Whether bold text is requested.
+   152→  final bool isBoldText;
+   153→
+   154→  /// Whether a large font variant should be used.
+   155→  final bool isLargeFont;
+   156→
+   157→  /// Active colorblind compensation mode.
+   158→  final ColorblindMode colorblindMode;
+   159→
+   160→  const AccessibilitySettings({
+   161→    this.textScaleFactor = 1.0,
+   162→    this.isHighContrast = false,
+   163→    this.isScreenReaderEnabled = false,
+   164→    this.isReduceMotion = false,
+   165→    this.isBoldText = false,
+   166→    this.isLargeFont = false,
+   167→    this.colorblindMode = ColorblindMode.none,
+   168→  });
+   169→
+   170→  /// Creates a copy with the given fields replaced.
+   171→  AccessibilitySettings copyWith({
+   172→    double? textScaleFactor,
+   173→    bool? isHighContrast,
+   174→    bool? isScreenReaderEnabled,
+   175→    bool? isReduceMotion,
+   176→    bool? isBoldText,
+   177→    bool? isLargeFont,
+   178→    ColorblindMode? colorblindMode,
+   179→  }) {
+   180→    return AccessibilitySettings(
+   181→      textScaleFactor: textScaleFactor ?? this.textScaleFactor,
+   182→      isHighContrast: isHighContrast ?? this.isHighContrast,
+   183→      isScreenReaderEnabled:
+   184→          isScreenReaderEnabled ?? this.isScreenReaderEnabled,
+   185→      isReduceMotion: isReduceMotion ?? this.isReduceMotion,
+   186→      isBoldText: isBoldText ?? this.isBoldText,
+   187→      isLargeFont: isLargeFont ?? this.isLargeFont,
+   188→      colorblindMode: colorblindMode ?? this.colorblindMode,
+   189→    );
+   190→  }
+   191→
+   192→  /// Serialises to a JSON-compatible map.
+   193→  Map<String, dynamic> toJson() => {
+   194→        'textScaleFactor': textScaleFactor,
+   195→        'isHighContrast': isHighContrast,
+   196→        'isScreenReaderEnabled': isScreenReaderEnabled,
+   197→        'isReduceMotion': isReduceMotion,
+   198→        'isBoldText': isBoldText,
+   199→        'isLargeFont': isLargeFont,
+   200→        'colorblindMode': colorblindMode.jsonKey,
+   201→      };
+   202→
+   203→  /// Deserialises from a JSON-compatible map.
+   204→  static AccessibilitySettings fromJson(Map<String, dynamic> json) {
+   205→    return AccessibilitySettings(
+   206→      textScaleFactor: (json['textScaleFactor'] as num?)?.toDouble() ?? 1.0,
+   207→      isHighContrast: json['isHighContrast'] as bool? ?? false,
+   208→      isScreenReaderEnabled: json['isScreenReaderEnabled'] as bool? ?? false,
+   209→      isReduceMotion: json['isReduceMotion'] as bool? ?? false,
+   210→      isBoldText: json['isBoldText'] as bool? ?? false,
+   211→      isLargeFont: json['isLargeFont'] as bool? ?? false,
+   212→      colorblindMode: json['colorblindMode'] != null
+   213→          ? ColorblindMode.fromJsonKey(json['colorblindMode'] as String)
+   214→          : ColorblindMode.none,
+   215→    );
+   216→  }
+   217→
+   218→  @override
+   219→  List<Object?> get props => [
+   220→        textScaleFactor,
+   221→        isHighContrast,
+   222→        isScreenReaderEnabled,
+   223→        isReduceMotion,
+   224→        isBoldText,
+   225→        isLargeFont,
+   226→        colorblindMode,
+   227→      ];
+   228→}
+   229→
+   230→// ═══════════════════════════════════════════════════════════════════════════════
+   231→// AccessibilityNotifier
+   232→// ═══════════════════════════════════════════════════════════════════════════════
+   233→
+   234→/// Riverpod [StateNotifier] that manages [AccessibilitySettings].
+   235→///
+   236→/// Persists settings to [SharedPreferences] on every mutation and loads
+   237→/// them on initialisation. Also provides [detectSystemSettings] to
+   238→/// synchronise with the platform's current accessibility flags.
+   239→class AccessibilityNotifier extends StateNotifier<AccessibilitySettings> {
+   240→  static const String _prefsKey = 'examforge_accessibility_settings';
+   241→
+   242→  AccessibilityNotifier() : super(const AccessibilitySettings()) {
+   243→    _loadFromPrefs();
+   244→  }
+   245→
+   246→  // ─── Mutations ─────────────────────────────────────────────────────────
+   247→
+   248→  /// Updates the text scale factor, clamped to the 0.8–2.0 range.
+   249→  void updateTextScale(double factor) {
+   250→    final clamped = factor.clamp(0.8, 2.0);
+   251→    state = state.copyWith(textScaleFactor: clamped);
+   252→    _persist();
+   253→    AppLogger.info('Text scale updated to $clamped');
+   254→  }
+   255→
+   256→  /// Toggles high-contrast mode on/off.
+   257→  void toggleHighContrast() {
+   258→    state = state.copyWith(isHighContrast: !state.isHighContrast);
+   259→    _persist();
+   260→    AppLogger.info('High contrast: ${state.isHighContrast}');
+   261→  }
+   262→
+   263→  /// Sets the colorblind compensation mode.
+   264→  void setColorblindMode(ColorblindMode mode) {
+   265→    state = state.copyWith(colorblindMode: mode);
+   266→    _persist();
+   267→    AppLogger.info('Colorblind mode: ${mode.displayName}');
+   268→  }
+   269→
+   270→  /// Toggles bold text on/off.
+   271→  void toggleBoldText() {
+   272→    state = state.copyWith(isBoldText: !state.isBoldText);
+   273→    _persist();
+   274→    AppLogger.info('Bold text: ${state.isBoldText}');
+   275→  }
+   276→
+   277→  /// Toggles reduce-motion on/off.
+   278→  void toggleReduceMotion() {
+   279→    state = state.copyWith(isReduceMotion: !state.isReduceMotion);
+   280→    _persist();
+   281→    AppLogger.info('Reduce motion: ${state.isReduceMotion}');
+   282→  }
+   283→
+   284→  /// Resets all settings to their defaults.
+   285→  void resetToDefaults() {
+   286→    state = const AccessibilitySettings();
+   287→    _persist();
+   288→    AppLogger.info('Accessibility settings reset to defaults');
+   289→  }
+   290→
+   291→  /// Reads the platform's accessibility flags via [MediaQueryData] and
+   292→  /// merges them into the current state.
+   293→  ///
+   294→  /// Call this from a widget that has a [MediaQuery] ancestor, e.g.:
+   295→  /// ```dart
+   296→  /// ref.read(accessibilitySettingsProvider.notifier).detectSystemSettings(
+   297→  ///   MediaQuery.of(context),
+   298→  /// );
+   299→  /// ```
+   300→  void detectSystemSettings(MediaQueryData mediaQuery) {
+   301→    state = state.copyWith(
+   302→      isHighContrast: mediaQuery.highContrast,
+   303→      isBoldText: mediaQuery.boldText,
+   304→      isReduceMotion: mediaQuery.disableAnimations,
+   305→      textScaleFactor: mediaQuery.textScaleFactor.clamp(0.8, 2.0),
+   306→    );
+   307→    _persist();
+   308→    AppLogger.info('System accessibility settings detected');
+   309→  }
+   310→
+   311→  // ─── Persistence ───────────────────────────────────────────────────────
+   312→
+   313→  Future<void> _loadFromPrefs() async {
+   314→    try {
+   315→      final prefs = await SharedPreferences.getInstance();
+   316→      final raw = prefs.getString(_prefsKey);
+   317→      if (raw != null) {
+   318→        final json = jsonDecode(raw) as Map<String, dynamic>;
+   319→        state = AccessibilitySettings.fromJson(json);
+   320→        AppLogger.info('Accessibility settings loaded from prefs');
+   321→      }
+   322→    } catch (e, st) {
+   323→      AppLogger.error('Failed to load accessibility settings', error: e, stackTrace: st);
+   324→    }
+   325→  }
+   326→
+   327→  Future<void> _persist() async {
+   328→    try {
+   329→      final prefs = await SharedPreferences.getInstance();
+   330→      await prefs.setString(_prefsKey, jsonEncode(state.toJson()));
+   331→    } catch (e, st) {
+   332→      AppLogger.error('Failed to persist accessibility settings', error: e, stackTrace: st);
+   333→    }
+   334→  }
+   335→}
+   336→
+   337→// ═══════════════════════════════════════════════════════════════════════════════
+   338→// Providers
+   339→// ═══════════════════════════════════════════════════════════════════════════════
+   340→
+   341→/// Main provider for accessibility settings state.
+   342→final accessibilitySettingsProvider =
+   343→    StateNotifierProvider<AccessibilityNotifier, AccessibilitySettings>(
+   344→  (ref) => AccessibilityNotifier(),
+   345→);
+   346→
+   347→/// Derived provider that exposes just the current text scale factor.
+   348→final textScaleFactorProvider = Provider<double>((ref) {
+   349→  return ref.watch(accessibilitySettingsProvider).textScaleFactor;
+   350→});
+   351→
+   352→/// Derived provider that exposes whether high-contrast mode is active.
+   353→final isHighContrastProvider = Provider<bool>((ref) {
+   354→  return ref.watch(accessibilitySettingsProvider).isHighContrast;
+   355→});
+   356→
+   357→/// Derived provider that exposes the current colorblind mode.
+   358→final colorblindModeProvider = Provider<ColorblindMode>((ref) {
+   359→  return ref.watch(accessibilitySettingsProvider).colorblindMode;
+   360→});
+   361→
+   362→/// Derived provider that exposes whether a screen reader is active.
+   363→final isScreenReaderEnabledProvider = Provider<bool>((ref) {
+   364→  return ref.watch(accessibilitySettingsProvider).isScreenReaderEnabled;
+   365→});
+   366→
+   367→// ═══════════════════════════════════════════════════════════════════════════════
+   368→// AccessibleText
+   369→// ═══════════════════════════════════════════════════════════════════════════════
+   370→
+   371→/// A drop-in replacement for [Text] that automatically respects
+   372→/// [AccessibilitySettings].
+   373→///
+   374→/// - Applies [textScaleFactor] from settings.
+   375→/// - Switches to [FontWeight.bold] when [isBoldText] is true.
+   376→/// - Attaches a [Semantics] label for screen readers.
+   377→/// - Enforces a minimum contrast ratio (4.5:1) when high-contrast is on.
+   378→///
+   379→/// ```dart
+   380→/// AccessibleText(
+   381→///   'Hello, ExamForge!',
+   382→///   style: TextStyle(fontSize: 16),
+   383→///   semanticLabel: 'Greeting message',
+   384→/// )
+   385→/// ```
+   386→class AccessibleText extends StatelessWidget {
+   387→  /// The text to display.
+   388→  final String data;
+   389→
+   390→  /// Optional style. [fontWeight] and [fontSize] may be overridden by
+   391→  /// accessibility settings.
+   392→  final TextStyle? style;
+   393→
+   394→  /// How the text should be aligned horizontally.
+   395→  final TextAlign? textAlign;
+   396→
+   397→  /// Maximum number of lines.
+   398→  final int? maxLines;
+   399→
+   400→  /// How overflow should be handled.
+   401→  final TextOverflow? overflow;
+   402→
+   403→  /// Semantic label read by screen readers. Falls back to [data].
+   404→  final String? semanticLabel;
+   405→
+   406→  /// Whether this text should be treated as a semantic header.
+   407→  final bool isHeader;
+   408→
+   409→  const AccessibleText(
+   410→    this.data, {
+   411→    super.key,
+   412→    this.style,
+   413→    this.textAlign,
+   414→    this.maxLines,
+   415→    this.overflow,
+   416→    this.semanticLabel,
+   417→    this.isHeader = false,
+   418→  });
+   419→
+   420→  @override
+   421→  Widget build(BuildContext context) {
+   422→    final settings = _watchSettings(context);
+   423→    final effectiveStyle = _resolveStyle(context, settings);
+   424→
+   425→    Widget textWidget = Text(
+   426→      data,
+   427→      style: effectiveStyle,
+   428→      textAlign: textAlign,
+   429→      maxLines: maxLines,
+   430→      overflow: overflow,
+   431→      textScaler: TextScaler.linear(settings.textScaleFactor),
+   432→    );
+   433→
+   434→    if (semanticLabel != null || isHeader) {
+   435→      textWidget = Semantics(
+   436→        label: semanticLabel ?? data,
+   437→        header: isHeader,
+   438→        child: textWidget,
+   439→      );
+   440→    }
+   441→
+   442→    return textWidget;
+   443→  }
+   444→
+   445→  TextStyle _resolveStyle(BuildContext context, AccessibilitySettings settings) {
+   446→    var effective = style ?? DefaultTextStyle.of(context).style;
+   447→
+   448→    // Apply bold text override
+   449→    if (settings.isBoldText && effective.fontWeight != FontWeight.bold) {
+   450→      effective = effective.copyWith(fontWeight: FontWeight.bold);
+   451→    }
+   452→
+   453→    // Enforce high contrast: ensure text is dark/light enough
+   454→    if (settings.isHighContrast) {
+   455→      final brightness = Theme.of(context).brightness;
+   456→      final highContrastColor =
+   457→          brightness == Brightness.dark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+   458→      effective = effective.copyWith(color: highContrastColor);
+   459→    }
+   460→
+   461→    return effective;
+   462→  }
+   463→
+   464→  /// Convenience: read accessibility settings from context via ProviderScope.
+   465→  AccessibilitySettings _watchSettings(BuildContext context) {
+   466→    // Try Riverpod first; fall back to defaults.
+   467→    try {
+   468→      final container = ProviderScope.containerOf(context);
+   469→      return container.read(accessibilitySettingsProvider);
+   470→    } catch (_) {
+   471→      return const AccessibilitySettings();
+   472→    }
+   473→  }
+   474→}
+   475→
+   476→// ═══════════════════════════════════════════════════════════════════════════════
+   477→// AccessibleButton
+   478→// ═══════════════════════════════════════════════════════════════════════════════
+   479→
+   480→/// A Material 3 button that enforces accessibility best practices:
+   481→///
+   482→/// - **Minimum touch target**: 48 x 48 dp (WCAG 2.5.5)
+   483→/// - **Semantic label** for screen readers
+   484→/// - **High-contrast border** when [isHighContrast] is enabled
+   485→/// - **Focus indicator** for keyboard navigation
+   486→///
+   487→/// ```dart
+   488→/// AccessibleButton(
+   489→///   label: 'Submit',
+   490→///   semanticLabel: 'Submit exam answers',
+   491→///   onPressed: () => handleSubmit(),
+   492→///   icon: Icons.send,
+   493→/// )
+   494→/// ```
+   495→class AccessibleButton extends StatelessWidget {
+   496→  /// The button label.
+   497→  final String label;
+   498→
+   499→  /// Semantic label for screen readers. Falls back to [label].
+   500→  final String? semanticLabel;
+   501→
+   502→  /// Callback when pressed. If `null`, the button is disabled.
+   503→  final VoidCallback? onPressed;
+   504→
+   505→  /// Optional leading icon.
+   506→  final IconData? icon;
+   507→
+   508→  /// Whether this is a filled (primary) button. Defaults to true.
+   509→  final bool isFilled;
+   510→
+   511→  /// Minimum touch target dimension in logical pixels.
+   512→  final double minTouchTarget;
+   513→
+   514→  const AccessibleButton({
+   515→    super.key,
+   516→    required this.label,
+   517→    this.semanticLabel,
+   518→    this.onPressed,
+   519→    this.icon,
+   520→    this.isFilled = true,
+   521→    this.minTouchTarget = 48.0,
+   522→  });
+   523→
+   524→  @override
+   525→  Widget build(BuildContext context) {
+   526→    final settings = _watchSettings(context);
+   527→    final theme = Theme.of(context);
+   528→    final colorScheme = theme.colorScheme;
+   529→
+   530→    // Determine border for high-contrast mode
+   531→    OutlinedBorder? shape;
+   532→    if (settings.isHighContrast) {
+   533→      shape = RoundedRectangleBorder(
+   534→        borderRadius: Spacings.borderRadiusMd,
+   535→        side: BorderSide(
+   536→          color: colorScheme.onSurface,
+   537→          width: 2.0,
+   538→        ),
+   539→      );
+   540→    }
+   541→
+   542→    // Build the appropriate button type
+   543→    Widget button;
+   544→    if (icon != null) {
+   545→      if (isFilled) {
+   546→        button = FilledButton.icon(
+   547→          onPressed: onPressed,
+   548→          icon: Icon(icon),
+   549→          label: Text(label),
+   550→          style: _buildButtonStyle(colorScheme, shape),
+   551→        );
+   552→      } else {
+   553→        button = OutlinedButton.icon(
+   554→          onPressed: onPressed,
+   555→          icon: Icon(icon),
+   556→          label: Text(label),
+   557→          style: _buildOutlinedButtonStyle(colorScheme, shape),
+   558→        );
+   559→      }
+   560→    } else {
+   561→      if (isFilled) {
+   562→        button = FilledButton(
+   563→          onPressed: onPressed,
+   564→          style: _buildButtonStyle(colorScheme, shape),
+   565→          child: Text(label),
+   566→        );
+   567→      } else {
+   568→        button = OutlinedButton(
+   569→          onPressed: onPressed,
+   570→          style: _buildOutlinedButtonStyle(colorScheme, shape),
+   571→          child: Text(label),
+   572→        );
+   573→      }
+   574→    }
+   575→
+   576→    // Enforce minimum touch target
+   577→    button = ConstrainedBox(
+   578→      constraints: BoxConstraints(
+   579→        minHeight: minTouchTarget,
+   580→        minWidth: minTouchTarget,
+   581→      ),
+   582→      child: button,
+   583→    );
+   584→
+   585→    // Wrap with semantics
+   586→    return Semantics(
+   587→      label: semanticLabel ?? label,
+   588→      button: true,
+   589→      enabled: onPressed != null,
+   590→      child: Focus(
+   591→        debugLabel: 'AccessibleButton: $label',
+   592→        child: button,
+   593→      ),
+   594→    );
+   595→  }
+   596→
+   597→  ButtonStyle _buildButtonStyle(
+   598→    ColorScheme colorScheme,
+   599→    OutlinedBorder? highContrastShape,
+   600→  ) {
+   601→    return FilledButton.styleFrom(
+   602→      shape: highContrastShape ??
+   603→          const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   604→    );
+   605→  }
+   606→
+   607→  ButtonStyle _buildOutlinedButtonStyle(
+   608→    ColorScheme colorScheme,
+   609→    OutlinedBorder? highContrastShape,
+   610→  ) {
+   611→    return OutlinedButton.styleFrom(
+   612→      shape: highContrastShape ??
+   613→          const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+   614→      side: highContrastShape != null
+   615→          ? const BorderSide(color: Color(0xFF000000), width: 2.0)
+   616→          : null,
+   617→    );
+   618→  }
+   619→
+   620→  AccessibilitySettings _watchSettings(BuildContext context) {
+   621→    try {
+   622→      final container = ProviderScope.containerOf(context);
+   623→      return container.read(accessibilitySettingsProvider);
+   624→    } catch (_) {
+   625→      return const AccessibilitySettings();
+   626→    }
+   627→  }
+   628→}
+   629→
+   630→// ═══════════════════════════════════════════════════════════════════════════════
+   631→// AccessibleImage
+   632→// ═══════════════════════════════════════════════════════════════════════════════
+   633→
+   634→/// An image widget with built-in accessibility support.
+   635→///
+   636→/// - [semanticLabel] is **always required** – every image must be described.
+   637→/// - When a [colorblindMode] is active, the corresponding [ColorFilter]
+   638→///   is applied automatically.
+   639→/// - An optional [highContrastChild] can replace the default image when
+   640→///   high-contrast mode is enabled.
+   641→///
+   642→/// ```dart
+   643→/// AccessibleImage(
+   644→///   semanticLabel: 'Chart showing student performance over time',
+   645→///   image: Image.asset('assets/chart.png'),
+   646→///   highContrastImage: Image.asset('assets/chart_hc.png'),
+   647→/// )
+   648→/// ```
+   649→class AccessibleImage extends StatelessWidget {
+   650→  /// The primary image widget.
+   651→  final Widget image;
+   652→
+   653→  /// **Required** semantic description for screen readers.
+   654→  final String semanticLabel;
+   655→
+   656→  /// Optional high-contrast variant of the image.
+   657→  final Widget? highContrastImage;
+   658→
+   659→  /// Optional width constraint.
+   660→  final double? width;
+   661→
+   662→  /// Optional height constraint.
+   663→  final double? height;
+   664→
+   665→  /// Optional fit mode.
+   666→  final BoxFit? fit;
+   667→
+   668→  const AccessibleImage({
+   669→    super.key,
+   670→    required this.image,
+   671→    required this.semanticLabel,
+   672→    this.highContrastImage,
+   673→    this.width,
+   674→    this.height,
+   675→    this.fit,
+   676→  });
+   677→
+   678→  @override
+   679→  Widget build(BuildContext context) {
+   680→    final settings = _watchSettings(context);
+   681→    final effectiveImage = settings.isHighContrast && highContrastImage != null
+   682→        ? highContrastImage!
+   683→        : image;
+   684→
+   685→    Widget result = effectiveImage;
+   686→
+   687→    // Apply colorblind filter
+   688→    final filter = settings.colorblindMode.colorFilter;
+   689→    if (filter != null) {
+   690→      result = ColorFiltered(
+   691→        colorFilter: filter,
+   692→        child: result,
+   693→      );
+   694→    }
+   695→
+   696→    // Apply size constraints
+   697→    if (width != null || height != null) {
+   698→      result = SizedBox(
+   699→        width: width,
+   700→        height: height,
+   701→        child: result,
+   702→      );
+   703→    }
+   704→
+   705→    // Wrap with semantics
+   706→    return Semantics(
+   707→      label: semanticLabel,
+   708→      image: true,
+   709→      child: result,
+   710→    );
+   711→  }
+   712→
+   713→  AccessibilitySettings _watchSettings(BuildContext context) {
+   714→    try {
+   715→      final container = ProviderScope.containerOf(context);
+   716→      return container.read(accessibilitySettingsProvider);
+   717→    } catch (_) {
+   718→      return const AccessibilitySettings();
+   719→    }
+   720→  }
+   721→}
+   722→
+   723→// ═══════════════════════════════════════════════════════════════════════════════
+   724→// HighContrastTheme
+   725→// ═══════════════════════════════════════════════════════════════════════════════
+   726→
+   727→/// Generates high-contrast Material 3 theme overrides.
+   728→///
+   729→/// When [AccessibilitySettings.isHighContrast] is `true`, use this class
+   730→/// to produce a [ThemeData] that:
+   731→/// - Forces black/white text with no subtle alpha values
+   732→/// - Strengthens borders and dividers
+   733→/// - Removes subtle / translucent backgrounds
+   734→/// - Increases button contrast
+   735→///
+   736→/// ```dart
+   737→/// final theme = isHighContrast
+   738→///     ? HighContrastTheme.buildHighContrastTheme(baseTheme)
+   739→///     : baseTheme;
+   740→/// ```
+   741→class HighContrastTheme {
+   742→  HighContrastTheme._();
+   743→
+   744→  /// Builds a high-contrast variant of [baseTheme].
+   745→  static ThemeData buildHighContrastTheme(ThemeData baseTheme) {
+   746→    final isDark = baseTheme.brightness == Brightness.dark;
+   747→    final onSurface = isDark ? const Color(0xFFFFFFFF) : const Color(0xFF000000);
+   748→    final surface = isDark ? const Color(0xFF000000) : const Color(0xFFFFFFFF);
+   749→    final primary = isDark ? const Color(0xFFBB86FC) : const Color(0xFF4F46E5);
+   750→
+   751→    // Base color scheme with maximum contrast
+   752→    final highContrastScheme = ColorScheme(
+   753→      brightness: baseTheme.brightness,
+   754→      primary: primary,
+   755→      onPrimary: surface,
+   756→      secondary: primary,
+   757→      onSecondary: surface,
+   758→      error: isDark ? const Color(0xFFFF6B6B) : const Color(0xFFCC0000),
+   759→      onError: surface,
+   760→      surface: surface,
+   761→      onSurface: onSurface,
+   762→      surfaceContainerHighest: isDark
+   763→          ? const Color(0xFF1A1A1A)
+   764→          : const Color(0xFFF5F5F5),
+   765→      outline: onSurface,
+   766→      outlineVariant: onSurface,
+   767→    );
+   768→
+   769→    return baseTheme.copyWith(
+   770→      colorScheme: highContrastScheme,
+   771→      textTheme: baseTheme.textTheme.apply(
+   772→        bodyColor: onSurface,
+   773→        displayColor: onSurface,
+   774→        decorationColor: onSurface,
+   775→      ),
+   776→      dividerColor: onSurface,
+   777→      dividerTheme: const DividerThemeData(
+   778→        thickness: 2.0,
+   779→        space: 2.0,
+   780→      ),
+   781→      cardTheme: CardThemeData(
+   782→        elevation: 0,
+   783→        shape: RoundedRectangleBorder(
+   784→          borderRadius: Spacings.borderRadiusMd,
+   785→          side: BorderSide(color: onSurface, width: 2.0),
+   786→        ),
+   787→      ),
+   788→      elevatedButtonTheme: ElevatedButtonThemeData(
+   789→        style: ElevatedButton.styleFrom(
+   790→          foregroundColor: surface,
+   791→          backgroundColor: primary,
+   792→          side: BorderSide(color: onSurface, width: 2.0),
+   793→          shape: const RoundedRectangleBorder(
+   794→            borderRadius: Spacings.borderRadiusMd,
+   795→          ),
+   796→        ),
+   797→      ),
+   798→      outlinedButtonTheme: OutlinedButtonThemeData(
+   799→        style: OutlinedButton.styleFrom(
+   800→          foregroundColor: onSurface,
+   801→          side: BorderSide(color: onSurface, width: 2.0),
+   802→          shape: const RoundedRectangleBorder(
+   803→            borderRadius: Spacings.borderRadiusMd,
+   804→          ),
+   805→        ),
+   806→      ),
+   807→      inputDecorationTheme: InputDecorationTheme(
+   808→        border: OutlineInputBorder(
+   809→          borderRadius: Spacings.borderRadiusMd,
+   810→          borderSide: BorderSide(color: onSurface, width: 2.0),
+   811→        ),
+   812→        focusedBorder: OutlineInputBorder(
+   813→          borderRadius: Spacings.borderRadiusMd,
+   814→          borderSide: BorderSide(color: primary, width: 3.0),
+   815→        ),
+   816→        labelStyle: TextStyle(color: onSurface),
+   817→      ),
+   818→      scaffoldBackgroundColor: surface,
+   819→      appBarTheme: AppBarTheme(
+   820→        backgroundColor: surface,
+   821→        foregroundColor: onSurface,
+   822→        elevation: 0,
+   823→        shadowColor: null,
+   824→      ),
+   825→    );
+   826→  }
+   827→}
+   828→
+   829→// ═══════════════════════════════════════════════════════════════════════════════
+   830→// ScreenReaderHelper
+   831→// ═══════════════════════════════════════════════════════════════════════════════
+   832→
+   833→/// Utility class for screen reader announcements, tooltips, and ARIA-like
+   834→/// live regions.
+   835→///
+   836→/// ```dart
+   837→/// ScreenReaderHelper.announce('Exam submitted successfully');
+   838→/// ScreenReaderHelper.buildTooltip('Close', IconButton(...));
+   839→/// ```
+   840→class ScreenReaderHelper {
+   841→  ScreenReaderHelper._();
+   842→
+   843→  /// Announces [message] to assistive technologies via [SemanticsService].
+   844→  ///
+   845→  /// Use this for important state changes that are not reflected by
+   846→  /// widget rebuilds (e.g. async operation completion, errors).
+   847→  static void announce(String message) {
+   848→    SemanticsService.announce(message, TextDirection.ltr);
+   849→    AppLogger.debug('Screen reader announcement: $message');
+   850→  }
+   851→
+   852→  /// Wraps [child] in a [Semantics] widget that provides a tooltip.
+   853→  ///
+   854→  /// Screen readers will read the tooltip when the child receives focus.
+   855→  static Widget buildTooltip(String message, Widget child) {
+   856→    return Semantics(
+   857→      tooltip: message,
+   858→      child: child,
+   859→    );
+   860→  }
+   861→
+   862→  /// Wraps [child] in an ARIA-like live region.
+   863→  ///
+   864→  /// When [assertive] is [LiveRegion.assertive], the screen reader
+   865→  /// interrupts the current announcement. When [LiveRegion.polite]
+   866→  /// (default), it waits for a pause.
+   867→  static Widget buildLiveRegion(
+   868→    Widget child, {
+   869→    LiveRegion assertive = LiveRegion.polite,
+   870→  }) {
+   871→    return Semantics(
+   872→      liveRegion: assertive == LiveRegion.assertive,
+   873→      child: child,
+   874→    );
+   875→  }
+   876→}
+   877→
+   878→/// Enum mirroring ARIA live region politeness settings.
+   879→enum LiveRegion {
+   880→  /// The screen reader will announce changes after the current task.
+   881→  polite,
+   882→
+   883→  /// The screen reader will interrupt the current task to announce changes.
+   884→  assertive,
+   885→}
+   886→
+   887→// ═══════════════════════════════════════════════════════════════════════════════
+   888→// FocusTraversalHelper
+   889→// ═══════════════════════════════════════════════════════════════════════════════
+   890→
+   891→/// Keyboard navigation helpers for focus traversal and shortcut actions.
+   892→///
+   893→/// These utilities ensure keyboard-only users can navigate and activate
+   894→/// controls efficiently.
+   895→///
+   896→/// ```dart
+   897→/// FocusTraversalHelper.buildTabbableOrder([
+   898→///   TextField(...),
+   899→///   AccessibleButton(...),
+   900→/// ])
+   901→/// ```
+   902→class FocusTraversalHelper {
+   903→  FocusTraversalHelper._();
+   904→
+   905→  /// Assigns explicit tab order to a list of children.
+   906→  ///
+   907→  /// Each child is wrapped in a [FocusTraversalGroup] with an
+   908→  /// [OrderedTraversalPolicy] and a unique [FocusTraversalOrder]
+   909→  /// derived from its index.
+   910→  static List<Widget> buildTabbableOrder(List<Widget> children) {
+   911→    return List<Widget>.generate(children.length, (index) {
+   912→      return FocusTraversalOrder(
+   913→        order: NumericFocusOrder(index.toDouble()),
+   914→        child: children[index],
+   915→      );
+   916→    });
+   917→  }
+   918→
+   919→  /// Wraps [child] in a [Shortcuts] + [Actions] widget that fires
+   920→  /// [action] when [trigger] key is pressed.
+   921→  ///
+   922→  /// ```dart
+   923→  /// FocusTraversalHelper.buildShortcutAction(
+   924→  ///   trigger: LogicalKeyboardKey.enter,
+   925→  ///   action: () => submitForm(),
+   926→  ///   child: TextField(...),
+   927→  /// )
+   928→  /// ```
+   929→  static Widget buildShortcutAction({
+   930→    required LogicalKeyboardKey trigger,
+   931→    required VoidCallback action,
+   932→    required Widget child,
+   933→  }) {
+   934→    return Shortcuts(
+   935→      shortcuts: <LogicalKeySet, Intent>{
+   936→        LogicalKeySet(trigger): _CallbackIntent(action),
+   937→      },
+   938→      child: Actions(
+   939→        actions: <Type, Action<Intent>>{
+   940→          _CallbackIntent: _CallbackAction(),
+   941→        },
+   942→        child: child,
+   943→      ),
+   944→    );
+   945→  }
+   946→}
+   947→
+   948→// ─── Private: Callback Intent / Action ────────────────────────────────────
+   949→
+   950→class _CallbackIntent extends Intent {
+   951→  const _CallbackIntent(this.callback);
+   952→  final VoidCallback callback;
+   953→}
+   954→
+   955→class _CallbackAction extends Action<_CallbackIntent> {
+   956→  @override
+   957→  Object? invoke(_CallbackIntent intent) {
+   958→    intent.callback();
+   959→    return null;
+   960→  }
+   961→}
+   962→

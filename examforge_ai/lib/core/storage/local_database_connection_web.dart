@@ -1,4 +1,5 @@
 /// Web platform database connection using Drift's WebDatabase.
+library;
 import 'package:drift/drift.dart';
 import 'package:drift/web.dart';
 

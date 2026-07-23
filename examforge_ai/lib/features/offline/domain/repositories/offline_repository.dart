@@ -1,6 +1,5 @@
 import '../../../../core/utils/result.dart';
 import '../entities/offline_entities.dart';
-import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 
 /// Abstract contract for the offline repository.

@@ -1,7 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
-import '../../../../core/utils/logger.dart';
 import '../../domain/entities/super_admin_entities.dart';
 import '../../domain/usecases/super_admin_usecases.dart';
 
@@ -242,7 +241,7 @@ class SchoolManagementNotifier extends StateNotifier<SchoolManagementState> {
     final result = await _getSchoolsUseCase(GetSchoolsParams(
       isActive: isActive, isVerified: isVerified, search: search,
       subscriptionStatus: subscriptionStatus, limit: limit, offset: offset,
-    ));
+    ),);
     result.fold(
       onSuccess: (schools) => state = state.copyWith(isLoading: false, schools: schools),
       onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
@@ -521,7 +520,7 @@ class AIManagementNotifier extends StateNotifier<AIManagementState> {
   Future<void> loadRequestLogs({String? providerId, DateTime? startDate, DateTime? endDate, int limit = 50}) async {
     final result = await _getRequestLogsUseCase(GetAIRequestLogsParams(
       providerId: providerId, startDate: startDate, endDate: endDate, limit: limit,
-    ));
+    ),);
     result.fold(
       onSuccess: (logs) => state = state.copyWith(requestLogs: logs),
       onFailure: (f) => state = state.copyWith(error: _mapFailure(f)),
@@ -680,7 +679,7 @@ class IntelligenceNotifier extends StateNotifier<IntelligenceState> {
     state = state.copyWith(isLoading: true, error: null);
     final result = await _getAlertsUseCase(GetIntelligenceAlertsParams(
       alertType: type, severity: severity, unresolvedOnly: unresolvedOnly,
-    ));
+    ),);
     result.fold(
       onSuccess: (alerts) => state = state.copyWith(isLoading: false, alerts: alerts),
       onFailure: (f) => state = state.copyWith(isLoading: false, error: _mapFailure(f)),
@@ -935,7 +934,7 @@ class AdminNotificationNotifier extends StateNotifier<AdminNotificationState> {
         server: (m, _, __) => m, cache: (m) => m, auth: (m, _) => m,
         network: (m) => m, validation: (m, _) => m, notFound: (m) => m,
         unauthorized: (m) => m, forbidden: (m) => m,
-      )),
+      ),),
     );
   }
 
@@ -1044,13 +1043,13 @@ class InfrastructureMonitoringNotifier
   Future<void> runHealthCheck({String? serviceId}) async {
     state = state.copyWith(runningHealthCheckFor: serviceId ?? '__all__');
     final result = await _runHealthCheckUseCase(
-        RunHealthCheckParams(serviceId: serviceId));
+        RunHealthCheckParams(serviceId: serviceId),);
     state = state.copyWith(runningHealthCheckFor: null);
     result.fold(
       onSuccess: (_) {
         state = state.copyWith(successMessage: serviceId != null
             ? 'Health check completed'
-            : 'All health checks completed');
+            : 'All health checks completed',);
         // Refresh services after health check
         loadServices();
       },
@@ -1060,7 +1059,7 @@ class InfrastructureMonitoringNotifier
 
   Future<void> createMaintenanceWindow(MaintenanceWindow window) async {
     final result = await _createMaintenanceWindowUseCase(
-        CreateMaintenanceWindowParams(window: window));
+        CreateMaintenanceWindowParams(window: window),);
     result.fold(
       onSuccess: (newWindow) => state = state.copyWith(
         maintenanceWindows: [newWindow, ...state.maintenanceWindows],
@@ -1072,13 +1071,13 @@ class InfrastructureMonitoringNotifier
 
   Future<void> cancelMaintenanceWindow(String windowId) async {
     final result = await _cancelMaintenanceWindowUseCase(
-        CancelMaintenanceWindowParams(windowId: windowId));
+        CancelMaintenanceWindowParams(windowId: windowId),);
     result.fold(
       onSuccess: (_) {
         final updated = state.maintenanceWindows
             .map((w) => w.id == windowId
                 ? w.copyWith(status: MaintenanceStatus.cancelled)
-                : w)
+                : w,)
             .toList();
         state = state.copyWith(
           maintenanceWindows: updated,
@@ -1254,7 +1253,7 @@ class MarketplaceManagementNotifier extends StateNotifier<MarketplaceManagementS
   Future<void> loadPendingContent() async {
     state = state.copyWith(isLoading: true, error: null);
     final result = await _getContentUseCase(
-      GetMarketplaceContentParams(status: MarketplaceStatus.pendingReview, limit: 100),
+      const GetMarketplaceContentParams(status: MarketplaceStatus.pendingReview, limit: 100),
     );
     result.fold(
       onSuccess: (content) => state = state.copyWith(isLoading: false, pendingContent: content),

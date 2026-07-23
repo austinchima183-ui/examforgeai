@@ -2,17 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../providers/content_assistant_provider.dart';
 import '../widgets/generate_questions_button.dart';
@@ -132,7 +130,7 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
     final state = ref.watch(contentAssistantProvider);
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'AI Content Assistant',
       ),
       body: state.isLoadingHistory && state.history.isEmpty
@@ -225,7 +223,7 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
 
-    final actions = ContentAction.values;
+    const actions = ContentAction.values;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -284,27 +282,27 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
   // ─── Generating Shimmer ──────────────────────────────────────────────
 
   Widget _buildGeneratingShimmer() {
-    return AppCard(
+    return const AppCard(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              const AppLoadingShimmer.box(width: 100, height: 20),
-              const Spacer(),
-              const AppLoadingShimmer.box(width: 80, height: 20),
+              AppLoadingShimmer.box(width: 100, height: 20),
+              Spacer(),
+              AppLoadingShimmer.box(width: 80, height: 20),
             ],
           ),
-          const SizedBox(height: Spacings.md),
-          const AppLoadingShimmer.box(width: double.infinity, height: 14),
-          const SizedBox(height: Spacings.sm),
-          const AppLoadingShimmer.box(width: double.infinity, height: 14),
-          const SizedBox(height: Spacings.sm),
-          const AppLoadingShimmer.box(width: 250, height: 14),
-          const SizedBox(height: Spacings.md),
-          const AppLoadingShimmer.box(width: double.infinity, height: 14),
-          const SizedBox(height: Spacings.sm),
-          const AppLoadingShimmer.box(width: 200, height: 14),
+          SizedBox(height: Spacings.md),
+          AppLoadingShimmer.box(width: double.infinity, height: 14),
+          SizedBox(height: Spacings.sm),
+          AppLoadingShimmer.box(width: double.infinity, height: 14),
+          SizedBox(height: Spacings.sm),
+          AppLoadingShimmer.box(width: 250, height: 14),
+          SizedBox(height: Spacings.md),
+          AppLoadingShimmer.box(width: double.infinity, height: 14),
+          SizedBox(height: Spacings.sm),
+          AppLoadingShimmer.box(width: 200, height: 14),
         ],
       ),
     );
@@ -376,7 +374,7 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
                   : cs.surfaceContainerLow,
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: SelectableText(
@@ -475,7 +473,7 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: _actionColor(entry.actionType).withOpacity(isDark ? 0.20 : 0.10,
+                        color: _actionColor(entry.actionType).withValues(alpha: isDark ? 0.20 : 0.10,
                         ),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
@@ -536,7 +534,7 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
                   ],
                 ),
               ),
-            )),
+            ),),
       ],
     );
   }
@@ -547,17 +545,17 @@ class _ContentAssistantPageState extends ConsumerState<ContentAssistantPage> {
     return ListView.builder(
       padding: Spacings.paddingScreen,
       itemCount: 4,
-      itemBuilder: (_, __) => Padding(
-        padding: const EdgeInsets.only(bottom: Spacings.md),
+      itemBuilder: (_, __) => const Padding(
+        padding: EdgeInsets.only(bottom: Spacings.md),
         child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const AppLoadingShimmer.box(width: 120, height: 20),
-              const SizedBox(height: Spacings.md),
-              const AppLoadingShimmer.box(width: double.infinity, height: 14),
-              const SizedBox(height: Spacings.sm),
-              const AppLoadingShimmer.box(width: 200, height: 14),
+              AppLoadingShimmer.box(width: 120, height: 20),
+              SizedBox(height: Spacings.md),
+              AppLoadingShimmer.box(width: double.infinity, height: 14),
+              SizedBox(height: Spacings.sm),
+              AppLoadingShimmer.box(width: 200, height: 14),
             ],
           ),
         ),

@@ -2,7 +2,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../../../core/errors/failures.dart';
-import '../../../../core/utils/logger.dart';
 import '../../data/datasources/admission_hub_remote_datasource.dart';
 import '../../data/repositories/admission_hub_repository_impl.dart';
 import '../../domain/entities/admission_hub_entities.dart';
@@ -396,7 +395,7 @@ class AdmissionHubNotifier extends StateNotifier<AdmissionHubState> {
     state = state.copyWith(isLoadingChecklist: true, error: null);
 
     final result = await _getAdmissionChecklist(
-      userId: _userId!,
+      userId: _userId,
       universityId: universityId,
       departmentId: departmentId,
     );
@@ -461,7 +460,7 @@ class AdmissionHubNotifier extends StateNotifier<AdmissionHubState> {
     state = state.copyWith(isCreatingApplication: true, error: null);
 
     final result = await _createAdmissionApplication(
-      userId: _userId!,
+      userId: _userId,
       universityId: universityId,
       departmentId: departmentId,
       course: course,

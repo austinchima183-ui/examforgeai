@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // EXAM TIMER WIDGET
@@ -94,15 +94,15 @@ class _ExamTimerWidgetState extends State<ExamTimerWidget>
   Color _timerBgColor(BuildContext context) {
     if (_isTimeUp) {
       return AppColors.errorOf(context.colorScheme.brightness)
-          .withOpacity(context.isDarkMode ? 0.20 : 0.10);
+          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
     }
     if (_isCritical) {
       return AppColors.errorOf(context.colorScheme.brightness)
-          .withOpacity(context.isDarkMode ? 0.20 : 0.10);
+          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
     }
     if (_isWarning) {
       return AppColors.warningOf(context.colorScheme.brightness)
-          .withOpacity(context.isDarkMode ? 0.20 : 0.10);
+          .withValues(alpha: context.isDarkMode ? 0.20 : 0.10);
     }
     return context.colorScheme.surfaceContainerHighest;
   }

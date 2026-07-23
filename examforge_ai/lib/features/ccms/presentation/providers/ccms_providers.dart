@@ -5,40 +5,37 @@
 library;
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import '../../../../../core/core.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+
 import '../../data/datasources/ccms_remote_datasource.dart';
-import '../../data/models/ccms_models.dart';
 import '../../data/repositories/ccms_repository_impl.dart';
-import '../../domain/entities/ccms_entities.dart';
 import '../../domain/repositories/ccms_repository.dart';
-import '../../domain/usecases/educational_level_usecases.dart';
-import '../../domain/usecases/curriculum_usecases.dart';
-import '../../domain/usecases/subject_usecases.dart';
-import '../../domain/usecases/topic_usecases.dart';
-import '../../domain/usecases/content_usecases.dart';
-import '../../domain/usecases/content_review_usecases.dart';
-import '../../domain/usecases/content_import_usecases.dart';
-import '../../domain/usecases/content_collection_usecases.dart';
 import '../../domain/usecases/ai_curriculum_usecases.dart';
 import '../../domain/usecases/answer_repository_usecases.dart';
+import '../../domain/usecases/content_collection_usecases.dart';
+import '../../domain/usecases/content_import_usecases.dart';
+import '../../domain/usecases/content_review_usecases.dart';
+import '../../domain/usecases/content_usecases.dart';
+import '../../domain/usecases/curriculum_usecases.dart';
+import '../../domain/usecases/deployment_usecases.dart';
+import '../../domain/usecases/educational_level_usecases.dart';
 import '../../domain/usecases/enterprise_security_usecases.dart';
 import '../../domain/usecases/monitoring_usecases.dart';
-import '../../domain/usecases/deployment_usecases.dart';
-import 'educational_level_provider.dart';
-import 'curriculum_provider.dart';
-import 'subject_provider.dart';
-import 'topic_provider.dart';
-import 'content_provider.dart';
-import 'content_review_provider.dart';
-import 'content_import_provider.dart';
-import 'content_collection_provider.dart';
+import '../../domain/usecases/subject_usecases.dart';
+import '../../domain/usecases/topic_usecases.dart';
 import 'ai_curriculum_provider.dart';
 import 'answer_repository_provider.dart';
+import 'content_collection_provider.dart';
+import 'content_import_provider.dart';
+import 'content_provider.dart';
+import 'content_review_provider.dart';
+import 'curriculum_provider.dart';
+import 'deployment_provider.dart';
+import 'educational_level_provider.dart';
 import 'enterprise_provider.dart';
 import 'monitoring_provider.dart';
-import 'deployment_provider.dart';
+import 'subject_provider.dart';
+import 'topic_provider.dart';
 
 // ─── Repository Provider ────────────────────────────────────────────────────
 

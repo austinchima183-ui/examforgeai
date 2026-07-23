@@ -138,9 +138,7 @@ class SessionRecoveryService {
 
   /// Ensure prefs are available.
   Future<SharedPreferences> _getPrefs() async {
-    if (_prefs == null) {
-      _prefs = await SharedPreferences.getInstance();
-    }
+    _prefs ??= await SharedPreferences.getInstance();
     return _prefs!;
   }
 

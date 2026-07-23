@@ -326,7 +326,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
       final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
       final offset = (page - 1) * perPage;
 
-      var transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
+      final transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
 
       final response = await transformQuery;
 
@@ -604,7 +604,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
           .map((studentId) => {
                 'exam_id': examId,
                 'student_id': studentId,
-              })
+              },)
           .toList();
 
       await _supabaseClient.from(_examStudentsTable).insert(rows);
@@ -768,7 +768,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
       // Handle server-rejected late submissions
       final msg = e.message;
       if (msg.contains('time_exceeded') || msg.contains('time limit')) {
-        throw ValidationException(
+        throw const ValidationException(
           message: 'Submission rejected: exam time has exceeded',
           fieldErrors: {
             'time_exceeded': 'The exam time limit has been exceeded. '
@@ -912,7 +912,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
       final isWithinTime = timingResult?['is_within_time'] as bool? ?? false;
 
       if (!isWithinTime) {
-        throw ValidationException(
+        throw const ValidationException(
           message: 'Cannot save answer: exam time has exceeded',
           fieldErrors: {
             'time_exceeded': 'The exam time limit has been exceeded. '
@@ -1132,7 +1132,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         filterQuery = filterQuery.eq('student_id', studentId);
       }
 
-      var transformQuery = filterQuery.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
+      final transformQuery = filterQuery.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
 
       final response = await transformQuery;
 
@@ -1180,7 +1180,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         filterQuery = filterQuery.eq('is_released', isReleased);
       }
 
-      var transformQuery = filterQuery.order('score_percentage', ascending: false).limit(limit).range(offset, offset + limit - 1);
+      final transformQuery = filterQuery.order('score_percentage', ascending: false).limit(limit).range(offset, offset + limit - 1);
 
       final response = await transformQuery;
 
@@ -1347,7 +1347,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
           .where((a) =>
               a['status'] == 'submitted' ||
               a['status'] == 'auto_submitted' ||
-              a['status'] == 'timed_out')
+              a['status'] == 'timed_out',)
           .length;
       final submittedStudents = completedStudents;
 
@@ -1396,7 +1396,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
       final gradedCount = results
           .where((r) =>
               r['grading_status'] == 'auto_graded' ||
-              r['grading_status'] == 'fully_graded')
+              r['grading_status'] == 'fully_graded',)
           .length;
       final gradingCompletion = results.isNotEmpty
           ? (gradedCount / results.length) * 100
@@ -1628,13 +1628,11 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         value: examId,
       ),
       callback: (sb.PostgresChangePayload payload) {
-        if (payload.newRecord != null) {
-          try {
-            final session = ExamSessionModel.fromJson(payload.newRecord!);
-            controller.add(session);
-          } catch (e) {
-            AppLogger.warning('Failed to parse session realtime event', error: e);
-          }
+        try {
+          final session = ExamSessionModel.fromJson(payload.newRecord);
+          controller.add(session);
+        } catch (e) {
+          AppLogger.warning('Failed to parse session realtime event', error: e);
         }
       },
     );
@@ -1676,13 +1674,11 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         value: examId,
       ),
       callback: (sb.PostgresChangePayload payload) {
-        if (payload.newRecord != null) {
-          try {
-            final attempt = ExamAttemptModel.fromJson(payload.newRecord!);
-            controller.add(attempt);
-          } catch (e) {
-            AppLogger.warning('Failed to parse attempt realtime event', error: e);
-          }
+        try {
+          final attempt = ExamAttemptModel.fromJson(payload.newRecord);
+          controller.add(attempt);
+        } catch (e) {
+          AppLogger.warning('Failed to parse attempt realtime event', error: e);
         }
       },
     );
@@ -1711,13 +1707,11 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         value: examId,
       ),
       callback: (sb.PostgresChangePayload payload) {
-        if (payload.newRecord != null) {
-          try {
-            final event = MonitoringLogModel.fromJson(payload.newRecord!);
-            controller.add(event);
-          } catch (e) {
-            AppLogger.warning('Failed to parse monitoring realtime event', error: e);
-          }
+        try {
+          final event = MonitoringLogModel.fromJson(payload.newRecord);
+          controller.add(event);
+        } catch (e) {
+          AppLogger.warning('Failed to parse monitoring realtime event', error: e);
         }
       },
     );

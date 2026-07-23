@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/communication_entities.dart';
 
@@ -139,7 +139,7 @@ class KnowledgeSourceCard extends StatelessWidget {
                 width: 36,
                 height: 36,
                 decoration: BoxDecoration(
-                  color: docColor.withOpacity(isDark ? 0.25 : 0.12),
+                  color: docColor.withValues(alpha: isDark ? 0.25 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Center(
@@ -187,7 +187,7 @@ class KnowledgeSourceCard extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withOpacity(0.4),
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.4),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Text(

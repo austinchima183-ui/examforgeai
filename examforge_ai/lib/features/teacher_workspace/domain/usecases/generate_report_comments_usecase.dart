@@ -29,7 +29,7 @@ class GenerateReportCommentsUseCase {
       return const FailureResult(Failure.validation(
         message: 'Class ID is required',
         fieldErrors: {'classId': 'Class ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateReportComments({
       'classId': params.classId,

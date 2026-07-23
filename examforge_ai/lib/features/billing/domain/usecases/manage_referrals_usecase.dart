@@ -26,8 +26,8 @@ class GetOrCreateReferralCodeUseCase {
     GetOrCreateReferralCodeParams params,
   ) async {
     if (params.referrerId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Referrer ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Referrer ID cannot be empty'),
       );
     }
 
@@ -59,13 +59,13 @@ class ApplyReferralCodeUseCase {
 
   Future<Result<bool>> call(ApplyReferralCodeParams params) async {
     if (params.code.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Referral code cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Referral code cannot be empty'),
       );
     }
     if (params.refereeId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Referee ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Referee ID cannot be empty'),
       );
     }
 
@@ -99,18 +99,18 @@ class GetReferralTrackingUseCase {
     GetReferralTrackingParams params,
   ) async {
     if (params.referrerId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Referrer ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Referrer ID cannot be empty'),
       );
     }
     if (params.page < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Page must be at least 1'),
       );
     }
     if (params.perPage < 1) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Per page must be at least 1'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Per page must be at least 1'),
       );
     }
 

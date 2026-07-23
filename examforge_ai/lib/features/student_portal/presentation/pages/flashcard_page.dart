@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Flashcard study interface page.
 ///
@@ -280,7 +280,7 @@ class _FlashcardPageState extends ConsumerState<FlashcardPage>
                               BorderRadius.circular(Spacings.xlRadius),
                           boxShadow: [
                             BoxShadow(
-                              color: cs.shadow.withOpacity(0.1),
+                              color: cs.shadow.withValues(alpha: 0.1),
                               blurRadius: 10,
                               offset: const Offset(0, 4),
                             ),
@@ -319,7 +319,7 @@ class _FlashcardPageState extends ConsumerState<FlashcardPage>
                                   'Hint: ${card.hint}',
                                   style: tt.bodyMedium?.copyWith(
                                     color: cs.onPrimaryContainer
-                                        .withOpacity(0.7),
+                                        .withValues(alpha: 0.7),
                                     fontStyle: FontStyle.italic,
                                   ),
                                   textAlign: TextAlign.center,
@@ -421,7 +421,7 @@ class _FlashcardPageState extends ConsumerState<FlashcardPage>
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
+              const Icon(
                 Icons.emoji_events_rounded,
                 size: 64,
                 color: AppColors.warning,
@@ -508,20 +508,20 @@ class _FlashcardPageState extends ConsumerState<FlashcardPage>
                   ),
                   const SizedBox(height: Spacings.md),
                   DropdownButtonFormField<String>(
-                    value: selectedSubject,
+                    initialValue: selectedSubject,
                     decoration: const InputDecoration(
                       labelText: 'Subject (optional)',
                       border: OutlineInputBorder(),
                     ),
                     items: const [
                       DropdownMenuItem(
-                          value: 'math', child: Text('Mathematics')),
+                          value: 'math', child: Text('Mathematics'),),
                       DropdownMenuItem(
-                          value: 'english', child: Text('English')),
+                          value: 'english', child: Text('English'),),
                       DropdownMenuItem(
-                          value: 'biology', child: Text('Biology')),
+                          value: 'biology', child: Text('Biology'),),
                       DropdownMenuItem(
-                          value: 'physics', child: Text('Physics')),
+                          value: 'physics', child: Text('Physics'),),
                     ],
                     onChanged: (value) {
                       setDialogState(() => selectedSubject = value);
@@ -764,7 +764,7 @@ class _DeckCard extends StatelessWidget {
               ),
               if (deck.dueCount > 0) ...[
                 const SizedBox(width: Spacings.md),
-                Icon(
+                const Icon(
                   Icons.notifications_active_outlined,
                   size: Spacings.smIcon,
                   color: AppColors.warning,

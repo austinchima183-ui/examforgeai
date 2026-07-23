@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../routing/route_names.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/workspace_expansion_entities.dart';
 import '../providers/communication_provider.dart';
 
@@ -94,7 +93,7 @@ class _CommunicationListPageState
   }
 
   List<CommunicationEntity> _applyFilters(
-      List<CommunicationEntity> communications) {
+      List<CommunicationEntity> communications,) {
     var filtered = communications;
 
     // Tab filter
@@ -253,7 +252,7 @@ class _CommunicationListPageState
                   isSelected: _filterType == type,
                   onTap: () => setState(() => _filterType = type),
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -300,7 +299,7 @@ class _CommunicationListPageState
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -455,7 +454,7 @@ class _CommunicationListPageState
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -481,8 +480,8 @@ class _CommunicationListPageState
     return ListView.builder(
       padding: const EdgeInsets.all(Spacings.lg),
       itemCount: 5,
-      itemBuilder: (ctx, i) => Padding(
-        padding: const EdgeInsets.only(bottom: Spacings.md),
+      itemBuilder: (ctx, i) => const Padding(
+        padding: EdgeInsets.only(bottom: Spacings.md),
         child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -490,13 +489,13 @@ class _CommunicationListPageState
               Row(
                 children: [
                   AppLoadingShimmer.box(width: 40, height: 40),
-                  const SizedBox(width: Spacings.md),
+                  SizedBox(width: Spacings.md),
                   Expanded(child: AppLoadingShimmer.box(width: double.infinity, height: 16)),
                 ],
               ),
-              const SizedBox(height: Spacings.md),
+              SizedBox(height: Spacings.md),
               AppLoadingShimmer.box(width: double.infinity, height: 14),
-              const SizedBox(height: Spacings.sm),
+              SizedBox(height: Spacings.sm),
               AppLoadingShimmer.box(width: 200, height: 12),
             ],
           ),

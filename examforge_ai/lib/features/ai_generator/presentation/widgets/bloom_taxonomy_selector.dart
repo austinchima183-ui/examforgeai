@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import '../../../../core/extensions/context_extensions.dart';
-import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../domain/entities/ai_entities.dart';
@@ -173,11 +172,11 @@ class _BloomLevelCard extends StatelessWidget {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: isSelected
-              ? color.withOpacity(isDark ? 0.25 : 0.15)
-              : cs.surfaceContainerHighest.withOpacity(0.5),
+              ? color.withValues(alpha: isDark ? 0.25 : 0.15)
+              : cs.surfaceContainerHighest.withValues(alpha: 0.5),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           border: Border.all(
-            color: isSelected ? color : cs.outlineVariant.withOpacity(0.5),
+            color: isSelected ? color : cs.outlineVariant.withValues(alpha: 0.5),
             width: isSelected ? 2.0 : 1.0,
           ),
         ),
@@ -193,7 +192,7 @@ class _BloomLevelCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: isSelected
                         ? color
-                        : color.withOpacity(isDark ? 0.20 : 0.15),
+                        : color.withValues(alpha: isDark ? 0.20 : 0.15),
                     shape: BoxShape.circle,
                   ),
                   child: Center(
@@ -251,7 +250,7 @@ class _BloomLevelCard extends StatelessWidget {
                       vertical: 1,
                     ),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(isDark ? 0.15 : 0.10),
+                      color: color.withValues(alpha: isDark ? 0.15 : 0.10),
                       borderRadius: BorderRadius.circular(Spacings.xs),
                     ),
                     child: Text(

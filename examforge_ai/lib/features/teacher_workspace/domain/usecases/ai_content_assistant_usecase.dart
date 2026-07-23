@@ -27,7 +27,7 @@ class AiContentAssistantUseCase {
       return const FailureResult(Failure.validation(
         message: 'Source content is required',
         fieldErrors: {'sourceContent': 'Source content cannot be empty'},
-      ));
+      ),);
     }
     // Validate action is a valid ContentAction enum value.
     // Since [ContentAction] is already an enum, any instance is valid.
@@ -37,7 +37,7 @@ class AiContentAssistantUseCase {
       return const FailureResult(Failure.validation(
         message: 'Invalid content action',
         fieldErrors: {'action': 'Action must be a valid ContentAction'},
-      ));
+      ),);
     }
     return _repository.generateContent(
       params.action,

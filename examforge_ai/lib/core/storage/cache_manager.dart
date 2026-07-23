@@ -111,7 +111,7 @@ class CacheManager {
           .write(LocalCacheTableCompanion(
         accessCount: Value(row.accessCount + 1),
         lastAccessedAt: Value(DateTime.now()),
-      ));
+      ),);
 
       return jsonDecode(row.data) as Map<String, dynamic>;
     } catch (e, st) {
@@ -144,7 +144,7 @@ class CacheManager {
     try {
       final count = await (database.delete(database.cache)
             ..where(
-                (t) => t.resourceType.equals(resourceType) & t.userId.equals(userId)))
+                (t) => t.resourceType.equals(resourceType) & t.userId.equals(userId),))
           .go();
       AppLogger.debug(
         'CacheManager: invalidated $count cache entries of type=$resourceType',
@@ -223,7 +223,7 @@ class CacheManager {
           schoolId: Value(schoolId),
           lastSyncedAt: Value(now),
           updatedAt: Value(now),
-        ));
+        ),);
       } else {
         await database.into(database.userData).insert(
               LocalUserDataTableCompanion.insert(
@@ -333,7 +333,7 @@ class CacheManager {
             'lastEditedAt': row.lastEditedAt.toIso8601String(),
             'createdAt': row.createdAt.toIso8601String(),
             'updatedAt': row.updatedAt.toIso8601String(),
-          }).toList();
+          },).toList();
     } catch (e, st) {
       AppLogger.error('CacheManager: failed to get drafts', error: e, stackTrace: st);
       return [];
@@ -357,7 +357,7 @@ class CacheManager {
       await (database.update(database.drafts)..where((t) => t.id.equals(id)))
           .write(const LocalDraftsTableCompanion(
         isSynced: Value(true),
-      ));
+      ),);
       AppLogger.debug('CacheManager: marked draft $id as synced');
     } catch (e, st) {
       AppLogger.error('CacheManager: failed to mark draft synced', error: e, stackTrace: st);
@@ -412,7 +412,7 @@ class CacheManager {
       final query = database.select(database.syncQueue)
         ..where((t) =>
             t.userId.equals(userId) &
-            t.status.isIn(['pending', 'failed']))
+            t.status.isIn(['pending', 'failed']),)
         ..orderBy([
           (t) => OrderingTerm.asc(t.priority),
           (t) => OrderingTerm.asc(t.createdAt),
@@ -436,7 +436,7 @@ class CacheManager {
             'errorMessage': row.errorMessage,
             'createdAt': row.createdAt.toIso8601String(),
             'updatedAt': row.updatedAt.toIso8601String(),
-          }).toList();
+          },).toList();
     } catch (e, st) {
       AppLogger.error('CacheManager: failed to get pending sync items', error: e, stackTrace: st);
       return [];
@@ -451,7 +451,7 @@ class CacheManager {
           .write(LocalSyncQueueTableCompanion(
         status: const Value('completed'),
         updatedAt: Value(now),
-      ));
+      ),);
       AppLogger.debug('CacheManager: sync item $id completed');
     } catch (e, st) {
       AppLogger.error('CacheManager: failed to mark sync item completed', error: e, stackTrace: st);
@@ -494,7 +494,7 @@ class CacheManager {
         lastAttemptAt: Value(now),
         nextRetryAt: Value(isDead ? null : now.add(Duration(seconds: backoffSeconds))),
         updatedAt: Value(now),
-      ));
+      ),);
 
       AppLogger.debug(
         'CacheManager: sync item $id failed (attempt $newAttempts/${row.maxAttempts})'
@@ -512,7 +512,7 @@ class CacheManager {
       final rows = await (database.select(database.syncQueue)
             ..where((t) =>
                 t.userId.equals(userId) &
-                t.status.isIn(['pending', 'failed'])))
+                t.status.isIn(['pending', 'failed']),))
           .get();
       return rows.length;
     } catch (e, st) {
@@ -607,7 +607,7 @@ class CacheManager {
             'lastAccessedAt': row.lastAccessedAt?.toIso8601String(),
             'createdAt': row.createdAt.toIso8601String(),
             'updatedAt': row.updatedAt.toIso8601String(),
-          }).toList();
+          },).toList();
     } catch (e, st) {
       AppLogger.error('CacheManager: failed to get cached resources', error: e, stackTrace: st);
       return [];
@@ -637,7 +637,7 @@ class CacheManager {
             ..where((t) =>
                 t.userId.equals(userId) &
                 t.resourceId.equals(resourceId) &
-                t.isAvailable.equals(true)))
+                t.isAvailable.equals(true),))
           .getSingleOrNull();
       return row != null;
     } catch (e, st) {
@@ -696,7 +696,7 @@ class CacheManager {
       final query = database.select(database.examAttempts)
         ..where((t) =>
             t.studentId.equals(studentId) &
-            t.syncStatus.isIn(['pending', 'rejected']))
+            t.syncStatus.isIn(['pending', 'rejected']),)
         ..orderBy([
           (t) => OrderingTerm.asc(t.startedAt),
         ]);
@@ -718,7 +718,7 @@ class CacheManager {
             'syncedAt': row.syncedAt?.toIso8601String(),
             'validationErrors': row.validationErrors,
             'createdAt': row.createdAt.toIso8601String(),
-          }).toList();
+          },).toList();
     } catch (e, st) {
       AppLogger.error('CacheManager: failed to get pending exam attempts', error: e, stackTrace: st);
       return [];
@@ -734,7 +734,7 @@ class CacheManager {
           .write(LocalExamAttemptsTableCompanion(
         syncStatus: const Value('synced'),
         syncedAt: Value(now),
-      ));
+      ),);
       AppLogger.debug('CacheManager: exam attempt $id synced');
     } catch (e, st) {
       AppLogger.error('CacheManager: failed to mark exam attempt synced', error: e, stackTrace: st);

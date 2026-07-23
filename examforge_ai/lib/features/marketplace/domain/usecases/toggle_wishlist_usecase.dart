@@ -2,7 +2,6 @@ import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../../domain/repositories/marketplace_repository.dart';
-import '../../../../features/marketplace/domain/repositories/marketplace_repository.dart';
 
 
 class ToggleWishlistParams {
@@ -27,13 +26,13 @@ class ToggleWishlistUseCase {
               if (match != null) {
                 final removeResult = await _repository.removeFromWishlist(match.id);
                 return removeResult.fold(
-                  onSuccess: (_) => FailureResult<WishlistEntity>(
+                  onSuccess: (_) => const FailureResult<WishlistEntity>(
                     ServerFailure(message: 'Removed from wishlist', statusCode: 200),
                   ),
                   onFailure: (f) => FailureResult<WishlistEntity>(f),
                 );
               }
-              return FailureResult<WishlistEntity>(
+              return const FailureResult<WishlistEntity>(
                 ServerFailure(message: 'Wishlist item not found', statusCode: 404),
               );
             },

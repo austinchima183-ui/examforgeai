@@ -1,15 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../domain/entities/billing_entities.dart';
 import '../providers/payment_provider.dart';
-import '../providers/subscription_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // PAYMENT CALLBACK PAGE
@@ -99,7 +97,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
     final tt = context.textTheme;
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Payment Status',
       ),
       body: Padding(
@@ -172,10 +170,10 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
             height: 96,
             decoration: BoxDecoration(
               color: AppColors.success
-                  .withOpacity(isDark ? 0.20 : 0.12),
+                  .withValues(alpha: isDark ? 0.20 : 0.12),
               shape: BoxShape.circle,
             ),
-            child: Icon(
+            child: const Icon(
               Icons.check_circle_rounded,
               size: 56,
               color: AppColors.success,
@@ -209,7 +207,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
               shape: RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusLg,
                 side: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               child: Padding(
@@ -260,7 +258,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
               label: const Text('Go to Dashboard'),
               style: FilledButton.styleFrom(
                 padding: Spacings.paddingButton,
-                shape: RoundedRectangleBorder(
+                shape: const RoundedRectangleBorder(
                   borderRadius: Spacings.borderRadiusMd,
                 ),
               ),
@@ -288,10 +286,10 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
           height: 96,
           decoration: BoxDecoration(
             color: AppColors.error
-                .withOpacity(isDark ? 0.20 : 0.12),
+                .withValues(alpha: isDark ? 0.20 : 0.12),
             shape: BoxShape.circle,
           ),
-          child: Icon(
+          child: const Icon(
             Icons.error_outline_rounded,
             size: 56,
             color: AppColors.error,
@@ -337,7 +335,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
             label: const Text('Retry Verification'),
             style: FilledButton.styleFrom(
               padding: Spacings.paddingButton,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
             ),
@@ -352,7 +350,7 @@ class _PaymentCallbackPageState extends ConsumerState<PaymentCallbackPage>
             onPressed: () => Navigator.of(context).pop(),
             style: OutlinedButton.styleFrom(
               padding: Spacings.paddingButton,
-              shape: RoundedRectangleBorder(
+              shape: const RoundedRectangleBorder(
                 borderRadius: Spacings.borderRadiusMd,
               ),
             ),

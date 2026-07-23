@@ -90,7 +90,7 @@ class _State extends ConsumerState<ModerationAuditPage> {
       child: ListView.separated(
         padding: Spacings.paddingScreen,
         itemCount: state.auditLogs.length,
-        separatorBuilder: (_, __) => Divider(height: Spacings.xs),
+        separatorBuilder: (_, __) => const Divider(height: Spacings.xs),
         itemBuilder: (context, index) {
           final log = state.auditLogs[index];
           return _buildLogTile(context, log);
@@ -220,7 +220,7 @@ class _State extends ConsumerState<ModerationAuditPage> {
                 ...actions.map((a) => DropdownMenuItem(
                       value: a,
                       child: Text(a.replaceAll('_', ' ')),
-                    )),
+                    ),),
               ],
               onChanged: (v) => setState(() => _actionFilter = v),
             ),
@@ -236,7 +236,7 @@ class _State extends ConsumerState<ModerationAuditPage> {
                 ...resourceTypes.map((r) => DropdownMenuItem(
                       value: r,
                       child: Text(r.replaceAll('_', ' ')),
-                    )),
+                    ),),
               ],
               onChanged: (v) => setState(() => _resourceFilter = v),
             ),

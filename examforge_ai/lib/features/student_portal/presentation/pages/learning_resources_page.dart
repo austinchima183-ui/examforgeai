@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Learning resources library page.
 ///
@@ -382,7 +382,7 @@ class _ResourceCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: AppColors.info.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                  color: AppColors.info.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                   ),
                   borderRadius:
                       BorderRadius.circular(Spacings.smRadius),
@@ -418,7 +418,7 @@ class _ResourceCard extends StatelessWidget {
                           decoration: BoxDecoration(
                             color: cs.tertiaryContainer,
                             borderRadius: BorderRadius.circular(
-                                Spacings.fullRadius),
+                                Spacings.fullRadius,),
                           ),
                           child: Text(
                             resource.resourceType.label,
@@ -525,7 +525,7 @@ class _ResourceInfoChip extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(context.isDarkMode ? 0.20 : 0.12),
+        color: color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(

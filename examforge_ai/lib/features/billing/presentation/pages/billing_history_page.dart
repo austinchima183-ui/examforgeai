@@ -1,17 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
+import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/billing_entities.dart';
-import '../providers/payment_provider.dart';
 import '../providers/invoice_provider.dart';
+import '../providers/payment_provider.dart';
 import '../widgets/billing_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -410,7 +409,7 @@ class _BillingHistoryPageState extends ConsumerState<BillingHistoryPage>
         child: OutlinedButton(
           onPressed: onLoadMore,
           style: OutlinedButton.styleFrom(
-            shape: RoundedRectangleBorder(
+            shape: const RoundedRectangleBorder(
               borderRadius: Spacings.borderRadiusMd,
             ),
           ),

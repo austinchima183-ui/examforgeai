@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../domain/entities/question_entities.dart';
 
@@ -41,7 +40,7 @@ class _BlankEntryRow extends StatelessWidget {
         color: cs.surfaceContainerLow,
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.outlineVariant.withOpacity(0.5),
+          color: cs.outlineVariant.withValues(alpha: 0.5),
         ),
       ),
       child: Column(
@@ -57,7 +56,7 @@ class _BlankEntryRow extends StatelessWidget {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFD97706).withOpacity(isDark ? 0.25 : 0.12),
+                  color: const Color(0xFFD97706).withValues(alpha: isDark ? 0.25 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Text(
@@ -89,7 +88,7 @@ class _BlankEntryRow extends StatelessWidget {
                         size: Spacings.mdIcon,
                         color: blank.isCaseSensitive
                             ? const Color(0xFFD97706)
-                            : cs.onSurfaceVariant.withOpacity(0.5),
+                            : cs.onSurfaceVariant.withValues(alpha: 0.5),
                       ),
                       const SizedBox(width: Spacings.xs),
                       Text(
@@ -111,7 +110,7 @@ class _BlankEntryRow extends StatelessWidget {
                   icon: Icon(
                     Icons.close_rounded,
                     size: Spacings.mdIcon,
-                    color: cs.onSurfaceVariant.withOpacity(0.5),
+                    color: cs.onSurfaceVariant.withValues(alpha: 0.5),
                   ),
                   onPressed: onDelete,
                   tooltip: 'Remove blank',
@@ -141,7 +140,7 @@ class _BlankEntryRow extends StatelessWidget {
             decoration: InputDecoration(
               hintText: 'e.g., photosynthesis, Photosynthesis',
               hintStyle: tt.bodySmall?.copyWith(
-                color: cs.onSurfaceVariant.withOpacity(0.5),
+                color: cs.onSurfaceVariant.withValues(alpha: 0.5),
               ),
               isDense: true,
               contentPadding: const EdgeInsets.symmetric(
@@ -154,7 +153,7 @@ class _BlankEntryRow extends StatelessWidget {
               enabledBorder: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
                 borderSide: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
               focusedBorder: OutlineInputBorder(
@@ -260,7 +259,7 @@ class _FillInBlankEditorState extends State<FillInBlankEditor> {
       id: 'new_${DateTime.now().millisecondsSinceEpoch}',
       questionId: '',
       blankIndex: _blanks.length,
-      acceptableAnswers: [],
+      acceptableAnswers: const [],
       isCaseSensitive: false,
       marks: 0.0,
       createdAt: now,

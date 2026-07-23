@@ -67,7 +67,7 @@ class UniversityCard extends StatelessWidget {
 
     return Material(
       color: isSelected
-          ? AppColors.primary.withOpacity(0.08)
+          ? AppColors.primary.withValues(alpha: 0.08)
           : context.colorScheme.surface,
       borderRadius: BorderRadius.circular(12),
       child: InkWell(
@@ -81,7 +81,7 @@ class UniversityCard extends StatelessWidget {
             border: isSelected
                 ? Border.all(color: AppColors.primary, width: 2)
                 : Border.all(
-                    color: context.colorScheme.outlineVariant.withOpacity(0.5),
+                    color: context.colorScheme.outlineVariant.withValues(alpha: 0.5),
                   ),
           ),
           child: Row(
@@ -91,7 +91,7 @@ class UniversityCard extends StatelessWidget {
                 width: 52,
                 height: 52,
                 decoration: BoxDecoration(
-                  color: typeColor.withOpacity(0.1),
+                  color: typeColor.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: university.logoUrl != null
@@ -132,7 +132,7 @@ class UniversityCard extends StatelessWidget {
                           ),
                         ),
                         if (isSelected)
-                          Icon(
+                          const Icon(
                             Icons.check_circle,
                             color: AppColors.primary,
                             size: 20,
@@ -149,7 +149,7 @@ class UniversityCard extends StatelessWidget {
                             vertical: 2,
                           ),
                           decoration: BoxDecoration(
-                            color: typeColor.withOpacity(0.1),
+                            color: typeColor.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
@@ -186,7 +186,7 @@ class UniversityCard extends StatelessWidget {
                       const SizedBox(height: 4),
                       Row(
                         children: [
-                          Icon(
+                          const Icon(
                             Icons.emoji_events_outlined,
                             size: 14,
                             color: AppColors.warning,

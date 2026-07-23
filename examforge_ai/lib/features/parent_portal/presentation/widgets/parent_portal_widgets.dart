@@ -7,11 +7,11 @@
 /// ```
 library;
 
+export 'attendance_calendar.dart';
 export 'child_selector_dropdown.dart';
 export 'child_summary_card.dart';
-export 'attendance_calendar.dart';
+export 'engagement_metric_card.dart';
 export 'insight_card.dart';
 export 'message_bubble.dart';
 export 'notification_list_tile.dart';
 export 'performance_indicator.dart';
-export 'engagement_metric_card.dart';

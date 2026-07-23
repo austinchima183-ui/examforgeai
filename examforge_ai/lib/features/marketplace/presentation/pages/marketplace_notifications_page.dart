@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../shared/widgets/widgets.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
-import '../../../../../shared/widgets/widgets.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/marketplace_notification_provider.dart';
 
@@ -107,13 +107,13 @@ class _MarketplaceNotificationsPageState
         return notifications
             .where((n) =>
                 n.type == MarketplaceNotificationType.purchaseSuccess ||
-                n.type == MarketplaceNotificationType.wishlistDiscount)
+                n.type == MarketplaceNotificationType.wishlistDiscount,)
             .toList();
       case _NotificationFilter.sales:
         return notifications
             .where((n) =>
                 n.type == MarketplaceNotificationType.newSale ||
-                n.type == MarketplaceNotificationType.commissionPaid)
+                n.type == MarketplaceNotificationType.commissionPaid,)
             .toList();
       case _NotificationFilter.reviews:
         return notifications
@@ -126,13 +126,13 @@ class _MarketplaceNotificationsPageState
                 n.type == MarketplaceNotificationType.productRejection ||
                 n.type == MarketplaceNotificationType.featuredProduct ||
                 n.type == MarketplaceNotificationType.priceChange ||
-                n.type == MarketplaceNotificationType.qualityCheckComplete)
+                n.type == MarketplaceNotificationType.qualityCheckComplete,)
             .toList();
       case _NotificationFilter.system:
         return notifications
             .where((n) =>
                 n.type == MarketplaceNotificationType.disputeUpdate ||
-                n.type == MarketplaceNotificationType.sellerVerified)
+                n.type == MarketplaceNotificationType.sellerVerified,)
             .toList();
     }
   }
@@ -250,7 +250,7 @@ class _MarketplaceNotificationsPageState
     // Remove from local state (placeholder for actual delete)
     context.scaffoldMessenger.showSnackBar(
       SnackBar(
-        content: Text('Notification dismissed'),
+        content: const Text('Notification dismissed'),
         behavior: SnackBarBehavior.floating,
         action: SnackBarAction(
           label: 'Undo',
@@ -283,62 +283,62 @@ enum _NotificationFilter {
 /// Maps a [MarketplaceNotificationType] to a visual configuration.
 _NotificationVisual _notificationVisual(MarketplaceNotificationType type) {
   return switch (type) {
-    MarketplaceNotificationType.purchaseSuccess => _NotificationVisual(
+    MarketplaceNotificationType.purchaseSuccess => const _NotificationVisual(
         icon: Icons.shopping_bag_outlined,
         color: AppColors.success,
         label: 'Purchase',
       ),
-    MarketplaceNotificationType.newSale => _NotificationVisual(
+    MarketplaceNotificationType.newSale => const _NotificationVisual(
         icon: Icons.sell_outlined,
         color: AppColors.info,
         label: 'Sale',
       ),
-    MarketplaceNotificationType.productReview => _NotificationVisual(
+    MarketplaceNotificationType.productReview => const _NotificationVisual(
         icon: Icons.rate_review_outlined,
         color: AppColors.warning,
         label: 'Review',
       ),
-    MarketplaceNotificationType.productApproval => _NotificationVisual(
+    MarketplaceNotificationType.productApproval => const _NotificationVisual(
         icon: Icons.check_circle_outline,
-        color: const Color(0xFF8B5CF6), // Purple
+        color: Color(0xFF8B5CF6), // Purple
         label: 'Product',
       ),
-    MarketplaceNotificationType.productRejection => _NotificationVisual(
+    MarketplaceNotificationType.productRejection => const _NotificationVisual(
         icon: Icons.cancel_outlined,
-        color: const Color(0xFF8B5CF6),
+        color: Color(0xFF8B5CF6),
         label: 'Product',
       ),
-    MarketplaceNotificationType.featuredProduct => _NotificationVisual(
+    MarketplaceNotificationType.featuredProduct => const _NotificationVisual(
         icon: Icons.star_outline,
-        color: const Color(0xFF8B5CF6),
+        color: Color(0xFF8B5CF6),
         label: 'Product',
       ),
-    MarketplaceNotificationType.priceChange => _NotificationVisual(
+    MarketplaceNotificationType.priceChange => const _NotificationVisual(
         icon: Icons.price_change_outlined,
-        color: const Color(0xFF8B5CF6),
+        color: Color(0xFF8B5CF6),
         label: 'Product',
       ),
-    MarketplaceNotificationType.wishlistDiscount => _NotificationVisual(
+    MarketplaceNotificationType.wishlistDiscount => const _NotificationVisual(
         icon: Icons.local_offer_outlined,
         color: AppColors.success,
         label: 'Purchase',
       ),
-    MarketplaceNotificationType.commissionPaid => _NotificationVisual(
+    MarketplaceNotificationType.commissionPaid => const _NotificationVisual(
         icon: Icons.account_balance_outlined,
         color: AppColors.info,
         label: 'Sale',
       ),
-    MarketplaceNotificationType.qualityCheckComplete => _NotificationVisual(
+    MarketplaceNotificationType.qualityCheckComplete => const _NotificationVisual(
         icon: Icons.verified_outlined,
-        color: const Color(0xFF8B5CF6),
+        color: Color(0xFF8B5CF6),
         label: 'Product',
       ),
-    MarketplaceNotificationType.disputeUpdate => _NotificationVisual(
+    MarketplaceNotificationType.disputeUpdate => const _NotificationVisual(
         icon: Icons.gavel_outlined,
         color: AppColors.error,
         label: 'System',
       ),
-    MarketplaceNotificationType.sellerVerified => _NotificationVisual(
+    MarketplaceNotificationType.sellerVerified => const _NotificationVisual(
         icon: Icons.verified_user_outlined,
         color: AppColors.error,
         label: 'System',
@@ -453,10 +453,10 @@ class _NotificationTile extends StatelessWidget {
         padding: const EdgeInsets.only(right: Spacings.xl),
         margin: const EdgeInsets.only(bottom: Spacings.sm),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
+          color: AppColors.error.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
-        child: Icon(
+        child: const Icon(
           Icons.delete_outline,
           color: AppColors.error,
         ),
@@ -466,7 +466,7 @@ class _NotificationTile extends StatelessWidget {
         onTap: onTap,
         color: notification.isRead
             ? null
-            : context.colorScheme.primaryContainer.withOpacity(0.08),
+            : context.colorScheme.primaryContainer.withValues(alpha: 0.08),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -474,7 +474,7 @@ class _NotificationTile extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
-                color: visual.color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                color: visual.color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                 ),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
@@ -549,7 +549,7 @@ class _NotificationTile extends StatelessWidget {
                           vertical: 1.0,
                         ),
                         decoration: BoxDecoration(
-                          color: visual.color.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                          color: visual.color.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                           ),
                           borderRadius:
                               BorderRadius.circular(Spacings.fullRadius),

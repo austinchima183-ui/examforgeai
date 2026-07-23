@@ -271,11 +271,11 @@ class _AiImprovePageState extends State<AiImprovePage> {
           width: double.infinity,
           padding: const EdgeInsets.all(Spacings.lg),
           decoration: BoxDecoration(
-            color: AppColors.errorOf(cs.brightness).withOpacity(isDark ? 0.10 : 0.05,
+            color: AppColors.errorOf(cs.brightness).withValues(alpha: isDark ? 0.10 : 0.05,
             ),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             border: Border.all(
-              color: AppColors.errorOf(cs.brightness).withOpacity(0.2),
+              color: AppColors.errorOf(cs.brightness).withValues(alpha: 0.2),
             ),
           ),
           child: Column(
@@ -324,11 +324,11 @@ class _AiImprovePageState extends State<AiImprovePage> {
           width: double.infinity,
           padding: const EdgeInsets.all(Spacings.lg),
           decoration: BoxDecoration(
-            color: AppColors.successOf(cs.brightness).withOpacity(isDark ? 0.10 : 0.05,
+            color: AppColors.successOf(cs.brightness).withValues(alpha: isDark ? 0.10 : 0.05,
             ),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             border: Border.all(
-              color: AppColors.successOf(cs.brightness).withOpacity(0.2),
+              color: AppColors.successOf(cs.brightness).withValues(alpha: 0.2),
             ),
           ),
           child: Column(
@@ -474,7 +474,7 @@ class _AiImprovePageState extends State<AiImprovePage> {
                       height: 4,
                       decoration: BoxDecoration(
                         color: context.colorScheme.onSurfaceVariant
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -552,13 +552,13 @@ class _ImprovementTypeCard extends StatelessWidget {
         padding: const EdgeInsets.all(Spacings.md),
         decoration: BoxDecoration(
           color: isSelected
-              ? cs.primary.withOpacity(isDark ? 0.20 : 0.10)
-              : cs.surfaceContainerHighest.withOpacity(0.4),
+              ? cs.primary.withValues(alpha: isDark ? 0.20 : 0.10)
+              : cs.surfaceContainerHighest.withValues(alpha: 0.4),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
           border: Border.all(
             color: isSelected
                 ? cs.primary
-                : cs.outlineVariant.withOpacity(0.5),
+                : cs.outlineVariant.withValues(alpha: 0.5),
             width: isSelected ? 2.0 : 1.0,
           ),
         ),

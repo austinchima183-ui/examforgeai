@@ -2,6 +2,7 @@
 ///
 /// Each exception implements [Exception] and provides a meaningful
 /// [toString] override for logging and debugging.
+library;
 
 /// Thrown when the server returns a non-2xx response.
 class ServerException implements Exception {

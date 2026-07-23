@@ -1,6 +1,5 @@
 import 'package:equatable/equatable.dart';
 
-import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../repositories/communication_repository.dart';
 

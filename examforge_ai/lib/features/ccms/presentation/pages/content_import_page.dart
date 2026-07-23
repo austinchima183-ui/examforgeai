@@ -54,7 +54,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
     final tt = context.textTheme;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'Content Import'),
+      appBar: const AppAppBar(title: 'Content Import'),
       body: SingleChildScrollView(
         padding: Spacings.paddingScreen,
         child: Column(
@@ -64,32 +64,32 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
             Text('Upload File',
                 style: tt.titleMedium?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.md),
             GestureDetector(
               onTap: () => _showFilePicker(),
               child: Container(
                 width: double.infinity,
                 padding: const EdgeInsets.symmetric(
-                    vertical: Spacings.xxxl, horizontal: Spacings.xl),
+                    vertical: Spacings.xxxl, horizontal: Spacings.xl,),
                 decoration: BoxDecoration(
                   border:
                       Border.all(color: cs.outline, style: BorderStyle.solid),
                   borderRadius: Spacings.borderRadiusMd,
-                  color: cs.surfaceContainerHighest.withOpacity(0.3),
+                  color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
                 ),
                 child: Column(
                   children: [
                     Icon(Icons.cloud_upload_rounded,
-                        size: 48, color: cs.primary),
+                        size: 48, color: cs.primary,),
                     const SizedBox(height: Spacings.md),
                     Text('Drag & drop or tap to upload',
                         style: tt.bodyMedium?.copyWith(
-                            color: cs.onSurfaceVariant)),
+                            color: cs.onSurfaceVariant,),),
                     const SizedBox(height: Spacings.xs),
                     Text('Supported: CSV, Excel, JSON',
                         style: tt.bodySmall?.copyWith(
-                            color: cs.onSurfaceVariant)),
+                            color: cs.onSurfaceVariant,),),
                   ],
                 ),
               ),
@@ -100,7 +100,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
             Text('Supported Formats',
                 style: tt.titleMedium?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.sm),
             AppCard(
               child: Column(
@@ -110,12 +110,12 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                           child: Row(
                             children: [
                               Icon(Icons.description_outlined,
-                                  size: Spacings.smIcon, color: cs.primary),
+                                  size: Spacings.smIcon, color: cs.primary,),
                               const SizedBox(width: Spacings.sm),
                               Text(f, style: tt.bodyMedium),
                             ],
                           ),
-                        ))
+                        ),)
                     .toList(),
               ),
             ),
@@ -125,15 +125,15 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
             Text('Field Mapping Configuration',
                 style: tt.titleMedium?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.md),
             DropdownButtonFormField<String>(
-              value: _selectedFormat,
+              initialValue: _selectedFormat,
               decoration: const InputDecoration(
-                  labelText: 'File Format', border: OutlineInputBorder()),
+                  labelText: 'File Format', border: OutlineInputBorder(),),
               items: _supportedFormats
                   .map((f) =>
-                      DropdownMenuItem(value: f, child: Text(f)))
+                      DropdownMenuItem(value: f, child: Text(f)),)
                   .toList(),
               onChanged: (v) => setState(() => _selectedFormat = v),
             ),
@@ -146,7 +146,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                       'Map your file columns to CCMS content fields. '
                       'Unmapped fields will be left empty.',
                       style: tt.bodySmall?.copyWith(
-                          color: cs.onSurfaceVariant)),
+                          color: cs.onSurfaceVariant,),),
                   const SizedBox(height: Spacings.md),
                   ..._contentFields.map((field) => Padding(
                         padding:
@@ -158,19 +158,19 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                               child: Text(field,
                                   style: tt.bodySmall?.copyWith(
                                       fontWeight: AppTypography.wMedium,
-                                      color: cs.onSurface)),
+                                      color: cs.onSurface,),),
                             ),
                             const SizedBox(width: Spacings.sm),
                             Expanded(
                               child: TextField(
-                                decoration: InputDecoration(
+                                decoration: const InputDecoration(
                                   hintText: 'Column name in file',
-                                  border: const OutlineInputBorder(),
+                                  border: OutlineInputBorder(),
                                   isDense: true,
                                   contentPadding:
-                                      const EdgeInsets.symmetric(
+                                      EdgeInsets.symmetric(
                                           horizontal: Spacings.md,
-                                          vertical: Spacings.sm),
+                                          vertical: Spacings.sm,),
                                 ),
                                 onChanged: (v) {
                                   _fieldMappings[field] = v;
@@ -179,7 +179,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                             ),
                           ],
                         ),
-                      )),
+                      ),),
                 ],
               ),
             ),
@@ -189,10 +189,10 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
             Container(
               padding: Spacings.paddingCard,
               decoration: BoxDecoration(
-                color: AppColors.warning.withOpacity(0.1),
+                color: AppColors.warning.withValues(alpha: 0.1),
                 borderRadius: Spacings.borderRadiusMd,
                 border: Border.all(
-                    color: AppColors.warning.withOpacity(0.3)),
+                    color: AppColors.warning.withValues(alpha: 0.3),),
               ),
               child: Row(
                 children: [
@@ -207,7 +207,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                       'I confirm that I have the right to import and use this content. '
                       'All imported content will be reviewed before publishing.',
                       style: tt.bodyMedium?.copyWith(
-                          color: cs.onSurfaceVariant),
+                          color: cs.onSurfaceVariant,),
                     ),
                   ),
                 ],
@@ -234,9 +234,9 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                   children: [
                     Text('Import in progress…',
                         style: tt.bodyMedium?.copyWith(
-                            fontWeight: AppTypography.wSemiBold)),
+                            fontWeight: AppTypography.wSemiBold,),),
                     const SizedBox(height: Spacings.sm),
-                    AppLoadingBar(value: null),
+                    const AppLoadingBar(value: null),
                   ],
                 ),
               ),
@@ -247,7 +247,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
             Text('Import History',
                 style: tt.titleMedium?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.md),
             if (state.isLoading && state.imports.isEmpty)
               const Center(child: AppLoadingSpinner())
@@ -267,26 +267,26 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                                 child: Text(importEntry.fileName,
                                     style: tt.titleSmall?.copyWith(
                                         fontWeight:
-                                            AppTypography.wSemiBold)),
+                                            AppTypography.wSemiBold,),),
                               ),
                               _importStatusBadge(importEntry.status, cs),
                             ],
                           ),
                           const SizedBox(height: Spacings.sm),
                           ImportProgressIndicator(
-                              importEntry: importEntry),
+                              importEntry: importEntry,),
                           if (importEntry.failedItems > 0) ...[
                             const SizedBox(height: Spacings.sm),
                             Text(
                               '${importEntry.failedItems} errors · Tap to view details',
                               style: tt.bodySmall?.copyWith(
-                                  color: AppColors.error),
+                                  color: AppColors.error,),
                             ),
                           ],
                         ],
                       ),
                     ),
-                  )),
+                  ),),
           ],
         ),
       ),
@@ -303,14 +303,14 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
     };
     return Container(
       padding: const EdgeInsets.symmetric(
-          horizontal: Spacings.sm, vertical: 2),
+          horizontal: Spacings.sm, vertical: 2,),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
+        color: color.withValues(alpha: 0.15),
         borderRadius: Spacings.borderRadiusSm,
       ),
       child: Text(status.label,
           style: AppTypography.labelSmall!.copyWith(
-              color: color, fontWeight: AppTypography.wSemiBold)),
+              color: color, fontWeight: AppTypography.wSemiBold,),),
     );
   }
 
@@ -329,7 +329,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
         setState(() => _isImporting = false);
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Import completed. Reviewing content…')),
+              content: Text('Import completed. Reviewing content…'),),
         );
       }
     });
@@ -357,7 +357,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                   Expanded(
                     child: Text(importEntry.fileName,
                         style: tt.headlineSmall?.copyWith(
-                            fontWeight: AppTypography.wSemiBold)),
+                            fontWeight: AppTypography.wSemiBold,),),
                   ),
                   AppIconButton(
                     icon: Icons.close_rounded,
@@ -370,7 +370,7 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
               const SizedBox(height: Spacings.lg),
               Text('Summary',
                   style: tt.titleMedium?.copyWith(
-                      fontWeight: AppTypography.wSemiBold)),
+                      fontWeight: AppTypography.wSemiBold,),),
               const SizedBox(height: Spacings.sm),
               Row(
                 children: [
@@ -401,14 +401,14 @@ class _ContentImportPageState extends ConsumerState<ContentImportPage> {
                 Text('Error Log',
                     style: tt.titleMedium?.copyWith(
                         fontWeight: AppTypography.wSemiBold,
-                        color: AppColors.error)),
+                        color: AppColors.error,),),
                 const SizedBox(height: Spacings.sm),
                 AppCard(
                   child: Text(
                     'Import errors will be displayed here. '
                     'Row numbers and error messages for each failed item.',
                     style: tt.bodySmall?.copyWith(
-                        color: cs.onSurfaceVariant),
+                        color: cs.onSurfaceVariant,),
                   ),
                 ),
               ],

@@ -2,10 +2,10 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // SCORE CIRCLE
@@ -131,7 +131,7 @@ class _ScoreCircleState extends State<ScoreCircle>
                 painter: _ScoreRingPainter(
                   progress: currentPct / 100.0,
                   foregroundColor: fgColor,
-                  backgroundColor: fgColor.withOpacity(context.isDarkMode ? 0.15 : 0.08,
+                  backgroundColor: fgColor.withValues(alpha: context.isDarkMode ? 0.15 : 0.08,
                   ),
                   strokeWidth: widget.strokeWidth,
                 ),

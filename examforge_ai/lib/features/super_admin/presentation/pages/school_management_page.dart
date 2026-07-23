@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../routing/route_names.dart';
 import '../../domain/entities/super_admin_entities.dart';
 import '../providers/super_admin_providers.dart';
 import '../widgets/super_admin_widgets.dart';
-import '../../../../config/dependency_injection.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -137,7 +138,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
   // ─── Body ────────────────────────────────────────────────────────────────
 
   Widget _buildBody(
-      BuildContext context, SchoolManagementState state, ColorScheme cs) {
+      BuildContext context, SchoolManagementState state, ColorScheme cs,) {
     if (state.isLoading && state.schools.isEmpty) {
       return const Center(child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large));
     }
@@ -155,7 +156,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
                 state.error!,
                 style: AppTypography.wRegular.copyWith(
                   fontSize: 14,
-                  color: cs.onSurface.withOpacity(0.7),
+                  color: cs.onSurface.withValues(alpha: 0.7),
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -197,7 +198,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
                 '${state.totalCount} school${state.totalCount == 1 ? '' : 's'}',
                 style: AppTypography.wMedium.copyWith(
                   fontSize: 13,
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
               ),
             ],
@@ -271,7 +272,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
           selected: _subscriptionFilter == 'active',
           onSelected: (selected) {
             setState(() =>
-                _subscriptionFilter = selected ? 'active' : null);
+                _subscriptionFilter = selected ? 'active' : null,);
             _loadData();
           },
         ),
@@ -280,7 +281,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
           selected: _subscriptionFilter == 'trial',
           onSelected: (selected) {
             setState(() =>
-                _subscriptionFilter = selected ? 'trial' : null);
+                _subscriptionFilter = selected ? 'trial' : null,);
             _loadData();
           },
         ),
@@ -289,7 +290,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
           selected: _subscriptionFilter == 'expired',
           onSelected: (selected) {
             setState(() =>
-                _subscriptionFilter = selected ? 'expired' : null);
+                _subscriptionFilter = selected ? 'expired' : null,);
             _loadData();
           },
         ),
@@ -300,7 +301,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
   // ─── School List ─────────────────────────────────────────────────────────
 
   Widget _buildSchoolList(
-      BuildContext context, SchoolManagementState state, ColorScheme cs) {
+      BuildContext context, SchoolManagementState state, ColorScheme cs,) {
     return RefreshIndicator(
       onRefresh: () async => _loadData(),
       child: ListView.separated(
@@ -348,14 +349,14 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
                 color: Theme.of(context)
                     .colorScheme
                     .onSurface
-                    .withOpacity(0.7),
+                    .withValues(alpha: 0.7),
               ),
             ),
             const SizedBox(height: Spacings.lg),
             TextField(
               controller: _suspendReasonController,
               maxLines: 3,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Reason for suspension',
                 hintText: 'Provide a reason...',
                 border: OutlineInputBorder(
@@ -416,7 +417,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
           children: [
             TextField(
               controller: _createSchoolNameController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'School Name',
                 hintText: 'Enter school name',
                 border: OutlineInputBorder(
@@ -427,7 +428,7 @@ class _SchoolManagementPageState extends ConsumerState<SchoolManagementPage> {
             const SizedBox(height: Spacings.md),
             TextField(
               controller: _createSchoolDomainController,
-              decoration: InputDecoration(
+              decoration: const InputDecoration(
                 labelText: 'Domain',
                 hintText: 'e.g. school.examforge.ai',
                 border: OutlineInputBorder(
@@ -503,7 +504,7 @@ class _SchoolManagementCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingAll,
         child: Column(
@@ -517,7 +518,7 @@ class _SchoolManagementCard extends StatelessWidget {
                   width: 40,
                   height: 40,
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(0.1),
+                    color: cs.primary.withValues(alpha: 0.1),
                     borderRadius: Spacings.borderRadiusSm,
                   ),
                   child: Center(
@@ -550,7 +551,7 @@ class _SchoolManagementCard extends StatelessWidget {
                           school.domain!,
                           style: AppTypography.wRegular.copyWith(
                             fontSize: 12,
-                            color: cs.onSurface.withOpacity(0.5),
+                            color: cs.onSurface.withValues(alpha: 0.5),
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -585,12 +586,12 @@ class _SchoolManagementCard extends StatelessWidget {
                 _infoItem(
                   icon: Icons.school_outlined,
                   label: '${school.studentCount} students',
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
                 _infoItem(
                   icon: Icons.person_outline_rounded,
                   label: '${school.teacherCount} teachers',
-                  color: cs.onSurface.withOpacity(0.6),
+                  color: cs.onSurface.withValues(alpha: 0.6),
                 ),
               ],
             ),
@@ -608,7 +609,7 @@ class _SchoolManagementCard extends StatelessWidget {
                         'Subscription',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 11,
-                          color: cs.onSurface.withOpacity(0.5),
+                          color: cs.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -628,7 +629,7 @@ class _SchoolManagementCard extends StatelessWidget {
                         'Storage',
                         style: AppTypography.wRegular.copyWith(
                           fontSize: 11,
-                          color: cs.onSurface.withOpacity(0.5),
+                          color: cs.onSurface.withValues(alpha: 0.5),
                         ),
                       ),
                       const SizedBox(height: Spacings.xs),
@@ -726,7 +727,7 @@ class _SchoolManagementCard extends StatelessWidget {
           '${school.storageUsedMb.toInt()} / ${school.storageLimitMb.toInt()} MB',
           style: AppTypography.wRegular.copyWith(
             fontSize: 10,
-            color: cs.onSurface.withOpacity(0.5),
+            color: cs.onSurface.withValues(alpha: 0.5),
           ),
         ),
       ],

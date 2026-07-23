@@ -136,7 +136,7 @@ class AiTutorNotifier extends StateNotifier<AiTutorState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getConversations(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: 1,
       pageSize: _pageSize,
     );
@@ -173,7 +173,7 @@ class AiTutorNotifier extends StateNotifier<AiTutorState> {
     final nextPage = state.currentPage + 1;
 
     final result = await _getConversations(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: nextPage,
       pageSize: _pageSize,
     );
@@ -255,7 +255,7 @@ class AiTutorNotifier extends StateNotifier<AiTutorState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _createConversation(
-      studentId: _studentId!,
+      studentId: _studentId,
       title: title,
       subjectId: subjectId,
       topic: topic,

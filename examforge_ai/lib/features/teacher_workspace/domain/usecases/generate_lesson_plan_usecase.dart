@@ -39,7 +39,7 @@ class GenerateLessonPlanUseCase {
       return const FailureResult(Failure.validation(
         message: 'Subject is required',
         fieldErrors: {'subject': 'Subject cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateLessonPlan({
       'subject': params.subject,

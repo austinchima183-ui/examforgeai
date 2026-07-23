@@ -3,11 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../core/themes/app_colors.dart';
-import '../../../../core/themes/spacings.dart';
 import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_loading.dart';
-import '../../../../routing/route_names.dart';
 import '../../domain/entities/super_admin_entities.dart';
 import '../providers/super_admin_providers.dart';
 import '../widgets/super_admin_widgets.dart';
@@ -139,7 +139,7 @@ class _SuperAdminDashboardPageState
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(
+            const Icon(
               Icons.error_outline_rounded,
               size: 64,
               color: AppColors.error,
@@ -157,7 +157,7 @@ class _SuperAdminDashboardPageState
               state.error ?? 'An unexpected error occurred.',
               style: AppTypography.wRegular.copyWith(
                 fontSize: 14,
-                color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
+                color: Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.6),
               ),
               textAlign: TextAlign.center,
             ),
@@ -306,55 +306,55 @@ class _SuperAdminDashboardPageState
         color: cs.primary,
         route: RouteNames.superAdminSchools,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'User Management',
         icon: Icons.people,
         color: Colors.teal,
         route: RouteNames.superAdminUsers,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'AI Management',
         icon: Icons.smart_toy,
         color: Colors.deepPurple,
         route: RouteNames.superAdminAI,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'Billing & Revenue',
         icon: Icons.payment,
         color: AppColors.success,
         route: RouteNames.superAdminBilling,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'Support Center',
         icon: Icons.support_agent,
         color: AppColors.info,
         route: RouteNames.superAdminSupport,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'Security Center',
         icon: Icons.security,
         color: AppColors.error,
         route: RouteNames.superAdminSecurity,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'Infrastructure',
         icon: Icons.dns,
         color: Colors.brown,
         route: RouteNames.superAdminInfrastructure,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'Intelligence Center',
         icon: Icons.psychology,
         color: Colors.indigo,
         route: RouteNames.superAdminIntelligence,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'Marketplace',
         icon: Icons.store,
         color: Colors.orange,
         route: RouteNames.superAdminMarketplace,
       ),
-      _NavItem(
+      const _NavItem(
         title: 'Analytics',
         icon: Icons.bar_chart,
         color: AppColors.info,
@@ -363,7 +363,7 @@ class _SuperAdminDashboardPageState
       _NavItem(
         title: 'Settings',
         icon: Icons.settings,
-        color: cs.onSurface.withOpacity(0.6),
+        color: cs.onSurface.withValues(alpha: 0.6),
         route: RouteNames.superAdminSettings,
       ),
     ];
@@ -396,7 +396,7 @@ class _SuperAdminDashboardPageState
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: ListView.separated(
         shrinkWrap: true,
         physics: const NeverScrollableScrollPhysics(),
@@ -534,7 +534,7 @@ class _NavigationCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: InkWell(
         onTap: onTap,
         borderRadius: Spacings.borderRadiusMd,
@@ -546,7 +546,7 @@ class _NavigationCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.md),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   borderRadius: Spacings.borderRadiusMd,
                 ),
                 child: Icon(icon, color: color, size: Spacings.lgIcon),
@@ -614,7 +614,7 @@ class _ActivityTile extends StatelessWidget {
         Container(
           padding: const EdgeInsets.all(Spacings.sm),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(0.08),
+            color: cs.primary.withValues(alpha: 0.08),
             borderRadius: Spacings.borderRadiusSm,
           ),
           child: Icon(_iconFor(type), size: Spacings.mdIcon, color: cs.primary),
@@ -639,7 +639,7 @@ class _ActivityTile extends StatelessWidget {
                   description,
                   style: AppTypography.wRegular.copyWith(
                     fontSize: 12,
-                    color: cs.onSurface.withOpacity(0.6),
+                    color: cs.onSurface.withValues(alpha: 0.6),
                   ),
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
@@ -654,7 +654,7 @@ class _ActivityTile extends StatelessWidget {
             timestamp,
             style: AppTypography.wRegular.copyWith(
               fontSize: 11,
-              color: cs.onSurface.withOpacity(0.4),
+              color: cs.onSurface.withValues(alpha: 0.4),
             ),
           ),
         ],

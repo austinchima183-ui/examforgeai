@@ -150,7 +150,7 @@ class DocumentChatNotifier extends StateNotifier<DocumentChatState> {
     state = state.copyWith(isLoading: true, error: null);
 
     final result = await _getDocuments(
-      studentId: _studentId!,
+      studentId: _studentId,
       page: 1,
       pageSize: _pageSize,
     );
@@ -232,7 +232,7 @@ class DocumentChatNotifier extends StateNotifier<DocumentChatState> {
     state = state.copyWith(uploadProgress: 0.3);
 
     final result = await _uploadDocument(
-      studentId: _studentId!,
+      studentId: _studentId,
       schoolId: _schoolId,
       fileName: fileName,
       fileUrl: fileUrl,

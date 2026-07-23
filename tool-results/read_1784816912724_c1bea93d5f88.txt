@@ -1,0 +1,925 @@
+     1→-- ═══════════════════════════════════════════════════════════════════════════
+     2→-- ExamForge AI — Student Learning Portal Schema
+     3→-- ═══════════════════════════════════════════════════════════════════════════
+     4→-- Provides tables for the student-facing learning experience:
+     5→--   • AI Tutor conversations & messages
+     6→--   • Practice sessions & practice answers
+     7→--   • Assignment submissions
+     8→--   • Learning resources & access tracking
+     9→--   • Document chat (PDF/DOCX/TXT)
+    10→--   • Flashcards & flashcard decks (spaced repetition)
+    11→--   • Study plans, goals & tasks
+    12→--   • Student progress snapshots
+    13→--   • Student notifications
+    14→-- ═══════════════════════════════════════════════════════════════════════════
+    15→
+    16→-- ─── Custom Enum Types ─────────────────────────────────────────────────────
+    17→
+    18→DO $$ BEGIN
+    19→  -- Practice mode type
+    20→  CREATE TYPE practice_mode AS ENUM (
+    21→    'timed', 'untimed'
+    22→  );
+    23→
+    24→  -- Practice session status
+    25→  CREATE TYPE practice_session_status AS ENUM (
+    26→    'in_progress', 'completed', 'abandoned'
+    27→  );
+    28→
+    29→  -- Assignment submission status
+    30→  CREATE TYPE submission_status AS ENUM (
+    31→    'draft', 'submitted', 'late_submitted', 'graded', 'returned', 'resubmitted'
+    32→  );
+    33→
+    34→  -- Resource type for student portal
+    35→  CREATE TYPE student_resource_type AS ENUM (
+    36→    'lesson_note', 'worksheet', 'study_guide', 'slide', 'handout',
+    37→    'recommended_reading', 'video_link', 'past_question'
+    38→  );
+    39→
+    40→  -- Document chat status
+    41→  CREATE TYPE document_chat_status AS ENUM (
+    42→    'processing', 'ready', 'failed'
+    43→  );
+    44→
+    45→  -- Flashcard difficulty rating (for spaced repetition)
+    46→  CREATE TYPE flashcard_rating AS ENUM (
+    47→    'again', 'hard', 'good', 'easy'
+    48→  );
+    49→
+    50→  -- Study plan frequency
+    51→  CREATE TYPE study_plan_frequency AS ENUM (
+    52→    'daily', 'weekly', 'custom'
+    53→  );
+    54→
+    55→  -- Study task status
+    56→  CREATE TYPE study_task_status AS ENUM (
+    57→    'pending', 'in_progress', 'completed', 'skipped'
+    58→  );
+    59→
+    60→  -- Goal priority
+    61→  CREATE TYPE goal_priority AS ENUM (
+    62→    'low', 'medium', 'high', 'urgent'
+    63→  );
+    64→
+    65→  -- Goal status
+    66→  CREATE TYPE goal_status AS ENUM (
+    67→    'not_started', 'in_progress', 'achieved', 'abandoned'
+    68→  );
+    69→
+    70→  -- AI tutor message role
+    71→  CREATE TYPE tutor_message_role AS ENUM (
+    72→    'user', 'assistant', 'system'
+    73→  );
+    74→
+    75→  -- Progress period type
+    76→  CREATE TYPE progress_period AS ENUM (
+    77→    'daily', 'weekly', 'monthly', 'termly', 'annually'
+    78→  );
+    79→
+    80→EXCEPTION WHEN duplicate_object THEN NULL;
+    81→END $$;
+    82→
+    83→-- ═══════════════════════════════════════════════════════════════════════════
+    84→-- AI TUTOR
+    85→-- ═══════════════════════════════════════════════════════════════════════════
+    86→
+    87→CREATE TABLE IF NOT EXISTS ai_tutor_conversations (
+    88→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    89→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    90→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+    91→  title           TEXT NOT NULL DEFAULT 'New Conversation',
+    92→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+    93→  topic           TEXT,
+    94→  curriculum_type TEXT DEFAULT 'nigerian',
+    95→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+    96→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    97→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    98→
+    99→  CONSTRAINT fk_student FOREIGN KEY (student_id) REFERENCES users(id)
+   100→);
+   101→
+   102→CREATE INDEX idx_ai_tutor_conversations_student ON ai_tutor_conversations(student_id);
+   103→CREATE INDEX idx_ai_tutor_conversations_school ON ai_tutor_conversations(school_id);
+   104→CREATE INDEX idx_ai_tutor_conversations_subject ON ai_tutor_conversations(subject_id);
+   105→CREATE INDEX idx_ai_tutor_conversations_updated ON ai_tutor_conversations(student_id, updated_at DESC);
+   106→
+   107→CREATE TABLE IF NOT EXISTS ai_tutor_messages (
+   108→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   109→  conversation_id UUID NOT NULL REFERENCES ai_tutor_conversations(id) ON DELETE CASCADE,
+   110→  role            tutor_message_role NOT NULL,
+   111→  content         TEXT NOT NULL,
+   112→  metadata        JSONB DEFAULT '{}',  -- tokens, model, source_refs, etc.
+   113→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   114→
+   115→  CONSTRAINT fk_conversation FOREIGN KEY (conversation_id) REFERENCES ai_tutor_conversations(id)
+   116→);
+   117→
+   118→CREATE INDEX idx_ai_tutor_messages_conversation ON ai_tutor_messages(conversation_id, created_at ASC);
+   119→
+   120→-- ═══════════════════════════════════════════════════════════════════════════
+   121→-- PRACTICE SESSIONS
+   122→-- ═══════════════════════════════════════════════════════════════════════════
+   123→
+   124→CREATE TABLE IF NOT EXISTS practice_sessions (
+   125→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   126→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   127→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   128→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   129→  topic_id        UUID REFERENCES topics(id) ON DELETE SET NULL,
+   130→  difficulty      difficulty_level DEFAULT 'medium',
+   131→  mode            practice_mode NOT NULL DEFAULT 'untimed',
+   132→  time_limit_sec  INTEGER,             -- NULL for untimed; seconds for timed
+   133→  total_questions INTEGER NOT NULL DEFAULT 0,
+   134→  correct_count   INTEGER NOT NULL DEFAULT 0,
+   135→  score_pct       DECIMAL(5,2) DEFAULT 0,
+   136→  status          practice_session_status NOT NULL DEFAULT 'in_progress',
+   137→  started_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   138→  completed_at    TIMESTAMPTZ,
+   139→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   140→
+   141→  CONSTRAINT chk_score_range CHECK (score_pct >= 0 AND score_pct <= 100)
+   142→);
+   143→
+   144→CREATE INDEX idx_practice_sessions_student ON practice_sessions(student_id);
+   145→CREATE INDEX idx_practice_sessions_student_subject ON practice_sessions(student_id, subject_id);
+   146→CREATE INDEX idx_practice_sessions_status ON practice_sessions(student_id, status);
+   147→CREATE INDEX idx_practice_sessions_started ON practice_sessions(student_id, started_at DESC);
+   148→
+   149→CREATE TABLE IF NOT EXISTS practice_answers (
+   150→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   151→  session_id      UUID NOT NULL REFERENCES practice_sessions(id) ON DELETE CASCADE,
+   152→  question_id     UUID NOT NULL REFERENCES questions(id) ON DELETE CASCADE,
+   153→  student_answer  JSONB NOT NULL,       -- flexible format for different Q types
+   154→  is_correct      BOOLEAN,
+   155→  time_spent_sec  INTEGER DEFAULT 0,
+   156→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   157→
+   158→  CONSTRAINT fk_session FOREIGN KEY (session_id) REFERENCES practice_sessions(id)
+   159→);
+   160→
+   161→CREATE INDEX idx_practice_answers_session ON practice_answers(session_id);
+   162→CREATE INDEX idx_practice_answers_question ON practice_answers(question_id);
+   163→
+   164→-- ═══════════════════════════════════════════════════════════════════════════
+   165→-- ASSIGNMENT SUBMISSIONS
+   166→-- ═══════════════════════════════════════════════════════════════════════════
+   167→
+   168→CREATE TABLE IF NOT EXISTS assignment_submissions (
+   169→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   170→  assignment_id   UUID NOT NULL,        -- References teacher_workspace assignments
+   171→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   172→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   173→  content         JSONB DEFAULT '{}',   -- Student answers / written content
+   174→  attachments     JSONB DEFAULT '[]',   -- [{filename, url, size, type}]
+   175→  status          submission_status NOT NULL DEFAULT 'draft',
+   176→  score           DECIMAL(5,2),
+   177→  max_score       DECIMAL(5,2),
+   178→  teacher_feedback TEXT,
+   179→  ai_feedback     JSONB,                -- AI-generated feedback
+   180→  submitted_at    TIMESTAMPTZ,
+   181→  graded_at       TIMESTAMPTZ,
+   182→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   183→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   184→
+   185→  CONSTRAINT chk_submission_score CHECK (score IS NULL OR (score >= 0 AND score <= max_score)),
+   186→  CONSTRAINT uq_student_assignment UNIQUE (assignment_id, student_id)
+   187→);
+   188→
+   189→CREATE INDEX idx_assignment_submissions_student ON assignment_submissions(student_id);
+   190→CREATE INDEX idx_assignment_submissions_assignment ON assignment_submissions(assignment_id);
+   191→CREATE INDEX idx_assignment_submissions_status ON assignment_submissions(student_id, status);
+   192→CREATE INDEX idx_assignment_submissions_school ON assignment_submissions(school_id);
+   193→
+   194→-- ═══════════════════════════════════════════════════════════════════════════
+   195→-- LEARNING RESOURCES (Student-facing)
+   196→-- ═══════════════════════════════════════════════════════════════════════════
+   197→
+   198→CREATE TABLE IF NOT EXISTS student_learning_resources (
+   199→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   200→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   201→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   202→  topic_id        UUID REFERENCES topics(id) ON DELETE SET NULL,
+   203→  title           TEXT NOT NULL,
+   204→  description     TEXT,
+   205→  resource_type   student_resource_type NOT NULL DEFAULT 'lesson_note',
+   206→  file_url        TEXT,                 -- Supabase Storage URL (if file-based)
+   207→  file_size       BIGINT,               -- bytes
+   208→  file_format     TEXT,                 -- pdf, docx, pptx, etc.
+   209→  content         TEXT,                 -- Inline text content (for notes)
+   210→  thumbnail_url   TEXT,
+   211→  teacher_id      UUID REFERENCES users(id) ON DELETE SET NULL, -- Uploader
+   212→  is_downloadable BOOLEAN NOT NULL DEFAULT TRUE,
+   213→  is_public       BOOLEAN NOT NULL DEFAULT FALSE,
+   214→  tags            TEXT[] DEFAULT '{}',
+   215→  view_count      INTEGER NOT NULL DEFAULT 0,
+   216→  download_count  INTEGER NOT NULL DEFAULT 0,
+   217→  curriculum_type TEXT DEFAULT 'nigerian',
+   218→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   219→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   220→);
+   221→
+   222→CREATE INDEX idx_student_resources_subject ON student_learning_resources(subject_id);
+   223→CREATE INDEX idx_student_resources_type ON student_learning_resources(resource_type);
+   224→CREATE INDEX idx_student_resources_school ON student_learning_resources(school_id);
+   225→CREATE INDEX idx_student_resources_public ON student_learning_resources(is_public) WHERE is_public = TRUE;
+   226→CREATE INDEX idx_student_resources_tags ON student_learning_resources USING GIN(tags);
+   227→
+   228→-- Resource access log
+   229→CREATE TABLE IF NOT EXISTS resource_access_log (
+   230→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   231→  resource_id     UUID NOT NULL REFERENCES student_learning_resources(id) ON DELETE CASCADE,
+   232→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   233→  access_type     TEXT NOT NULL DEFAULT 'view',  -- view, download
+   234→  accessed_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+   235→);
+   236→
+   237→CREATE INDEX idx_resource_access_student ON resource_access_log(student_id, accessed_at DESC);
+   238→CREATE INDEX idx_resource_access_resource ON resource_access_log(resource_id);
+   239→
+   240→-- ═══════════════════════════════════════════════════════════════════════════
+   241→-- DOCUMENT CHAT (PDF / DOCX / TXT)
+   242→-- ═══════════════════════════════════════════════════════════════════════════
+   243→
+   244→CREATE TABLE IF NOT EXISTS document_chats (
+   245→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   246→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   247→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   248→  file_name       TEXT NOT NULL,
+   249→  file_url        TEXT NOT NULL,         -- Supabase Storage path
+   250→  file_size       BIGINT,
+   251→  file_format     TEXT NOT NULL,         -- pdf, docx, txt
+   252→  extracted_text  TEXT,                  -- Parsed text content
+   253→  summary         TEXT,                  -- AI-generated summary
+   254→  flashcard_deck_id UUID,               -- Optional generated flashcard deck
+   255→  status          document_chat_status NOT NULL DEFAULT 'processing',
+   256→  page_count      INTEGER,
+   257→  word_count      INTEGER,
+   258→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   259→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   260→);
+   261→
+   262→CREATE INDEX idx_document_chats_student ON document_chats(student_id, created_at DESC);
+   263→
+   264→CREATE TABLE IF NOT EXISTS document_chat_messages (
+   265→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   266→  document_id     UUID NOT NULL REFERENCES document_chats(id) ON DELETE CASCADE,
+   267→  role            tutor_message_role NOT NULL,
+   268→  content         TEXT NOT NULL,
+   269→  page_reference  INTEGER,              -- Page number reference if applicable
+   270→  metadata        JSONB DEFAULT '{}',
+   271→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   272→);
+   273→
+   274→CREATE INDEX idx_document_chat_messages_doc ON document_chat_messages(document_id, created_at ASC);
+   275→
+   276→-- ═══════════════════════════════════════════════════════════════════════════
+   277→-- FLASHCARDS (Spaced Repetition)
+   278→-- ═══════════════════════════════════════════════════════════════════════════
+   279→
+   280→CREATE TABLE IF NOT EXISTS flashcard_decks (
+   281→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   282→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   283→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   284→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   285→  topic_id        UUID REFERENCES topics(id) ON DELETE SET NULL,
+   286→  title           TEXT NOT NULL,
+   287→  description     TEXT,
+   288→  source_type     TEXT DEFAULT 'manual',  -- manual, ai_generated, document, resource
+   289→  source_id       UUID,                   -- ID of source (document, resource, etc.)
+   290→  card_count      INTEGER NOT NULL DEFAULT 0,
+   291→  is_favorite     BOOLEAN NOT NULL DEFAULT FALSE,
+   292→  tags            TEXT[] DEFAULT '{}',
+   293→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   294→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   295→);
+   296→
+   297→CREATE INDEX idx_flashcard_decks_student ON flashcard_decks(student_id);
+   298→CREATE INDEX idx_flashcard_decks_subject ON flashcard_decks(student_id, subject_id);
+   299→CREATE INDEX idx_flashcard_decks_favorite ON flashcard_decks(student_id, is_favorite) WHERE is_favorite = TRUE;
+   300→
+   301→CREATE TABLE IF NOT EXISTS flashcards (
+   302→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   303→  deck_id         UUID NOT NULL REFERENCES flashcard_decks(id) ON DELETE CASCADE,
+   304→  front_content   TEXT NOT NULL,
+   305→  back_content    TEXT NOT NULL,
+   306→  hint            TEXT,
+   307→  image_url       TEXT,
+   308→  difficulty      difficulty_level DEFAULT 'medium',
+   309→  -- Spaced repetition fields (SM-2 algorithm)
+   310→  ease_factor     DECIMAL(4,2) NOT NULL DEFAULT 2.50,
+   311→  interval_days   INTEGER NOT NULL DEFAULT 0,
+   312→  repetitions     INTEGER NOT NULL DEFAULT 0,
+   313→  next_review_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+   314→  last_reviewed_at TIMESTAMPTZ,
+   315→  last_rating     flashcard_rating,
+   316→  total_reviews   INTEGER NOT NULL DEFAULT 0,
+   317→  correct_reviews INTEGER NOT NULL DEFAULT 0,
+   318→  sort_order      INTEGER NOT NULL DEFAULT 0,
+   319→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   320→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   321→);
+   322→
+   323→CREATE INDEX idx_flashcards_deck ON flashcards(deck_id, sort_order);
+   324→CREATE INDEX idx_flashcards_review ON flashcards(deck_id, next_review_at)
+   325→  WHERE next_review_at <= now();  -- Partial index for due cards
+   326→
+   327→-- ═══════════════════════════════════════════════════════════════════════════
+   328→-- STUDY PLANS & GOALS
+   329→-- ═══════════════════════════════════════════════════════════════════════════
+   330→
+   331→CREATE TABLE IF NOT EXISTS study_plans (
+   332→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   333→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   334→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   335→  title           TEXT NOT NULL,
+   336→  description     TEXT,
+   337→  frequency       study_plan_frequency NOT NULL DEFAULT 'daily',
+   338→  start_date      DATE NOT NULL,
+   339→  end_date        DATE,
+   340→  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+   341→  is_ai_suggested BOOLEAN NOT NULL DEFAULT FALSE,
+   342→  ai_suggestion_reason TEXT,
+   343→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   344→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   345→);
+   346→
+   347→CREATE INDEX idx_study_plans_student ON study_plans(student_id);
+   348→CREATE INDEX idx_study_plans_active ON study_plans(student_id, is_active) WHERE is_active = TRUE;
+   349→
+   350→CREATE TABLE IF NOT EXISTS study_tasks (
+   351→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   352→  plan_id         UUID NOT NULL REFERENCES study_plans(id) ON DELETE CASCADE,
+   353→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   354→  title           TEXT NOT NULL,
+   355→  description     TEXT,
+   356→  scheduled_date  DATE NOT NULL,
+   357→  start_time      TIME,
+   358→  end_time        TIME,
+   359→  status          study_task_status NOT NULL DEFAULT 'pending',
+   360→  completion_pct  DECIMAL(5,2) NOT NULL DEFAULT 0,
+   361→  notes           TEXT,
+   362→  completed_at    TIMESTAMPTZ,
+   363→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   364→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   365→);
+   366→
+   367→CREATE INDEX idx_study_tasks_plan ON study_tasks(plan_id, scheduled_date);
+   368→CREATE INDEX idx_study_tasks_date ON study_tasks(plan_id, scheduled_date, status);
+   369→
+   370→CREATE TABLE IF NOT EXISTS student_goals (
+   371→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   372→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   373→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   374→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   375→  title           TEXT NOT NULL,
+   376→  description     TEXT,
+   377→  target_value    DECIMAL(10,2),        -- e.g., target score
+   378→  current_value   DECIMAL(10,2) DEFAULT 0,
+   379→  unit            TEXT DEFAULT '%',      -- %, points, hours, etc.
+   380→  priority        goal_priority NOT NULL DEFAULT 'medium',
+   381→  status          goal_status NOT NULL DEFAULT 'not_started',
+   382→  deadline        DATE,
+   383→  completed_at    TIMESTAMPTZ,
+   384→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   385→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   386→);
+   387→
+   388→CREATE INDEX idx_student_goals_student ON student_goals(student_id);
+   389→CREATE INDEX idx_student_goals_status ON student_goals(student_id, status);
+   390→CREATE INDEX idx_student_goals_subject ON student_goals(student_id, subject_id);
+   391→
+   392→-- ═══════════════════════════════════════════════════════════════════════════
+   393→-- STUDENT LEARNING PROGRESS
+   394→-- ═══════════════════════════════════════════════════════════════════════════
+   395→
+   396→CREATE TABLE IF NOT EXISTS student_progress_snapshots (
+   397→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   398→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   399→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   400→  period          progress_period NOT NULL DEFAULT 'weekly',
+   401→  period_start    DATE NOT NULL,
+   402→  period_end      DATE NOT NULL,
+   403→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,  -- NULL for overall
+   404→  avg_score       DECIMAL(5,2),
+   405→  exams_taken     INTEGER NOT NULL DEFAULT 0,
+   406→  practice_sessions INTEGER NOT NULL DEFAULT 0,
+   407→  questions_attempted INTEGER NOT NULL DEFAULT 0,
+   408→  questions_correct INTEGER NOT NULL DEFAULT 0,
+   409→  study_time_min  INTEGER DEFAULT 0,
+   410→  assignments_completed INTEGER NOT NULL DEFAULT 0,
+   411→  assignments_pending INTEGER NOT NULL DEFAULT 0,
+   412→  flashcards_reviewed INTEGER NOT NULL DEFAULT 0,
+   413→  learning_streak INTEGER NOT NULL DEFAULT 0,    -- Consecutive study days
+   414→  weak_topics     JSONB DEFAULT '[]',             -- [{topic_id, topic_name, score_pct}]
+   415→  strong_topics   JSONB DEFAULT '[]',
+   416→  ai_suggestions  JSONB DEFAULT '[]',             -- AI-generated improvement tips
+   417→  metadata        JSONB DEFAULT '{}',
+   418→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   419→);
+   420→
+   421→CREATE INDEX idx_student_progress_student ON student_progress_snapshots(student_id, period_start DESC);
+   422→CREATE INDEX idx_student_progress_subject ON student_progress_snapshots(student_id, subject_id, period_start DESC);
+   423→CREATE INDEX idx_student_progress_period ON student_progress_snapshots(student_id, period, period_start DESC);
+   424→
+   425→-- Daily learning activity (lightweight tracking)
+   426→CREATE TABLE IF NOT EXISTS student_daily_activity (
+   427→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   428→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   429→  activity_date   DATE NOT NULL DEFAULT CURRENT_DATE,
+   430→  study_time_min  INTEGER NOT NULL DEFAULT 0,
+   431→  questions_attempted INTEGER NOT NULL DEFAULT 0,
+   432→  questions_correct INTEGER NOT NULL DEFAULT 0,
+   433→  practice_sessions INTEGER NOT NULL DEFAULT 0,
+   434→  flashcards_reviewed INTEGER NOT NULL DEFAULT 0,
+   435→  assignments_submitted INTEGER NOT NULL DEFAULT 0,
+   436→  resources_viewed INTEGER NOT NULL DEFAULT 0,
+   437→  tutor_questions  INTEGER NOT NULL DEFAULT 0,
+   438→  is_active_day   BOOLEAN NOT NULL DEFAULT FALSE,  -- At least 1 activity
+   439→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   440→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   441→
+   442→  CONSTRAINT uq_student_daily UNIQUE (student_id, activity_date)
+   443→);
+   444→
+   445→CREATE INDEX idx_student_daily_student ON student_daily_activity(student_id, activity_date DESC);
+   446→
+   447→-- ═══════════════════════════════════════════════════════════════════════════
+   448→-- STUDENT NOTIFICATIONS (extends base notifications)
+   449→-- ═══════════════════════════════════════════════════════════════════════════
+   450→
+   451→CREATE TABLE IF NOT EXISTS student_notifications (
+   452→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   453→  student_id      UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   454→  school_id       UUID REFERENCES schools(id) ON DELETE SET NULL,
+   455→  type            TEXT NOT NULL,         -- new_assignment, upcoming_exam, result_published,
+   456→                                         -- teacher_announcement, study_reminder,
+   457→                                         -- deadline_approaching, feedback_received
+   458→  title           TEXT NOT NULL,
+   459→  message         TEXT NOT NULL,
+   460→  related_id      UUID,                 -- ID of the related entity
+   461→  related_type    TEXT,                 -- assignment, exam, result, resource, etc.
+   462→  is_read         BOOLEAN NOT NULL DEFAULT FALSE,
+   463→  action_url      TEXT,                 -- Deep link
+   464→  scheduled_for   TIMESTAMPTZ,          -- For scheduled reminders
+   465→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   466→);
+   467→
+   468→CREATE INDEX idx_student_notifications_student ON student_notifications(student_id, is_read, created_at DESC);
+   469→CREATE INDEX idx_student_notifications_scheduled ON student_notifications(scheduled_for)
+   470→  WHERE is_read = FALSE AND scheduled_for IS NOT NULL;
+   471→
+   472→-- ═══════════════════════════════════════════════════════════════════════════
+   473→-- ROW LEVEL SECURITY
+   474→-- ═══════════════════════════════════════════════════════════════════════════
+   475→
+   476→ALTER TABLE ai_tutor_conversations ENABLE ROW LEVEL SECURITY;
+   477→ALTER TABLE ai_tutor_messages ENABLE ROW LEVEL SECURITY;
+   478→ALTER TABLE practice_sessions ENABLE ROW LEVEL SECURITY;
+   479→ALTER TABLE practice_answers ENABLE ROW LEVEL SECURITY;
+   480→ALTER TABLE assignment_submissions ENABLE ROW LEVEL SECURITY;
+   481→ALTER TABLE student_learning_resources ENABLE ROW LEVEL SECURITY;
+   482→ALTER TABLE resource_access_log ENABLE ROW LEVEL SECURITY;
+   483→ALTER TABLE document_chats ENABLE ROW LEVEL SECURITY;
+   484→ALTER TABLE document_chat_messages ENABLE ROW LEVEL SECURITY;
+   485→ALTER TABLE flashcard_decks ENABLE ROW LEVEL SECURITY;
+   486→ALTER TABLE flashcards ENABLE ROW LEVEL SECURITY;
+   487→ALTER TABLE study_plans ENABLE ROW LEVEL SECURITY;
+   488→ALTER TABLE study_tasks ENABLE ROW LEVEL SECURITY;
+   489→ALTER TABLE student_goals ENABLE ROW LEVEL SECURITY;
+   490→ALTER TABLE student_progress_snapshots ENABLE ROW LEVEL SECURITY;
+   491→ALTER TABLE student_daily_activity ENABLE ROW LEVEL SECURITY;
+   492→ALTER TABLE student_notifications ENABLE ROW LEVEL SECURITY;
+   493→
+   494→-- AI Tutor: Students can only access their own conversations
+   495→CREATE POLICY "Students can view own conversations"
+   496→  ON ai_tutor_conversations FOR SELECT
+   497→  USING (student_id = auth.uid());
+   498→
+   499→CREATE POLICY "Students can create own conversations"
+   500→  ON ai_tutor_conversations FOR INSERT
+   501→  WITH CHECK (student_id = auth.uid());
+   502→
+   503→CREATE POLICY "Students can update own conversations"
+   504→  ON ai_tutor_conversations FOR UPDATE
+   505→  USING (student_id = auth.uid());
+   506→
+   507→CREATE POLICY "Students can delete own conversations"
+   508→  ON ai_tutor_conversations FOR DELETE
+   509→  USING (student_id = auth.uid());
+   510→
+   511→-- AI Tutor Messages: Cascade through conversation ownership
+   512→CREATE POLICY "Students can view own messages"
+   513→  ON ai_tutor_messages FOR SELECT
+   514→  USING (conversation_id IN (
+   515→    SELECT id FROM ai_tutor_conversations WHERE student_id = auth.uid()
+   516→  ));
+   517→
+   518→CREATE POLICY "Students can insert own messages"
+   519→  ON ai_tutor_messages FOR INSERT
+   520→  WITH CHECK (conversation_id IN (
+   521→    SELECT id FROM ai_tutor_conversations WHERE student_id = auth.uid()
+   522→  ));
+   523→
+   524→-- Practice Sessions: Student-only access
+   525→CREATE POLICY "Students can view own practice sessions"
+   526→  ON practice_sessions FOR SELECT
+   527→  USING (student_id = auth.uid());
+   528→
+   529→CREATE POLICY "Students can create own practice sessions"
+   530→  ON practice_sessions FOR INSERT
+   531→  WITH CHECK (student_id = auth.uid());
+   532→
+   533→CREATE POLICY "Students can update own practice sessions"
+   534→  ON practice_sessions FOR UPDATE
+   535→  USING (student_id = auth.uid());
+   536→
+   537→-- Practice Answers: Through session ownership
+   538→CREATE POLICY "Students can view own practice answers"
+   539→  ON practice_answers FOR SELECT
+   540→  USING (session_id IN (
+   541→    SELECT id FROM practice_sessions WHERE student_id = auth.uid()
+   542→  ));
+   543→
+   544→CREATE POLICY "Students can insert own practice answers"
+   545→  ON practice_answers FOR INSERT
+   546→  WITH CHECK (session_id IN (
+   547→    SELECT id FROM practice_sessions WHERE student_id = auth.uid()
+   548→  ));
+   549→
+   550→-- Assignment Submissions: Students own their submissions
+   551→CREATE POLICY "Students can view own submissions"
+   552→  ON assignment_submissions FOR SELECT
+   553→  USING (student_id = auth.uid());
+   554→
+   555→CREATE POLICY "Students can create own submissions"
+   556→  ON assignment_submissions FOR INSERT
+   557→  WITH CHECK (student_id = auth.uid());
+   558→
+   559→CREATE POLICY "Students can update own submissions"
+   560→  ON assignment_submissions FOR UPDATE
+   561→  USING (student_id = auth.uid());
+   562→
+   563→-- Learning Resources: School-level + public visibility
+   564→CREATE POLICY "Students can view accessible resources"
+   565→  ON student_learning_resources FOR SELECT
+   566→  USING (
+   567→    is_public = TRUE
+   568→    OR school_id IN (
+   569→      SELECT school_id FROM users WHERE id = auth.uid()
+   570→    )
+   571→  );
+   572→
+   573→-- Resource Access Log: Own access only
+   574→CREATE POLICY "Students can view own access log"
+   575→  ON resource_access_log FOR SELECT
+   576→  USING (student_id = auth.uid());
+   577→
+   578→CREATE POLICY "Students can insert own access log"
+   579→  ON resource_access_log FOR INSERT
+   580→  WITH CHECK (student_id = auth.uid());
+   581→
+   582→-- Document Chats: Student-only
+   583→CREATE POLICY "Students can view own document chats"
+   584→  ON document_chats FOR SELECT
+   585→  USING (student_id = auth.uid());
+   586→
+   587→CREATE POLICY "Students can create own document chats"
+   588→  ON document_chats FOR INSERT
+   589→  WITH CHECK (student_id = auth.uid());
+   590→
+   591→CREATE POLICY "Students can update own document chats"
+   592→  ON document_chats FOR UPDATE
+   593→  USING (student_id = auth.uid());
+   594→
+   595→CREATE POLICY "Students can delete own document chats"
+   596→  ON document_chats FOR DELETE
+   597→  USING (student_id = auth.uid());
+   598→
+   599→-- Document Chat Messages: Through document ownership
+   600→CREATE POLICY "Students can view own doc chat messages"
+   601→  ON document_chat_messages FOR SELECT
+   602→  USING (document_id IN (
+   603→    SELECT id FROM document_chats WHERE student_id = auth.uid()
+   604→  ));
+   605→
+   606→CREATE POLICY "Students can insert own doc chat messages"
+   607→  ON document_chat_messages FOR INSERT
+   608→  WITH CHECK (document_id IN (
+   609→    SELECT id FROM document_chats WHERE student_id = auth.uid()
+   610→  ));
+   611→
+   612→-- Flashcard Decks: Student-only
+   613→CREATE POLICY "Students can view own flashcard decks"
+   614→  ON flashcard_decks FOR SELECT
+   615→  USING (student_id = auth.uid());
+   616→
+   617→CREATE POLICY "Students can create own flashcard decks"
+   618→  ON flashcard_decks FOR INSERT
+   619→  WITH CHECK (student_id = auth.uid());
+   620→
+   621→CREATE POLICY "Students can update own flashcard decks"
+   622→  ON flashcard_decks FOR UPDATE
+   623→  USING (student_id = auth.uid());
+   624→
+   625→CREATE POLICY "Students can delete own flashcard decks"
+   626→  ON flashcard_decks FOR DELETE
+   627→  USING (student_id = auth.uid());
+   628→
+   629→-- Flashcards: Through deck ownership
+   630→CREATE POLICY "Students can view own flashcards"
+   631→  ON flashcards FOR SELECT
+   632→  USING (deck_id IN (
+   633→    SELECT id FROM flashcard_decks WHERE student_id = auth.uid()
+   634→  ));
+   635→
+   636→CREATE POLICY "Students can create own flashcards"
+   637→  ON flashcards FOR INSERT
+   638→  WITH CHECK (deck_id IN (
+   639→    SELECT id FROM flashcard_decks WHERE student_id = auth.uid()
+   640→  ));
+   641→
+   642→CREATE POLICY "Students can update own flashcards"
+   643→  ON flashcards FOR UPDATE
+   644→  USING (deck_id IN (
+   645→    SELECT id FROM flashcard_decks WHERE student_id = auth.uid()
+   646→  ));
+   647→
+   648→CREATE POLICY "Students can delete own flashcards"
+   649→  ON flashcards FOR DELETE
+   650→  USING (deck_id IN (
+   651→    SELECT id FROM flashcard_decks WHERE student_id = auth.uid()
+   652→  ));
+   653→
+   654→-- Study Plans: Student-only
+   655→CREATE POLICY "Students can view own study plans"
+   656→  ON study_plans FOR SELECT
+   657→  USING (student_id = auth.uid());
+   658→
+   659→CREATE POLICY "Students can create own study plans"
+   660→  ON study_plans FOR INSERT
+   661→  WITH CHECK (student_id = auth.uid());
+   662→
+   663→CREATE POLICY "Students can update own study plans"
+   664→  ON study_plans FOR UPDATE
+   665→  USING (student_id = auth.uid());
+   666→
+   667→CREATE POLICY "Students can delete own study plans"
+   668→  ON study_plans FOR DELETE
+   669→  USING (student_id = auth.uid());
+   670→
+   671→-- Study Tasks: Through plan ownership
+   672→CREATE POLICY "Students can view own study tasks"
+   673→  ON study_tasks FOR SELECT
+   674→  USING (plan_id IN (
+   675→    SELECT id FROM study_plans WHERE student_id = auth.uid()
+   676→  ));
+   677→
+   678→CREATE POLICY "Students can create own study tasks"
+   679→  ON study_tasks FOR INSERT
+   680→  WITH CHECK (plan_id IN (
+   681→    SELECT id FROM study_plans WHERE student_id = auth.uid()
+   682→  ));
+   683→
+   684→CREATE POLICY "Students can update own study tasks"
+   685→  ON study_tasks FOR UPDATE
+   686→  USING (plan_id IN (
+   687→    SELECT id FROM study_plans WHERE student_id = auth.uid()
+   688→  ));
+   689→
+   690→CREATE POLICY "Students can delete own study tasks"
+   691→  ON study_tasks FOR DELETE
+   692→  USING (plan_id IN (
+   693→    SELECT id FROM study_plans WHERE student_id = auth.uid()
+   694→  ));
+   695→
+   696→-- Student Goals: Student-only
+   697→CREATE POLICY "Students can view own goals"
+   698→  ON student_goals FOR SELECT
+   699→  USING (student_id = auth.uid());
+   700→
+   701→CREATE POLICY "Students can create own goals"
+   702→  ON student_goals FOR INSERT
+   703→  WITH CHECK (student_id = auth.uid());
+   704→
+   705→CREATE POLICY "Students can update own goals"
+   706→  ON student_goals FOR UPDATE
+   707→  USING (student_id = auth.uid());
+   708→
+   709→CREATE POLICY "Students can delete own goals"
+   710→  ON student_goals FOR DELETE
+   711→  USING (student_id = auth.uid());
+   712→
+   713→-- Student Progress: Student-only
+   714→CREATE POLICY "Students can view own progress"
+   715→  ON student_progress_snapshots FOR SELECT
+   716→  USING (student_id = auth.uid());
+   717→
+   718→CREATE POLICY "System can insert progress"
+   719→  ON student_progress_snapshots FOR INSERT
+   720→  WITH CHECK (student_id = auth.uid());
+   721→
+   722→-- Daily Activity: Student-only
+   723→CREATE POLICY "Students can view own daily activity"
+   724→  ON student_daily_activity FOR SELECT
+   725→  USING (student_id = auth.uid());
+   726→
+   727→CREATE POLICY "Students can insert own daily activity"
+   728→  ON student_daily_activity FOR INSERT
+   729→  WITH CHECK (student_id = auth.uid());
+   730→
+   731→CREATE POLICY "Students can update own daily activity"
+   732→  ON student_daily_activity FOR UPDATE
+   733→  USING (student_id = auth.uid());
+   734→
+   735→-- Student Notifications: Student-only
+   736→CREATE POLICY "Students can view own notifications"
+   737→  ON student_notifications FOR SELECT
+   738→  USING (student_id = auth.uid());
+   739→
+   740→CREATE POLICY "Students can update own notifications"
+   741→  ON student_notifications FOR UPDATE
+   742→  USING (student_id = auth.uid());
+   743→
+   744→-- ═══════════════════════════════════════════════════════════════════════════
+   745→-- TRIGGER: Auto-update timestamps
+   746→-- ═══════════════════════════════════════════════════════════════════════════
+   747→
+   748→CREATE OR REPLACE FUNCTION update_updated_at_column()
+   749→RETURNS TRIGGER AS $$
+   750→BEGIN
+   751→  NEW.updated_at = now();
+   752→  RETURN NEW;
+   753→END;
+   754→$$ LANGUAGE plpgsql;
+   755→
+   756→CREATE TRIGGER trg_ai_tutor_conversations_updated
+   757→  BEFORE UPDATE ON ai_tutor_conversations
+   758→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   759→
+   760→CREATE TRIGGER trg_assignment_submissions_updated
+   761→  BEFORE UPDATE ON assignment_submissions
+   762→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   763→
+   764→CREATE TRIGGER trg_student_learning_resources_updated
+   765→  BEFORE UPDATE ON student_learning_resources
+   766→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   767→
+   768→CREATE TRIGGER trg_document_chats_updated
+   769→  BEFORE UPDATE ON document_chats
+   770→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   771→
+   772→CREATE TRIGGER trg_flashcard_decks_updated
+   773→  BEFORE UPDATE ON flashcard_decks
+   774→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   775→
+   776→CREATE TRIGGER trg_flashcards_updated
+   777→  BEFORE UPDATE ON flashcards
+   778→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   779→
+   780→CREATE TRIGGER trg_study_plans_updated
+   781→  BEFORE UPDATE ON study_plans
+   782→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   783→
+   784→CREATE TRIGGER trg_study_tasks_updated
+   785→  BEFORE UPDATE ON study_tasks
+   786→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   787→
+   788→CREATE TRIGGER trg_student_goals_updated
+   789→  BEFORE UPDATE ON student_goals
+   790→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   791→
+   792→CREATE TRIGGER trg_student_daily_activity_updated
+   793→  BEFORE UPDATE ON student_daily_activity
+   794→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   795→
+   796→-- ═══════════════════════════════════════════════════════════════════════════
+   797→-- TRIGGER: Update flashcard_deck card_count on insert/delete
+   798→-- ═══════════════════════════════════════════════════════════════════════════
+   799→
+   800→CREATE OR REPLACE FUNCTION update_deck_card_count()
+   801→RETURNS TRIGGER AS $$
+   802→BEGIN
+   803→  IF TG_OP = 'INSERT' THEN
+   804→    UPDATE flashcard_decks SET card_count = card_count + 1 WHERE id = NEW.deck_id;
+   805→    RETURN NEW;
+   806→  ELSIF TG_OP = 'DELETE' THEN
+   807→    UPDATE flashcard_decks SET card_count = GREATEST(card_count - 1, 0) WHERE id = OLD.deck_id;
+   808→    RETURN OLD;
+   809→  END IF;
+   810→  RETURN NULL;
+   811→END;
+   812→$$ LANGUAGE plpgsql;
+   813→
+   814→CREATE TRIGGER trg_flashcard_count_insert
+   815→  AFTER INSERT ON flashcards
+   816→  FOR EACH ROW EXECUTE FUNCTION update_deck_card_count();
+   817→
+   818→CREATE TRIGGER trg_flashcard_count_delete
+   819→  AFTER DELETE ON flashcards
+   820→  FOR EACH ROW EXECUTE FUNCTION update_deck_card_count();
+   821→
+   822→-- ═══════════════════════════════════════════════════════════════════════════
+   823→-- TRIGGER: Update resource view/download counts
+   824→-- ═══════════════════════════════════════════════════════════════════════════
+   825→
+   826→CREATE OR REPLACE FUNCTION update_resource_counts()
+   827→RETURNS TRIGGER AS $$
+   828→BEGIN
+   829→  IF NEW.access_type = 'view' THEN
+   830→    UPDATE student_learning_resources SET view_count = view_count + 1 WHERE id = NEW.resource_id;
+   831→  ELSIF NEW.access_type = 'download' THEN
+   832→    UPDATE student_learning_resources SET download_count = download_count + 1 WHERE id = NEW.resource_id;
+   833→  END IF;
+   834→  RETURN NEW;
+   835→END;
+   836→$$ LANGUAGE plpgsql;
+   837→
+   838→CREATE TRIGGER trg_resource_access_count
+   839→  AFTER INSERT ON resource_access_log
+   840→  FOR EACH ROW EXECUTE FUNCTION update_resource_counts();
+   841→
+   842→-- ═══════════════════════════════════════════════════════════════════════════
+   843→-- AUDIT LOG TRIGGER (reuses existing audit_log table)
+   844→-- ═══════════════════════════════════════════════════════════════════════════
+   845→
+   846→CREATE OR REPLACE FUNCTION log_student_portal_audit()
+   847→RETURNS TRIGGER AS $$
+   848→DECLARE
+   849→  table_name TEXT := TG_TABLE_NAME;
+   850→  operation  TEXT := TG_OP;
+   851→  user_id    UUID;
+   852→  record_id  UUID;
+   853→BEGIN
+   854→  IF operation = 'INSERT' THEN
+   855→    record_id := NEW.id;
+   856→    user_id := COALESCE(NEW.student_id, NEW.student_id);
+   857→  ELSIF operation = 'UPDATE' THEN
+   858→    record_id := NEW.id;
+   859→    user_id := COALESCE(NEW.student_id, OLD.student_id);
+   860→  ELSIF operation = 'DELETE' THEN
+   861→    record_id := OLD.id;
+   862→    user_id := OLD.student_id;
+   863→  END IF;
+   864→
+   865→  INSERT INTO audit_log (user_id, action, table_name, record_id, new_data, old_data)
+   866→  VALUES (
+   867→    user_id,
+   868→    operation,
+   869→    table_name,
+   870→    record_id,
+   871→    CASE WHEN operation IN ('INSERT', 'UPDATE') THEN to_jsonb(NEW) ELSE NULL END,
+   872→    CASE WHEN operation IN ('UPDATE', 'DELETE') THEN to_jsonb(OLD) ELSE NULL END
+   873→  );
+   874→
+   875→  RETURN COALESCE(NEW, OLD);
+   876→END;
+   877→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   878→
+   879→-- Apply audit to critical tables
+   880→CREATE TRIGGER trg_audit_assignment_submissions
+   881→  AFTER INSERT OR UPDATE OR DELETE ON assignment_submissions
+   882→  FOR EACH ROW EXECUTE FUNCTION log_student_portal_audit();
+   883→
+   884→CREATE TRIGGER trg_audit_practice_sessions
+   885→  AFTER INSERT OR UPDATE ON practice_sessions
+   886→  FOR EACH ROW EXECUTE FUNCTION log_student_portal_audit();
+   887→
+   888→-- ═══════════════════════════════════════════════════════════════════════════
+   889→-- HELPER VIEWS
+   890→-- ═══════════════════════════════════════════════════════════════════════════
+   891→
+   892→-- Student dashboard overview (fast read)
+   893→CREATE OR REPLACE VIEW v_student_dashboard AS
+   894→SELECT
+   895→  u.id AS student_id,
+   896→  u.school_id,
+   897→  u.full_name,
+   898→  -- Upcoming exams (next 7 days)
+   899→  (SELECT COUNT(*) FROM exam_attempts ea
+   900→   JOIN exams e ON ea.exam_id = e.id
+   901→   WHERE ea.student_id = u.id
+   902→     AND e.status = 'active'
+   903→     AND e.start_time <= now() + interval '7 days') AS upcoming_exams,
+   904→  -- Pending assignments
+   905→  (SELECT COUNT(*) FROM assignment_submissions a
+   906→   WHERE a.student_id = u.id
+   907→     AND a.status IN ('draft', 'submitted')) AS pending_assignments,
+   908→  -- Learning streak
+   909→  COALESCE((SELECT learning_streak FROM student_progress_snapshots
+   910→            WHERE student_id = u.id
+   911→            ORDER BY period_start DESC LIMIT 1), 0) AS learning_streak,
+   912→  -- Recent average score
+   913→  COALESCE((SELECT avg_score FROM student_progress_snapshots
+   914→            WHERE student_id = u.id AND subject_id IS NULL
+   915→            ORDER BY period_start DESC LIMIT 1), 0) AS recent_avg_score,
+   916→  -- Practice sessions this week
+   917→  (SELECT COUNT(*) FROM practice_sessions
+   918→   WHERE student_id = u.id
+   919→     AND started_at >= date_trunc('week', now())) AS practice_this_week,
+   920→  -- Unread notifications
+   921→  (SELECT COUNT(*) FROM student_notifications
+   922→   WHERE student_id = u.id AND is_read = FALSE) AS unread_notifications
+   923→FROM users u
+   924→WHERE u.role = 'student';
+   925→

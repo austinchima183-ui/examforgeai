@@ -88,7 +88,7 @@ class _SecurityCenterPageState
         children: [
           Text('MFA Configuration',
               style: tt.titleLarge?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface,),),
           const SizedBox(height: Spacings.md),
           AppCard(
             child: Column(
@@ -99,15 +99,15 @@ class _SecurityCenterPageState
                     if (v) {
                       ref.read(enterpriseProvider.notifier).enableMfa(
                           userId: 'current_user',
-                          method: MfaMethod.authenticatorApp);
+                          method: MfaMethod.authenticatorApp,);
                     } else {
                       _showDisableMfaDialog();
                     }
                   },
                   title: const Text('Enable MFA'),
                   subtitle: Text(
-                      state.mfaConfig?.mfaMethod.label ?? 'Not configured'),
-                  activeColor: cs.primary,
+                      state.mfaConfig?.mfaMethod.label ?? 'Not configured',),
+                  activeThumbColor: cs.primary,
                 ),
                 if (state.mfaConfig?.isEnabled ?? false) ...[
                   const Divider(),
@@ -179,7 +179,7 @@ class _SecurityCenterPageState
           // Backup codes
           Text('Backup Codes',
               style: tt.titleMedium?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface,),),
           const SizedBox(height: Spacings.sm),
           AppCard(
             child: Column(
@@ -196,7 +196,7 @@ class _SecurityCenterPageState
                   onPressed: () {
                     ScaffoldMessenger.of(context).showSnackBar(
                       const SnackBar(
-                          content: Text('New backup codes generated')),
+                          content: Text('New backup codes generated'),),
                     );
                   },
                   icon: Icons.refresh_rounded,
@@ -225,7 +225,7 @@ class _SecurityCenterPageState
               Text('API Keys',
                   style: tt.titleLarge?.copyWith(
                       fontWeight: AppTypography.wSemiBold,
-                      color: cs.onSurface)),
+                      color: cs.onSurface,),),
               AppButton(
                 label: 'Create API Key',
                 onPressed: _showCreateApiKeyDialog,
@@ -250,7 +250,7 @@ class _SecurityCenterPageState
                               child: Text(key.name,
                                   style: tt.titleSmall?.copyWith(
                                       fontWeight:
-                                          AppTypography.wSemiBold)),
+                                          AppTypography.wSemiBold,),),
                             ),
                             AppIconButton(
                               icon: Icons.delete_outline_rounded,
@@ -267,7 +267,7 @@ class _SecurityCenterPageState
                         Text('Scopes',
                             style: tt.labelMedium?.copyWith(
                                 fontWeight: AppTypography.wSemiBold,
-                                color: cs.primary)),
+                                color: cs.primary,),),
                         const SizedBox(height: Spacings.xs),
                         Wrap(
                           spacing: Spacings.xs,
@@ -276,28 +276,28 @@ class _SecurityCenterPageState
                               .map((s) => Container(
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: Spacings.sm,
-                                        vertical: 2),
+                                        vertical: 2,),
                                     decoration: BoxDecoration(
                                       color:
-                                          cs.primaryContainer.withOpacity(0.3),
+                                          cs.primaryContainer.withValues(alpha: 0.3),
                                       borderRadius:
                                           Spacings.borderRadiusSm,
                                     ),
                                     child: Text(s,
                                         style: tt.bodySmall?.copyWith(
-                                            color: cs.primary)),
-                                  ))
+                                            color: cs.primary,),),
+                                  ),)
                               .toList(),
                         ),
                         const SizedBox(height: Spacings.sm),
                         Text(
                             'Created ${_formatDate(key.createdAt)}',
                             style: tt.bodySmall?.copyWith(
-                                color: cs.onSurfaceVariant)),
+                                color: cs.onSurfaceVariant,),),
                       ],
                     ),
                   ),
-                )),
+                ),),
         ],
       ),
     );
@@ -306,7 +306,7 @@ class _SecurityCenterPageState
   // ── Security Events Tab ──────────────────────────────────────────
 
   Widget _buildSecurityEventsTab(
-      EnterpriseState state, ColorScheme cs, TextTheme tt) {
+      EnterpriseState state, ColorScheme cs, TextTheme tt,) {
     return state.securityEvents.isEmpty
         ? AppEmptyState.noData(subtitle: 'No security events')
         : ListView.builder(
@@ -324,36 +324,36 @@ class _SecurityCenterPageState
                         children: [
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: Spacings.sm, vertical: 2),
+                                horizontal: Spacings.sm, vertical: 2,),
                             decoration: BoxDecoration(
                               color: _severityColor(event.severity)
-                                  .withOpacity(0.15),
+                                  .withValues(alpha: 0.15),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             child: Text(event.severity.label,
                                 style: AppTypography.labelSmall!.copyWith(
                                     color: _severityColor(event.severity),
-                                    fontWeight: AppTypography.wSemiBold)),
+                                    fontWeight: AppTypography.wSemiBold,),),
                           ),
                           const SizedBox(width: Spacings.sm),
                           Expanded(
                             child: Text(event.eventType,
                                 style: tt.bodyMedium,
                                 maxLines: 2,
-                                overflow: TextOverflow.ellipsis),
+                                overflow: TextOverflow.ellipsis,),
                           ),
                         ],
                       ),
                       const SizedBox(height: Spacings.sm),
                       Row(
                         children: [
-                          Text('${event.eventType}',
+                          Text(event.eventType,
                               style: tt.bodySmall?.copyWith(
-                                  color: cs.onSurfaceVariant)),
+                                  color: cs.onSurfaceVariant,),),
                           const Spacer(),
                           Text(_formatDate(event.createdAt),
                               style: tt.bodySmall?.copyWith(
-                                  color: cs.onSurfaceVariant)),
+                                  color: cs.onSurfaceVariant,),),
                         ],
                       ),
                       if (!event.isResolved) ...[
@@ -377,7 +377,7 @@ class _SecurityCenterPageState
   // ── Rate Limiting Tab ────────────────────────────────────────────
 
   Widget _buildRateLimitingTab(
-      EnterpriseState state, ColorScheme cs, TextTheme tt) {
+      EnterpriseState state, ColorScheme cs, TextTheme tt,) {
     final configs = [
       ('Global', RateLimitScope.global, 1000, 60),
       ('Per User', RateLimitScope.perUser, 100, 60),
@@ -393,7 +393,7 @@ class _SecurityCenterPageState
         children: [
           Text('Rate Limiting Configuration',
               style: tt.titleLarge?.copyWith(
-                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface)),
+                  fontWeight: AppTypography.wSemiBold, color: cs.onSurface,),),
           const SizedBox(height: Spacings.md),
           ...configs.map((config) => Padding(
                 padding: const EdgeInsets.only(bottom: Spacings.md),
@@ -404,23 +404,23 @@ class _SecurityCenterPageState
                       Row(
                         children: [
                           Icon(Icons.speed_rounded,
-                              color: cs.primary, size: Spacings.mdIcon),
+                              color: cs.primary, size: Spacings.mdIcon,),
                           const SizedBox(width: Spacings.sm),
                           Expanded(
                             child: Text(config.$1,
                                 style: tt.titleSmall?.copyWith(
-                                    fontWeight: AppTypography.wSemiBold)),
+                                    fontWeight: AppTypography.wSemiBold,),),
                           ),
                           Container(
                             padding: const EdgeInsets.symmetric(
-                                horizontal: Spacings.sm, vertical: 2),
+                                horizontal: Spacings.sm, vertical: 2,),
                             decoration: BoxDecoration(
-                              color: cs.primaryContainer.withOpacity(0.3),
+                              color: cs.primaryContainer.withValues(alpha: 0.3),
                               borderRadius: Spacings.borderRadiusSm,
                             ),
                             child: Text(config.$2.label,
                                 style: tt.bodySmall?.copyWith(
-                                    color: cs.primary)),
+                                    color: cs.primary,),),
                           ),
                         ],
                       ),
@@ -428,7 +428,7 @@ class _SecurityCenterPageState
                       Text(
                           '${config.$3} requests per ${config.$4} seconds',
                           style: tt.bodyMedium?.copyWith(
-                              color: cs.onSurfaceVariant)),
+                              color: cs.onSurfaceVariant,),),
                       const SizedBox(height: Spacings.sm),
                       AppButton(
                         label: 'Edit Limits',
@@ -442,7 +442,7 @@ class _SecurityCenterPageState
                     ],
                   ),
                 ),
-              )),
+              ),),
         ],
       ),
     );
@@ -451,7 +451,7 @@ class _SecurityCenterPageState
   // ── Active Sessions Tab ──────────────────────────────────────────
 
   Widget _buildActiveSessionsTab(
-      EnterpriseState state, ColorScheme cs, TextTheme tt) {
+      EnterpriseState state, ColorScheme cs, TextTheme tt,) {
     if (state.userSessions.isEmpty) {
       return AppEmptyState.noData(subtitle: 'No active sessions');
     }
@@ -466,7 +466,7 @@ class _SecurityCenterPageState
             child: Row(
               children: [
                 Icon(_deviceIcon(session.deviceName ?? session.deviceType ?? 'Unknown'),
-                    color: cs.onSurfaceVariant, size: Spacings.lgIcon),
+                    color: cs.onSurfaceVariant, size: Spacings.lgIcon,),
                 const SizedBox(width: Spacings.md),
                 Expanded(
                   child: Column(
@@ -474,12 +474,12 @@ class _SecurityCenterPageState
                     children: [
                       Text(session.deviceName ?? 'Unknown device',
                           style: tt.bodyMedium?.copyWith(
-                              fontWeight: AppTypography.wSemiBold)),
+                              fontWeight: AppTypography.wSemiBold,),),
                       const SizedBox(height: Spacings.xs),
                       Text(
                           'IP: ${session.ipAddress} · ${_formatDate(session.lastActivityAt)}',
                           style: tt.bodySmall?.copyWith(
-                              color: cs.onSurfaceVariant)),
+                              color: cs.onSurfaceVariant,),),
                     ],
                   ),
                 ),
@@ -489,7 +489,7 @@ class _SecurityCenterPageState
                       .read(enterpriseProvider.notifier)
                       .invalidateSessions(
                           userId: 'current_user',
-                          sessionId: session.id),
+                          sessionId: session.id,),
                   variant: AppButtonVariant.text,
                   size: AppButtonSize.small,
                 ),
@@ -516,26 +516,26 @@ class _SecurityCenterPageState
               'Enter your verification code to disable MFA. '
               'This will make your account less secure.',
               style: AppTypography.bodyMedium!.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,),
             ),
             const SizedBox(height: Spacings.md),
             TextField(
                 controller: codeCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Verification Code',
-                    border: OutlineInputBorder())),
+                    border: OutlineInputBorder(),),),
           ],
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Disable',
             onPressed: () {
               ref.read(enterpriseProvider.notifier).disableMfa(
                   userId: 'current_user',
-                  verificationCode: codeCtrl.text);
+                  verificationCode: codeCtrl.text,);
               Navigator.pop(context);
             },
           ),
@@ -561,11 +561,11 @@ class _SecurityCenterPageState
                     controller: nameCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Key Name *',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 Text('Scopes',
                     style: AppTypography.labelMedium!.copyWith(
-                        fontWeight: AppTypography.wSemiBold)),
+                        fontWeight: AppTypography.wSemiBold,),),
                 const SizedBox(height: Spacings.sm),
                 Wrap(
                   spacing: Spacings.sm,
@@ -582,7 +582,7 @@ class _SecurityCenterPageState
                                 }
                               });
                             },
-                          ))
+                          ),)
                       .toList(),
                 ),
               ],
@@ -591,7 +591,7 @@ class _SecurityCenterPageState
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Create',
               onPressed: () {
@@ -609,7 +609,7 @@ class _SecurityCenterPageState
   }
 
   void _showEditRateLimitDialog(
-      String name, int currentLimit, int currentWindow) {
+      String name, int currentLimit, int currentWindow,) {
     final limitCtrl = TextEditingController(text: '$currentLimit');
     final windowCtrl = TextEditingController(text: '$currentWindow');
 
@@ -624,21 +624,21 @@ class _SecurityCenterPageState
                 controller: limitCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Max Requests',
-                    border: OutlineInputBorder()),
-                keyboardType: TextInputType.number),
+                    border: OutlineInputBorder(),),
+                keyboardType: TextInputType.number,),
             const SizedBox(height: Spacings.md),
             TextField(
                 controller: windowCtrl,
                 decoration: const InputDecoration(
                     labelText: 'Window (seconds)',
-                    border: OutlineInputBorder()),
-                keyboardType: TextInputType.number),
+                    border: OutlineInputBorder(),),
+                keyboardType: TextInputType.number,),
           ],
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Save',
             onPressed: () => Navigator.pop(context),

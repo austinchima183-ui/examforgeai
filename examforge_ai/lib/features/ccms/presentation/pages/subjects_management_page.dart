@@ -38,7 +38,7 @@ class _SubjectsManagementPageState
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
-    var filtered = subjectState.subjects.where((s) {
+    final filtered = subjectState.subjects.where((s) {
       if (_searchQuery.isNotEmpty &&
           !s.name.toLowerCase().contains(_searchQuery.toLowerCase()) &&
           !s.code.toLowerCase().contains(_searchQuery.toLowerCase())) {
@@ -103,13 +103,13 @@ class _SubjectsManagementPageState
                               isDense: true,
                               border: OutlineInputBorder(),
                             ),
-                            value: _selectedLevelId,
+                            initialValue: _selectedLevelId,
                             items: [
                               const DropdownMenuItem(
-                                  value: null, child: Text('All Levels')),
+                                  value: null, child: Text('All Levels'),),
                               ...levelState.levels.map((l) =>
                                   DropdownMenuItem(
-                                      value: l.id, child: Text(l.name))),
+                                      value: l.id, child: Text(l.name),),),
                             ],
                             onChanged: (v) {
                               setState(() => _selectedLevelId = v);
@@ -128,13 +128,13 @@ class _SubjectsManagementPageState
                                     isDense: true,
                                     border: OutlineInputBorder(),
                                   ),
-                                  value: _selectedGroup,
+                                  initialValue: _selectedGroup,
                                   items: [
                                     const DropdownMenuItem(
                                         value: null,
-                                        child: Text('All Groups')),
+                                        child: Text('All Groups'),),
                                     ...groups.map((g) => DropdownMenuItem(
-                                        value: g!, child: Text(g!))),
+                                        value: g!, child: Text(g),),),
                                   ],
                                   onChanged: (v) =>
                                       setState(() => _selectedGroup = v),
@@ -149,18 +149,18 @@ class _SubjectsManagementPageState
                                     isDense: true,
                                     border: OutlineInputBorder(),
                                   ),
-                                  value: _subjectTypeFilter,
+                                  initialValue: _subjectTypeFilter,
                                   items: [
                                     const DropdownMenuItem(
                                         value: null,
-                                        child: Text('All Types')),
+                                        child: Text('All Types'),),
                                     ...SubjectType.values.map((t) =>
                                         DropdownMenuItem(
                                             value: t,
-                                            child: Text(t.label))),
+                                            child: Text(t.label),),),
                                   ],
                                   onChanged: (v) => setState(
-                                      () => _subjectTypeFilter = v),
+                                      () => _subjectTypeFilter = v,),
                                 ),
                               ),
                             ],
@@ -181,7 +181,7 @@ class _SubjectsManagementPageState
                             )
                           : ListView.builder(
                               padding: const EdgeInsets.symmetric(
-                                  horizontal: Spacings.lg),
+                                  horizontal: Spacings.lg,),
                               itemCount: filtered.length,
                               itemBuilder: (context, index) => Padding(
                                 padding:
@@ -221,27 +221,27 @@ class _SubjectsManagementPageState
                 TextField(
                     controller: nameCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'Name *', border: OutlineInputBorder())),
+                        labelText: 'Name *', border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: codeCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'Code *', border: OutlineInputBorder())),
+                        labelText: 'Code *', border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: groupCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Subject Group',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<SubjectType>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(
                       labelText: 'Type',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(),),
                   items: SubjectType.values
                       .map((t) =>
-                          DropdownMenuItem(value: t, child: Text(t.label)))
+                          DropdownMenuItem(value: t, child: Text(t.label)),)
                       .toList(),
                   onChanged: (v) => setState(() => type = v!),
                 ),
@@ -249,10 +249,10 @@ class _SubjectsManagementPageState
                 if (_selectedLevelId != null)
                   DropdownButtonFormField<String>(
                     decoration: const InputDecoration(
-                        labelText: 'Level', border: OutlineInputBorder()),
-                    items: [
-                      const DropdownMenuItem(
-                          value: null, child: Text('Select Level')),
+                        labelText: 'Level', border: OutlineInputBorder(),),
+                    items: const [
+                      DropdownMenuItem(
+                          value: null, child: Text('Select Level'),),
                     ],
                     onChanged: (_) {},
                   ),
@@ -261,15 +261,15 @@ class _SubjectsManagementPageState
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
               ],
             ),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Create',
               onPressed: () {
@@ -290,7 +290,7 @@ class _SubjectsManagementPageState
                       descCtrl.text.isEmpty ? null : descCtrl.text,
                   createdAt: DateTime.now(),
                   updatedAt: DateTime.now(),
-                ));
+                ),);
                 Navigator.pop(context);
               },
             ),
@@ -320,27 +320,27 @@ class _SubjectsManagementPageState
                 TextField(
                     controller: nameCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'Name', border: OutlineInputBorder())),
+                        labelText: 'Name', border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: codeCtrl,
                     decoration: const InputDecoration(
-                        labelText: 'Code', border: OutlineInputBorder())),
+                        labelText: 'Code', border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 TextField(
                     controller: groupCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Subject Group',
-                        border: OutlineInputBorder())),
+                        border: OutlineInputBorder(),),),
                 const SizedBox(height: Spacings.md),
                 DropdownButtonFormField<SubjectType>(
-                  value: type,
+                  initialValue: type,
                   decoration: const InputDecoration(
                       labelText: 'Type',
-                      border: OutlineInputBorder()),
+                      border: OutlineInputBorder(),),
                   items: SubjectType.values
                       .map((t) =>
-                          DropdownMenuItem(value: t, child: Text(t.label)))
+                          DropdownMenuItem(value: t, child: Text(t.label)),)
                       .toList(),
                   onChanged: (v) => setState(() => type = v!),
                 ),
@@ -349,15 +349,15 @@ class _SubjectsManagementPageState
                     controller: descCtrl,
                     decoration: const InputDecoration(
                         labelText: 'Description',
-                        border: OutlineInputBorder()),
-                    maxLines: 3),
+                        border: OutlineInputBorder(),),
+                    maxLines: 3,),
               ],
             ),
           ),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),
-                child: const Text('Cancel')),
+                child: const Text('Cancel'),),
             AppButton(
               label: 'Save',
               onPressed: () {
@@ -379,7 +379,7 @@ class _SubjectsManagementPageState
                       : descCtrl.text,
                   createdAt: subject.createdAt,
                   updatedAt: DateTime.now(),
-                ));
+                ),);
                 Navigator.pop(context);
               },
             ),
@@ -395,11 +395,11 @@ class _SubjectsManagementPageState
       builder: (context) => AlertDialog(
         title: const Text('Delete Subject'),
         content: Text(
-            'Are you sure you want to delete "${subject.name}"? This action cannot be undone.'),
+            'Are you sure you want to delete "${subject.name}"? This action cannot be undone.',),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Delete',
             onPressed: () {

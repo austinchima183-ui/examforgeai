@@ -34,7 +34,7 @@ class CreatePresentationUseCase {
       return const FailureResult(Failure.validation(
         message: 'Presentation title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createPresentation(params.presentation);
   }

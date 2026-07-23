@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/question_entities.dart';
 import '../../domain/usecases/export_questions_usecase.dart';
 import '../providers/import_export_provider.dart';
@@ -56,15 +55,15 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
 
   static const _formats = [
     _ExportFormat('pdf', 'PDF', Icons.picture_as_pdf_rounded,
-        'Printable document format', Color(0xFFDC2626)),
+        'Printable document format', Color(0xFFDC2626),),
     _ExportFormat('docx', 'DOCX', Icons.description_rounded,
-        'Word document format', Color(0xFF2563EB)),
+        'Word document format', Color(0xFF2563EB),),
     _ExportFormat('excel', 'Excel', Icons.table_view_rounded,
-        'XLSX spreadsheet', Color(0xFF16A34A)),
+        'XLSX spreadsheet', Color(0xFF16A34A),),
     _ExportFormat('csv', 'CSV', Icons.table_chart_rounded,
-        'Comma-separated values', Color(0xFFD97706)),
+        'Comma-separated values', Color(0xFFD97706),),
     _ExportFormat('json', 'JSON', Icons.data_object_rounded,
-        'Structured data format', Color(0xFF7C3AED)),
+        'Structured data format', Color(0xFF7C3AED),),
   ];
 
   // ─── Build ──────────────────────────────────────────────────────────
@@ -137,7 +136,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             vertical: Spacings.xs,
           ),
           decoration: BoxDecoration(
-            color: cs.primary.withOpacity(context.isDarkMode ? 0.2 : 0.1),
+            color: cs.primary.withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
             borderRadius: BorderRadius.circular(Spacings.smRadius),
           ),
           child: Text(
@@ -171,13 +170,13 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
               padding: const EdgeInsets.all(Spacings.lg),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? fmt.color.withOpacity(isDark ? 0.15 : 0.06)
+                    ? fmt.color.withValues(alpha: isDark ? 0.15 : 0.06)
                     : cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
                   color: isSelected
                       ? fmt.color
-                      : cs.outlineVariant.withOpacity(0.5),
+                      : cs.outlineVariant.withValues(alpha: 0.5),
                   width: isSelected ? 2.0 : 1.0,
                 ),
               ),
@@ -186,7 +185,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
                   Container(
                     padding: const EdgeInsets.all(Spacings.md),
                     decoration: BoxDecoration(
-                      color: fmt.color.withOpacity(isDark ? 0.2 : 0.1),
+                      color: fmt.color.withValues(alpha: isDark ? 0.2 : 0.1),
                       borderRadius: BorderRadius.circular(Spacings.mdRadius),
                     ),
                     child: Icon(fmt.icon, size: Spacings.lgIcon, color: fmt.color),
@@ -216,7 +215,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
                   ),
                   if (isSelected)
                     Icon(Icons.check_circle_rounded,
-                        color: fmt.color, size: Spacings.mdIcon),
+                        color: fmt.color, size: Spacings.mdIcon,),
                 ],
               ),
             ),
@@ -243,10 +242,10 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: AppColors.info
-                    .withOpacity(context.isDarkMode ? 0.2 : 0.1),
+                    .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
               ),
-              child: Icon(
+              child: const Icon(
                 Icons.checklist_rounded,
                 size: Spacings.lgIcon,
                 color: AppColors.info,
@@ -450,9 +449,9 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
           decoration: InputDecoration(
             labelText: label,
             hintText: 'Select date',
-            prefixIcon: Icon(Icons.calendar_today_outlined, size: Spacings.mdIcon),
+            prefixIcon: const Icon(Icons.calendar_today_outlined, size: Spacings.mdIcon),
             suffixIcon: Icon(Icons.arrow_drop_down_rounded,
-                color: cs.onSurfaceVariant),
+                color: cs.onSurfaceVariant,),
           ),
           readOnly: true,
           enabled: true,
@@ -547,19 +546,19 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
     final isDark = context.isDarkMode;
 
     final layouts = [
-      _LayoutOption(
+      const _LayoutOption(
         value: _ExportLayout.onePerPage,
         icon: Icons.crop_portrait_rounded,
         label: 'One per page',
         description: 'Each question on its own page',
       ),
-      _LayoutOption(
+      const _LayoutOption(
         value: _ExportLayout.compact,
         icon: Icons.view_agenda_rounded,
         label: 'Compact layout',
         description: 'Multiple questions per page',
       ),
-      _LayoutOption(
+      const _LayoutOption(
         value: _ExportLayout.examStyle,
         icon: Icons.assignment_rounded,
         label: 'Exam-style layout',
@@ -578,13 +577,13 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
                 color: isSelected
-                    ? cs.primary.withOpacity(isDark ? 0.15 : 0.06)
+                    ? cs.primary.withValues(alpha: isDark ? 0.15 : 0.06)
                     : cs.surfaceContainerLow,
                 borderRadius: BorderRadius.circular(Spacings.mdRadius),
                 border: Border.all(
                   color: isSelected
                       ? cs.primary
-                      : cs.outlineVariant.withOpacity(0.5),
+                      : cs.outlineVariant.withValues(alpha: 0.5),
                   width: isSelected ? 2.0 : 1.0,
                 ),
               ),
@@ -720,7 +719,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.successOf(cs.brightness)
-                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
+                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(
@@ -751,7 +750,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             width: double.infinity,
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
-              color: cs.primaryContainer.withOpacity(0.3),
+              color: cs.primaryContainer.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Column(
@@ -841,7 +840,7 @@ class _QuestionExportPageState extends ConsumerState<QuestionExportPage> {
             padding: const EdgeInsets.all(Spacings.lg),
             decoration: BoxDecoration(
               color: AppColors.errorOf(cs.brightness)
-                  .withOpacity(context.isDarkMode ? 0.2 : 0.1),
+                  .withValues(alpha: context.isDarkMode ? 0.2 : 0.1),
               shape: BoxShape.circle,
             ),
             child: Icon(

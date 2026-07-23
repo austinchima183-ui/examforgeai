@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../core/extensions/context_extensions.dart';
 import '../../core/themes/app_colors.dart';
 import '../../core/themes/app_typography.dart';
 import '../../core/themes/spacings.dart';
-import '../../core/extensions/context_extensions.dart';
 
 // ─── AppDrawerItem ────────────────────────────────────────────────────────────
 
@@ -412,7 +412,7 @@ class AppNavigationDrawer extends StatelessWidget {
                       vertical: Spacings.xs / 2,
                     ),
                     decoration: BoxDecoration(
-                      color: cs.primaryContainer.withOpacity(0.5),
+                      color: cs.primaryContainer.withValues(alpha: 0.5),
                       borderRadius: BorderRadius.circular(Spacings.smRadius),
                     ),
                     child: Text(
@@ -485,7 +485,7 @@ class _TabletRail extends StatelessWidget {
       backgroundColor: cs.surface,
       indicatorColor: cs.primaryContainer,
       leading: const SizedBox.shrink(),
-      trailing: Expanded(child: const SizedBox.shrink()),
+      trailing: const Expanded(child: SizedBox.shrink()),
       destinations: visibleItems.map((item) {
         return NavigationRailDestination(
           icon: Icon(item.icon),
@@ -699,7 +699,7 @@ class _DesktopSidebar extends StatelessWidget {
       ),
       child: ListTile(
         selected: isSelected,
-        selectedTileColor: cs.primaryContainer.withOpacity(0.3),
+        selectedTileColor: cs.primaryContainer.withValues(alpha: 0.3),
         leading: Icon(
           isSelected ? (item.selectedIcon ?? item.icon) : item.icon,
           color: isSelected ? cs.primary : cs.onSurfaceVariant,

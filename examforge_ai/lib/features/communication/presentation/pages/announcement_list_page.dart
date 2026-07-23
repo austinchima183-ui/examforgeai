@@ -11,7 +11,6 @@ import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
 import '../../domain/usecases/get_announcements_usecase.dart';
 import '../providers/announcement_provider.dart';
-import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType;
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -162,7 +161,7 @@ class _State extends ConsumerState<AnnouncementListPage> with SingleTickerProvid
         color: cs.surfaceContainerLow,
         shape: RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
-          side: BorderSide(color: ann.priority == AnnouncementPriority.urgent ? priorityColor.withOpacity(0.5) : cs.outlineVariant.withOpacity(0.3)),
+          side: BorderSide(color: ann.priority == AnnouncementPriority.urgent ? priorityColor.withValues(alpha: 0.5) : cs.outlineVariant.withValues(alpha: 0.3)),
         ),
         child: InkWell(
           onTap: () {/* TODO: navigate to detail */},
@@ -179,7 +178,7 @@ class _State extends ConsumerState<AnnouncementListPage> with SingleTickerProvid
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
                       decoration: BoxDecoration(
-                        color: priorityColor.withOpacity(0.12),
+                        color: priorityColor.withValues(alpha: 0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(
@@ -195,7 +194,7 @@ class _State extends ConsumerState<AnnouncementListPage> with SingleTickerProvid
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: Spacings.xs),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.12),
+                        color: typeColor.withValues(alpha: 0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(
@@ -284,19 +283,19 @@ class _State extends ConsumerState<AnnouncementListPage> with SingleTickerProvid
         child: Padding(
           padding: const EdgeInsets.all(Spacings.lg),
           child: Column(
-            children: List.generate(5, (_) => Padding(
-              padding: const EdgeInsets.only(bottom: Spacings.lg),
+            children: List.generate(5, (_) => const Padding(
+              padding: EdgeInsets.only(bottom: Spacings.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   AppLoadingShimmer.box(width: 120, height: 20, borderRadius: Spacings.borderRadiusSm),
-                  const SizedBox(height: Spacings.sm),
+                  SizedBox(height: Spacings.sm),
                   AppLoadingShimmer.box(width: double.infinity, height: 16, borderRadius: Spacings.borderRadiusSm),
-                  const SizedBox(height: Spacings.xs),
+                  SizedBox(height: Spacings.xs),
                   AppLoadingShimmer.box(width: double.infinity, height: 14, borderRadius: Spacings.borderRadiusSm),
                 ],
               ),
-            )),
+            ),),
           ),
         ),
       ),

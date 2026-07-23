@@ -78,7 +78,7 @@ class _State extends ConsumerState<ForumDetailPage> {
                   Text(o.label),
                 ],
               ),
-            )).toList(),
+            ),).toList(),
             icon: const Icon(Icons.sort),
           ),
         ],
@@ -170,7 +170,7 @@ class _State extends ConsumerState<ForumDetailPage> {
             children: [
               CircleAvatar(
                 radius: 24,
-                backgroundColor: typeColor.withOpacity(0.12),
+                backgroundColor: typeColor.withValues(alpha: 0.12),
                 child: Icon(_forumTypeIcon(forum.forumType), color: typeColor, size: Spacings.lgIcon),
               ),
               const SizedBox(width: Spacings.md),
@@ -183,7 +183,7 @@ class _State extends ConsumerState<ForumDetailPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(0.12),
+                        color: typeColor.withValues(alpha: 0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(forum.forumType.label, style: tt.labelSmall?.copyWith(color: typeColor, fontWeight: AppTypography.wMedium)),
@@ -242,7 +242,7 @@ class _State extends ConsumerState<ForumDetailPage> {
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
       margin: const EdgeInsets.only(bottom: Spacings.md),
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: InkWell(
         onTap: () {/* TODO: navigate to post detail */},
         borderRadius: Spacings.borderRadiusMd,

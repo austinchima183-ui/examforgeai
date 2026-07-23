@@ -20,7 +20,7 @@ class CreateResourceUseCase {
       return const FailureResult(Failure.validation(
         message: 'Resource title is required',
         fieldErrors: {'title': 'Title cannot be empty'},
-      ));
+      ),);
     }
     return _repository.createResource(params.resource);
   }

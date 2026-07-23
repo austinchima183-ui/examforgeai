@@ -7,8 +7,8 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../domain/entities/ai_entities.dart';
 import '../../../question_bank/domain/entities/question_entities.dart';
+import '../../domain/entities/ai_entities.dart';
 import '../providers/ai_generator_provider.dart';
 import '../widgets/ai_widgets.dart';
 
@@ -175,7 +175,7 @@ class _AiGeneratePageState extends ConsumerState<AiGeneratePage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                    color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                     ),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
@@ -294,10 +294,10 @@ class _AiGeneratePageState extends ConsumerState<AiGeneratePage> {
       margin: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       padding: const EdgeInsets.all(Spacings.lg),
       decoration: BoxDecoration(
-        color: cs.primary.withOpacity(context.isDarkMode ? 0.10 : 0.06),
+        color: cs.primary.withValues(alpha: context.isDarkMode ? 0.10 : 0.06),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: cs.primary.withOpacity(0.2),
+          color: cs.primary.withValues(alpha: 0.2),
         ),
       ),
       child: Column(
@@ -348,7 +348,7 @@ class _AiGeneratePageState extends ConsumerState<AiGeneratePage> {
             Container(
               padding: const EdgeInsets.all(Spacings.md),
               decoration: BoxDecoration(
-                color: cs.surfaceContainerHighest.withOpacity(0.5),
+                color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Text(
@@ -381,11 +381,11 @@ class _AiGeneratePageState extends ConsumerState<AiGeneratePage> {
         vertical: Spacings.md,
       ),
       decoration: BoxDecoration(
-        color: AppColors.successOf(cs.brightness).withOpacity(context.isDarkMode ? 0.15 : 0.10,
+        color: AppColors.successOf(cs.brightness).withValues(alpha: context.isDarkMode ? 0.15 : 0.10,
         ),
         borderRadius: BorderRadius.circular(Spacings.mdRadius),
         border: Border.all(
-          color: AppColors.successOf(cs.brightness).withOpacity(0.3),
+          color: AppColors.successOf(cs.brightness).withValues(alpha: 0.3),
         ),
       ),
       child: Row(
@@ -431,7 +431,7 @@ class _AiGeneratePageState extends ConsumerState<AiGeneratePage> {
         subjectId: '',
         topicId: '',
         difficulty: DifficultyLevel.medium,
-      ));
+      ),);
     }
 
     notifier.generateQuestions();
@@ -443,7 +443,7 @@ class _AiGeneratePageState extends ConsumerState<AiGeneratePage> {
   ) async {
     final approved = state.generatedQuestions
         .where((q) =>
-            q.reviewStatus == ReviewStatus.approved && q.questionBankId == null)
+            q.reviewStatus == ReviewStatus.approved && q.questionBankId == null,)
         .toList();
 
     if (approved.isEmpty) {

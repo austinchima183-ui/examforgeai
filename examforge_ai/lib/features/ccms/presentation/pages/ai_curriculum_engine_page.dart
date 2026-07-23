@@ -24,9 +24,9 @@ class _AiCurriculumEnginePageState
   DifficultyLevel _difficultyPreference = DifficultyLevel.intermediate;
   Set<BloomTaxonomy> _selectedBloomLevels = {
     BloomTaxonomy.apply,
-    BloomTaxonomy.analyze
+    BloomTaxonomy.analyze,
   };
-  Map<QuestionCategory, double> _questionTypeDistribution = {
+  final Map<QuestionCategory, double> _questionTypeDistribution = {
     QuestionCategory.multipleChoice: 0.4,
     QuestionCategory.theory: 0.3,
     QuestionCategory.fillInBlank: 0.15,
@@ -63,7 +63,7 @@ class _AiCurriculumEnginePageState
     final tt = context.textTheme;
 
     return Scaffold(
-      appBar: AppAppBar(title: 'AI Curriculum Engine'),
+      appBar: const AppAppBar(title: 'AI Curriculum Engine'),
       body: SingleChildScrollView(
         padding: Spacings.paddingScreen,
         child: Column(
@@ -73,18 +73,18 @@ class _AiCurriculumEnginePageState
             Text('Configuration',
                 style: tt.titleLarge?.copyWith(
                     fontWeight: AppTypography.wSemiBold,
-                    color: cs.onSurface)),
+                    color: cs.onSurface,),),
             const SizedBox(height: Spacings.md),
 
             // School selector (if super admin)
             DropdownButtonFormField<String>(
-              value: _selectedSchoolId,
+              initialValue: _selectedSchoolId,
               decoration: const InputDecoration(
                   labelText: 'School (Super Admin)',
-                  border: OutlineInputBorder()),
-              items: [
-                const DropdownMenuItem(value: null, child: Text('Select School')),
-                const DropdownMenuItem(value: 'school_1', child: Text('Demo School')),
+                  border: OutlineInputBorder(),),
+              items: const [
+                DropdownMenuItem(value: null, child: Text('Select School')),
+                DropdownMenuItem(value: 'school_1', child: Text('Demo School')),
               ],
               onChanged: (v) => setState(() => _selectedSchoolId = v),
             ),
@@ -94,13 +94,13 @@ class _AiCurriculumEnginePageState
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedSubjectId,
+                    initialValue: _selectedSubjectId,
                     decoration: const InputDecoration(
-                        labelText: 'Subject *', border: OutlineInputBorder()),
+                        labelText: 'Subject *', border: OutlineInputBorder(),),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Select')),
                       ...subjectState.subjects.map((s) =>
-                          DropdownMenuItem(value: s.id, child: Text(s.name))),
+                          DropdownMenuItem(value: s.id, child: Text(s.name)),),
                     ],
                     onChanged: (v) =>
                         setState(() => _selectedSubjectId = v),
@@ -109,13 +109,13 @@ class _AiCurriculumEnginePageState
                 const SizedBox(width: Spacings.md),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _selectedLevelId,
+                    initialValue: _selectedLevelId,
                     decoration: const InputDecoration(
-                        labelText: 'Level *', border: OutlineInputBorder()),
+                        labelText: 'Level *', border: OutlineInputBorder(),),
                     items: [
                       const DropdownMenuItem(value: null, child: Text('Select')),
                       ...levelState.levels.map((l) =>
-                          DropdownMenuItem(value: l.id, child: Text(l.name))),
+                          DropdownMenuItem(value: l.id, child: Text(l.name)),),
                     ],
                     onChanged: (v) =>
                         setState(() => _selectedLevelId = v),
@@ -125,13 +125,13 @@ class _AiCurriculumEnginePageState
             ),
             const SizedBox(height: Spacings.md),
             DropdownButtonFormField<String>(
-              value: _selectedCurriculumId,
+              initialValue: _selectedCurriculumId,
               decoration: const InputDecoration(
-                  labelText: 'Curriculum', border: OutlineInputBorder()),
+                  labelText: 'Curriculum', border: OutlineInputBorder(),),
               items: [
                 const DropdownMenuItem(value: null, child: Text('Select')),
                 ...curriculumState.curricula.map((c) =>
-                    DropdownMenuItem(value: c.id, child: Text(c.name))),
+                    DropdownMenuItem(value: c.id, child: Text(c.name)),),
               ],
               onChanged: (v) =>
                   setState(() => _selectedCurriculumId = v),
@@ -141,15 +141,15 @@ class _AiCurriculumEnginePageState
             // ── Difficulty Preference ──────────────────────────────
             Text('Difficulty Preference',
                 style: tt.titleMedium?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             const SizedBox(height: Spacings.sm),
             DropdownButtonFormField<DifficultyLevel>(
-              value: _difficultyPreference,
+              initialValue: _difficultyPreference,
               decoration:
                   const InputDecoration(border: OutlineInputBorder()),
               items: DifficultyLevel.values
                   .map((d) =>
-                      DropdownMenuItem(value: d, child: Text(d.label)))
+                      DropdownMenuItem(value: d, child: Text(d.label)),)
                   .toList(),
               onChanged: (v) =>
                   setState(() => _difficultyPreference = v!),
@@ -159,7 +159,7 @@ class _AiCurriculumEnginePageState
             // ── Bloom's Taxonomy Multi-Selector ────────────────────
             Text("Bloom's Taxonomy Levels",
                 style: tt.titleMedium?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             const SizedBox(height: Spacings.sm),
             BloomTaxonomySelector(
               selectedLevels: _selectedBloomLevels,
@@ -171,7 +171,7 @@ class _AiCurriculumEnginePageState
             // ── Question Type Distribution ─────────────────────────
             Text('Question Type Distribution',
                 style: tt.titleMedium?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             const SizedBox(height: Spacings.sm),
             ..._questionTypeDistribution.entries.map((entry) => Padding(
                   padding: const EdgeInsets.only(bottom: Spacings.sm),
@@ -180,7 +180,7 @@ class _AiCurriculumEnginePageState
                       SizedBox(
                           width: 120,
                           child: Text(entry.key.label,
-                              style: tt.bodyMedium)),
+                              style: tt.bodyMedium,),),
                       Expanded(
                         child: Slider(
                           value: entry.value,
@@ -189,17 +189,17 @@ class _AiCurriculumEnginePageState
                           divisions: 20,
                           label: '${(entry.value * 100).round()}%',
                           onChanged: (v) => setState(
-                              () => _questionTypeDistribution[entry.key] = v),
+                              () => _questionTypeDistribution[entry.key] = v,),
                         ),
                       ),
                       SizedBox(
                           width: 50,
                           child: Text('${(entry.value * 100).round()}%',
                               style: tt.bodySmall?.copyWith(
-                                  color: cs.onSurfaceVariant))),
+                                  color: cs.onSurfaceVariant,),),),
                     ],
                   ),
-                )),
+                ),),
             Spacings.sectionGap,
 
             // ── Language Style & Content Tone ──────────────────────
@@ -207,17 +207,17 @@ class _AiCurriculumEnginePageState
               children: [
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _languageStyle,
+                    initialValue: _languageStyle,
                     decoration: const InputDecoration(
                         labelText: 'Language Style',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     items: [
                       'age_appropriate',
                       'formal',
                       'casual',
                     ]
                         .map((s) => DropdownMenuItem(
-                            value: s, child: Text(s)))
+                            value: s, child: Text(s),),)
                         .toList(),
                     onChanged: (v) =>
                         setState(() => _languageStyle = v!),
@@ -226,13 +226,13 @@ class _AiCurriculumEnginePageState
                 const SizedBox(width: Spacings.md),
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    value: _contentTone,
+                    initialValue: _contentTone,
                     decoration: const InputDecoration(
                         labelText: 'Content Tone',
-                        border: OutlineInputBorder()),
+                        border: OutlineInputBorder(),),
                     items: ['academic', 'friendly', 'neutral']
                         .map((s) => DropdownMenuItem(
-                            value: s, child: Text(s)))
+                            value: s, child: Text(s),),)
                         .toList(),
                     onChanged: (v) =>
                         setState(() => _contentTone = v!),
@@ -254,7 +254,7 @@ class _AiCurriculumEnginePageState
             // ── Quality Thresholds ────────────────────────────────
             Text('Quality Thresholds',
                 style: tt.titleMedium?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             const SizedBox(height: Spacings.sm),
             Row(children: [
               Text('Quality: ', style: tt.bodyMedium),
@@ -271,8 +271,8 @@ class _AiCurriculumEnginePageState
               ),
               Text('${_qualityThreshold.round()}',
                   style: tt.bodyMedium?.copyWith(
-                      fontWeight: AppTypography.wSemiBold)),
-            ]),
+                      fontWeight: AppTypography.wSemiBold,),),
+            ],),
             Row(children: [
               Text('Auto-Approve: ', style: tt.bodyMedium),
               Expanded(
@@ -288,15 +288,15 @@ class _AiCurriculumEnginePageState
               ),
               Text('${_autoApproveThreshold.round()}',
                   style: tt.bodyMedium?.copyWith(
-                      fontWeight: AppTypography.wSemiBold)),
-            ]),
+                      fontWeight: AppTypography.wSemiBold,),),
+            ],),
             Spacings.sectionGap,
 
             // ── Max Questions Per Generation ──────────────────────
             Row(
               children: [
                 Text('Max Questions: ',
-                    style: tt.bodyMedium),
+                    style: tt.bodyMedium,),
                 const SizedBox(width: Spacings.md),
                 IconButton(
                   icon: const Icon(Icons.remove_circle_outline),
@@ -308,7 +308,7 @@ class _AiCurriculumEnginePageState
                 ),
                 Text('$_maxQuestionsPerGeneration',
                     style: tt.titleMedium?.copyWith(
-                        fontWeight: AppTypography.wBold)),
+                        fontWeight: AppTypography.wBold,),),
                 IconButton(
                   icon: const Icon(Icons.add_circle_outline),
                   onPressed: () {
@@ -328,8 +328,8 @@ class _AiCurriculumEnginePageState
                   setState(() => _includeExplanations = v),
               title: const Text('Include Explanations'),
               subtitle: const Text(
-                  'Generate step-by-step explanations with each question'),
-              activeColor: cs.primary,
+                  'Generate step-by-step explanations with each question',),
+              activeThumbColor: cs.primary,
             ),
             SwitchListTile(
               value: _includeMarkingSchemes,
@@ -338,7 +338,7 @@ class _AiCurriculumEnginePageState
               title: const Text('Include Marking Schemes'),
               subtitle:
                   const Text('Generate marking schemes for each question'),
-              activeColor: cs.primary,
+              activeThumbColor: cs.primary,
             ),
             SwitchListTile(
               value: _includeTeacherNotes,
@@ -346,8 +346,8 @@ class _AiCurriculumEnginePageState
                   setState(() => _includeTeacherNotes = v),
               title: const Text('Include Teacher Notes'),
               subtitle: const Text(
-                  'Generate teacher notes and pedagogical guidance'),
-              activeColor: cs.primary,
+                  'Generate teacher notes and pedagogical guidance',),
+              activeThumbColor: cs.primary,
             ),
             Spacings.sectionGap,
 
@@ -357,7 +357,7 @@ class _AiCurriculumEnginePageState
               children: [
                 Text('Generation Rules',
                     style: tt.titleMedium?.copyWith(
-                        fontWeight: AppTypography.wSemiBold)),
+                        fontWeight: AppTypography.wSemiBold,),),
                 AppButton(
                   label: 'Add Rule',
                   onPressed: _showAddRuleDialog,
@@ -370,7 +370,7 @@ class _AiCurriculumEnginePageState
             if (aiState.generationRules.isEmpty)
               Text('No generation rules configured',
                   style: tt.bodySmall?.copyWith(
-                      color: cs.onSurfaceVariant))
+                      color: cs.onSurfaceVariant,),)
             else
               ...aiState.generationRules.map((rule) => Card(
                     child: ListTile(
@@ -382,7 +382,7 @@ class _AiCurriculumEnginePageState
                           Switch(
                             value: rule.isActive,
                             onChanged: (_) {},
-                            activeColor: cs.primary,
+                            activeThumbColor: cs.primary,
                           ),
                           AppIconButton(
                             icon: Icons.edit_outlined,
@@ -394,7 +394,7 @@ class _AiCurriculumEnginePageState
                         ],
                       ),
                     ),
-                  )),
+                  ),),
             Spacings.sectionGap,
 
             // ── Save & Test Buttons ──────────────────────────────
@@ -411,7 +411,7 @@ class _AiCurriculumEnginePageState
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(
                       content: Text(
-                          'Test generation will run with current configuration')),
+                          'Test generation will run with current configuration',),),
                 );
               },
               icon: Icons.play_arrow_rounded,
@@ -446,7 +446,7 @@ class _AiCurriculumEnginePageState
       includeTeacherNotes: _includeTeacherNotes,
       createdAt: DateTime.now(),
       updatedAt: DateTime.now(),
-    ));
+    ),);
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Configuration saved')),
     );
@@ -469,27 +469,27 @@ class _AiCurriculumEnginePageState
                   controller: nameCtrl,
                   decoration: const InputDecoration(
                       labelText: 'Rule Name *',
-                      border: OutlineInputBorder())),
+                      border: OutlineInputBorder(),),),
               const SizedBox(height: Spacings.md),
               TextField(
                   controller: descCtrl,
                   decoration: const InputDecoration(
                       labelText: 'Description',
-                      border: OutlineInputBorder()),
-                  maxLines: 3),
+                      border: OutlineInputBorder(),),
+                  maxLines: 3,),
               const SizedBox(height: Spacings.md),
               TextField(
                   controller: conditionCtrl,
                   decoration: const InputDecoration(
                       labelText: 'Condition (e.g., "difficulty >= intermediate")',
-                      border: OutlineInputBorder())),
+                      border: OutlineInputBorder(),),),
             ],
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Add',
             onPressed: () {
@@ -539,27 +539,27 @@ class _AiCurriculumEnginePageState
                   controller: nameCtrl,
                   decoration: const InputDecoration(
                       labelText: 'Rule Name',
-                      border: OutlineInputBorder())),
+                      border: OutlineInputBorder(),),),
               const SizedBox(height: Spacings.md),
               TextField(
                   controller: descCtrl,
                   decoration: const InputDecoration(
                       labelText: 'Description',
-                      border: OutlineInputBorder()),
-                  maxLines: 3),
+                      border: OutlineInputBorder(),),
+                  maxLines: 3,),
               const SizedBox(height: Spacings.md),
               TextField(
                   controller: conditionCtrl,
                   decoration: const InputDecoration(
                       labelText: 'Condition',
-                      border: OutlineInputBorder())),
+                      border: OutlineInputBorder(),),),
             ],
           ),
         ),
         actions: [
           TextButton(
               onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel')),
+              child: const Text('Cancel'),),
           AppButton(
             label: 'Save',
             onPressed: () {

@@ -3,9 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/cbt_entities.dart';
-import '../../domain/usecases/manage_exam_status_usecase.dart';
 import '../../domain/repositories/cbt_repository.dart';
-import '../../../../features/cbt_engine/domain/entities/cbt_entities.dart';
+import '../../domain/usecases/manage_exam_status_usecase.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════

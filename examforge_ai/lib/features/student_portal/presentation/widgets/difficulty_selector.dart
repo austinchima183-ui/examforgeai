@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // DIFFICULTY SELECTOR
@@ -111,15 +110,15 @@ class _DifficultyChip extends StatelessWidget {
 
     final bgColor = isSelected
         ? option.color
-        : option.color.withOpacity(isDark ? 0.20 : 0.10);
+        : option.color.withValues(alpha: isDark ? 0.20 : 0.10);
     final fgColor = isSelected
         ? Colors.white
         : isDark
-            ? option.color.withOpacity(0.9)
+            ? option.color.withValues(alpha: 0.9)
             : option.color;
     final borderColor = isSelected
         ? option.color
-        : option.color.withOpacity(0.3);
+        : option.color.withValues(alpha: 0.3);
 
     return GestureDetector(
       onTap: onTap,

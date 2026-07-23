@@ -3,18 +3,17 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../domain/entities/results_entities.dart';
-import '../../providers/results_providers.dart';
 import '../../providers/results_page_providers.dart';
-import '../../../../../features/dashboard/presentation/providers/dashboard_provider.dart';
+import '../../providers/results_providers.dart';
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -81,7 +80,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
       ),
       body: state.isLoading
           ? const Center(
-              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+              child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
           : state.error != null
               ? Center(
                   child: AppEmptyState(
@@ -141,7 +140,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── KPI Row ─────────────────────────────────────────────────────────
 
   Widget _buildKpiRow(
-      BuildContext context, SchoolPerformanceEntity? schoolPerf) {
+      BuildContext context, SchoolPerformanceEntity? schoolPerf,) {
     final totalStudents = schoolPerf?.totalStudents ?? 0;
     final avgScore = schoolPerf?.averageScore ?? 0;
     final passRate = schoolPerf?.passRate ?? 0;
@@ -155,12 +154,12 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             Row(children: [
               Expanded(
                   child: _buildKpiCard(context, 'Total Students',
-                      '$totalStudents', Icons.people_rounded, null)),
+                      '$totalStudents', Icons.people_rounded, null,),),
               const SizedBox(width: Spacings.sm),
               Expanded(
                   child: _buildKpiCard(context, 'Average Score',
-                      '${avgScore.toStringAsFixed(1)}%', Icons.score_rounded, null)),
-            ]),
+                      '${avgScore.toStringAsFixed(1)}%', Icons.score_rounded, null,),),
+            ],),
             const SizedBox(height: Spacings.sm),
             Row(children: [
               Expanded(
@@ -169,7 +168,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                       'Pass Rate',
                       '${passRate.toStringAsFixed(1)}%',
                       Icons.check_circle_outline_rounded,
-                      AppColors.successOf(context.colorScheme.brightness))),
+                      AppColors.successOf(context.colorScheme.brightness),),),
               const SizedBox(width: Spacings.sm),
               Expanded(
                   child: _buildKpiCard(
@@ -177,8 +176,8 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                       'Distinction Rate',
                       '${distinctionRate.toStringAsFixed(1)}%',
                       Icons.emoji_events_outlined,
-                      const Color(0xFFF59E0B))),
-            ]),
+                      const Color(0xFFF59E0B),),),
+            ],),
           ],
         );
       }
@@ -187,11 +186,11 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
         children: [
           Expanded(
               child: _buildKpiCard(context, 'Total Students',
-                  '$totalStudents', Icons.people_rounded, null)),
+                  '$totalStudents', Icons.people_rounded, null,),),
           const SizedBox(width: Spacings.sm),
           Expanded(
               child: _buildKpiCard(context, 'Average Score',
-                  '${avgScore.toStringAsFixed(1)}%', Icons.score_rounded, null)),
+                  '${avgScore.toStringAsFixed(1)}%', Icons.score_rounded, null,),),
           const SizedBox(width: Spacings.sm),
           Expanded(
               child: _buildKpiCard(
@@ -199,7 +198,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                   'Pass Rate',
                   '${passRate.toStringAsFixed(1)}%',
                   Icons.check_circle_outline_rounded,
-                  AppColors.successOf(context.colorScheme.brightness))),
+                  AppColors.successOf(context.colorScheme.brightness),),),
           const SizedBox(width: Spacings.sm),
           Expanded(
               child: _buildKpiCard(
@@ -207,10 +206,10 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                   'Distinction Rate',
                   '${distinctionRate.toStringAsFixed(1)}%',
                   Icons.emoji_events_outlined,
-                  const Color(0xFFF59E0B))),
+                  const Color(0xFFF59E0B),),),
         ],
       );
-    });
+    },);
   }
 
   Widget _buildKpiCard(
@@ -232,7 +231,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
           Container(
             padding: const EdgeInsets.all(Spacings.sm),
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: Icon(icon, size: Spacings.mdIcon, color: color),
@@ -286,7 +285,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
           );
         }).toList(),
       );
-    });
+    },);
   }
 
   Widget _buildWidgetCard(
@@ -317,7 +316,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── Pass Rate Widget ────────────────────────────────────────────────
 
   Widget _buildPassRateWidget(
-      BuildContext context, SchoolPerformanceEntity? schoolPerf) {
+      BuildContext context, SchoolPerformanceEntity? schoolPerf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -370,7 +369,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                 vertical: Spacings.xs,
               ),
               decoration: BoxDecoration(
-                color: passColor.withOpacity(isDark ? 0.15 : 0.08),
+                color: passColor.withValues(alpha: isDark ? 0.15 : 0.08),
                 borderRadius: BorderRadius.circular(Spacings.smRadius),
               ),
               child: Text(
@@ -410,10 +409,10 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             width: double.infinity,
             height: 160,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withOpacity(0.3),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Center(
@@ -422,7 +421,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                 children: [
                   Icon(Icons.bar_chart_rounded,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withOpacity(0.4)),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.4),),
                   const SizedBox(height: Spacings.sm),
                   Text(
                     'Score distribution chart',
@@ -442,7 +441,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── Subject Comparison Widget ───────────────────────────────────────
 
   Widget _buildSubjectComparisonWidget(
-      BuildContext context, SchoolPerformanceEntity? schoolPerf) {
+      BuildContext context, SchoolPerformanceEntity? schoolPerf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -536,7 +535,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── Top Performers Widget ───────────────────────────────────────────
 
   Widget _buildTopPerformersWidget(
-      BuildContext context, SchoolPerformanceEntity? schoolPerf) {
+      BuildContext context, SchoolPerformanceEntity? schoolPerf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -547,8 +546,8 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
         children: [
           Row(
             children: [
-              Icon(Icons.emoji_events_rounded,
-                  size: Spacings.mdIcon, color: const Color(0xFFF59E0B)),
+              const Icon(Icons.emoji_events_rounded,
+                  size: Spacings.mdIcon, color: Color(0xFFF59E0B),),
               const SizedBox(width: Spacings.sm),
               Text(
                 'Top Performers',
@@ -577,7 +576,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                     height: 28,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: medalColor.withOpacity(0.2),
+                      color: medalColor.withValues(alpha: 0.2),
                     ),
                     child: Center(
                       child: Text(
@@ -615,7 +614,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── Difficult Topics Widget ─────────────────────────────────────────
 
   Widget _buildDifficultTopicsWidget(
-      BuildContext context, SchoolPerformanceEntity? schoolPerf) {
+      BuildContext context, SchoolPerformanceEntity? schoolPerf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -637,7 +636,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             children: [
               Icon(Icons.warning_amber_rounded,
                   size: Spacings.mdIcon,
-                  color: AppColors.warningOf(cs.brightness)),
+                  color: AppColors.warningOf(cs.brightness),),
               const SizedBox(width: Spacings.sm),
               Text(
                 'Difficult Topics',
@@ -724,10 +723,10 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             width: double.infinity,
             height: 160,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withOpacity(0.3),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
               border: Border.all(
-                color: cs.outlineVariant.withOpacity(0.5),
+                color: cs.outlineVariant.withValues(alpha: 0.5),
               ),
             ),
             child: Center(
@@ -736,7 +735,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                 children: [
                   Icon(Icons.show_chart_rounded,
                       size: Spacings.xlIcon,
-                      color: cs.onSurfaceVariant.withOpacity(0.4)),
+                      color: cs.onSurfaceVariant.withValues(alpha: 0.4),),
                   const SizedBox(height: Spacings.sm),
                   Text(
                     'Historical trend line chart',
@@ -756,7 +755,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── Class Ranking Widget ────────────────────────────────────────────
 
   Widget _buildClassRankingWidget(
-      BuildContext context, SchoolPerformanceEntity? schoolPerf) {
+      BuildContext context, SchoolPerformanceEntity? schoolPerf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -822,9 +821,9 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                       _tableCell(context, '${index + 1}'),
                       _tableCell(context, className),
                       _tableCell(context,
-                          '${avgScore.toStringAsFixed(1)}%'),
+                          '${avgScore.toStringAsFixed(1)}%',),
                       _tableCell(context,
-                          '${passRate.toStringAsFixed(1)}%'),
+                          '${passRate.toStringAsFixed(1)}%',),
                     ],
                   );
                 }),
@@ -865,7 +864,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── Exam Participation Widget ───────────────────────────────────────
 
   Widget _buildExamParticipationWidget(
-      BuildContext context, SchoolPerformanceEntity? schoolPerf) {
+      BuildContext context, SchoolPerformanceEntity? schoolPerf,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
     final isDark = context.isDarkMode;
@@ -935,7 +934,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
   // ─── Placeholder Widget (for unimplemented types) ────────────────────
 
   Widget _buildPlaceholderWidget(
-      BuildContext context, DashboardWidgetConfigEntity widgetConfig) {
+      BuildContext context, DashboardWidgetConfigEntity widgetConfig,) {
     final cs = context.colorScheme;
     final tt = context.textTheme;
 
@@ -955,7 +954,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
             width: double.infinity,
             height: 120,
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withOpacity(0.3),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.3),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Center(
@@ -1107,7 +1106,7 @@ class _SchoolAnalyticsPageState extends ConsumerState<SchoolAnalyticsPage> {
                     final updatedWidgets = widgets
                         .map((w) => w.copyWith(
                               isVisible: visibilityMap[w.id] ?? w.isVisible,
-                            ))
+                            ),)
                         .toList();
 
                     if (config != null) {

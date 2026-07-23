@@ -2,12 +2,18 @@ import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+
 import '../config/app_config.dart';
 import '../config/env_config.dart';
 import '../config/supabase_config.dart';
 import '../core/constants/api_constants.dart';
+import '../core/database/database_pool_manager.dart';
 import '../core/network/api_client.dart';
 import '../core/network/network_info.dart';
+import '../core/performance/ai_cache_service.dart';
+import '../core/performance/performance_manager.dart';
+import '../core/storage/cache_manager.dart';
+import '../core/sync/sync_engine.dart';
 import '../core/utils/logger.dart';
 import '../features/ai_generator/data/datasources/ai_generator_remote_datasource.dart';
 import '../features/ai_generator/data/repositories/ai_generator_repository_impl.dart';
@@ -36,6 +42,31 @@ import '../features/auth/domain/usecases/logout_usecase.dart';
 import '../features/auth/domain/usecases/signup_usecase.dart';
 import '../features/auth/presentation/providers/auth_form_provider.dart';
 import '../features/auth/presentation/providers/auth_provider.dart';
+import '../features/billing/data/datasources/billing_remote_datasource.dart';
+import '../features/billing/data/datasources/flutterwave_datasource.dart';
+import '../features/billing/data/repositories/billing_repository_impl.dart';
+import '../features/billing/domain/repositories/billing_repository.dart';
+import '../features/billing/domain/usecases/get_revenue_analytics_usecase.dart';
+import '../features/billing/domain/usecases/get_subscription_plans_usecase.dart';
+import '../features/billing/domain/usecases/manage_ai_credits_usecase.dart';
+import '../features/billing/domain/usecases/manage_billing_notifications_usecase.dart' as bn;
+import '../features/billing/domain/usecases/manage_coupons_usecase.dart';
+import '../features/billing/domain/usecases/manage_invoices_usecase.dart';
+import '../features/billing/domain/usecases/manage_licenses_usecase.dart';
+import '../features/billing/domain/usecases/manage_referrals_usecase.dart';
+import '../features/billing/domain/usecases/manage_school_billing_usecase.dart';
+import '../features/billing/domain/usecases/manage_subscription_usecase.dart';
+import '../features/billing/domain/usecases/process_payment_usecase.dart' as bn_payment;
+import '../features/billing/presentation/providers/ai_credits_provider.dart';
+import '../features/billing/presentation/providers/billing_notification_provider.dart';
+import '../features/billing/presentation/providers/coupon_provider.dart';
+import '../features/billing/presentation/providers/invoice_provider.dart';
+import '../features/billing/presentation/providers/license_provider.dart';
+import '../features/billing/presentation/providers/payment_provider.dart';
+import '../features/billing/presentation/providers/referral_provider.dart';
+import '../features/billing/presentation/providers/revenue_provider.dart';
+import '../features/billing/presentation/providers/school_billing_provider.dart';
+import '../features/billing/presentation/providers/subscription_provider.dart';
 import '../features/cbt_engine/data/datasources/cbt_remote_datasource.dart';
 import '../features/cbt_engine/data/datasources/exam_template_remote_datasource.dart';
 import '../features/cbt_engine/data/repositories/cbt_repository_impl.dart';
@@ -59,10 +90,190 @@ import '../features/cbt_engine/presentation/providers/exam_list_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_monitor_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_notification_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_results_provider.dart';
-import '../features/cbt_engine/presentation/providers/exam_template_provider.dart';
 import '../features/cbt_engine/presentation/providers/exam_taker_provider.dart';
+import '../features/cbt_engine/presentation/providers/exam_template_provider.dart';
 import '../features/cbt_engine/presentation/providers/student_exams_provider.dart';
 import '../features/cbt_engine/presentation/providers/submission_receipt_provider.dart';
+import '../features/communication/data/datasources/communication_remote_datasource.dart';
+import '../features/communication/data/repositories/communication_repository_impl.dart';
+import '../features/communication/domain/repositories/communication_repository.dart';
+import '../features/communication/domain/usecases/acknowledge_announcement_usecase.dart';
+import '../features/communication/domain/usecases/add_reaction_usecase.dart';
+import '../features/communication/domain/usecases/ai_adjust_tone_usecase.dart';
+import '../features/communication/domain/usecases/ai_correct_grammar_usecase.dart';
+import '../features/communication/domain/usecases/ai_draft_announcement_usecase.dart';
+import '../features/communication/domain/usecases/ai_rewrite_message_usecase.dart';
+import '../features/communication/domain/usecases/ai_suggest_reply_usecase.dart';
+import '../features/communication/domain/usecases/ai_summarize_conversation_usecase.dart';
+import '../features/communication/domain/usecases/ai_translate_message_usecase.dart';
+import '../features/communication/domain/usecases/archive_conversation_usecase.dart';
+import '../features/communication/domain/usecases/ask_school_knowledge_usecase.dart';
+import '../features/communication/domain/usecases/create_announcement_usecase.dart';
+import '../features/communication/domain/usecases/create_calendar_event_usecase.dart';
+import '../features/communication/domain/usecases/create_conversation_usecase.dart';
+import '../features/communication/domain/usecases/create_forum_comment_usecase.dart';
+import '../features/communication/domain/usecases/create_forum_post_usecase.dart';
+import '../features/communication/domain/usecases/create_forum_usecase.dart';
+import '../features/communication/domain/usecases/delete_message_usecase.dart';
+import '../features/communication/domain/usecases/edit_message_usecase.dart';
+import '../features/communication/domain/usecases/get_announcements_usecase.dart';
+import '../features/communication/domain/usecases/get_audit_logs_usecase.dart';
+import '../features/communication/domain/usecases/get_calendar_events_usecase.dart';
+import '../features/communication/domain/usecases/get_communication_dashboard_usecase.dart';
+import '../features/communication/domain/usecases/get_conversations_usecase.dart';
+import '../features/communication/domain/usecases/get_forum_posts_usecase.dart';
+import '../features/communication/domain/usecases/get_forums_usecase.dart';
+import '../features/communication/domain/usecases/get_knowledge_documents_usecase.dart';
+import '../features/communication/domain/usecases/get_messages_usecase.dart';
+import '../features/communication/domain/usecases/get_notification_preferences_usecase.dart';
+import '../features/communication/domain/usecases/get_notifications_usecase.dart';
+import '../features/communication/domain/usecases/mark_all_notifications_read_usecase.dart';
+import '../features/communication/domain/usecases/mark_as_read_usecase.dart';
+import '../features/communication/domain/usecases/mark_notification_read_usecase.dart';
+import '../features/communication/domain/usecases/mute_conversation_usecase.dart';
+import '../features/communication/domain/usecases/pin_message_usecase.dart';
+import '../features/communication/domain/usecases/report_message_usecase.dart';
+import '../features/communication/domain/usecases/rsvp_to_event_usecase.dart';
+import '../features/communication/domain/usecases/send_message_usecase.dart';
+import '../features/communication/domain/usecases/set_typing_usecase.dart';
+import '../features/communication/domain/usecases/update_notification_preferences_usecase.dart';
+import '../features/communication/domain/usecases/update_presence_usecase.dart';
+import '../features/communication/domain/usecases/upload_knowledge_document_usecase.dart';
+import '../features/communication/presentation/providers/ai_assistant_provider.dart';
+import '../features/communication/presentation/providers/announcement_provider.dart';
+import '../features/communication/presentation/providers/calendar_provider.dart';
+import '../features/communication/presentation/providers/communication_dashboard_provider.dart';
+import '../features/communication/presentation/providers/conversation_provider.dart';
+import '../features/communication/presentation/providers/forum_provider.dart';
+import '../features/communication/presentation/providers/knowledge_assistant_provider.dart';
+import '../features/communication/presentation/providers/message_provider.dart';
+import '../features/communication/presentation/providers/notification_provider.dart';
+import '../features/edu_os/data/datasources/edu_os_remote_datasource.dart';
+import '../features/edu_os/data/repositories/edu_os_repository_impl.dart';
+import '../features/edu_os/domain/repositories/edu_os_repository.dart';
+import '../features/edu_os/domain/usecases/edu_os_usecases.dart';
+import '../features/edu_os/presentation/providers/edu_os_provider.dart';
+import '../features/marketplace/data/datasources/marketplace_remote_datasource.dart';
+import '../features/marketplace/data/repositories/marketplace_repository_impl.dart';
+import '../features/marketplace/domain/repositories/marketplace_repository.dart';
+import '../features/marketplace/domain/usecases/add_to_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/approve_product_usecase.dart';
+import '../features/marketplace/domain/usecases/clear_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/create_dispute_usecase.dart';
+import '../features/marketplace/domain/usecases/create_order_usecase.dart';
+import '../features/marketplace/domain/usecases/create_product_usecase.dart';
+import '../features/marketplace/domain/usecases/create_review_usecase.dart';
+import '../features/marketplace/domain/usecases/delete_product_usecase.dart';
+import '../features/marketplace/domain/usecases/feature_product_usecase.dart';
+import '../features/marketplace/domain/usecases/get_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/get_categories_usecase.dart';
+import '../features/marketplace/domain/usecases/get_commission_rates_usecase.dart';
+import '../features/marketplace/domain/usecases/get_commission_records_usecase.dart';
+import '../features/marketplace/domain/usecases/get_disputes_usecase.dart';
+import '../features/marketplace/domain/usecases/get_featured_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_notifications_usecase.dart' as mp_notif;
+import '../features/marketplace/domain/usecases/get_order_usecase.dart';
+import '../features/marketplace/domain/usecases/get_product_analytics_usecase.dart';
+import '../features/marketplace/domain/usecases/get_product_reviews_usecase.dart';
+import '../features/marketplace/domain/usecases/get_product_usecase.dart';
+import '../features/marketplace/domain/usecases/get_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_quality_check_usecase.dart';
+import '../features/marketplace/domain/usecases/get_recommendations_usecase.dart';
+import '../features/marketplace/domain/usecases/get_related_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_seller_analytics_usecase.dart';
+import '../features/marketplace/domain/usecases/get_seller_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_seller_profile_usecase.dart';
+import '../features/marketplace/domain/usecases/get_sellers_usecase.dart';
+import '../features/marketplace/domain/usecases/get_trending_products_usecase.dart';
+import '../features/marketplace/domain/usecases/get_user_orders_usecase.dart';
+import '../features/marketplace/domain/usecases/get_user_purchases_usecase.dart';
+import '../features/marketplace/domain/usecases/get_wishlist_usecase.dart';
+import '../features/marketplace/domain/usecases/increment_product_view_usecase.dart';
+import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart' as mp_mark_notif;
+import '../features/marketplace/domain/usecases/moderate_review_usecase.dart';
+import '../features/marketplace/domain/usecases/record_download_usecase.dart';
+import '../features/marketplace/domain/usecases/reject_product_usecase.dart';
+import '../features/marketplace/domain/usecases/remove_from_cart_usecase.dart';
+import '../features/marketplace/domain/usecases/report_review_usecase.dart';
+import '../features/marketplace/domain/usecases/resolve_dispute_usecase.dart';
+import '../features/marketplace/domain/usecases/respond_to_review_usecase.dart';
+import '../features/marketplace/domain/usecases/run_quality_check_usecase.dart';
+import '../features/marketplace/domain/usecases/suspend_seller_usecase.dart';
+import '../features/marketplace/domain/usecases/toggle_wishlist_usecase.dart';
+import '../features/marketplace/domain/usecases/update_cart_item_usecase.dart';
+import '../features/marketplace/domain/usecases/update_order_status_usecase.dart';
+import '../features/marketplace/domain/usecases/update_product_status_usecase.dart';
+import '../features/marketplace/domain/usecases/update_product_usecase.dart';
+import '../features/marketplace/domain/usecases/update_seller_status_usecase.dart';
+import '../features/marketplace/domain/usecases/upsert_category_usecase.dart';
+import '../features/marketplace/domain/usecases/upsert_commission_rate_usecase.dart';
+import '../features/marketplace/domain/usecases/upsert_seller_profile_usecase.dart';
+import '../features/marketplace/domain/usecases/validate_promo_code_usecase.dart';
+import '../features/marketplace/domain/usecases/verify_payment_usecase.dart';
+import '../features/marketplace/domain/usecases/verify_purchase_usecase.dart';
+import '../features/marketplace/domain/usecases/vote_review_helpful_usecase.dart';
+import '../features/marketplace/presentation/providers/cart_provider.dart';
+import '../features/marketplace/presentation/providers/commission_provider.dart';
+import '../features/marketplace/presentation/providers/marketplace_notification_provider.dart';
+import '../features/marketplace/presentation/providers/marketplace_provider.dart';
+import '../features/marketplace/presentation/providers/moderation_provider.dart';
+import '../features/marketplace/presentation/providers/order_provider.dart';
+import '../features/marketplace/presentation/providers/product_detail_provider.dart';
+import '../features/marketplace/presentation/providers/purchase_provider.dart';
+import '../features/marketplace/presentation/providers/quality_check_provider.dart';
+import '../features/marketplace/presentation/providers/seller_provider.dart';
+import '../features/offline/data/datasources/offline_local_datasource.dart';
+import '../features/offline/data/datasources/offline_remote_datasource.dart';
+import '../features/offline/data/repositories/offline_repository_impl.dart';
+import '../features/offline/domain/repositories/offline_repository.dart';
+import '../features/offline/domain/usecases/delete_draft_usecase.dart';
+import '../features/offline/domain/usecases/download_resource_usecase.dart';
+import '../features/offline/domain/usecases/get_connectivity_info_usecase.dart';
+import '../features/offline/domain/usecases/get_downloads_usecase.dart';
+import '../features/offline/domain/usecases/get_drafts_usecase.dart';
+import '../features/offline/domain/usecases/get_offline_resources_usecase.dart';
+import '../features/offline/domain/usecases/get_sync_status_usecase.dart';
+import '../features/offline/domain/usecases/register_device_usecase.dart';
+import '../features/offline/domain/usecases/remove_offline_resource_usecase.dart';
+import '../features/offline/domain/usecases/save_draft_usecase.dart';
+import '../features/offline/domain/usecases/save_offline_exam_attempt_usecase.dart';
+import '../features/offline/domain/usecases/start_download_usecase.dart';
+import '../features/offline/domain/usecases/sync_exam_attempt_usecase.dart';
+import '../features/offline/domain/usecases/trigger_sync_usecase.dart';
+import '../features/offline/presentation/providers/offline_provider.dart';
+import '../features/parent_portal/data/datasources/parent_portal_remote_datasource.dart';
+import '../features/parent_portal/data/repositories/parent_portal_repository_impl.dart';
+import '../features/parent_portal/domain/repositories/parent_portal_repository.dart';
+import '../features/parent_portal/domain/usecases/ask_parent_assistant_usecase.dart';
+import '../features/parent_portal/domain/usecases/dismiss_insight_usecase.dart';
+import '../features/parent_portal/domain/usecases/download_report_usecase.dart' as pp_download;
+import '../features/parent_portal/domain/usecases/get_child_assignments_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_child_attendance_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_child_performance_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_child_profile_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_engagement_analytics_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_message_threads_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_calendar_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_dashboard_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_insights_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_messages_usecase.dart';
+import '../features/parent_portal/domain/usecases/get_parent_notifications_usecase.dart';
+import '../features/parent_portal/domain/usecases/mark_message_read_usecase.dart';
+import '../features/parent_portal/domain/usecases/mark_notification_read_usecase.dart' as pp_mark_notif;
+import '../features/parent_portal/domain/usecases/record_engagement_usecase.dart';
+import '../features/parent_portal/domain/usecases/send_parent_message_usecase.dart';
+import '../features/parent_portal/presentation/providers/child_assignments_provider.dart';
+import '../features/parent_portal/presentation/providers/child_attendance_provider.dart';
+import '../features/parent_portal/presentation/providers/child_performance_provider.dart';
+import '../features/parent_portal/presentation/providers/child_profile_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_assistant_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_calendar_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_dashboard_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_engagement_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_insights_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_messaging_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_notification_provider.dart';
+import '../features/parent_portal/presentation/providers/parent_reports_provider.dart';
 import '../features/question_bank/data/datasources/question_bank_remote_datasource.dart';
 import '../features/question_bank/data/repositories/question_bank_repository_impl.dart';
 import '../features/question_bank/domain/repositories/question_bank_repository.dart';
@@ -83,6 +294,110 @@ import '../features/question_bank/presentation/providers/question_bank_stats_pro
 import '../features/question_bank/presentation/providers/question_editor_provider.dart';
 import '../features/question_bank/presentation/providers/question_filter_provider.dart';
 import '../features/question_bank/presentation/providers/question_provider.dart';
+import '../features/results/data/datasources/results_remote_datasource.dart';
+import '../features/results/data/repositories/results_repository_impl.dart';
+import '../features/results/domain/repositories/results_repository.dart';
+import '../features/results/domain/usecases/results_usecases.dart';
+import '../features/results/presentation/providers/results_providers.dart';
+import '../features/school_management/data/datasources/school_management_remote_datasource.dart';
+import '../features/school_management/data/repositories/school_management_repository_impl.dart';
+import '../features/school_management/domain/repositories/school_management_repository.dart';
+import '../features/school_management/domain/usecases/academic_session_usecases.dart' hide CreateCalendarEventUseCase, GetCalendarEventsUseCase;
+import '../features/school_management/domain/usecases/announcement_usecases.dart' hide CreateAnnouncementUseCase, GetAnnouncementsUseCase;
+import '../features/school_management/domain/usecases/attendance_usecases.dart';
+import '../features/school_management/domain/usecases/homework_usecases.dart';
+import '../features/school_management/domain/usecases/parent_usecases.dart';
+import '../features/school_management/domain/usecases/report_usecases.dart';
+import '../features/school_management/domain/usecases/school_usecases.dart';
+import '../features/school_management/domain/usecases/student_usecases.dart';
+import '../features/school_management/domain/usecases/teacher_usecases.dart';
+import '../features/school_management/domain/usecases/timetable_usecases.dart';
+import '../features/student_portal/data/datasources/student_portal_remote_datasource.dart';
+import '../features/student_portal/data/repositories/student_portal_repository_impl.dart';
+import '../features/student_portal/domain/repositories/student_portal_repository.dart';
+import '../features/student_portal/domain/usecases/student_portal_usecases.dart' as sp_usecases;
+import '../features/super_admin/data/datasources/super_admin_remote_datasource.dart';
+import '../features/super_admin/data/repositories/super_admin_repository_impl.dart';
+import '../features/super_admin/domain/repositories/super_admin_repository.dart';
+import '../features/super_admin/domain/usecases/super_admin_usecases.dart' as sa;
+import '../features/super_admin/domain/usecases/super_admin_usecases.dart' hide CreateSchoolUseCase, GetAuditLogsUseCase, GetNotificationsUseCase, GetSchoolsUseCase, MarkNotificationReadUseCase;
+import '../features/super_admin/presentation/providers/super_admin_providers.dart' hide AnalyticsNotifier, AnalyticsState;
+import '../features/teacher_workspace/data/datasources/teacher_workspace_remote_datasource.dart';
+import '../features/teacher_workspace/data/repositories/teacher_workspace_repository_impl.dart';
+import '../features/teacher_workspace/domain/repositories/teacher_workspace_repository.dart';
+import '../features/teacher_workspace/domain/usecases/add_comment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/ai_content_assistant_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_assignment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_communication_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_event_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_lesson_plan_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_oral_questions_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_practical_assessment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_presentation_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_report_comment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_resource_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_rubric_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_scheme_of_work_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_task_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/create_worksheet_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/delete_lesson_plan_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/delete_task_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/export_presentation_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/export_worksheet_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_assignment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_communication_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_lesson_plan_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_oral_questions_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_practical_assessment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_presentation_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_questions_from_content_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_report_comments_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_resource_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_rubric_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_scheme_of_work_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/generate_worksheet_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_assignments_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_comments_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_communications_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_content_history_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_enhanced_dashboard_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_events_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_lesson_plans_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_oral_questions_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_practical_assessments_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_presentations_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_resources_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_rubrics_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_schemes_of_work_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_tasks_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_version_history_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_worksheets_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/get_workspace_dashboard_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/publish_assignment_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/share_resource_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/suggest_schedule_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/toggle_favorite_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/update_lesson_plan_usecase.dart';
+import '../features/teacher_workspace/domain/usecases/update_task_usecase.dart';
+import '../features/teacher_workspace/presentation/providers/assignment_provider.dart';
+import '../features/teacher_workspace/presentation/providers/calendar_planner_provider.dart';
+import '../features/teacher_workspace/presentation/providers/collaboration_provider.dart';
+import '../features/teacher_workspace/presentation/providers/communication_provider.dart';
+import '../features/teacher_workspace/presentation/providers/content_assistant_provider.dart';
+import '../features/teacher_workspace/presentation/providers/enhanced_dashboard_provider.dart';
+import '../features/teacher_workspace/presentation/providers/generate_questions_provider.dart';
+import '../features/teacher_workspace/presentation/providers/lesson_plan_provider.dart';
+import '../features/teacher_workspace/presentation/providers/oral_question_provider.dart';
+import '../features/teacher_workspace/presentation/providers/practical_assessment_provider.dart';
+import '../features/teacher_workspace/presentation/providers/presentation_provider.dart';
+import '../features/teacher_workspace/presentation/providers/report_comment_provider.dart';
+import '../features/teacher_workspace/presentation/providers/resource_library_provider.dart';
+import '../features/teacher_workspace/presentation/providers/rubric_provider.dart';
+import '../features/teacher_workspace/presentation/providers/scheme_of_work_provider.dart';
+import '../features/teacher_workspace/presentation/providers/task_provider.dart';
+import '../features/teacher_workspace/presentation/providers/teaching_resource_provider.dart';
+import '../features/teacher_workspace/presentation/providers/worksheet_provider.dart';
+import '../features/teacher_workspace/presentation/providers/workspace_dashboard_provider.dart';
 import '../services/ai/ai_providers_registry.dart';
 import '../services/ai/ai_service.dart';
 import '../services/ai/prompt_engine.dart';
@@ -99,343 +414,10 @@ import '../services/cbt/realtime_service.dart';
 import '../services/cbt/result_processor.dart';
 import '../services/cbt/session_recovery_service.dart';
 import '../services/notification_service.dart';
-import '../services/storage_service.dart';
 import '../services/results/ai_grading_service.dart';
 import '../services/results/analytics_engine.dart';
 import '../services/results/report_generator.dart';
-import '../features/results/data/datasources/results_remote_datasource.dart';
-import '../features/results/data/repositories/results_repository_impl.dart';
-import '../features/results/domain/repositories/results_repository.dart';
-import '../features/results/domain/usecases/results_usecases.dart';
-import '../features/results/presentation/providers/results_providers.dart';
-import '../features/student_portal/data/datasources/student_portal_remote_datasource.dart';
-import '../features/student_portal/data/repositories/student_portal_repository_impl.dart';
-import '../features/student_portal/domain/repositories/student_portal_repository.dart';
-import '../features/student_portal/domain/usecases/student_portal_usecases.dart' as sp_usecases;
-import '../features/student_portal/presentation/providers/ai_tutor_provider.dart';
-import '../features/student_portal/presentation/providers/assignment_provider.dart' hide AssignmentNotifier, AssignmentState;
-import '../features/student_portal/presentation/providers/document_chat_provider.dart';
-import '../features/student_portal/presentation/providers/flashcard_provider.dart';
-import '../features/student_portal/presentation/providers/goals_provider.dart';
-import '../features/student_portal/presentation/providers/practice_provider.dart';
-import '../features/student_portal/presentation/providers/progress_provider.dart';
-import '../features/student_portal/presentation/providers/resource_provider.dart';
-import '../features/student_portal/presentation/providers/student_dashboard_provider.dart';
-import '../features/student_portal/presentation/providers/student_notification_provider.dart';
-import '../features/student_portal/presentation/providers/study_planner_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_dashboard_provider.dart';
-import '../features/parent_portal/presentation/providers/child_profile_provider.dart';
-import '../features/parent_portal/presentation/providers/child_performance_provider.dart';
-import '../features/parent_portal/presentation/providers/child_attendance_provider.dart';
-import '../features/parent_portal/presentation/providers/child_assignments_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_messaging_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_notification_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_calendar_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_assistant_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_insights_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_reports_provider.dart';
-import '../features/parent_portal/presentation/providers/parent_engagement_provider.dart';
-import '../features/super_admin/data/datasources/super_admin_remote_datasource.dart';
-import '../features/super_admin/data/repositories/super_admin_repository_impl.dart';
-import '../features/super_admin/domain/repositories/super_admin_repository.dart';
-import '../features/super_admin/domain/usecases/super_admin_usecases.dart' hide CreateSchoolUseCase, GetAuditLogsUseCase, GetNotificationsUseCase, GetSchoolsUseCase, MarkNotificationReadUseCase;
-import '../features/super_admin/domain/usecases/super_admin_usecases.dart' as sa;
-import '../features/super_admin/presentation/providers/super_admin_providers.dart' hide AnalyticsNotifier, AnalyticsState;
-import '../features/marketplace/data/datasources/marketplace_remote_datasource.dart';
-import '../features/marketplace/data/repositories/marketplace_repository_impl.dart';
-import '../features/marketplace/domain/repositories/marketplace_repository.dart';
-import '../features/marketplace/domain/usecases/get_categories_usecase.dart';
-import '../features/marketplace/domain/usecases/upsert_category_usecase.dart';
-import '../features/marketplace/domain/usecases/get_seller_profile_usecase.dart';
-import '../features/marketplace/domain/usecases/upsert_seller_profile_usecase.dart';
-import '../features/marketplace/domain/usecases/update_seller_status_usecase.dart';
-import '../features/marketplace/domain/usecases/get_sellers_usecase.dart';
-import '../features/marketplace/domain/usecases/get_products_usecase.dart';
-import '../features/marketplace/domain/usecases/get_product_usecase.dart';
-import '../features/marketplace/domain/usecases/create_product_usecase.dart';
-import '../features/marketplace/domain/usecases/update_product_usecase.dart';
-import '../features/marketplace/domain/usecases/delete_product_usecase.dart';
-import '../features/marketplace/domain/usecases/update_product_status_usecase.dart';
-import '../features/marketplace/domain/usecases/feature_product_usecase.dart';
-import '../features/marketplace/domain/usecases/get_seller_products_usecase.dart';
-import '../features/marketplace/domain/usecases/get_featured_products_usecase.dart';
-import '../features/marketplace/domain/usecases/get_related_products_usecase.dart';
-import '../features/marketplace/domain/usecases/get_cart_usecase.dart';
-import '../features/marketplace/domain/usecases/add_to_cart_usecase.dart';
-import '../features/marketplace/domain/usecases/update_cart_item_usecase.dart';
-import '../features/marketplace/domain/usecases/remove_from_cart_usecase.dart';
-import '../features/marketplace/domain/usecases/clear_cart_usecase.dart';
-import '../features/marketplace/domain/usecases/create_order_usecase.dart';
-import '../features/marketplace/domain/usecases/get_order_usecase.dart';
-import '../features/marketplace/domain/usecases/get_user_orders_usecase.dart';
-import '../features/marketplace/domain/usecases/verify_payment_usecase.dart';
-import '../features/marketplace/domain/usecases/update_order_status_usecase.dart';
-import '../features/marketplace/domain/usecases/get_user_purchases_usecase.dart';
-import '../features/marketplace/domain/usecases/verify_purchase_usecase.dart';
-import '../features/marketplace/domain/usecases/record_download_usecase.dart';
-import '../features/marketplace/domain/usecases/get_product_reviews_usecase.dart';
-import '../features/marketplace/domain/usecases/create_review_usecase.dart';
-import '../features/marketplace/domain/usecases/respond_to_review_usecase.dart';
-import '../features/marketplace/domain/usecases/vote_review_helpful_usecase.dart';
-import '../features/marketplace/domain/usecases/report_review_usecase.dart';
-import '../features/marketplace/domain/usecases/get_wishlist_usecase.dart';
-import '../features/marketplace/domain/usecases/toggle_wishlist_usecase.dart';
-import '../features/marketplace/domain/usecases/validate_promo_code_usecase.dart';
-import '../features/marketplace/domain/usecases/get_commission_rates_usecase.dart';
-import '../features/marketplace/domain/usecases/upsert_commission_rate_usecase.dart';
-import '../features/marketplace/domain/usecases/get_commission_records_usecase.dart';
-import '../features/marketplace/domain/usecases/get_seller_analytics_usecase.dart';
-import '../features/marketplace/domain/usecases/get_product_analytics_usecase.dart';
-import '../features/marketplace/domain/usecases/run_quality_check_usecase.dart';
-import '../features/marketplace/domain/usecases/get_quality_check_usecase.dart';
-import '../features/marketplace/domain/usecases/create_dispute_usecase.dart';
-import '../features/marketplace/domain/usecases/resolve_dispute_usecase.dart';
-import '../features/marketplace/domain/usecases/get_disputes_usecase.dart';
-import '../features/marketplace/domain/usecases/get_notifications_usecase.dart' as mp_notif;
-import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart' as mp_mark_notif;
-import '../features/marketplace/domain/usecases/get_recommendations_usecase.dart';
-import '../features/marketplace/domain/usecases/get_trending_products_usecase.dart';
-import '../features/marketplace/domain/usecases/approve_product_usecase.dart';
-import '../features/marketplace/domain/usecases/reject_product_usecase.dart';
-import '../features/marketplace/domain/usecases/moderate_review_usecase.dart';
-import '../features/marketplace/domain/usecases/suspend_seller_usecase.dart';
-import '../features/marketplace/domain/usecases/increment_product_view_usecase.dart';
-import '../features/edu_os/data/datasources/edu_os_remote_datasource.dart';
-import '../features/edu_os/data/repositories/edu_os_repository_impl.dart';
-import '../features/edu_os/domain/repositories/edu_os_repository.dart';
-import '../features/edu_os/domain/usecases/edu_os_usecases.dart';
-import '../features/edu_os/presentation/providers/edu_os_provider.dart';
-import '../features/marketplace/presentation/providers/marketplace_provider.dart';
-import '../features/marketplace/presentation/providers/seller_provider.dart';
-import '../features/marketplace/presentation/providers/product_detail_provider.dart';
-import '../features/marketplace/presentation/providers/cart_provider.dart';
-import '../features/marketplace/presentation/providers/order_provider.dart';
-import '../features/marketplace/presentation/providers/purchase_provider.dart';
-import '../features/marketplace/presentation/providers/quality_check_provider.dart';
-import '../features/marketplace/presentation/providers/moderation_provider.dart';
-import '../features/marketplace/presentation/providers/marketplace_notification_provider.dart';
-import '../features/marketplace/presentation/providers/commission_provider.dart';
-import '../features/offline/data/datasources/offline_local_datasource.dart';
-import '../features/offline/data/datasources/offline_remote_datasource.dart';
-import '../features/offline/data/repositories/offline_repository_impl.dart';
-import '../features/offline/domain/repositories/offline_repository.dart';
-import '../features/offline/domain/usecases/get_sync_status_usecase.dart';
-import '../features/offline/domain/usecases/trigger_sync_usecase.dart';
-import '../features/offline/domain/usecases/get_offline_resources_usecase.dart';
-import '../features/offline/domain/usecases/download_resource_usecase.dart';
-import '../features/offline/domain/usecases/remove_offline_resource_usecase.dart';
-import '../features/offline/domain/usecases/save_draft_usecase.dart';
-import '../features/offline/domain/usecases/get_drafts_usecase.dart';
-import '../features/offline/domain/usecases/delete_draft_usecase.dart';
-import '../features/offline/domain/usecases/save_offline_exam_attempt_usecase.dart';
-import '../features/offline/domain/usecases/sync_exam_attempt_usecase.dart';
-import '../features/offline/domain/usecases/register_device_usecase.dart';
-import '../features/offline/domain/usecases/get_connectivity_info_usecase.dart';
-import '../features/offline/domain/usecases/start_download_usecase.dart';
-import '../features/offline/domain/usecases/get_downloads_usecase.dart';
-import '../features/offline/presentation/providers/offline_provider.dart';
-import '../core/storage/local_database.dart';
-import '../core/storage/cache_manager.dart';
-import '../core/connectivity/connectivity_engine.dart';
-import '../core/sync/sync_engine.dart';
-import '../core/device/device_service.dart';
-import '../core/responsive/responsive_framework.dart';
-import '../core/accessibility/accessibility_framework.dart';
-import '../core/performance/performance_manager.dart';
-import '../core/performance/ai_cache_service.dart';
-import '../core/database/database_pool_manager.dart';
-import '../core/pwa/pwa_service.dart';
-import '../features/teacher_workspace/data/datasources/teacher_workspace_remote_datasource.dart';
-import '../features/teacher_workspace/data/repositories/teacher_workspace_repository_impl.dart';
-import '../features/teacher_workspace/domain/repositories/teacher_workspace_repository.dart';
-import '../features/teacher_workspace/domain/usecases/ai_content_assistant_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_event_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_events_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/suggest_schedule_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_assignment_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_lesson_plan_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_report_comment_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_resource_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_scheme_of_work_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_worksheet_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/delete_lesson_plan_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/export_worksheet_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_assignment_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_lesson_plan_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_questions_from_content_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_report_comments_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_resource_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_scheme_of_work_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_worksheet_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_assignments_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_content_history_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_lesson_plans_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_resources_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_schemes_of_work_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_version_history_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_worksheets_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_workspace_dashboard_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/publish_assignment_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/toggle_favorite_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/update_lesson_plan_usecase.dart';
-import '../features/teacher_workspace/presentation/providers/assignment_provider.dart';
-import '../features/teacher_workspace/presentation/providers/calendar_planner_provider.dart';
-import '../features/teacher_workspace/presentation/providers/content_assistant_provider.dart';
-import '../features/teacher_workspace/presentation/providers/generate_questions_provider.dart';
-import '../features/teacher_workspace/presentation/providers/lesson_plan_provider.dart';
-import '../features/teacher_workspace/presentation/providers/report_comment_provider.dart';
-import '../features/teacher_workspace/presentation/providers/resource_library_provider.dart';
-import '../features/teacher_workspace/presentation/providers/scheme_of_work_provider.dart';
-import '../features/teacher_workspace/presentation/providers/teaching_resource_provider.dart';
-import '../features/teacher_workspace/presentation/providers/worksheet_provider.dart';
-import '../features/teacher_workspace/presentation/providers/workspace_dashboard_provider.dart';
-import '../features/teacher_workspace/domain/usecases/generate_presentation_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_presentations_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_presentation_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/export_presentation_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_communication_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_communications_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_communication_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_task_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/update_task_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/delete_task_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_tasks_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_rubric_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_rubrics_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_rubric_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_oral_questions_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_oral_questions_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_oral_questions_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/generate_practical_assessment_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_practical_assessments_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/create_practical_assessment_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/share_resource_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/add_comment_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_comments_usecase.dart';
-import '../features/teacher_workspace/domain/usecases/get_enhanced_dashboard_usecase.dart';
-import '../features/teacher_workspace/presentation/providers/presentation_provider.dart';
-import '../features/teacher_workspace/presentation/providers/communication_provider.dart';
-import '../features/teacher_workspace/presentation/providers/task_provider.dart';
-import '../features/teacher_workspace/presentation/providers/rubric_provider.dart';
-import '../features/teacher_workspace/presentation/providers/oral_question_provider.dart';
-import '../features/teacher_workspace/presentation/providers/practical_assessment_provider.dart';
-import '../features/teacher_workspace/presentation/providers/collaboration_provider.dart';
-import '../features/teacher_workspace/presentation/providers/enhanced_dashboard_provider.dart';
-import '../features/school_management/data/datasources/school_management_remote_datasource.dart';
-import '../features/school_management/data/repositories/school_management_repository_impl.dart';
-import '../features/school_management/domain/repositories/school_management_repository.dart';
-import '../features/school_management/domain/usecases/school_usecases.dart';
-import '../features/school_management/domain/usecases/student_usecases.dart';
-import '../features/school_management/domain/usecases/teacher_usecases.dart';
-import '../features/school_management/domain/usecases/parent_usecases.dart';
-import '../features/school_management/domain/usecases/academic_session_usecases.dart' hide CreateCalendarEventUseCase, GetCalendarEventsUseCase;
-import '../features/school_management/domain/usecases/timetable_usecases.dart';
-import '../features/school_management/domain/usecases/attendance_usecases.dart';
-import '../features/school_management/domain/usecases/homework_usecases.dart';
-import '../features/school_management/domain/usecases/announcement_usecases.dart' hide CreateAnnouncementUseCase, GetAnnouncementsUseCase;
-import '../features/school_management/domain/usecases/report_usecases.dart';
-import '../features/parent_portal/data/datasources/parent_portal_remote_datasource.dart';
-import '../features/parent_portal/data/repositories/parent_portal_repository_impl.dart';
-import '../features/parent_portal/domain/repositories/parent_portal_repository.dart';
-import '../features/parent_portal/domain/usecases/get_parent_dashboard_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_parent_insights_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_child_profile_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_child_performance_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_child_attendance_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_child_assignments_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_parent_notifications_usecase.dart';
-import '../features/parent_portal/domain/usecases/mark_notification_read_usecase.dart' as pp_mark_notif;
-import '../features/parent_portal/domain/usecases/get_parent_messages_usecase.dart';
-import '../features/parent_portal/domain/usecases/mark_message_read_usecase.dart';
-import '../features/parent_portal/domain/usecases/send_parent_message_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_message_threads_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_parent_calendar_usecase.dart';
-import '../features/parent_portal/domain/usecases/dismiss_insight_usecase.dart';
-import '../features/parent_portal/domain/usecases/ask_parent_assistant_usecase.dart';
-import '../features/parent_portal/domain/usecases/download_report_usecase.dart' as pp_download;
-import '../features/parent_portal/domain/usecases/record_engagement_usecase.dart';
-import '../features/parent_portal/domain/usecases/get_engagement_analytics_usecase.dart';
-import '../features/communication/data/datasources/communication_remote_datasource.dart';
-import '../features/communication/data/repositories/communication_repository_impl.dart';
-import '../features/communication/domain/repositories/communication_repository.dart';
-import '../features/communication/domain/usecases/get_conversations_usecase.dart';
-import '../features/communication/domain/usecases/create_conversation_usecase.dart';
-import '../features/communication/domain/usecases/get_messages_usecase.dart';
-import '../features/communication/domain/usecases/send_message_usecase.dart';
-import '../features/communication/domain/usecases/edit_message_usecase.dart';
-import '../features/communication/domain/usecases/delete_message_usecase.dart';
-import '../features/communication/domain/usecases/pin_message_usecase.dart';
-import '../features/communication/domain/usecases/add_reaction_usecase.dart';
-import '../features/communication/domain/usecases/mark_as_read_usecase.dart';
-import '../features/communication/domain/usecases/get_announcements_usecase.dart';
-import '../features/communication/domain/usecases/create_announcement_usecase.dart';
-import '../features/communication/domain/usecases/acknowledge_announcement_usecase.dart';
-import '../features/communication/domain/usecases/get_notifications_usecase.dart';
-import '../features/communication/domain/usecases/mark_notification_read_usecase.dart';
-import '../features/communication/domain/usecases/mark_all_notifications_read_usecase.dart';
-import '../features/communication/domain/usecases/get_notification_preferences_usecase.dart';
-import '../features/communication/domain/usecases/update_notification_preferences_usecase.dart';
-import '../features/communication/domain/usecases/get_forums_usecase.dart';
-import '../features/communication/domain/usecases/create_forum_usecase.dart';
-import '../features/communication/domain/usecases/get_forum_posts_usecase.dart';
-import '../features/communication/domain/usecases/create_forum_post_usecase.dart';
-import '../features/communication/domain/usecases/create_forum_comment_usecase.dart';
-import '../features/communication/domain/usecases/get_calendar_events_usecase.dart';
-import '../features/communication/domain/usecases/create_calendar_event_usecase.dart';
-import '../features/communication/domain/usecases/rsvp_to_event_usecase.dart';
-import '../features/communication/domain/usecases/ai_draft_announcement_usecase.dart';
-import '../features/communication/domain/usecases/ai_rewrite_message_usecase.dart';
-import '../features/communication/domain/usecases/ai_summarize_conversation_usecase.dart';
-import '../features/communication/domain/usecases/ai_translate_message_usecase.dart';
-import '../features/communication/domain/usecases/ai_suggest_reply_usecase.dart';
-import '../features/communication/domain/usecases/ai_correct_grammar_usecase.dart';
-import '../features/communication/domain/usecases/ai_adjust_tone_usecase.dart';
-import '../features/communication/domain/usecases/ask_school_knowledge_usecase.dart';
-import '../features/communication/domain/usecases/get_knowledge_documents_usecase.dart';
-import '../features/communication/domain/usecases/upload_knowledge_document_usecase.dart';
-import '../features/communication/domain/usecases/report_message_usecase.dart';
-import '../features/communication/domain/usecases/mute_conversation_usecase.dart';
-import '../features/communication/domain/usecases/archive_conversation_usecase.dart';
-import '../features/communication/domain/usecases/get_audit_logs_usecase.dart';
-import '../features/communication/domain/usecases/get_communication_dashboard_usecase.dart';
-import '../features/communication/domain/usecases/set_typing_usecase.dart';
-import '../features/communication/domain/usecases/update_presence_usecase.dart';
-import '../features/communication/presentation/providers/conversation_provider.dart';
-import '../features/communication/presentation/providers/message_provider.dart';
-import '../features/communication/presentation/providers/announcement_provider.dart';
-import '../features/communication/presentation/providers/notification_provider.dart';
-import '../features/communication/presentation/providers/forum_provider.dart';
-import '../features/communication/presentation/providers/calendar_provider.dart';
-import '../features/communication/presentation/providers/ai_assistant_provider.dart';
-import '../features/communication/presentation/providers/knowledge_assistant_provider.dart';
-import '../features/communication/presentation/providers/communication_dashboard_provider.dart';
-import '../features/communication/presentation/providers/moderation_provider.dart' hide ModerationNotifier, ModerationState;
-import '../features/billing/data/datasources/billing_remote_datasource.dart';
-import '../features/billing/data/datasources/flutterwave_datasource.dart';
-import '../features/billing/data/repositories/billing_repository_impl.dart';
-import '../features/billing/domain/repositories/billing_repository.dart';
-import '../features/billing/domain/usecases/get_subscription_plans_usecase.dart';
-import '../features/billing/domain/usecases/manage_subscription_usecase.dart';
-import '../features/billing/domain/usecases/process_payment_usecase.dart' as bn_payment;
-import '../features/billing/domain/usecases/manage_ai_credits_usecase.dart';
-import '../features/billing/domain/usecases/manage_coupons_usecase.dart';
-import '../features/billing/domain/usecases/manage_referrals_usecase.dart';
-import '../features/billing/domain/usecases/manage_invoices_usecase.dart';
-import '../features/billing/domain/usecases/manage_licenses_usecase.dart';
-import '../features/billing/domain/usecases/get_revenue_analytics_usecase.dart';
-import '../features/billing/domain/usecases/manage_school_billing_usecase.dart';
-import '../features/billing/domain/usecases/manage_billing_notifications_usecase.dart' as bn;
-import '../features/billing/presentation/providers/subscription_provider.dart';
-import '../features/billing/presentation/providers/payment_provider.dart';
-import '../features/billing/presentation/providers/ai_credits_provider.dart';
-import '../features/billing/presentation/providers/coupon_provider.dart';
-import '../features/billing/presentation/providers/referral_provider.dart';
-import '../features/billing/presentation/providers/invoice_provider.dart';
-import '../features/billing/presentation/providers/license_provider.dart';
-import '../features/billing/presentation/providers/revenue_provider.dart';
-import '../features/billing/presentation/providers/school_billing_provider.dart';
-import '../features/billing/presentation/providers/billing_notification_provider.dart';
-import '../config/dependency_injection.dart';
+import '../services/storage_service.dart';
 
 
 final supabaseClientProvider = Provider<sb.SupabaseClient>((ref) {
@@ -1362,7 +1344,7 @@ final getExamTemplatesUseCaseProvider =
 final getExamTemplateDetailUseCaseProvider =
     Provider<GetExamTemplateDetailUseCase>((ref) {
   return GetExamTemplateDetailUseCase(
-      ref.watch(examTemplateRepositoryProvider));
+      ref.watch(examTemplateRepositoryProvider),);
 });
 
 /// Provides the [DeleteExamTemplateUseCase].
@@ -1375,7 +1357,7 @@ final deleteExamTemplateUseCaseProvider =
 final createExamFromTemplateUseCaseProvider =
     Provider<CreateExamFromTemplateUseCase>((ref) {
   return CreateExamFromTemplateUseCase(
-      ref.watch(examTemplateRepositoryProvider));
+      ref.watch(examTemplateRepositoryProvider),);
 });
 
 // ─── CBT Submission Receipt Use Cases ────────────────────────────────
@@ -1384,14 +1366,14 @@ final createExamFromTemplateUseCaseProvider =
 final getSubmissionReceiptUseCaseProvider =
     Provider<GetSubmissionReceiptUseCase>((ref) {
   return GetSubmissionReceiptUseCase(
-      ref.watch(examTemplateRepositoryProvider));
+      ref.watch(examTemplateRepositoryProvider),);
 });
 
 /// Provides the [VerifySubmissionReceiptUseCase].
 final verifySubmissionReceiptUseCaseProvider =
     Provider<VerifySubmissionReceiptUseCase>((ref) {
   return VerifySubmissionReceiptUseCase(
-      ref.watch(examTemplateRepositoryProvider));
+      ref.watch(examTemplateRepositoryProvider),);
 });
 
 // ─── CBT New Service Providers ───────────────────────────────────────
@@ -2286,7 +2268,7 @@ final studentCreateConversationUseCaseProvider =
 final getConversationDetailUseCaseProvider =
     Provider<sp_usecases.GetConversationDetailUseCase>((ref) {
   return sp_usecases.GetConversationDetailUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final studentSendMessageUseCaseProvider =
@@ -2297,7 +2279,7 @@ final studentSendMessageUseCaseProvider =
 final deleteConversationUseCaseProvider =
     Provider<sp_usecases.DeleteConversationUseCase>((ref) {
   return sp_usecases.DeleteConversationUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Practice Session Use Cases ─────────────────────
@@ -2305,31 +2287,31 @@ final deleteConversationUseCaseProvider =
 final createPracticeSessionUseCaseProvider =
     Provider<sp_usecases.CreatePracticeSessionUseCase>((ref) {
   return sp_usecases.CreatePracticeSessionUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final getPracticeSessionsUseCaseProvider =
     Provider<sp_usecases.GetPracticeSessionsUseCase>((ref) {
   return sp_usecases.GetPracticeSessionsUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final getPracticeSessionDetailUseCaseProvider =
     Provider<sp_usecases.GetPracticeSessionDetailUseCase>((ref) {
   return sp_usecases.GetPracticeSessionDetailUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final submitPracticeAnswerUseCaseProvider =
     Provider<sp_usecases.SubmitPracticeAnswerUseCase>((ref) {
   return sp_usecases.SubmitPracticeAnswerUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final completePracticeSessionUseCaseProvider =
     Provider<sp_usecases.CompletePracticeSessionUseCase>((ref) {
   return sp_usecases.CompletePracticeSessionUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Assignment Submission Use Cases ────────────────
@@ -2341,25 +2323,25 @@ final getSubmissionsUseCaseProvider = Provider<sp_usecases.GetSubmissionsUseCase
 final getSubmissionDetailUseCaseProvider =
     Provider<sp_usecases.GetSubmissionDetailUseCase>((ref) {
   return sp_usecases.GetSubmissionDetailUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final createSubmissionUseCaseProvider =
     Provider<sp_usecases.CreateSubmissionUseCase>((ref) {
   return sp_usecases.CreateSubmissionUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final submitAssignmentUseCaseProvider =
     Provider<sp_usecases.SubmitAssignmentUseCase>((ref) {
   return sp_usecases.SubmitAssignmentUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final getAssignedAssignmentsUseCaseProvider =
     Provider<sp_usecases.GetAssignedAssignmentsUseCase>((ref) {
   return sp_usecases.GetAssignedAssignmentsUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Learning Resources Use Cases ───────────────────
@@ -2372,13 +2354,13 @@ final studentGetResourcesUseCaseProvider =
 final getResourceDetailUseCaseProvider =
     Provider<sp_usecases.GetResourceDetailUseCase>((ref) {
   return sp_usecases.GetResourceDetailUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final logResourceAccessUseCaseProvider =
     Provider<sp_usecases.LogResourceAccessUseCase>((ref) {
   return sp_usecases.LogResourceAccessUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Document Chat Use Cases ────────────────────────
@@ -2398,7 +2380,7 @@ final getDocumentsUseCaseProvider = Provider<sp_usecases.GetDocumentsUseCase>((r
 final sendDocumentMessageUseCaseProvider =
     Provider<sp_usecases.SendDocumentMessageUseCase>((ref) {
   return sp_usecases.SendDocumentMessageUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Flashcard Use Cases ────────────────────────────
@@ -2406,13 +2388,13 @@ final sendDocumentMessageUseCaseProvider =
 final getFlashcardDecksUseCaseProvider =
     Provider<sp_usecases.GetFlashcardDecksUseCase>((ref) {
   return sp_usecases.GetFlashcardDecksUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final createFlashcardDeckUseCaseProvider =
     Provider<sp_usecases.CreateFlashcardDeckUseCase>((ref) {
   return sp_usecases.CreateFlashcardDeckUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final getFlashcardsUseCaseProvider = Provider<sp_usecases.GetFlashcardsUseCase>((ref) {
@@ -2422,7 +2404,7 @@ final getFlashcardsUseCaseProvider = Provider<sp_usecases.GetFlashcardsUseCase>(
 final createFlashcardUseCaseProvider =
     Provider<sp_usecases.CreateFlashcardUseCase>((ref) {
   return sp_usecases.CreateFlashcardUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final rateFlashcardUseCaseProvider = Provider<sp_usecases.RateFlashcardUseCase>((ref) {
@@ -2432,13 +2414,13 @@ final rateFlashcardUseCaseProvider = Provider<sp_usecases.RateFlashcardUseCase>(
 final generateFlashcardsUseCaseProvider =
     Provider<sp_usecases.GenerateFlashcardsUseCase>((ref) {
   return sp_usecases.GenerateFlashcardsUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final deleteFlashcardDeckUseCaseProvider =
     Provider<sp_usecases.DeleteFlashcardDeckUseCase>((ref) {
   return sp_usecases.DeleteFlashcardDeckUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Study Planner Use Cases ────────────────────────
@@ -2450,25 +2432,25 @@ final getStudyPlansUseCaseProvider = Provider<sp_usecases.GetStudyPlansUseCase>(
 final createStudyPlanUseCaseProvider =
     Provider<sp_usecases.CreateStudyPlanUseCase>((ref) {
   return sp_usecases.CreateStudyPlanUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final updateStudyTaskUseCaseProvider =
     Provider<sp_usecases.UpdateStudyTaskUseCase>((ref) {
   return sp_usecases.UpdateStudyTaskUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final suggestStudyPlanUseCaseProvider =
     Provider<sp_usecases.SuggestStudyPlanUseCase>((ref) {
   return sp_usecases.SuggestStudyPlanUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final deleteStudyPlanUseCaseProvider =
     Provider<sp_usecases.DeleteStudyPlanUseCase>((ref) {
   return sp_usecases.DeleteStudyPlanUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Goals Use Cases ────────────────────────────────
@@ -2494,13 +2476,13 @@ final getProgressUseCaseProvider = Provider<sp_usecases.GetProgressUseCase>((ref
 final getLatestProgressUseCaseProvider =
     Provider<sp_usecases.GetLatestProgressUseCase>((ref) {
   return sp_usecases.GetLatestProgressUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final getDashboardStatsUseCaseProvider =
     Provider<sp_usecases.GetDashboardStatsUseCase>((ref) {
   return sp_usecases.GetDashboardStatsUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ─── Student Portal — Notification Use Cases ─────────────────────────
@@ -2508,19 +2490,19 @@ final getDashboardStatsUseCaseProvider =
 final studentGetNotificationsUseCaseProvider =
     Provider<sp_usecases.GetNotificationsUseCase>((ref) {
   return sp_usecases.GetNotificationsUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final studentMarkNotificationReadUseCaseProvider =
     Provider<sp_usecases.MarkNotificationReadUseCase>((ref) {
   return sp_usecases.MarkNotificationReadUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 final studentMarkAllNotificationsReadUseCaseProvider =
     Provider<sp_usecases.MarkAllNotificationsReadUseCase>((ref) {
   return sp_usecases.MarkAllNotificationsReadUseCase(
-      ref.watch(studentPortalRepositoryProvider));
+      ref.watch(studentPortalRepositoryProvider),);
 });
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2587,25 +2569,25 @@ final updateDepartmentUseCaseProvider =
 final createStudentProfileUseCaseProvider =
     Provider<CreateStudentProfileUseCase>((ref) {
   return CreateStudentProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final updateStudentProfileUseCaseProvider =
     Provider<UpdateStudentProfileUseCase>((ref) {
   return UpdateStudentProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getStudentProfileUseCaseProvider =
     Provider<GetStudentProfileUseCase>((ref) {
   return GetStudentProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getStudentProfilesUseCaseProvider =
     Provider<GetStudentProfilesUseCase>((ref) {
   return GetStudentProfilesUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final promoteStudentUseCaseProvider = Provider<PromoteStudentUseCase>((ref) {
@@ -2615,69 +2597,69 @@ final promoteStudentUseCaseProvider = Provider<PromoteStudentUseCase>((ref) {
 final graduateStudentUseCaseProvider =
     Provider<GraduateStudentUseCase>((ref) {
   return GraduateStudentUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // Teacher
 final createTeacherProfileUseCaseProvider =
     Provider<CreateTeacherProfileUseCase>((ref) {
   return CreateTeacherProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final updateTeacherProfileUseCaseProvider =
     Provider<UpdateTeacherProfileUseCase>((ref) {
   return UpdateTeacherProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getTeacherProfileUseCaseProvider =
     Provider<GetTeacherProfileUseCase>((ref) {
   return GetTeacherProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getTeacherProfilesUseCaseProvider =
     Provider<GetTeacherProfilesUseCase>((ref) {
   return GetTeacherProfilesUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // Parent
 final createParentProfileUseCaseProvider =
     Provider<CreateParentProfileUseCase>((ref) {
   return CreateParentProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final updateParentProfileUseCaseProvider =
     Provider<UpdateParentProfileUseCase>((ref) {
   return UpdateParentProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getParentProfileUseCaseProvider =
     Provider<GetParentProfileUseCase>((ref) {
   return GetParentProfileUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getParentProfilesUseCaseProvider =
     Provider<GetParentProfilesUseCase>((ref) {
   return GetParentProfilesUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final linkParentToStudentUseCaseProvider =
     Provider<LinkParentToStudentUseCase>((ref) {
   return LinkParentToStudentUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final unlinkParentFromStudentUseCaseProvider =
     Provider<UnlinkParentFromStudentUseCase>((ref) {
   return UnlinkParentFromStudentUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // Academic Sessions
@@ -2692,13 +2674,13 @@ final updateSessionUseCaseProvider = Provider<UpdateSessionUseCase>((ref) {
 final getCurrentSessionUseCaseProvider =
     Provider<GetCurrentSessionUseCase>((ref) {
   return GetCurrentSessionUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final setCurrentSessionUseCaseProvider =
     Provider<SetCurrentSessionUseCase>((ref) {
   return SetCurrentSessionUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final createTermUseCaseProvider = Provider<CreateTermUseCase>((ref) {
@@ -2726,7 +2708,7 @@ final setCurrentTermUseCaseProvider = Provider<SetCurrentTermUseCase>((ref) {
 final updateCalendarEventUseCaseProvider =
     Provider<UpdateCalendarEventUseCase>((ref) {
   return UpdateCalendarEventUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // [DUPLICATE REMOVED] final getCalendarEventsUseCaseProvider =
@@ -2739,13 +2721,13 @@ final updateCalendarEventUseCaseProvider =
 final createTimetableUseCaseProvider =
     Provider<CreateTimetableUseCase>((ref) {
   return CreateTimetableUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final updateTimetableUseCaseProvider =
     Provider<UpdateTimetableUseCase>((ref) {
   return UpdateTimetableUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getTimetableUseCaseProvider = Provider<GetTimetableUseCase>((ref) {
@@ -2759,56 +2741,56 @@ final getTimetablesUseCaseProvider = Provider<GetTimetablesUseCase>((ref) {
 final addTimetableSlotUseCaseProvider =
     Provider<AddTimetableSlotUseCase>((ref) {
   return AddTimetableSlotUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final updateTimetableSlotUseCaseProvider =
     Provider<UpdateTimetableSlotUseCase>((ref) {
   return UpdateTimetableSlotUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final deleteTimetableSlotUseCaseProvider =
     Provider<DeleteTimetableSlotUseCase>((ref) {
   return DeleteTimetableSlotUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final publishTimetableUseCaseProvider =
     Provider<PublishTimetableUseCase>((ref) {
   return PublishTimetableUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final checkSlotConflictsUseCaseProvider =
     Provider<CheckSlotConflictsUseCase>((ref) {
   return CheckSlotConflictsUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // Attendance
 final createAttendanceRecordUseCaseProvider =
     Provider<CreateAttendanceRecordUseCase>((ref) {
   return CreateAttendanceRecordUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final updateAttendanceRecordUseCaseProvider =
     Provider<UpdateAttendanceRecordUseCase>((ref) {
   return UpdateAttendanceRecordUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getAttendanceRecordUseCaseProvider =
     Provider<GetAttendanceRecordUseCase>((ref) {
   return GetAttendanceRecordUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getAttendanceRecordsUseCaseProvider =
     Provider<GetAttendanceRecordsUseCase>((ref) {
   return GetAttendanceRecordsUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final markAttendanceUseCaseProvider = Provider<MarkAttendanceUseCase>((ref) {
@@ -2818,7 +2800,7 @@ final markAttendanceUseCaseProvider = Provider<MarkAttendanceUseCase>((ref) {
 final getAttendanceSummaryUseCaseProvider =
     Provider<GetAttendanceSummaryUseCase>((ref) {
   return GetAttendanceSummaryUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // Homework
@@ -2833,7 +2815,7 @@ final updateHomeworkUseCaseProvider = Provider<UpdateHomeworkUseCase>((ref) {
 final publishHomeworkUseCaseProvider =
     Provider<PublishHomeworkUseCase>((ref) {
   return PublishHomeworkUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final submitHomeworkUseCaseProvider = Provider<SubmitHomeworkUseCase>((ref) {
@@ -2843,13 +2825,13 @@ final submitHomeworkUseCaseProvider = Provider<SubmitHomeworkUseCase>((ref) {
 final gradeSubmissionUseCaseProvider =
     Provider<GradeSubmissionUseCase>((ref) {
   return GradeSubmissionUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getHomeworkSubmissionsUseCaseProvider =
     Provider<GetHomeworkSubmissionsUseCase>((ref) {
   return GetHomeworkSubmissionsUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // Announcements
@@ -2862,19 +2844,19 @@ final getHomeworkSubmissionsUseCaseProvider =
 final updateAnnouncementUseCaseProvider =
     Provider<UpdateAnnouncementUseCase>((ref) {
   return UpdateAnnouncementUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final deleteAnnouncementUseCaseProvider =
     Provider<DeleteAnnouncementUseCase>((ref) {
   return DeleteAnnouncementUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final publishAnnouncementUseCaseProvider =
     Provider<PublishAnnouncementUseCase>((ref) {
   return PublishAnnouncementUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // [DUPLICATE REMOVED] final getAnnouncementsUseCaseProvider =
@@ -2887,25 +2869,25 @@ final publishAnnouncementUseCaseProvider =
 final getSchoolOverviewUseCaseProvider =
     Provider<GetSchoolOverviewUseCase>((ref) {
   return GetSchoolOverviewUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getStudentListReportUseCaseProvider =
     Provider<GetStudentListReportUseCase>((ref) {
   return GetStudentListReportUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getTeacherListReportUseCaseProvider =
     Provider<GetTeacherListReportUseCase>((ref) {
   return GetTeacherListReportUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 final getAttendanceReportUseCaseProvider =
     Provider<GetAttendanceReportUseCase>((ref) {
   return GetAttendanceReportUseCase(
-      ref.watch(schoolManagementRepositoryProvider));
+      ref.watch(schoolManagementRepositoryProvider),);
 });
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2936,109 +2918,109 @@ final parentPortalRepositoryProvider =
 final getParentDashboardUseCaseProvider =
     Provider<GetParentDashboardUseCase>((ref) {
   return GetParentDashboardUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getParentInsightsUseCaseProvider =
     Provider<GetParentInsightsUseCase>((ref) {
   return GetParentInsightsUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getChildProfileUseCaseProvider =
     Provider<GetChildProfileUseCase>((ref) {
   return GetChildProfileUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getChildPerformanceUseCaseProvider =
     Provider<GetChildPerformanceUseCase>((ref) {
   return GetChildPerformanceUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getChildAttendanceUseCaseProvider =
     Provider<GetChildAttendanceUseCase>((ref) {
   return GetChildAttendanceUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getChildAssignmentsUseCaseProvider =
     Provider<GetChildAssignmentsUseCase>((ref) {
   return GetChildAssignmentsUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getParentNotificationsUseCaseProvider =
     Provider<GetParentNotificationsUseCase>((ref) {
   return GetParentNotificationsUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final parentMarkNotificationReadUseCaseProvider =
     Provider<pp_mark_notif.MarkNotificationReadUseCase>((ref) {
   return pp_mark_notif.MarkNotificationReadUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getParentMessagesUseCaseProvider =
     Provider<GetParentMessagesUseCase>((ref) {
   return GetParentMessagesUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final markMessageReadUseCaseProvider =
     Provider<MarkMessageReadUseCase>((ref) {
   return MarkMessageReadUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final sendParentMessageUseCaseProvider =
     Provider<SendParentMessageUseCase>((ref) {
   return SendParentMessageUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getMessageThreadsUseCaseProvider =
     Provider<GetMessageThreadsUseCase>((ref) {
   return GetMessageThreadsUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getParentCalendarUseCaseProvider =
     Provider<GetParentCalendarUseCase>((ref) {
   return GetParentCalendarUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final dismissInsightUseCaseProvider =
     Provider<DismissInsightUseCase>((ref) {
   return DismissInsightUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final askParentAssistantUseCaseProvider =
     Provider<AskParentAssistantUseCase>((ref) {
   return AskParentAssistantUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final downloadReportUseCaseProvider =
     Provider<pp_download.DownloadReportUseCase>((ref) {
   return pp_download.DownloadReportUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final recordEngagementUseCaseProvider =
     Provider<RecordEngagementUseCase>((ref) {
   return RecordEngagementUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 final getEngagementAnalyticsUseCaseProvider =
     Provider<GetEngagementAnalyticsUseCase>((ref) {
   return GetEngagementAnalyticsUseCase(
-      ref.watch(parentPortalRepositoryProvider));
+      ref.watch(parentPortalRepositoryProvider),);
 });
 
 // ─── State Notifiers ──────────────────────────────────────────────────

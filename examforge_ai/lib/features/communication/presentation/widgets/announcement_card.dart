@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/app_card.dart';
 import '../../domain/entities/communication_entities.dart';
 import 'priority_badge.dart';
-import '../../../../features/school_management/domain/entities/school_management_entities.dart' hide AnnouncementEntity, AnnouncementPriority, AnnouncementType;
 
 
 // ─── AnnouncementCard ─────────────────────────────────────────────────────────
@@ -60,7 +59,7 @@ class AnnouncementCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.25 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.25 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Text(
@@ -70,7 +69,7 @@ class AnnouncementCard extends StatelessWidget {
           fontSize: 10,
           fontWeight: AppTypography.wSemiBold,
           letterSpacing: AppTypography.lsCaption,
-          color: isDark ? color.withOpacity(0.9) : color,
+          color: isDark ? color.withValues(alpha: 0.9) : color,
         ),
       ),
     );
@@ -95,12 +94,12 @@ class AnnouncementCard extends StatelessWidget {
     final isAcknowledged = announcement.acknowledgedBy.isNotEmpty;
 
     if (isAcknowledged) {
-      return Row(
+      return const Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(Icons.check_circle_rounded,
-              size: Spacings.smIcon, color: AppColors.success),
-          const SizedBox(width: Spacings.xs),
+              size: Spacings.smIcon, color: AppColors.success,),
+          SizedBox(width: Spacings.xs),
           Text(
             'Acknowledged',
             style: TextStyle(
@@ -162,11 +161,11 @@ class AnnouncementCard extends StatelessWidget {
               const Spacer(),
               if (announcement.isPinned)
                 Icon(Icons.push_pin_rounded,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               if (announcement.isAiGenerated) ...[
                 const SizedBox(width: Spacings.xs),
                 Icon(Icons.auto_awesome_rounded,
-                    size: Spacings.smIcon, color: cs.tertiary),
+                    size: Spacings.smIcon, color: cs.tertiary,),
               ],
             ],
           ),
@@ -200,7 +199,7 @@ class AnnouncementCard extends StatelessWidget {
           Row(
             children: [
               Icon(Icons.person_outline_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Expanded(
                 child: Text(
@@ -214,7 +213,7 @@ class AnnouncementCard extends StatelessWidget {
               ),
               const SizedBox(width: Spacings.md),
               Icon(Icons.access_time_rounded,
-                  size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.smIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.xs),
               Text(
                 _relativeTime(announcement.createdAt),
@@ -225,7 +224,7 @@ class AnnouncementCard extends StatelessWidget {
               if (announcement.viewCount > 0) ...[
                 const SizedBox(width: Spacings.md),
                 Icon(Icons.visibility_outlined,
-                    size: Spacings.smIcon, color: cs.onSurfaceVariant),
+                    size: Spacings.smIcon, color: cs.onSurfaceVariant,),
                 const SizedBox(width: Spacings.xs),
                 Text(
                   '${announcement.viewCount}',

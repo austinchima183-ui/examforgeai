@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../core/themes/app_colors.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// AI Tutor chat interface page.
 ///
@@ -298,7 +297,7 @@ class _AiTutorPageState extends ConsumerState<AiTutorPage> {
         color: cs.surface,
         border: Border(
           bottom: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -375,7 +374,7 @@ class _AiTutorPageState extends ConsumerState<AiTutorPage> {
             Icon(
               Icons.auto_awesome_outlined,
               size: Spacings.xlIcon,
-              color: cs.primary.withOpacity(0.5),
+              color: cs.primary.withValues(alpha: 0.5),
             ),
             const SizedBox(height: Spacings.lg),
             Text(
@@ -446,7 +445,7 @@ class _AiTutorPageState extends ConsumerState<AiTutorPage> {
         color: cs.surface,
         border: Border(
           top: BorderSide(
-            color: cs.outlineVariant.withOpacity(0.5),
+            color: cs.outlineVariant.withValues(alpha: 0.5),
           ),
         ),
       ),
@@ -554,7 +553,7 @@ class _AiTutorPageState extends ConsumerState<AiTutorPage> {
                     ),
                     const SizedBox(height: Spacings.md),
                     DropdownButtonFormField<String>(
-                      value: selectedSubject,
+                      initialValue: selectedSubject,
                       decoration: const InputDecoration(
                         labelText: 'Subject',
                         border: OutlineInputBorder(),
@@ -650,10 +649,10 @@ class _ConversationTile extends StatelessWidget {
 
     return ListTile(
       selected: isSelected,
-      selectedTileColor: cs.primaryContainer.withOpacity(0.3),
+      selectedTileColor: cs.primaryContainer.withValues(alpha: 0.3),
       leading: CircleAvatar(
         backgroundColor:
-            cs.primaryContainer.withOpacity(isSelected ? 1.0 : 0.5),
+            cs.primaryContainer.withValues(alpha: isSelected ? 1.0 : 0.5),
         child: Icon(
           Icons.chat_bubble_outline_rounded,
           size: Spacings.mdIcon,

@@ -6,7 +6,6 @@ import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
-import '../../../../shared/widgets/app_error_state.dart';
 import '../../../../shared/widgets/app_loading.dart';
 import '../../domain/entities/communication_entities.dart';
 import '../../domain/usecases/get_knowledge_documents_usecase.dart';
@@ -123,7 +122,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.school_outlined, size: Spacings.xlIcon, color: cs.primary.withOpacity(0.5)),
+            Icon(Icons.school_outlined, size: Spacings.xlIcon, color: cs.primary.withValues(alpha: 0.5)),
             const SizedBox(height: Spacings.lg),
             Text('School Knowledge Assistant', style: tt.headlineSmall?.copyWith(fontWeight: AppTypography.wBold, color: cs.onSurface)),
             const SizedBox(height: Spacings.sm),
@@ -141,7 +140,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                   _questionController.text = q;
                   _askQuestion();
                 },
-              )).toList(),
+              ),).toList(),
             ),
           ],
         ),
@@ -180,12 +179,12 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
           child: Container(
             constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
             padding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.md),
-            decoration: BoxDecoration(color: cs.primary, borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(Spacings.mdRadius),
-              topRight: const Radius.circular(Spacings.mdRadius),
-              bottomLeft: const Radius.circular(Spacings.mdRadius),
+            decoration: BoxDecoration(color: cs.primary, borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(Spacings.mdRadius),
+              topRight: Radius.circular(Spacings.mdRadius),
+              bottomLeft: Radius.circular(Spacings.mdRadius),
               bottomRight: Radius.circular(Spacings.xs),
-            )),
+            ),),
             child: Text(query, style: tt.bodyMedium?.copyWith(color: cs.onPrimary)),
           ),
         ),
@@ -197,12 +196,12 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
           child: Container(
             constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.8),
             padding: const EdgeInsets.all(Spacings.md),
-            decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: BorderRadius.only(
-              topLeft: const Radius.circular(Spacings.mdRadius),
-              topRight: const Radius.circular(Spacings.mdRadius),
-              bottomRight: const Radius.circular(Spacings.mdRadius),
+            decoration: BoxDecoration(color: cs.surfaceContainerHigh, borderRadius: const BorderRadius.only(
+              topLeft: Radius.circular(Spacings.mdRadius),
+              topRight: Radius.circular(Spacings.mdRadius),
+              bottomRight: Radius.circular(Spacings.mdRadius),
               bottomLeft: Radius.circular(Spacings.xs),
-            )),
+            ),),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -271,7 +270,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                     Container(
                       padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
                       decoration: BoxDecoration(
-                        color: resp.isGrounded ? AppColors.successOf(cs.brightness).withOpacity(0.12) : AppColors.warningOf(cs.brightness).withOpacity(0.12),
+                        color: resp.isGrounded ? AppColors.successOf(cs.brightness).withValues(alpha: 0.12) : AppColors.warningOf(cs.brightness).withValues(alpha: 0.12),
                         borderRadius: Spacings.borderRadiusSm,
                       ),
                       child: Text(
@@ -300,7 +299,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                   ...resp.sources.map((src) => Container(
                     margin: const EdgeInsets.only(bottom: Spacings.xs),
                     padding: const EdgeInsets.all(Spacings.sm),
-                    decoration: BoxDecoration(color: cs.surfaceContainerHighest.withOpacity(0.5), borderRadius: Spacings.borderRadiusSm),
+                    decoration: BoxDecoration(color: cs.surfaceContainerHighest.withValues(alpha: 0.5), borderRadius: Spacings.borderRadiusSm),
                     child: Row(
                       children: [
                         Icon(Icons.description_outlined, size: Spacings.smIcon, color: cs.primary),
@@ -310,7 +309,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                         Text('${(src.relevance * 100).toInt()}%', style: tt.labelSmall?.copyWith(color: cs.primary, fontWeight: AppTypography.wSemiBold)),
                       ],
                     ),
-                  )),
+                  ),),
                 ],
 
                 // Confidence
@@ -344,7 +343,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                 controller: _questionController,
                 decoration: InputDecoration(
                   hintText: 'Ask about school policies, rules…',
-                  border: OutlineInputBorder(borderRadius: Spacings.borderRadiusXl, borderSide: BorderSide.none),
+                  border: const OutlineInputBorder(borderRadius: Spacings.borderRadiusXl, borderSide: BorderSide.none),
                   filled: true,
                   fillColor: cs.surfaceContainerHigh,
                   contentPadding: const EdgeInsets.symmetric(horizontal: Spacings.md, vertical: Spacings.sm),
@@ -428,7 +427,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
     return Card(
       elevation: Spacings.elevationNone,
       color: cs.surfaceContainerLow,
-      shape: RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
+      shape: const RoundedRectangleBorder(borderRadius: Spacings.borderRadiusMd),
       child: Padding(
         padding: Spacings.paddingCard,
         child: Row(
@@ -445,7 +444,7 @@ class _State extends ConsumerState<KnowledgeAssistantPage> {
                     children: [
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: Spacings.sm, vertical: 2),
-                        decoration: BoxDecoration(color: statusColor.withOpacity(0.12), borderRadius: Spacings.borderRadiusSm),
+                        decoration: BoxDecoration(color: statusColor.withValues(alpha: 0.12), borderRadius: Spacings.borderRadiusSm),
                         child: Text(doc.status, style: tt.labelSmall?.copyWith(color: statusColor, fontWeight: AppTypography.wMedium)),
                       ),
                       const SizedBox(width: Spacings.sm),

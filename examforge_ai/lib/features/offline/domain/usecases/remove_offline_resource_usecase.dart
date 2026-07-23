@@ -3,7 +3,6 @@ import 'package:equatable/equatable.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/result.dart';
 import '../../domain/repositories/offline_repository.dart';
-import '../../../../features/offline/domain/repositories/offline_repository.dart';
 
 
 /// Parameters for [RemoveOfflineResourceUseCase].
@@ -23,8 +22,8 @@ class RemoveOfflineResourceUseCase {
 
   Future<Result<bool>> call(RemoveOfflineResourceParams params) async {
     if (params.resourceId.isEmpty) {
-      return FailureResult(
-        Failure.validation(fieldErrors: const {}, message: 'Resource ID cannot be empty'),
+      return const FailureResult(
+        Failure.validation(fieldErrors: {}, message: 'Resource ID cannot be empty'),
       );
     }
 

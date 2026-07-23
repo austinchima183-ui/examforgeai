@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Student notifications page.
 ///
@@ -80,7 +80,7 @@ class _StudentNotificationsPageState
                 horizontal: Spacings.lg,
                 vertical: Spacings.md,
               ),
-              color: cs.primaryContainer.withOpacity(0.5),
+              color: cs.primaryContainer.withValues(alpha: 0.5),
               child: Row(
                 children: [
                   Icon(
@@ -128,7 +128,7 @@ class _StudentNotificationsPageState
                       selected: _filterType == type,
                       onSelected: (selected) {
                         setState(() =>
-                            _filterType = selected ? type : null);
+                            _filterType = selected ? type : null,);
                       },
                     ),
                   ),
@@ -180,7 +180,7 @@ class _StudentNotificationsPageState
                                       ref
                                           .read(
                                               studentNotificationProvider
-                                                  .notifier)
+                                                  .notifier,)
                                           .markAsRead(notification.id);
                                     }
                                   },
@@ -252,7 +252,7 @@ class _NotificationCard extends StatelessWidget {
 
     return AppCard(
       onTap: onTap,
-      borderColor: isUnread ? cs.primary.withOpacity(0.3) : null,
+      borderColor: isUnread ? cs.primary.withValues(alpha: 0.3) : null,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -260,7 +260,7 @@ class _NotificationCard extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: typeColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+              color: typeColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
               ),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
@@ -322,10 +322,10 @@ class _NotificationCard extends StatelessWidget {
                         vertical: 2,
                       ),
                       decoration: BoxDecoration(
-                        color: typeColor.withOpacity(context.isDarkMode ? 0.20 : 0.12,
+                        color: typeColor.withValues(alpha: context.isDarkMode ? 0.20 : 0.12,
                         ),
                         borderRadius: BorderRadius.circular(
-                            Spacings.fullRadius),
+                            Spacings.fullRadius,),
                       ),
                       child: Text(
                         notification.type.label,

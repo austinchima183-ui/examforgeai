@@ -3,10 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_guards.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_bottom_nav.dart';
@@ -47,20 +47,20 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
         route: role?.dashboardRoute ?? RouteNames.dashboard,
       ),
       AppDrawerItem.header('Manage'),
-      AppDrawerItem(
+      const AppDrawerItem(
         title: 'Profile',
         icon: Icons.person_outline_rounded,
         selectedIcon: Icons.person_rounded,
         route: RouteNames.profile,
       ),
-      AppDrawerItem(
+      const AppDrawerItem(
         title: 'Settings',
         icon: Icons.settings_outlined,
         selectedIcon: Icons.settings_rounded,
         route: RouteNames.settings,
       ),
       AppDrawerItem.divider(),
-      AppDrawerItem(
+      const AppDrawerItem(
         title: 'Notifications',
         icon: Icons.notifications_outlined,
         selectedIcon: Icons.notifications_rounded,
@@ -275,7 +275,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
   // ─── Mobile Drawer ─────────────────────────────────────────────────
 
   Widget _buildMobileDrawer(
-      List<AppDrawerItem> navItems, UserRole? role) {
+      List<AppDrawerItem> navItems, UserRole? role,) {
     return AppNavigationDrawer(
       userInfo: _buildUserInfo(role),
       items: navItems,
@@ -353,7 +353,7 @@ class _DashboardShellState extends ConsumerState<DashboardShell> {
                 ),
                 selectedIcon: Icon(item.selectedIcon ?? item.icon),
                 label: Text(item.title),
-              ))
+              ),)
           .toList(),
     );
   }
@@ -481,7 +481,7 @@ class _UserAvatarDropdown extends StatelessWidget {
                     vertical: Spacings.xs / 2,
                   ),
                   decoration: BoxDecoration(
-                    color: cs.primaryContainer.withOpacity(0.5),
+                    color: cs.primaryContainer.withValues(alpha: 0.5),
                     borderRadius:
                         BorderRadius.circular(Spacings.smRadius),
                   ),
@@ -503,7 +503,7 @@ class _UserAvatarDropdown extends StatelessWidget {
           child: Row(
             children: [
               Icon(Icons.person_outline_rounded,
-                  size: Spacings.mdIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.mdIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.md),
               Text('Profile', style: tt.bodyMedium),
             ],
@@ -515,7 +515,7 @@ class _UserAvatarDropdown extends StatelessWidget {
           child: Row(
             children: [
               Icon(Icons.settings_outlined,
-                  size: Spacings.mdIcon, color: cs.onSurfaceVariant),
+                  size: Spacings.mdIcon, color: cs.onSurfaceVariant,),
               const SizedBox(width: Spacings.md),
               Text('Settings', style: tt.bodyMedium),
             ],
@@ -529,7 +529,7 @@ class _UserAvatarDropdown extends StatelessWidget {
             children: [
               Icon(Icons.logout_rounded,
                   size: Spacings.mdIcon,
-                  color: AppColors.errorOf(cs.brightness)),
+                  color: AppColors.errorOf(cs.brightness),),
               const SizedBox(width: Spacings.md),
               Text(
                 'Sign Out',

@@ -58,7 +58,7 @@ class _State extends ConsumerState<ParentInsightsPage> {
     final insightsState = ref.watch(parentInsightsProvider);
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'AI Insights',
       ),
       body: _buildBody(context, insightsState),
@@ -224,9 +224,9 @@ class _State extends ConsumerState<ParentInsightsPage> {
       child: Card(
         elevation: Spacings.elevationNone,
         color: isUnread
-            ? cs.primaryContainer.withOpacity(0.08)
+            ? cs.primaryContainer.withValues(alpha: 0.08)
             : cs.surfaceContainerLow,
-        shape: RoundedRectangleBorder(
+        shape: const RoundedRectangleBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         child: InkWell(
@@ -265,7 +265,7 @@ class _State extends ConsumerState<ParentInsightsPage> {
                                 vertical: 2,
                               ),
                               decoration: BoxDecoration(
-                                color: severityColor.withOpacity(0.12),
+                                color: severityColor.withValues(alpha: 0.12),
                                 borderRadius: Spacings.borderRadiusSm,
                               ),
                               child: Text(
@@ -443,8 +443,8 @@ class _State extends ConsumerState<ParentInsightsPage> {
           child: Column(
             children: List.generate(
               4,
-              (_) => Padding(
-                padding: const EdgeInsets.only(bottom: Spacings.md),
+              (_) => const Padding(
+                padding: EdgeInsets.only(bottom: Spacings.md),
                 child: AppLoadingShimmer.box(
                   height: 120,
                   borderRadius: Spacings.borderRadiusMd,

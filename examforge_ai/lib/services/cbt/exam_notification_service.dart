@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../core/errors/exceptions.dart';
 import '../../core/utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -94,7 +93,7 @@ class ExamNotificationService {
           extraData: {
             'exam_title': examTitle,
           },
-        ));
+        ),);
 
     await _insertNotifications(notifications.toList());
   }
@@ -126,7 +125,7 @@ class ExamNotificationService {
       extraData: {
         'exam_title': examTitle,
       },
-    ));
+    ),);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -168,7 +167,7 @@ class ExamNotificationService {
         'minutes_remaining': minutesRemaining,
         'urgency': urgency,
       },
-    ));
+    ),);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -202,7 +201,7 @@ class ExamNotificationService {
         'exam_title': examTitle,
         'attempt_id': attemptId,
       },
-    ));
+    ),);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -238,7 +237,7 @@ class ExamNotificationService {
           extraData: {
             'exam_title': examTitle,
           },
-        ));
+        ),);
 
     await _insertNotifications(notifications.toList());
   }
@@ -275,7 +274,7 @@ class ExamNotificationService {
         'exam_title': examTitle,
         'pending_count': pendingCount,
       },
-    ));
+    ),);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -311,7 +310,7 @@ class ExamNotificationService {
         'exam_title': examTitle,
         'total_submissions': totalSubmissions,
       },
-    ));
+    ),);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -349,7 +348,7 @@ class ExamNotificationService {
         'student_id': studentId,
         'event_type': eventType,
       },
-    ));
+    ),);
   }
 
   // ═══════════════════════════════════════════════════════════════════

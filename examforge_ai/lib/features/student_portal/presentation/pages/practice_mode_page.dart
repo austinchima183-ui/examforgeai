@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../providers/student_portal_providers.dart';
 import '../../domain/entities/student_portal_entities.dart';
+import '../providers/student_portal_providers.dart';
 
 /// Practice quiz interface page with three screens:
 /// - Setup: Subject/Topic/Difficulty selectors, Mode toggle, Question count, Start
@@ -102,7 +102,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
                         Text(
                           'Configure your practice session below',
                           style: tt.bodyMedium?.copyWith(
-                            color: Colors.white.withOpacity(0.9),
+                            color: Colors.white.withValues(alpha: 0.9),
                           ),
                         ),
                       ],
@@ -117,7 +117,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
             _buildSectionTitle(context, 'Subject'),
             const SizedBox(height: Spacings.sm),
             DropdownButtonFormField<String>(
-              value: _selectedSubject,
+              initialValue: _selectedSubject,
               decoration: const InputDecoration(
                 hintText: 'Select a subject',
                 border: OutlineInputBorder(),
@@ -140,7 +140,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
             _buildSectionTitle(context, 'Topic'),
             const SizedBox(height: Spacings.sm),
             DropdownButtonFormField<String>(
-              value: _selectedTopic,
+              initialValue: _selectedTopic,
               decoration: const InputDecoration(
                 hintText: 'Select a topic (optional)',
                 border: OutlineInputBorder(),
@@ -177,16 +177,16 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
             _buildSectionTitle(context, 'Mode'),
             const SizedBox(height: Spacings.sm),
             SegmentedButton<PracticeMode>(
-              segments: [
+              segments: const [
                 ButtonSegment(
                   value: PracticeMode.untimed,
-                  label: const Text('Untimed'),
-                  icon: const Icon(Icons.timer_off_outlined, size: 18),
+                  label: Text('Untimed'),
+                  icon: Icon(Icons.timer_off_outlined, size: 18),
                 ),
                 ButtonSegment(
                   value: PracticeMode.timed,
-                  label: const Text('Timed'),
-                  icon: const Icon(Icons.timer_outlined, size: 18),
+                  label: Text('Timed'),
+                  icon: Icon(Icons.timer_outlined, size: 18),
                 ),
               ],
               selected: {_selectedMode},
@@ -305,7 +305,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
                   ),
                   decoration: BoxDecoration(
                     color: state.remainingTime!.inMinutes < 5
-                        ? AppColors.error.withOpacity(0.1)
+                        ? AppColors.error.withValues(alpha: 0.1)
                         : cs.primaryContainer,
                     borderRadius:
                         BorderRadius.circular(Spacings.fullRadius),
@@ -449,7 +449,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
                             label: option,
                             isSelected: false,
                             onTap: () {},
-                          )),
+                          ),),
                 ],
               ),
             ),
@@ -462,7 +462,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
               color: cs.surface,
               border: Border(
                 top: BorderSide(
-                  color: cs.outlineVariant.withOpacity(0.5),
+                  color: cs.outlineVariant.withValues(alpha: 0.5),
                 ),
               ),
             ),
@@ -547,7 +547,7 @@ class _PracticeModePageState extends ConsumerState<PracticeModePage> {
                           Text(
                             'Score',
                             style: tt.bodySmall?.copyWith(
-                              color: Colors.white.withOpacity(0.9),
+                              color: Colors.white.withValues(alpha: 0.9),
                             ),
                           ),
                         ],
@@ -742,7 +742,7 @@ class _AnswerOption extends StatelessWidget {
             ),
             borderRadius: BorderRadius.circular(Spacings.mdRadius),
             color: isSelected
-                ? cs.primaryContainer.withOpacity(0.3)
+                ? cs.primaryContainer.withValues(alpha: 0.3)
                 : null,
           ),
           child: Row(
@@ -835,8 +835,8 @@ class _QuestionReviewCard extends StatelessWidget {
               padding: const EdgeInsets.all(Spacings.sm),
               decoration: BoxDecoration(
                 color: isCorrect
-                    ? AppColors.success.withOpacity(0.1)
-                    : AppColors.error.withOpacity(0.1),
+                    ? AppColors.success.withValues(alpha: 0.1)
+                    : AppColors.error.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(

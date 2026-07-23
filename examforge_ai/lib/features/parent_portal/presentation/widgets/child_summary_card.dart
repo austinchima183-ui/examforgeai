@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../domain/entities/parent_portal_entities.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -43,7 +43,7 @@ class ChildSummaryCard extends StatelessWidget {
 
     return Card(
       elevation: Spacings.elevationSm,
-      shadowColor: cs.shadow.withOpacity(0.08),
+      shadowColor: cs.shadow.withValues(alpha: 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Spacings.lgRadius),
       ),
@@ -144,7 +144,7 @@ class ChildSummaryCard extends StatelessWidget {
       width: 52,
       height: 52,
       decoration: BoxDecoration(
-        color: cs.primary.withOpacity(isDark ? 0.25 : 0.12),
+        color: cs.primary.withValues(alpha: isDark ? 0.25 : 0.12),
         shape: BoxShape.circle,
       ),
       child: Center(
@@ -174,7 +174,7 @@ class ChildSummaryCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.12),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Text(
@@ -227,7 +227,7 @@ class ChildSummaryCard extends StatelessWidget {
           borderRadius: BorderRadius.circular(Spacings.fullRadius),
           child: LinearProgressIndicator(
             value: rate.clamp(0.0, 1.0),
-            backgroundColor: barColor.withOpacity(isDark ? 0.15 : 0.12),
+            backgroundColor: barColor.withValues(alpha: isDark ? 0.15 : 0.12),
             valueColor: AlwaysStoppedAnimation<Color>(barColor),
             minHeight: 6,
           ),
@@ -241,7 +241,7 @@ class ChildSummaryCard extends StatelessWidget {
   Widget _buildPendingRow(ColorScheme cs, TextTheme tt) {
     return Row(
       children: [
-        Icon(
+        const Icon(
           Icons.assignment_outlined,
           size: Spacings.smIcon,
           color: AppColors.warning,
@@ -261,7 +261,7 @@ class ChildSummaryCard extends StatelessWidget {
   Widget _buildNoPendingRow(ColorScheme cs, TextTheme tt) {
     return Row(
       children: [
-        Icon(
+        const Icon(
           Icons.check_circle_outline_rounded,
           size: Spacings.smIcon,
           color: AppColors.success,
@@ -324,7 +324,7 @@ class ChildSummaryCard extends StatelessWidget {
         vertical: Spacings.xs,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
       child: Row(

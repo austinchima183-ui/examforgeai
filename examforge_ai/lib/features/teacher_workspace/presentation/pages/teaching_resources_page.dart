@@ -1,16 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../../core/themes/spacings.dart';
-import '../../../../core/themes/app_typography.dart';
+
 import '../../../../core/extensions/context_extensions.dart';
+import '../../../../core/themes/app_typography.dart';
+import '../../../../core/themes/spacings.dart';
+import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
-import '../../../../shared/widgets/app_loading.dart';
-import '../../../../shared/widgets/app_app_bar.dart';
+import '../../../../shared/widgets/app_dialog.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
-import '../../../../shared/widgets/app_dialog.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/teacher_workspace_entities.dart';
 import '../../domain/usecases/create_resource_usecase.dart';
 import '../../domain/usecases/generate_resource_usecase.dart';
@@ -40,15 +41,15 @@ class _TeachingResourcesPageState
 
   // Folder tree sample data (in production this would come from provider)
   final List<_FolderNode> _folders = [
-    _FolderNode(id: 'all', name: 'All Resources', icon: Icons.folder_outlined),
-    _FolderNode(id: 'notes', name: 'Notes', icon: Icons.note_outlined),
-    _FolderNode(id: 'slides', name: 'Slides', icon: Icons.slideshow_outlined),
-    _FolderNode(id: 'handouts', name: 'Handouts', icon: Icons.description_outlined),
-    _FolderNode(id: 'guides', name: 'Study Guides', icon: Icons.menu_book_outlined),
-    _FolderNode(id: 'revision', name: 'Revision', icon: Icons.replay_outlined),
-    _FolderNode(id: 'activities', name: 'Activities', icon: Icons.sports_esports_outlined),
-    _FolderNode(id: 'rubrics', name: 'Rubrics', icon: Icons.assessment_outlined),
-    _FolderNode(id: 'templates', name: 'Templates', icon: Icons.dashboard_customize_outlined),
+    const _FolderNode(id: 'all', name: 'All Resources', icon: Icons.folder_outlined),
+    const _FolderNode(id: 'notes', name: 'Notes', icon: Icons.note_outlined),
+    const _FolderNode(id: 'slides', name: 'Slides', icon: Icons.slideshow_outlined),
+    const _FolderNode(id: 'handouts', name: 'Handouts', icon: Icons.description_outlined),
+    const _FolderNode(id: 'guides', name: 'Study Guides', icon: Icons.menu_book_outlined),
+    const _FolderNode(id: 'revision', name: 'Revision', icon: Icons.replay_outlined),
+    const _FolderNode(id: 'activities', name: 'Activities', icon: Icons.sports_esports_outlined),
+    const _FolderNode(id: 'rubrics', name: 'Rubrics', icon: Icons.assessment_outlined),
+    const _FolderNode(id: 'templates', name: 'Templates', icon: Icons.dashboard_customize_outlined),
   ];
 
   String _selectedFolderId = 'all';
@@ -110,7 +111,7 @@ class _TeachingResourcesPageState
               r.title.toLowerCase().contains(query) ||
               (r.subject?.toLowerCase().contains(query) ?? false) ||
               (r.description?.toLowerCase().contains(query) ?? false) ||
-              (r.topic?.toLowerCase().contains(query) ?? false))
+              (r.topic?.toLowerCase().contains(query) ?? false),)
           .toList();
     }
 
@@ -322,7 +323,7 @@ class _TeachingResourcesPageState
         ),
       ),
       selected: isSelected,
-      selectedTileColor: cs.primary.withOpacity(context.isDarkMode ? 0.15 : 0.08),
+      selectedTileColor: cs.primary.withValues(alpha: context.isDarkMode ? 0.15 : 0.08),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(Spacings.smRadius),
       ),
@@ -338,7 +339,7 @@ class _TeachingResourcesPageState
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: Spacings.lg),
       child: DropdownButtonFormField<String>(
-        value: _selectedFolderId,
+        initialValue: _selectedFolderId,
         decoration: InputDecoration(
           prefixIcon: Icon(
             _folders.firstWhere((f) => f.id == _selectedFolderId).icon,
@@ -362,7 +363,7 @@ class _TeachingResourcesPageState
                       Text(f.name),
                     ],
                   ),
-                ))
+                ),)
             .toList(),
         onChanged: (v) {
           if (v != null) setState(() => _selectedFolderId = v);
@@ -532,7 +533,7 @@ class _TeachingResourcesPageState
                     title: Text(itemLabel(item)),
                     trailing: isSelected
                         ? Icon(Icons.check_rounded,
-                            color: context.colorScheme.primary)
+                            color: context.colorScheme.primary,)
                         : null,
                     onTap: () {
                       onSelected(isSelected ? null : item);
@@ -579,7 +580,7 @@ class _TeachingResourcesPageState
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(isDark ? 0.20 : 0.10),
+                  color: cs.primary.withValues(alpha: isDark ? 0.20 : 0.10),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -684,7 +685,7 @@ class _TeachingResourcesPageState
                         visualDensity: VisualDensity.compact,
                         materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         padding: EdgeInsets.zero,
-                      ))
+                      ),)
                   .toList(),
             ),
           ],
@@ -748,7 +749,7 @@ class _TeachingResourcesPageState
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: color.withOpacity(isDark ? 0.20 : 0.10),
+        color: color.withValues(alpha: isDark ? 0.20 : 0.10),
         borderRadius: BorderRadius.circular(Spacings.fullRadius),
       ),
       child: Row(
@@ -818,7 +819,7 @@ class _TeachingResourcesPageState
 
                       // Resource Type dropdown
                       DropdownButtonFormField<ResourceType>(
-                        value: selectedType,
+                        initialValue: selectedType,
                         decoration: InputDecoration(
                           labelText: 'Resource Type',
                           border: OutlineInputBorder(
@@ -836,7 +837,7 @@ class _TeachingResourcesPageState
                                       Text(t.label),
                                     ],
                                   ),
-                                ))
+                                ),)
                             .toList(),
                         onChanged: (v) {
                           if (v != null) {
@@ -993,33 +994,33 @@ class _TeachingResourcesPageState
     return ListView.builder(
       padding: Spacings.paddingScreen,
       itemCount: 5,
-      itemBuilder: (_, __) => Padding(
-        padding: const EdgeInsets.only(bottom: Spacings.md),
+      itemBuilder: (_, __) => const Padding(
+        padding: EdgeInsets.only(bottom: Spacings.md),
         child: AppCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Row(
                 children: [
-                  const AppLoadingShimmer.box(width: 40, height: 40),
-                  const SizedBox(width: Spacings.md),
-                  const AppLoadingShimmer.box(width: 200, height: 16),
-                  const Spacer(),
-                  const AppLoadingShimmer.box(width: 24, height: 24),
+                  AppLoadingShimmer.box(width: 40, height: 40),
+                  SizedBox(width: Spacings.md),
+                  AppLoadingShimmer.box(width: 200, height: 16),
+                  Spacer(),
+                  AppLoadingShimmer.box(width: 24, height: 24),
                 ],
               ),
-              const SizedBox(height: Spacings.sm),
-              const AppLoadingShimmer.box(width: 150, height: 14),
-              const SizedBox(height: Spacings.sm),
+              SizedBox(height: Spacings.sm),
+              AppLoadingShimmer.box(width: 150, height: 14),
+              SizedBox(height: Spacings.sm),
               Row(
-                children: const [
+                children: [
                   AppLoadingShimmer.box(width: 80, height: 22),
                   SizedBox(width: Spacings.sm),
                   AppLoadingShimmer.box(width: 60, height: 22),
                 ],
               ),
-              const SizedBox(height: Spacings.md),
-              const AppLoadingShimmer.box(width: 120, height: 12),
+              SizedBox(height: Spacings.md),
+              AppLoadingShimmer.box(width: 120, height: 12),
             ],
           ),
         ),

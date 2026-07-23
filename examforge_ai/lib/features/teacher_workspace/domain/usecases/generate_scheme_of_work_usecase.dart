@@ -31,7 +31,7 @@ class GenerateSchemeOfWorkUseCase {
       return const FailureResult(Failure.validation(
         message: 'Subject is required',
         fieldErrors: {'subject': 'Subject cannot be empty'},
-      ));
+      ),);
     }
     return _repository.generateSchemeOfWork({
       'subject': params.subject,

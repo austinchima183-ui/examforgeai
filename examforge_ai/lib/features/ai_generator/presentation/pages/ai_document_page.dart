@@ -5,8 +5,8 @@ import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
 import '../../../../shared/widgets/widgets.dart';
-import '../../domain/entities/ai_entities.dart';
 import '../../../question_bank/domain/entities/question_entities.dart';
+import '../../domain/entities/ai_entities.dart';
 import '../widgets/ai_widgets.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -50,7 +50,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
     final isMobile = context.isMobile;
 
     return Scaffold(
-      appBar: AppAppBar(
+      appBar: const AppAppBar(
         title: 'Document to Questions',
       ),
       body: SingleChildScrollView(
@@ -128,7 +128,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
               ..._generatedQuestions.map((q) => Padding(
                     padding: const EdgeInsets.only(bottom: Spacings.md),
                     child: GeneratedQuestionCard(question: q),
-                  )),
+                  ),),
             ],
           ],
         ),
@@ -153,10 +153,10 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
           vertical: Spacings.xxl,
         ),
         decoration: BoxDecoration(
-          color: cs.primary.withOpacity(isDark ? 0.08 : 0.04),
+          color: cs.primary.withValues(alpha: isDark ? 0.08 : 0.04),
           borderRadius: BorderRadius.circular(Spacings.lgRadius),
           border: Border.all(
-            color: cs.primary.withOpacity(0.3),
+            color: cs.primary.withValues(alpha: 0.3),
             width: 2,
             strokeAlign: BorderSide.strokeAlignOutside,
           ),
@@ -166,7 +166,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
             Container(
               padding: const EdgeInsets.all(Spacings.lg),
               decoration: BoxDecoration(
-                color: cs.primary.withOpacity(isDark ? 0.15 : 0.10),
+                color: cs.primary.withValues(alpha: isDark ? 0.15 : 0.10),
                 shape: BoxShape.circle,
               ),
               child: Icon(
@@ -240,7 +240,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
         children: [
           Row(
             children: [
-              AppLoadingSpinner(size: AppLoadingSpinnerSize.small),
+              const AppLoadingSpinner(size: AppLoadingSpinnerSize.small),
               const SizedBox(width: Spacings.md),
               Text(
                 'Uploading document…',
@@ -297,7 +297,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
           Container(
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: color.withOpacity(isDark ? 0.20 : 0.12),
+              color: color.withValues(alpha: isDark ? 0.20 : 0.12),
               borderRadius: BorderRadius.circular(Spacings.mdRadius),
             ),
             child: Icon(icon, size: Spacings.lgIcon, color: color),
@@ -325,7 +325,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
                         vertical: Spacings.xs,
                       ),
                       decoration: BoxDecoration(
-                        color: color.withOpacity(isDark ? 0.20 : 0.12),
+                        color: color.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.xs),
                       ),
                       child: Text(
@@ -376,7 +376,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
       children: [
         InkWell(
           onTap: () => setState(
-              () => _isExtractedTextExpanded = !_isExtractedTextExpanded),
+              () => _isExtractedTextExpanded = !_isExtractedTextExpanded,),
           child: Row(
             children: [
               Icon(
@@ -409,7 +409,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
             constraints: const BoxConstraints(maxHeight: 200),
             padding: const EdgeInsets.all(Spacings.md),
             decoration: BoxDecoration(
-              color: cs.surfaceContainerHighest.withOpacity(0.5),
+              color: cs.surfaceContainerHighest.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(Spacings.smRadius),
             ),
             child: SingleChildScrollView(
@@ -458,7 +458,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
             final name = topic['name'] as String? ?? 'Topic';
             return Chip(
               label: Text(name),
-              avatar: Icon(Icons.topic_outlined, size: Spacings.smIcon),
+              avatar: const Icon(Icons.topic_outlined, size: Spacings.smIcon),
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: VisualDensity.compact,
             );
@@ -570,7 +570,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
                   vertical: Spacings.xs,
                 ),
                 decoration: BoxDecoration(
-                  color: cs.primary.withOpacity(context.isDarkMode ? 0.20 : 0.10,
+                  color: cs.primary.withValues(alpha: context.isDarkMode ? 0.20 : 0.10,
                   ),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
@@ -608,7 +608,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
         padding: const EdgeInsets.all(Spacings.xl),
         child: Column(
           children: [
-            AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
+            const AppLoadingSpinner(size: AppLoadingSpinnerSize.large),
             const SizedBox(height: Spacings.lg),
             Text(
               'Generating questions from document…',
@@ -714,7 +714,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
           difficulty: _selectedDifficulty,
           bloomLevel: BloomTaxonomy.remember,
           content: 'Sample generated question ${i + 1} from document content about photosynthesis.',
-          answerOptions: [
+          answerOptions: const [
             {'label': 'A', 'text': 'Option A', 'is_correct': true},
             {'label': 'B', 'text': 'Option B', 'is_correct': false},
             {'label': 'C', 'text': 'Option C', 'is_correct': false},
@@ -725,7 +725,7 @@ class _AiDocumentPageState extends State<AiDocumentPage> {
           reviewStatus: ReviewStatus.pending,
           createdAt: DateTime.now(),
           updatedAt: DateTime.now(),
-        ));
+        ),);
       }
     });
   }

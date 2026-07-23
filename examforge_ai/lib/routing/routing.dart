@@ -4,6 +4,7 @@
 /// ```dart
 /// import 'package:examforge_ai/routing/routing.dart';
 /// ```
+library;
 
 export 'app_router.dart';
 export 'route_guards.dart';

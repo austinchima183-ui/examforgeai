@@ -1,22 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../../../core/themes/app_colors.dart';
+import '../../../../../config/dependency_injection.dart';
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../shared/widgets/app_app_bar.dart';
 import '../../../../../shared/widgets/app_button.dart';
-import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_dialog.dart';
-import '../../../../../shared/widgets/app_text_field.dart';
-import '../../../../../shared/widgets/app_loading.dart';
-import '../../../../question_bank/domain/entities/question_entities.dart';
-import '../../../../question_bank/presentation/widgets/question_type_badge.dart';
-import '../../../../question_bank/presentation/widgets/difficulty_badge.dart';
-import '../../../domain/entities/cbt_entities.dart';
-import '../../../../../config/dependency_injection.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
+import '../../../../../shared/widgets/app_loading.dart';
+import '../../../../../shared/widgets/app_text_field.dart';
+import '../../../../question_bank/domain/entities/question_entities.dart';
 import '../../widgets/question_selector_widget.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -180,7 +175,7 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
             Expanded(
               child: state.isLoading
                   ? const Center(
-                      child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large))
+                      child: AppLoadingSpinner(size: AppLoadingSpinnerSize.large),)
                   : TabBarView(
                       controller: _tabController,
                       children: [
@@ -398,12 +393,12 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
           SwitchListTile(
             title: Text('Negative Marking',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Deduct marks for wrong answers',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _negativeMarkingEnabled,
             onChanged: (v) => setState(() => _negativeMarkingEnabled = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           if (_negativeMarkingEnabled)
             Padding(
@@ -471,7 +466,7 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
         children: [
           _sectionTitle(context, 'Assign Students'),
           const SizedBox(height: Spacings.lg),
-          AppTextField(
+          const AppTextField(
             label: 'Search Students',
             hint: 'Type a student name or ID…',
             prefixIcon: Icons.search_rounded,
@@ -484,7 +479,7 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
             icon: Icons.group_add_rounded,
           ),
           const SizedBox(height: Spacings.xl),
-          Center(
+          const Center(
             child: AppEmptyState(
               icon: Icons.people_outline_rounded,
               title: 'No Students Added',
@@ -516,32 +511,32 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
           SwitchListTile(
             title: Text('Auto Submit on Time Up',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Automatically submit the exam when time runs out',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _autoSubmit,
             onChanged: (v) => setState(() => _autoSubmit = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           SwitchListTile(
             title: Text('Randomize Questions',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Shuffle question order for each student',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _randomizeQuestions,
             onChanged: (v) => setState(() => _randomizeQuestions = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           SwitchListTile(
             title: Text('Randomize Options',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Shuffle answer options within each question',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _randomizeOptions,
             onChanged: (v) => setState(() => _randomizeOptions = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           const SizedBox(height: Spacings.md),
           AppDropdownField<String>(
@@ -562,22 +557,22 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
           SwitchListTile(
             title: Text('Show Correct Answers',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Show correct answers in results',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _showCorrectAnswers,
             onChanged: (v) => setState(() => _showCorrectAnswers = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           SwitchListTile(
             title: Text('Show Explanations',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Show explanations in results',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _showExplanations,
             onChanged: (v) => setState(() => _showExplanations = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
         ],
       ),
@@ -597,35 +592,35 @@ class _ExamBuilderPageState extends ConsumerState<ExamBuilderPage>
           SwitchListTile(
             title: Text('Require Full Screen',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Students must remain in full-screen mode',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _requireFullScreen,
             onChanged: (v) => setState(() => _requireFullScreen = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           SwitchListTile(
             title: Text('Browser Lockdown',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Prevent copy, paste, right-click during exam',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _browserLockdown,
             onChanged: (v) => setState(() => _browserLockdown = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           SwitchListTile(
             title: Text('Allow Resume',
                 style: context.textTheme.bodyLarge?.copyWith(
-                    fontWeight: AppTypography.wSemiBold)),
+                    fontWeight: AppTypography.wSemiBold,),),
             subtitle: Text('Allow students to resume after disconnection',
-                style: context.textTheme.bodySmall),
+                style: context.textTheme.bodySmall,),
             value: _allowResume,
             onChanged: (v) => setState(() => _allowResume = v),
-            activeColor: cs.primary,
+            activeThumbColor: cs.primary,
           ),
           const SizedBox(height: Spacings.md),
-          AppTextField(
+          const AppTextField(
             label: 'IP Restriction (comma-separated)',
             hint: 'e.g. 192.168.1.0/24, 10.0.0.0/8',
             prefixIcon: Icons.lock_rounded,

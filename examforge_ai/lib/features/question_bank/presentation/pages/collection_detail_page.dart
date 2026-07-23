@@ -3,19 +3,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../../config/dependency_injection.dart';
+import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../core/extensions/context_extensions.dart';
 import '../../../../routing/route_names.dart';
 import '../../../../shared/widgets/app_app_bar.dart';
 import '../../../../shared/widgets/app_button.dart';
 import '../../../../shared/widgets/app_card.dart';
-import '../../../../shared/widgets/app_text_field.dart';
 import '../../../../shared/widgets/app_dialog.dart';
-import '../../../../shared/widgets/app_loading.dart';
 import '../../../../shared/widgets/app_empty_state.dart';
 import '../../../../shared/widgets/app_error_state.dart';
+import '../../../../shared/widgets/app_loading.dart';
+import '../../../../shared/widgets/app_text_field.dart';
 import '../../domain/entities/question_entities.dart';
 import '../providers/collection_provider.dart';
 import '../widgets/question_card.dart';
@@ -95,16 +95,16 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                     ],
                   ),
                 ),
-                PopupMenuItem(
+                const PopupMenuItem(
                   value: 'delete',
                   child: Row(
                     children: [
                       Icon(Icons.delete_outline_rounded,
-                          color: AppColors.error),
-                      const SizedBox(width: Spacings.md),
+                          color: AppColors.error,),
+                      SizedBox(width: Spacings.md),
                       Text('Delete Collection',
                           style:
-                              TextStyle(color: AppColors.error)),
+                              TextStyle(color: AppColors.error),),
                     ],
                   ),
                 ),
@@ -245,9 +245,9 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(Spacings.xl),
-      decoration: BoxDecoration(
+      decoration: const BoxDecoration(
         gradient: AppColors.brandGradient,
-        borderRadius: const BorderRadius.only(
+        borderRadius: BorderRadius.only(
           bottomLeft: Radius.circular(Spacings.xlRadius),
           bottomRight: Radius.circular(Spacings.xlRadius),
         ),
@@ -271,7 +271,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
             Text(
               collection.description!,
               style: tt.bodyMedium?.copyWith(
-                color: Colors.white.withOpacity(0.85),
+                color: Colors.white.withValues(alpha: 0.85),
                 height: 1.5,
               ),
               maxLines: 3,
@@ -298,7 +298,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Row(
@@ -329,7 +329,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                     vertical: Spacings.xs,
                   ),
                   decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.2),
+                    color: Colors.white.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(Spacings.smRadius),
                   ),
                   child: Row(
@@ -420,14 +420,14 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
         alignment: Alignment.centerRight,
         padding: const EdgeInsets.only(right: Spacings.xl),
         decoration: BoxDecoration(
-          color: AppColors.error.withOpacity(0.1),
+          color: AppColors.error.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(Spacings.mdRadius),
         ),
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(Icons.remove_circle_outline_rounded,
-                color: AppColors.errorOf(cs.brightness)),
+                color: AppColors.errorOf(cs.brightness),),
             Text(
               'Remove',
               style: tt.labelSmall?.copyWith(
@@ -543,7 +543,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                       height: 4,
                       decoration: BoxDecoration(
                         color: context.colorScheme.onSurfaceVariant
-                            .withOpacity(0.3),
+                            .withValues(alpha: 0.3),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                     ),
@@ -888,7 +888,7 @@ class _CollectionDetailPageState extends ConsumerState<CollectionDetailPage> {
                                         behavior: SnackBarBehavior.floating,
                                         shape: RoundedRectangleBorder(
                                           borderRadius: BorderRadius.circular(
-                                              Spacings.mdRadius),
+                                              Spacings.mdRadius,),
                                         ),
                                       ),
                                     );

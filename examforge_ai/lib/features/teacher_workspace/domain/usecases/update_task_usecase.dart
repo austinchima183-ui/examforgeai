@@ -32,7 +32,7 @@ class UpdateTaskUseCase {
       return const FailureResult(Failure.validation(
         message: 'Task ID is required',
         fieldErrors: {'id': 'Task ID cannot be empty'},
-      ));
+      ),);
     }
     return _repository.updateTask(params.task);
   }

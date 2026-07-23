@@ -141,7 +141,7 @@ class _CommunicationTypeCard extends StatelessWidget {
         side: BorderSide(
           color: isSelected
               ? colorScheme.primary
-              : colorScheme.outlineVariant.withOpacity(0.5),
+              : colorScheme.outlineVariant.withValues(alpha: 0.5),
           width: isSelected ? 2.0 : 1.0,
         ),
       ),
@@ -208,7 +208,7 @@ class _ToneChip extends StatelessWidget {
       label: Text(tone.label),
       selected: isSelected,
       onSelected: (_) => onTap(),
-      selectedColor: colorScheme.primary.withOpacity(0.12),
+      selectedColor: colorScheme.primary.withValues(alpha: 0.12),
       labelStyle: TextStyle(
         color: isSelected
             ? colorScheme.primary
@@ -219,9 +219,9 @@ class _ToneChip extends StatelessWidget {
       side: isSelected
           ? BorderSide(color: colorScheme.primary, width: 1.5)
           : BorderSide(
-              color: colorScheme.outlineVariant.withOpacity(0.5),
+              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
             ),
-      shape: RoundedRectangleBorder(
+      shape: const RoundedRectangleBorder(
         borderRadius: Spacings.borderRadiusMd,
       ),
       visualDensity: VisualDensity.compact,

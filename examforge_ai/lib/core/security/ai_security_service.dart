@@ -542,35 +542,35 @@ class AiSecurityService {
     // Remove common injection prefixes
     sanitized = sanitized.replaceAll(
       RegExp(r'(ignore|disregard|forget)\s+(all\s+)?previous\s+instructions',
-          caseSensitive: false),
+          caseSensitive: false,),
       '[REDACTED]',
     );
 
     // Remove role-playing attempts
     sanitized = sanitized.replaceAll(
       RegExp(r'(you are now|pretend you are|act as if you are)\s+',
-          caseSensitive: false),
+          caseSensitive: false,),
       '[REDACTED]',
     );
 
     // Remove system prompt extraction attempts
     sanitized = sanitized.replaceAll(
       RegExp(r'(repeat|show|output|print)\s+(your|the)\s+(system\s+)?prompt',
-          caseSensitive: false),
+          caseSensitive: false,),
       '[REDACTED]',
     );
 
     // Remove role override attempts
     sanitized = sanitized.replaceAll(
       RegExp(r'(you are no longer|stop being|your new role|from now on you)\s+',
-          caseSensitive: false),
+          caseSensitive: false,),
       '[REDACTED]',
     );
 
     // Remove context leakage attempts
     sanitized = sanitized.replaceAll(
       RegExp(r'(extract|leak|reveal|expose)\s+(training|internal|private)\s+',
-          caseSensitive: false),
+          caseSensitive: false,),
       '[REDACTED]',
     );
 
@@ -719,7 +719,7 @@ class AiSecurityService {
     }
 
     final answerPattern = RegExp(r'(?:answer|correct)\s*(?:is|:)\s*([A-E])',
-        caseSensitive: false);
+        caseSensitive: false,);
     final answers = answerPattern.allMatches(output).map((m) => m.group(1)).toList();
     if (answers.toSet().length > 1) {
       warnings.add('Contradictory answers detected: ${answers.join(", ")}');
@@ -749,10 +749,10 @@ class AiSecurityService {
 
     final harmfulPatterns = [
       RegExp(r'\b(hack|exploit|vulnerability)\s+(into|against|for)\b',
-          caseSensitive: false),
+          caseSensitive: false,),
       RegExp(r'\bhow\s+to\s+(cheat|hack|exploit)\b', caseSensitive: false),
       RegExp(r'\b(create|make|build)\s+(a\s+)?(bomb|weapon|drug)\b',
-          caseSensitive: false),
+          caseSensitive: false,),
     ];
 
     for (final pattern in harmfulPatterns) {

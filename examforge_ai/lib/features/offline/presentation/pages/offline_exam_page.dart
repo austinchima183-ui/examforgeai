@@ -71,8 +71,8 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
   // ─── Controllers / State ──────────────────────────────────────────────
 
   int _currentQuestionIndex = 0;
-  Map<int, Map<String, dynamic>> _answers = {};
-  Map<int, bool> _flaggedQuestions = {};
+  final Map<int, Map<String, dynamic>> _answers = {};
+  final Map<int, bool> _flaggedQuestions = {};
   Duration _timeRemaining = Duration.zero;
   Timer? _timer;
   Timer? _autoSaveTimer;
@@ -803,8 +803,8 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
         ),
         const Spacer(),
         if (isFlagged)
-          Padding(
-            padding: const EdgeInsets.only(right: Spacings.sm),
+          const Padding(
+            padding: EdgeInsets.only(right: Spacings.sm),
             child: Icon(Icons.flag, color: AppColors.warning, size: Spacings.mdIcon),
           ),
         IconButton(
@@ -1065,7 +1065,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
       maxLines: 5,
       decoration: InputDecoration(
         hintText: 'Type your answer here…',
-        border: OutlineInputBorder(
+        border: const OutlineInputBorder(
           borderRadius: Spacings.borderRadiusMd,
         ),
         focusedBorder: OutlineInputBorder(
@@ -1268,7 +1268,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
               Container(
                 width: 80,
                 height: 80,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   color: AppColors.successLight,
                   shape: BoxShape.circle,
                 ),
@@ -1304,7 +1304,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
                   children: [
                     _buildStatRow('Questions answered', '${_answers.length} / ${_questions.length}'),
                     _buildStatRow('Time taken', _formatTimeTaken()),
-                    _buildStatRow('Integrity hash', _computeIntegrityHash().substring(0, 16) + '…'),
+                    _buildStatRow('Integrity hash', '${_computeIntegrityHash().substring(0, 16)}…'),
                   ],
                 ),
               ),
@@ -1315,7 +1315,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
                 Container(
                   width: double.infinity,
                   padding: Spacings.paddingAll,
-                  decoration: BoxDecoration(
+                  decoration: const BoxDecoration(
                     color: AppColors.errorLight,
                     borderRadius: Spacings.borderRadiusMd,
                   ),
@@ -1349,7 +1349,7 @@ class _OfflineExamPageState extends ConsumerState<OfflineExamPage>
           Text(label, style: context.textTheme.bodyMedium),
           Text(value, style: context.textTheme.bodyMedium?.copyWith(
             fontWeight: FontWeight.bold,
-          )),
+          ),),
         ],
       ),
     );

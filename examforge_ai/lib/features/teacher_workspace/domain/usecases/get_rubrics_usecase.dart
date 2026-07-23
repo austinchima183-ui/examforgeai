@@ -33,7 +33,7 @@ class GetRubricsUseCase {
       return const FailureResult(Failure.validation(
         message: 'Page must be at least 1',
         fieldErrors: {'page': 'Page must be >= 1'},
-      ));
+      ),);
     }
     return _repository.getRubrics(params.filter);
   }

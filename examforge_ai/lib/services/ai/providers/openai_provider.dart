@@ -40,7 +40,7 @@ class OpenAiProvider implements AiProviderInterface {
                 },
                 connectTimeout: const Duration(seconds: 30),
                 receiveTimeout: const Duration(seconds: 120),
-              ))
+              ),)
             : Dio());
 
   final String? _apiKey;
@@ -51,7 +51,7 @@ class OpenAiProvider implements AiProviderInterface {
 
   /// Whether to route AI calls through Supabase Edge Functions.
   bool get _useEdgeFunctions =>
-      (_apiKey == null || _apiKey!.isEmpty) && _supabaseClient != null;
+      (_apiKey == null || _apiKey.isEmpty) && _supabaseClient != null;
 
   // ─── Edge Function Names ──────────────────────────────────────────
   static const _aiCompleteFunction = 'ai-complete';
@@ -324,7 +324,7 @@ class OpenAiProvider implements AiProviderInterface {
                 isDone: true,
                 inputTokens: usage?['prompt_tokens'] as int?,
                 outputTokens: usage?['completion_tokens'] as int?,
-              ));
+              ),);
             }
           } on FormatException {
             // Skip malformed JSON in stream

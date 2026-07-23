@@ -1,21 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../../core/extensions/context_extensions.dart';
 import '../../../../../core/themes/app_colors.dart';
 import '../../../../../core/themes/app_typography.dart';
 import '../../../../../core/themes/spacings.dart';
-import '../../../../../core/extensions/context_extensions.dart';
+import '../../../../../shared/models/user_role.dart';
+import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../../../../shared/widgets/app_card.dart';
 import '../../../../../shared/widgets/app_empty_state.dart';
 import '../../../../../shared/widgets/app_error_state.dart';
 import '../../../../../shared/widgets/app_loading.dart';
 import '../../../../../shared/widgets/app_search_bar.dart';
-import '../../../../../shared/models/user_role.dart';
-import '../../../../../shared/providers/auth_state_provider.dart';
 import '../../../domain/entities/school_management_entities.dart';
 import '../../providers/announcement_provider.dart';
-import '../../../../../config/dependency_injection.dart';
-import '../../../../../features/school_management/domain/entities/school_management_entities.dart';
 
 
 
@@ -356,7 +354,7 @@ class _TypeChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
-      selectedColor: color.withOpacity(0.20),
+      selectedColor: color.withValues(alpha: 0.20),
       checkmarkColor: color,
       labelStyle: context.textTheme.labelMedium?.copyWith(
         color: selected ? color : context.colorScheme.onSurfaceVariant,
@@ -423,7 +421,7 @@ class _AnnouncementCard extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(Spacings.sm),
                 decoration: BoxDecoration(
-                  color: tColor.withOpacity(isDark ? 0.20 : 0.12),
+                  color: tColor.withValues(alpha: isDark ? 0.20 : 0.12),
                   borderRadius: BorderRadius.circular(Spacings.smRadius),
                 ),
                 child: Icon(
@@ -464,7 +462,7 @@ class _AnnouncementCard extends StatelessWidget {
                         vertical: 1,
                       ),
                       decoration: BoxDecoration(
-                        color: pColor.withOpacity(isDark ? 0.20 : 0.12),
+                        color: pColor.withValues(alpha: isDark ? 0.20 : 0.12),
                         borderRadius: BorderRadius.circular(Spacings.fullRadius),
                       ),
                       child: Text(
@@ -517,7 +515,7 @@ class _AnnouncementCard extends StatelessWidget {
                     vertical: 1,
                   ),
                   decoration: BoxDecoration(
-                    color: AppColors.info.withOpacity(isDark ? 0.20 : 0.12),
+                    color: AppColors.info.withValues(alpha: isDark ? 0.20 : 0.12),
                     borderRadius: BorderRadius.circular(Spacings.fullRadius),
                   ),
                   child: Text(
