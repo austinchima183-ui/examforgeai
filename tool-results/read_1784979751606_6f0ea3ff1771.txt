@@ -1,0 +1,1088 @@
+     1→/// Device Integration Layer for ExamForge AI.
+     2→///
+     3→/// Provides a unified service abstraction over native device capabilities
+     4→/// including camera, biometrics, QR scanning, secure storage, location,
+     5→/// and system utilities — with graceful fallbacks for web and unsupported
+     6→/// platforms.
+     7→///
+     8→/// ```dart
+     9→/// // Quick usage via Riverpod providers
+    10→/// final capabilities = ref.watch(deviceCapabilitiesProvider);
+    11→/// final biometricResult = await ref.read(deviceServiceProvider).authenticateWithBiometrics(reason: 'Verify identity');
+    12→/// ```
+    13→library;
+    14→
+    15→import 'dart:convert';
+    16→import 'dart:io';
+    17→
+    18→import 'package:connectivity_plus/connectivity_plus.dart';
+    19→import 'package:crypto/crypto.dart';
+    20→import 'package:device_info_plus/device_info_plus.dart';
+    21→import 'package:equatable/equatable.dart';
+    22→import 'package:flutter/foundation.dart';
+    23→import 'package:flutter/material.dart';
+    24→import 'package:flutter/services.dart';
+    25→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    26→import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+    27→import 'package:image_picker/image_picker.dart';
+    28→import 'package:local_auth/error_codes.dart' as auth_error_codes;
+    29→import 'package:local_auth/local_auth.dart' as local_auth;
+    30→import 'package:package_info_plus/package_info_plus.dart';
+    31→import 'package:path_provider/path_provider.dart';
+    32→import 'package:share_plus/share_plus.dart';
+    33→import 'package:url_launcher/url_launcher.dart';
+    34→
+    35→import '../constants/app_constants.dart';
+    36→import '../utils/logger.dart';
+    37→
+    38→// ═══════════════════════════════════════════════════════════════════════════════
+    39→// ENUMS
+    40→// ═══════════════════════════════════════════════════════════════════════════════
+    41→
+    42→/// Capabilities that a device may or may not support.
+    43→///
+    44→/// Each entry carries a machine-readable [value] and a human-friendly
+    45→/// [label] for display in capability matrices or settings UIs.
+    46→enum DeviceCapability {
+    47→  camera('camera', 'Camera'),
+    48→  biometric('biometric', 'Biometric Authentication'),
+    49→  qrcode('qrcode', 'QR Code Scanner'),
+    50→  nfc('nfc', 'NFC'),
+    51→  gps('gps', 'GPS / Location'),
+    52→  bluetooth('bluetooth', 'Bluetooth');
+    53→
+    54→  const DeviceCapability(this.value, this.label);
+    55→
+    56→  /// Machine-readable identifier used in storage & API payloads.
+    57→  final String value;
+    58→
+    59→  /// Human-friendly label for UI presentation.
+    60→  final String label;
+    61→
+    62→  /// Resolve a capability from its [value] string, or `null`.
+    63→  static DeviceCapability? fromValue(String value) {
+    64→    return DeviceCapability.values.cast<DeviceCapability?>().firstWhere(
+    65→          (c) => c?.value == value,
+    66→          orElse: () => null,
+    67→        );
+    68→  }
+    69→}
+    70→
+    71→/// Types of biometric authentication a device may offer.
+    72→enum BiometricType {
+    73→  fingerprint('fingerprint', 'Fingerprint'),
+    74→  face('face', 'Face Recognition'),
+    75→  iris('iris', 'Iris Scanner'),
+    76→  voice('voice', 'Voice Recognition'),
+    77→  none('none', 'None');
+    78→
+    79→  const BiometricType(this.value, this.label);
+    80→
+    81→  /// Machine-readable identifier.
+    82→  final String value;
+    83→
+    84→  /// Human-friendly label.
+    85→  final String label;
+    86→
+    87→  /// Resolve from [value] string, or `null`.
+    88→  static BiometricType? fromValue(String value) {
+    89→    return BiometricType.values.cast<BiometricType?>().firstWhere(
+    90→          (b) => b?.value == value,
+    91→          orElse: () => null,
+    92→        );
+    93→  }
+    94→
+    95→  /// Map from `local_auth` [AuthenticationMessage] / platform biometric
+    96→  /// type strings to our enum.
+    97→  static BiometricType fromPlatformType(String platformType) {
+    98→    final lower = platformType.toLowerCase();
+    99→    if (lower.contains('fingerprint') || lower.contains('touch')) {
+   100→      return BiometricType.fingerprint;
+   101→    }
+   102→    if (lower.contains('face') || lower.contains('faceid')) {
+   103→      return BiometricType.face;
+   104→    }
+   105→    if (lower.contains('iris')) {
+   106→      return BiometricType.iris;
+   107→    }
+   108→    if (lower.contains('voice')) {
+   109→      return BiometricType.voice;
+   110→    }
+   111→    return BiometricType.none;
+   112→  }
+   113→}
+   114→
+   115→// ═══════════════════════════════════════════════════════════════════════════════
+   116→// DATA CLASSES
+   117→// ═══════════════════════════════════════════════════════════════════════════════
+   118→
+   119→/// Result of a biometric authentication attempt.
+   120→///
+   121→/// Uses [Equatable]-style equality so it integrates cleanly with
+   122→/// Riverpod state and test assertions.
+   123→class BiometricAuthResult extends Equatable {
+   124→  const BiometricAuthResult({
+   125→    required this.isAuthenticated,
+   126→    this.biometricType = BiometricType.none,
+   127→    this.error,
+   128→  });
+   129→
+   130→  /// Whether the user successfully authenticated.
+   131→  final bool isAuthenticated;
+   132→
+   133→  /// The biometric modality that was used (or [BiometricType.none]).
+   134→  final BiometricType biometricType;
+   135→
+   136→  /// Error message if authentication failed or was unavailable.
+   137→  final String? error;
+   138→
+   139→  /// Convenient factory for a successful result.
+   140→  factory BiometricAuthResult.success({
+   141→    BiometricType biometricType = BiometricType.none,
+   142→  }) =>
+   143→      BiometricAuthResult(
+   144→        isAuthenticated: true,
+   145→        biometricType: biometricType,
+   146→      );
+   147→
+   148→  /// Convenient factory for a failed / errored result.
+   149→  factory BiometricAuthResult.failure({
+   150→    String? error,
+   151→    BiometricType biometricType = BiometricType.none,
+   152→  }) =>
+   153→      BiometricAuthResult(
+   154→        isAuthenticated: false,
+   155→        biometricType: biometricType,
+   156→        error: error,
+   157→      );
+   158→
+   159→  @override
+   160→  List<Object?> get props => [isAuthenticated, biometricType, error];
+   161→
+   162→  @override
+   163→  bool? get stringify => true;
+   164→}
+   165→
+   166→// ═══════════════════════════════════════════════════════════════════════════════
+   167→// DEVICE SERVICE
+   168→// ═══════════════════════════════════════════════════════════════════════════════
+   169→
+   170→/// Singleton service that wraps all native device capabilities behind a
+   171→/// single, test-friendly API.
+   172→///
+   173→/// Every method degrades gracefully on web or unsupported platforms by
+   174→/// returning safe defaults and logging warnings rather than throwing.
+   175→class DeviceService {
+   176→  DeviceService._() {
+   177→    _init();
+   178→  }
+   179→
+   180→  // ─── Singleton ────────────────────────────────────────────────────────
+   181→
+   182→  static final DeviceService _instance = DeviceService._();
+   183→
+   184→  /// Global access point. Prefer using [deviceServiceProvider] in widgets.
+   185→  static DeviceService get instance => _instance;
+   186→
+   187→  // ─── Internal Dependencies ────────────────────────────────────────────
+   188→
+   189→  late final local_auth.LocalAuthentication _localAuth;
+   190→  late final FlutterSecureStorage _secureStorage;
+   191→  late final ImagePicker _imagePicker;
+   192→  late final DeviceInfoPlugin _deviceInfo;
+   193→  late final Connectivity _connectivity;
+   194→
+   195→  /// Whether the current platform supports native plugins.
+   196→  bool _isNativePlatform = false;
+   197→
+   198→  bool get isNativePlatform => _isNativePlatform;
+   199→
+   200→  // ─── Initialization ──────────────────────────────────────────────────
+   201→
+   202→  void _init() {
+   203→    _localAuth = local_auth.LocalAuthentication();
+   204→    _secureStorage = const FlutterSecureStorage(
+   205→      aOptions: AndroidOptions(encryptedSharedPreferences: true),
+   206→      iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+   207→    );
+   208→    _imagePicker = ImagePicker();
+   209→    _deviceInfo = DeviceInfoPlugin();
+   210→    _connectivity = Connectivity();
+   211→    _isNativePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
+   212→    AppLogger.info('DeviceService initialized (native: $_isNativePlatform)');
+   213→  }
+   214→
+   215→  // ═══════════════════════════════════════════════════════════════════════
+   216→  // DEVICE INFO
+   217→  // ═══════════════════════════════════════════════════════════════════════
+   218→
+   219→  /// Collects basic device and app metadata.
+   220→  ///
+   221→  /// Returns a map with keys: `platform`, `model`, `osVersion`,
+   222→  /// `appVersion`, `deviceId`, `screenResolution`.
+   223→  Future<Map<String, dynamic>> getDeviceInfo() async {
+   224→    try {
+   225→      final packageInfo = await PackageInfo.fromPlatform();
+   226→
+   227→      if (kIsWeb) {
+   228→        final webInfo = await _deviceInfo.webBrowserInfo;
+   229→        return {
+   230→          'platform': 'web',
+   231→          'model': webInfo.browserName.name,
+   232→          'osVersion': webInfo.platform ?? 'unknown',
+   233→          'appVersion': packageInfo.version,
+   234→          'deviceId': webInfo.userAgent ?? 'web-unknown',
+   235→          'screenResolution': 'N/A (web)',
+   236→        };
+   237→      }
+   238→
+   239→      if (Platform.isAndroid) {
+   240→        final info = await _deviceInfo.androidInfo;
+   241→        return {
+   242→          'platform': 'android',
+   243→          'model': info.model,
+   244→          'osVersion': '${info.version.release} (SDK ${info.version.sdkInt})',
+   245→          'appVersion': packageInfo.version,
+   246→          'deviceId': info.id,
+   247→          'screenResolution': _screenResolution(),
+   248→        };
+   249→      }
+   250→
+   251→      if (Platform.isIOS) {
+   252→        final info = await _deviceInfo.iosInfo;
+   253→        return {
+   254→          'platform': 'ios',
+   255→          'model': info.utsname.machine,
+   256→          'osVersion': info.systemVersion,
+   257→          'appVersion': packageInfo.version,
+   258→          'deviceId': info.identifierForVendor ?? 'ios-unknown',
+   259→          'screenResolution': _screenResolution(),
+   260→        };
+   261→      }
+   262→
+   263→      if (Platform.isMacOS) {
+   264→        final info = await _deviceInfo.macOsInfo;
+   265→        return {
+   266→          'platform': 'macos',
+   267→          'model': info.model,
+   268→          'osVersion': info.osRelease,
+   269→          'appVersion': packageInfo.version,
+   270→          'deviceId': info.systemGUID ?? 'macos-unknown',
+   271→          'screenResolution': _screenResolution(),
+   272→        };
+   273→      }
+   274→
+   275→      // Fallback for linux / windows / fuchsia
+   276→      return {
+   277→        'platform': Platform.operatingSystem,
+   278→        'model': 'unknown',
+   279→        'osVersion': Platform.operatingSystemVersion,
+   280→        'appVersion': packageInfo.version,
+   281→        'deviceId': 'unknown',
+   282→        'screenResolution': _screenResolution(),
+   283→      };
+   284→    } catch (e, st) {
+   285→      AppLogger.error('Failed to collect device info', error: e, stackTrace: st);
+   286→      return {
+   287→        'platform': kIsWeb ? 'web' : Platform.operatingSystem,
+   288→        'model': 'unknown',
+   289→        'osVersion': 'unknown',
+   290→        'appVersion': AppConstants.appVersion,
+   291→        'deviceId': 'unknown',
+   292→        'screenResolution': 'unknown',
+   293→      };
+   294→    }
+   295→  }
+   296→
+   297→  String _screenResolution() {
+   298→    try {
+   299→      final view = WidgetsBinding.instance.platformDispatcher.views.first;
+   300→      final size = view.physicalSize;
+   301→      return '${size.width.toInt()}x${size.height.toInt()}';
+   302→    } catch (_) {
+   303→      return 'unknown';
+   304→    }
+   305→  }
+   306→
+   307→  // ═══════════════════════════════════════════════════════════════════════
+   308→  // CAPABILITY CHECKS
+   309→  // ═══════════════════════════════════════════════════════════════════════
+   310→
+   311→  /// Checks whether the device supports the given [capability].
+   312→  Future<bool> checkCapability(DeviceCapability capability) async {
+   313→    if (kIsWeb) {
+   314→      AppLogger.debug('Capability check on web — returning false for $capability');
+   315→      return false;
+   316→    }
+   317→
+   318→    try {
+   319→      switch (capability) {
+   320→        case DeviceCapability.camera:
+   321→          return await isCameraAvailable();
+   322→        case DeviceCapability.biometric:
+   323→          return await isBiometricAvailable();
+   324→        case DeviceCapability.qrcode:
+   325→          return await isCameraAvailable(); // QR needs camera
+   326→        case DeviceCapability.nfc:
+   327→          return await _checkNfc();
+   328→        case DeviceCapability.gps:
+   329→          return await isGpsEnabled();
+   330→        case DeviceCapability.bluetooth:
+   331→          return await _checkBluetooth();
+   332→      }
+   333→    } catch (e, st) {
+   334→      AppLogger.error('Capability check failed for $capability', error: e, stackTrace: st);
+   335→      return false;
+   336→    }
+   337→  }
+   338→
+   339→  /// Returns whether at least one camera is available on the device.
+   340→  Future<bool> isCameraAvailable() async {
+   341→    if (kIsWeb) return false;
+   342→    try {
+   343→      return _imagePicker.supportsImageSource(ImageSource.camera);
+   344→    } catch (e) {
+   345→      AppLogger.warning('Camera availability check failed', error: e);
+   346→      return false;
+   347→    }
+   348→  }
+   349→
+   350→  /// Returns whether the device has enrolled biometrics.
+   351→  Future<bool> isBiometricAvailable() async {
+   352→    if (kIsWeb) return false;
+   353→    try {
+   354→      final canCheck = await _localAuth.canCheckBiometrics;
+   355→      final isDeviceSupported = await _localAuth.isDeviceSupported();
+   356→      return canCheck && isDeviceSupported;
+   357→    } catch (e) {
+   358→      AppLogger.warning('Biometric availability check failed', error: e);
+   359→      return false;
+   360→    }
+   361→  }
+   362→
+   363→  /// Lists the biometric modalities enrolled on this device.
+   364→  Future<List<BiometricType>> getBiometricTypes() async {
+   365→    if (kIsWeb) return const [BiometricType.none];
+   366→    try {
+   367→      final platformTypes = await _localAuth.getAvailableBiometrics();
+   368→      if (platformTypes.isEmpty) return const [BiometricType.none];
+   369→      return platformTypes.map((type) {
+   370→        switch (type) {
+   371→          case local_auth.BiometricType.fingerprint:
+   372→            return BiometricType.fingerprint;
+   373→          case local_auth.BiometricType.face:
+   374→            return BiometricType.face;
+   375→          case local_auth.BiometricType.iris:
+   376→            return BiometricType.iris;
+   377→          case local_auth.BiometricType.strong:
+   378→            return BiometricType.fingerprint; // Android strong ≈ fingerprint
+   379→          case local_auth.BiometricType.weak:
+   380→            return BiometricType.face; // Android weak ≈ face
+   381→          default:
+   382→            return BiometricType.none;
+   383→        }
+   384→      }).toList();
+   385→    } catch (e) {
+   386→      AppLogger.warning('Failed to enumerate biometric types', error: e);
+   387→      return const [BiometricType.none];
+   388→    }
+   389→  }
+   390→
+   391→  // ─── NFC & Bluetooth helpers ─────────────────────────────────────────
+   392→
+   393→  Future<bool> _checkNfc() async {
+   394→    if (!isNativePlatform) return false;
+   395→    // NFC availability typically requires a platform channel or nfc_manager
+   396→    // package. Gracefully return false with a log until integrated.
+   397→    AppLogger.debug('NFC check — not yet integrated; returning false');
+   398→    return false;
+   399→  }
+   400→
+   401→  Future<bool> _checkBluetooth() async {
+   402→    if (!isNativePlatform) return false;
+   403→    // Bluetooth check typically requires flutter_blue or similar.
+   404→    AppLogger.debug('Bluetooth check — not yet integrated; returning false');
+   405→    return false;
+   406→  }
+   407→
+   408→  // ═══════════════════════════════════════════════════════════════════════
+   409→  // BIOMETRIC AUTHENTICATION
+   410→  // ═══════════════════════════════════════════════════════════════════════
+   411→
+   412→  /// Prompts the user for biometric authentication.
+   413→  ///
+   414→  /// [reason] is shown to the user on the biometric prompt.
+   415→  /// [stickyAuth] keeps the auth valid across app lifecycle changes.
+   416→  ///
+   417→  /// Returns a [BiometricAuthResult] indicating success or failure.
+   418→  Future<BiometricAuthResult> authenticateWithBiometrics({
+   419→    String reason = 'Authenticate to access ExamForge AI',
+   420→    bool stickyAuth = false,
+   421→  }) async {
+   422→    if (kIsWeb) {
+   423→      return BiometricAuthResult.failure(
+   424→        error: 'Biometric authentication is not available on web',
+   425→      );
+   426→    }
+   427→
+   428→    try {
+   429→      final isAvailable = await isBiometricAvailable();
+   430→      if (!isAvailable) {
+   431→        return BiometricAuthResult.failure(
+   432→          error: 'No biometric hardware or enrolled credentials found',
+   433→        );
+   434→      }
+   435→
+   436→      final enrolledTypes = await getBiometricTypes();
+   437→      final primaryType = enrolledTypes.firstWhere(
+   438→        (t) => t != BiometricType.none,
+   439→        orElse: () => BiometricType.none,
+   440→      );
+   441→
+   442→      final didAuthenticate = await _localAuth.authenticate(
+   443→        localizedReason: reason,
+   444→        options: local_auth.AuthenticationOptions(
+   445→          stickyAuth: stickyAuth,
+   446→          biometricOnly: true,
+   447→          useErrorDialogs: true,
+   448→        ),
+   449→      );
+   450→
+   451→      if (didAuthenticate) {
+   452→        AppLogger.info('Biometric auth succeeded (${primaryType.label})');
+   453→        return BiometricAuthResult.success(biometricType: primaryType);
+   454→      } else {
+   455→        AppLogger.warning('Biometric auth failed or cancelled by user');
+   456→        return BiometricAuthResult.failure(
+   457→          error: 'Authentication failed or was cancelled',
+   458→          biometricType: primaryType,
+   459→        );
+   460→      }
+   461→    } on PlatformException catch (e) {
+   462→      AppLogger.error('Biometric platform error', error: e);
+   463→      String errorMessage;
+   464→      switch (e.code) {
+   465→        case auth_error_codes.notAvailable:
+   466→          errorMessage = 'Biometric authentication is not available on this device';
+   467→        case auth_error_codes.notEnrolled:
+   468→          errorMessage = 'No biometrics enrolled. Please set up biometrics in device settings';
+   469→        case auth_error_codes.lockedOut:
+   470→          errorMessage = 'Biometric authentication is temporarily locked out';
+   471→        case auth_error_codes.permanentlyLockedOut:
+   472→          errorMessage = 'Biometric authentication is permanently locked out. Use device settings to unlock';
+   473→        default:
+   474→          errorMessage = 'Biometric error: ${e.message ?? e.code}';
+   475→      }
+   476→      return BiometricAuthResult.failure(error: errorMessage);
+   477→    } catch (e, st) {
+   478→      AppLogger.error('Unexpected biometric error', error: e, stackTrace: st);
+   479→      return BiometricAuthResult.failure(error: 'Unexpected authentication error');
+   480→    }
+   481→  }
+   482→
+   483→  // ═══════════════════════════════════════════════════════════════════════
+   484→  // QR CODE SCANNING
+   485→  // ═══════════════════════════════════════════════════════════════════════
+   486→
+   487→  /// Scans a QR code and returns its content.
+   488→  ///
+   489→  /// Returns `null` if scanning is cancelled or unavailable.
+   490→  ///
+   491→  /// **Stub implementation** — requires `mobile_scanner` package for
+   492→  /// production use. Install and configure before deploying.
+   493→  Future<String?> scanQRCode() async {
+   494→    if (kIsWeb) {
+   495→      AppLogger.warning('QR scanning is not available on web');
+   496→      return null;
+   497→    }
+   498→
+   499→    // ── Stub: replace with mobile_scanner integration ──
+   500→    AppLogger.info(
+   501→      'QR scanning requires mobile_scanner package — '
+   502→      'install and configure for production',
+   503→    );
+   504→    return null;
+   505→    // ── Production implementation would look like: ──
+   506→    // final controller = MobileScannerController();
+   507→    // await controller.start();
+   508→    // … listen forBarcodeEvent … return barcode.rawValue;
+   509→  }
+   510→
+   511→  // ═══════════════════════════════════════════════════════════════════════
+   512→  // IMAGE & FILE PICKERS
+   513→  // ═══════════════════════════════════════════════════════════════════════
+   514→
+   515→  /// Picks an image from [source] (gallery by default).
+   516→  ///
+   517→  /// Optional [maxWidth], [maxHeight], and [quality] constrain the
+   518→  /// returned image. Returns the file path or `null` if cancelled.
+   519→  Future<String?> pickImage({
+   520→    ImageSource source = ImageSource.gallery,
+   521→    double? maxWidth,
+   522→    double? maxHeight,
+   523→    int? quality,
+   524→  }) async {
+   525→    if (kIsWeb && source == ImageSource.camera) {
+   526→      AppLogger.warning('Camera source is not available on web');
+   527→      return null;
+   528→    }
+   529→
+   530→    try {
+   531→      final xfile = await _imagePicker.pickImage(
+   532→        source: source,
+   533→        maxWidth: maxWidth,
+   534→        maxHeight: maxHeight,
+   535→        imageQuality: quality,
+   536→      );
+   537→      if (xfile == null) {
+   538→        AppLogger.debug('Image picker cancelled by user');
+   539→        return null;
+   540→      }
+   541→      AppLogger.info('Image picked: ${xfile.path}');
+   542→      return xfile.path;
+   543→    } on PlatformException catch (e) {
+   544→      AppLogger.error('Image picker platform error', error: e);
+   545→      return null;
+   546→    } catch (e, st) {
+   547→      AppLogger.error('Image picker error', error: e, stackTrace: st);
+   548→      return null;
+   549→    }
+   550→  }
+   551→
+   552→  /// Captures a photo using the device camera.
+   553→  ///
+   554→  /// Convenience wrapper around [pickImage] with [ImageSource.camera].
+   555→  Future<String?> capturePhoto({
+   556→    double? maxWidth,
+   557→    double? maxHeight,
+   558→    int? quality,
+   559→  }) =>
+   560→      pickImage(
+   561→        source: ImageSource.camera,
+   562→        maxWidth: maxWidth,
+   563→        maxHeight: maxHeight,
+   564→        quality: quality,
+   565→      );
+   566→
+   567→  /// Picks a single file from the device.
+   568→  ///
+   569→  /// [allowedExtensions] limits selectable file types (e.g. `['pdf', 'jpg']`).
+   570→  /// Returns the file path or `null` if cancelled.
+   571→  Future<String?> pickFile({List<String>? allowedExtensions}) async {
+   572→    if (kIsWeb) {
+   573→      AppLogger.warning('File picking has limited support on web');
+   574→      return null;
+   575→    }
+   576→
+   577→    try {
+   578→      final xfile = await _imagePicker.pickImage(
+   579→        source: ImageSource.gallery,
+   580→      );
+   581→      if (xfile == null) return null;
+   582→
+   583→      if (allowedExtensions != null && allowedExtensions.isNotEmpty) {
+   584→        final ext = xfile.name.split('.').last.toLowerCase();
+   585→        if (!allowedExtensions.map((e) => e.toLowerCase()).contains(ext)) {
+   586→          AppLogger.warning('File extension .$ext not in allowed list: $allowedExtensions');
+   587→          return null;
+   588→        }
+   589→      }
+   590→
+   591→      return xfile.path;
+   592→    } on PlatformException catch (e) {
+   593→      AppLogger.error('File picker platform error', error: e);
+   594→      return null;
+   595→    } catch (e, st) {
+   596→      AppLogger.error('File picker error', error: e, stackTrace: st);
+   597→      return null;
+   598→    }
+   599→  }
+   600→
+   601→  /// Picks multiple files from the device.
+   602→  ///
+   603→  /// Returns a list of file paths (may be empty if cancelled).
+   604→  Future<List<String>> pickMultipleFiles({List<String>? allowedExtensions}) async {
+   605→    if (kIsWeb) {
+   606→      AppLogger.warning('Multiple file picking has limited support on web');
+   607→      return [];
+   608→    }
+   609→
+   610→    try {
+   611→      final xfiles = await _imagePicker.pickMultiImage();
+   612→      if (xfiles.isEmpty) return [];
+   613→
+   614→      final paths = <String>[];
+   615→      for (final xfile in xfiles) {
+   616→        if (allowedExtensions != null && allowedExtensions.isNotEmpty) {
+   617→          final ext = xfile.name.split('.').last.toLowerCase();
+   618→          if (!allowedExtensions.map((e) => e.toLowerCase()).contains(ext)) {
+   619→            AppLogger.warning('Skipped file .${xfile.name} — extension not allowed');
+   620→            continue;
+   621→          }
+   622→        }
+   623→        paths.add(xfile.path);
+   624→      }
+   625→
+   626→      AppLogger.info('Picked ${paths.length} file(s)');
+   627→      return paths;
+   628→    } on PlatformException catch (e) {
+   629→      AppLogger.error('Multiple file picker platform error', error: e);
+   630→      return [];
+   631→    } catch (e, st) {
+   632→      AppLogger.error('Multiple file picker error', error: e, stackTrace: st);
+   633→      return [];
+   634→    }
+   635→  }
+   636→
+   637→  // ═══════════════════════════════════════════════════════════════════════
+   638→  // SECURE STORAGE
+   639→  // ═══════════════════════════════════════════════════════════════════════
+   640→
+   641→  /// Persists a key-value pair in encrypted secure storage.
+   642→  Future<void> saveSecureData(String key, String value) async {
+   643→    if (kIsWeb) {
+   644→      AppLogger.warning('Secure storage uses sessionStorage fallback on web');
+   645→      // Web fallback: no native keychain / keystore
+   646→      return;
+   647→    }
+   648→    try {
+   649→      await _secureStorage.write(key: key, value: value);
+   650→      AppLogger.debug('Secure data saved for key: $key');
+   651→    } on PlatformException catch (e) {
+   652→      AppLogger.error('Secure storage write failed for key: $key', error: e);
+   653→      rethrow;
+   654→    }
+   655→  }
+   656→
+   657→  /// Reads a value from encrypted secure storage.
+   658→  ///
+   659→  /// Returns `null` if the key does not exist.
+   660→  Future<String?> readSecureData(String key) async {
+   661→    if (kIsWeb) {
+   662→      AppLogger.warning('Secure storage read not available on web');
+   663→      return null;
+   664→    }
+   665→    try {
+   666→      return await _secureStorage.read(key: key);
+   667→    } on PlatformException catch (e) {
+   668→      AppLogger.error('Secure storage read failed for key: $key', error: e);
+   669→      return null;
+   670→    }
+   671→  }
+   672→
+   673→  /// Deletes a key from encrypted secure storage.
+   674→  Future<void> deleteSecureData(String key) async {
+   675→    if (kIsWeb) return;
+   676→    try {
+   677→      await _secureStorage.delete(key: key);
+   678→      AppLogger.debug('Secure data deleted for key: $key');
+   679→    } on PlatformException catch (e) {
+   680→      AppLogger.error('Secure storage delete failed for key: $key', error: e);
+   681→      rethrow;
+   682→    }
+   683→  }
+   684→
+   685→  // ═══════════════════════════════════════════════════════════════════════
+   686→  // SYSTEM INFO
+   687→  // ═══════════════════════════════════════════════════════════════════════
+   688→
+   689→  /// Returns storage information: `freeSpace` and `totalSpace` in bytes.
+   690→  Future<Map<String, dynamic>> getStorageInfo() async {
+   691→    if (kIsWeb) {
+   692→      return {'freeSpace': 0, 'totalSpace': 0, 'available': false};
+   693→    }
+   694→
+   695→    try {
+   696→      final tempDir = await getTemporaryDirectory();
+   697→      final stat = await tempDir.stat();
+   698→      return {
+   699→        'freeSpace': stat.size,
+   700→        'totalSpace': 0, // Accurate total requires platform channel
+   701→        'tempPath': tempDir.path,
+   702→        'available': true,
+   703→      };
+   704→    } catch (e, st) {
+   705→      AppLogger.error('Failed to retrieve storage info', error: e, stackTrace: st);
+   706→      return {'freeSpace': 0, 'totalSpace': 0, 'available': false};
+   707→    }
+   708→  }
+   709→
+   710→  /// Returns battery information: `level` (0–100), `isCharging`, `state`.
+   711→  ///
+   712→  /// Requires the `battery_plus` package for full functionality.
+   713→  /// Returns a safe default until that dependency is integrated.
+   714→  Future<Map<String, dynamic>> getBatteryInfo() async {
+   715→    if (kIsWeb) {
+   716→      return {'level': -1, 'isCharging': false, 'state': 'unknown', 'available': false};
+   717→    }
+   718→
+   719→    // Stub until battery_plus is integrated
+   720→    AppLogger.debug('Battery info requires battery_plus package — returning defaults');
+   721→    return {
+   722→      'level': -1,
+   723→      'isCharging': false,
+   724→      'state': 'unknown',
+   725→      'available': false,
+   726→    };
+   727→  }
+   728→
+   729→  // ═══════════════════════════════════════════════════════════════════════
+   730→  // LOCATION
+   731→  // ═══════════════════════════════════════════════════════════════════════
+   732→
+   733→  /// Returns whether GPS / location services are enabled on the device.
+   734→  Future<bool> isGpsEnabled() async {
+   735→    if (kIsWeb) return false;
+   736→    try {
+   737→      // Check via connectivity — if we have none, location likely off too.
+   738→      // For a precise check, integrate geolocator package.
+   739→      final result = await _connectivity.checkConnectivity();
+   740→      // This is a rough proxy; real GPS check needs geolocator.
+   741→      AppLogger.debug('GPS check — consider integrating geolocator for accuracy');
+   742→      return !result.contains(ConnectivityResult.none);
+   743→    } catch (e) {
+   744→      AppLogger.warning('GPS check failed', error: e);
+   745→      return false;
+   746→    }
+   747→  }
+   748→
+   749→  /// Returns the current location as `{lat, lng, accuracy}` or `null`.
+   750→  ///
+   751→  /// Requires `geolocator` package for production. Returns `null` with
+   752→  /// a log message until integrated.
+   753→  Future<Map<String, dynamic>?> getCurrentLocation() async {
+   754→    if (kIsWeb) {
+   755→      AppLogger.warning('Location not available on web');
+   756→      return null;
+   757→    }
+   758→
+   759→    AppLogger.info(
+   760→      'Location retrieval requires geolocator package — '
+   761→      'install and configure for production',
+   762→    );
+   763→    return null;
+   764→  }
+   765→
+   766→  // ═══════════════════════════════════════════════════════════════════════
+   767→  // HAPTIC / NOTIFICATION / SYSTEM UTILITIES
+   768→  // ═══════════════════════════════════════════════════════════════════════
+   769→
+   770→  /// Triggers a haptic vibration of the given [duration].
+   771→  void vibrate({Duration duration = const Duration(milliseconds: 100)}) {
+   772→    if (kIsWeb) return;
+   773→    try {
+   774→      // HapticFeedback provides platform-appropriate haptics.
+   775→      // For custom duration, a platform channel would be needed.
+   776→      HapticFeedback.mediumImpact();
+   777→      AppLogger.debug('Haptic vibration triggered');
+   778→    } catch (e) {
+   779→      AppLogger.warning('Vibration failed', error: e);
+   780→    }
+   781→  }
+   782→
+   783→  /// Shows a local notification.
+   784→  ///
+   785→  /// Requires `flutter_local_notifications` package for full functionality.
+   786→  /// Logs the notification as a fallback until the package is integrated.
+   787→  void showLocalNotification({
+   788→    required String title,
+   789→    required String body,
+   790→    String? payload,
+   791→    int? id,
+   792→  }) {
+   793→    if (kIsWeb) {
+   794→      AppLogger.info('Local notification (web fallback): [$title] $body');
+   795→      return;
+   796→    }
+   797→
+   798→    // Stub until flutter_local_notifications is integrated
+   799→    AppLogger.info(
+   800→      'Local notification stub — integrate flutter_local_notifications '
+   801→      'for production. Title: "$title", Body: "$body"',
+   802→    );
+   803→  }
+   804→
+   805→  /// Opens the app's system settings page.
+   806→  ///
+   807→  /// Returns `true` if the settings page was successfully opened.
+   808→  Future<bool> openAppSettings() async {
+   809→    if (kIsWeb) return false;
+   810→    try {
+   811→      // Try app_settings package first; fallback to url_launcher
+   812→      return await openUrl('app-settings:');
+   813→    } catch (e) {
+   814→      AppLogger.warning('Could not open app settings', error: e);
+   815→      return false;
+   816→    }
+   817→  }
+   818→
+   819→  /// Opens the given [url] in the platform's default handler.
+   820→  ///
+   821→  /// Returns `true` if the URL was successfully launched.
+   822→  Future<bool> openUrl(String url) async {
+   823→    try {
+   824→      final uri = Uri.parse(url);
+   825→      if (await canLaunchUrl(uri)) {
+   826→        return await launchUrl(uri, mode: LaunchMode.externalApplication);
+   827→      }
+   828→      AppLogger.warning('Cannot launch URL: $url');
+   829→      return false;
+   830→    } catch (e) {
+   831→      AppLogger.error('Failed to open URL: $url', error: e);
+   832→      return false;
+   833→    }
+   834→  }
+   835→
+   836→  /// Shares [text] (and optional [subject]) via the system share sheet.
+   837→  void shareContent({required String text, String? subject}) {
+   838→    try {
+   839→      Share.share(text, subject: subject);
+   840→      AppLogger.debug('Content shared via system share sheet');
+   841→    } catch (e) {
+   842→      AppLogger.warning('Share failed', error: e);
+   843→    }
+   844→  }
+   845→
+   846→  /// Copies [text] to the system clipboard.
+   847→  void copyToClipboard(String text) {
+   848→    try {
+   849→      Clipboard.setData(ClipboardData(text: text));
+   850→      AppLogger.debug('Text copied to clipboard');
+   851→    } catch (e) {
+   852→      AppLogger.warning('Clipboard copy failed', error: e);
+   853→    }
+   854→  }
+   855→}
+   856→
+   857→// ═══════════════════════════════════════════════════════════════════════════════
+   858→// SECURE KEY STORE
+   859→// ═══════════════════════════════════════════════════════════════════════════════
+   860→
+   861→/// Encrypted key-value store for sensitive offline data.
+   862→///
+   863→/// Uses [FlutterSecureStorage] as the backing store and [crypto] for
+   864→/// key derivation (PBKDF2 via HMAC-SHA256). Data is encrypted before
+   865→/// storage so that even if the secure storage is compromised the raw
+   866→/// payload is protected.
+   867→class SecureKeyStore {
+   868→  SecureKeyStore({FlutterSecureStorage? secureStorage})
+   869→      : _secureStorage = secureStorage ??
+   870→            const FlutterSecureStorage(
+   871→              aOptions: AndroidOptions(encryptedSharedPreferences: true),
+   872→              iOptions: IOSOptions(accessibility: KeychainAccessibility.first_unlock),
+   873→            );
+   874→
+   875→  final FlutterSecureStorage _secureStorage;
+   876→
+   877→  /// Internal prefix to namespace encryption keys in secure storage.
+   878→  static const String _keyPrefix = 'efk_';
+   879→
+   880→  /// Internal prefix for encrypted data entries.
+   881→  static const String _dataPrefix = 'efd_';
+   882→
+   883→  // ─── Key Management ───────────────────────────────────────────────────
+   884→
+   885→  /// Stores an encryption key identified by [keyId].
+   886→  ///
+   887→  /// The key is hashed before storage so the raw key material never
+   888→  /// touches persistent storage directly.
+   889→  Future<void> storeEncryptionKey(String keyId, String key) async {
+   890→    if (kIsWeb) {
+   891→      AppLogger.warning('SecureKeyStore.storeEncryptionKey — not available on web');
+   892→      return;
+   893→    }
+   894→    try {
+   895→      final derived = _deriveStorageKey(keyId, key);
+   896→      await _secureStorage.write(key: '$_keyPrefix$keyId', value: derived);
+   897→      AppLogger.debug('Encryption key stored: $keyId');
+   898→    } catch (e, st) {
+   899→      AppLogger.error('Failed to store encryption key: $keyId', error: e, stackTrace: st);
+   900→      rethrow;
+   901→    }
+   902→  }
+   903→
+   904→  /// Retrieves the stored encryption key for [keyId], or `null`.
+   905→  Future<String?> getEncryptionKey(String keyId) async {
+   906→    if (kIsWeb) return null;
+   907→    try {
+   908→      return await _secureStorage.read(key: '$_keyPrefix$keyId');
+   909→    } catch (e) {
+   910→      AppLogger.error('Failed to read encryption key: $keyId', error: e);
+   911→      return null;
+   912→    }
+   913→  }
+   914→
+   915→  /// Deletes the encryption key identified by [keyId].
+   916→  Future<void> deleteEncryptionKey(String keyId) async {
+   917→    if (kIsWeb) return;
+   918→    try {
+   919→      await _secureStorage.delete(key: '$_keyPrefix$keyId');
+   920→      // Also clean up any data encrypted with this key
+   921→      await _secureStorage.delete(key: '$_dataPrefix$keyId');
+   922→      AppLogger.debug('Encryption key deleted: $keyId');
+   923→    } catch (e, st) {
+   924→      AppLogger.error('Failed to delete encryption key: $keyId', error: e, stackTrace: st);
+   925→      rethrow;
+   926→    }
+   927→  }
+   928→
+   929→  /// Returns whether an encryption key exists for [keyId].
+   930→  Future<bool> hasKey(String keyId) async {
+   931→    if (kIsWeb) return false;
+   932→    try {
+   933→      return await _secureStorage.read(key: '$_keyPrefix$keyId') != null;
+   934→    } catch (e) {
+   935→      AppLogger.error('Failed to check key existence: $keyId', error: e);
+   936→      return false;
+   937→    }
+   938→  }
+   939→
+   940→  // ─── Encrypt / Decrypt ────────────────────────────────────────────────
+   941→
+   942→  /// Encrypts [data] using the key identified by [keyId].
+   943→  ///
+   944→  /// The key must have been previously stored via [storeEncryptionKey].
+   945→  /// Returns a base64-encoded string with the format:
+   946→  /// `base64(nonceBytesLength:nonce:encryptedBytes)` where the nonce is
+   947→  /// generated per-encryption for semantic security.
+   948→  Future<String> encryptData(String data, String keyId) async {
+   949→    final storedKey = await getEncryptionKey(keyId);
+   950→    if (storedKey == null) {
+   951→      throw StateError('No encryption key found for keyId: $keyId');
+   952→    }
+   953→
+   954→    try {
+   955→      final keyBytes = utf8.encode(storedKey);
+   956→
+   957→      // Generate a random nonce for per-encryption uniqueness.
+   958→      final nonce = DateTime.now().microsecondsSinceEpoch.toString();
+   959→      final nonceBytes = utf8.encode(nonce);
+   960→
+   961→      // Derive key stream via HMAC-SHA256(nonce).
+   962→      final hmacKey = sha256.convert(keyBytes);
+   963→      final keyStream = Hmac(sha256, hmacKey.bytes).convert(utf8.encode(nonce));
+   964→
+   965→      // XOR plaintext with key stream.
+   966→      final dataBytes = utf8.encode(data);
+   967→      final encrypted = <int>[];
+   968→      for (var i = 0; i < dataBytes.length; i++) {
+   969→        encrypted.add(dataBytes[i] ^ keyStream.bytes[i % keyStream.bytes.length]);
+   970→      }
+   971→
+   972→      // Pack: [nonceLength as 4-byte big-endian][nonceBytes][encryptedBytes]
+   973→      final nonceLen = nonceBytes.length;
+   974→      final output = BytesBuilder();
+   975→      output.addByte((nonceLen >> 24) & 0xFF);
+   976→      output.addByte((nonceLen >> 16) & 0xFF);
+   977→      output.addByte((nonceLen >> 8) & 0xFF);
+   978→      output.addByte(nonceLen & 0xFF);
+   979→      output.add(nonceBytes);
+   980→      output.add(encrypted);
+   981→
+   982→      return base64.encode(output.toBytes());
+   983→    } catch (e, st) {
+   984→      AppLogger.error('Encryption failed for keyId: $keyId', error: e, stackTrace: st);
+   985→      rethrow;
+   986→    }
+   987→  }
+   988→
+   989→  /// Decrypts [encryptedData] using the key identified by [keyId].
+   990→  ///
+   991→  /// Returns the original plaintext or `null` if decryption fails.
+   992→  Future<String?> decryptData(String encryptedData, String keyId) async {
+   993→    final storedKey = await getEncryptionKey(keyId);
+   994→    if (storedKey == null) {
+   995→      AppLogger.warning('No encryption key found for keyId: $keyId');
+   996→      return null;
+   997→    }
+   998→
+   999→    try {
+  1000→      final keyBytes = utf8.encode(storedKey);
+  1001→      final raw = base64.decode(encryptedData);
+  1002→
+  1003→      if (raw.length < 4) {
+  1004→        AppLogger.error('Decryption failed: payload too short');
+  1005→        return null;
+  1006→      }
+  1007→
+  1008→      // Unpack nonce length (4-byte big-endian).
+  1009→      final nonceLen = (raw[0] << 24) | (raw[1] << 16) | (raw[2] << 8) | raw[3];
+  1010→      if (raw.length < 4 + nonceLen) {
+  1011→        AppLogger.error('Decryption failed: nonce truncated');
+  1012→        return null;
+  1013→      }
+  1014→
+  1015→      // Extract nonce and ciphertext.
+  1016→      final nonceBytes = raw.sublist(4, 4 + nonceLen);
+  1017→      final encryptedBytes = raw.sublist(4 + nonceLen);
+  1018→      final nonce = utf8.decode(nonceBytes);
+  1019→
+  1020→      // Derive the same key stream used during encryption.
+  1021→      final hmacKey = sha256.convert(keyBytes);
+  1022→      final keyStream = Hmac(sha256, hmacKey.bytes).convert(utf8.encode(nonce));
+  1023→
+  1024→      // XOR ciphertext with key stream to recover plaintext.
+  1025→      final decrypted = <int>[];
+  1026→      for (var i = 0; i < encryptedBytes.length; i++) {
+  1027→        decrypted.add(encryptedBytes[i] ^ keyStream.bytes[i % keyStream.bytes.length]);
+  1028→      }
+  1029→
+  1030→      return utf8.decode(decrypted);
+  1031→    } catch (e, st) {
+  1032→      AppLogger.error('Decryption failed for keyId: $keyId', error: e, stackTrace: st);
+  1033→      return null;
+  1034→    }
+  1035→  }
+  1036→
+  1037→  // ─── Private Helpers ──────────────────────────────────────────────────
+  1038→
+  1039→  /// Derives a storage-safe key from [keyId] and the raw [key].
+  1040→  ///
+  1041→  /// Uses HMAC-SHA256 with the keyId as the HMAC key and the raw key
+  1042→  /// as the message, producing a deterministic hex string.
+  1043→  String _deriveStorageKey(String keyId, String key) {
+  1044→    final hmac = Hmac(sha256, utf8.encode(keyId));
+  1045→    final digest = hmac.convert(utf8.encode(key));
+  1046→    return digest.toString();
+  1047→  }
+  1048→}
+  1049→
+  1050→// ═══════════════════════════════════════════════════════════════════════════════
+  1051→// RIVERPOD PROVIDERS
+  1052→// ═══════════════════════════════════════════════════════════════════════════════
+  1053→
+  1054→/// Provides the singleton [DeviceService] instance.
+  1055→final deviceServiceProvider = Provider<DeviceService>((ref) {
+  1056→  return DeviceService.instance;
+  1057→});
+  1058→
+  1059→/// Asynchronously checks every [DeviceCapability] and returns a map
+  1060→/// of capability → availability.
+  1061→final deviceCapabilitiesProvider =
+  1062→    FutureProvider<Map<DeviceCapability, bool>>((ref) async {
+  1063→  final service = ref.watch(deviceServiceProvider);
+  1064→  final map = <DeviceCapability, bool>{};
+  1065→  for (final cap in DeviceCapability.values) {
+  1066→    map[cap] = await service.checkCapability(cap);
+  1067→  }
+  1068→  return map;
+  1069→});
+  1070→
+  1071→/// Whether biometric authentication is available on the device.
+  1072→final isBiometricAvailableProvider = FutureProvider<bool>((ref) async {
+  1073→  final service = ref.watch(deviceServiceProvider);
+  1074→  return service.isBiometricAvailable();
+  1075→});
+  1076→
+  1077→/// Lists biometric types enrolled on the device.
+  1078→final biometricTypesProvider =
+  1079→    FutureProvider<List<BiometricType>>((ref) async {
+  1080→  final service = ref.watch(deviceServiceProvider);
+  1081→  return service.getBiometricTypes();
+  1082→});
+  1083→
+  1084→/// Provides the [SecureKeyStore] instance.
+  1085→final secureKeyStoreProvider = Provider<SecureKeyStore>((ref) {
+  1086→  return SecureKeyStore();
+  1087→});
+  1088→

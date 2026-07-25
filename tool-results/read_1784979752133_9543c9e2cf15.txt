@@ -1,0 +1,1145 @@
+     1→// ===========================================================================
+     2→// ExamForge AI — Adaptive Connectivity Engine
+     3→// ===========================================================================
+     4→//
+     5→// A sophisticated network quality detection system that goes beyond simple
+     6→// online/offline. Designed for regions with inconsistent internet, this
+     7→// engine continuously monitors latency, bandwidth, and connection type to
+     8→// classify connectivity into four quality tiers and adapt application
+     9→// behaviour accordingly.
+    10→//
+    11→// Usage:
+    12→//   // In your provider scope:
+    13→//   final quality = ref.watch(connectionQualityProvider);
+    14→//   final behavior = ref.watch(adaptiveBehaviorProvider);
+    15→//
+    16→//   // Direct engine access:
+    17→//   ref.read(connectivityEngineProvider.notifier).startMonitoring();
+    18→// ===========================================================================
+    19→
+    20→import 'dart:async';
+    21→import 'dart:collection';
+    22→import 'dart:math';
+    23→
+    24→import 'package:connectivity_plus/connectivity_plus.dart';
+    25→import 'package:dio/dio.dart';
+    26→import 'package:equatable/equatable.dart';
+    27→import 'package:flutter/material.dart';
+    28→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    29→
+    30→import '../../config/dependency_injection.dart';
+    31→import '../errors/failures.dart';
+    32→import '../utils/logger.dart';
+    33→import '../utils/result.dart';
+    34→
+    35→// ─────────────────────────────────────────────────────────────────────────────
+    36→// ConnectionQuality — Enhanced Enum
+    37→// ─────────────────────────────────────────────────────────────────────────────
+    38→
+    39→/// Represents the quality tier of the current network connection.
+    40→///
+    41→/// Each tier carries metadata (label, minimum speed threshold, UI colour,
+    42→/// icon) so that the rest of the app can render appropriate feedback
+    43→/// without scattering magic numbers everywhere.
+    44→enum ConnectionQuality {
+    45→  excellent(
+    46→    value: 'excellent',
+    47→    label: 'Excellent',
+    48→    minSpeed: 1000,
+    49→    color: Colors.green,
+    50→    icon: Icons.signal_cellular_alt,
+    51→  ),
+    52→  good(
+    53→    value: 'good',
+    54→    label: 'Good',
+    55→    minSpeed: 500,
+    56→    color: Colors.blue,
+    57→    icon: Icons.signal_cellular_4_bar,
+    58→  ),
+    59→  limited(
+    60→    value: 'limited',
+    61→    label: 'Limited',
+    62→    minSpeed: 100,
+    63→    color: Colors.orange,
+    64→    icon: Icons.signal_cellular_connected_no_internet_4_bar,
+    65→  ),
+    66→  offline(
+    67→    value: 'offline',
+    68→    label: 'Offline',
+    69→    minSpeed: 0,
+    70→    color: Colors.red,
+    71→    icon: Icons.signal_cellular_off,
+    72→  );
+    73→
+    74→  const ConnectionQuality({
+    75→    required this.value,
+    76→    required this.label,
+    77→    required this.minSpeed,
+    78→    required this.color,
+    79→    required this.icon,
+    80→  });
+    81→
+    82→  /// String identifier used for serialisation / logging.
+    83→  final String value;
+    84→
+    85→  /// Human-readable label for UI display.
+    86→  final String label;
+    87→
+    88→  /// Minimum bandwidth (kbps) that qualifies for this tier.
+    89→  final int minSpeed;
+    90→
+    91→  /// Semantic colour for status indicators.
+    92→  final Color color;
+    93→
+    94→  /// Material icon for status indicators.
+    95→  final IconData icon;
+    96→
+    97→  // ── Factory Constructors ──────────────────────────────────────────────
+    98→
+    99→  /// Constructs a [ConnectionQuality] from its serialised [value] string.
+   100→  ///
+   101→  /// Returns [ConnectionQuality.offline] if the string does not match any
+   102→  /// known tier, which is the safest fallback.
+   103→  static ConnectionQuality fromString(String value) {
+   104→    return ConnectionQuality.values.firstWhere(
+   105→      (q) => q.value == value,
+   106→      orElse: () => ConnectionQuality.offline,
+   107→    );
+   108→  }
+   109→
+   110→  /// Constructs a [ConnectionQuality] from a measured bandwidth in kbps.
+   111→  ///
+   112→  /// The classification walks from best to worst so that the highest
+   113→  /// qualifying tier wins.
+   114→  static ConnectionQuality fromSpeed(int bandwidthKbps) {
+   115→    if (bandwidthKbps >= ConnectionQuality.excellent.minSpeed) {
+   116→      return ConnectionQuality.excellent;
+   117→    }
+   118→    if (bandwidthKbps >= ConnectionQuality.good.minSpeed) {
+   119→      return ConnectionQuality.good;
+   120→    }
+   121→    if (bandwidthKbps >= ConnectionQuality.limited.minSpeed) {
+   122→      return ConnectionQuality.limited;
+   123→    }
+   124→    return ConnectionQuality.offline;
+   125→  }
+   126→}
+   127→
+   128→// ─────────────────────────────────────────────────────────────────────────────
+   129→// ConnectionType — Network Interface Classification
+   130→// ─────────────────────────────────────────────────────────────────────────────
+   131→
+   132→/// Simplified classification of the physical network interface.
+   133→enum ConnectionType { wifi, mobile, ethernet, none }
+   134→
+   135→// ─────────────────────────────────────────────────────────────────────────────
+   136→// ConnectivityState — Immutable State
+   137→// ─────────────────────────────────────────────────────────────────────────────
+   138→
+   139→/// Immutable snapshot of the current connectivity situation.
+   140→///
+   141→/// Designed to be emitted by [ConnectivityEngine] via [StateNotifier].
+   142→/// Implements [Equatable] so that Riverpod can skip redundant rebuilds.
+   143→class ConnectivityState extends Equatable {
+   144→  const ConnectivityState({
+   145→    this.isOnline = false,
+   146→    this.connectionQuality = ConnectionQuality.offline,
+   147→    this.connectionType = ConnectionType.none,
+   148→    this.latencyMs = 0,
+   149→    this.bandwidthKbps = 0,
+   150→    this.isSyncing = false,
+   151→    this.lastOnlineAt,
+   152→    this.lastOfflineAt,
+   153→    this.offlineDuration,
+   154→    this.pendingSyncCount = 0,
+   155→    this.errorMessage,
+   156→    this.successMessage,
+   157→  });
+   158→
+   159→  /// Whether the device currently has any network connectivity.
+   160→  final bool isOnline;
+   161→
+   162→  /// Classified quality tier of the current connection.
+   163→  final ConnectionQuality connectionQuality;
+   164→
+   165→  /// The physical network interface in use.
+   166→  final ConnectionType connectionType;
+   167→
+   168→  /// Most recent round-trip latency in milliseconds.
+   169→  final int latencyMs;
+   170→
+   171→  /// Estimated downstream bandwidth in kilobits per second.
+   172→  final int bandwidthKbps;
+   173→
+   174→  /// Whether a background sync operation is currently in progress.
+   175→  final bool isSyncing;
+   176→
+   177→  /// Timestamp of the last moment the device was confirmed online.
+   178→  final DateTime? lastOnlineAt;
+   179→
+   180→  /// Timestamp of the last moment the device transitioned to offline.
+   181→  final DateTime? lastOfflineAt;
+   182→
+   183→  /// Cumulative duration spent offline since the last online period.
+   184→  final Duration? offlineDuration;
+   185→
+   186→  /// Number of operations queued for the next sync window.
+   187→  final int pendingSyncCount;
+   188→
+   189→  /// Transient error message for UI display (cleared on next state).
+   190→  final String? errorMessage;
+   191→
+   192→  /// Transient success message for UI display (cleared on next state).
+   193→  final String? successMessage;
+   194→
+   195→  // ── Computed Getters ──────────────────────────────────────────────────
+   196→
+   197→  bool get isExcellent => connectionQuality == ConnectionQuality.excellent;
+   198→  bool get isGood => connectionQuality == ConnectionQuality.good;
+   199→  bool get isLimited => connectionQuality == ConnectionQuality.limited;
+   200→  bool get isOffline => connectionQuality == ConnectionQuality.offline;
+   201→
+   202→  /// Whether image payloads should be served at reduced quality.
+   203→  bool get shouldReduceImageQuality =>
+   204→      connectionQuality == ConnectionQuality.limited ||
+   205→      connectionQuality == ConnectionQuality.offline;
+   206→
+   207→  /// Whether non-critical syncs should be deferred.
+   208→  bool get shouldDelaySync =>
+   209→      connectionQuality == ConnectionQuality.limited ||
+   210→      connectionQuality == ConnectionQuality.offline;
+   211→
+   212→  /// Whether uploads should be compressed before transmission.
+   213→  bool get shouldCompressUploads =>
+   214→      connectionQuality == ConnectionQuality.limited ||
+   215→      connectionQuality == ConnectionQuality.good;
+   216→
+   217→  /// Whether the app should switch to minimal-data mode (text-only,
+   218→  /// no pre-fetching, no auto-play).
+   219→  bool get shouldUseMinimalData =>
+   220→      connectionQuality == ConnectionQuality.limited ||
+   221→      connectionQuality == ConnectionQuality.offline;
+   222→
+   223→  // ── copyWith ──────────────────────────────────────────────────────────
+   224→
+   225→  /// Returns a new [ConnectivityState] with the specified fields replaced.
+   226→  ///
+   227→  /// Nullable fields that are *not* passed retain their current value.
+   228→  /// To explicitly reset [lastOnlineAt], [lastOfflineAt], or
+   229→  /// [offlineDuration], pass `null` through the corresponding parameter.
+   230→  ConnectivityState copyWith({
+   231→    bool? isOnline,
+   232→    ConnectionQuality? connectionQuality,
+   233→    ConnectionType? connectionType,
+   234→    int? latencyMs,
+   235→    int? bandwidthKbps,
+   236→    bool? isSyncing,
+   237→    DateTime? lastOnlineAt,
+   238→    DateTime? lastOfflineAt,
+   239→    Duration? offlineDuration,
+   240→    int? pendingSyncCount,
+   241→    String? errorMessage,
+   242→    String? successMessage,
+   243→    bool clearOfflineDuration = false,
+   244→    bool clearLastOnlineAt = false,
+   245→    bool clearLastOfflineAt = false,
+   246→  }) {
+   247→    return ConnectivityState(
+   248→      isOnline: isOnline ?? this.isOnline,
+   249→      connectionQuality: connectionQuality ?? this.connectionQuality,
+   250→      connectionType: connectionType ?? this.connectionType,
+   251→      latencyMs: latencyMs ?? this.latencyMs,
+   252→      bandwidthKbps: bandwidthKbps ?? this.bandwidthKbps,
+   253→      isSyncing: isSyncing ?? this.isSyncing,
+   254→      lastOnlineAt: clearLastOnlineAt ? null : (lastOnlineAt ?? this.lastOnlineAt),
+   255→      lastOfflineAt: clearLastOfflineAt ? null : (lastOfflineAt ?? this.lastOfflineAt),
+   256→      offlineDuration: clearOfflineDuration ? null : (offlineDuration ?? this.offlineDuration),
+   257→      pendingSyncCount: pendingSyncCount ?? this.pendingSyncCount,
+   258→      errorMessage: errorMessage,
+   259→      successMessage: successMessage,
+   260→    );
+   261→  }
+   262→
+   263→  /// Convenience that returns a copy with [errorMessage] cleared.
+   264→  ConnectivityState clearError() => copyWith(errorMessage: null);
+   265→
+   266→  /// Convenience that returns a copy with [successMessage] cleared.
+   267→  ConnectivityState clearSuccess() => copyWith(successMessage: null);
+   268→
+   269→  @override
+   270→  List<Object?> get props => [
+   271→        isOnline,
+   272→        connectionQuality,
+   273→        connectionType,
+   274→        latencyMs,
+   275→        bandwidthKbps,
+   276→        isSyncing,
+   277→        lastOnlineAt,
+   278→        lastOfflineAt,
+   279→        offlineDuration,
+   280→        pendingSyncCount,
+   281→        errorMessage,
+   282→        successMessage,
+   283→      ];
+   284→
+   285→  @override
+   286→  String toString() => 'ConnectivityState('
+   287→      'isOnline: $isOnline, '
+   288→      'quality: ${connectionQuality.value}, '
+   289→      'type: ${connectionType.name}, '
+   290→      'latency: ${latencyMs}ms, '
+   291→      'bandwidth: ${bandwidthKbps}kbps, '
+   292→      'syncing: $isSyncing, '
+   293→      'pendingSync: $pendingSyncCount'
+   294→      ')';
+   295→}
+   296→
+   297→// ─────────────────────────────────────────────────────────────────────────────
+   298→// ConnectivityEngine — Core Monitoring & Classification Engine
+   299→// ─────────────────────────────────────────────────────────────────────────────
+   300→
+   301→/// The core engine that monitors and classifies network connectivity.
+   302→///
+   303→/// Extends [StateNotifier] so that any widget or provider watching
+   304→/// [connectivityEngineProvider] rebuilds automatically when connectivity
+   305→/// state changes.
+   306→///
+   307→/// The engine runs a periodic health-check loop that:
+   308→///   1. Checks the physical connection type via `connectivity_plus`.
+   309→///   2. Measures latency by sending an HTTP HEAD request to a known
+   310→///      lightweight endpoint and recording the RTT.
+   311→///   3. Estimates bandwidth by downloading a small test payload and
+   312→///      computing the transfer speed, smoothed with a moving average.
+   313→///   4. Classifies the combined metrics into a [ConnectionQuality] tier.
+   314→///   5. Emits an updated [ConnectivityState] only when the quality tier
+   315→///      actually changes (debounced to avoid flicker).
+   316→class ConnectivityEngine extends StateNotifier<ConnectivityState> {
+   317→  ConnectivityEngine({
+   318→    required Connectivity connectivity,
+   319→    required Dio dio,
+   320→    this.pingEndpoint = 'https://www.google.com/generate_204',
+   321→    this.bandwidthTestUrl =
+   322→        'https://www.google.com/generate_204', // lightweight; size ≈ 0
+   323→    this.checkInterval = const Duration(seconds: 15),
+   324→    this.latencyHistorySize = 10,
+   325→    this.bandwidthHistorySize = 5,
+   326→    this.qualityDebounceDuration = const Duration(seconds: 3),
+   327→  })  : _connectivity = connectivity,
+   328→        _dio = dio,
+   329→        super(const ConnectivityState()) {
+   330→    _init();
+   331→  }
+   332→
+   333→  // ── Dependencies ──────────────────────────────────────────────────────
+   334→  final Connectivity _connectivity;
+   335→  final Dio _dio;
+   336→
+   337→  // ── Configuration ─────────────────────────────────────────────────────
+   338→
+   339→  /// Endpoint used for latency measurement (HTTP HEAD → RTT).
+   340→  final String pingEndpoint;
+   341→
+   342→  /// URL used for bandwidth estimation downloads.
+   343→  final String bandwidthTestUrl;
+   344→
+   345→  /// How often the engine runs a full health-check cycle.
+   346→  final Duration checkInterval;
+   347→
+   348→  /// Number of recent latency samples to keep for smoothing.
+   349→  final int latencyHistorySize;
+   350→
+   351→  /// Number of recent bandwidth samples to keep for smoothing.
+   352→  final int bandwidthHistorySize;
+   353→
+   354→  /// Minimum time the engine waits before committing to a quality-tier
+   355→  /// change, to avoid rapid flickering between tiers.
+   356→  final Duration qualityDebounceDuration;
+   357→
+   358→  // ── Internal State ────────────────────────────────────────────────────
+   359→
+   360→  Timer? _monitorTimer;
+   361→  StreamSubscription<List<ConnectivityResult>>? _connectivitySubscription;
+   362→  DateTime? _lastQualityChangeAt;
+   363→  ConnectionQuality? _pendingQuality;
+   364→  Timer? _qualityDebounceTimer;
+   365→
+   366→  /// Ring-buffer of recent latency measurements (ms).
+   367→  final Queue<int> _latencyHistory = ListQueue<int>();
+   368→
+   369→  /// Ring-buffer of recent bandwidth measurements (kbps).
+   370→  final Queue<int> _bandwidthHistory = ListQueue<int>();
+   371→
+   372→  bool _isDisposed = false;
+   373→
+   374→  // ── Initialisation ────────────────────────────────────────────────────
+   375→
+   376→  void _init() {
+   377→    // Subscribe to platform connectivity changes for immediate feedback.
+   378→    _connectivitySubscription = _connectivity.onConnectivityChanged.listen(
+   379→      _onConnectivityChanged,
+   380→      onError: (Object error) {
+   381→        AppLogger.error('Connectivity stream error', error: error);
+   382→      },
+   383→    );
+   384→
+   385→    // Perform an initial check so we don't start with a stale state.
+   386→    _performHealthCheck();
+   387→  }
+   388→
+   389→  // ── Public API ────────────────────────────────────────────────────────
+   390→
+   391→  /// Begins periodic health-check monitoring.
+   392→  ///
+   393→  /// If monitoring is already active this call is a no-op.
+   394→  void startMonitoring() {
+   395→    if (_monitorTimer != null) return;
+   396→    AppLogger.info('ConnectivityEngine: monitoring started');
+   397→    _monitorTimer = Timer.periodic(checkInterval, (_) => _performHealthCheck());
+   398→  }
+   399→
+   400→  /// Stops periodic health-check monitoring.
+   401→  ///
+   402→  /// The connectivity-type subscription remains active so the engine
+   403→  /// still reacts to physical network changes instantly.
+   404→  void stopMonitoring() {
+   405→    _monitorTimer?.cancel();
+   406→    _monitorTimer = null;
+   407→    _qualityDebounceTimer?.cancel();
+   408→    _qualityDebounceTimer = null;
+   409→    AppLogger.info('ConnectivityEngine: monitoring stopped');
+   410→  }
+   411→
+   412→  /// Sends a lightweight HTTP HEAD request to [pingEndpoint] and returns
+   413→  /// the round-trip time in milliseconds.
+   414→  ///
+   415→  /// Returns a [Success] containing the latency in ms, or a
+   416→  /// [FailureResult] with a [Failure.network] if the request fails.
+   417→  Future<Result<int>> measureLatency() async {
+   418→    try {
+   419→      final stopwatch = Stopwatch()..start();
+   420→      await _dio.head<void>(
+   421→        pingEndpoint,
+   422→        options: Options(
+   423→          sendTimeout: const Duration(seconds: 5),
+   424→          receiveTimeout: const Duration(seconds: 5),
+   425→          // Prevent Dio from following redirects — we only need the RTT.
+   426→          followRedirects: false,
+   427→          validateStatus: (status) => status != null && status < 400,
+   428→        ),
+   429→      );
+   430→      stopwatch.stop();
+   431→      final latency = stopwatch.elapsedMilliseconds;
+   432→      AppLogger.debug('Latency measured: ${latency}ms');
+   433→      return Success(latency);
+   434→    } on DioException catch (e) {
+   435→      AppLogger.warning('Latency measurement failed: ${e.message}');
+   436→      return FailureResult(Failure.network(
+   437→        message: 'Latency measurement failed: ${e.message}',
+   438→      ),);
+   439→    } catch (e) {
+   440→      AppLogger.warning('Latency measurement error: $e');
+   441→      return FailureResult(Failure.network(
+   442→        message: 'Latency measurement error: $e',
+   443→      ),);
+   444→    }
+   445→  }
+   446→
+   447→  /// Downloads a small test payload from [bandwidthTestUrl] and estimates
+   448→  /// the downstream bandwidth in kbps.
+   449→  ///
+   450→  /// Returns a [Success] containing the bandwidth in kbps, or a
+   451→  /// [FailureResult] with a [Failure.network] if the measurement cannot be
+   452→  /// completed.
+   453→  Future<Result<int>> estimateBandwidth() async {
+   454→    try {
+   455→      final stopwatch = Stopwatch()..start();
+   456→      final response = await _dio.get<List<int>>(
+   457→        bandwidthTestUrl,
+   458→        options: Options(
+   459→          responseType: ResponseType.bytes,
+   460→          sendTimeout: const Duration(seconds: 10),
+   461→          receiveTimeout: const Duration(seconds: 10),
+   462→          validateStatus: (status) => status != null && status < 400,
+   463→        ),
+   464→      );
+   465→      stopwatch.stop();
+   466→
+   467→      final bytesDownloaded = response.data?.length ?? 0;
+   468→      final elapsedSeconds = stopwatch.elapsedMilliseconds / 1000.0;
+   469→
+   470→      if (elapsedSeconds <= 0 || bytesDownloaded <= 0) {
+   471→        return const FailureResult(Failure.network(
+   472→          message: 'Bandwidth estimation: insufficient data received',
+   473→        ),);
+   474→      }
+   475→
+   476→      // Convert bytes/s → kilobits/s.
+   477→      final bytesPerSecond = bytesDownloaded / elapsedSeconds;
+   478→      final kbps = (bytesPerSecond * 8 / 1000).round();
+   479→
+   480→      AppLogger.debug('Bandwidth estimated: $kbps kbps');
+   481→      return Success(kbps);
+   482→    } on DioException catch (e) {
+   483→      AppLogger.warning('Bandwidth estimation failed: ${e.message}');
+   484→      return FailureResult(Failure.network(
+   485→        message: 'Bandwidth estimation failed: ${e.message}',
+   486→      ),);
+   487→    } catch (e) {
+   488→      AppLogger.warning('Bandwidth estimation error: $e');
+   489→      return FailureResult(Failure.network(
+   490→        message: 'Bandwidth estimation error: $e',
+   491→      ),);
+   492→    }
+   493→  }
+   494→
+   495→  /// Classifies the current connection quality from the latest metrics.
+   496→  ///
+   497→  /// Algorithm:
+   498→  ///   - **offline**: no connectivity detected.
+   499→  ///   - **limited**: latency > 500 ms **OR** bandwidth < 100 kbps.
+   500→  ///   - **good**: latency 100-500 ms **AND** bandwidth 100-500 kbps.
+   501→  ///   - **excellent**: latency < 100 ms **AND** bandwidth > 500 kbps.
+   502→  ConnectionQuality classifyQuality({
+   503→    required bool isOnline,
+   504→    required int latencyMs,
+   505→    required int bandwidthKbps,
+   506→  }) {
+   507→    if (!isOnline) return ConnectionQuality.offline;
+   508→    if (latencyMs > 500 || bandwidthKbps < 100) {
+   509→      return ConnectionQuality.limited;
+   510→    }
+   511→    if (latencyMs <= 100 && bandwidthKbps > 500) {
+   512→      return ConnectionQuality.excellent;
+   513→    }
+   514→    return ConnectionQuality.good;
+   515→  }
+   516→
+   517→  /// Returns the current [ConnectionQuality] without triggering a check.
+   518→  ConnectionQuality getConnectionQuality() => state.connectionQuality;
+   519→
+   520→  /// Whether a sync operation should proceed given current conditions.
+   521→  ///
+   522→  /// Syncing is allowed on *excellent* and *good* connections, deferred on
+   523→  /// *limited*, and never attempted on *offline*.
+   524→  bool shouldPerformSync() {
+   525→    final q = state.connectionQuality;
+   526→    return q == ConnectionQuality.excellent || q == ConnectionQuality.good;
+   527→  }
+   528→
+   529→  /// Whether file downloads should proceed given current conditions.
+   530→  ///
+   531→  /// Downloads are allowed on *excellent*, *good*, and *limited*
+   532→  /// connections (the caller should adapt chunk size on *limited*), but
+   533→  /// not on *offline*.
+   534→  bool shouldDownloadFiles() {
+   535→    return state.connectionQuality != ConnectionQuality.offline;
+   536→  }
+   537→
+   538→  /// Returns an image quality scalar (0.0 – 1.0) based on connection quality.
+   539→  ///
+   540→  ///   - excellent → 1.0
+   541→  ///   - good → 0.8
+   542→  ///   - limited → 0.5
+   543→  ///   - offline → 0.0
+   544→  double getImageQuality() {
+   545→    switch (state.connectionQuality) {
+   546→      case ConnectionQuality.excellent:
+   547→        return 1.0;
+   548→      case ConnectionQuality.good:
+   549→        return 0.8;
+   550→      case ConnectionQuality.limited:
+   551→        return 0.5;
+   552→      case ConnectionQuality.offline:
+   553→        return 0.0;
+   554→    }
+   555→  }
+   556→
+   557→  /// Returns a compression level (1–9) for uploads based on quality.
+   558→  ///
+   559→  ///   - excellent → 1 (fastest, least compression)
+   560→  ///   - good → 3
+   561→  ///   - limited → 7
+   562→  ///   - offline → 9 (max compression, will be queued)
+   563→  int getCompressionLevel() {
+   564→    switch (state.connectionQuality) {
+   565→      case ConnectionQuality.excellent:
+   566→        return 1;
+   567→      case ConnectionQuality.good:
+   568→        return 3;
+   569→      case ConnectionQuality.limited:
+   570→        return 7;
+   571→      case ConnectionQuality.offline:
+   572→        return 9;
+   573→    }
+   574→  }
+   575→
+   576→  /// Returns the recommended sync batch size for the current quality tier.
+   577→  ///
+   578→  ///   - excellent → 50
+   579→  ///   - good → 20
+   580→  ///   - limited → 5
+   581→  ///   - offline → 0
+   582→  int getSyncBatchSize() {
+   583→    switch (state.connectionQuality) {
+   584→      case ConnectionQuality.excellent:
+   585→        return 50;
+   586→      case ConnectionQuality.good:
+   587→        return 20;
+   588→      case ConnectionQuality.limited:
+   589→        return 5;
+   590→      case ConnectionQuality.offline:
+   591→        return 0;
+   592→    }
+   593→  }
+   594→
+   595→  // ── Internal Health-Check Cycle ───────────────────────────────────────
+   596→
+   597→  Future<void> _performHealthCheck() async {
+   598→    if (_isDisposed) return;
+   599→
+   600→    try {
+   601→      // 1. Determine physical connection type.
+   602→      final connectivityResults = await _connectivity.checkConnectivity();
+   603→      final connectionType = _mapConnectivityResult(connectivityResults);
+   604→      final isOnline = connectionType != ConnectionType.none;
+   605→
+   606→      // 2. Measure latency (if online).
+   607→      int? latencyMs;
+   608→      if (isOnline) {
+   609→        final result = await measureLatency();
+   610→        latencyMs = result.getOrElse(999); // pessimistic default on failure
+   611→      }
+   612→
+   613→      // 3. Estimate bandwidth (if online and latency succeeded).
+   614→      int? bandwidthKbps;
+   615→      if (isOnline && latencyMs != null) {
+   616→        final result = await estimateBandwidth();
+   617→        bandwidthKbps = result.getOrElse(0); // conservative default
+   618→      }
+   619→
+   620→      // 4. Update rolling histories.
+   621→      if (latencyMs != null) _addToHistory(_latencyHistory, latencyMs);
+   622→      if (bandwidthKbps != null) {
+   623→        _addToHistory(_bandwidthHistory, bandwidthKbps);
+   624→      }
+   625→
+   626→      // 5. Compute smoothed metrics.
+   627→      final smoothedLatency = _latencyHistory.isNotEmpty
+   628→          ? _latencyHistory.reduce((a, b) => a + b) ~/
+   629→              _latencyHistory.length
+   630→          : (isOnline ? 999 : 0);
+   631→      final smoothedBandwidth = _bandwidthHistory.isNotEmpty
+   632→          ? _bandwidthHistory.reduce((a, b) => a + b) ~/
+   633→              _bandwidthHistory.length
+   634→          : (isOnline ? 0 : 0);
+   635→
+   636→      // 6. Classify quality.
+   637→      final quality = classifyQuality(
+   638→        isOnline: isOnline,
+   639→        latencyMs: smoothedLatency,
+   640→        bandwidthKbps: smoothedBandwidth,
+   641→      );
+   642→
+   643→      // 7. Build the new state.
+   644→      _applyQualityChange(
+   645→        quality: quality,
+   646→        connectionType: connectionType,
+   647→        isOnline: isOnline,
+   648→        latencyMs: smoothedLatency,
+   649→        bandwidthKbps: smoothedBandwidth,
+   650→      );
+   651→    } catch (e, st) {
+   652→      AppLogger.error('Health check failed', error: e, stackTrace: st);
+   653→    }
+   654→  }
+   655→
+   656→  /// Reacts to platform connectivity-change events immediately.
+   657→  void _onConnectivityChanged(List<ConnectivityResult> results) {
+   658→    if (_isDisposed) return;
+   659→
+   660→    final connectionType = _mapConnectivityResult(results);
+   661→    final isOnline = connectionType != ConnectionType.none;
+   662→
+   663→    AppLogger.info(
+   664→      'Connectivity changed: ${results.map((r) => r.name).join(', ')} '
+   665→      '→ type=$connectionType, online=$isOnline',
+   666→    );
+   667→
+   668→    // Immediately update online status; full metrics will follow on
+   669→    // the next health-check cycle.
+   670→    if (!isOnline) {
+   671→      // Went offline — update immediately for snappy UI.
+   672→      _applyQualityChange(
+   673→        quality: ConnectionQuality.offline,
+   674→        connectionType: connectionType,
+   675→        isOnline: false,
+   676→        latencyMs: 0,
+   677→        bandwidthKbps: 0,
+   678→      );
+   679→    } else {
+   680→      // Came online — trigger an immediate health check.
+   681→      _performHealthCheck();
+   682→    }
+   683→  }
+   684→
+   685→  /// Applies a quality-tier change, respecting the debounce window to
+   686→  /// prevent rapid flicker between tiers.
+   687→  void _applyQualityChange({
+   688→    required ConnectionQuality quality,
+   689→    required ConnectionType connectionType,
+   690→    required bool isOnline,
+   691→    required int latencyMs,
+   692→    required int bandwidthKbps,
+   693→  }) {
+   694→    if (_isDisposed) return;
+   695→
+   696→    final now = DateTime.now();
+   697→    final previousQuality = state.connectionQuality;
+   698→
+   699→    // Determine timestamps and offline duration.
+   700→    DateTime? lastOnlineAt = state.lastOnlineAt;
+   701→    DateTime? lastOfflineAt = state.lastOfflineAt;
+   702→    Duration? offlineDuration = state.offlineDuration;
+   703→    bool clearOfflineDuration = false;
+   704→
+   705→    if (isOnline && !state.isOnline) {
+   706→      // Transitioned from offline → online.
+   707→      lastOnlineAt = now;
+   708→      if (state.lastOfflineAt != null) {
+   709→        offlineDuration = now.difference(state.lastOfflineAt!);
+   710→      }
+   711→    } else if (!isOnline && state.isOnline) {
+   712→      // Transitioned from online → offline.
+   713→      lastOfflineAt = now;
+   714→      clearOfflineDuration = true;
+   715→    }
+   716→
+   717→    // If quality hasn't changed, just update metrics silently.
+   718→    if (quality == previousQuality) {
+   719→      _qualityDebounceTimer?.cancel();
+   720→      _qualityDebounceTimer = null;
+   721→      _pendingQuality = null;
+   722→      _lastQualityChangeAt = now;
+   723→
+   724→      state = state.copyWith(
+   725→        isOnline: isOnline,
+   726→        connectionType: connectionType,
+   727→        latencyMs: latencyMs,
+   728→        bandwidthKbps: bandwidthKbps,
+   729→        lastOnlineAt: lastOnlineAt,
+   730→        lastOfflineAt: lastOfflineAt,
+   731→        offlineDuration: offlineDuration,
+   732→        clearOfflineDuration: clearOfflineDuration,
+   733→      );
+   734→      return;
+   735→    }
+   736→
+   737→    // Quality has changed — apply debounce unless going offline (instant).
+   738→    if (quality == ConnectionQuality.offline) {
+   739→      // Going offline should be instant — no debounce.
+   740→      _qualityDebounceTimer?.cancel();
+   741→      _qualityDebounceTimer = null;
+   742→      _pendingQuality = null;
+   743→      _lastQualityChangeAt = now;
+   744→
+   745→      state = state.copyWith(
+   746→        isOnline: isOnline,
+   747→        connectionQuality: quality,
+   748→        connectionType: connectionType,
+   749→        latencyMs: latencyMs,
+   750→        bandwidthKbps: bandwidthKbps,
+   751→        lastOnlineAt: lastOnlineAt,
+   752→        lastOfflineAt: lastOfflineAt,
+   753→        offlineDuration: offlineDuration,
+   754→        clearOfflineDuration: clearOfflineDuration,
+   755→        errorMessage: 'You are offline. Some features may be unavailable.',
+   756→      );
+   757→
+   758→      AppLogger.info(
+   759→        'Connectivity quality: ${previousQuality.value} → ${quality.value}',
+   760→      );
+   761→      return;
+   762→    }
+   763→
+   764→    // Debounce quality upgrades / downgrades while online.
+   765→    if (_pendingQuality == quality && _qualityDebounceTimer != null) {
+   766→      // Already debouncing this exact change — wait for timer.
+   767→      // Still update the raw metrics so they stay current.
+   768→      state = state.copyWith(
+   769→        isOnline: isOnline,
+   770→        connectionType: connectionType,
+   771→        latencyMs: latencyMs,
+   772→        bandwidthKbps: bandwidthKbps,
+   773→        lastOnlineAt: lastOnlineAt,
+   774→        lastOfflineAt: lastOfflineAt,
+   775→        offlineDuration: offlineDuration,
+   776→        clearOfflineDuration: clearOfflineDuration,
+   777→      );
+   778→      return;
+   779→    }
+   780→
+   781→    // New quality change — start debounce timer.
+   782→    _pendingQuality = quality;
+   783→    _qualityDebounceTimer?.cancel();
+   784→    _qualityDebounceTimer = Timer(qualityDebounceDuration, () {
+   785→      if (_isDisposed || _pendingQuality == null) return;
+   786→
+   787→      final committedQuality = _pendingQuality!;
+   788→      _pendingQuality = null;
+   789→      _lastQualityChangeAt = DateTime.now();
+   790→
+   791→      String? successMsg;
+   792→      if (committedQuality.index < previousQuality.index) {
+   793→        // Quality improved (lower index = better).
+   794→        successMsg = 'Connection improved to ${committedQuality.label}';
+   795→      }
+   796→
+   797→      state = state.copyWith(
+   798→        isOnline: isOnline,
+   799→        connectionQuality: committedQuality,
+   800→        connectionType: connectionType,
+   801→        latencyMs: latencyMs,
+   802→        bandwidthKbps: bandwidthKbps,
+   803→        lastOnlineAt: lastOnlineAt,
+   804→        lastOfflineAt: lastOfflineAt,
+   805→        offlineDuration: offlineDuration,
+   806→        clearOfflineDuration: clearOfflineDuration,
+   807→        successMessage: successMsg,
+   808→      );
+   809→
+   810→      AppLogger.info(
+   811→        'Connectivity quality (debounced): '
+   812→        '${previousQuality.value} → ${committedQuality.value}',
+   813→      );
+   814→    });
+   815→
+   816→    // Update metrics immediately even while debouncing quality tier.
+   817→    state = state.copyWith(
+   818→      isOnline: isOnline,
+   819→      connectionType: connectionType,
+   820→      latencyMs: latencyMs,
+   821→      bandwidthKbps: bandwidthKbps,
+   822→      lastOnlineAt: lastOnlineAt,
+   823→      lastOfflineAt: lastOfflineAt,
+   824→      offlineDuration: offlineDuration,
+   825→      clearOfflineDuration: clearOfflineDuration,
+   826→    );
+   827→  }
+   828→
+   829→  // ── Utility Helpers ───────────────────────────────────────────────────
+   830→
+   831→  /// Maps platform connectivity results to our [ConnectionType] enum.
+   832→  static ConnectionType _mapConnectivityResult(
+   833→    List<ConnectivityResult> results,
+   834→  ) {
+   835→    if (results.isEmpty || results.every((r) => r == ConnectivityResult.none)) {
+   836→      return ConnectionType.none;
+   837→    }
+   838→    if (results.contains(ConnectivityResult.wifi)) {
+   839→      return ConnectionType.wifi;
+   840→    }
+   841→    if (results.contains(ConnectivityResult.ethernet)) {
+   842→      return ConnectionType.ethernet;
+   843→    }
+   844→    if (results.contains(ConnectivityResult.mobile)) {
+   845→      return ConnectionType.mobile;
+   846→    }
+   847→    // VPN, bluetooth, other — treat as mobile for conservative estimates.
+   848→    if (results.contains(ConnectivityResult.vpn) ||
+   849→        results.contains(ConnectivityResult.bluetooth) ||
+   850→        results.contains(ConnectivityResult.other)) {
+   851→      return ConnectionType.mobile;
+   852→    }
+   853→    return ConnectionType.none;
+   854→  }
+   855→
+   856→  /// Adds a measurement to a ring-buffer and trims to [maxSize].
+   857→  void _addToHistory(Queue<int> history, int value) {
+   858→    history.addLast(value);
+   859→    while (history.length > latencyHistorySize) {
+   860→      history.removeFirst();
+   861→    }
+   862→  }
+   863→
+   864→  // ── Testing Hooks ─────────────────────────────────────────────────────
+   865→
+   866→  /// Exposes the latency history for testing / diagnostics.
+   867→  @visibleForTesting
+   868→  List<int> get latencyHistory => List.unmodifiable(_latencyHistory);
+   869→
+   870→  /// Exposes the bandwidth history for testing / diagnostics.
+   871→  @visibleForTesting
+   872→  List<int> get bandwidthHistory => List.unmodifiable(_bandwidthHistory);
+   873→
+   874→  /// Allows tests to inject a connectivity result without waiting for
+   875→  /// the platform stream.
+   876→  @visibleForTesting
+   877→  void simulateConnectivityChange(List<ConnectivityResult> results) {
+   878→    _onConnectivityChanged(results);
+   879→  }
+   880→
+   881→  /// Allows tests to inject measured metrics directly.
+   882→  @visibleForTesting
+   883→  void simulateMetrics({
+   884→    required bool isOnline,
+   885→    required int latencyMs,
+   886→    required int bandwidthKbps,
+   887→    ConnectionType connectionType = ConnectionType.wifi,
+   888→  }) {
+   889→    _addToHistory(_latencyHistory, latencyMs);
+   890→    _addToHistory(_bandwidthHistory, bandwidthKbps);
+   891→
+   892→    final quality = classifyQuality(
+   893→      isOnline: isOnline,
+   894→      latencyMs: latencyMs,
+   895→      bandwidthKbps: bandwidthKbps,
+   896→    );
+   897→
+   898→    _applyQualityChange(
+   899→      quality: quality,
+   900→      connectionType: connectionType,
+   901→      isOnline: isOnline,
+   902→      latencyMs: latencyMs,
+   903→      bandwidthKbps: bandwidthKbps,
+   904→    );
+   905→  }
+   906→
+   907→  // ── Lifecycle ─────────────────────────────────────────────────────────
+   908→
+   909→  @override
+   910→  void dispose() {
+   911→    _isDisposed = true;
+   912→    _monitorTimer?.cancel();
+   913→    _connectivitySubscription?.cancel();
+   914→    _qualityDebounceTimer?.cancel();
+   915→    _latencyHistory.clear();
+   916→    _bandwidthHistory.clear();
+   917→    super.dispose();
+   918→  }
+   919→}
+   920→
+   921→// ─────────────────────────────────────────────────────────────────────────────
+   922→// AdaptiveBehavior — Quality-Driven Behaviour Adjustments
+   923→// ─────────────────────────────────────────────────────────────────────────────
+   924→
+   925→/// Configures adaptive responses based on the current [ConnectivityState].
+   926→///
+   927→/// Instead of scattering quality-checking conditionals throughout the
+   928→/// codebase, centralise every adaptive decision here. Each method is a
+   929→/// pure function of the current connectivity state, making it trivial to
+   930→/// test and reason about.
+   931→class AdaptiveBehavior {
+   932→  const AdaptiveBehavior(this._state);
+   933→
+   934→  final ConnectivityState _state;
+   935→
+   936→  // ── Image Quality ─────────────────────────────────────────────────────
+   937→
+   938→  /// Image quality scalar from 0.0 (lowest) to 1.0 (original).
+   939→  ///
+   940→  ///   - excellent → 1.0
+   941→  ///   - good → 0.8
+   942→  ///   - limited → 0.5
+   943→  ///   - offline → 0.0
+   944→  double get imageQuality {
+   945→    switch (_state.connectionQuality) {
+   946→      case ConnectionQuality.excellent:
+   947→        return 1.0;
+   948→      case ConnectionQuality.good:
+   949→        return 0.8;
+   950→      case ConnectionQuality.limited:
+   951→        return 0.5;
+   952→      case ConnectionQuality.offline:
+   953→        return 0.0;
+   954→    }
+   955→  }
+   956→
+   957→  // ── Sync Interval ─────────────────────────────────────────────────────
+   958→
+   959→  /// Recommended interval between automatic sync operations.
+   960→  ///
+   961→  ///   - excellent → 30 s
+   962→  ///   - good → 1 min
+   963→  ///   - limited → 5 min
+   964→  ///   - offline → never (Duration.zero sentinel; caller should not sync)
+   965→  Duration get syncInterval {
+   966→    switch (_state.connectionQuality) {
+   967→      case ConnectionQuality.excellent:
+   968→        return const Duration(seconds: 30);
+   969→      case ConnectionQuality.good:
+   970→        return const Duration(minutes: 1);
+   971→      case ConnectionQuality.limited:
+   972→        return const Duration(minutes: 5);
+   973→      case ConnectionQuality.offline:
+   974→        return Duration.zero;
+   975→    }
+   976→  }
+   977→
+   978→  // ── Upload Compression ────────────────────────────────────────────────
+   979→
+   980→  /// Compression level (1–9) for uploads. Higher = more compression.
+   981→  ///
+   982→  ///   - excellent → 1
+   983→  ///   - good → 3
+   984→  ///   - limited → 7
+   985→  ///   - offline → 9 (queued for later)
+   986→  int get uploadCompressionLevel {
+   987→    switch (_state.connectionQuality) {
+   988→      case ConnectionQuality.excellent:
+   989→        return 1;
+   990→      case ConnectionQuality.good:
+   991→        return 3;
+   992→      case ConnectionQuality.limited:
+   993→        return 7;
+   994→      case ConnectionQuality.offline:
+   995→        return 9;
+   996→    }
+   997→  }
+   998→
+   999→  // ── Batch Size ────────────────────────────────────────────────────────
+  1000→
+  1001→  /// Recommended batch size for sync operations.
+  1002→  ///
+  1003→  ///   - excellent → 50
+  1004→  ///   - good → 20
+  1005→  ///   - limited → 5
+  1006→  ///   - offline → 0
+  1007→  int get batchSize {
+  1008→    switch (_state.connectionQuality) {
+  1009→      case ConnectionQuality.excellent:
+  1010→        return 50;
+  1011→      case ConnectionQuality.good:
+  1012→        return 20;
+  1013→      case ConnectionQuality.limited:
+  1014→        return 5;
+  1015→      case ConnectionQuality.offline:
+  1016→        return 0;
+  1017→    }
+  1018→  }
+  1019→
+  1020→  // ── Preloading ────────────────────────────────────────────────────────
+  1021→
+  1022→  /// Whether images should be pre-loaded / cached proactively.
+  1023→  bool get shouldPreloadImages {
+  1024→    return _state.connectionQuality == ConnectionQuality.excellent ||
+  1025→        _state.connectionQuality == ConnectionQuality.good;
+  1026→  }
+  1027→
+  1028→  // ── Background Fetch ──────────────────────────────────────────────────
+  1029→
+  1030→  /// Whether background data fetches should be scheduled.
+  1031→  bool get shouldBackgroundFetch {
+  1032→    return _state.connectionQuality == ConnectionQuality.excellent ||
+  1033→        _state.connectionQuality == ConnectionQuality.good;
+  1034→  }
+  1035→
+  1036→  // ── Cache Size ────────────────────────────────────────────────────────
+  1037→
+  1038→  /// Maximum cache size in megabytes.
+  1039→  ///
+  1040→  ///   - excellent → 500 MB (pre-load aggressively)
+  1041→  ///   - good → 200 MB
+  1042→  ///   - limited → 50 MB
+  1043→  ///   - offline → 10 MB (only essential cached content)
+  1044→  int get maxCacheSize {
+  1045→    switch (_state.connectionQuality) {
+  1046→      case ConnectionQuality.excellent:
+  1047→        return 500;
+  1048→      case ConnectionQuality.good:
+  1049→        return 200;
+  1050→      case ConnectionQuality.limited:
+  1051→        return 50;
+  1052→      case ConnectionQuality.offline:
+  1053→        return 10;
+  1054→    }
+  1055→  }
+  1056→
+  1057→  // ── Video Autoplay ────────────────────────────────────────────────────
+  1058→
+  1059→  /// Whether videos should auto-play in feeds.
+  1060→  bool get shouldAutoPlayVideo {
+  1061→    return _state.connectionQuality == ConnectionQuality.excellent;
+  1062→  }
+  1063→
+  1064→  // ── Full Content ──────────────────────────────────────────────────────
+  1065→
+  1066→  /// Whether full content (images, rich media) should be loaded.
+  1067→  bool get shouldLoadFullContent {
+  1068→    return _state.connectionQuality == ConnectionQuality.excellent ||
+  1069→        _state.connectionQuality == ConnectionQuality.good;
+  1070→  }
+  1071→
+  1072→  // ── Retry Delay ───────────────────────────────────────────────────────
+  1073→
+  1074→  /// Exponential retry delay based on connection quality.
+  1075→  ///
+  1076→  ///   - excellent → 1 s base × 2^attempt
+  1077→  ///   - good → 2 s base × 2^attempt
+  1078→  ///   - limited → 5 s base × 2^attempt
+  1079→  ///   - offline → 30 s base × 2^attempt
+  1080→  Duration retryDelay({int attempt = 0}) {
+  1081→    final baseSeconds = switch (_state.connectionQuality) {
+  1082→      ConnectionQuality.excellent => 1,
+  1083→      ConnectionQuality.good => 2,
+  1084→      ConnectionQuality.limited => 5,
+  1085→      ConnectionQuality.offline => 30,
+  1086→    };
+  1087→    final multiplier = pow(2, attempt).toInt();
+  1088→    return Duration(seconds: baseSeconds * multiplier);
+  1089→  }
+  1090→}
+  1091→
+  1092→// ─────────────────────────────────────────────────────────────────────────────
+  1093→// Riverpod Providers
+  1094→// ─────────────────────────────────────────────────────────────────────────────
+  1095→
+  1096→/// Primary provider: the [ConnectivityEngine] state notifier.
+  1097→///
+  1098→/// Watches [dioProvider] from the DI container so that the engine
+  1099→/// always uses the currently configured Dio instance.
+  1100→final connectivityEngineProvider =
+  1101→    StateNotifierProvider<ConnectivityEngine, ConnectivityState>((ref) {
+  1102→  final connectivity = Connectivity();
+  1103→  final dio = ref.watch(dioProvider);
+  1104→
+  1105→  final engine = ConnectivityEngine(
+  1106→    connectivity: connectivity,
+  1107→    dio: dio,
+  1108→  );
+  1109→
+  1110→  // Auto-start monitoring and clean up on dispose.
+  1111→  engine.startMonitoring();
+  1112→  ref.onDispose(() => engine.stopMonitoring());
+  1113→
+  1114→  return engine;
+  1115→});
+  1116→
+  1117→/// Derived provider: current [ConnectionQuality].
+  1118→final connectionQualityProvider = Provider<ConnectionQuality>((ref) {
+  1119→  return ref.watch(connectivityEngineProvider).connectionQuality;
+  1120→});
+  1121→
+  1122→/// Derived provider: whether the device is currently online.
+  1123→final isOnlineProvider = Provider<bool>((ref) {
+  1124→  return ref.watch(connectivityEngineProvider).isOnline;
+  1125→});
+  1126→
+  1127→/// Derived provider: the [AdaptiveBehavior] for the current state.
+  1128→final adaptiveBehaviorProvider = Provider<AdaptiveBehavior>((ref) {
+  1129→  final state = ref.watch(connectivityEngineProvider);
+  1130→  return AdaptiveBehavior(state);
+  1131→});
+  1132→
+  1133→/// Derived provider: whether image quality should be reduced.
+  1134→final shouldReduceQualityProvider = Provider<bool>((ref) {
+  1135→  return ref.watch(connectivityEngineProvider).shouldReduceImageQuality;
+  1136→});
+  1137→
+  1138→/// Derived provider: recommended sync batch size.
+  1139→final syncBatchSizeProvider = Provider<int>((ref) {
+  1140→  return ref.watch(connectivityEngineProvider).connectionQuality ==
+  1141→          ConnectionQuality.offline
+  1142→      ? 0
+  1143→      : AdaptiveBehavior(ref.watch(connectivityEngineProvider)).batchSize;
+  1144→});
+  1145→
