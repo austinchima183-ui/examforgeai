@@ -24,6 +24,7 @@
 // ============================================================================
 
 import 'dart:convert';
+import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 
@@ -382,8 +383,10 @@ class StructuredLogger {
   // ─── Private Helpers ───────────────────────────────────────────────
 
   static String _generateCorrelationId() {
-    final timestamp = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
-    final random = DateTime.now().microsecond.toRadixString(36);
-    return 'corr-$timestamp-$random';
+    // Cryptographically random 8-byte hex string for unique correlation IDs.
+    // Avoids predictable timestamp-based IDs that can collide under concurrency.
+    final bytes = List.generate(8, (_) => Random.secure().nextInt(256));
+    final hex = bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join();
+    return 'corr-$hex';
   }
 }

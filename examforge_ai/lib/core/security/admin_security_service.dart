@@ -22,6 +22,7 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../core/utils/logger.dart';
 
@@ -205,9 +206,17 @@ class AdminAuditEntry {
 class AdminSecurityService {
   AdminSecurityService._();
 
+  /// Supabase client for audit log persistence. Set via [initialize] from DI.
+  static sb.SupabaseClient? _supabaseClient;
+
   static const _secureStorage = FlutterSecureStorage(
     aOptions: AndroidOptions(encryptedSharedPreferences: true),
   );
+
+  /// Initializes the service with a Supabase client for audit log persistence.
+  static void initialize(sb.SupabaseClient client) {
+    _supabaseClient = client;
+  }
 
   // ─── SESSION MANAGEMENT ─────────────────────────────────────────────
 
@@ -416,8 +425,24 @@ class AdminSecurityService {
   static Future<void> logAudit(AdminAuditEntry entry) async {
     _auditLog.add(entry);
 
-    // In production, also write to Supabase:
-    // await supabase.from('admin_audit_log').insert(entry.toJson());
+    // Write to Supabase admin_audit_log table for persistent audit trail.
+    // Fallback to in-memory only if DB write fails (logged as CRITICAL).
+    try {
+      final client = _supabaseClient;
+      if (client != null) {
+        await client.from('admin_audit_log').insert(entry.toJson());
+      } else {
+        AppLogger.critical(
+          'AdminSecurityService: Supabase client not available — '
+          'audit entry persisted in-memory only (loss risk on crash)',
+        );
+      }
+    } catch (e) {
+      AppLogger.critical(
+        'AdminSecurityService: Failed to write audit to Supabase — '
+        'entry persisted in-memory only. Error: $e',
+      );
+    }
 
     AppLogger.info(
       'AdminSecurityService: Audit log — ${entry.action} on ${entry.resource}'

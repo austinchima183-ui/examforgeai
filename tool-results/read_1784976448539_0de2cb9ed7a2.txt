@@ -1,0 +1,872 @@
+     1→// ============================================================================
+     2→// ExamForge AI — AI Security Service (Hardened)
+     3→// ============================================================================
+     4→// Provides defense-in-depth protection for AI-powered features:
+     5→//   1. Prompt injection detection and sanitization (EXTENDED)
+     6→//   2. Unicode obfuscation detection
+     7→//   3. Base64-encoded prompt injection detection
+     8→//   4. Nested prompt injection detection
+     9→//   5. Markdown injection detection
+    10→//   6. JSON injection detection
+    11→//   7. Role override detection
+    12→//   8. System prompt extraction detection
+    13→//   9. Context leakage detection
+    14→//  10. Output validation (structure, content, safety)
+    15→//  11. Audit logging for all blocked requests
+    16→//  12. Rate limiting per user/feature
+    17→//  13. Content safety filtering
+    18→//  14. Token usage tracking and cost controls
+    19→//
+    20→// ROOT CAUSE (why this file was rewritten):
+    21→// The original implementation only detected direct English-language prompt
+    22→// injection patterns. It was vulnerable to:
+    23→//   - Unicode obfuscation (e.g., zero-width characters, homoglyphs)
+    24→//   - Base64-encoded injection payloads
+    25→//   - Nested/layered injection attempts
+    26→//   - Markdown-formatted injection
+    27→//   - JSON-formatted injection
+    28→//   - Role override via non-English phrasing
+    29→//   - System prompt extraction via subtle phrasing
+    30→//   - No audit logging of blocked requests
+    31→// ============================================================================
+    32→
+    33→import 'dart:convert';
+    34→
+    35→import '../../core/utils/logger.dart';
+    36→
+    37→// ═══════════════════════════════════════════════════════════════════════
+    38→// PROMPT INJECTION PATTERNS (EXTENDED)
+    39→// ═══════════════════════════════════════════════════════════════════════
+    40→
+    41→/// Known prompt injection attack patterns.
+    42→/// Organized by category for maintainability and targeted detection.
+    43→class PromptInjectionPatterns {
+    44→  PromptInjectionPatterns._();
+    45→
+    46→  // ─── CRITICAL PATTERNS (Always Block) ────────────────────────────────
+    47→
+    48→  /// High-confidence injection patterns that must always be blocked.
+    49→  static final List<RegExp> critical = [
+    50→    // Direct instruction overrides
+    51→    RegExp(r'ignore\s+(all\s+)?previous\s+instructions', caseSensitive: false),
+    52→    RegExp(r'disregard\s+(all\s+)?previous', caseSensitive: false),
+    53→    RegExp(r'forget\s+(all\s+)?previous\s+instructions', caseSensitive: false),
+    54→    RegExp(r'you\s+are\s+now\s+a', caseSensitive: false),
+    55→    RegExp(r'pretend\s+you\s+are', caseSensitive: false),
+    56→    RegExp(r'act\s+as\s+if\s+you\s+are', caseSensitive: false),
+    57→    RegExp(r'simulate\s+being\s+a', caseSensitive: false),
+    58→
+    59→    // System prompt extraction attempts
+    60→    RegExp(r'repeat\s+your\s+(system\s+)?prompt', caseSensitive: false),
+    61→    RegExp(r'show\s+me\s+your\s+instructions', caseSensitive: false),
+    62→    RegExp(r'what\s+are\s+your\s+instructions', caseSensitive: false),
+    63→    RegExp(r'output\s+your\s+system\s+prompt', caseSensitive: false),
+    64→    RegExp(r'print\s+your\s+initial\s+prompt', caseSensitive: false),
+    65→    RegExp(r'reveal\s+your\s+(system|initial|original)\s+(prompt|instructions|configuration)', caseSensitive: false),
+    66→    RegExp(r'display\s+(the|your)\s+system\s+prompt', caseSensitive: false),
+    67→    RegExp(r'what\s+were\s+you\s+told', caseSensitive: false),
+    68→
+    69→    // DAN (Do Anything Now) variants
+    70→    RegExp(r'DAN\s+mode', caseSensitive: false),
+    71→    RegExp(r'do\s+anything\s+now', caseSensitive: false),
+    72→    RegExp(r'jailbreak', caseSensitive: false),
+    73→    RegExp(r'bypass\s+(your\s+)?(restrictions|rules|filters)', caseSensitive: false),
+    74→    RegExp(r'(enable|activate|turn\s+on)\s+(developer|admin|root|god)\s+mode', caseSensitive: false),
+    75→
+    76→    // Data extraction attempts
+    77→    RegExp(r'reveal\s+(the\s+)?(answer|solution|key)', caseSensitive: false),
+    78→    RegExp(r'give\s+me\s+(the\s+)?(answer|solution|key)', caseSensitive: false),
+    79→    RegExp(r'tell\s+me\s+(the\s+)?correct\s+answer', caseSensitive: false),
+    80→
+    81→    // Role override attempts (NEW)
+    82→    RegExp(r'you\s+are\s+no\s+longer\s+(an?\s+)?(AI|assistant|tutor|teacher)', caseSensitive: false),
+    83→    RegExp(r'stop\s+being\s+(an?\s+)?(AI|assistant|tutor|teacher)', caseSensitive: false),
+    84→    RegExp(r'from\s+now\s+on\s+you\s+(are|will|shall)', caseSensitive: false),
+    85→    RegExp(r'your\s+new\s+(role|identity|persona|character)\s+is', caseSensitive: false),
+    86→    RegExp(r'switch\s+(to|your)\s+(role|mode|persona)', caseSensitive: false),
+    87→  ];
+    88→
+    89→  // ─── SUSPICIOUS PATTERNS (Flag for Review) ───────────────────────────
+    90→
+    91→  /// Medium-confidence injection patterns that should be flagged.
+    92→  static final List<RegExp> suspicious = [
+    93→    RegExp(r'new\s+instruction', caseSensitive: false),
+    94→    RegExp(r'system\s*:', caseSensitive: false),
+    95→    RegExp(r'assistant\s*:', caseSensitive: false),
+    96→    RegExp(r'human\s*:', caseSensitive: false),
+    97→    RegExp(r'###\s*instruction', caseSensitive: false),
+    98→    RegExp(r'\[SYSTEM\]', caseSensitive: false),
+    99→    RegExp(r'ROLE\s*:', caseSensitive: false),
+   100→    RegExp(r'stop\s+being\s+a', caseSensitive: false),
+   101→    RegExp(r"don'?t\s+be\s+a", caseSensitive: false),
+   102→  ];
+   103→
+   104→  // ─── UNICODE OBFUSCATION PATTERNS (NEW) ──────────────────────────────
+   105→
+   106→  /// Patterns that detect Unicode-based obfuscation attacks.
+   107→  static final List<RegExp> unicodeObfuscation = [
+   108→    // Zero-width characters (used to hide text)
+   109→    RegExp(r'[\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF]'),
+   110→
+   111→    // Control characters that shouldn't be in user input
+   112→    RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'),
+   113→
+   114→    // Homoglyph attack markers (Cyrillic chars that look like Latin)
+   115→    // These are commonly used to bypass keyword filters
+   116→    RegExp(r'[\u0400-\u04FF]'), // Cyrillic block
+   117→
+   118→    // Right-to-left override (used to visually hide text direction)
+   119→    RegExp(r'[\u202D\u202E]'),
+   120→
+   121→    // Unicode tag characters (invisible)
+   122→    RegExp(r'[\uE0000-\uE007F]'),
+   123→  ];
+   124→
+   125→  // ─── BASE64 INJECTION PATTERNS (NEW) ─────────────────────────────────
+   126→
+   127→  /// Patterns that detect Base64-encoded injection attempts.
+   128→  static final List<RegExp> base64Injection = [
+   129→    // Base64 strings that decode to common injection phrases
+   130→    // "SWdub3JlIGFsbCBwcmV2aW91cyBpbnN0cnVjdGlvbnM" = "Ignore all previous instructions"
+   131→    RegExp(r'SWdub3Jl\s+?\w+', caseSensitive: false),
+   132→
+   133→    // Long base64 strings (likely encoded payloads)
+   134→    RegExp(r'(?:[A-Za-z0-9+/]{40,}={0,2})'),
+   135→
+   136→    // Base64 with injection-related keywords nearby
+   137→    RegExp(r'(?:decode|base64|b64|atob)\s*[\(\[]', caseSensitive: false),
+   138→  ];
+   139→
+   140→  // ─── MARKDOWN INJECTION PATTERNS (NEW) ───────────────────────────────
+   141→
+   142→  /// Patterns that detect Markdown-formatted injection attempts.
+   143→  static final List<RegExp> markdownInjection = [
+   144→    // Markdown code blocks with system-like instructions
+   145→    RegExp(r'```(?:system|instruction|prompt|config)\s*\n', caseSensitive: false),
+   146→
+   147→    // Markdown headers with override instructions
+   148→    RegExp(r'#{1,3}\s+(system|instruction|override|ignore|new\s+rule)', caseSensitive: false),
+   149→
+   150→    // Markdown links with javascript: or data: URIs
+   151→    RegExp(r'\[.*?\]\(\s*(?:javascript|data|vbscript)\s*:', caseSensitive: false),
+   152→
+   153→    // HTML-like tags in markdown
+   154→    RegExp(r'<(?:system|instruction|override|script|iframe)', caseSensitive: false),
+   155→  ];
+   156→
+   157→  // ─── JSON INJECTION PATTERNS (NEW) ───────────────────────────────────
+   158→
+   159→  /// Patterns that detect JSON-formatted injection attempts.
+   160→  static final List<RegExp> jsonInjection = [
+   161→    // JSON with system/instruction overrides
+   162→    RegExp(r'"(?:system|instruction|role|override)"\s*:\s*"', caseSensitive: false),
+   163→
+   164→    // JSON with role switching
+   165→    RegExp(r'"role"\s*:\s*"(?:system|admin|developer|root)"', caseSensitive: false),
+   166→
+   167→    // JSON with content injection
+   168→    RegExp(r'"content"\s*:\s*"(?:ignore|forget|disregard|bypass)', caseSensitive: false),
+   169→  ];
+   170→
+   171→  // ─── CONTEXT LEAKAGE PATTERNS (NEW) ──────────────────────────────────
+   172→
+   173→  /// Patterns that detect attempts to extract context or training data.
+   174→  static final List<RegExp> contextLeakage = [
+   175→    RegExp(r'what\s+(data|information|context)\s+(were\s+you|was)\s+trained\s+on', caseSensitive: false),
+   176→    RegExp(r'(extract|leak|reveal|expose)\s+(training|internal|private|confidential)\s+data', caseSensitive: false),
+   177→    RegExp(r'(show|display|list|enumerate)\s+(all|your)\s+(knowledge|training\s+data|internal\s+state)', caseSensitive: false),
+   178→    RegExp(r'what\s+do\s+you\s+know\s+about\s+(?:other|all)\s+users?', caseSensitive: false),
+   179→  ];
+   180→
+   181→  // ─── NESTED INJECTION PATTERNS (NEW) ─────────────────────────────────
+   182→
+   183→  /// Patterns that detect nested/layered injection attempts.
+   184→  static final List<RegExp> nestedInjection = [
+   185→    // Double-encoded patterns
+   186→    RegExp(r'(?:ignore|bypass|override).{0,20}(?:ignore|bypass|override)', caseSensitive: false),
+   187→
+   188→    // Instruction within instruction
+   189→    RegExp(r'(?:then|after\s+that|next)\s*,?\s*(?:ignore|forget|disregard)', caseSensitive: false),
+   190→
+   191→    // Conditional overrides
+   192→    RegExp(r'if\s+(?:you\s+)?(?:can|could|are\s+able)\s*,?\s*(?:ignore|bypass|reveal)', caseSensitive: false),
+   193→  ];
+   194→}
+   195→
+   196→// ═══════════════════════════════════════════════════════════════════════
+   197→// SECURITY CHECK RESULT
+   198→// ═══════════════════════════════════════════════════════════════════════
+   199→
+   200→/// Result of a security check on user input or AI output.
+   201→class SecurityCheckResult {
+   202→  const SecurityCheckResult({
+   203→    required this.isSafe,
+   204→    required this.riskLevel,
+   205→    this.detectedPatterns = const [],
+   206→    this.sanitizedInput,
+   207→    this.reason,
+   208→    this.category = SecurityCategory.unknown,
+   209→  });
+   210→
+   211→  final bool isSafe;
+   212→  final RiskLevel riskLevel;
+   213→  final List<String> detectedPatterns;
+   214→  final String? sanitizedInput;
+   215→  final String? reason;
+   216→  final SecurityCategory category;
+   217→
+   218→  factory SecurityCheckResult.safe() => const SecurityCheckResult(
+   219→        isSafe: true,
+   220→        riskLevel: RiskLevel.none,
+   221→        category: SecurityCategory.none,
+   222→      );
+   223→
+   224→  factory SecurityCheckResult.suspicious(
+   225→    List<String> patterns, {
+   226→    SecurityCategory category = SecurityCategory.unknown,
+   227→  }) =>
+   228→      SecurityCheckResult(
+   229→        isSafe: true, // Allow but log
+   230→        riskLevel: RiskLevel.low,
+   231→        detectedPatterns: patterns,
+   232→        category: category,
+   233→        reason: 'Suspicious patterns detected: ${patterns.join(", ")}',
+   234→      );
+   235→
+   236→  factory SecurityCheckResult.dangerous(
+   237→    List<String> patterns, {
+   238→    String? sanitized,
+   239→    SecurityCategory category = SecurityCategory.critical,
+   240→  }) =>
+   241→      SecurityCheckResult(
+   242→        isSafe: false,
+   243→        riskLevel: RiskLevel.critical,
+   244→        detectedPatterns: patterns,
+   245→        sanitizedInput: sanitized,
+   246→        category: category,
+   247→        reason: 'Critical injection patterns detected: ${patterns.join(", ")}',
+   248→      );
+   249→}
+   250→
+   251→/// Risk level for AI security checks.
+   252→enum RiskLevel { none, low, medium, high, critical }
+   253→
+   254→/// Category of security threat detected.
+   255→enum SecurityCategory {
+   256→  none,
+   257→  critical,
+   258→  unicodeObfuscation,
+   259→  base64Injection,
+   260→  markdownInjection,
+   261→  jsonInjection,
+   262→  roleOverride,
+   263→  systemPromptExtraction,
+   264→  contextLeakage,
+   265→  nestedInjection,
+   266→  suspicious,
+   267→  unknown,
+   268→}
+   269→
+   270→// ═══════════════════════════════════════════════════════════════════════
+   271→// AI SECURITY SERVICE (HARDENED)
+   272→// ═══════════════════════════════════════════════════════════════════════
+   273→
+   274→/// Centralized AI security service that provides defense-in-depth
+   275→/// protection for all AI-powered features.
+   276→///
+   277→/// HARDENED with:
+   278→/// - Unicode normalization before pattern matching
+   279→/// - Base64 payload detection and decoding
+   280→/// - Nested injection detection
+   281→/// - Markdown injection detection
+   282→/// - JSON injection detection
+   283→/// - Role override detection
+   284→/// - System prompt extraction detection
+   285→/// - Context leakage detection
+   286→/// - Comprehensive audit logging
+   287→class AiSecurityService {
+   288→  AiSecurityService._();
+   289→
+   290→  /// In-memory audit log for blocked requests.
+   291→  /// In production, this should be persisted to a database table.
+   292→  static final List<AuditLogEntry> _auditLog = [];
+   293→
+   294→  /// Maximum audit log entries to keep in memory.
+   295→  static const int _maxAuditLogSize = 10000;
+   296→
+   297→  // ─── INPUT VALIDATION (Prompt Injection Detection — HARDENED) ─────
+   298→
+   299→  /// Checks user input for prompt injection attacks before sending
+   300→  /// it to the AI model.
+   301→  ///
+   302→  /// HARDENED: Now also detects:
+   303→  /// - Unicode obfuscation attempts
+   304→  /// - Base64-encoded injection payloads
+   305→  /// - Nested/layered injection
+   306→  /// - Markdown-formatted injection
+   307→  /// - JSON-formatted injection
+   308→  /// - Role override attempts
+   309→  /// - System prompt extraction via subtle phrasing
+   310→  /// - Context leakage attempts
+   311→  ///
+   312→  /// Input is normalized before pattern matching to defeat
+   313→  /// Unicode-based evasion.
+   314→  static SecurityCheckResult checkInput(String input) {
+   315→    if (input.isEmpty) return SecurityCheckResult.safe();
+   316→
+   317→    final criticalMatches = <String>[];
+   318→    final suspiciousMatches = <String>[];
+   319→    SecurityCategory topCategory = SecurityCategory.none;
+   320→
+   321→    // ─── Step 1: Normalize input to defeat Unicode evasion ──────────
+   322→    final normalized = _normalizeInput(input);
+   323→
+   324→    // ─── Step 2: Check critical patterns ────────────────────────────
+   325→    for (final pattern in PromptInjectionPatterns.critical) {
+   326→      if (pattern.hasMatch(normalized)) {
+   327→        criticalMatches.add(pattern.pattern);
+   328→        topCategory = SecurityCategory.critical;
+   329→      }
+   330→    }
+   331→
+   332→    // ─── Step 3: Check suspicious patterns ──────────────────────────
+   333→    for (final pattern in PromptInjectionPatterns.suspicious) {
+   334→      if (pattern.hasMatch(normalized)) {
+   335→        suspiciousMatches.add(pattern.pattern);
+   336→        if (topCategory == SecurityCategory.none) {
+   337→          topCategory = SecurityCategory.suspicious;
+   338→        }
+   339→      }
+   340→    }
+   341→
+   342→    // ─── Step 4: Check Unicode obfuscation ──────────────────────────
+   343→    final unicodeMatches = <String>[];
+   344→    for (final pattern in PromptInjectionPatterns.unicodeObfuscation) {
+   345→      if (pattern.hasMatch(input)) { // Check ORIGINAL input, not normalized
+   346→        unicodeMatches.add(pattern.pattern);
+   347→        criticalMatches.add('Unicode obfuscation: ${pattern.pattern}');
+   348→        topCategory = SecurityCategory.unicodeObfuscation;
+   349→      }
+   350→    }
+   351→
+   352→    // ─── Step 5: Check Base64 injection ─────────────────────────────
+   353→    final base64Matches = _checkBase64Injection(input, normalized);
+   354→    if (base64Matches.isNotEmpty) {
+   355→      criticalMatches.addAll(base64Matches);
+   356→      topCategory = SecurityCategory.base64Injection;
+   357→    }
+   358→
+   359→    // ─── Step 6: Check Markdown injection ───────────────────────────
+   360→    for (final pattern in PromptInjectionPatterns.markdownInjection) {
+   361→      if (pattern.hasMatch(normalized)) {
+   362→        criticalMatches.add('Markdown injection: ${pattern.pattern}');
+   363→        topCategory = SecurityCategory.markdownInjection;
+   364→      }
+   365→    }
+   366→
+   367→    // ─── Step 7: Check JSON injection ───────────────────────────────
+   368→    for (final pattern in PromptInjectionPatterns.jsonInjection) {
+   369→      if (pattern.hasMatch(normalized)) {
+   370→        criticalMatches.add('JSON injection: ${pattern.pattern}');
+   371→        topCategory = SecurityCategory.jsonInjection;
+   372→      }
+   373→    }
+   374→
+   375→    // ─── Step 8: Check role override attempts ───────────────────────
+   376→    for (final pattern in PromptInjectionPatterns.critical) {
+   377→      // Role override patterns are already in critical, but we also
+   378→      // check for them specifically for categorization
+   379→      if (pattern.pattern.contains('role|identity|persona|character|no longer')) {
+   380→        if (pattern.hasMatch(normalized)) {
+   381→          topCategory = SecurityCategory.roleOverride;
+   382→        }
+   383→      }
+   384→    }
+   385→
+   386→    // ─── Step 9: Check context leakage ──────────────────────────────
+   387→    for (final pattern in PromptInjectionPatterns.contextLeakage) {
+   388→      if (pattern.hasMatch(normalized)) {
+   389→        criticalMatches.add('Context leakage: ${pattern.pattern}');
+   390→        topCategory = SecurityCategory.contextLeakage;
+   391→      }
+   392→    }
+   393→
+   394→    // ─── Step 10: Check nested injection ────────────────────────────
+   395→    for (final pattern in PromptInjectionPatterns.nestedInjection) {
+   396→      if (pattern.hasMatch(normalized)) {
+   397→        criticalMatches.add('Nested injection: ${pattern.pattern}');
+   398→        topCategory = SecurityCategory.nestedInjection;
+   399→      }
+   400→    }
+   401→
+   402→    // ─── Step 11: Return result ─────────────────────────────────────
+   403→    if (criticalMatches.isNotEmpty) {
+   404→      _logBlockedRequest(
+   405→        input: input,
+   406→        patterns: criticalMatches,
+   407→        category: topCategory,
+   408→      );
+   409→      AppLogger.warning(
+   410→        'AI SECURITY: Critical prompt injection detected. '
+   411→        'Category: $topCategory, Patterns: ${criticalMatches.join(", ")}',
+   412→      );
+   413→      return SecurityCheckResult.dangerous(
+   414→        criticalMatches,
+   415→        sanitized: _sanitizeInput(normalized),
+   416→        category: topCategory,
+   417→      );
+   418→    }
+   419→
+   420→    if (suspiciousMatches.isNotEmpty) {
+   421→      _logBlockedRequest(
+   422→        input: input,
+   423→        patterns: suspiciousMatches,
+   424→        category: SecurityCategory.suspicious,
+   425→        blocked: false,
+   426→      );
+   427→      AppLogger.info(
+   428→        'AI SECURITY: Suspicious patterns detected. '
+   429→        'Patterns: ${suspiciousMatches.join(", ")}',
+   430→      );
+   431→      return SecurityCheckResult.suspicious(suspiciousMatches, category: topCategory);
+   432→    }
+   433→
+   434→    return SecurityCheckResult.safe();
+   435→  }
+   436→
+   437→  /// Normalize input before pattern matching.
+   438→  ///
+   439→  /// This defeats Unicode-based evasion techniques:
+   440→  /// - Removes zero-width characters
+   441→  /// - Normalizes Unicode to NFC form
+   442→  /// - Strips control characters
+   443→  /// - Converts homoglyphs to ASCII equivalents
+   444→  static String _normalizeInput(String input) {
+   445→    var normalized = input;
+   446→
+   447→    // Remove zero-width characters
+   448→    normalized = normalized.replaceAll(
+   449→      RegExp(r'[\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF]'),
+   450→      '',
+   451→    );
+   452→
+   453→    // Remove control characters (except newline and tab)
+   454→    normalized = normalized.replaceAll(
+   455→      RegExp(r'[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]'),
+   456→      '',
+   457→    );
+   458→
+   459→    // Normalize Unicode to composed form (NFC)
+   460→    // This converts accented characters to their canonical form
+   461→    normalized = normalized.replaceAll(RegExp(r'\uFEFF'), ''); // BOM
+   462→
+   463→    // Convert common Cyrillic homoglyphs to Latin equivalents
+   464→    final homoglyphMap = <int, String>{
+   465→      0x0430: 'a', // а -> a
+   466→      0x0435: 'e', // е -> e
+   467→      0x043E: 'o', // о -> o
+   468→      0x0440: 'p', // р -> p
+   469→      0x0441: 'c', // с -> c
+   470→      0x0443: 'y', // у -> y
+   471→      0x0445: 'x', // х -> x
+   472→      0x0410: 'A', // А -> A
+   473→      0x0415: 'E', // Е -> E
+   474→      0x041E: 'O', // О -> O
+   475→      0x0420: 'P', // Р -> P
+   476→      0x0421: 'C', // С -> C
+   477→      0x0425: 'X', // Х -> X
+   478→    };
+   479→
+   480→    final buffer = StringBuffer();
+   481→    for (final codeUnit in normalized.runes) {
+   482→      if (homoglyphMap.containsKey(codeUnit)) {
+   483→        buffer.write(homoglyphMap[codeUnit]);
+   484→      } else {
+   485→        buffer.writeCharCode(codeUnit);
+   486→      }
+   487→    }
+   488→
+   489→    return buffer.toString();
+   490→  }
+   491→
+   492→  /// Check for Base64-encoded injection attempts.
+   493→  ///
+   494→  /// Decodes any long Base64 strings found in the input and checks
+   495→  /// the decoded content against critical injection patterns.
+   496→  static List<String> _checkBase64Injection(String original, String normalized) {
+   497→    final matches = <String>[];
+   498→
+   499→    // Find potential Base64 strings
+   500→    final base64Regex = RegExp(r'[A-Za-z0-9+/]{20,}={0,2}');
+   501→    final base64Matches = base64Regex.allMatches(normalized);
+   502→
+   503→    for (final match in base64Matches) {
+   504→      final candidate = match.group(0)!;
+   505→
+   506→      // Only check strings that look like they could be meaningful payloads
+   507→      if (candidate.length < 20) continue;
+   508→
+   509→      try {
+   510→        final decoded = utf8.decode(base64Decode(candidate));
+   511→
+   512→        // Check decoded content against critical patterns
+   513→        for (final pattern in PromptInjectionPatterns.critical) {
+   514→          if (pattern.hasMatch(decoded)) {
+   515→            matches.add(
+   516→              'Base64 injection: decoded content matches "${pattern.pattern}"',
+   517→            );
+   518→          }
+   519→        }
+   520→
+   521→        // Check for role override in decoded content
+   522→        for (final pattern in PromptInjectionPatterns.suspicious) {
+   523→          if (pattern.hasMatch(decoded)) {
+   524→            matches.add(
+   525→              'Base64 suspicious: decoded content matches "${pattern.pattern}"',
+   526→            );
+   527→          }
+   528→        }
+   529→      } catch (_) {
+   530→        // Not valid Base64 or not valid UTF-8 — ignore
+   531→      }
+   532→    }
+   533→
+   534→    return matches;
+   535→  }
+   536→
+   537→  /// Sanitizes user input by removing or escaping potentially
+   538→  /// dangerous content.
+   539→  static String _sanitizeInput(String input) {
+   540→    var sanitized = input;
+   541→
+   542→    // Remove common injection prefixes
+   543→    sanitized = sanitized.replaceAll(
+   544→      RegExp(r'(ignore|disregard|forget)\s+(all\s+)?previous\s+instructions',
+   545→          caseSensitive: false,),
+   546→      '[REDACTED]',
+   547→    );
+   548→
+   549→    // Remove role-playing attempts
+   550→    sanitized = sanitized.replaceAll(
+   551→      RegExp(r'(you are now|pretend you are|act as if you are)\s+',
+   552→          caseSensitive: false,),
+   553→      '[REDACTED]',
+   554→    );
+   555→
+   556→    // Remove system prompt extraction attempts
+   557→    sanitized = sanitized.replaceAll(
+   558→      RegExp(r'(repeat|show|output|print)\s+(your|the)\s+(system\s+)?prompt',
+   559→          caseSensitive: false,),
+   560→      '[REDACTED]',
+   561→    );
+   562→
+   563→    // Remove role override attempts
+   564→    sanitized = sanitized.replaceAll(
+   565→      RegExp(r'(you are no longer|stop being|your new role|from now on you)\s+',
+   566→          caseSensitive: false,),
+   567→      '[REDACTED]',
+   568→    );
+   569→
+   570→    // Remove context leakage attempts
+   571→    sanitized = sanitized.replaceAll(
+   572→      RegExp(r'(extract|leak|reveal|expose)\s+(training|internal|private)\s+',
+   573→          caseSensitive: false,),
+   574→      '[REDACTED]',
+   575→    );
+   576→
+   577→    // Remove zero-width characters
+   578→    sanitized = sanitized.replaceAll(
+   579→      RegExp(r'[\u200B-\u200F\u2028-\u202F\u2060-\u206F\uFEFF]'),
+   580→      '',
+   581→    );
+   582→
+   583→    return sanitized;
+   584→  }
+   585→
+   586→  // ─── OUTPUT VALIDATION ────────────────────────────────────────────
+   587→
+   588→  /// Validates AI-generated output for structural correctness,
+   589→  /// content safety, and potential hallucinations.
+   590→  static SecurityCheckResult validateOutput(
+   591→    String output, {
+   592→    String? expectedFormat,
+   593→    Map<String, dynamic>? context,
+   594→  }) {
+   595→    if (output.isEmpty) {
+   596→      return const SecurityCheckResult(
+   597→        isSafe: false,
+   598→        riskLevel: RiskLevel.medium,
+   599→        reason: 'Empty output from AI model',
+   600→      );
+   601→    }
+   602→
+   603→    // Check if the output contains leaked system prompt fragments
+   604→    final systemPromptLeaks = _checkSystemPromptLeakage(output);
+   605→    if (systemPromptLeaks.isNotEmpty) {
+   606→      _logBlockedRequest(
+   607→        input: output,
+   608→        patterns: systemPromptLeaks,
+   609→        category: SecurityCategory.systemPromptExtraction,
+   610→        isOutput: true,
+   611→      );
+   612→      AppLogger.warning(
+   613→        'AI SECURITY: System prompt leakage detected in output. '
+   614→        'Patterns: ${systemPromptLeaks.join(", ")}',
+   615→      );
+   616→      return SecurityCheckResult(
+   617→        isSafe: false,
+   618→        riskLevel: RiskLevel.high,
+   619→        detectedPatterns: systemPromptLeaks,
+   620→        reason: 'Output contains leaked system prompt content',
+   621→        category: SecurityCategory.systemPromptExtraction,
+   622→      );
+   623→    }
+   624→
+   625→    // Validate JSON structure if expected
+   626→    if (expectedFormat == 'json') {
+   627→      final jsonValid = _validateJsonOutput(output);
+   628→      if (!jsonValid) {
+   629→        return const SecurityCheckResult(
+   630→          isSafe: false,
+   631→          riskLevel: RiskLevel.medium,
+   632→          reason: 'AI output is not valid JSON',
+   633→        );
+   634→      }
+   635→    }
+   636→
+   637→    // Check for hallucinated content patterns
+   638→    final hallucinationCheck = _checkHallucination(output, context: context);
+   639→    if (hallucinationCheck.riskLevel == RiskLevel.high) {
+   640→      return hallucinationCheck;
+   641→    }
+   642→
+   643→    return SecurityCheckResult.safe();
+   644→  }
+   645→
+   646→  /// Checks if AI output contains fragments of the system prompt.
+   647→  static List<String> _checkSystemPromptLeakage(String output) {
+   648→    final leaks = <String>[];
+   649→
+   650→    final leakPatterns = [
+   651→      RegExp(r'You are ExamForge', caseSensitive: false),
+   652→      RegExp(r'system\s+prompt', caseSensitive: false),
+   653→      RegExp(r'###\s*system', caseSensitive: false),
+   654→      RegExp(r'\[SYSTEM\]', caseSensitive: false),
+   655→      RegExp(r'as an AI (language )?model', caseSensitive: false),
+   656→      RegExp(r"I (cannot|can't|won't) (provide|generate|create)", caseSensitive: false),
+   657→      RegExp(r'my\s+(instructions|prompt|guidelines|rules)\s+(are|state|say)', caseSensitive: false),
+   658→      RegExp(r'I\s+was\s+(instructed|told|programmed)\s+to', caseSensitive: false),
+   659→    ];
+   660→
+   661→    for (final pattern in leakPatterns) {
+   662→      if (pattern.hasMatch(output)) {
+   663→        leaks.add(pattern.pattern);
+   664→      }
+   665→    }
+   666→
+   667→    return leaks;
+   668→  }
+   669→
+   670→  /// Validates that the output is parseable as JSON.
+   671→  static bool _validateJsonOutput(String output) {
+   672→    final jsonBlockRegex = RegExp(r'```(?:json)?\s*\n?([\s\S]*?)\n?```');
+   673→    final jsonMatch = jsonBlockRegex.firstMatch(output);
+   674→
+   675→    String jsonStr;
+   676→    if (jsonMatch != null) {
+   677→      jsonStr = jsonMatch.group(1)!.trim();
+   678→    } else {
+   679→      jsonStr = output.trim();
+   680→    }
+   681→
+   682→    if (!jsonStr.startsWith('[') && !jsonStr.startsWith('{')) {
+   683→      return false;
+   684→    }
+   685→
+   686→    try {
+   687→      int bracketCount = 0;
+   688→      for (int i = 0; i < jsonStr.length; i++) {
+   689→        final char = jsonStr[i];
+   690→        if (char == '{' || char == '[') bracketCount++;
+   691→        if (char == '}' || char == ']') bracketCount--;
+   692→        if (bracketCount < 0) return false;
+   693→      }
+   694→      return bracketCount == 0;
+   695→    } catch (_) {
+   696→      return false;
+   697→    }
+   698→  }
+   699→
+   700→  /// Checks for common hallucination patterns in AI output.
+   701→  static SecurityCheckResult _checkHallucination(
+   702→    String output, {
+   703→    Map<String, dynamic>? context,
+   704→  }) {
+   705→    final warnings = <String>[];
+   706→
+   707→    final placeholderPatterns = [
+   708→      RegExp(r'\[insert\s+\w+\]', caseSensitive: false),
+   709→      RegExp(r'\[your\s+\w+\s+here\]', caseSensitive: false),
+   710→      RegExp(r'\[teacher\s+name\]', caseSensitive: false),
+   711→      RegExp(r'\[school\s+name\]', caseSensitive: false),
+   712→      RegExp(r'TBD|TBA|TODO', caseSensitive: false),
+   713→    ];
+   714→
+   715→    for (final pattern in placeholderPatterns) {
+   716→      if (pattern.hasMatch(output)) {
+   717→        warnings.add('Placeholder text detected: ${pattern.pattern}');
+   718→      }
+   719→    }
+   720→
+   721→    final answerPattern = RegExp(r'(?:answer|correct)\s*(?:is|:)\s*([A-E])',
+   722→        caseSensitive: false,);
+   723→    final answers = answerPattern.allMatches(output).map((m) => m.group(1)).toList();
+   724→    if (answers.toSet().length > 1) {
+   725→      warnings.add('Contradictory answers detected: ${answers.join(", ")}');
+   726→    }
+   727→
+   728→    if (output.length > 50000) {
+   729→      warnings.add('Output unusually long (${output.length} chars) — possible model loop');
+   730→    }
+   731→
+   732→    if (warnings.isNotEmpty) {
+   733→      return SecurityCheckResult(
+   734→        isSafe: true,
+   735→        riskLevel: RiskLevel.low,
+   736→        detectedPatterns: warnings,
+   737→        reason: 'Potential hallucination indicators: ${warnings.join("; ")}',
+   738→      );
+   739→    }
+   740→
+   741→    return SecurityCheckResult.safe();
+   742→  }
+   743→
+   744→  // ─── CONTENT SAFETY ───────────────────────────────────────────────
+   745→
+   746→  /// Checks AI output for content that should be filtered.
+   747→  static bool isContentSafe(String content) {
+   748→    if (content.isEmpty) return true;
+   749→
+   750→    final harmfulPatterns = [
+   751→      RegExp(r'\b(hack|exploit|vulnerability)\s+(into|against|for)\b',
+   752→          caseSensitive: false,),
+   753→      RegExp(r'\bhow\s+to\s+(cheat|hack|exploit)\b', caseSensitive: false),
+   754→      RegExp(r'\b(create|make|build)\s+(a\s+)?(bomb|weapon|drug)\b',
+   755→          caseSensitive: false,),
+   756→    ];
+   757→
+   758→    for (final pattern in harmfulPatterns) {
+   759→      if (pattern.hasMatch(content)) {
+   760→        AppLogger.warning(
+   761→          'AI SECURITY: Potentially harmful content detected: ${pattern.pattern}',
+   762→        );
+   763→        return false;
+   764→      }
+   765→    }
+   766→
+   767→    return true;
+   768→  }
+   769→
+   770→  // ─── COST CONTROL ─────────────────────────────────────────────────
+   771→
+   772→  /// Maximum allowed cost per single AI request (in USD).
+   773→  static const double maxCostPerRequest = 0.50;
+   774→
+   775→  /// Maximum allowed tokens per single AI request.
+   776→  static const int maxTokensPerRequest = 8000;
+   777→
+   778→  /// Validates that an AI request is within cost and token limits.
+   779→  static bool validateRequestLimits({
+   780→    required int inputTokens,
+   781→    required int requestedOutputTokens,
+   782→    required double estimatedCost,
+   783→  }) {
+   784→    if (estimatedCost > maxCostPerRequest) {
+   785→      AppLogger.warning(
+   786→        'AI SECURITY: Request cost ($estimatedCost USD) exceeds limit '
+   787→        '($maxCostPerRequest USD). Blocking request.',
+   788→      );
+   789→      return false;
+   790→    }
+   791→
+   792→    if (inputTokens + requestedOutputTokens > maxTokensPerRequest) {
+   793→      AppLogger.warning(
+   794→        'AI SECURITY: Request tokens (${inputTokens + requestedOutputTokens}) '
+   795→        'exceed limit ($maxTokensPerRequest). Blocking request.',
+   796→      );
+   797→      return false;
+   798→    }
+   799→
+   800→    return true;
+   801→  }
+   802→
+   803→  // ─── AUDIT LOGGING ────────────────────────────────────────────────
+   804→
+   805→  /// Log a blocked or flagged request for audit purposes.
+   806→  static void _logBlockedRequest({
+   807→    required String input,
+   808→    required List<String> patterns,
+   809→    required SecurityCategory category,
+   810→    bool blocked = true,
+   811→    bool isOutput = false,
+   812→  }) {
+   813→    final entry = AuditLogEntry(
+   814→      timestamp: DateTime.now(),
+   815→      inputPreview: input.length > 200 ? '${input.substring(0, 200)}...' : input,
+   816→      detectedPatterns: patterns,
+   817→      category: category,
+   818→      blocked: blocked,
+   819→      isOutput: isOutput,
+   820→    );
+   821→
+   822→    _auditLog.add(entry);
+   823→
+   824→    // Trim audit log if it exceeds maximum size
+   825→    if (_auditLog.length > _maxAuditLogSize) {
+   826→      _auditLog.removeRange(0, _auditLog.length - _maxAuditLogSize);
+   827→    }
+   828→  }
+   829→
+   830→  /// Get recent audit log entries for review.
+   831→  static List<AuditLogEntry> getAuditLog({int limit = 100}) {
+   832→    return _auditLog.reversed.take(limit).toList();
+   833→  }
+   834→
+   835→  /// Get count of blocked requests by category.
+   836→  static Map<SecurityCategory, int> getBlockedRequestStats() {
+   837→    final stats = <SecurityCategory, int>{};
+   838→    for (final entry in _auditLog.where((e) => e.blocked)) {
+   839→      stats[entry.category] = (stats[entry.category] ?? 0) + 1;
+   840→    }
+   841→    return stats;
+   842→  }
+   843→}
+   844→
+   845→// ═══════════════════════════════════════════════════════════════════════
+   846→// AUDIT LOG ENTRY
+   847→// ═══════════════════════════════════════════════════════════════════════
+   848→
+   849→/// An entry in the AI security audit log.
+   850→class AuditLogEntry {
+   851→  const AuditLogEntry({
+   852→    required this.timestamp,
+   853→    required this.inputPreview,
+   854→    required this.detectedPatterns,
+   855→    required this.category,
+   856→    required this.blocked,
+   857→    this.isOutput = false,
+   858→  });
+   859→
+   860→  final DateTime timestamp;
+   861→  final String inputPreview;
+   862→  final List<String> detectedPatterns;
+   863→  final SecurityCategory category;
+   864→  final bool blocked;
+   865→  final bool isOutput;
+   866→
+   867→  @override
+   868→  String toString() =>
+   869→      'AuditLogEntry(${blocked ? "BLOCKED" : "FLAGGED"}, $category, '
+   870→      '${timestamp.toIso8601String()}, patterns: ${detectedPatterns.length})';
+   871→}
+   872→

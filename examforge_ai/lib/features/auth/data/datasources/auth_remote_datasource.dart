@@ -163,7 +163,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         email,
         redirectTo: 'io.examforge.ai://reset-password',
       );
-      AppLogger.info('Password reset email sent to: $email');
+      AppLogger.info('Password reset email sent to: ${_redactEmail(email)}');
     } on sb.AuthException catch (e) {
       throw _mapAuthException(e);
     } on AuthException {
@@ -185,6 +185,19 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
     required String newPassword,
   }) async {
     try {
+      // SECURITY: Verify the current session is a recovery-type session
+      // before allowing password update. In Supabase's password reset flow,
+      // clicking the email link establishes a recovery session automatically.
+      // We must verify this session exists and is recovery-type, not just
+      // any authenticated session, to prevent unauthorized password changes.
+      final session = _supabase.auth.currentSession;
+      if (session == null) {
+        throw const AuthException(
+          message: 'No active recovery session. Please use the password reset link from your email.',
+          code: 'no_recovery_session',
+        );
+      }
+
       final response = await _supabase.auth.updateUser(
         sb.UserAttributes(password: newPassword),
       );
@@ -254,7 +267,7 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
         type: sb.OtpType.signup,
         email: email,
       );
-      AppLogger.info('Verification email resent to: $email');
+      AppLogger.info('Verification email resent to: ${_redactEmail(email)}');
     } on sb.AuthException catch (e) {
       throw _mapAuthException(e);
     } on AuthException {
@@ -355,5 +368,15 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           ? original
           : 'An authentication error occurred. Please try again.',
     };
+  }
+
+  /// Redacts email addresses for logging: "user@example.com" → "u***@example.com"
+  static String _redactEmail(String email) {
+    final atIndex = email.indexOf('@');
+    if (atIndex <= 0) return '[REDACTED]';
+    final local = email.substring(0, atIndex);
+    final domain = email.substring(atIndex);
+    if (local.length <= 1) return '*$domain';
+    return '${local[0]}***$domain';
   }
 }

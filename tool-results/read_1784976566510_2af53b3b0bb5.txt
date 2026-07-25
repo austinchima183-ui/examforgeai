@@ -1,0 +1,834 @@
+     1→-- ═══════════════════════════════════════════════════════════════════════════════
+     2→-- EXAMFORGE AI — PARENT PORTAL MODULE SCHEMA
+     3→-- ═══════════════════════════════════════════════════════════════════════════════
+     4→-- Comprehensive parent portal: dashboard, child profiles, academic performance,
+     5→-- attendance, assignments, messaging, calendar, AI assistant, notifications,
+     6→-- reports, and parent engagement analytics.
+     7→-- Depends on: schema.sql, school_management_schema.sql, results_analytics_schema.sql
+     8→-- ═══════════════════════════════════════════════════════════════════════════════
+     9→
+    10→-- ─── Custom Enums ──────────────────────────────────────────────────────────────
+    11→
+    12→CREATE TYPE message_direction AS ENUM (
+    13→  'incoming',
+    14→  'outgoing'
+    15→);
+    16→
+    17→CREATE TYPE message_status AS ENUM (
+    18→  'sent',
+    19→  'delivered',
+    20→  'read',
+    21→  'failed'
+    22→);
+    23→
+    24→CREATE TYPE parent_insight_type AS ENUM (
+    25→  'performance_trend',
+    26→  'attendance_alert',
+    27→  'study_recommendation',
+    28→  'engagement_tip',
+    29→  'milestone',
+    30→  'concern'
+    31→);
+    32→
+    33→CREATE TYPE engagement_metric_type AS ENUM (
+    34→  'report_card_viewed',
+    35→  'announcement_read',
+    36→  'message_sent',
+    37→  'meeting_attended',
+    38→  'assignment_checked',
+    39→  'attendance_checked',
+    40→  'calendar_viewed',
+    41→  'ai_assistant_used'
+    42→);
+    43→
+    44→CREATE TYPE report_download_format AS ENUM (
+    45→  'pdf',
+    46→  'excel',
+    47→  'printable'
+    48→);
+    49→
+    50→-- ═══════════════════════════════════════════════════════════════════════════════
+    51→-- PARENT MESSAGES TABLE
+    52→-- ═══════════════════════════════════════════════════════════════════════════════
+    53→
+    54→CREATE TABLE IF NOT EXISTS parent_messages (
+    55→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    56→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    57→
+    58→  -- Sender & Recipient
+    59→  sender_id       UUID NOT NULL REFERENCES auth.users(id),
+    60→  sender_role     user_role NOT NULL DEFAULT 'parent',
+    61→  recipient_id    UUID NOT NULL REFERENCES auth.users(id),
+    62→  recipient_role  user_role NOT NULL DEFAULT 'teacher',
+    63→
+    64→  -- Context
+    65→  student_id      UUID REFERENCES auth.users(id),  -- related student (optional)
+    66→  subject         TEXT NOT NULL,
+    67→  body            TEXT NOT NULL,
+    68→
+    69→  -- Threading
+    70→  parent_message_id UUID REFERENCES parent_messages(id) ON DELETE SET NULL,
+    71→  thread_id       UUID,  -- grouping ID for conversation threads
+    72→
+    73→  -- Status
+    74→  direction       message_direction NOT NULL DEFAULT 'outgoing',
+    75→  status          message_status NOT NULL DEFAULT 'sent',
+    76→  is_flagged      BOOLEAN NOT NULL DEFAULT FALSE,
+    77→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+    78→
+    79→  -- Read tracking
+    80→  read_at         TIMESTAMPTZ,
+    81→  delivered_at    TIMESTAMPTZ,
+    82→
+    83→  -- Attachments
+    84→  attachments     JSONB DEFAULT '[]'::jsonb,  -- [{name, url, type, size}]
+    85→
+    86→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    87→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    88→);
+    89→
+    90→CREATE INDEX idx_parent_messages_school ON parent_messages(school_id);
+    91→CREATE INDEX idx_parent_messages_sender ON parent_messages(sender_id);
+    92→CREATE INDEX idx_parent_messages_recipient ON parent_messages(recipient_id);
+    93→CREATE INDEX idx_parent_messages_student ON parent_messages(student_id);
+    94→CREATE INDEX idx_parent_messages_thread ON parent_messages(thread_id);
+    95→CREATE INDEX idx_parent_messages_unread ON parent_messages(recipient_id, read_at) WHERE read_at IS NULL;
+    96→CREATE INDEX idx_parent_messages_created ON parent_messages(created_at DESC);
+    97→
+    98→-- ═══════════════════════════════════════════════════════════════════════════════
+    99→-- PARENT NOTIFICATIONS TABLE
+   100→-- ═══════════════════════════════════════════════════════════════════════════════
+   101→
+   102→CREATE TABLE IF NOT EXISTS parent_notifications (
+   103→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   104→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   105→  parent_id       UUID NOT NULL REFERENCES auth.users(id),
+   106→  student_id      UUID REFERENCES auth.users(id),  -- related student
+   107→
+   108→  -- Notification content
+   109→  title           TEXT NOT NULL,
+   110→  body            TEXT NOT NULL,
+   111→  notification_type notification_type NOT NULL DEFAULT 'system',
+   112→  category        TEXT NOT NULL DEFAULT 'general',  -- result, attendance, assignment, announcement, exam, message, fee
+   113→  priority        TEXT NOT NULL DEFAULT 'normal',    -- low, normal, high, urgent
+   114→
+   115→  -- Data payload
+   116→  data            JSONB DEFAULT '{}'::jsonb,
+   117→
+   118→  -- Read status
+   119→  is_read         BOOLEAN NOT NULL DEFAULT FALSE,
+   120→  read_at         TIMESTAMPTZ,
+   121→
+   122→  -- Delivery channels
+   123→  delivered_in_app    BOOLEAN NOT NULL DEFAULT FALSE,
+   124→  delivered_push      BOOLEAN NOT NULL DEFAULT FALSE,
+   125→  delivered_email     BOOLEAN NOT NULL DEFAULT FALSE,
+   126→  delivered_sms       BOOLEAN NOT NULL DEFAULT FALSE,
+   127→
+   128→  -- Action
+   129→  action_url      TEXT,    -- deep link to relevant page
+   130→  action_label    TEXT,    -- e.g. "View Results"
+   131→
+   132→  expires_at      TIMESTAMPTZ,
+   133→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   134→);
+   135→
+   136→CREATE INDEX idx_parent_notifications_parent ON parent_notifications(parent_id);
+   137→CREATE INDEX idx_parent_notifications_parent_unread ON parent_notifications(parent_id, is_read) WHERE is_read = FALSE;
+   138→CREATE INDEX idx_parent_notifications_student ON parent_notifications(student_id);
+   139→CREATE INDEX idx_parent_notifications_type ON parent_notifications(notification_type);
+   140→CREATE INDEX idx_parent_notifications_created ON parent_notifications(created_at DESC);
+   141→
+   142→-- ═══════════════════════════════════════════════════════════════════════════════
+   143→-- PARENT ACTIVITY LOGS TABLE
+   144→-- ═══════════════════════════════════════════════════════════════════════════════
+   145→
+   146→CREATE TABLE IF NOT EXISTS parent_activity_logs (
+   147→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   148→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   149→  parent_id       UUID NOT NULL REFERENCES auth.users(id),
+   150→  student_id      UUID REFERENCES auth.users(id),
+   151→
+   152→  -- Activity tracking
+   153→  action          TEXT NOT NULL,          -- e.g. 'viewed_report_card', 'read_announcement'
+   154→  resource_type   TEXT,                   -- e.g. 'result', 'attendance', 'assignment'
+   155→  resource_id     UUID,
+   156→  details         JSONB DEFAULT '{}'::jsonb,
+   157→
+   158→  -- Session info
+   159→  ip_address      INET,
+   160→  user_agent      TEXT,
+   161→  device_type     TEXT,  -- mobile, tablet, desktop
+   162→
+   163→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   164→);
+   165→
+   166→CREATE INDEX idx_parent_activity_parent ON parent_activity_logs(parent_id);
+   167→CREATE INDEX idx_parent_activity_student ON parent_activity_logs(student_id);
+   168→CREATE INDEX idx_parent_activity_action ON parent_activity_logs(action);
+   169→CREATE INDEX idx_parent_activity_created ON parent_activity_logs(created_at DESC);
+   170→
+   171→-- ═══════════════════════════════════════════════════════════════════════════════
+   172→-- AI PARENT INSIGHTS TABLE
+   173→-- ═══════════════════════════════════════════════════════════════════════════════
+   174→
+   175→CREATE TABLE IF NOT EXISTS parent_ai_insights (
+   176→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   177→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   178→  parent_id       UUID NOT NULL REFERENCES auth.users(id),
+   179→  student_id      UUID NOT NULL REFERENCES auth.users(id),
+   180→
+   181→  insight_type    parent_insight_type NOT NULL,
+   182→  title           TEXT NOT NULL,
+   183→  description     TEXT NOT NULL,
+   184→  severity        TEXT NOT NULL DEFAULT 'info',  -- info, warning, concern, positive
+   185→  recommendations TEXT[] DEFAULT '{}',
+   186→
+   187→  -- AI generation context
+   188→  is_ai_generated BOOLEAN NOT NULL DEFAULT TRUE,
+   189→  ai_model        TEXT,
+   190→  data_snapshot   JSONB DEFAULT '{}'::jsonb,  -- the data that triggered this insight
+   191→
+   192→  -- Status
+   193→  is_read         BOOLEAN NOT NULL DEFAULT FALSE,
+   194→  is_dismissed    BOOLEAN NOT NULL DEFAULT FALSE,
+   195→  is_actionable   BOOLEAN NOT NULL DEFAULT TRUE,
+   196→
+   197→  valid_from      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   198→  valid_until     TIMESTAMPTZ,
+   199→
+   200→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   201→);
+   202→
+   203→CREATE INDEX idx_parent_insights_parent ON parent_ai_insights(parent_id);
+   204→CREATE INDEX idx_parent_insights_student ON parent_ai_insights(student_id);
+   205→CREATE INDEX idx_parent_insights_type ON parent_ai_insights(insight_type);
+   206→CREATE INDEX idx_parent_insights_unread ON parent_ai_insights(parent_id, is_read) WHERE is_read = FALSE;
+   207→CREATE INDEX idx_parent_insights_active ON parent_ai_insights(parent_id, is_dismissed) WHERE is_dismissed = FALSE;
+   208→CREATE INDEX idx_parent_insights_created ON parent_ai_insights(created_at DESC);
+   209→
+   210→-- ═══════════════════════════════════════════════════════════════════════════════
+   211→-- PARENT REPORT DOWNLOADS TABLE
+   212→-- ═══════════════════════════════════════════════════════════════════════════════
+   213→
+   214→CREATE TABLE IF NOT EXISTS parent_report_downloads (
+   215→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   216→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   217→  parent_id       UUID NOT NULL REFERENCES auth.users(id),
+   218→  student_id      UUID NOT NULL REFERENCES auth.users(id),
+   219→
+   220→  report_type     TEXT NOT NULL,    -- report_card, attendance, assignments, progress
+   221→  report_id       UUID,            -- reference to the actual report record
+   222→  format          report_download_format NOT NULL DEFAULT 'pdf',
+   223→
+   224→  file_url        TEXT NOT NULL,
+   225→  file_name       TEXT NOT NULL,
+   226→  file_size_bytes BIGINT,
+   227→
+   228→  downloaded_at   TIMESTAMPTZ NOT NULL DEFAULT now()
+   229→);
+   230→
+   231→CREATE INDEX idx_parent_downloads_parent ON parent_report_downloads(parent_id);
+   232→CREATE INDEX idx_parent_downloads_student ON parent_report_downloads(student_id);
+   233→CREATE INDEX idx_parent_downloads_type ON parent_report_downloads(report_type);
+   234→
+   235→-- ═══════════════════════════════════════════════════════════════════════════════
+   236→-- PARENT CALENDAR EVENTS TABLE
+   237→-- ═══════════════════════════════════════════════════════════════════════════════
+   238→
+   239→CREATE TABLE IF NOT EXISTS parent_calendar_events (
+   240→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   241→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   242→  parent_id       UUID REFERENCES auth.users(id),  -- NULL = all parents
+   243→  student_id      UUID REFERENCES auth.users(id),  -- NULL = all students
+   244→
+   245→  title           TEXT NOT NULL,
+   246→  description     TEXT,
+   247→  event_type      TEXT NOT NULL DEFAULT 'school',  -- school, holiday, meeting, exam, event, deadline
+   248→  start_time      TIMESTAMPTZ NOT NULL,
+   249→  end_time        TIMESTAMPTZ NOT NULL,
+   250→  location        TEXT,
+   251→
+   252→  -- Source reference
+   253→  source_type     TEXT,   -- 'announcement', 'exam', 'homework', 'custom'
+   254→  source_id       UUID,
+   255→
+   256→  -- Reminders
+   257→  reminder_minutes INTEGER[] DEFAULT '{60, 1440}',  -- 1 hour and 1 day before
+   258→
+   259→  is_all_day      BOOLEAN NOT NULL DEFAULT FALSE,
+   260→  is_recurring    BOOLEAN NOT NULL DEFAULT FALSE,
+   261→  recurrence_rule TEXT,
+   262→
+   263→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   264→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   265→);
+   266→
+   267→CREATE INDEX idx_parent_calendar_parent ON parent_calendar_events(parent_id);
+   268→CREATE INDEX idx_parent_calendar_school ON parent_calendar_events(school_id);
+   269→CREATE INDEX idx_parent_calendar_student ON parent_calendar_events(student_id);
+   270→CREATE INDEX idx_parent_calendar_time ON parent_calendar_events(start_time, end_time);
+   271→CREATE INDEX idx_parent_calendar_type ON parent_calendar_events(event_type);
+   272→
+   273→-- ═══════════════════════════════════════════════════════════════════════════════
+   274→-- PARENT ENGAGEMENT METRICS TABLE
+   275→-- ═══════════════════════════════════════════════════════════════════════════════
+   276→-- Tracks parent engagement for the admin dashboard
+   277→
+   278→CREATE TABLE IF NOT EXISTS parent_engagement_metrics (
+   279→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   280→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   281→  parent_id       UUID NOT NULL REFERENCES auth.users(id),
+   282→  student_id      UUID NOT NULL REFERENCES auth.users(id),
+   283→
+   284→  metric_type     engagement_metric_type NOT NULL,
+   285→  metric_value    NUMERIC DEFAULT 1,
+   286→  details         JSONB DEFAULT '{}'::jsonb,
+   287→
+   288→  recorded_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+   289→);
+   290→
+   291→CREATE INDEX idx_engagement_school ON parent_engagement_metrics(school_id);
+   292→CREATE INDEX idx_engagement_parent ON parent_engagement_metrics(parent_id);
+   293→CREATE INDEX idx_engagement_student ON parent_engagement_metrics(student_id);
+   294→CREATE INDEX idx_engagement_type ON parent_engagement_metrics(metric_type);
+   295→CREATE INDEX idx_engagement_recorded ON parent_engagement_metrics(recorded_at DESC);
+   296→
+   297→-- ═══════════════════════════════════════════════════════════════════════════════
+   298→-- PARENT ENGAGEMENT SUMMARY MATERIALIZED VIEW
+   299→-- ═══════════════════════════════════════════════════════════════════════════════
+   300→
+   301→CREATE MATERIALIZED VIEW IF NOT EXISTS parent_engagement_summary AS
+   302→SELECT
+   303→  pem.school_id,
+   304→  pem.parent_id,
+   305→  pem.student_id,
+   306→  COUNT(DISTINCT CASE WHEN pem.metric_type = 'report_card_viewed' THEN pem.id END) AS report_card_views,
+   307→  COUNT(DISTINCT CASE WHEN pem.metric_type = 'announcement_read' THEN pem.id END) AS announcements_read,
+   308→  COUNT(DISTINCT CASE WHEN pem.metric_type = 'message_sent' THEN pem.id END) AS messages_sent,
+   309→  COUNT(DISTINCT CASE WHEN pem.metric_type = 'meeting_attended' THEN pem.id END) AS meetings_attended,
+   310→  COUNT(DISTINCT CASE WHEN pem.metric_type = 'assignment_checked' THEN pem.id END) AS assignment_checks,
+   311→  COUNT(DISTINCT CASE WHEN pem.metric_type = 'attendance_checked' THEN pem.id END) AS attendance_checks,
+   312→  COUNT(DISTINCT CASE WHEN pem.metric_type = 'ai_assistant_used' THEN pem.id END) AS ai_assistant_uses,
+   313→  COUNT(DISTINCT pem.id) AS total_interactions,
+   314→  MAX(pem.recorded_at) AS last_active_at,
+   315→  CASE
+   316→    WHEN MAX(pem.recorded_at) > now() - INTERVAL '7 days' THEN 'active'
+   317→    WHEN MAX(pem.recorded_at) > now() - INTERVAL '30 days' THEN 'moderate'
+   318→    ELSE 'inactive'
+   319→  END AS engagement_level
+   320→FROM parent_engagement_metrics pem
+   321→GROUP BY pem.school_id, pem.parent_id, pem.student_id;
+   322→
+   323→CREATE UNIQUE INDEX idx_engagement_summary_pk ON parent_engagement_summary(school_id, parent_id, student_id);
+   324→
+   325→-- ═══════════════════════════════════════════════════════════════════════════════
+   326→-- PARENT DASHBOARD VIEW
+   327→-- ═══════════════════════════════════════════════════════════════════════════════
+   328→
+   329→CREATE OR REPLACE VIEW parent_dashboard_view AS
+   330→SELECT
+   331→  p.id AS parent_id,
+   332→  p.school_id,
+   333→  p.user_id,
+   334→  u.full_name AS parent_name,
+   335→  u.email AS parent_email,
+   336→  u.phone AS parent_phone,
+   337→  u.avatar_url AS parent_avatar,
+   338→  -- Child count
+   339→  (SELECT COUNT(*) FROM parent_students ps WHERE ps.parent_id = p.id AND ps.is_active = TRUE) AS child_count,
+   340→  -- Unread notifications
+   341→  (SELECT COUNT(*) FROM parent_notifications pn WHERE pn.parent_id = p.user_id AND pn.is_read = FALSE) AS unread_notifications,
+   342→  -- Unread messages
+   343→  (SELECT COUNT(*) FROM parent_messages pm WHERE pm.recipient_id = p.user_id AND pm.read_at IS NULL AND pm.is_archived = FALSE) AS unread_messages,
+   344→  -- Active insights
+   345→  (SELECT COUNT(*) FROM parent_ai_insights pai WHERE pai.parent_id = p.user_id AND pai.is_read = FALSE AND pai.is_dismissed = FALSE) AS active_insights,
+   346→  -- Last active
+   347→  (SELECT MAX(pal.created_at) FROM parent_activity_logs pal WHERE pal.parent_id = p.user_id) AS last_active_at
+   348→FROM parent_profiles p
+   349→JOIN users u ON u.id = p.user_id;
+   350→
+   351→-- ═══════════════════════════════════════════════════════════════════════════════
+   352→-- ROW LEVEL SECURITY
+   353→-- ═══════════════════════════════════════════════════════════════════════════════
+   354→
+   355→ALTER TABLE parent_messages ENABLE ROW LEVEL SECURITY;
+   356→ALTER TABLE parent_notifications ENABLE ROW LEVEL SECURITY;
+   357→ALTER TABLE parent_activity_logs ENABLE ROW LEVEL SECURITY;
+   358→ALTER TABLE parent_ai_insights ENABLE ROW LEVEL SECURITY;
+   359→ALTER TABLE parent_report_downloads ENABLE ROW LEVEL SECURITY;
+   360→ALTER TABLE parent_calendar_events ENABLE ROW LEVEL SECURITY;
+   361→ALTER TABLE parent_engagement_metrics ENABLE ROW LEVEL SECURITY;
+   362→
+   363→-- ─── Parent Messages RLS ──────────────────────────────────────────────────────
+   364→
+   365→CREATE POLICY "Parents can view their own messages"
+   366→  ON parent_messages FOR SELECT
+   367→  USING (sender_id = auth.uid() OR recipient_id = auth.uid());
+   368→
+   369→CREATE POLICY "Parents can send messages"
+   370→  ON parent_messages FOR INSERT
+   371→  WITH CHECK (sender_id = auth.uid());
+   372→
+   373→CREATE POLICY "Senders/recipients can update message status"
+   374→  ON parent_messages FOR UPDATE
+   375→  USING (sender_id = auth.uid() OR recipient_id = auth.uid());
+   376→
+   377→-- ─── Parent Notifications RLS ────────────────────────────────────────────────
+   378→
+   379→CREATE POLICY "Parents see own notifications"
+   380→  ON parent_notifications FOR SELECT
+   381→  USING (parent_id = auth.uid());
+   382→
+   383→CREATE POLICY "System can create notifications"
+   384→  ON parent_notifications FOR INSERT
+   385→  WITH CHECK (TRUE);  -- system-triggered
+   386→
+   387→CREATE POLICY "Parents can update own notifications"
+   388→  ON parent_notifications FOR UPDATE
+   389→  USING (parent_id = auth.uid());
+   390→
+   391→-- ─── Parent Activity Logs RLS ────────────────────────────────────────────────
+   392→
+   393→CREATE POLICY "Parents view own activity"
+   394→  ON parent_activity_logs FOR SELECT
+   395→  USING (parent_id = auth.uid());
+   396→
+   397→CREATE POLICY "System can log activity"
+   398→  ON parent_activity_logs FOR INSERT
+   399→  WITH CHECK (TRUE);
+   400→
+   401→-- ─── AI Parent Insights RLS ──────────────────────────────────────────────────
+   402→
+   403→CREATE POLICY "Parents view own insights"
+   404→  ON parent_ai_insights FOR SELECT
+   405→  USING (parent_id = auth.uid());
+   406→
+   407→CREATE POLICY "System can create insights"
+   408→  ON parent_ai_insights FOR INSERT
+   409→  WITH CHECK (TRUE);
+   410→
+   411→CREATE POLICY "Parents can update own insights"
+   412→  ON parent_ai_insights FOR UPDATE
+   413→  USING (parent_id = auth.uid());
+   414→
+   415→-- ─── Parent Report Downloads RLS ─────────────────────────────────────────────
+   416→
+   417→CREATE POLICY "Parents view own downloads"
+   418→  ON parent_report_downloads FOR SELECT
+   419→  USING (parent_id = auth.uid());
+   420→
+   421→CREATE POLICY "Parents can download reports"
+   422→  ON parent_report_downloads FOR INSERT
+   423→  WITH CHECK (parent_id = auth.uid());
+   424→
+   425→-- ─── Parent Calendar Events RLS ──────────────────────────────────────────────
+   426→
+   427→CREATE POLICY "Parents view relevant events"
+   428→  ON parent_calendar_events FOR SELECT
+   429→  USING (
+   430→    parent_id = auth.uid()
+   431→    OR (parent_id IS NULL AND school_id IN (
+   432→      SELECT pp.school_id FROM parent_profiles pp WHERE pp.user_id = auth.uid()
+   433→    ))
+   434→  );
+   435→
+   436→CREATE POLICY "System can create calendar events"
+   437→  ON parent_calendar_events FOR INSERT
+   438→  WITH CHECK (TRUE);
+   439→
+   440→CREATE POLICY "System can update calendar events"
+   441→  ON parent_calendar_events FOR UPDATE
+   442→  USING (TRUE);
+   443→
+   444→-- ─── Engagement Metrics RLS ──────────────────────────────────────────────────
+   445→
+   446→CREATE POLICY "School admins can view engagement"
+   447→  ON parent_engagement_metrics FOR SELECT
+   448→  USING (
+   449→    school_id IN (
+   450→      SELECT s.id FROM schools s
+   451→      JOIN users u ON u.school_id = s.id
+   452→      WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin')
+   453→    )
+   454→  );
+   455→
+   456→CREATE POLICY "System can record engagement"
+   457→  ON parent_engagement_metrics FOR INSERT
+   458→  WITH CHECK (TRUE);
+   459→
+   460→-- ═══════════════════════════════════════════════════════════════════════════════
+   461→-- TRIGGERS
+   462→-- ═══════════════════════════════════════════════════════════════════════════════
+   463→
+   464→CREATE TRIGGER set_parent_messages_updated_at
+   465→  BEFORE UPDATE ON parent_messages
+   466→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   467→
+   468→CREATE TRIGGER set_parent_calendar_events_updated_at
+   469→  BEFORE UPDATE ON parent_calendar_events
+   470→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   471→
+   472→-- ═══════════════════════════════════════════════════════════════════════════════
+   473→-- HELPER FUNCTIONS
+   474→-- ═══════════════════════════════════════════════════════════════════════════════
+   475→
+   476→-- Get parent dashboard data
+   477→CREATE OR REPLACE FUNCTION get_parent_dashboard(p_parent_user_id UUID)
+   478→RETURNS JSONB AS $$
+   479→DECLARE
+   480→  v_result JSONB;
+   481→  v_school_id UUID;
+   482→  v_parent_id UUID;
+   483→BEGIN
+   484→  SELECT id, school_id INTO v_parent_id, v_school_id
+   485→  FROM parent_profiles WHERE user_id = p_parent_user_id LIMIT 1;
+   486→
+   487→  SELECT jsonb_build_object(
+   488→    'parent_id', v_parent_id,
+   489→    'school_id', v_school_id,
+   490→    'children', (
+   491→      SELECT COALESCE(jsonb_agg(
+   492→        jsonb_build_object(
+   493→          'student_id', ps.student_id,
+   494→          'student_name', ps.student_name,
+   495→          'admission_number', ps.student_admission_number,
+   496→          'class_name', (SELECT c.name FROM classes c JOIN class_students cs ON cs.class_id = c.id WHERE cs.student_id = ps.student_id LIMIT 1),
+   497→          'relationship', ps.relationship,
+   498→          'is_primary', ps.is_primary_contact,
+   499→          'attendance_summary', jsonb_build_object(
+   500→            'present_days', (SELECT COUNT(*) FROM attendance a WHERE a.student_id = ps.student_id AND a.status = 'present' AND a.date >= date_trunc('month', CURRENT_DATE)),
+   501→            'absent_days', (SELECT COUNT(*) FROM attendance a WHERE a.student_id = ps.student_id AND a.status = 'absent' AND a.date >= date_trunc('month', CURRENT_DATE)),
+   502→            'late_days', (SELECT COUNT(*) FROM attendance a WHERE a.student_id = ps.student_id AND a.status = 'late' AND a.date >= date_trunc('month', CURRENT_DATE))
+   503→          ),
+   504→          'pending_assignments', (SELECT COUNT(*) FROM homework h JOIN class_students cs ON cs.class_id = h.class_id WHERE cs.student_id = ps.student_id AND h.status = 'published' AND h.due_date > now()),
+   505→          'latest_results', (
+   506→            SELECT COALESCE(jsonb_agg(
+   507→              jsonb_build_object('exam_title', e.title, 'score', er.score, 'total_marks', e.total_marks, 'grade', er.grade)
+   508→            ), '[]'::jsonb)
+   509→            FROM exam_results er
+   510→            JOIN exams e ON e.id = er.exam_id
+   511→            WHERE er.student_id = ps.student_id
+   512→            ORDER BY er.created_at DESC LIMIT 3
+   513→          )
+   514→        )
+   515→      ), '[]'::jsonb)
+   516→      FROM parent_students ps
+   517→      WHERE ps.parent_id = v_parent_id AND ps.is_active = TRUE
+   518→    ),
+   519→    'upcoming_events', (
+   520→      SELECT COALESCE(jsonb_agg(
+   521→        jsonb_build_object('id', id, 'title', title, 'start_time', start_time, 'end_time', end_time, 'event_type', event_type)
+   522→      ), '[]'::jsonb)
+   523→      FROM parent_calendar_events
+   524→      WHERE school_id = v_school_id
+   525→      AND (parent_id = p_parent_user_id OR parent_id IS NULL)
+   526→      AND start_time > now()
+   527→      ORDER BY start_time LIMIT 5
+   528→    ),
+   529→    'recent_announcements', (
+   530→      SELECT COALESCE(jsonb_agg(
+   531→        jsonb_build_object('id', a.id, 'title', a.title, 'type', a.announcement_type, 'priority', a.priority, 'created_at', a.created_at)
+   532→      ), '[]'::jsonb)
+   533→      FROM announcements a
+   534→      WHERE a.school_id = v_school_id
+   535→      AND (a.target_audience @> ARRAY['parents'] OR a.target_audience = ARRAY['all']::text[])
+   536→      ORDER BY a.created_at DESC LIMIT 5
+   537→    ),
+   538→    'unread_notifications', (SELECT COUNT(*) FROM parent_notifications WHERE parent_id = p_parent_user_id AND is_read = FALSE),
+   539→    'unread_messages', (SELECT COUNT(*) FROM parent_messages WHERE recipient_id = p_parent_user_id AND read_at IS NULL AND is_archived = FALSE),
+   540→    'active_insights', (SELECT COUNT(*) FROM parent_ai_insights WHERE parent_id = p_parent_user_id AND is_read = FALSE AND is_dismissed = FALSE)
+   541→  ) INTO v_result;
+   542→
+   543→  RETURN v_result;
+   544→END;
+   545→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   546→
+   547→-- Get child academic performance
+   548→CREATE OR REPLACE FUNCTION get_child_performance(p_student_id UUID, p_academic_session_id UUID DEFAULT NULL)
+   549→RETURNS JSONB AS $$
+   550→DECLARE
+   551→  v_result JSONB;
+   552→BEGIN
+   553→  SELECT jsonb_build_object(
+   554→    'student_id', p_student_id,
+   555→    'subjects', (
+   556→      SELECT COALESCE(jsonb_agg(
+   557→        jsonb_build_object(
+   558→          'subject_id', cs.subject_id,
+   559→          'subject_name', s.name,
+   560→          'teacher_name', (SELECT full_name FROM users WHERE id = cs.teacher_id),
+   561→          'latest_score', (
+   562→            SELECT er.score FROM exam_results er
+   563→            JOIN exams e ON e.id = er.exam_id
+   564→            JOIN exam_questions eq ON eq.exam_id = e.id
+   565→            WHERE er.student_id = p_student_id AND e.subject_id = cs.subject_id
+   566→            ORDER BY er.created_at DESC LIMIT 1
+   567→          ),
+   568→          'average_score', (
+   569→            SELECT AVG(er.score) FROM exam_results er
+   570→            JOIN exams e ON e.id = er.exam_id
+   571→            WHERE er.student_id = p_student_id AND e.subject_id = cs.subject_id
+   572→          ),
+   573→          'grade', (
+   574→            SELECT er.grade FROM exam_results er
+   575→            JOIN exams e ON e.id = er.exam_id
+   576→            WHERE er.student_id = p_student_id AND e.subject_id = cs.subject_id
+   577→            ORDER BY er.created_at DESC LIMIT 1
+   578→          )
+   579→        )
+   580→      ), '[]'::jsonb)
+   581→      FROM class_subjects cs
+   582→      JOIN subjects s ON s.id = cs.subject_id
+   583→      WHERE cs.class_id IN (SELECT cs2.class_id FROM class_students cs2 WHERE cs2.student_id = p_student_id)
+   584→    ),
+   585→    'overall_average', (
+   586→      SELECT AVG(er.score) FROM exam_results er
+   587→      WHERE er.student_id = p_student_id
+   588→    ),
+   589→    'class_average', (
+   590→      SELECT AVG(er.score) FROM exam_results er
+   591→      WHERE er.student_id IN (
+   592→        SELECT cs.student_id FROM class_students cs
+   593→        WHERE cs.class_id IN (SELECT cs2.class_id FROM class_students cs2 WHERE cs2.student_id = p_student_id)
+   594→      )
+   595→    ),
+   596→    'attendance_rate', (
+   597→      SELECT CASE COUNT(*)
+   598→        WHEN 0 THEN NULL
+   599→        ELSE ROUND((COUNT(*) FILTER (WHERE a.status = 'present')::NUMERIC / COUNT(*)) * 100, 1)
+   600→      END
+   601→      FROM attendance a WHERE a.student_id = p_student_id
+   602→    ),
+   603→    'teacher_remarks', (
+   604→      SELECT COALESCE(jsonb_agg(
+   605→        jsonb_build_object('teacher_name', u.full_name, 'subject', s.name, 'remark', er.teacher_comment, 'date', er.created_at)
+   606→      ), '[]'::jsonb)
+   607→      FROM exam_results er
+   608→      JOIN users u ON u.id = er.graded_by
+   609→      JOIN exams e ON e.id = er.exam_id
+   610→      JOIN subjects s ON s.id = e.subject_id
+   611→      WHERE er.student_id = p_student_id AND er.teacher_comment IS NOT NULL
+   612→      ORDER BY er.created_at DESC LIMIT 5
+   613→    )
+   614→  ) INTO v_result;
+   615→
+   616→  RETURN v_result;
+   617→END;
+   618→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   619→
+   620→-- Get parent engagement analytics (for school admins)
+   621→CREATE OR REPLACE FUNCTION get_parent_engagement_analytics(p_school_id UUID)
+   622→RETURNS JSONB AS $$
+   623→DECLARE
+   624→  v_result JSONB;
+   625→BEGIN
+   626→  SELECT jsonb_build_object(
+   627→    'total_parents', (SELECT COUNT(DISTINCT parent_id) FROM parent_engagement_metrics WHERE school_id = p_school_id),
+   628→    'active_parents', (SELECT COUNT(DISTINCT parent_id) FROM parent_engagement_metrics WHERE school_id = p_school_id AND recorded_at > now() - INTERVAL '7 days'),
+   629→    'moderate_parents', (
+   630→      SELECT COUNT(DISTINCT parent_id) FROM parent_engagement_metrics
+   631→      WHERE school_id = p_school_id
+   632→      AND recorded_at BETWEEN now() - INTERVAL '30 days' AND now() - INTERVAL '7 days'
+   633→    ),
+   634→    'inactive_parents', (
+   635→      SELECT COUNT(DISTINCT pp.user_id) FROM parent_profiles pp
+   636→      WHERE pp.school_id = p_school_id
+   637→      AND pp.user_id NOT IN (SELECT DISTINCT parent_id FROM parent_engagement_metrics WHERE school_id = p_school_id AND recorded_at > now() - INTERVAL '30 days')
+   638→    ),
+   639→    'report_card_not_viewed', (
+   640→      SELECT COUNT(DISTINCT ps.parent_id) FROM parent_students ps
+   641→      WHERE ps.school_id = p_school_id
+   642→      AND ps.parent_id NOT IN (
+   643→        SELECT DISTINCT parent_id FROM parent_engagement_metrics
+   644→        WHERE school_id = p_school_id AND metric_type = 'report_card_viewed'
+   645→        AND recorded_at > now() - INTERVAL '30 days'
+   646→      )
+   647→    ),
+   648→    'avg_message_response_hours', (
+   649→      SELECT AVG(EXTRACT(EPOCH FROM (pm2.created_at - pm1.created_at)) / 3600)
+   650→      FROM parent_messages pm1
+   651→      JOIN parent_messages pm2 ON pm2.parent_message_id = pm1.id
+   652→      WHERE pm1.school_id = p_school_id
+   653→      AND pm1.direction = 'incoming'
+   654→      AND pm2.direction = 'outgoing'
+   655→      AND pm1.created_at > now() - INTERVAL '30 days'
+   656→    ),
+   657→    'unread_announcement_count', (
+   658→      SELECT COUNT(*) FROM announcements a
+   659→      WHERE a.school_id = p_school_id
+   660→      AND a.created_at > now() - INTERVAL '7 days'
+   661→    ),
+   662→    'engagement_by_metric', (
+   663→      SELECT jsonb_object_agg(metric_type, cnt)
+   664→      FROM (
+   665→        SELECT metric_type, COUNT(*) AS cnt
+   666→        FROM parent_engagement_metrics
+   667→        WHERE school_id = p_school_id
+   668→        AND recorded_at > now() - INTERVAL '30 days'
+   669→        GROUP BY metric_type
+   670→      ) sub
+   671→    ),
+   672→    'students_needing_support', (
+   673→      SELECT COALESCE(jsonb_agg(
+   674→        jsonb_build_object(
+   675→          'student_id', ps.student_id,
+   676→          'student_name', ps.student_name,
+   677→          'parent_name', (SELECT full_name FROM users WHERE id = ps.parent_id),
+   678→          'engagement_level', pes.engagement_level,
+   679→          'last_active', pes.last_active_at
+   680→        )
+   681→      ), '[]'::jsonb)
+   682→      FROM parent_students ps
+   683→      LEFT JOIN parent_engagement_summary pes ON pes.parent_id = ps.parent_id AND pes.student_id = ps.student_id
+   684→      WHERE ps.school_id = p_school_id
+   685→      AND (pes.engagement_level = 'inactive' OR pes.last_active_at < now() - INTERVAL '30 days' OR pes.last_active_at IS NULL)
+   686→      LIMIT 20
+   687→    ),
+   688→    'engagement_trends', (
+   689→      SELECT COALESCE(jsonb_agg(
+   690→        jsonb_build_object('date', date_trunc('week', recorded_at)::date, 'interactions', cnt)
+   691→        ORDER BY date_trunc('week', recorded_at)::date
+   692→      ), '[]'::jsonb)
+   693→      FROM (
+   694→        SELECT date_trunc('week', recorded_at) AS week, COUNT(*) AS cnt
+   695→        FROM parent_engagement_metrics
+   696→        WHERE school_id = p_school_id AND recorded_at > now() - INTERVAL '12 weeks'
+   697→        GROUP BY date_trunc('week', recorded_at)
+   698→      ) sub
+   699→    )
+   700→  ) INTO v_result;
+   701→
+   702→  RETURN v_result;
+   703→END;
+   704→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   705→
+   706→-- Generate AI parent insight
+   707→CREATE OR REPLACE FUNCTION generate_parent_insight(
+   708→  p_parent_id UUID,
+   709→  p_student_id UUID,
+   710→  p_insight_type parent_insight_type,
+   711→  p_data JSONB DEFAULT '{}'::jsonb
+   712→)
+   713→RETURNS UUID AS $$
+   714→DECLARE
+   715→  v_insight_id UUID;
+   716→  v_title TEXT;
+   717→  v_description TEXT;
+   718→  v_severity TEXT := 'info';
+   719→  v_recommendations TEXT[] := '{}';
+   720→BEGIN
+   721→  -- Route to specific insight generator based on type
+   722→  CASE p_insight_type
+   723→    WHEN 'performance_trend' THEN
+   724→      v_title := 'Academic Performance Update';
+   725→      v_description := COALESCE(p_data->>'summary', 'Your child''s performance has been analyzed.');
+   726→      v_severity := COALESCE(p_data->>'severity', 'info');
+   727→      v_recommendations := ARRAY[
+   728→        'Review the latest report card together',
+   729→        'Discuss challenging subjects with the teacher',
+   730→        'Set up a regular study schedule'
+   731→      ];
+   732→
+   733→    WHEN 'attendance_alert' THEN
+   734→      v_title := 'Attendance Notice';
+   735→      v_description := COALESCE(p_data->>'summary', 'Attendance pattern has been detected.');
+   736→      v_severity := COALESCE(p_data->>'severity', 'warning');
+   737→      v_recommendations := ARRAY[
+   738→        'Ensure your child attends school regularly',
+   739→        'Contact the school if there are health concerns',
+   740→        'Schedule appointments outside school hours when possible'
+   741→      ];
+   742→
+   743→    WHEN 'study_recommendation' THEN
+   744→      v_title := 'Study Support Recommendation';
+   745→      v_description := COALESCE(p_data->>'summary', 'Based on recent performance, here are study suggestions.');
+   746→      v_severity := 'info';
+   747→      v_recommendations := ARRAY[
+   748→        'Create a quiet study space at home',
+   749→        'Set specific study times each day',
+   750→        'Use the ExamForge practice tools for revision'
+   751→      ];
+   752→
+   753→    WHEN 'engagement_tip' THEN
+   754→      v_title := 'Stay Engaged Tip';
+   755→      v_description := COALESCE(p_data->>'summary', 'Tips for supporting your child''s education.');
+   756→      v_severity := 'info';
+   757→      v_recommendations := ARRAY[
+   758→        'Ask about what they learned today',
+   759→        'Review homework together',
+   760→        'Attend parent-teacher meetings'
+   761→      ];
+   762→
+   763→    WHEN 'milestone' THEN
+   764→      v_title := 'Achievement Milestone';
+   765→      v_description := COALESCE(p_data->>'summary', 'Your child has reached an academic milestone!');
+   766→      v_severity := 'positive';
+   767→      v_recommendations := ARRAY['Celebrate this achievement together!'];
+   768→
+   769→    WHEN 'concern' THEN
+   770→      v_title := 'Academic Concern';
+   771→      v_description := COALESCE(p_data->>'summary', 'There may be an area requiring attention.');
+   772→      v_severity := 'concern';
+   773→      v_recommendations := ARRAY[
+   774→        'Schedule a meeting with the teacher',
+   775→        'Review recent assignments together',
+   776→        'Consider additional tutoring support'
+   777→      ];
+   778→  END CASE;
+   779→
+   780→  INSERT INTO parent_ai_insights (school_id, parent_id, student_id, insight_type, title, description, severity, recommendations, data_snapshot)
+   781→  VALUES (
+   782→    (SELECT school_id FROM parent_profiles WHERE user_id = p_parent_id LIMIT 1),
+   783→    p_parent_id,
+   784→    p_student_id,
+   785→    p_insight_type,
+   786→    v_title,
+   787→    v_description,
+   788→    v_severity,
+   789→    v_recommendations,
+   790→    p_data
+   791→  ) RETURNING id INTO v_insight_id;
+   792→
+   793→  RETURN v_insight_id;
+   794→END;
+   795→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   796→
+   797→-- Record parent engagement metric
+   798→CREATE OR REPLACE FUNCTION record_parent_engagement(
+   799→  p_parent_id UUID,
+   800→  p_student_id UUID,
+   801→  p_metric_type engagement_metric_type,
+   802→  p_details JSONB DEFAULT '{}'::jsonb
+   803→)
+   804→RETURNS VOID AS $$
+   805→BEGIN
+   806→  INSERT INTO parent_engagement_metrics (school_id, parent_id, student_id, metric_type, details)
+   807→  VALUES (
+   808→    (SELECT school_id FROM parent_profiles WHERE user_id = p_parent_id LIMIT 1),
+   809→    p_parent_id,
+   810→    p_student_id,
+   811→    p_metric_type,
+   812→    p_details
+   813→  );
+   814→END;
+   815→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   816→
+   817→-- Refresh engagement summary
+   818→CREATE OR REPLACE FUNCTION refresh_parent_engagement_summary()
+   819→RETURNS VOID AS $$
+   820→BEGIN
+   821→  REFRESH MATERIALIZED VIEW CONCURRENTLY parent_engagement_summary;
+   822→END;
+   823→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   824→
+   825→-- ═══════════════════════════════════════════════════════════════════════════════
+   826→-- SCHEDULED JOBS
+   827→-- ═══════════════════════════════════════════════════════════════════════════════
+   828→
+   829→SELECT cron.schedule(
+   830→  'refresh-parent-engagement',
+   831→  '*/30 * * * *',
+   832→  $$ SELECT refresh_parent_engagement_summary(); $$
+   833→) WHERE EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron');
+   834→

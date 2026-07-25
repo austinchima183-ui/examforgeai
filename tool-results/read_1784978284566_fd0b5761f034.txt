@@ -1,0 +1,1742 @@
+     1→import 'dart:async';
+     2→
+     3→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     4→
+     5→import '../../../../core/database/database_pool_manager.dart';
+     6→import '../../../../core/errors/exceptions.dart';
+     7→import '../../../../core/network/paginated_query_mixin.dart';
+     8→import '../../../../core/utils/logger.dart';
+     9→import '../models/cbt_models.dart';
+    10→
+    11→// ═══════════════════════════════════════════════════════════════════════
+    12→// ABSTRACT INTERFACE
+    13→// ═══════════════════════════════════════════════════════════════════════
+    14→
+    15→/// Abstract interface for all remote CBT engine data operations.
+    16→///
+    17→/// Implementations handle all network communication with the Supabase
+    18→/// backend and return plain model instances. Exceptions are allowed to
+    19→/// propagate so the repository layer can catch and convert them to
+    20→/// domain [Failure] types.
+    21→abstract class CbtRemoteDataSource {
+    22→  // ─── Exam CRUD ──────────────────────────────────────────────────────
+    23→
+    24→  Future<ExamModel> createExam(Map<String, dynamic> examData);
+    25→  Future<ExamModel> updateExam(String examId, Map<String, dynamic> examData);
+    26→  Future<void> deleteExam(String examId);
+    27→  Future<ExamModel> getExam(String examId);
+    28→  Future<ExamModel> getExamWithDetails(String examId);
+    29→  Future<List<ExamModel>> getExams(Map<String, dynamic> filters);
+    30→
+    31→  // ─── Exam Lifecycle ─────────────────────────────────────────────────
+    32→
+    33→  Future<ExamModel> publishExam(String examId);
+    34→  Future<ExamModel> archiveExam(String examId);
+    35→  Future<ExamModel> cloneExam(String examId);
+    36→
+    37→  // ─── Exam Questions ─────────────────────────────────────────────────
+    38→
+    39→  Future<void> addQuestionsToExam(
+    40→    String examId,
+    41→    List<Map<String, dynamic>> questions,
+    42→  );
+    43→  Future<void> removeQuestionFromExam(String examId, String questionId);
+    44→  Future<void> reorderQuestions(
+    45→    String examId,
+    46→    List<String> questionIds,
+    47→  );
+    48→
+    49→  // ─── Exam Students ──────────────────────────────────────────────────
+    50→
+    51→  Future<void> assignStudents(String examId, List<String> studentIds);
+    52→  Future<void> removeStudent(String examId, String studentId);
+    53→
+    54→  // ─── Exam Attempts ──────────────────────────────────────────────────
+    55→
+    56→  Future<ExamAttemptModel> startAttempt(String examId);
+    57→  Future<ExamResultModel> submitAttempt(
+    58→    String attemptId, {
+    59→    String submissionType = 'manual',
+    60→  });
+    61→  Future<ExamAttemptModel> getAttempt(String attemptId);
+    62→  Future<ExamAttemptModel> getAttemptWithAnswers(String attemptId);
+    63→  Future<List<ExamAttemptModel>> getStudentAttempts(
+    64→    String examId,
+    65→    String studentId,
+    66→  );
+    67→
+    68→  // ─── Answer Handling ────────────────────────────────────────────────
+    69→
+    70→  Future<StudentAnswerModel> saveAnswer(
+    71→    String attemptId,
+    72→    String questionId,
+    73→    Map<String, dynamic> answerData,
+    74→  );
+    75→  Future<void> flagQuestion(
+    76→    String attemptId,
+    77→    String questionId,
+    78→    bool isFlagged,
+    79→  );
+    80→  Future<void> autoSave(
+    81→    String attemptId,
+    82→    Map<String, dynamic> saveData,
+    83→  );
+    84→
+    85→  // ─── Session Management ─────────────────────────────────────────────
+    86→
+    87→  Future<void> updateSession(Map<String, dynamic> sessionData);
+    88→  Future<void> heartbeat(String sessionId);
+    89→
+    90→  // ─── Monitoring ─────────────────────────────────────────────────────
+    91→
+    92→  Future<void> logMonitoringEvent(Map<String, dynamic> eventData);
+    93→  Future<List<MonitoringLogModel>> getMonitoringLogs(
+    94→    String examId, {
+    95→    String? studentId,
+    96→  });
+    97→
+    98→  // ─── Results & Grading ──────────────────────────────────────────────
+    99→
+   100→  Future<List<ExamResultModel>> getExamResults(
+   101→    String examId, {
+   102→    bool? isReleased,
+   103→  });
+   104→  Future<ExamResultModel?> getStudentResult(
+   105→    String examId,
+   106→    String studentId,
+   107→  );
+   108→  Future<StudentAnswerModel> gradeAnswer(
+   109→    String answerId,
+   110→    double marksAwarded, {
+   111→    String? comment,
+   112→  });
+   113→  Future<void> releaseResults(String examId);
+   114→
+   115→  // ─── Statistics & Rankings ──────────────────────────────────────────
+   116→
+   117→  Future<ExamStatisticsModel> getExamStatistics(String examId);
+   118→  Future<LiveExamStatsModel> getLiveExamStats(String examId);
+   119→  Future<List<ExamRankingModel>> getRankings(String examId);
+   120→
+   121→  // ─── Realtime Subscriptions ─────────────────────────────────────────
+   122→
+   123→  Stream<ExamSessionModel> watchExamSessions(String examId);
+   124→  Stream<ExamAttemptModel> watchExamAttempts(String examId);
+   125→  Stream<MonitoringLogModel> watchMonitoringEvents(String examId);
+   126→}
+   127→
+   128→// ═══════════════════════════════════════════════════════════════════════
+   129→// SUPABASE IMPLEMENTATION
+   130→// ═══════════════════════════════════════════════════════════════════════
+   131→
+   132→class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
+   133→  CbtRemoteDataSourceImpl({
+   134→    required sb.SupabaseClient supabaseClient,
+   135→  }) : _supabaseClient = supabaseClient;
+   136→
+   137→  final sb.SupabaseClient _supabaseClient;
+   138→
+   139→  // ─── Table names ────────────────────────────────────────────────────
+   140→
+   141→  static const _examsTable = 'exams';
+   142→  static const _examSectionsTable = 'exam_sections';
+   143→  static const _examQuestionsTable = 'exam_questions';
+   144→  static const _examStudentsTable = 'exam_students';
+   145→  static const _examAttemptsTable = 'exam_attempts';
+   146→  static const _studentAnswersTable = 'student_answers';
+   147→  static const _examSessionsTable = 'exam_sessions';
+   148→  static const _monitoringLogsTable = 'monitoring_logs';
+   149→  static const _examResultsTable = 'exam_results';
+   150→  static const _examRankingsTable = 'exam_rankings';
+   151→
+   152→  // ─── Active Realtime channels ───────────────────────────────────────
+   153→
+   154→  final Map<String, sb.RealtimeChannel> _channels = {};
+   155→
+   156→  // ═══════════════════════════════════════════════════════════════════
+   157→  // Exam CRUD
+   158→  // ═══════════════════════════════════════════════════════════════════
+   159→
+   160→  @override
+   161→  Future<ExamModel> createExam(Map<String, dynamic> examData) async {
+   162→    try {
+   163→      final response =
+   164→          await _supabaseClient.from(_examsTable).insert(examData).select().single();
+   165→
+   166→      return ExamModel.fromJson(response);
+   167→    } on sb.PostgrestException catch (e) {
+   168→      AppLogger.error('Create exam failed', error: e);
+   169→      throw ServerException(
+   170→        message: e.message,
+   171→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   172→        data: e.details,
+   173→      );
+   174→    } catch (e) {
+   175→      AppLogger.error('Create exam unexpected error', error: e);
+   176→      throw ServerException(
+   177→        message: 'Failed to create exam: $e',
+   178→        statusCode: 500,
+   179→      );
+   180→    }
+   181→  }
+   182→
+   183→  @override
+   184→  Future<ExamModel> updateExam(
+   185→    String examId,
+   186→    Map<String, dynamic> examData,
+   187→  ) async {
+   188→    try {
+   189→      final response = await _supabaseClient
+   190→          .from(_examsTable)
+   191→          .update(examData)
+   192→          .eq('id', examId)
+   193→          .select()
+   194→          .single();
+   195→
+   196→      return ExamModel.fromJson(response);
+   197→    } on sb.PostgrestException catch (e) {
+   198→      AppLogger.error('Update exam failed', error: e);
+   199→      if (e.code == 'PGRST116') {
+   200→        throw NotFoundException(message: 'Exam not found: $examId');
+   201→      }
+   202→      throw ServerException(
+   203→        message: e.message,
+   204→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   205→        data: e.details,
+   206→      );
+   207→    } catch (e) {
+   208→      AppLogger.error('Update exam unexpected error', error: e);
+   209→      throw ServerException(
+   210→        message: 'Failed to update exam: $e',
+   211→        statusCode: 500,
+   212→      );
+   213→    }
+   214→  }
+   215→
+   216→  @override
+   217→  Future<void> deleteExam(String examId) async {
+   218→    try {
+   219→      await _supabaseClient
+   220→          .from(_examsTable)
+   221→          .delete()
+   222→          .eq('id', examId);
+   223→    } on sb.PostgrestException catch (e) {
+   224→      AppLogger.error('Delete exam failed', error: e);
+   225→      throw ServerException(
+   226→        message: e.message,
+   227→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   228→        data: e.details,
+   229→      );
+   230→    } catch (e) {
+   231→      AppLogger.error('Delete exam unexpected error', error: e);
+   232→      throw ServerException(
+   233→        message: 'Failed to delete exam: $e',
+   234→        statusCode: 500,
+   235→      );
+   236→    }
+   237→  }
+   238→
+   239→  @override
+   240→  Future<ExamModel> getExam(String examId) async {
+   241→    try {
+   242→      final response = await _supabaseClient
+   243→          .from(_examsTable)
+   244→          .select()
+   245→          .eq('id', examId)
+   246→          .single();
+   247→
+   248→      return ExamModel.fromJson(response);
+   249→    } on sb.PostgrestException catch (e) {
+   250→      AppLogger.error('Get exam failed', error: e);
+   251→      if (e.code == 'PGRST116') {
+   252→        throw NotFoundException(message: 'Exam not found: $examId');
+   253→      }
+   254→      throw ServerException(
+   255→        message: e.message,
+   256→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   257→        data: e.details,
+   258→      );
+   259→    } catch (e) {
+   260→      AppLogger.error('Get exam unexpected error', error: e);
+   261→      throw ServerException(
+   262→        message: 'Failed to get exam: $e',
+   263→        statusCode: 500,
+   264→      );
+   265→    }
+   266→  }
+   267→
+   268→  @override
+   269→  Future<ExamModel> getExamWithDetails(String examId) async {
+   270→    try {
+   271→      final response = await _supabaseClient
+   272→          .from(_examsTable)
+   273→          .select('''
+   274→            *,
+   275→            exam_sections(*),
+   276→            exam_questions(
+   277→              *,
+   278→              question:question_bank(
+   279→                id, school_id, subject_id, topic_id, question_type,
+   280→                difficulty_level, content, explanation, marks, negative_marks
+   281→              )
+   282→            )
+   283→          ''')
+   284→          .eq('id', examId)
+   285→          .single();
+   286→
+   287→      return ExamModel.fromJson(response);
+   288→    } on sb.PostgrestException catch (e) {
+   289→      AppLogger.error('Get exam with details failed', error: e);
+   290→      if (e.code == 'PGRST116') {
+   291→        throw NotFoundException(message: 'Exam not found: $examId');
+   292→      }
+   293→      throw ServerException(
+   294→        message: e.message,
+   295→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   296→        data: e.details,
+   297→      );
+   298→    } catch (e) {
+   299→      AppLogger.error('Get exam with details unexpected error', error: e);
+   300→      throw ServerException(
+   301→        message: 'Failed to get exam with details: $e',
+   302→        statusCode: 500,
+   303→      );
+   304→    }
+   305→  }
+   306→
+   307→  @override
+   308→  Future<List<ExamModel>> getExams(Map<String, dynamic> filters) async {
+   309→    try {
+   310→      var filterQuery = _supabaseClient.from(_examsTable).select();
+   311→
+   312→      if (filters['school_id'] != null) {
+   313→        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
+   314→      }
+   315→      if (filters['subject_id'] != null) {
+   316→        filterQuery = filterQuery.eq('subject_id', filters['subject_id'] as String);
+   317→      }
+   318→      if (filters['status'] != null) {
+   319→        filterQuery = filterQuery.eq('status', filters['status'] as String);
+   320→      }
+   321→      if (filters['class_id'] != null) {
+   322→        filterQuery = filterQuery.eq('class_id', filters['class_id'] as String);
+   323→      }
+   324→
+   325→      final page = filters['page'] as int? ?? 1;
+   326→      final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
+   327→      final offset = (page - 1) * perPage;
+   328→
+   329→      final transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
+   330→
+   331→      final response = await transformQuery;
+   332→
+   333→      return response
+   334→          .map<ExamModel>((json) => ExamModel.fromJson(json))
+   335→          .toList();
+   336→    } on sb.PostgrestException catch (e) {
+   337→      AppLogger.error('Get exams failed', error: e);
+   338→      throw ServerException(
+   339→        message: e.message,
+   340→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   341→        data: e.details,
+   342→      );
+   343→    } catch (e) {
+   344→      AppLogger.error('Get exams unexpected error', error: e);
+   345→      throw ServerException(
+   346→        message: 'Failed to get exams: $e',
+   347→        statusCode: 500,
+   348→      );
+   349→    }
+   350→  }
+   351→
+   352→  // ═══════════════════════════════════════════════════════════════════
+   353→  // Exam Lifecycle
+   354→  // ═══════════════════════════════════════════════════════════════════
+   355→
+   356→  @override
+   357→  Future<ExamModel> publishExam(String examId) async {
+   358→    try {
+   359→      final response = await _supabaseClient
+   360→          .from(_examsTable)
+   361→          .update({
+   362→            'status': 'published',
+   363→            'published_at': DateTime.now().toIso8601String(),
+   364→          })
+   365→          .eq('id', examId)
+   366→          .select()
+   367→          .single();
+   368→
+   369→      return ExamModel.fromJson(response);
+   370→    } on sb.PostgrestException catch (e) {
+   371→      AppLogger.error('Publish exam failed', error: e);
+   372→      throw ServerException(
+   373→        message: e.message,
+   374→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   375→        data: e.details,
+   376→      );
+   377→    } catch (e) {
+   378→      AppLogger.error('Publish exam unexpected error', error: e);
+   379→      throw ServerException(
+   380→        message: 'Failed to publish exam: $e',
+   381→        statusCode: 500,
+   382→      );
+   383→    }
+   384→  }
+   385→
+   386→  @override
+   387→  Future<ExamModel> archiveExam(String examId) async {
+   388→    try {
+   389→      final response = await _supabaseClient
+   390→          .from(_examsTable)
+   391→          .update({'status': 'archived'})
+   392→          .eq('id', examId)
+   393→          .select()
+   394→          .single();
+   395→
+   396→      return ExamModel.fromJson(response);
+   397→    } on sb.PostgrestException catch (e) {
+   398→      AppLogger.error('Archive exam failed', error: e);
+   399→      throw ServerException(
+   400→        message: e.message,
+   401→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   402→        data: e.details,
+   403→      );
+   404→    } catch (e) {
+   405→      AppLogger.error('Archive exam unexpected error', error: e);
+   406→      throw ServerException(
+   407→        message: 'Failed to archive exam: $e',
+   408→        statusCode: 500,
+   409→      );
+   410→    }
+   411→  }
+   412→
+   413→  @override
+   414→  Future<ExamModel> cloneExam(String examId) async {
+   415→    try {
+   416→      // Fetch the original exam with details
+   417→      final original = await getExamWithDetails(examId);
+   418→
+   419→      final now = DateTime.now();
+   420→      final cloneData = {
+   421→        'school_id': original.schoolId,
+   422→        'created_by': original.createdBy,
+   423→        'title': '${original.title} (Copy)',
+   424→        'description': original.description,
+   425→        'subject_id': original.subjectId,
+   426→        'class_id': original.classId,
+   427→        'academic_session_id': original.academicSessionId,
+   428→        'exam_type': original.examType,
+   429→        'status': 'draft',
+   430→        'start_time': now.add(const Duration(days: 7)).toIso8601String(),
+   431→        'end_time': now.add(const Duration(days: 7, hours: 2)).toIso8601String(),
+   432→        'time_limit_minutes': original.timeLimitMinutes,
+   433→        'total_marks': original.totalMarks,
+   434→        'pass_mark': original.passMark,
+   435→        'pass_mark_type': original.passMarkType,
+   436→        'instructions': original.instructions,
+   437→        'allowed_attempts': original.allowedAttempts,
+   438→        'negative_marking_enabled': original.negativeMarkingEnabled,
+   439→        'negative_mark_value': original.negativeMarkValue,
+   440→        'grace_period_minutes': original.gracePeriodMinutes,
+   441→        'auto_submit': original.autoSubmit,
+   442→        'randomize_questions': original.randomizeQuestions,
+   443→        'randomize_options': original.randomizeOptions,
+   444→        'show_results': original.showResults,
+   445→        'show_correct_answers': original.showCorrectAnswers,
+   446→        'show_explanations': original.showExplanations,
+   447→        'is_template': original.isTemplate,
+   448→        'template_id': original.id,
+   449→        'max_students': original.maxStudents,
+   450→        'ip_restriction': original.ipRestriction,
+   451→        'require_full_screen': original.requireFullScreen,
+   452→        'allow_resume': original.allowResume,
+   453→        'browser_lockdown': original.browserLockdown,
+   454→        'metadata': original.metadata,
+   455→      };
+   456→
+   457→      final clonedExam = await createExam(cloneData);
+   458→
+   459→      // Clone sections
+   460→      for (final section in original.sections) {
+   461→        await _supabaseClient.from(_examSectionsTable).insert({
+   462→          'exam_id': clonedExam.id,
+   463→          'title': section.title,
+   464→          'description': section.description,
+   465→          'instructions': section.instructions,
+   466→          'sort_order': section.sortOrder,
+   467→          'time_limit_minutes': section.timeLimitMinutes,
+   468→          'randomize_questions': section.randomizeQuestions,
+   469→        });
+   470→      }
+   471→
+   472→      // Clone questions
+   473→      for (final question in original.questions) {
+   474→        await _supabaseClient.from(_examQuestionsTable).insert({
+   475→          'exam_id': clonedExam.id,
+   476→          'section_id': question.sectionId,
+   477→          'question_id': question.questionId,
+   478→          'sort_order': question.sortOrder,
+   479→          'marks': question.marks,
+   480→          'negative_marks': question.negativeMarks,
+   481→          'is_compulsory': question.isCompulsory,
+   482→        });
+   483→      }
+   484→
+   485→      return clonedExam;
+   486→    } on ServerException {
+   487→      rethrow;
+   488→    } on sb.PostgrestException catch (e) {
+   489→      AppLogger.error('Clone exam failed', error: e);
+   490→      throw ServerException(
+   491→        message: e.message,
+   492→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   493→        data: e.details,
+   494→      );
+   495→    } catch (e) {
+   496→      AppLogger.error('Clone exam unexpected error', error: e);
+   497→      throw ServerException(
+   498→        message: 'Failed to clone exam: $e',
+   499→        statusCode: 500,
+   500→      );
+   501→    }
+   502→  }
+   503→
+   504→  // ═══════════════════════════════════════════════════════════════════
+   505→  // Exam Questions
+   506→  // ═══════════════════════════════════════════════════════════════════
+   507→
+   508→  @override
+   509→  Future<void> addQuestionsToExam(
+   510→    String examId,
+   511→    List<Map<String, dynamic>> questions,
+   512→  ) async {
+   513→    try {
+   514→      final rows = questions.map((q) {
+   515→        q['exam_id'] = examId;
+   516→        return q;
+   517→      }).toList();
+   518→
+   519→      await _supabaseClient.from(_examQuestionsTable).insert(rows);
+   520→    } on sb.PostgrestException catch (e) {
+   521→      AppLogger.error('Add questions to exam failed', error: e);
+   522→      throw ServerException(
+   523→        message: e.message,
+   524→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   525→        data: e.details,
+   526→      );
+   527→    } catch (e) {
+   528→      AppLogger.error('Add questions to exam unexpected error', error: e);
+   529→      throw ServerException(
+   530→        message: 'Failed to add questions: $e',
+   531→        statusCode: 500,
+   532→      );
+   533→    }
+   534→  }
+   535→
+   536→  @override
+   537→  Future<void> removeQuestionFromExam(
+   538→    String examId,
+   539→    String questionId,
+   540→  ) async {
+   541→    try {
+   542→      await _supabaseClient
+   543→          .from(_examQuestionsTable)
+   544→          .delete()
+   545→          .eq('exam_id', examId)
+   546→          .eq('question_id', questionId);
+   547→    } on sb.PostgrestException catch (e) {
+   548→      AppLogger.error('Remove question from exam failed', error: e);
+   549→      throw ServerException(
+   550→        message: e.message,
+   551→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   552→        data: e.details,
+   553→      );
+   554→    } catch (e) {
+   555→      AppLogger.error('Remove question unexpected error', error: e);
+   556→      throw ServerException(
+   557→        message: 'Failed to remove question: $e',
+   558→        statusCode: 500,
+   559→      );
+   560→    }
+   561→  }
+   562→
+   563→  @override
+   564→  Future<void> reorderQuestions(
+   565→    String examId,
+   566→    List<String> questionIds,
+   567→  ) async {
+   568→    try {
+   569→      // Update sort_order for each question in the new order
+   570→      for (var i = 0; i < questionIds.length; i++) {
+   571→        await _supabaseClient
+   572→            .from(_examQuestionsTable)
+   573→            .update({'sort_order': i})
+   574→            .eq('exam_id', examId)
+   575→            .eq('question_id', questionIds[i]);
+   576→      }
+   577→    } on sb.PostgrestException catch (e) {
+   578→      AppLogger.error('Reorder questions failed', error: e);
+   579→      throw ServerException(
+   580→        message: e.message,
+   581→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   582→        data: e.details,
+   583→      );
+   584→    } catch (e) {
+   585→      AppLogger.error('Reorder questions unexpected error', error: e);
+   586→      throw ServerException(
+   587→        message: 'Failed to reorder questions: $e',
+   588→        statusCode: 500,
+   589→      );
+   590→    }
+   591→  }
+   592→
+   593→  // ═══════════════════════════════════════════════════════════════════
+   594→  // Exam Students
+   595→  // ═══════════════════════════════════════════════════════════════════
+   596→
+   597→  @override
+   598→  Future<void> assignStudents(
+   599→    String examId,
+   600→    List<String> studentIds,
+   601→  ) async {
+   602→    try {
+   603→      final rows = studentIds
+   604→          .map((studentId) => {
+   605→                'exam_id': examId,
+   606→                'student_id': studentId,
+   607→              },)
+   608→          .toList();
+   609→
+   610→      await _supabaseClient.from(_examStudentsTable).insert(rows);
+   611→    } on sb.PostgrestException catch (e) {
+   612→      AppLogger.error('Assign students failed', error: e);
+   613→      throw ServerException(
+   614→        message: e.message,
+   615→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   616→        data: e.details,
+   617→      );
+   618→    } catch (e) {
+   619→      AppLogger.error('Assign students unexpected error', error: e);
+   620→      throw ServerException(
+   621→        message: 'Failed to assign students: $e',
+   622→        statusCode: 500,
+   623→      );
+   624→    }
+   625→  }
+   626→
+   627→  @override
+   628→  Future<void> removeStudent(String examId, String studentId) async {
+   629→    try {
+   630→      await _supabaseClient
+   631→          .from(_examStudentsTable)
+   632→          .delete()
+   633→          .eq('exam_id', examId)
+   634→          .eq('student_id', studentId);
+   635→    } on sb.PostgrestException catch (e) {
+   636→      AppLogger.error('Remove student failed', error: e);
+   637→      throw ServerException(
+   638→        message: e.message,
+   639→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   640→        data: e.details,
+   641→      );
+   642→    } catch (e) {
+   643→      AppLogger.error('Remove student unexpected error', error: e);
+   644→      throw ServerException(
+   645→        message: 'Failed to remove student: $e',
+   646→        statusCode: 500,
+   647→      );
+   648→    }
+   649→  }
+   650→
+   651→  // ═══════════════════════════════════════════════════════════════════
+   652→  // Exam Attempts
+   653→  // ═══════════════════════════════════════════════════════════════════
+   654→
+   655→  @override
+   656→  Future<ExamAttemptModel> startAttempt(String examId) async {
+   657→    try {
+   658→      final userId = _supabaseClient.auth.currentUser?.id;
+   659→      if (userId == null) {
+   660→        throw const AuthException(
+   661→          message: 'Not authenticated',
+   662→          code: 'NOT_AUTHENTICATED',
+   663→        );
+   664→      }
+   665→
+   666→      // ── Call server-side SQL function which validates eligibility,
+   667→      //    creates the attempt AND session atomically ───────────────
+   668→      final response = await _supabaseClient.rpc(
+   669→        'start_exam_attempt',
+   670→        params: {'p_exam_id': examId},
+   671→      );
+   672→
+   673→      // Server returns the created attempt row as JSON
+   674→      if (response == null) {
+   675→        throw const ServerException(
+   676→          message: 'Server returned no data for start_exam_attempt',
+   677→          statusCode: 500,
+   678→        );
+   679→      }
+   680→
+   681→      final attemptMap = response as Map<String, dynamic>;
+   682→
+   683→      // Validate the server confirmed the attempt was started
+   684→      final attemptStatus = attemptMap['status'] as String?;
+   685→      if (attemptStatus != 'in_progress') {
+   686→        AppLogger.warning(
+   687→          'Server returned unexpected attempt status: $attemptStatus',
+   688→        );
+   689→        throw ServerException(
+   690→          message: 'Server did not start attempt. Status: $attemptStatus',
+   691→          statusCode: 409,
+   692→          data: attemptMap,
+   693→        );
+   694→      }
+   695→
+   696→      return ExamAttemptModel.fromJson(attemptMap);
+   697→    } on AuthException {
+   698→      rethrow;
+   699→    } on sb.PostgrestException catch (e) {
+   700→      AppLogger.error('Start attempt RPC failed', error: e);
+   701→      // Map known Postgrest error codes to domain-meaningful exceptions
+   702→      final msg = e.message;
+   703→      if (msg.contains('not assigned') || msg.contains('not eligible')) {
+   704→        throw ForbiddenException(message: msg);
+   705→      }
+   706→      if (msg.contains('max attempts') || msg.contains('already in progress')) {
+   707→        throw ValidationException(message: msg);
+   708→      }
+   709→      throw ServerException(
+   710→        message: e.message,
+   711→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   712→        data: e.details,
+   713→      );
+   714→    } on ForbiddenException {
+   715→      rethrow;
+   716→    } on ValidationException {
+   717→      rethrow;
+   718→    } catch (e) {
+   719→      if (e is ServerException || e is AuthException) rethrow;
+   720→      AppLogger.error('Start attempt unexpected error', error: e);
+   721→      throw ServerException(
+   722→        message: 'Failed to start attempt: $e',
+   723→        statusCode: 500,
+   724→      );
+   725→    }
+   726→  }
+   727→
+   728→  @override
+   729→  Future<ExamResultModel> submitAttempt(
+   730→    String attemptId, {
+   731→    String submissionType = 'manual',
+   732→  }) async {
+   733→    try {
+   734→      // ── Call server-side SQL function which validates the attempt,
+   735→      //    computes scores, deactivates the session, and creates the
+   736→      //    result row atomically ─────────────────────────────────────
+   737→      final response = await _supabaseClient.rpc(
+   738→        'submit_exam_attempt',
+   739→        params: {
+   740→          'p_attempt_id': attemptId,
+   741→          'p_submission_type': submissionType,
+   742→        },
+   743→      );
+   744→
+   745→      // Server returns the result row as JSON
+   746→      if (response == null) {
+   747→        throw const ServerException(
+   748→          message: 'Server returned no data for submit_exam_attempt',
+   749→          statusCode: 500,
+   750→        );
+   751→      }
+   752→
+   753→      final resultMap = response as Map<String, dynamic>;
+   754→
+   755→      // Validate the server accepted the submission
+   756→      final resultGradingStatus = resultMap['grading_status'] as String?;
+   757→      if (resultGradingStatus == null) {
+   758→        throw ServerException(
+   759→          message: 'Server submission response missing grading_status',
+   760→          statusCode: 500,
+   761→          data: resultMap,
+   762→        );
+   763→      }
+   764→
+   765→      return ExamResultModel.fromJson(resultMap);
+   766→    } on sb.PostgrestException catch (e) {
+   767→      AppLogger.error('Submit attempt RPC failed', error: e);
+   768→      // Handle server-rejected late submissions
+   769→      final msg = e.message;
+   770→      if (msg.contains('time_exceeded') || msg.contains('time limit')) {
+   771→        throw const ValidationException(
+   772→          message: 'Submission rejected: exam time has exceeded',
+   773→          fieldErrors: {
+   774→            'time_exceeded': 'The exam time limit has been exceeded. '
+   775→                'Your answers have been auto-submitted.',
+   776→          },
+   777→        );
+   778→      }
+   779→      if (msg.contains('not in progress') || msg.contains('already submitted')) {
+   780→        throw ValidationException(message: msg);
+   781→      }
+   782→      throw ServerException(
+   783→        message: e.message,
+   784→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   785→        data: e.details,
+   786→      );
+   787→    } on ValidationException {
+   788→      rethrow;
+   789→    } catch (e) {
+   790→      if (e is ServerException) rethrow;
+   791→      AppLogger.error('Submit attempt unexpected error', error: e);
+   792→      throw ServerException(
+   793→        message: 'Failed to submit attempt: $e',
+   794→        statusCode: 500,
+   795→      );
+   796→    }
+   797→  }
+   798→
+   799→  @override
+   800→  Future<ExamAttemptModel> getAttempt(String attemptId) async {
+   801→    try {
+   802→      final response = await _supabaseClient
+   803→          .from(_examAttemptsTable)
+   804→          .select()
+   805→          .eq('id', attemptId)
+   806→          .single();
+   807→
+   808→      return ExamAttemptModel.fromJson(response);
+   809→    } on sb.PostgrestException catch (e) {
+   810→      AppLogger.error('Get attempt failed', error: e);
+   811→      if (e.code == 'PGRST116') {
+   812→        throw NotFoundException(message: 'Attempt not found: $attemptId');
+   813→      }
+   814→      throw ServerException(
+   815→        message: e.message,
+   816→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   817→        data: e.details,
+   818→      );
+   819→    } catch (e) {
+   820→      AppLogger.error('Get attempt unexpected error', error: e);
+   821→      throw ServerException(
+   822→        message: 'Failed to get attempt: $e',
+   823→        statusCode: 500,
+   824→      );
+   825→    }
+   826→  }
+   827→
+   828→  @override
+   829→  Future<ExamAttemptModel> getAttemptWithAnswers(String attemptId) async {
+   830→    try {
+   831→      final response = await _supabaseClient
+   832→          .from(_examAttemptsTable)
+   833→          .select(''', student_answers(*)''')
+   834→          .eq('id', attemptId)
+   835→          .single();
+   836→
+   837→      return ExamAttemptModel.fromJson(response);
+   838→    } on sb.PostgrestException catch (e) {
+   839→      AppLogger.error('Get attempt with answers failed', error: e);
+   840→      if (e.code == 'PGRST116') {
+   841→        throw NotFoundException(message: 'Attempt not found: $attemptId');
+   842→      }
+   843→      throw ServerException(
+   844→        message: e.message,
+   845→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   846→        data: e.details,
+   847→      );
+   848→    } catch (e) {
+   849→      AppLogger.error('Get attempt with answers unexpected error', error: e);
+   850→      throw ServerException(
+   851→        message: 'Failed to get attempt with answers: $e',
+   852→        statusCode: 500,
+   853→      );
+   854→    }
+   855→  }
+   856→
+   857→  @override
+   858→  Future<List<ExamAttemptModel>> getStudentAttempts(
+   859→    String examId,
+   860→    String studentId, {
+   861→    int limit = PaginatedQueryMixin.defaultPageSize,
+   862→    int offset = 0,
+   863→  }) async {
+   864→    try {
+   865→      // PERF: Added pagination and column selection to prevent unbounded results
+   866→      final response = await _supabaseClient
+   867→          .from(_examAttemptsTable)
+   868→          .select('id, exam_id, student_id, attempt_number, status, started_at, submitted_at, score_percentage, total_marks, time_spent_seconds, grading_status, created_at')
+   869→          .eq('exam_id', examId)
+   870→          .eq('student_id', studentId)
+   871→          .order('created_at', ascending: false)
+   872→          .limit(limit)
+   873→          .range(offset, offset + limit - 1);
+   874→
+   875→      return response
+   876→          .map<ExamAttemptModel>((a) => ExamAttemptModel.fromJson(a))
+   877→          .toList();
+   878→    } on sb.PostgrestException catch (e) {
+   879→      AppLogger.error('Get student attempts failed', error: e);
+   880→      throw ServerException(
+   881→        message: e.message,
+   882→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   883→        data: e.details,
+   884→      );
+   885→    } catch (e) {
+   886→      AppLogger.error('Get student attempts unexpected error', error: e);
+   887→      throw ServerException(
+   888→        message: 'Failed to get student attempts: $e',
+   889→        statusCode: 500,
+   890→      );
+   891→    }
+   892→  }
+   893→
+   894→  // ═══════════════════════════════════════════════════════════════════
+   895→  // Answer Handling
+   896→  // ═══════════════════════════════════════════════════════════════════
+   897→
+   898→  @override
+   899→  Future<StudentAnswerModel> saveAnswer(
+   900→    String attemptId,
+   901→    String questionId,
+   902→    Map<String, dynamic> answerData,
+   903→  ) async {
+   904→    try {
+   905→      // ── Validate exam timing server-side before accepting the answer ──
+   906→      final timingResponse = await _supabaseClient.rpc(
+   907→        'validate_exam_timing',
+   908→        params: {'p_attempt_id': attemptId},
+   909→      );
+   910→
+   911→      final timingResult = timingResponse as Map<String, dynamic>?;
+   912→      final isWithinTime = timingResult?['is_within_time'] as bool? ?? false;
+   913→
+   914→      if (!isWithinTime) {
+   915→        throw const ValidationException(
+   916→          message: 'Cannot save answer: exam time has exceeded',
+   917→          fieldErrors: {
+   918→            'time_exceeded': 'The exam time limit has been exceeded. '
+   919→                'No further answers can be saved.',
+   920→          },
+   921→        );
+   922→      }
+   923→
+   924→      // Use server time for the answer timestamp to avoid client clock skew
+   925→      final serverTime = timingResult?['server_time'] as String?;
+   926→      final now = serverTime != null
+   927→          ? DateTime.parse(serverTime)
+   928→          : DateTime.now();
+   929→
+   930→      // Upsert: update existing answer or insert new one
+   931→      final existing = await _supabaseClient
+   932→          .from(_studentAnswersTable)
+   933→          .select('id')
+   934→          .eq('attempt_id', attemptId)
+   935→          .eq('question_id', questionId)
+   936→          .maybeSingle();
+   937→
+   938→      if (existing != null) {
+   939→        final response = await _supabaseClient
+   940→            .from(_studentAnswersTable)
+   941→            .update({
+   942→              'answer_data': answerData,
+   943→              'answered_at': now.toIso8601String(),
+   944→              'updated_at': now.toIso8601String(),
+   945→            })
+   946→            .eq('id', existing['id'] as String)
+   947→            .select()
+   948→            .single();
+   949→
+   950→        return StudentAnswerModel.fromJson(response);
+   951→      } else {
+   952→        final response = await _supabaseClient
+   953→            .from(_studentAnswersTable)
+   954→            .insert({
+   955→              'attempt_id': attemptId,
+   956→              'question_id': questionId,
+   957→              'answer_data': answerData,
+   958→              'answered_at': now.toIso8601String(),
+   959→            })
+   960→            .select()
+   961→            .single();
+   962→
+   963→        return StudentAnswerModel.fromJson(response);
+   964→      }
+   965→    } on sb.PostgrestException catch (e) {
+   966→      AppLogger.error('Save answer failed', error: e);
+   967→      throw ServerException(
+   968→        message: e.message,
+   969→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   970→        data: e.details,
+   971→      );
+   972→    } on ValidationException {
+   973→      rethrow;
+   974→    } catch (e) {
+   975→      if (e is ServerException || e is ValidationException) rethrow;
+   976→      AppLogger.error('Save answer unexpected error', error: e);
+   977→      throw ServerException(
+   978→        message: 'Failed to save answer: $e',
+   979→        statusCode: 500,
+   980→      );
+   981→    }
+   982→  }
+   983→
+   984→  @override
+   985→  Future<void> flagQuestion(
+   986→    String attemptId,
+   987→    String questionId,
+   988→    bool isFlagged,
+   989→  ) async {
+   990→    try {
+   991→      await _supabaseClient
+   992→          .from(_studentAnswersTable)
+   993→          .update({'is_flagged': isFlagged})
+   994→          .eq('attempt_id', attemptId)
+   995→          .eq('question_id', questionId);
+   996→    } on sb.PostgrestException catch (e) {
+   997→      AppLogger.error('Flag question failed', error: e);
+   998→      throw ServerException(
+   999→        message: e.message,
+  1000→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1001→        data: e.details,
+  1002→      );
+  1003→    } catch (e) {
+  1004→      AppLogger.error('Flag question unexpected error', error: e);
+  1005→      throw ServerException(
+  1006→        message: 'Failed to flag question: $e',
+  1007→        statusCode: 500,
+  1008→      );
+  1009→    }
+  1010→  }
+  1011→
+  1012→  @override
+  1013→  Future<void> autoSave(
+  1014→    String attemptId,
+  1015→    Map<String, dynamic> saveData,
+  1016→  ) async {
+  1017→    try {
+  1018→      await _supabaseClient
+  1019→          .from(_examAttemptsTable)
+  1020→          .update({
+  1021→            'auto_save_data': saveData,
+  1022→            'last_activity_at': DateTime.now().toIso8601String(),
+  1023→          })
+  1024→          .eq('id', attemptId);
+  1025→    } on sb.PostgrestException catch (e) {
+  1026→      AppLogger.error('Auto-save failed', error: e);
+  1027→      throw ServerException(
+  1028→        message: e.message,
+  1029→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1030→        data: e.details,
+  1031→      );
+  1032→    } catch (e) {
+  1033→      AppLogger.error('Auto-save unexpected error', error: e);
+  1034→      throw ServerException(
+  1035→        message: 'Failed to auto-save: $e',
+  1036→        statusCode: 500,
+  1037→      );
+  1038→    }
+  1039→  }
+  1040→
+  1041→  // ═══════════════════════════════════════════════════════════════════
+  1042→  // Session Management
+  1043→  // ═══════════════════════════════════════════════════════════════════
+  1044→
+  1045→  @override
+  1046→  Future<void> updateSession(Map<String, dynamic> sessionData) async {
+  1047→    try {
+  1048→      final sessionId = sessionData['id'] as String;
+  1049→      await _supabaseClient
+  1050→          .from(_examSessionsTable)
+  1051→          .update(sessionData)
+  1052→          .eq('id', sessionId);
+  1053→    } on sb.PostgrestException catch (e) {
+  1054→      AppLogger.error('Update session failed', error: e);
+  1055→      throw ServerException(
+  1056→        message: e.message,
+  1057→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1058→        data: e.details,
+  1059→      );
+  1060→    } catch (e) {
+  1061→      AppLogger.error('Update session unexpected error', error: e);
+  1062→      throw ServerException(
+  1063→        message: 'Failed to update session: $e',
+  1064→        statusCode: 500,
+  1065→      );
+  1066→    }
+  1067→  }
+  1068→
+  1069→  @override
+  1070→  Future<void> heartbeat(String sessionId) async {
+  1071→    try {
+  1072→      await _supabaseClient
+  1073→          .from(_examSessionsTable)
+  1074→          .update({
+  1075→            'last_heartbeat': DateTime.now().toIso8601String(),
+  1076→            'connection_status': 'connected',
+  1077→          })
+  1078→          .eq('id', sessionId);
+  1079→    } on sb.PostgrestException catch (e) {
+  1080→      AppLogger.error('Heartbeat failed', error: e);
+  1081→      throw ServerException(
+  1082→        message: e.message,
+  1083→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1084→        data: e.details,
+  1085→      );
+  1086→    } catch (e) {
+  1087→      AppLogger.error('Heartbeat unexpected error', error: e);
+  1088→      throw ServerException(
+  1089→        message: 'Failed to send heartbeat: $e',
+  1090→        statusCode: 500,
+  1091→      );
+  1092→    }
+  1093→  }
+  1094→
+  1095→  // ═══════════════════════════════════════════════════════════════════
+  1096→  // Monitoring
+  1097→  // ═══════════════════════════════════════════════════════════════════
+  1098→
+  1099→  @override
+  1100→  Future<void> logMonitoringEvent(Map<String, dynamic> eventData) async {
+  1101→    try {
+  1102→      await _supabaseClient.from(_monitoringLogsTable).insert(eventData);
+  1103→    } on sb.PostgrestException catch (e) {
+  1104→      AppLogger.error('Log monitoring event failed', error: e);
+  1105→      throw ServerException(
+  1106→        message: e.message,
+  1107→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1108→        data: e.details,
+  1109→      );
+  1110→    } catch (e) {
+  1111→      AppLogger.error('Log monitoring event unexpected error', error: e);
+  1112→      throw ServerException(
+  1113→        message: 'Failed to log monitoring event: $e',
+  1114→        statusCode: 500,
+  1115→      );
+  1116→    }
+  1117→  }
+  1118→
+  1119→  @override
+  1120→  Future<List<MonitoringLogModel>> getMonitoringLogs(
+  1121→    String examId, {
+  1122→    String? studentId,
+  1123→  }) async {
+  1124→    try {
+  1125→      // PERF: Added pagination and column selection for monitoring logs
+  1126→      var filterQuery = _supabaseClient
+  1127→          .from(_monitoringLogsTable)
+  1128→          .select('id, exam_id, student_id, event_type, severity, details, created_at')
+  1129→          .eq('exam_id', examId);
+  1130→
+  1131→      if (studentId != null) {
+  1132→        filterQuery = filterQuery.eq('student_id', studentId);
+  1133→      }
+  1134→
+  1135→      final transformQuery = filterQuery.order('created_at', ascending: false).limit(PaginatedQueryMixin.defaultPageSize);
+  1136→
+  1137→      final response = await transformQuery;
+  1138→
+  1139→      return response
+  1140→          .map<MonitoringLogModel>(
+  1141→            (e) => MonitoringLogModel.fromJson(e),
+  1142→          )
+  1143→          .toList();
+  1144→    } on sb.PostgrestException catch (e) {
+  1145→      AppLogger.error('Get monitoring logs failed', error: e);
+  1146→      throw ServerException(
+  1147→        message: e.message,
+  1148→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1149→        data: e.details,
+  1150→      );
+  1151→    } catch (e) {
+  1152→      AppLogger.error('Get monitoring logs unexpected error', error: e);
+  1153→      throw ServerException(
+  1154→        message: 'Failed to get monitoring logs: $e',
+  1155→        statusCode: 500,
+  1156→      );
+  1157→    }
+  1158→  }
+  1159→
+  1160→  // ═══════════════════════════════════════════════════════════════════
+  1161→  // Results & Grading
+  1162→  // ═══════════════════════════════════════════════════════════════════
+  1163→
+  1164→  @override
+  1165→  Future<List<ExamResultModel>> getExamResults(
+  1166→    String examId, {
+  1167→    bool? isReleased,
+  1168→    int limit = PaginatedQueryMixin.defaultPageSize,
+  1169→    int offset = 0,
+  1170→  }) async {
+  1171→    try {
+  1172→      // PERF: Added pagination and column selection to prevent unbounded results
+  1173→      // For large exams (500+ students), fetching all results at once is expensive
+  1174→      var filterQuery = _supabaseClient
+  1175→          .from(_examResultsTable)
+  1176→          .select('id, exam_id, student_id, attempt_id, total_marks, total_possible, score_percentage, is_passed, time_spent_seconds, grading_status, is_released, released_at, created_at')
+  1177→          .eq('exam_id', examId);
+  1178→
+  1179→      if (isReleased != null) {
+  1180→        filterQuery = filterQuery.eq('is_released', isReleased);
+  1181→      }
+  1182→
+  1183→      final transformQuery = filterQuery.order('score_percentage', ascending: false).limit(limit).range(offset, offset + limit - 1);
+  1184→
+  1185→      final response = await transformQuery;
+  1186→
+  1187→      return response
+  1188→          .map<ExamResultModel>((r) => ExamResultModel.fromJson(r))
+  1189→          .toList();
+  1190→    } on sb.PostgrestException catch (e) {
+  1191→      AppLogger.error('Get exam results failed', error: e);
+  1192→      throw ServerException(
+  1193→        message: e.message,
+  1194→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1195→        data: e.details,
+  1196→      );
+  1197→    } catch (e) {
+  1198→      AppLogger.error('Get exam results unexpected error', error: e);
+  1199→      throw ServerException(
+  1200→        message: 'Failed to get exam results: $e',
+  1201→        statusCode: 500,
+  1202→      );
+  1203→    }
+  1204→  }
+  1205→
+  1206→  @override
+  1207→  Future<ExamResultModel?> getStudentResult(
+  1208→    String examId,
+  1209→    String studentId,
+  1210→  ) async {
+  1211→    try {
+  1212→      final response = await _supabaseClient
+  1213→          .from(_examResultsTable)
+  1214→          .select()
+  1215→          .eq('exam_id', examId)
+  1216→          .eq('student_id', studentId)
+  1217→          .order('created_at', ascending: false)
+  1218→          .limit(1)
+  1219→          .maybeSingle();
+  1220→
+  1221→      if (response == null) return null;
+  1222→      return ExamResultModel.fromJson(response);
+  1223→    } on sb.PostgrestException catch (e) {
+  1224→      AppLogger.error('Get student result failed', error: e);
+  1225→      throw ServerException(
+  1226→        message: e.message,
+  1227→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1228→        data: e.details,
+  1229→      );
+  1230→    } catch (e) {
+  1231→      AppLogger.error('Get student result unexpected error', error: e);
+  1232→      throw ServerException(
+  1233→        message: 'Failed to get student result: $e',
+  1234→        statusCode: 500,
+  1235→      );
+  1236→    }
+  1237→  }
+  1238→
+  1239→  @override
+  1240→  Future<StudentAnswerModel> gradeAnswer(
+  1241→    String answerId,
+  1242→    double marksAwarded, {
+  1243→    String? comment,
+  1244→  }) async {
+  1245→    try {
+  1246→      final userId = _supabaseClient.auth.currentUser?.id;
+  1247→      final now = DateTime.now();
+  1248→
+  1249→      final updateData = <String, dynamic>{
+  1250→        'marks_awarded': marksAwarded,
+  1251→        'graded_by': userId,
+  1252→        'graded_at': now.toIso8601String(),
+  1253→      };
+  1254→
+  1255→      if (comment != null) {
+  1256→        updateData['teacher_comment'] = comment;
+  1257→      }
+  1258→
+  1259→      final response = await _supabaseClient
+  1260→          .from(_studentAnswersTable)
+  1261→          .update(updateData)
+  1262→          .eq('id', answerId)
+  1263→          .select()
+  1264→          .single();
+  1265→
+  1266→      return StudentAnswerModel.fromJson(response);
+  1267→    } on sb.PostgrestException catch (e) {
+  1268→      AppLogger.error('Grade answer failed', error: e);
+  1269→      throw ServerException(
+  1270→        message: e.message,
+  1271→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1272→        data: e.details,
+  1273→      );
+  1274→    } catch (e) {
+  1275→      AppLogger.error('Grade answer unexpected error', error: e);
+  1276→      throw ServerException(
+  1277→        message: 'Failed to grade answer: $e',
+  1278→        statusCode: 500,
+  1279→      );
+  1280→    }
+  1281→  }
+  1282→
+  1283→  @override
+  1284→  Future<void> releaseResults(String examId) async {
+  1285→    try {
+  1286→      await _supabaseClient
+  1287→          .from(_examResultsTable)
+  1288→          .update({
+  1289→            'is_released': true,
+  1290→            'released_at': DateTime.now().toIso8601String(),
+  1291→          })
+  1292→          .eq('exam_id', examId);
+  1293→    } on sb.PostgrestException catch (e) {
+  1294→      AppLogger.error('Release results failed', error: e);
+  1295→      throw ServerException(
+  1296→        message: e.message,
+  1297→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1298→        data: e.details,
+  1299→      );
+  1300→    } catch (e) {
+  1301→      AppLogger.error('Release results unexpected error', error: e);
+  1302→      throw ServerException(
+  1303→        message: 'Failed to release results: $e',
+  1304→        statusCode: 500,
+  1305→      );
+  1306→    }
+  1307→  }
+  1308→
+  1309→  // ═══════════════════════════════════════════════════════════════════
+  1310→  // Statistics & Rankings
+  1311→  // ═══════════════════════════════════════════════════════════════════
+  1312→
+  1313→  @override
+  1314→  Future<ExamStatisticsModel> getExamStatistics(String examId) async {
+  1315→    try {
+  1316→      // PERF: Use DatabasePoolManager.executeMonitored for performance tracking
+  1317→      // on the most expensive CBT queries
+  1318→      final results = await DatabasePoolManager.executeMonitored(
+  1319→        queryType: 'select',
+  1320→        table: _examResultsTable,
+  1321→        operation: 'get_exam_statistics',
+  1322→        query: () => _supabaseClient
+  1323→            .from(_examResultsTable)
+  1324→            .select('score_percentage, is_passed, grading_status')
+  1325→            .eq('exam_id', examId),
+  1326→      );
+  1327→
+  1328→      // PERF: Only count IDs, don't fetch full rows
+  1329→      final students = await _supabaseClient
+  1330→          .from(_examStudentsTable)
+  1331→          .select('id')
+  1332→          .eq('exam_id', examId)
+  1333→          .limit(PaginatedQueryMixin.maxPageSize); // Safety cap
+  1334→
+  1335→      // PERF: Select only columns needed for statistics calculation
+  1336→      final attempts = await _supabaseClient
+  1337→          .from(_examAttemptsTable)
+  1338→          .select('status, time_spent_seconds')
+  1339→          .eq('exam_id', examId)
+  1340→          .limit(PaginatedQueryMixin.maxPageSize); // Safety cap
+  1341→
+  1342→      final totalStudents = students.length;
+  1343→      final startedStudents = attempts
+  1344→          .where((a) => a['status'] != 'not_started')
+  1345→          .length;
+  1346→      final completedStudents = attempts
+  1347→          .where((a) =>
+  1348→              a['status'] == 'submitted' ||
+  1349→              a['status'] == 'auto_submitted' ||
+  1350→              a['status'] == 'timed_out',)
+  1351→          .length;
+  1352→      final submittedStudents = completedStudents;
+  1353→
+  1354→      // Calculate score statistics
+  1355→      final scores = results
+  1356→          .map<double>((r) => (r['score_percentage'] as num?)?.toDouble() ?? 0.0)
+  1357→          .toList();
+  1358→
+  1359→      final averageScore = scores.isNotEmpty
+  1360→          ? scores.reduce((a, b) => a + b) / scores.length
+  1361→          : 0.0;
+  1362→      final highestScore = scores.isNotEmpty
+  1363→          ? scores.reduce((a, b) => a > b ? a : b)
+  1364→          : 0.0;
+  1365→      final lowestScore = scores.isNotEmpty
+  1366→          ? scores.reduce((a, b) => a < b ? a : b)
+  1367→          : 0.0;
+  1368→
+  1369→      // Calculate median
+  1370→      double medianScore = 0.0;
+  1371→      if (scores.isNotEmpty) {
+  1372→        final sorted = List<double>.from(scores)..sort();
+  1373→        final mid = sorted.length ~/ 2;
+  1374→        medianScore = sorted.length.isEven
+  1375→            ? (sorted[mid - 1] + sorted[mid]) / 2
+  1376→            : sorted[mid];
+  1377→      }
+  1378→
+  1379→      // Calculate pass rate
+  1380→      final passedCount = results
+  1381→          .where((r) => r['is_passed'] == true)
+  1382→          .length;
+  1383→      final passRate =
+  1384→          results.isNotEmpty ? (passedCount / results.length) * 100 : 0.0;
+  1385→
+  1386→      // Average time spent
+  1387→      final timeSpentList = attempts
+  1388→          .where((a) => a['time_spent_seconds'] != null)
+  1389→          .map<int>((a) => a['time_spent_seconds'] as int)
+  1390→          .toList();
+  1391→      final averageTimeSpent = timeSpentList.isNotEmpty
+  1392→          ? timeSpentList.reduce((a, b) => a + b) ~/ timeSpentList.length
+  1393→          : 0;
+  1394→
+  1395→      // Grading completion
+  1396→      final gradedCount = results
+  1397→          .where((r) =>
+  1398→              r['grading_status'] == 'auto_graded' ||
+  1399→              r['grading_status'] == 'fully_graded',)
+  1400→          .length;
+  1401→      final gradingCompletion = results.isNotEmpty
+  1402→          ? (gradedCount / results.length) * 100
+  1403→          : 0.0;
+  1404→
+  1405→      return ExamStatisticsModel(
+  1406→        examId: examId,
+  1407→        totalStudents: totalStudents,
+  1408→        startedStudents: startedStudents,
+  1409→        completedStudents: completedStudents,
+  1410→        submittedStudents: submittedStudents,
+  1411→        averageScore: averageScore,
+  1412→        highestScore: highestScore,
+  1413→        lowestScore: lowestScore,
+  1414→        medianScore: medianScore,
+  1415→        passRate: passRate,
+  1416→        questionsByCorrectRate: {}, // Requires per-question analysis
+  1417→        averageTimeSpentSeconds: averageTimeSpent,
+  1418→        gradingCompletionPercentage: gradingCompletion,
+  1419→      );
+  1420→    } on sb.PostgrestException catch (e) {
+  1421→      AppLogger.error('Get exam statistics failed', error: e);
+  1422→      throw ServerException(
+  1423→        message: e.message,
+  1424→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1425→        data: e.details,
+  1426→      );
+  1427→    } catch (e) {
+  1428→      AppLogger.error('Get exam statistics unexpected error', error: e);
+  1429→      throw ServerException(
+  1430→        message: 'Failed to get exam statistics: $e',
+  1431→        statusCode: 500,
+  1432→      );
+  1433→    }
+  1434→  }
+  1435→
+  1436→  @override
+  1437→  Future<LiveExamStatsModel> getLiveExamStats(String examId) async {
+  1438→    try {
+  1439→      // PERF: Use DatabasePoolManager monitoring for the live stats query
+  1440→      // which is polled every 5-10 seconds during active exams
+  1441→      final activeSessions = await DatabasePoolManager.executeMonitored(
+  1442→        queryType: 'select',
+  1443→        table: _examSessionsTable,
+  1444→        operation: 'get_live_stats_sessions',
+  1445→        query: () => _supabaseClient
+  1446→            .from(_examSessionsTable)
+  1447→            .select('id, questions_answered, questions_flagged')
+  1448→            .eq('exam_id', examId)
+  1449→            .eq('is_active', true)
+  1450→            .limit(PaginatedQueryMixin.maxPageSize),
+  1451→      );
+  1452→
+  1453→      // Count students (bounded by exam size)
+  1454→      final students = await _supabaseClient
+  1455→          .from(_examStudentsTable)
+  1456→          .select('id')
+  1457→          .eq('exam_id', examId)
+  1458→          .limit(PaginatedQueryMixin.maxPageSize);
+  1459→
+  1460→      // PERF: Only select columns needed for counting
+  1461→      final submittedAttempts = await _supabaseClient
+  1462→          .from(_examAttemptsTable)
+  1463→          .select('id, status')
+  1464→          .eq('exam_id', examId)
+  1465→          .inFilter('status', ['submitted', 'auto_submitted', 'timed_out']);
+  1466→
+  1467→      // Recent submissions (last 10)
+  1468→      final recentSubmissions = await _supabaseClient
+  1469→          .from(_examAttemptsTable)
+  1470→          .select()
+  1471→          .eq('exam_id', examId)
+  1472→          .inFilter('status', ['submitted', 'auto_submitted', 'timed_out'])
+  1473→          .order('submitted_at', ascending: false)
+  1474→          .limit(10);
+  1475→
+  1476→      // Recent monitoring events (last 20)
+  1477→      final recentEvents = await _supabaseClient
+  1478→          .from(_monitoringLogsTable)
+  1479→          .select()
+  1480→          .eq('exam_id', examId)
+  1481→          .order('created_at', ascending: false)
+  1482→          .limit(20);
+  1483→
+  1484→      final totalEligible = students.length;
+  1485→      final activeNow = activeSessions.length;
+  1486→      final completed = submittedAttempts.length;
+  1487→      final notStarted = totalEligible - activeNow - completed;
+  1488→
+  1489→      // Calculate average progress
+  1490→      double averageProgress = 0;
+  1491→      if (activeSessions.isNotEmpty) {
+  1492→        final totalQuestionsAnswered = activeSessions.fold<int>(
+  1493→          0,
+  1494→          (sum, s) =>
+  1495→              sum + ((s['questions_answered'] as int?) ?? 0),
+  1496→        );
+  1497→        // Estimate total questions per exam
+  1498→        averageProgress = totalEligible > 0
+  1499→            ? totalQuestionsAnswered / (activeNow * 10) * 100
+  1500→            : 0;
+  1501→        averageProgress = averageProgress.clamp(0.0, 100.0);
+  1502→      }
+  1503→
+  1504→      return LiveExamStatsModel(
+  1505→        examId: examId,
+  1506→        totalEligible: totalEligible,
+  1507→        activeNow: activeNow,
+  1508→        completed: completed,
+  1509→        notStarted: notStarted < 0 ? 0 : notStarted,
+  1510→        averageProgress: averageProgress,
+  1511→        recentSubmissions: recentSubmissions
+  1512→            .map<ExamAttemptModel>((a) => ExamAttemptModel.fromJson(a))
+  1513→            .toList(),
+  1514→        activeSessions: activeSessions
+  1515→            .map<ExamSessionModel>((s) => ExamSessionModel.fromJson(s))
+  1516→            .toList(),
+  1517→        recentMonitoringEvents: recentEvents
+  1518→            .map<MonitoringLogModel>((e) => MonitoringLogModel.fromJson(e))
+  1519→            .toList(),
+  1520→      );
+  1521→    } on sb.PostgrestException catch (e) {
+  1522→      AppLogger.error('Get live exam stats failed', error: e);
+  1523→      throw ServerException(
+  1524→        message: e.message,
+  1525→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1526→        data: e.details,
+  1527→      );
+  1528→    } catch (e) {
+  1529→      AppLogger.error('Get live exam stats unexpected error', error: e);
+  1530→      throw ServerException(
+  1531→        message: 'Failed to get live exam stats: $e',
+  1532→        statusCode: 500,
+  1533→      );
+  1534→    }
+  1535→  }
+  1536→
+  1537→  @override
+  1538→  Future<List<ExamRankingModel>> getRankings(String examId) async {
+  1539→    try {
+  1540→      final response = await _supabaseClient
+  1541→          .from(_examResultsTable)
+  1542→          .select()
+  1543→          .eq('exam_id', examId)
+  1544→          .eq('is_released', true)
+  1545→          .order('score_percentage', ascending: false);
+  1546→
+  1547→      // Generate rankings from sorted results
+  1548→      final rankings = <ExamRankingModel>[];
+  1549→      for (var i = 0; i < response.length; i++) {
+  1550→        final result = response[i];
+  1551→        // Check if ranking already exists
+  1552→        final existingRanking = await _supabaseClient
+  1553→            .from(_examRankingsTable)
+  1554→            .select('id')
+  1555→            .eq('attempt_id', result['attempt_id'] as String)
+  1556→            .maybeSingle();
+  1557→
+  1558→        if (existingRanking == null) {
+  1559→          final rankingResponse = await _supabaseClient
+  1560→              .from(_examRankingsTable)
+  1561→              .insert({
+  1562→                'exam_id': examId,
+  1563→                'student_id': result['student_id'] as String,
+  1564→                'attempt_id': result['attempt_id'] as String,
+  1565→                'rank': i + 1,
+  1566→                'total_marks': result['total_marks'],
+  1567→                'score_percentage': result['score_percentage'],
+  1568→              })
+  1569→              .select()
+  1570→              .single();
+  1571→
+  1572→          rankings.add(ExamRankingModel.fromJson(rankingResponse));
+  1573→        } else {
+  1574→          await _supabaseClient
+  1575→              .from(_examRankingsTable)
+  1576→              .update({
+  1577→                'rank': i + 1,
+  1578→                'total_marks': result['total_marks'],
+  1579→                'score_percentage': result['score_percentage'],
+  1580→              })
+  1581→              .eq('id', existingRanking['id'] as String);
+  1582→
+  1583→          final updatedRanking = await _supabaseClient
+  1584→              .from(_examRankingsTable)
+  1585→              .select()
+  1586→              .eq('id', existingRanking['id'] as String)
+  1587→              .single();
+  1588→
+  1589→          rankings.add(ExamRankingModel.fromJson(updatedRanking));
+  1590→        }
+  1591→      }
+  1592→
+  1593→      return rankings;
+  1594→    } on sb.PostgrestException catch (e) {
+  1595→      AppLogger.error('Get rankings failed', error: e);
+  1596→      throw ServerException(
+  1597→        message: e.message,
+  1598→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1599→        data: e.details,
+  1600→      );
+  1601→    } catch (e) {
+  1602→      AppLogger.error('Get rankings unexpected error', error: e);
+  1603→      throw ServerException(
+  1604→        message: 'Failed to get rankings: $e',
+  1605→        statusCode: 500,
+  1606→      );
+  1607→    }
+  1608→  }
+  1609→
+  1610→  // ═══════════════════════════════════════════════════════════════════
+  1611→  // Realtime Subscriptions
+  1612→  // ═══════════════════════════════════════════════════════════════════
+  1613→
+  1614→  @override
+  1615→  Stream<ExamSessionModel> watchExamSessions(String examId) {
+  1616→    final channelName = 'exam_sessions_$examId';
+  1617→    final controller = StreamController<ExamSessionModel>();
+  1618→
+  1619→    final channel = _supabaseClient.channel(channelName);
+  1620→
+  1621→    channel.onPostgresChanges(
+  1622→      event: sb.PostgresChangeEvent.all,
+  1623→      schema: 'public',
+  1624→      table: _examSessionsTable,
+  1625→      filter: sb.PostgresChangeFilter(
+  1626→        type: sb.PostgresChangeFilterType.eq,
+  1627→        column: 'exam_id',
+  1628→        value: examId,
+  1629→      ),
+  1630→      callback: (sb.PostgresChangePayload payload) {
+  1631→        try {
+  1632→          final session = ExamSessionModel.fromJson(payload.newRecord);
+  1633→          controller.add(session);
+  1634→        } catch (e) {
+  1635→          AppLogger.warning('Failed to parse session realtime event', error: e);
+  1636→        }
+  1637→      },
+  1638→    );
+  1639→
+  1640→    channel.subscribe();
+  1641→
+  1642→    _channels[channelName] = channel;
+  1643→
+  1644→    // Also fetch initial sessions
+  1645→    _supabaseClient
+  1646→        .from(_examSessionsTable)
+  1647→        .select()
+  1648→        .eq('exam_id', examId)
+  1649→        .then((sessions) {
+  1650→      for (final session in sessions) {
+  1651→        try {
+  1652→          controller.add(ExamSessionModel.fromJson(session));
+  1653→        } catch (_) {}
+  1654→      }
+  1655→    }).catchError((_) {});
+  1656→
+  1657→    return controller.stream;
+  1658→  }
+  1659→
+  1660→  @override
+  1661→  Stream<ExamAttemptModel> watchExamAttempts(String examId) {
+  1662→    final channelName = 'exam_attempts_$examId';
+  1663→    final controller = StreamController<ExamAttemptModel>();
+  1664→
+  1665→    final channel = _supabaseClient.channel(channelName);
+  1666→
+  1667→    channel.onPostgresChanges(
+  1668→      event: sb.PostgresChangeEvent.all,
+  1669→      schema: 'public',
+  1670→      table: _examAttemptsTable,
+  1671→      filter: sb.PostgresChangeFilter(
+  1672→        type: sb.PostgresChangeFilterType.eq,
+  1673→        column: 'exam_id',
+  1674→        value: examId,
+  1675→      ),
+  1676→      callback: (sb.PostgresChangePayload payload) {
+  1677→        try {
+  1678→          final attempt = ExamAttemptModel.fromJson(payload.newRecord);
+  1679→          controller.add(attempt);
+  1680→        } catch (e) {
+  1681→          AppLogger.warning('Failed to parse attempt realtime event', error: e);
+  1682→        }
+  1683→      },
+  1684→    );
+  1685→
+  1686→    channel.subscribe();
+  1687→
+  1688→    _channels[channelName] = channel;
+  1689→
+  1690→    return controller.stream;
+  1691→  }
+  1692→
+  1693→  @override
+  1694→  Stream<MonitoringLogModel> watchMonitoringEvents(String examId) {
+  1695→    final channelName = 'monitoring_events_$examId';
+  1696→    final controller = StreamController<MonitoringLogModel>();
+  1697→
+  1698→    final channel = _supabaseClient.channel(channelName);
+  1699→
+  1700→    channel.onPostgresChanges(
+  1701→      event: sb.PostgresChangeEvent.all,
+  1702→      schema: 'public',
+  1703→      table: _monitoringLogsTable,
+  1704→      filter: sb.PostgresChangeFilter(
+  1705→        type: sb.PostgresChangeFilterType.eq,
+  1706→        column: 'exam_id',
+  1707→        value: examId,
+  1708→      ),
+  1709→      callback: (sb.PostgresChangePayload payload) {
+  1710→        try {
+  1711→          final event = MonitoringLogModel.fromJson(payload.newRecord);
+  1712→          controller.add(event);
+  1713→        } catch (e) {
+  1714→          AppLogger.warning('Failed to parse monitoring realtime event', error: e);
+  1715→        }
+  1716→      },
+  1717→    );
+  1718→
+  1719→    channel.subscribe();
+  1720→
+  1721→    _channels[channelName] = channel;
+  1722→
+  1723→    return controller.stream;
+  1724→  }
+  1725→
+  1726→  /// Unsubscribe from a specific channel.
+  1727→  void unsubscribeChannel(String channelName) {
+  1728→    final channel = _channels.remove(channelName);
+  1729→    if (channel != null) {
+  1730→      _supabaseClient.removeChannel(channel);
+  1731→    }
+  1732→  }
+  1733→
+  1734→  /// Unsubscribe from all active channels.
+  1735→  void unsubscribeAll() {
+  1736→    for (final channel in _channels.values) {
+  1737→      _supabaseClient.removeChannel(channel);
+  1738→    }
+  1739→    _channels.clear();
+  1740→  }
+  1741→}
+  1742→

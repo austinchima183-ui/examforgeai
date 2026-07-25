@@ -20,9 +20,11 @@ class _SplashPageState extends State<SplashPage> {
   }
 
   Future<void> _initialize() async {
-    // Allow splash animation to display, then let GoRouter redirect
-    // based on auth / onboarding state.
-    await Future.delayed(const Duration(seconds: 2));
+    // Minimum branding animation (800ms) — the router's redirect logic
+    // will navigate away once auth state is resolved. This ensures the
+    // splash is visible briefly for branding, without an arbitrary 2s
+    // delay that blocks users on fast connections/devices.
+    await Future.delayed(const Duration(milliseconds: 800));
     if (!mounted) return;
     // Navigation is handled by GoRouter redirect logic.
   }

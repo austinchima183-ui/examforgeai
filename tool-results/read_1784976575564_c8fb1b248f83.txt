@@ -1,0 +1,963 @@
+     1→-- ═══════════════════════════════════════════════════════════════════════════════
+     2→-- EXAMFORGE AI — TEACHER WORKSPACE EXPANSION SCHEMA
+     3→-- ═══════════════════════════════════════════════════════════════════════════════
+     4→-- Adds: AI Presentations, Communications, Tasks/To-Dos, Rubrics, Oral Questions,
+     5→-- Practical Assessments, Collaboration (sharing, comments), Enhanced Dashboard.
+     6→-- Depends on: schema.sql, teacher_workspace_schema.sql, school_management_schema.sql
+     7→-- ═══════════════════════════════════════════════════════════════════════════════
+     8→
+     9→-- ─── NEW CUSTOM ENUMS ──────────────────────────────────────────────────────────
+    10→
+    11→CREATE TYPE presentation_type AS ENUM (
+    12→  'powerpoint',
+    13→  'teaching_slides',
+    14→  'infographic',
+    15→  'diagram',
+    16→  'flowchart',
+    17→  'mind_map',
+    18→  'summary_sheet'
+    19→);
+    20→
+    21→CREATE TYPE communication_type AS ENUM (
+    22→  'parent_letter',
+    23→  'student_feedback',
+    24→  'email',
+    25→  'sms',
+    26→  'announcement',
+    27→  'meeting_invitation',
+    28→  'permission_letter',
+    29→  'certificate'
+    30→);
+    31→
+    32→CREATE TYPE communication_tone AS ENUM (
+    33→  'formal',
+    34→  'friendly',
+    35→  'encouraging',
+    36→  'professional'
+    37→);
+    38→
+    39→CREATE TYPE task_priority AS ENUM (
+    40→  'low',
+    41→  'medium',
+    42→  'high',
+    43→  'urgent'
+    44→);
+    45→
+    46→CREATE TYPE task_status AS ENUM (
+    47→  'pending',
+    48→  'in_progress',
+    49→  'completed',
+    50→  'cancelled'
+    51→);
+    52→
+    53→CREATE TYPE rubric_criterion_level AS ENUM (
+    54→  'beginning',
+    55→  'developing',
+    56→  'proficient',
+    57→  'exemplary'
+    58→);
+    59→
+    60→CREATE TYPE assessment_type AS ENUM (
+    61→  'oral',
+    62→  'practical',
+    63→  'rubric_based'
+    64→);
+    65→
+    66→-- ═══════════════════════════════════════════════════════════════════════════════
+    67→-- PRESENTATIONS TABLE
+    68→-- ═══════════════════════════════════════════════════════════════════════════════
+    69→-- AI-generated and manually created presentations, slides, infographics,
+    70→-- diagrams, flowcharts, mind maps, and summary sheets.
+    71→
+    72→CREATE TABLE IF NOT EXISTS presentations (
+    73→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    74→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+    75→  teacher_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+    76→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+    77→  class_id        UUID REFERENCES classes(id) ON DELETE SET NULL,
+    78→
+    79→  title           TEXT NOT NULL,
+    80→  description     TEXT,
+    81→  presentation_type presentation_type NOT NULL DEFAULT 'teaching_slides',
+    82→
+    83→  -- Slide content as JSONB: array of { title, body, notes, layout, imageUrl }
+    84→  slides          JSONB NOT NULL DEFAULT '[]'::jsonb,
+    85→  speaker_notes   TEXT,
+    86→  total_slides    INTEGER NOT NULL DEFAULT 0,
+    87→
+    88→  -- AI generation context
+    89→  topic           TEXT,
+    90→  curriculum      curriculum_type,
+    91→  difficulty      student_level DEFAULT 'intermediate',
+    92→  custom_instructions TEXT,
+    93→
+    94→  -- Generation metadata
+    95→  is_ai_generated BOOLEAN NOT NULL DEFAULT FALSE,
+    96→  ai_model        TEXT,
+    97→  generation_time_ms INTEGER,
+    98→  tokens_used     INTEGER,
+    99→
+   100→  -- Status & sharing
+   101→  is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+   102→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+   103→  is_favorite     BOOLEAN NOT NULL DEFAULT FALSE,
+   104→  is_template     BOOLEAN NOT NULL DEFAULT FALSE,
+   105→  template_id     UUID REFERENCES presentations(id) ON DELETE SET NULL,
+   106→
+   107→  -- Export tracking
+   108→  last_export_format TEXT,
+   109→  last_exported_at   TIMESTAMPTZ,
+   110→
+   111→  -- Version
+   112→  version         INTEGER NOT NULL DEFAULT 1,
+   113→
+   114→  -- Tags for search
+   115→  tags            TEXT[] DEFAULT '{}',
+   116→
+   117→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   118→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   119→);
+   120→
+   121→CREATE INDEX idx_presentations_school ON presentations(school_id);
+   122→CREATE INDEX idx_presentations_teacher ON presentations(teacher_id);
+   123→CREATE INDEX idx_presentations_subject ON presentations(subject_id);
+   124→CREATE INDEX idx_presentations_class ON presentations(class_id);
+   125→CREATE INDEX idx_presentations_type ON presentations(presentation_type);
+   126→CREATE INDEX idx_presentations_published ON presentations(is_published) WHERE is_published = TRUE;
+   127→CREATE INDEX idx_presentations_archived ON presentations(is_archived) WHERE is_archived = FALSE;
+   128→CREATE INDEX idx_presentations_favorite ON presentations(teacher_id, is_favorite) WHERE is_favorite = TRUE;
+   129→CREATE INDEX idx_presentations_template ON presentations(is_template) WHERE is_template = TRUE;
+   130→CREATE INDEX idx_presentations_tags ON presentations USING GIN(tags);
+   131→CREATE INDEX idx_presentations_created ON presentations(created_at DESC);
+   132→
+   133→-- ═══════════════════════════════════════════════════════════════════════════════
+   134→-- PRESENTATION VERSIONS TABLE
+   135→-- ═══════════════════════════════════════════════════════════════════════════════
+   136→
+   137→CREATE TABLE IF NOT EXISTS presentation_versions (
+   138→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   139→  presentation_id UUID NOT NULL REFERENCES presentations(id) ON DELETE CASCADE,
+   140→  version_number  INTEGER NOT NULL,
+   141→  snapshot        JSONB NOT NULL,
+   142→  change_summary  TEXT,
+   143→  created_by      UUID NOT NULL REFERENCES auth.users(id),
+   144→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   145→
+   146→  UNIQUE(presentation_id, version_number)
+   147→);
+   148→
+   149→CREATE INDEX idx_presentation_versions_presentation ON presentation_versions(presentation_id, version_number DESC);
+   150→
+   151→-- ═══════════════════════════════════════════════════════════════════════════════
+   152→-- COMMUNICATIONS TABLE
+   153→-- ═══════════════════════════════════════════════════════════════════════════════
+   154→-- AI-generated letters, feedback, emails, SMS, announcements, certificates.
+   155→
+   156→CREATE TABLE IF NOT EXISTS communications (
+   157→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   158→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   159→  teacher_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   160→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   161→  class_id        UUID REFERENCES classes(id) ON DELETE SET NULL,
+   162→
+   163→  title           TEXT NOT NULL,
+   164→  content         TEXT NOT NULL,
+   165→  communication_type communication_type NOT NULL,
+   166→  tone            communication_tone NOT NULL DEFAULT 'professional',
+   167→
+   168→  -- Recipients (can be individuals or groups)
+   169→  recipient_type  TEXT NOT NULL DEFAULT 'class', -- 'class', 'student', 'parent', 'all', 'custom'
+   170→  recipient_ids   UUID[] DEFAULT '{}',
+   171→
+   172→  -- AI generation context
+   173→  purpose         TEXT,
+   174→  custom_instructions TEXT,
+   175→  is_ai_generated BOOLEAN NOT NULL DEFAULT FALSE,
+   176→  ai_model        TEXT,
+   177→  generation_time_ms INTEGER,
+   178→  tokens_used     INTEGER,
+   179→
+   180→  -- Status
+   181→  is_sent         BOOLEAN NOT NULL DEFAULT FALSE,
+   182→  is_draft        BOOLEAN NOT NULL DEFAULT TRUE,
+   183→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+   184→  is_template     BOOLEAN NOT NULL DEFAULT FALSE,
+   185→
+   186→  sent_at         TIMESTAMPTZ,
+   187→  tags            TEXT[] DEFAULT '{}',
+   188→
+   189→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   190→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   191→);
+   192→
+   193→CREATE INDEX idx_communications_school ON communications(school_id);
+   194→CREATE INDEX idx_communications_teacher ON communications(teacher_id);
+   195→CREATE INDEX idx_communications_type ON communications(communication_type);
+   196→CREATE INDEX idx_communications_tone ON communications(tone);
+   197→CREATE INDEX idx_communications_draft ON communications(is_draft) WHERE is_draft = TRUE;
+   198→CREATE INDEX idx_communications_sent ON communications(is_sent) WHERE is_sent = TRUE;
+   199→CREATE INDEX idx_communications_template ON communications(is_template) WHERE is_template = TRUE;
+   200→CREATE INDEX idx_communications_created ON communications(created_at DESC);
+   201→
+   202→-- ═══════════════════════════════════════════════════════════════════════════════
+   203→-- TASKS TABLE
+   204→-- ═══════════════════════════════════════════════════════════════════════════════
+   205→-- Tasks, to-dos, reminders, and meeting scheduling.
+   206→
+   207→CREATE TABLE IF NOT EXISTS tasks (
+   208→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   209→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   210→  teacher_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   211→
+   212→  title           TEXT NOT NULL,
+   213→  description     TEXT,
+   214→  priority        task_priority NOT NULL DEFAULT 'medium',
+   215→  status          task_status NOT NULL DEFAULT 'pending',
+   216→
+   217→  -- Task categorization
+   218→  category        TEXT NOT NULL DEFAULT 'general', -- 'lesson', 'grading', 'meeting', 'admin', 'personal', 'general'
+   219→  related_resource_type TEXT, -- 'lesson_plan', 'worksheet', 'assignment', 'exam', etc.
+   220→  related_resource_id   UUID,
+   221→
+   222→  -- Due date & reminders
+   223→  due_date        TIMESTAMPTZ,
+   224→  reminder_at     TIMESTAMPTZ,
+   225→  is_reminder_sent BOOLEAN NOT NULL DEFAULT FALSE,
+   226→
+   227→  -- Recurrence
+   228→  is_recurring    BOOLEAN NOT NULL DEFAULT FALSE,
+   229→  recurrence_rule TEXT, -- RFC 5545 RRULE format
+   230→
+   231→  -- Subtasks
+   232→  subtasks        JSONB DEFAULT '[]'::jsonb, -- [{title, isCompleted}]
+   233→
+   234→  -- Completion
+   235→  completed_at    TIMESTAMPTZ,
+   236→  completion_notes TEXT,
+   237→
+   238→  -- Assignment to others
+   239→  assigned_to     UUID REFERENCES auth.users(id),
+   240→
+   241→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   242→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   243→);
+   244→
+   245→CREATE INDEX idx_tasks_school ON tasks(school_id);
+   246→CREATE INDEX idx_tasks_teacher ON tasks(teacher_id);
+   247→CREATE INDEX idx_tasks_status ON tasks(teacher_id, status);
+   248→CREATE INDEX idx_tasks_priority ON tasks(teacher_id, priority);
+   249→CREATE INDEX idx_tasks_due_date ON tasks(teacher_id, due_date) WHERE status != 'completed';
+   250→CREATE INDEX idx_tasks_category ON tasks(teacher_id, category);
+   251→CREATE INDEX idx_tasks_overdue ON tasks(teacher_id, due_date) WHERE due_date < now() AND status = 'pending';
+   252→
+   253→-- ═══════════════════════════════════════════════════════════════════════════════
+   254→-- RUBRICS TABLE
+   255→-- ═══════════════════════════════════════════════════════════════════════════════
+   256→-- Assessment rubrics with criteria and performance levels.
+   257→
+   258→CREATE TABLE IF NOT EXISTS rubrics (
+   259→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   260→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   261→  teacher_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   262→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   263→  class_id        UUID REFERENCES classes(id) ON DELETE SET NULL,
+   264→
+   265→  title           TEXT NOT NULL,
+   266→  description     TEXT,
+   267→
+   268→  -- Rubric structure as JSONB
+   269→  -- [{ criterion, weight, levels: [{ level, description, score }] }]
+   270→  criteria        JSONB NOT NULL DEFAULT '[]'::jsonb,
+   271→
+   272→  total_points    NUMERIC(6,2) NOT NULL DEFAULT 0,
+   273→
+   274→  -- AI generation context
+   275→  topic           TEXT,
+   276→  is_ai_generated BOOLEAN NOT NULL DEFAULT FALSE,
+   277→  ai_model        TEXT,
+   278→
+   279→  -- Status
+   280→  is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+   281→  is_template     BOOLEAN NOT NULL DEFAULT FALSE,
+   282→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+   283→
+   284→  tags            TEXT[] DEFAULT '{}',
+   285→
+   286→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   287→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   288→);
+   289→
+   290→CREATE INDEX idx_rubrics_school ON rubrics(school_id);
+   291→CREATE INDEX idx_rubrics_teacher ON rubrics(teacher_id);
+   292→CREATE INDEX idx_rubrics_subject ON rubrics(subject_id);
+   293→CREATE INDEX idx_rubrics_template ON rubrics(is_template) WHERE is_template = TRUE;
+   294→CREATE INDEX idx_rubrics_published ON rubrics(is_published) WHERE is_published = TRUE;
+   295→
+   296→-- ═══════════════════════════════════════════════════════════════════════════════
+   297→-- ORAL QUESTIONS TABLE
+   298→-- ═══════════════════════════════════════════════════════════════════════════════
+   299→
+   300→CREATE TABLE IF NOT EXISTS oral_questions (
+   301→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   302→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   303→  teacher_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   304→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   305→  class_id        UUID REFERENCES classes(id) ON DELETE SET NULL,
+   306→
+   307→  title           TEXT NOT NULL,
+   308→  description     TEXT,
+   309→
+   310→  -- Questions as JSONB array: [{ question, expectedAnswer, marks, difficulty, bloomLevel }]
+   311→  questions       JSONB NOT NULL DEFAULT '[]'::jsonb,
+   312→  total_marks     NUMERIC(6,2) NOT NULL DEFAULT 0,
+   313→  estimated_duration_minutes INTEGER NOT NULL DEFAULT 30,
+   314→
+   315→  -- AI generation context
+   316→  topic           TEXT,
+   317→  curriculum      curriculum_type,
+   318→  difficulty      student_level DEFAULT 'intermediate',
+   319→  is_ai_generated BOOLEAN NOT NULL DEFAULT FALSE,
+   320→  ai_model        TEXT,
+   321→
+   322→  -- Status
+   323→  is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+   324→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+   325→
+   326→  tags            TEXT[] DEFAULT '{}',
+   327→
+   328→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   329→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   330→);
+   331→
+   332→CREATE INDEX idx_oral_questions_school ON oral_questions(school_id);
+   333→CREATE INDEX idx_oral_questions_teacher ON oral_questions(teacher_id);
+   334→CREATE INDEX idx_oral_questions_subject ON oral_questions(subject_id);
+   335→CREATE INDEX idx_oral_questions_published ON oral_questions(is_published) WHERE is_published = TRUE;
+   336→
+   337→-- ═══════════════════════════════════════════════════════════════════════════════
+   338→-- PRACTICAL ASSESSMENTS TABLE
+   339→-- ═══════════════════════════════════════════════════════════════════════════════
+   340→
+   341→CREATE TABLE IF NOT EXISTS practical_assessments (
+   342→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   343→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   344→  teacher_id      UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   345→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   346→  class_id        UUID REFERENCES classes(id) ON DELETE SET NULL,
+   347→
+   348→  title           TEXT NOT NULL,
+   349→  description     TEXT,
+   350→
+   351→  -- Practical details
+   352→  objectives      TEXT[] DEFAULT '{}',
+   353→  materials_needed TEXT[] DEFAULT '{}',
+   354→  procedure_steps TEXT[] DEFAULT '{}',
+   355→  safety_precautions TEXT[] DEFAULT '{}',
+   356→  expected_results TEXT,
+   357→  assessment_criteria JSONB DEFAULT '[]'::jsonb,
+   358→
+   359→  total_marks     NUMERIC(6,2) NOT NULL DEFAULT 0,
+   360→  estimated_duration_minutes INTEGER NOT NULL DEFAULT 60,
+   361→
+   362→  -- AI generation context
+   363→  topic           TEXT,
+   364→  curriculum      curriculum_type,
+   365→  difficulty      student_level DEFAULT 'intermediate',
+   366→  is_ai_generated BOOLEAN NOT NULL DEFAULT FALSE,
+   367→  ai_model        TEXT,
+   368→
+   369→  -- Associated rubric
+   370→  rubric_id       UUID REFERENCES rubrics(id) ON DELETE SET NULL,
+   371→
+   372→  -- Status
+   373→  is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+   374→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+   375→
+   376→  tags            TEXT[] DEFAULT '{}',
+   377→
+   378→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   379→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   380→);
+   381→
+   382→CREATE INDEX idx_practical_assessments_school ON practical_assessments(school_id);
+   383→CREATE INDEX idx_practical_assessments_teacher ON practical_assessments(teacher_id);
+   384→CREATE INDEX idx_practical_assessments_subject ON practical_assessments(subject_id);
+   385→CREATE INDEX idx_practical_assessments_published ON practical_assessments(is_published) WHERE is_published = TRUE;
+   386→
+   387→-- ═══════════════════════════════════════════════════════════════════════════════
+   388→-- COLLABORATION: SHARED RESOURCES TABLE
+   389→-- ═══════════════════════════════════════════════════════════════════════════════
+   390→
+   391→CREATE TABLE IF NOT EXISTS shared_resources (
+   392→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   393→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   394→
+   395→  -- The resource being shared
+   396→  resource_type   TEXT NOT NULL, -- 'lesson_plan', 'worksheet', 'presentation', 'rubric', etc.
+   397→  resource_id     UUID NOT NULL,
+   398→
+   399→  -- Who shared it
+   400→  shared_by       UUID NOT NULL REFERENCES auth.users(id),
+   401→
+   402→  -- Who it's shared with
+   403→  shared_with     UUID NOT NULL REFERENCES auth.users(id),
+   404→
+   405→  -- Permissions
+   406→  can_edit        BOOLEAN NOT NULL DEFAULT FALSE,
+   407→  can_view        BOOLEAN NOT NULL DEFAULT TRUE,
+   408→  can_comment     BOOLEAN NOT NULL DEFAULT TRUE,
+   409→  can_download    BOOLEAN NOT NULL DEFAULT TRUE,
+   410→
+   411→  -- Message when sharing
+   412→  message         TEXT,
+   413→
+   414→  is_accepted     BOOLEAN DEFAULT NULL, -- NULL = pending, TRUE = accepted, FALSE = declined
+   415→
+   416→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   417→);
+   418→
+   419→CREATE INDEX idx_shared_resources_resource ON shared_resources(resource_type, resource_id);
+   420→CREATE INDEX idx_shared_resources_shared_by ON shared_resources(shared_by);
+   421→CREATE INDEX idx_shared_resources_shared_with ON shared_resources(shared_with);
+   422→CREATE INDEX idx_shared_resources_pending ON shared_resources(shared_with, is_accepted) WHERE is_accepted IS NULL;
+   423→
+   424→-- ═══════════════════════════════════════════════════════════════════════════════
+   425→-- COLLABORATION: COMMENTS TABLE
+   426→-- ═══════════════════════════════════════════════════════════════════════════════
+   427→
+   428→CREATE TABLE IF NOT EXISTS collaboration_comments (
+   429→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   430→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   431→
+   432→  -- What is being commented on
+   433→  resource_type   TEXT NOT NULL,
+   434→  resource_id     UUID NOT NULL,
+   435→
+   436→  -- Comment content
+   437→  content         TEXT NOT NULL,
+   438→
+   439→  -- Author
+   440→  author_id       UUID NOT NULL REFERENCES auth.users(id),
+   441→
+   442→  -- Threading: reply to another comment
+   443→  parent_comment_id UUID REFERENCES collaboration_comments(id) ON DELETE CASCADE,
+   444→
+   445→  -- Metadata
+   446→  is_resolved     BOOLEAN NOT NULL DEFAULT FALSE,
+   447→  resolved_by     UUID REFERENCES auth.users(id),
+   448→  resolved_at     TIMESTAMPTZ,
+   449→
+   450→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   451→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   452→);
+   453→
+   454→CREATE INDEX idx_comments_resource ON collaboration_comments(resource_type, resource_id);
+   455→CREATE INDEX idx_comments_author ON collaboration_comments(author_id);
+   456→CREATE INDEX idx_comments_parent ON collaboration_comments(parent_comment_id);
+   457→CREATE INDEX idx_comments_created ON collaboration_comments(created_at DESC);
+   458→
+   459→-- ═══════════════════════════════════════════════════════════════════════════════
+   460→-- TEACHING STATISTICS MATERIALIZED VIEW
+   461→-- ═══════════════════════════════════════════════════════════════════════════════
+   462→
+   463→CREATE MATERIALIZED VIEW IF NOT EXISTS teacher_statistics AS
+   464→SELECT
+   465→  t.teacher_id,
+   466→  t.school_id,
+   467→  COUNT(DISTINCT lp.id) AS total_lesson_plans,
+   468→  COUNT(DISTINCT lp.id) FILTER (WHERE lp.is_published) AS published_lesson_plans,
+   469→  COUNT(DISTINCT sw.id) AS total_schemes,
+   470→  COUNT(DISTINCT ws.id) AS total_worksheets,
+   471→  COUNT(DISTINCT wa.id) AS total_assignments,
+   472→  COUNT(DISTINCT wa.id) FILTER (WHERE wa.status = 'published') AS published_assignments,
+   473→  COUNT(DISTINCT p.id) AS total_presentations,
+   474→  COUNT(DISTINCT r.id) AS total_rubrics,
+   475→  COUNT(DISTINCT tr.id) FILTER (WHERE tr.is_favorite) AS favorite_resources,
+   476→  COUNT(DISTINCT ach.id) AS total_ai_generations,
+   477→  SUM(COALESCE(ach.tokens_used, 0)) AS total_tokens_used,
+   478→  COUNT(DISTINCT tsk.id) FILTER (WHERE tsk.status = 'completed') AS completed_tasks,
+   479→  COUNT(DISTINCT tsk.id) FILTER (WHERE tsk.status = 'pending') AS pending_tasks,
+   480→  COUNT(DISTINCT tsk.id) FILTER (WHERE tsk.due_date < now() AND tsk.status = 'pending') AS overdue_tasks
+   481→FROM (
+   482→  SELECT DISTINCT teacher_id, school_id FROM lesson_plans
+   483→  UNION DISTINCT SELECT teacher_id, school_id FROM schemes_of_work
+   484→  UNION DISTINCT SELECT teacher_id, school_id FROM worksheets
+   485→) t
+   486→LEFT JOIN lesson_plans lp ON lp.teacher_id = t.teacher_id
+   487→LEFT JOIN schemes_of_work sw ON sw.teacher_id = t.teacher_id
+   488→LEFT JOIN worksheets ws ON ws.teacher_id = t.teacher_id
+   489→LEFT JOIN workspace_assignments wa ON wa.teacher_id = t.teacher_id
+   490→LEFT JOIN presentations p ON p.teacher_id = t.teacher_id
+   491→LEFT JOIN rubrics r ON r.teacher_id = t.teacher_id
+   492→LEFT JOIN teaching_resources tr ON tr.teacher_id = t.teacher_id
+   493→LEFT JOIN ai_content_history ach ON ach.teacher_id = t.teacher_id
+   494→LEFT JOIN tasks tsk ON tsk.teacher_id = t.teacher_id
+   495→GROUP BY t.teacher_id, t.school_id;
+   496→
+   497→CREATE UNIQUE INDEX idx_teacher_statistics_teacher ON teacher_statistics(teacher_id);
+   498→
+   499→-- ═══════════════════════════════════════════════════════════════════════════════
+   500→-- ROW LEVEL SECURITY (RLS)
+   501→-- ═══════════════════════════════════════════════════════════════════════════════
+   502→
+   503→ALTER TABLE presentations ENABLE ROW LEVEL SECURITY;
+   504→ALTER TABLE presentation_versions ENABLE ROW LEVEL SECURITY;
+   505→ALTER TABLE communications ENABLE ROW LEVEL SECURITY;
+   506→ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
+   507→ALTER TABLE rubrics ENABLE ROW LEVEL SECURITY;
+   508→ALTER TABLE oral_questions ENABLE ROW LEVEL SECURITY;
+   509→ALTER TABLE practical_assessments ENABLE ROW LEVEL SECURITY;
+   510→ALTER TABLE shared_resources ENABLE ROW LEVEL SECURITY;
+   511→ALTER TABLE collaboration_comments ENABLE ROW LEVEL SECURITY;
+   512→
+   513→-- ─── Presentations RLS ─────────────────────────────────────────────────────────
+   514→
+   515→CREATE POLICY "Teachers can view own presentations"
+   516→  ON presentations FOR SELECT
+   517→  USING (teacher_id = auth.uid());
+   518→
+   519→CREATE POLICY "Teachers can view shared presentations"
+   520→  ON presentations FOR SELECT
+   521→  USING (
+   522→    id IN (
+   523→      SELECT resource_id FROM shared_resources
+   524→      WHERE resource_type = 'presentation'
+   525→      AND shared_with = auth.uid()
+   526→      AND is_accepted = TRUE
+   527→    )
+   528→  );
+   529→
+   530→CREATE POLICY "School admins can view school presentations"
+   531→  ON presentations FOR SELECT
+   532→  USING (
+   533→    school_id IN (
+   534→      SELECT s.id FROM schools s
+   535→      JOIN users u ON u.school_id = s.id
+   536→      WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin')
+   537→    )
+   538→  );
+   539→
+   540→CREATE POLICY "Teachers can create own presentations"
+   541→  ON presentations FOR INSERT
+   542→  WITH CHECK (teacher_id = auth.uid());
+   543→
+   544→CREATE POLICY "Teachers can update own presentations"
+   545→  ON presentations FOR UPDATE
+   546→  USING (teacher_id = auth.uid())
+   547→  WITH CHECK (teacher_id = auth.uid());
+   548→
+   549→CREATE POLICY "Teachers can delete own presentations"
+   550→  ON presentations FOR DELETE
+   551→  USING (teacher_id = auth.uid());
+   552→
+   553→-- ─── Presentation Versions RLS ────────────────────────────────────────────────
+   554→
+   555→CREATE POLICY "Users can view versions of accessible presentations"
+   556→  ON presentation_versions FOR SELECT
+   557→  USING (
+   558→    presentation_id IN (SELECT id FROM presentations)
+   559→  );
+   560→
+   561→CREATE POLICY "Users can create versions of own presentations"
+   562→  ON presentation_versions FOR INSERT
+   563→  WITH CHECK (
+   564→    presentation_id IN (SELECT id FROM presentations WHERE teacher_id = auth.uid())
+   565→  );
+   566→
+   567→-- ─── Communications RLS ───────────────────────────────────────────────────────
+   568→
+   569→CREATE POLICY "Teachers can view own communications"
+   570→  ON communications FOR SELECT
+   571→  USING (teacher_id = auth.uid());
+   572→
+   573→CREATE POLICY "School admins can view school communications"
+   574→  ON communications FOR SELECT
+   575→  USING (
+   576→    school_id IN (
+   577→      SELECT s.id FROM schools s
+   578→      JOIN users u ON u.school_id = s.id
+   579→      WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin')
+   580→    )
+   581→  );
+   582→
+   583→CREATE POLICY "Teachers can create own communications"
+   584→  ON communications FOR INSERT
+   585→  WITH CHECK (teacher_id = auth.uid());
+   586→
+   587→CREATE POLICY "Teachers can update own communications"
+   588→  ON communications FOR UPDATE
+   589→  USING (teacher_id = auth.uid())
+   590→  WITH CHECK (teacher_id = auth.uid());
+   591→
+   592→CREATE POLICY "Teachers can delete own communications"
+   593→  ON communications FOR DELETE
+   594→  USING (teacher_id = auth.uid());
+   595→
+   596→-- ─── Tasks RLS ────────────────────────────────────────────────────────────────
+   597→
+   598→CREATE POLICY "Teachers can view own tasks"
+   599→  ON tasks FOR SELECT
+   600→  USING (teacher_id = auth.uid() OR assigned_to = auth.uid());
+   601→
+   602→CREATE POLICY "Teachers can create own tasks"
+   603→  ON tasks FOR INSERT
+   604→  WITH CHECK (teacher_id = auth.uid());
+   605→
+   606→CREATE POLICY "Teachers can update own tasks"
+   607→  ON tasks FOR UPDATE
+   608→  USING (teacher_id = auth.uid() OR assigned_to = auth.uid());
+   609→
+   610→CREATE POLICY "Teachers can delete own tasks"
+   611→  ON tasks FOR DELETE
+   612→  USING (teacher_id = auth.uid());
+   613→
+   614→-- ─── Rubrics RLS ──────────────────────────────────────────────────────────────
+   615→
+   616→CREATE POLICY "Teachers can view own rubrics"
+   617→  ON rubrics FOR SELECT
+   618→  USING (teacher_id = auth.uid() OR is_template = TRUE);
+   619→
+   620→CREATE POLICY "Teachers can view shared rubrics"
+   621→  ON rubrics FOR SELECT
+   622→  USING (
+   623→    id IN (
+   624→      SELECT resource_id FROM shared_resources
+   625→      WHERE resource_type = 'rubric'
+   626→      AND shared_with = auth.uid()
+   627→      AND is_accepted = TRUE
+   628→    )
+   629→  );
+   630→
+   631→CREATE POLICY "Teachers can create own rubrics"
+   632→  ON rubrics FOR INSERT
+   633→  WITH CHECK (teacher_id = auth.uid());
+   634→
+   635→CREATE POLICY "Teachers can update own rubrics"
+   636→  ON rubrics FOR UPDATE
+   637→  USING (teacher_id = auth.uid());
+   638→
+   639→CREATE POLICY "Teachers can delete own rubrics"
+   640→  ON rubrics FOR DELETE
+   641→  USING (teacher_id = auth.uid());
+   642→
+   643→-- ─── Oral Questions RLS ───────────────────────────────────────────────────────
+   644→
+   645→CREATE POLICY "Teachers can view own oral questions"
+   646→  ON oral_questions FOR SELECT
+   647→  USING (teacher_id = auth.uid());
+   648→
+   649→CREATE POLICY "Teachers can create own oral questions"
+   650→  ON oral_questions FOR INSERT
+   651→  WITH CHECK (teacher_id = auth.uid());
+   652→
+   653→CREATE POLICY "Teachers can update own oral questions"
+   654→  ON oral_questions FOR UPDATE
+   655→  USING (teacher_id = auth.uid());
+   656→
+   657→CREATE POLICY "Teachers can delete own oral questions"
+   658→  ON oral_questions FOR DELETE
+   659→  USING (teacher_id = auth.uid());
+   660→
+   661→-- ─── Practical Assessments RLS ────────────────────────────────────────────────
+   662→
+   663→CREATE POLICY "Teachers can view own practical assessments"
+   664→  ON practical_assessments FOR SELECT
+   665→  USING (teacher_id = auth.uid());
+   666→
+   667→CREATE POLICY "Teachers can create own practical assessments"
+   668→  ON practical_assessments FOR INSERT
+   669→  WITH CHECK (teacher_id = auth.uid());
+   670→
+   671→CREATE POLICY "Teachers can update own practical assessments"
+   672→  ON practical_assessments FOR UPDATE
+   673→  USING (teacher_id = auth.uid());
+   674→
+   675→CREATE POLICY "Teachers can delete own practical assessments"
+   676→  ON practical_assessments FOR DELETE
+   677→  USING (teacher_id = auth.uid());
+   678→
+   679→-- ─── Shared Resources RLS ─────────────────────────────────────────────────────
+   680→
+   681→CREATE POLICY "Users can view resources shared with or by them"
+   682→  ON shared_resources FOR SELECT
+   683→  USING (shared_by = auth.uid() OR shared_with = auth.uid());
+   684→
+   685→CREATE POLICY "Users can share resources"
+   686→  ON shared_resources FOR INSERT
+   687→  WITH CHECK (shared_by = auth.uid());
+   688→
+   689→CREATE POLICY "Users can update shares they received"
+   690→  ON shared_resources FOR UPDATE
+   691→  USING (shared_with = auth.uid() OR shared_by = auth.uid());
+   692→
+   693→CREATE POLICY "Users can delete their own shares"
+   694→  ON shared_resources FOR DELETE
+   695→  USING (shared_by = auth.uid() OR shared_with = auth.uid());
+   696→
+   697→-- ─── Collaboration Comments RLS ───────────────────────────────────────────────
+   698→
+   699→CREATE POLICY "Users can view comments on accessible resources"
+   700→  ON collaboration_comments FOR SELECT
+   701→  USING (
+   702→    author_id = auth.uid()
+   703→    OR resource_id IN (
+   704→      SELECT id FROM lesson_plans WHERE teacher_id = auth.uid()
+   705→      UNION ALL
+   706→      SELECT id FROM worksheets WHERE teacher_id = auth.uid()
+   707→      UNION ALL
+   708→      SELECT id FROM presentations WHERE teacher_id = auth.uid()
+   709→      UNION ALL
+   710→      SELECT resource_id FROM shared_resources
+   711→        WHERE shared_with = auth.uid() AND is_accepted = TRUE
+   712→    )
+   713→  );
+   714→
+   715→CREATE POLICY "Users can create comments on accessible resources"
+   716→  ON collaboration_comments FOR INSERT
+   717→  WITH CHECK (author_id = auth.uid());
+   718→
+   719→CREATE POLICY "Users can update own comments"
+   720→  ON collaboration_comments FOR UPDATE
+   721→  USING (author_id = auth.uid());
+   722→
+   723→CREATE POLICY "Users can delete own comments"
+   724→  ON collaboration_comments FOR DELETE
+   725→  USING (author_id = auth.uid());
+   726→
+   727→-- ═══════════════════════════════════════════════════════════════════════════════
+   728→-- TRIGGERS
+   729→-- ═══════════════════════════════════════════════════════════════════════════════
+   730→
+   731→-- Auto-update updated_at
+   732→CREATE TRIGGER set_presentations_updated_at
+   733→  BEFORE UPDATE ON presentations
+   734→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   735→
+   736→CREATE TRIGGER set_communications_updated_at
+   737→  BEFORE UPDATE ON communications
+   738→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   739→
+   740→CREATE TRIGGER set_tasks_updated_at
+   741→  BEFORE UPDATE ON tasks
+   742→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   743→
+   744→CREATE TRIGGER set_rubrics_updated_at
+   745→  BEFORE UPDATE ON rubrics
+   746→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   747→
+   748→CREATE TRIGGER set_oral_questions_updated_at
+   749→  BEFORE UPDATE ON oral_questions
+   750→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   751→
+   752→CREATE TRIGGER set_practical_assessments_updated_at
+   753→  BEFORE UPDATE ON practical_assessments
+   754→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   755→
+   756→CREATE TRIGGER set_collaboration_comments_updated_at
+   757→  BEFORE UPDATE ON collaboration_comments
+   758→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   759→
+   760→-- Auto-create version snapshot on presentation update
+   761→CREATE OR REPLACE FUNCTION create_presentation_version()
+   762→RETURNS TRIGGER AS $$
+   763→BEGIN
+   764→  IF OLD.slides IS DISTINCT FROM NEW.slides OR OLD.title IS DISTINCT FROM NEW.title THEN
+   765→    INSERT INTO presentation_versions (presentation_id, version_number, snapshot, change_summary, created_by)
+   766→    VALUES (
+   767→      NEW.id,
+   768→      COALESCE((SELECT MAX(version_number) FROM presentation_versions WHERE presentation_id = NEW.id), 0) + 1,
+   769→      jsonb_build_object(
+   770→        'title', NEW.title,
+   771→        'description', NEW.description,
+   772→        'slides', NEW.slides,
+   773→        'speaker_notes', NEW.speaker_notes
+   774→      ),
+   775→      'Auto-saved version',
+   776→      NEW.teacher_id
+   777→    );
+   778→    NEW.version := NEW.version + 1;
+   779→  END IF;
+   780→  RETURN NEW;
+   781→END;
+   782→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   783→
+   784→CREATE TRIGGER trigger_create_presentation_version
+   785→  BEFORE UPDATE ON presentations
+   786→  FOR EACH ROW EXECUTE FUNCTION create_presentation_version();
+   787→
+   788→-- ═══════════════════════════════════════════════════════════════════════════════
+   789→-- HELPER FUNCTIONS
+   790→-- ═══════════════════════════════════════════════════════════════════════════════
+   791→
+   792→-- Get enhanced workspace dashboard data
+   793→CREATE OR REPLACE FUNCTION get_enhanced_workspace_dashboard(p_teacher_id UUID)
+   794→RETURNS JSONB AS $$
+   795→DECLARE
+   796→  v_result JSONB;
+   797→  v_school_id UUID;
+   798→BEGIN
+   799→  SELECT school_id INTO v_school_id FROM users WHERE id = p_teacher_id;
+   800→
+   801→  SELECT jsonb_build_object(
+   802→    'stats', jsonb_build_object(
+   803→      'lesson_plans', (SELECT COUNT(*) FROM lesson_plans WHERE teacher_id = p_teacher_id AND is_archived = FALSE),
+   804→      'worksheets', (SELECT COUNT(*) FROM worksheets WHERE teacher_id = p_teacher_id),
+   805→      'assignments', (SELECT COUNT(*) FROM workspace_assignments WHERE teacher_id = p_teacher_id),
+   806→      'presentations', (SELECT COUNT(*) FROM presentations WHERE teacher_id = p_teacher_id AND is_archived = FALSE),
+   807→      'rubrics', (SELECT COUNT(*) FROM rubrics WHERE teacher_id = p_teacher_id AND is_archived = FALSE),
+   808→      'resources', (SELECT COUNT(*) FROM teaching_resources WHERE teacher_id = p_teacher_id),
+   809→      'ai_generations', (SELECT COUNT(*) FROM ai_content_history WHERE teacher_id = p_teacher_id),
+   810→      'pending_tasks', (SELECT COUNT(*) FROM tasks WHERE teacher_id = p_teacher_id AND status = 'pending'),
+   811→      'overdue_tasks', (SELECT COUNT(*) FROM tasks WHERE teacher_id = p_teacher_id AND status = 'pending' AND due_date < now()),
+   812→      'shared_with_me', (SELECT COUNT(*) FROM shared_resources WHERE shared_with = p_teacher_id AND is_accepted = TRUE)
+   813→    ),
+   814→    'today_classes', (
+   815→      SELECT COALESCE(jsonb_agg(
+   816→        jsonb_build_object(
+   817→          'id', ce.id,
+   818→          'title', ce.title,
+   819→          'start_time', ce.start_time,
+   820→          'end_time', ce.end_time,
+   821→          'event_type', ce.event_type
+   822→        )
+   823→      ), '[]'::jsonb)
+   824→      FROM calendar_events ce
+   825→      WHERE ce.teacher_id = p_teacher_id
+   826→      AND ce.start_time::date = CURRENT_DATE
+   827→      ORDER BY ce.start_time
+   828→    ),
+   829→    'pending_assignments', (
+   830→      SELECT COALESCE(jsonb_agg(
+   831→        jsonb_build_object(
+   832→          'id', wa.id,
+   833→          'title', wa.title,
+   834→          'deadline', wa.deadline,
+   835→          'status', wa.status
+   836→        )
+   837→      ), '[]'::jsonb)
+   838→      FROM workspace_assignments wa
+   839→      WHERE wa.teacher_id = p_teacher_id
+   840→      AND wa.status IN ('draft', 'published')
+   841→      ORDER BY wa.deadline NULLS LAST
+   842→      LIMIT 5
+   843→    ),
+   844→    'recent_documents', (
+   845→      SELECT COALESCE(jsonb_agg(subq), '[]'::jsonb) FROM (
+   846→        SELECT jsonb_build_object('id', id, 'title', title, 'type', 'lesson_plan', 'updated_at', updated_at) FROM lesson_plans WHERE teacher_id = p_teacher_id ORDER BY updated_at DESC LIMIT 2
+   847→        UNION ALL
+   848→        SELECT jsonb_build_object('id', id, 'title', title, 'type', 'worksheet', 'updated_at', updated_at) FROM worksheets WHERE teacher_id = p_teacher_id ORDER BY updated_at DESC LIMIT 2
+   849→        UNION ALL
+   850→        SELECT jsonb_build_object('id', id, 'title', title, 'type', 'presentation', 'updated_at', updated_at) FROM presentations WHERE teacher_id = p_teacher_id AND is_archived = FALSE ORDER BY updated_at DESC LIMIT 2
+   851→        ORDER BY updated_at DESC LIMIT 6
+   852→      ) subq
+   853→    ),
+   854→    'saved_templates', (
+   855→      SELECT COALESCE(jsonb_agg(
+   856→        jsonb_build_object('id', id, 'name', name, 'template_type', template_type, 'usage_count', usage_count)
+   857→      ), '[]'::jsonb)
+   858→      FROM workspace_templates
+   859→      WHERE teacher_id = p_teacher_id OR is_public = TRUE
+   860→      ORDER BY usage_count DESC LIMIT 6
+   861→    ),
+   862→    'upcoming_events', (
+   863→      SELECT COALESCE(jsonb_agg(
+   864→        jsonb_build_object('id', id, 'title', title, 'start_time', start_time, 'end_time', end_time, 'event_type', event_type)
+   865→      ), '[]'::jsonb)
+   866→      FROM calendar_events
+   867→      WHERE teacher_id = p_teacher_id
+   868→      AND start_time > now()
+   869→      ORDER BY start_time LIMIT 5
+   870→    ),
+   871→    'teaching_statistics', (
+   872→      SELECT jsonb_build_object(
+   873→        'total_students', COALESCE(SUM(jsonb_array_length(COALESCE(students, '[]'::jsonb))), 0),
+   874→        'classes_taught', (SELECT COUNT(DISTINCT class_id) FROM class_subjects WHERE teacher_id = p_teacher_id),
+   875→        'questions_generated', (SELECT COUNT(*) FROM ai_content_history WHERE teacher_id = p_teacher_id AND action = 'generate_questions'),
+   876→        'resources_shared', (SELECT COUNT(*) FROM shared_resources WHERE shared_by = p_teacher_id)
+   877→      )
+   878→      FROM classes c WHERE c.id IN (SELECT class_id FROM class_subjects WHERE teacher_id = p_teacher_id)
+   879→    ),
+   880→    'notifications_count', (
+   881→      SELECT COUNT(*) FROM shared_resources WHERE shared_with = p_teacher_id AND is_accepted IS NULL
+   882→    )
+   883→  ) INTO v_result;
+   884→
+   885→  RETURN v_result;
+   886→END;
+   887→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   888→
+   889→-- Refresh teaching statistics
+   890→CREATE OR REPLACE FUNCTION refresh_teacher_statistics()
+   891→RETURNS void AS $$
+   892→BEGIN
+   893→  REFRESH MATERIALIZED VIEW CONCURRENTLY teacher_statistics;
+   894→END;
+   895→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   896→
+   897→-- ═══════════════════════════════════════════════════════════════════════════════
+   898→-- SEED DATA: DEFAULT TEMPLATES
+   899→-- ═══════════════════════════════════════════════════════════════════════════════
+   900→
+   901→-- Default rubric template
+   902→INSERT INTO rubrics (school_id, teacher_id, title, description, criteria, total_points, is_template)
+   903→VALUES
+   904→  ('00000000-0000-0000-0000-000000000001'::uuid, '00000000-0000-0000-0000-000000000001'::uuid,
+   905→   'Default Assessment Rubric',
+   906→   'A general-purpose rubric template for any subject assessment.',
+   907→   '[
+   908→     {
+   909→       "criterion": "Understanding of Concepts",
+   910→       "weight": 30,
+   911→       "levels": [
+   912→         {"level": "beginning", "description": "Shows minimal understanding", "score": 1},
+   913→         {"level": "developing", "description": "Shows partial understanding", "score": 2},
+   914→         {"level": "proficient", "description": "Shows solid understanding", "score": 3},
+   915→         {"level": "exemplary", "description": "Shows exceptional understanding", "score": 4}
+   916→       ]
+   917→     },
+   918→     {
+   919→       "criterion": "Application of Knowledge",
+   920→       "weight": 30,
+   921→       "levels": [
+   922→         {"level": "beginning", "description": "Cannot apply concepts", "score": 1},
+   923→         {"level": "developing", "description": "Applies concepts with assistance", "score": 2},
+   924→         {"level": "proficient", "description": "Applies concepts independently", "score": 3},
+   925→         {"level": "exemplary", "description": "Applies concepts creatively", "score": 4}
+   926→       ]
+   927→     },
+   928→     {
+   929→       "criterion": "Communication",
+   930→       "weight": 20,
+   931→       "levels": [
+   932→         {"level": "beginning", "description": "Communication is unclear", "score": 1},
+   933→         {"level": "developing", "description": "Communication is somewhat clear", "score": 2},
+   934→         {"level": "proficient", "description": "Communication is clear and organized", "score": 3},
+   935→         {"level": "exemplary", "description": "Communication is exceptional", "score": 4}
+   936→       ]
+   937→     },
+   938→     {
+   939→       "criterion": "Effort & Participation",
+   940→       "weight": 20,
+   941→       "levels": [
+   942→         {"level": "beginning", "description": "Minimal effort shown", "score": 1},
+   943→         {"level": "developing", "description": "Some effort shown", "score": 2},
+   944→         {"level": "proficient", "description": "Consistent effort shown", "score": 3},
+   945→         {"level": "exemplary", "description": "Exceptional effort and leadership", "score": 4}
+   946→       ]
+   947→     }
+   948→   ]'::jsonb,
+   949→   16.00,
+   950→   TRUE
+   951→  ) ON CONFLICT DO NOTHING;
+   952→
+   953→-- ═══════════════════════════════════════════════════════════════════════════════
+   954→-- SCHEDULED JOBS
+   955→-- ═══════════════════════════════════════════════════════════════════════════════
+   956→
+   957→-- Refresh teacher_statistics every 15 minutes
+   958→SELECT cron.schedule(
+   959→  'refresh-teacher-statistics',
+   960→  '*/15 * * * *',
+   961→  $$ SELECT refresh_teacher_statistics(); $$
+   962→) WHERE EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron');
+   963→

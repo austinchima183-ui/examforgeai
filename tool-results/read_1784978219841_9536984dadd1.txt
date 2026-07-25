@@ -1,0 +1,828 @@
+     1→/// High-level caching service that wraps the local Drift database.
+     2→///
+     3→/// Provides domain-friendly methods for caching, drafts, sync-queue
+     4→/// management, resource tracking, offline exam attempts, and storage
+     5→/// statistics. All methods include proper error handling and logging.
+     6→library;
+     7→
+     8→import 'dart:convert';
+     9→
+    10→import 'package:drift/drift.dart';
+    11→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    12→import 'package:uuid/uuid.dart';
+    13→
+    14→import '../../config/dependency_injection.dart';
+    15→import '../../services/storage_service.dart';
+    16→import '../utils/logger.dart';
+    17→import 'local_database.dart';
+    18→
+    19→// ═══════════════════════════════════════════════════════════════════════════════
+    20→// CACHE MANAGER
+    21→// ═══════════════════════════════════════════════════════════════════════════════
+    22→
+    23→/// Centralised caching service for ExamForge AI.
+    24→///
+    25→/// Wraps [AppDatabase] with high-level, type-safe methods grouped by
+    26→/// domain concern (cache, drafts, sync queue, resources, exam attempts).
+    27→class CacheManager {
+    28→  CacheManager({
+    29→    required this.database,
+    30→    required this.storageService,
+    31→  });
+    32→
+    33→  /// The underlying Drift database.
+    34→  final AppDatabase database;
+    35→
+    36→  /// Secure / shared-preferences storage service.
+    37→  final StorageService storageService;
+    38→
+    39→  /// UUID generator for new records.
+    40→  static const _uuid = Uuid();
+    41→
+    42→  // ═══════════════════════════════════════════════════════════════════════════
+    43→  // GENERIC CACHE OPERATIONS
+    44→  // ═══════════════════════════════════════════════════════════════════════════
+    45→
+    46→  /// Stores [data] in the cache under [key] for [userId].
+    47→  ///
+    48→  /// If [ttl] is provided the entry will be considered expired after
+    49→  /// the given duration; otherwise it never expires.
+    50→  Future<void> cacheData({
+    51→    required String key,
+    52→    required String userId,
+    53→    required String resourceType,
+    54→    required String resourceId,
+    55→    required Map<String, dynamic> data,
+    56→    Duration? ttl,
+    57→  }) async {
+    58→    try {
+    59→      final now = DateTime.now();
+    60→      final id = _uuid.v4();
+    61→      final json = jsonEncode(data);
+    62→      final expiresAt = ttl != null ? now.add(ttl) : null;
+    63→
+    64→      await database.into(database.cache).insertOnConflictUpdate(
+    65→            LocalCacheTableCompanion.insert(
+    66→              id: id,
+    67→              userId: userId,
+    68→              cacheKey: key,
+    69→              resourceType: resourceType,
+    70→              resourceId: resourceId,
+    71→              data: json,
+    72→              expiresAt: Value(expiresAt),
+    73→              fileSizeBytes: Value(json.length),
+    74→              createdAt: now,
+    75→              updatedAt: now,
+    76→            ),
+    77→          );
+    78→      AppLogger.debug('CacheManager: cached data for key=$key');
+    79→    } catch (e, st) {
+    80→      AppLogger.error('CacheManager: failed to cache data', error: e, stackTrace: st);
+    81→      rethrow;
+    82→    }
+    83→  }
+    84→
+    85→  /// Retrieves cached data for [key] belonging to [userId].
+    86→  ///
+    87→  /// Returns `null` if no entry exists or the entry has expired.
+    88→  /// On a successful hit the access count and last-accessed timestamp
+    89→  /// are updated.
+    90→  Future<Map<String, dynamic>?> getCachedData({
+    91→    required String key,
+    92→    required String userId,
+    93→  }) async {
+    94→    try {
+    95→      final query = database.select(database.cache)
+    96→        ..where((t) => t.cacheKey.equals(key) & t.userId.equals(userId));
+    97→
+    98→      final row = await query.getSingleOrNull();
+    99→      if (row == null) return null;
+   100→
+   101→      // Check expiry.
+   102→      if (row.expiresAt != null &&
+   103→          row.expiresAt!.isBefore(DateTime.now())) {
+   104→        await invalidateCache(key: key, userId: userId);
+   105→        return null;
+   106→      }
+   107→
+   108→      // Update access metadata.
+   109→      await (database.update(database.cache)
+   110→            ..where((t) => t.id.equals(row.id)))
+   111→          .write(LocalCacheTableCompanion(
+   112→        accessCount: Value(row.accessCount + 1),
+   113→        lastAccessedAt: Value(DateTime.now()),
+   114→      ),);
+   115→
+   116→      return jsonDecode(row.data) as Map<String, dynamic>;
+   117→    } catch (e, st) {
+   118→      AppLogger.error('CacheManager: failed to get cached data', error: e, stackTrace: st);
+   119→      return null;
+   120→    }
+   121→  }
+   122→
+   123→  /// Removes a single cache entry identified by [key] and [userId].
+   124→  Future<void> invalidateCache({
+   125→    required String key,
+   126→    required String userId,
+   127→  }) async {
+   128→    try {
+   129→      await (database.delete(database.cache)
+   130→            ..where((t) => t.cacheKey.equals(key) & t.userId.equals(userId)))
+   131→          .go();
+   132→      AppLogger.debug('CacheManager: invalidated cache key=$key');
+   133→    } catch (e, st) {
+   134→      AppLogger.error('CacheManager: failed to invalidate cache', error: e, stackTrace: st);
+   135→      rethrow;
+   136→    }
+   137→  }
+   138→
+   139→  /// Removes **all** cache entries for [resourceType] belonging to [userId].
+   140→  Future<void> invalidateCacheByType({
+   141→    required String resourceType,
+   142→    required String userId,
+   143→  }) async {
+   144→    try {
+   145→      final count = await (database.delete(database.cache)
+   146→            ..where(
+   147→                (t) => t.resourceType.equals(resourceType) & t.userId.equals(userId),))
+   148→          .go();
+   149→      AppLogger.debug(
+   150→        'CacheManager: invalidated $count cache entries of type=$resourceType',
+   151→      );
+   152→    } catch (e, st) {
+   153→      AppLogger.error('CacheManager: failed to invalidate cache by type', error: e, stackTrace: st);
+   154→      rethrow;
+   155→    }
+   156→  }
+   157→
+   158→  /// Removes all expired cache entries across all users.
+   159→  Future<void> clearExpiredCache() async {
+   160→    try {
+   161→      final count = await database.clearExpiredCache();
+   162→      AppLogger.debug('CacheManager: cleared $count expired cache entries');
+   163→    } catch (e, st) {
+   164→      AppLogger.error('CacheManager: failed to clear expired cache', error: e, stackTrace: st);
+   165→      rethrow;
+   166→    }
+   167→  }
+   168→
+   169→  /// Returns `true` if a non-expired cache entry exists for [key].
+   170→  Future<bool> isCacheValid({
+   171→    required String key,
+   172→    required String userId,
+   173→  }) async {
+   174→    try {
+   175→      final data = await getCachedData(key: key, userId: userId);
+   176→      return data != null;
+   177→    } catch (e, st) {
+   178→      AppLogger.error('CacheManager: cache validity check failed', error: e, stackTrace: st);
+   179→      return false;
+   180→    }
+   181→  }
+   182→
+   183→  /// Returns the number of cache entries owned by [userId].
+   184→  Future<int> getCacheSize({required String userId}) async {
+   185→    try {
+   186→      final rows = await (database.select(database.cache)
+   187→            ..where((t) => t.userId.equals(userId)))
+   188→          .get();
+   189→      return rows.length;
+   190→    } catch (e, st) {
+   191→      AppLogger.error('CacheManager: failed to get cache size', error: e, stackTrace: st);
+   192→      return 0;
+   193→    }
+   194→  }
+   195→
+   196→  // ═══════════════════════════════════════════════════════════════════════════
+   197→  // USER DATA CACHING
+   198→  // ═══════════════════════════════════════════════════════════════════════════
+   199→
+   200→  /// Caches a user profile locally.
+   201→  ///
+   202→  /// If a profile for [userId] already exists it will be updated.
+   203→  Future<void> cacheUserProfile({
+   204→    required String userId,
+   205→    required Map<String, dynamic> profileData,
+   206→    required String role,
+   207→    String? schoolId,
+   208→  }) async {
+   209→    try {
+   210→      final now = DateTime.now();
+   211→
+   212→      // Check if a profile already exists for this user.
+   213→      final existing = await (database.select(database.userData)
+   214→            ..where((t) => t.userId.equals(userId)))
+   215→          .getSingleOrNull();
+   216→
+   217→      if (existing != null) {
+   218→        await (database.update(database.userData)
+   219→              ..where((t) => t.userId.equals(userId)))
+   220→            .write(LocalUserDataTableCompanion(
+   221→          profileData: Value(jsonEncode(profileData)),
+   222→          role: Value(role),
+   223→          schoolId: Value(schoolId),
+   224→          lastSyncedAt: Value(now),
+   225→          updatedAt: Value(now),
+   226→        ),);
+   227→      } else {
+   228→        await database.into(database.userData).insert(
+   229→              LocalUserDataTableCompanion.insert(
+   230→                id: _uuid.v4(),
+   231→                userId: userId,
+   232→                profileData: jsonEncode(profileData),
+   233→                role: role,
+   234→                schoolId: Value(schoolId),
+   235→                lastSyncedAt: now,
+   236→                createdAt: now,
+   237→                updatedAt: now,
+   238→              ),
+   239→            );
+   240→      }
+   241→      AppLogger.debug('CacheManager: cached user profile for $userId');
+   242→    } catch (e, st) {
+   243→      AppLogger.error('CacheManager: failed to cache user profile', error: e, stackTrace: st);
+   244→      rethrow;
+   245→    }
+   246→  }
+   247→
+   248→  /// Retrieves a cached user profile for [userId].
+   249→  ///
+   250→  /// Returns `null` if no profile has been cached.
+   251→  Future<Map<String, dynamic>?> getCachedUserProfile({
+   252→    required String userId,
+   253→  }) async {
+   254→    try {
+   255→      final row = await (database.select(database.userData)
+   256→            ..where((t) => t.userId.equals(userId)))
+   257→          .getSingleOrNull();
+   258→      if (row == null) return null;
+   259→      return jsonDecode(row.profileData) as Map<String, dynamic>;
+   260→    } catch (e, st) {
+   261→      AppLogger.error('CacheManager: failed to get cached user profile', error: e, stackTrace: st);
+   262→      return null;
+   263→    }
+   264→  }
+   265→
+   266→  // ═══════════════════════════════════════════════════════════════════════════
+   267→  // DRAFT OPERATIONS
+   268→  // ═══════════════════════════════════════════════════════════════════════════
+   269→
+   270→  /// Saves a draft locally.
+   271→  ///
+   272→  /// If a draft with the same [id] already exists it will be updated;
+   273→  /// otherwise a new entry is created.
+   274→  Future<void> saveDraft({
+   275→    required String userId,
+   276→    required String draftType,
+   277→    required Map<String, dynamic> content,
+   278→    String? title,
+   279→    String? schoolId,
+   280→    String? subjectId,
+   281→  }) async {
+   282→    try {
+   283→      final now = DateTime.now();
+   284→      await database.into(database.drafts).insertOnConflictUpdate(
+   285→            LocalDraftsTableCompanion.insert(
+   286→              id: _uuid.v4(),
+   287→              userId: userId,
+   288→              draftType: draftType,
+   289→              content: jsonEncode(content),
+   290→              title: Value(title),
+   291→              schoolId: Value(schoolId),
+   292→              subjectId: Value(subjectId),
+   293→              lastEditedAt: now,
+   294→              createdAt: now,
+   295→              updatedAt: now,
+   296→            ),
+   297→          );
+   298→      AppLogger.debug('CacheManager: saved draft of type=$draftType');
+   299→    } catch (e, st) {
+   300→      AppLogger.error('CacheManager: failed to save draft', error: e, stackTrace: st);
+   301→      rethrow;
+   302→    }
+   303→  }
+   304→
+   305→  /// Returns all drafts for [userId], optionally filtered by [draftType].
+   306→  Future<List<Map<String, dynamic>>> getDrafts({
+   307→    required String userId,
+   308→    String? draftType,
+   309→  }) async {
+   310→    try {
+   311→      final query = database.select(database.drafts)
+   312→        ..where((t) => t.userId.equals(userId));
+   313→
+   314→      if (draftType != null) {
+   315→        query.where((t) => t.draftType.equals(draftType));
+   316→      }
+   317→
+   318→      // Most recently edited first.
+   319→      query.orderBy([
+   320→        (t) => OrderingTerm.desc(t.lastEditedAt),
+   321→      ]);
+   322→
+   323→      final rows = await query.get();
+   324→      return rows.map((row) => {
+   325→            'id': row.id,
+   326→            'userId': row.userId,
+   327→            'draftType': row.draftType,
+   328→            'title': row.title,
+   329→            'content': jsonDecode(row.content),
+   330→            'schoolId': row.schoolId,
+   331→            'subjectId': row.subjectId,
+   332→            'isSynced': row.isSynced,
+   333→            'lastEditedAt': row.lastEditedAt.toIso8601String(),
+   334→            'createdAt': row.createdAt.toIso8601String(),
+   335→            'updatedAt': row.updatedAt.toIso8601String(),
+   336→          },).toList();
+   337→    } catch (e, st) {
+   338→      AppLogger.error('CacheManager: failed to get drafts', error: e, stackTrace: st);
+   339→      return [];
+   340→    }
+   341→  }
+   342→
+   343→  /// Deletes a draft by [id].
+   344→  Future<void> deleteDraft({required String id}) async {
+   345→    try {
+   346→      await (database.delete(database.drafts)..where((t) => t.id.equals(id))).go();
+   347→      AppLogger.debug('CacheManager: deleted draft $id');
+   348→    } catch (e, st) {
+   349→      AppLogger.error('CacheManager: failed to delete draft', error: e, stackTrace: st);
+   350→      rethrow;
+   351→    }
+   352→  }
+   353→
+   354→  /// Marks a draft as synced to the server.
+   355→  Future<void> markDraftSynced({required String id}) async {
+   356→    try {
+   357→      await (database.update(database.drafts)..where((t) => t.id.equals(id)))
+   358→          .write(const LocalDraftsTableCompanion(
+   359→        isSynced: Value(true),
+   360→      ),);
+   361→      AppLogger.debug('CacheManager: marked draft $id as synced');
+   362→    } catch (e, st) {
+   363→      AppLogger.error('CacheManager: failed to mark draft synced', error: e, stackTrace: st);
+   364→      rethrow;
+   365→    }
+   366→  }
+   367→
+   368→  // ═══════════════════════════════════════════════════════════════════════════
+   369→  // SYNC QUEUE OPERATIONS
+   370→  // ═══════════════════════════════════════════════════════════════════════════
+   371→
+   372→  /// Enqueues a sync operation for later replay.
+   373→  Future<void> enqueueSync({
+   374→    required String userId,
+   375→    required String tableName,
+   376→    required String operation,
+   377→    required Map<String, dynamic> payload,
+   378→    String? recordId,
+   379→    int priority = 5,
+   380→  }) async {
+   381→    try {
+   382→      final now = DateTime.now();
+   383→      await database.into(database.syncQueue).insert(
+   384→            LocalSyncQueueTableCompanion.insert(
+   385→              id: _uuid.v4(),
+   386→              userId: userId,
+   387→              targetTable: tableName,
+   388→              recordId: Value(recordId),
+   389→              operation: operation,
+   390→              payload: jsonEncode(payload),
+   391→              priority: Value(priority),
+   392→              createdAt: now,
+   393→              updatedAt: now,
+   394→            ),
+   395→          );
+   396→      AppLogger.debug(
+   397→        'CacheManager: enqueued sync op=$operation table=$tableName',
+   398→      );
+   399→    } catch (e, st) {
+   400→      AppLogger.error('CacheManager: failed to enqueue sync', error: e, stackTrace: st);
+   401→      rethrow;
+   402→    }
+   403→  }
+   404→
+   405→  /// Returns up to [limit] pending sync items for [userId],
+   406→  /// ordered by priority (ascending) then creation time (ascending).
+   407→  Future<List<Map<String, dynamic>>> getPendingSyncItems({
+   408→    required String userId,
+   409→    int limit = 50,
+   410→  }) async {
+   411→    try {
+   412→      final query = database.select(database.syncQueue)
+   413→        ..where((t) =>
+   414→            t.userId.equals(userId) &
+   415→            t.status.isIn(['pending', 'failed']),)
+   416→        ..orderBy([
+   417→          (t) => OrderingTerm.asc(t.priority),
+   418→          (t) => OrderingTerm.asc(t.createdAt),
+   419→        ])
+   420→        ..limit(limit);
+   421→
+   422→      final rows = await query.get();
+   423→      return rows.map((row) => {
+   424→            'id': row.id,
+   425→            'userId': row.userId,
+   426→            'targetTable': row.targetTable,
+   427→            'recordId': row.recordId,
+   428→            'operation': row.operation,
+   429→            'payload': jsonDecode(row.payload),
+   430→            'priority': row.priority,
+   431→            'attempts': row.attempts,
+   432→            'maxAttempts': row.maxAttempts,
+   433→            'lastAttemptAt': row.lastAttemptAt?.toIso8601String(),
+   434→            'nextRetryAt': row.nextRetryAt?.toIso8601String(),
+   435→            'status': row.status,
+   436→            'errorMessage': row.errorMessage,
+   437→            'createdAt': row.createdAt.toIso8601String(),
+   438→            'updatedAt': row.updatedAt.toIso8601String(),
+   439→          },).toList();
+   440→    } catch (e, st) {
+   441→      AppLogger.error('CacheManager: failed to get pending sync items', error: e, stackTrace: st);
+   442→      return [];
+   443→    }
+   444→  }
+   445→
+   446→  /// Marks a sync queue item as completed.
+   447→  Future<void> markSyncItemCompleted({required String id}) async {
+   448→    try {
+   449→      final now = DateTime.now();
+   450→      await (database.update(database.syncQueue)..where((t) => t.id.equals(id)))
+   451→          .write(LocalSyncQueueTableCompanion(
+   452→        status: const Value('completed'),
+   453→        updatedAt: Value(now),
+   454→      ),);
+   455→      AppLogger.debug('CacheManager: sync item $id completed');
+   456→    } catch (e, st) {
+   457→      AppLogger.error('CacheManager: failed to mark sync item completed', error: e, stackTrace: st);
+   458→      rethrow;
+   459→    }
+   460→  }
+   461→
+   462→  /// Marks a sync queue item as failed with [errorMessage].
+   463→  ///
+   464→  /// If the number of attempts exceeds `maxAttempts` the item is
+   465→  /// automatically moved to the `dead` status.
+   466→  Future<void> markSyncItemFailed({
+   467→    required String id,
+   468→    required String errorMessage,
+   469→  }) async {
+   470→    try {
+   471→      final now = DateTime.now();
+   472→
+   473→      // Fetch current row to check attempt count.
+   474→      final row = await (database.select(database.syncQueue)
+   475→            ..where((t) => t.id.equals(id)))
+   476→          .getSingleOrNull();
+   477→
+   478→      if (row == null) {
+   479→        AppLogger.warning('CacheManager: sync item $id not found');
+   480→        return;
+   481→      }
+   482→
+   483→      final newAttempts = row.attempts + 1;
+   484→      final isDead = newAttempts >= row.maxAttempts;
+   485→
+   486→      // Exponential backoff: 2^attempts seconds, capped at 1 hour.
+   487→      final backoffSeconds = (1 << newAttempts).clamp(1, 3600);
+   488→
+   489→      await (database.update(database.syncQueue)..where((t) => t.id.equals(id)))
+   490→          .write(LocalSyncQueueTableCompanion(
+   491→        attempts: Value(newAttempts),
+   492→        status: Value(isDead ? 'dead' : 'failed'),
+   493→        errorMessage: Value(errorMessage),
+   494→        lastAttemptAt: Value(now),
+   495→        nextRetryAt: Value(isDead ? null : now.add(Duration(seconds: backoffSeconds))),
+   496→        updatedAt: Value(now),
+   497→      ),);
+   498→
+   499→      AppLogger.debug(
+   500→        'CacheManager: sync item $id failed (attempt $newAttempts/${row.maxAttempts})'
+   501→        '${isDead ? ' → dead' : ''}',
+   502→      );
+   503→    } catch (e, st) {
+   504→      AppLogger.error('CacheManager: failed to mark sync item failed', error: e, stackTrace: st);
+   505→      rethrow;
+   506→    }
+   507→  }
+   508→
+   509→  /// Returns the count of pending (or retryable) sync items for [userId].
+   510→  Future<int> getPendingSyncCount({required String userId}) async {
+   511→    try {
+   512→      final rows = await (database.select(database.syncQueue)
+   513→            ..where((t) =>
+   514→                t.userId.equals(userId) &
+   515→                t.status.isIn(['pending', 'failed']),))
+   516→          .get();
+   517→      return rows.length;
+   518→    } catch (e, st) {
+   519→      AppLogger.error('CacheManager: failed to get pending sync count', error: e, stackTrace: st);
+   520→      return 0;
+   521→    }
+   522→  }
+   523→
+   524→  /// Removes dead sync items that have exceeded their max attempts.
+   525→  Future<void> cleanupDeadSyncItems() async {
+   526→    try {
+   527→      final count = await (database.delete(database.syncQueue)
+   528→            ..where((t) => t.status.equals('dead')))
+   529→          .go();
+   530→      AppLogger.debug('CacheManager: cleaned up $count dead sync items');
+   531→    } catch (e, st) {
+   532→      AppLogger.error('CacheManager: failed to cleanup dead sync items', error: e, stackTrace: st);
+   533→      rethrow;
+   534→    }
+   535→  }
+   536→
+   537→  // ═══════════════════════════════════════════════════════════════════════════
+   538→  // RESOURCE OPERATIONS
+   539→  // ═══════════════════════════════════════════════════════════════════════════
+   540→
+   541→  /// Records a downloaded resource in the local database.
+   542→  Future<void> cacheResource({
+   543→    required String userId,
+   544→    required String resourceType,
+   545→    required String resourceId,
+   546→    required String title,
+   547→    required String filePath,
+   548→    required int fileSizeBytes,
+   549→    String? mimeType,
+   550→    DateTime? licenseExpiresAt,
+   551→  }) async {
+   552→    try {
+   553→      final now = DateTime.now();
+   554→      await database.into(database.resources).insertOnConflictUpdate(
+   555→            LocalResourcesTableCompanion.insert(
+   556→              id: _uuid.v4(),
+   557→              userId: userId,
+   558→              resourceType: resourceType,
+   559→              resourceId: resourceId,
+   560→              title: title,
+   561→              filePath: filePath,
+   562→              fileSizeBytes: fileSizeBytes,
+   563→              mimeType: Value(mimeType),
+   564→              licenseExpiresAt: Value(licenseExpiresAt),
+   565→              createdAt: now,
+   566→              updatedAt: now,
+   567→            ),
+   568→          );
+   569→      AppLogger.debug('CacheManager: cached resource "$title"');
+   570→    } catch (e, st) {
+   571→      AppLogger.error('CacheManager: failed to cache resource', error: e, stackTrace: st);
+   572→      rethrow;
+   573→    }
+   574→  }
+   575→
+   576→  /// Returns cached resources for [userId], optionally filtered by [resourceType].
+   577→  Future<List<Map<String, dynamic>>> getCachedResources({
+   578→    required String userId,
+   579→    String? resourceType,
+   580→  }) async {
+   581→    try {
+   582→      final query = database.select(database.resources)
+   583→        ..where((t) => t.userId.equals(userId) & t.isAvailable.equals(true));
+   584→
+   585→      if (resourceType != null) {
+   586→        query.where((t) => t.resourceType.equals(resourceType));
+   587→      }
+   588→
+   589→      query.orderBy([
+   590→        (t) => OrderingTerm.desc(t.lastAccessedAt),
+   591→      ]);
+   592→
+   593→      final rows = await query.get();
+   594→      return rows.map((row) => {
+   595→            'id': row.id,
+   596→            'userId': row.userId,
+   597→            'resourceType': row.resourceType,
+   598→            'resourceId': row.resourceId,
+   599→            'title': row.title,
+   600→            'filePath': row.filePath,
+   601→            'fileSizeBytes': row.fileSizeBytes,
+   602→            'mimeType': row.mimeType,
+   603→            'checksum': row.checksum,
+   604→            'licenseExpiresAt': row.licenseExpiresAt?.toIso8601String(),
+   605→            'isAvailable': row.isAvailable,
+   606→            'accessCount': row.accessCount,
+   607→            'lastAccessedAt': row.lastAccessedAt?.toIso8601String(),
+   608→            'createdAt': row.createdAt.toIso8601String(),
+   609→            'updatedAt': row.updatedAt.toIso8601String(),
+   610→          },).toList();
+   611→    } catch (e, st) {
+   612→      AppLogger.error('CacheManager: failed to get cached resources', error: e, stackTrace: st);
+   613→      return [];
+   614→    }
+   615→  }
+   616→
+   617→  /// Removes a cached resource entry by [id].
+   618→  Future<void> removeResource({required String id}) async {
+   619→    try {
+   620→      await (database.delete(database.resources)..where((t) => t.id.equals(id)))
+   621→          .go();
+   622→      AppLogger.debug('CacheManager: removed resource $id');
+   623→    } catch (e, st) {
+   624→      AppLogger.error('CacheManager: failed to remove resource', error: e, stackTrace: st);
+   625→      rethrow;
+   626→    }
+   627→  }
+   628→
+   629→  /// Returns `true` if a resource identified by [resourceId] is
+   630→  /// available locally for [userId].
+   631→  Future<bool> isResourceAvailable({
+   632→    required String userId,
+   633→    required String resourceId,
+   634→  }) async {
+   635→    try {
+   636→      final row = await (database.select(database.resources)
+   637→            ..where((t) =>
+   638→                t.userId.equals(userId) &
+   639→                t.resourceId.equals(resourceId) &
+   640→                t.isAvailable.equals(true),))
+   641→          .getSingleOrNull();
+   642→      return row != null;
+   643→    } catch (e, st) {
+   644→      AppLogger.error('CacheManager: failed to check resource availability', error: e, stackTrace: st);
+   645→      return false;
+   646→    }
+   647→  }
+   648→
+   649→  // ═══════════════════════════════════════════════════════════════════════════
+   650→  // EXAM ATTEMPT OPERATIONS
+   651→  // ═══════════════════════════════════════════════════════════════════════════
+   652→
+   653→  /// Saves an offline exam attempt for later syncing.
+   654→  Future<void> saveOfflineExamAttempt({
+   655→    required String examId,
+   656→    required String studentId,
+   657→    Map<String, dynamic>? schoolId,
+   658→    required Map<String, dynamic> attemptData,
+   659→    required Map<String, dynamic> answers,
+   660→    required DateTime startedAt,
+   661→    DateTime? completedAt,
+   662→    int timeTakenSeconds = 0,
+   663→    String? integrityHash,
+   664→  }) async {
+   665→    try {
+   666→      final now = DateTime.now();
+   667→      await database.into(database.examAttempts).insert(
+   668→            LocalExamAttemptsTableCompanion.insert(
+   669→              id: _uuid.v4(),
+   670→              examId: examId,
+   671→              studentId: studentId,
+   672→              schoolId: Value(schoolId?['id'] as String?),
+   673→              attemptData: jsonEncode(attemptData),
+   674→              answers: jsonEncode(answers),
+   675→              startedAt: startedAt,
+   676→              completedAt: Value(completedAt),
+   677→              timeTakenSeconds: Value(timeTakenSeconds),
+   678→              integrityHash: Value(integrityHash),
+   679→              createdAt: now,
+   680→            ),
+   681→          );
+   682→      AppLogger.debug(
+   683→        'CacheManager: saved offline exam attempt exam=$examId student=$studentId',
+   684→      );
+   685→    } catch (e, st) {
+   686→      AppLogger.error('CacheManager: failed to save offline exam attempt', error: e, stackTrace: st);
+   687→      rethrow;
+   688→    }
+   689→  }
+   690→
+   691→  /// Returns pending (unsynced) exam attempts for [studentId].
+   692→  Future<List<Map<String, dynamic>>> getPendingExamAttempts({
+   693→    required String studentId,
+   694→  }) async {
+   695→    try {
+   696→      final query = database.select(database.examAttempts)
+   697→        ..where((t) =>
+   698→            t.studentId.equals(studentId) &
+   699→            t.syncStatus.isIn(['pending', 'rejected']),)
+   700→        ..orderBy([
+   701→          (t) => OrderingTerm.asc(t.startedAt),
+   702→        ]);
+   703→
+   704→      final rows = await query.get();
+   705→      return rows.map((row) => {
+   706→            'id': row.id,
+   707→            'examId': row.examId,
+   708→            'studentId': row.studentId,
+   709→            'schoolId': row.schoolId,
+   710→            'attemptData': jsonDecode(row.attemptData),
+   711→            'answers': jsonDecode(row.answers),
+   712→            'startedAt': row.startedAt.toIso8601String(),
+   713→            'completedAt': row.completedAt?.toIso8601String(),
+   714→            'timeTakenSeconds': row.timeTakenSeconds,
+   715→            'integrityHash': row.integrityHash,
+   716→            'syncStatus': row.syncStatus,
+   717→            'syncAttempts': row.syncAttempts,
+   718→            'syncedAt': row.syncedAt?.toIso8601String(),
+   719→            'validationErrors': row.validationErrors,
+   720→            'createdAt': row.createdAt.toIso8601String(),
+   721→          },).toList();
+   722→    } catch (e, st) {
+   723→      AppLogger.error('CacheManager: failed to get pending exam attempts', error: e, stackTrace: st);
+   724→      return [];
+   725→    }
+   726→  }
+   727→
+   728→  /// Marks an exam attempt as successfully synced.
+   729→  Future<void> markExamAttemptSynced({required String id}) async {
+   730→    try {
+   731→      final now = DateTime.now();
+   732→      await (database.update(database.examAttempts)
+   733→            ..where((t) => t.id.equals(id)))
+   734→          .write(LocalExamAttemptsTableCompanion(
+   735→        syncStatus: const Value('synced'),
+   736→        syncedAt: Value(now),
+   737→      ),);
+   738→      AppLogger.debug('CacheManager: exam attempt $id synced');
+   739→    } catch (e, st) {
+   740→      AppLogger.error('CacheManager: failed to mark exam attempt synced', error: e, stackTrace: st);
+   741→      rethrow;
+   742→    }
+   743→  }
+   744→
+   745→  // ═══════════════════════════════════════════════════════════════════════════
+   746→  // STATS & MAINTENANCE
+   747→  // ═══════════════════════════════════════════════════════════════════════════
+   748→
+   749→  /// Returns row counts per table for storage diagnostics.
+   750→  Future<Map<String, int>> getStorageStats() async {
+   751→    try {
+   752→      return database.getDatabaseSize();
+   753→    } catch (e, st) {
+   754→      AppLogger.error('CacheManager: failed to get storage stats', error: e, stackTrace: st);
+   755→      return {};
+   756→    }
+   757→  }
+   758→
+   759→  /// Deletes all local data associated with [userId] across all tables.
+   760→  ///
+   761→  /// Typically called on logout. Does **not** clear connectivity logs
+   762→  /// or sync metadata (which may be shared across sessions).
+   763→  Future<void> clearAllUserData({required String userId}) async {
+   764→    try {
+   765→      await database.transaction(() async {
+   766→        await (database.delete(database.syncQueue)
+   767→              ..where((t) => t.userId.equals(userId)))
+   768→            .go();
+   769→        await (database.delete(database.cache)
+   770→              ..where((t) => t.userId.equals(userId)))
+   771→            .go();
+   772→        await (database.delete(database.drafts)
+   773→              ..where((t) => t.userId.equals(userId)))
+   774→            .go();
+   775→        await (database.delete(database.userData)
+   776→              ..where((t) => t.userId.equals(userId)))
+   777→            .go();
+   778→        await (database.delete(database.resources)
+   779→              ..where((t) => t.userId.equals(userId)))
+   780→            .go();
+   781→        await (database.delete(database.notifications)
+   782→              ..where((t) => t.userId.equals(userId)))
+   783→            .go();
+   784→        await (database.delete(database.syncMetadata)
+   785→              ..where((t) => t.userId.equals(userId)))
+   786→            .go();
+   787→        // Exam attempts are keyed by studentId.
+   788→        await (database.delete(database.examAttempts)
+   789→              ..where((t) => t.studentId.equals(userId)))
+   790→            .go();
+   791→      });
+   792→      AppLogger.info('CacheManager: cleared all data for user $userId');
+   793→    } catch (e, st) {
+   794→      AppLogger.error('CacheManager: failed to clear user data', error: e, stackTrace: st);
+   795→      rethrow;
+   796→    }
+   797→  }
+   798→}
+   799→
+   800→// ═══════════════════════════════════════════════════════════════════════════════
+   801→// RIVERPOD PROVIDERS
+   802→// ═══════════════════════════════════════════════════════════════════════════════
+   803→
+   804→/// Provides the singleton [AppDatabase] instance.
+   805→///
+   806→/// The database is lazily opened on first access and automatically
+   807→/// closed when the provider is disposed.
+   808→final appDatabaseProvider = Provider<AppDatabase>((ref) {
+   809→  final db = AppDatabase();
+   810→  ref.onDispose(() {
+   811→    db.close();
+   812→    AppLogger.info('AppDatabase: connection closed');
+   813→  });
+   814→  return db;
+   815→});
+   816→
+   817→/// Provides the singleton [CacheManager] instance.
+   818→///
+   819→/// Depends on [appDatabaseProvider] and [storageServiceProvider].
+   820→final cacheManagerProvider = Provider<CacheManager>((ref) {
+   821→  final database = ref.watch(appDatabaseProvider);
+   822→  final storageService = ref.watch(storageServiceProvider);
+   823→  return CacheManager(
+   824→    database: database,
+   825→    storageService: storageService,
+   826→  );
+   827→});
+   828→

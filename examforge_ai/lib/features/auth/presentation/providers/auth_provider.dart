@@ -136,7 +136,7 @@ class AuthNotifier extends StateNotifier<AuthState> {
           user: user,
           error: null,
         );
-        AppLogger.info('Login successful: ${user.email}');
+        AppLogger.info('Login successful: ${_redactEmail(user.email)}');
       },
       onFailure: (failure) {
         state = state.copyWith(
@@ -378,5 +378,16 @@ class AuthNotifier extends StateNotifier<AuthState> {
       unauthorized: (message) => message,
       forbidden: (message) => message,
     );
+  }
+
+  /// Redacts email addresses for logging: "user@example.com" → "u***@example.com"
+  static String _redactEmail(String? email) {
+    if (email == null || email.isEmpty) return '[null]';
+    final atIndex = email.indexOf('@');
+    if (atIndex <= 0) return '[REDACTED]';
+    final local = email.substring(0, atIndex);
+    final domain = email.substring(atIndex);
+    if (local.length <= 1) return '*$domain';
+    return '${local[0]}***$domain';
   }
 }
