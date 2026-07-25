@@ -7,6 +7,7 @@ import 'app.dart';
 import 'config/app_config.dart';
 import 'config/env_config.dart';
 import 'config/supabase_config.dart';
+import 'core/observability/crash_reporter.dart';
 import 'core/utils/logger.dart';
 
 /// Global [ProviderContainer] for accessing providers outside of the
@@ -37,6 +38,14 @@ void main() async {
     ),
   );
 
+  // ─── Initialize crash reporting FIRST (before any other bootstrap) ──
+  // ROOT CAUSE: CrashReporter.initialize() must be called before
+  // FlutterError.onError and PlatformDispatcher.instance.onError can be
+  // intercepted. Calling it after other init steps means crashes during
+  // Supabase/EnvConfig initialization would be silently lost.
+  CrashReporter.initialize();
+  AppLogger.info('Crash reporter initialized');
+
   // ─── Bootstrap sequence ─────────────────────────────────────────────
   // Each step must complete before the next begins because later steps
   // depend on earlier ones (e.g. Supabase needs EnvConfig values).
@@ -64,7 +73,16 @@ void main() async {
     // In release builds, report to crash reporting (e.g. Firebase Crashlytics).
     // In debug, the logger output is sufficient.
     if (kReleaseMode) {
-      // TODO: Integrate crash reporting service here.
+      // ROOT CAUSE: Original main.dart had a TODO comment for crash reporting
+      // but never wired CrashReporter.initialize(). This left production
+      // with NO crash capture — Flutter errors and platform errors were
+      // silently swallowed. CrashReporter was already initialized above,
+      // so now we just report the fatal bootstrap error.
+      CrashReporter.reportFatalError(
+        e,
+        stackTrace,
+        featureModule: 'bootstrap',
+      );
     }
   }
 
