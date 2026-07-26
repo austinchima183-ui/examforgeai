@@ -1,0 +1,2002 @@
+     1→import 'dart:async';
+     2→
+     3→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     4→
+     5→import '../../../../core/errors/exceptions.dart';
+     6→import '../../../../core/network/paginated_query_mixin.dart';
+     7→import '../../../../core/utils/logger.dart';
+     8→import '../models/school_management_models.dart';
+     9→
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→// ABSTRACT INTERFACE
+    12→// ═══════════════════════════════════════════════════════════════════════
+    13→
+    14→/// Abstract interface for all remote School Management data operations.
+    15→///
+    16→/// Implementations handle all network communication with the Supabase
+    17→/// backend and return plain model instances. Exceptions are allowed to
+    18→/// propagate so the repository layer can catch and convert them to
+    19→/// domain [Failure] types.
+    20→abstract class SchoolManagementRemoteDataSource {
+    21→  // ─── School CRUD ──────────────────────────────────────────────────────
+    22→
+    23→  Future<SchoolModel> createSchool(Map<String, dynamic> schoolData);
+    24→  Future<SchoolModel> updateSchool(String schoolId, Map<String, dynamic> schoolData);
+    25→  Future<void> deleteSchool(String schoolId);
+    26→  Future<SchoolModel> getSchool(String schoolId);
+    27→  Future<List<SchoolModel>> getSchools(Map<String, dynamic> filters);
+    28→
+    29→  // ─── Branches ─────────────────────────────────────────────────────────
+    30→
+    31→  Future<SchoolBranchModel> createBranch(Map<String, dynamic> branchData);
+    32→  Future<SchoolBranchModel> updateBranch(String branchId, Map<String, dynamic> branchData);
+    33→  Future<void> deleteBranch(String branchId);
+    34→  Future<List<SchoolBranchModel>> getBranches(String schoolId, {int limit, int offset});
+    35→
+    36→  // ─── Departments ──────────────────────────────────────────────────────
+    37→
+    38→  Future<DepartmentModel> createDepartment(Map<String, dynamic> departmentData);
+    39→  Future<DepartmentModel> updateDepartment(String departmentId, Map<String, dynamic> departmentData);
+    40→  Future<void> deleteDepartment(String departmentId);
+    41→  Future<List<DepartmentModel>> getDepartments(String schoolId, {int limit, int offset});
+    42→
+    43→  // ─── Student Profiles ─────────────────────────────────────────────────
+    44→
+    45→  Future<StudentProfileModel> createStudentProfile(Map<String, dynamic> profileData);
+    46→  Future<StudentProfileModel> updateStudentProfile(String profileId, Map<String, dynamic> profileData);
+    47→  Future<StudentProfileModel> getStudentProfile(String userId);
+    48→  Future<List<StudentProfileModel>> getStudentProfiles({
+    49→    required String schoolId,
+    50→    String? classId,
+    51→    bool? isActive,
+    52→    bool? isGraduated,
+    53→    String? searchQuery,
+    54→    int page = 1,
+    55→    int perPage = 20,
+    56→  });
+    57→  Future<PromotionHistoryModel> promoteStudent(Map<String, dynamic> data);
+    58→  Future<StudentProfileModel> graduateStudent(String studentId, String schoolId);
+    59→  Future<List<PromotionHistoryModel>> getPromotionHistory(String studentId, {int limit, int offset});
+    60→
+    61→  // ─── Teacher Profiles ─────────────────────────────────────────────────
+    62→
+    63→  Future<TeacherProfileModel> createTeacherProfile(Map<String, dynamic> profileData);
+    64→  Future<TeacherProfileModel> updateTeacherProfile(String profileId, Map<String, dynamic> profileData);
+    65→  Future<TeacherProfileModel> getTeacherProfile(String userId);
+    66→  Future<List<TeacherProfileModel>> getTeacherProfiles({
+    67→    required String schoolId,
+    68→    String? departmentId,
+    69→    bool? isActive,
+    70→    String? searchQuery,
+    71→    int page = 1,
+    72→    int perPage = 20,
+    73→  });
+    74→
+    75→  // ─── Parent Profiles ──────────────────────────────────────────────────
+    76→
+    77→  Future<ParentProfileModel> createParentProfile(Map<String, dynamic> profileData);
+    78→  Future<ParentProfileModel> updateParentProfile(String profileId, Map<String, dynamic> profileData);
+    79→  Future<ParentProfileModel> getParentProfile(String userId);
+    80→  Future<List<ParentProfileModel>> getParentProfiles({
+    81→    required String schoolId,
+    82→    String? searchQuery,
+    83→    int page = 1,
+    84→    int perPage = 20,
+    85→  });
+    86→  Future<ParentStudentLinkModel> linkParentToStudent(Map<String, dynamic> data);
+    87→  Future<void> unlinkParentFromStudent(String linkId);
+    88→  Future<List<ParentStudentLinkModel>> getParentStudentLinks(String studentId, {int limit, int offset});
+    89→
+    90→  // ─── Academic Sessions ────────────────────────────────────────────────
+    91→
+    92→  Future<AcademicSessionModel> createSession(Map<String, dynamic> sessionData);
+    93→  Future<AcademicSessionModel> updateSession(String sessionId, Map<String, dynamic> sessionData);
+    94→  Future<void> deleteSession(String sessionId);
+    95→  Future<AcademicSessionModel> getSession(String sessionId);
+    96→  Future<List<AcademicSessionModel>> getSessions(String schoolId, {int limit, int offset});
+    97→  Future<AcademicSessionModel> getCurrentSession(String schoolId);
+    98→  Future<AcademicSessionModel> setCurrentSession(String sessionId);
+    99→
+   100→  // ─── Terms ────────────────────────────────────────────────────────────
+   101→
+   102→  Future<TermModel> createTerm(Map<String, dynamic> termData);
+   103→  Future<TermModel> updateTerm(String termId, Map<String, dynamic> termData);
+   104→  Future<void> deleteTerm(String termId);
+   105→  Future<List<TermModel>> getTerms(String sessionId, {int limit, int offset});
+   106→  Future<TermModel> getCurrentTerm(String schoolId);
+   107→  Future<TermModel> setCurrentTerm(String termId);
+   108→
+   109→  // ─── Calendar Events ──────────────────────────────────────────────────
+   110→
+   111→  Future<CalendarEventModel> createCalendarEvent(Map<String, dynamic> eventData);
+   112→  Future<CalendarEventModel> updateCalendarEvent(String eventId, Map<String, dynamic> eventData);
+   113→  Future<void> deleteCalendarEvent(String eventId);
+   114→  Future<List<CalendarEventModel>> getCalendarEvents({
+   115→    required String schoolId,
+   116→    String? termId,
+   117→    String? startDate,
+   118→    String? endDate,
+   119→    String? eventType,
+   120→    int limit,
+   121→    int offset,
+   122→  });
+   123→
+   124→  // ─── Timetables ───────────────────────────────────────────────────────
+   125→
+   126→  Future<TimetableModel> createTimetable(Map<String, dynamic> timetableData);
+   127→  Future<TimetableModel> updateTimetable(String timetableId, Map<String, dynamic> timetableData);
+   128→  Future<void> deleteTimetable(String timetableId);
+   129→  Future<TimetableModel> getTimetable(String timetableId);
+   130→  Future<List<TimetableModel>> getTimetables({
+   131→    required String schoolId,
+   132→    String? termId,
+   133→    String? classId,
+   134→    int limit,
+   135→    int offset,
+   136→  });
+   137→  Future<TimetableSlotModel> addTimetableSlot(Map<String, dynamic> slotData);
+   138→  Future<TimetableSlotModel> updateTimetableSlot(String slotId, Map<String, dynamic> slotData);
+   139→  Future<void> deleteTimetableSlot(String slotId);
+   140→  Future<TimetableModel> publishTimetable(String timetableId);
+   141→  Future<List<Map<String, dynamic>>> checkSlotConflicts({
+   142→    required String teacherId,
+   143→    required String classId,
+   144→    required String dayOfWeek,
+   145→    required int periodNumber,
+   146→    String? excludeSlotId,
+   147→  });
+   148→
+   149→  // ─── Attendance ───────────────────────────────────────────────────────
+   150→
+   151→  Future<AttendanceRecordModel> createAttendanceRecord(Map<String, dynamic> recordData);
+   152→  Future<AttendanceRecordModel> updateAttendanceRecord(String recordId, Map<String, dynamic> recordData);
+   153→  Future<AttendanceRecordModel?> getAttendanceRecord({
+   154→    required String classId,
+   155→    required String termId,
+   156→    required String date,
+   157→    required String type,
+   158→  });
+   159→  Future<List<AttendanceRecordModel>> getAttendanceRecords({
+   160→    required String schoolId,
+   161→    required String termId,
+   162→    String? classId,
+   163→    String? startDate,
+   164→    String? endDate,
+   165→    int page = 1,
+   166→    int perPage = 20,
+   167→  });
+   168→  Future<void> markAttendance(String recordId, List<Map<String, dynamic>> entries);
+   169→  Future<Map<String, dynamic>> getAttendanceSummary(String classId, String termId);
+   170→
+   171→  // ─── Homework ─────────────────────────────────────────────────────────
+   172→
+   173→  Future<HomeworkModel> createHomework(Map<String, dynamic> homeworkData);
+   174→  Future<HomeworkModel> updateHomework(String homeworkId, Map<String, dynamic> homeworkData);
+   175→  Future<void> deleteHomework(String homeworkId);
+   176→  Future<HomeworkModel> getHomework(String homeworkId);
+   177→  Future<List<HomeworkModel>> getHomeworkList({
+   178→    required String schoolId,
+   179→    String? classId,
+   180→    String? subjectId,
+   181→    String? teacherId,
+   182→    String? status,
+   183→    int page = 1,
+   184→    int perPage = 20,
+   185→  });
+   186→  Future<HomeworkModel> publishHomework(String homeworkId);
+   187→  Future<HomeworkSubmissionModel> submitHomework(Map<String, dynamic> submissionData);
+   188→  Future<HomeworkSubmissionModel> gradeSubmission(Map<String, dynamic> gradeData);
+   189→  Future<List<HomeworkSubmissionModel>> getHomeworkSubmissions(String homeworkId, {int limit, int offset});
+   190→
+   191→  // ─── Announcements ────────────────────────────────────────────────────
+   192→
+   193→  Future<AnnouncementModel> createAnnouncement(Map<String, dynamic> announcementData);
+   194→  Future<AnnouncementModel> updateAnnouncement(String announcementId, Map<String, dynamic> announcementData);
+   195→  Future<void> deleteAnnouncement(String announcementId);
+   196→  Future<List<AnnouncementModel>> getAnnouncements({
+   197→    required String schoolId,
+   198→    String? type,
+   199→    bool? isPublished,
+   200→    int page = 1,
+   201→    int perPage = 20,
+   202→  });
+   203→  Future<AnnouncementModel> publishAnnouncement(String announcementId);
+   204→
+   205→  // ─── Documents ────────────────────────────────────────────────────────
+   206→
+   207→  Future<DocumentModel> createDocument(Map<String, dynamic> documentData);
+   208→  Future<DocumentModel> updateDocument(String documentId, Map<String, dynamic> documentData);
+   209→  Future<void> deleteDocument(String documentId);
+   210→  Future<List<DocumentModel>> getDocuments({
+   211→    required String schoolId,
+   212→    String? documentType,
+   213→    String? category,
+   214→    String? searchQuery,
+   215→    bool? isPublic,
+   216→    int page = 1,
+   217→    int perPage = 20,
+   218→  });
+   219→  Future<void> incrementDownloadCount(String documentId);
+   220→
+   221→  // ─── Classes ──────────────────────────────────────────────────────────
+   222→
+   223→  Future<ClassModel> getClass(String classId);
+   224→  Future<List<ClassModel>> getClasses({
+   225→    required String schoolId,
+   226→    String? academicYear,
+   227→    bool? isActive,
+   228→    int page = 1,
+   229→    int perPage = 20,
+   230→  });
+   231→  Future<ClassModel> createClass(Map<String, dynamic> classData);
+   232→  Future<ClassModel> updateClass(String classId, Map<String, dynamic> classData);
+   233→  Future<void> assignStudentsToClass(String classId, List<String> studentIds);
+   234→  Future<void> removeStudentFromClass(String classId, String studentId);
+   235→
+   236→  // ─── Subjects ─────────────────────────────────────────────────────────
+   237→
+   238→  Future<SubjectModel> getSubject(String subjectId);
+   239→  Future<List<SubjectModel>> getSubjects({
+   240→    required String schoolId,
+   241→    String? category,
+   242→    bool? isActive,
+   243→    int limit,
+   244→    int offset,
+   245→  });
+   246→  Future<SubjectModel> createSubject(Map<String, dynamic> subjectData);
+   247→  Future<SubjectModel> updateSubject(String subjectId, Map<String, dynamic> subjectData);
+   248→  Future<void> assignTeacherToSubject(Map<String, dynamic> data);
+   249→
+   250→  // ─── Reports ──────────────────────────────────────────────────────────
+   251→
+   252→  Future<Map<String, dynamic>> getSchoolOverview(String schoolId);
+   253→  Future<List<StudentProfileModel>> getStudentListReport(String schoolId, String? classId, {int limit, int offset});
+   254→  Future<List<TeacherProfileModel>> getTeacherListReport(String schoolId, {int limit, int offset});
+   255→  Future<Map<String, dynamic>> getAttendanceReport({
+   256→    required String schoolId,
+   257→    required String termId,
+   258→    String? classId,
+   259→    String? startDate,
+   260→    String? endDate,
+   261→  });
+   262→}
+   263→
+   264→// ═══════════════════════════════════════════════════════════════════════
+   265→// SUPABASE IMPLEMENTATION
+   266→// ═══════════════════════════════════════════════════════════════════════
+   267→
+   268→class SchoolManagementRemoteDataSourceImpl
+   269→    implements SchoolManagementRemoteDataSource {
+   270→  SchoolManagementRemoteDataSourceImpl({
+   271→    required sb.SupabaseClient supabaseClient,
+   272→  }) : _supabaseClient = supabaseClient;
+   273→
+   274→  final sb.SupabaseClient _supabaseClient;
+   275→
+   276→  // ─── Table name constants ─────────────────────────────────────────────
+   277→
+   278→  static const _schoolsTable = 'schools';
+   279→  static const _schoolBranchesTable = 'school_branches';
+   280→  static const _departmentsTable = 'departments';
+   281→  static const _studentProfilesTable = 'student_profiles';
+   282→  static const _teacherProfilesTable = 'teacher_profiles';
+   283→  static const _parentProfilesTable = 'parent_profiles';
+   284→  static const _parentStudentsTable = 'parent_students';
+   285→  static const _academicSessionsTable = 'academic_sessions';
+   286→  static const _termsTable = 'terms';
+   287→  static const _calendarEventsTable = 'school_calendar_events';
+   288→  static const _timetablesTable = 'timetables';
+   289→  static const _timetableSlotsTable = 'timetable_slots';
+   290→  static const _attendanceRecordsTable = 'attendance_records';
+   291→  static const _attendanceEntriesTable = 'attendance_entries';
+   292→  static const _homeworkTable = 'homework';
+   293→  static const _homeworkSubmissionsTable = 'homework_submissions';
+   294→  static const _announcementsTable = 'announcements';
+   295→  static const _documentsTable = 'documents';
+   296→  static const _promotionHistoryTable = 'promotion_history';
+   297→  static const _classesTable = 'classes';
+   298→  static const _subjectsTable = 'subjects';
+   299→  static const _classSubjectsTable = 'class_subjects';
+   300→  static const _classStudentsTable = 'class_students';
+   301→
+   302→  // ═══════════════════════════════════════════════════════════════════
+   303→  // School CRUD
+   304→  // ═══════════════════════════════════════════════════════════════════
+   305→
+   306→  @override
+   307→  Future<SchoolModel> createSchool(Map<String, dynamic> schoolData) async {
+   308→    try {
+   309→      final response = await _supabaseClient
+   310→          .from(_schoolsTable)
+   311→          .insert(schoolData)
+   312→          .select()
+   313→          .single();
+   314→
+   315→      return SchoolModel.fromJson(response);
+   316→    } on sb.PostgrestException catch (e) {
+   317→      AppLogger.error('Create school failed', error: e);
+   318→      throw ServerException(
+   319→        message: e.message,
+   320→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   321→        data: e.details,
+   322→      );
+   323→    } catch (e) {
+   324→      AppLogger.error('Create school unexpected error', error: e);
+   325→      throw ServerException(
+   326→        message: 'Failed to create school: $e',
+   327→        statusCode: 500,
+   328→      );
+   329→    }
+   330→  }
+   331→
+   332→  @override
+   333→  Future<SchoolModel> updateSchool(
+   334→    String schoolId,
+   335→    Map<String, dynamic> schoolData,
+   336→  ) async {
+   337→    try {
+   338→      final response = await _supabaseClient
+   339→          .from(_schoolsTable)
+   340→          .update(schoolData)
+   341→          .eq('id', schoolId)
+   342→          .select()
+   343→          .single();
+   344→
+   345→      return SchoolModel.fromJson(response);
+   346→    } on sb.PostgrestException catch (e) {
+   347→      AppLogger.error('Update school failed', error: e);
+   348→      if (e.code == 'PGRST116') {
+   349→        throw NotFoundException(message: 'School not found: $schoolId');
+   350→      }
+   351→      throw ServerException(
+   352→        message: e.message,
+   353→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   354→        data: e.details,
+   355→      );
+   356→    } catch (e) {
+   357→      AppLogger.error('Update school unexpected error', error: e);
+   358→      throw ServerException(
+   359→        message: 'Failed to update school: $e',
+   360→        statusCode: 500,
+   361→      );
+   362→    }
+   363→  }
+   364→
+   365→  @override
+   366→  Future<void> deleteSchool(String schoolId) async {
+   367→    try {
+   368→      await _supabaseClient
+   369→          .from(_schoolsTable)
+   370→          .delete()
+   371→          .eq('id', schoolId);
+   372→    } on sb.PostgrestException catch (e) {
+   373→      AppLogger.error('Delete school failed', error: e);
+   374→      throw ServerException(
+   375→        message: e.message,
+   376→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   377→        data: e.details,
+   378→      );
+   379→    } catch (e) {
+   380→      AppLogger.error('Delete school unexpected error', error: e);
+   381→      throw ServerException(
+   382→        message: 'Failed to delete school: $e',
+   383→        statusCode: 500,
+   384→      );
+   385→    }
+   386→  }
+   387→
+   388→  @override
+   389→  Future<SchoolModel> getSchool(String schoolId) async {
+   390→    try {
+   391→      final response = await _supabaseClient
+   392→          .from(_schoolsTable)
+   393→          .select()
+   394→          .eq('id', schoolId)
+   395→          .single();
+   396→
+   397→      return SchoolModel.fromJson(response);
+   398→    } on sb.PostgrestException catch (e) {
+   399→      AppLogger.error('Get school failed', error: e);
+   400→      if (e.code == 'PGRST116') {
+   401→        throw NotFoundException(message: 'School not found: $schoolId');
+   402→      }
+   403→      throw ServerException(
+   404→        message: e.message,
+   405→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   406→        data: e.details,
+   407→      );
+   408→    } catch (e) {
+   409→      AppLogger.error('Get school unexpected error', error: e);
+   410→      throw ServerException(
+   411→        message: 'Failed to get school: $e',
+   412→        statusCode: 500,
+   413→      );
+   414→    }
+   415→  }
+   416→
+   417→  @override
+   418→  Future<List<SchoolModel>> getSchools(Map<String, dynamic> filters) async {
+   419→    try {
+   420→      // PERF: Explicit columns avoid fetching all school fields for list view
+   421→      var query = _supabaseClient.from(_schoolsTable).select('id, name, address, is_active, created_at');
+   422→
+   423→      if (filters['is_active'] != null) {
+   424→        query = query.eq('is_active', filters['is_active'] as bool);
+   425→      }
+   426→      if (filters['search'] != null) {
+   427→        final search = filters['search'] as String;
+   428→        query = query.or('name.ilike.%$search%,code.ilike.%$search%');
+   429→      }
+   430→      if (filters['school_level'] != null) {
+   431→        query = query.eq('school_level', filters['school_level'] as String);
+   432→      }
+   433→      if (filters['subscription_status'] != null) {
+   434→        query = query.eq(
+   435→          'subscription_status',
+   436→          filters['subscription_status'] as String,
+   437→        );
+   438→      }
+   439→
+   440→      final page = filters['page'] as int? ?? 1;
+   441→      final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
+   442→      final offset = (page - 1) * perPage;
+   443→
+   444→      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
+   445→
+   446→      return response
+   447→          .map<SchoolModel>((json) => SchoolModel.fromJson(json))
+   448→          .toList();
+   449→    } on sb.PostgrestException catch (e) {
+   450→      AppLogger.error('Get schools failed', error: e);
+   451→      throw ServerException(
+   452→        message: e.message,
+   453→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   454→        data: e.details,
+   455→      );
+   456→    } catch (e) {
+   457→      AppLogger.error('Get schools unexpected error', error: e);
+   458→      throw ServerException(
+   459→        message: 'Failed to get schools: $e',
+   460→        statusCode: 500,
+   461→      );
+   462→    }
+   463→  }
+   464→
+   465→  // ═══════════════════════════════════════════════════════════════════
+   466→  // Branches
+   467→  // ═══════════════════════════════════════════════════════════════════
+   468→
+   469→  @override
+   470→  Future<SchoolBranchModel> createBranch(Map<String, dynamic> branchData) async {
+   471→    try {
+   472→      final response = await _supabaseClient
+   473→          .from(_schoolBranchesTable)
+   474→          .insert(branchData)
+   475→          .select()
+   476→          .single();
+   477→
+   478→      return SchoolBranchModel.fromJson(response);
+   479→    } on sb.PostgrestException catch (e) {
+   480→      AppLogger.error('Create branch failed', error: e);
+   481→      throw ServerException(
+   482→        message: e.message,
+   483→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   484→        data: e.details,
+   485→      );
+   486→    } catch (e) {
+   487→      AppLogger.error('Create branch unexpected error', error: e);
+   488→      throw ServerException(
+   489→        message: 'Failed to create branch: $e',
+   490→        statusCode: 500,
+   491→      );
+   492→    }
+   493→  }
+   494→
+   495→  @override
+   496→  Future<SchoolBranchModel> updateBranch(
+   497→    String branchId,
+   498→    Map<String, dynamic> branchData,
+   499→  ) async {
+   500→    try {
+   501→      final response = await _supabaseClient
+   502→          .from(_schoolBranchesTable)
+   503→          .update(branchData)
+   504→          .eq('id', branchId)
+   505→          .select()
+   506→          .single();
+   507→
+   508→      return SchoolBranchModel.fromJson(response);
+   509→    } on sb.PostgrestException catch (e) {
+   510→      AppLogger.error('Update branch failed', error: e);
+   511→      if (e.code == 'PGRST116') {
+   512→        throw NotFoundException(message: 'Branch not found: $branchId');
+   513→      }
+   514→      throw ServerException(
+   515→        message: e.message,
+   516→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   517→        data: e.details,
+   518→      );
+   519→    } catch (e) {
+   520→      AppLogger.error('Update branch unexpected error', error: e);
+   521→      throw ServerException(
+   522→        message: 'Failed to update branch: $e',
+   523→        statusCode: 500,
+   524→      );
+   525→    }
+   526→  }
+   527→
+   528→  @override
+   529→  Future<void> deleteBranch(String branchId) async {
+   530→    try {
+   531→      await _supabaseClient
+   532→          .from(_schoolBranchesTable)
+   533→          .delete()
+   534→          .eq('id', branchId);
+   535→    } on sb.PostgrestException catch (e) {
+   536→      AppLogger.error('Delete branch failed', error: e);
+   537→      throw ServerException(
+   538→        message: e.message,
+   539→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   540→        data: e.details,
+   541→      );
+   542→    } catch (e) {
+   543→      AppLogger.error('Delete branch unexpected error', error: e);
+   544→      throw ServerException(
+   545→        message: 'Failed to delete branch: $e',
+   546→        statusCode: 500,
+   547→      );
+   548→    }
+   549→  }
+   550→
+   551→  @override
+   552→  Future<List<SchoolBranchModel>> getBranches(
+   553→    String schoolId, {
+   554→    int limit = PaginatedQueryMixin.defaultPageSize,
+   555→    int offset = 0,
+   556→  }) async {
+   557→    try {
+   558→      // PERF: Explicit columns + limit prevent unbounded result sets
+   559→      final response = await _supabaseClient
+   560→          .from(_schoolBranchesTable)
+   561→          .select('id, school_id, name, address, is_active, created_at')
+   562→          .eq('school_id', schoolId)
+   563→          .order('created_at', ascending: false)
+   564→          .range(offset, offset + limit - 1);
+   565→
+   566→      return response
+   567→          .map<SchoolBranchModel>((json) => SchoolBranchModel.fromJson(json))
+   568→          .toList();
+   569→    } on sb.PostgrestException catch (e) {
+   570→      AppLogger.error('Get branches failed', error: e);
+   571→      throw ServerException(
+   572→        message: e.message,
+   573→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   574→        data: e.details,
+   575→      );
+   576→    } catch (e) {
+   577→      AppLogger.error('Get branches unexpected error', error: e);
+   578→      throw ServerException(
+   579→        message: 'Failed to get branches: $e',
+   580→        statusCode: 500,
+   581→      );
+   582→    }
+   583→  }
+   584→
+   585→  // ═══════════════════════════════════════════════════════════════════
+   586→  // Departments
+   587→  // ═══════════════════════════════════════════════════════════════════
+   588→
+   589→  @override
+   590→  Future<DepartmentModel> createDepartment(Map<String, dynamic> departmentData) async {
+   591→    try {
+   592→      final response = await _supabaseClient
+   593→          .from(_departmentsTable)
+   594→          .insert(departmentData)
+   595→          .select()
+   596→          .single();
+   597→
+   598→      return DepartmentModel.fromJson(response);
+   599→    } on sb.PostgrestException catch (e) {
+   600→      AppLogger.error('Create department failed', error: e);
+   601→      throw ServerException(
+   602→        message: e.message,
+   603→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   604→        data: e.details,
+   605→      );
+   606→    } catch (e) {
+   607→      AppLogger.error('Create department unexpected error', error: e);
+   608→      throw ServerException(
+   609→        message: 'Failed to create department: $e',
+   610→        statusCode: 500,
+   611→      );
+   612→    }
+   613→  }
+   614→
+   615→  @override
+   616→  Future<DepartmentModel> updateDepartment(
+   617→    String departmentId,
+   618→    Map<String, dynamic> departmentData,
+   619→  ) async {
+   620→    try {
+   621→      final response = await _supabaseClient
+   622→          .from(_departmentsTable)
+   623→          .update(departmentData)
+   624→          .eq('id', departmentId)
+   625→          .select()
+   626→          .single();
+   627→
+   628→      return DepartmentModel.fromJson(response);
+   629→    } on sb.PostgrestException catch (e) {
+   630→      AppLogger.error('Update department failed', error: e);
+   631→      if (e.code == 'PGRST116') {
+   632→        throw NotFoundException(message: 'Department not found: $departmentId');
+   633→      }
+   634→      throw ServerException(
+   635→        message: e.message,
+   636→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   637→        data: e.details,
+   638→      );
+   639→    } catch (e) {
+   640→      AppLogger.error('Update department unexpected error', error: e);
+   641→      throw ServerException(
+   642→        message: 'Failed to update department: $e',
+   643→        statusCode: 500,
+   644→      );
+   645→    }
+   646→  }
+   647→
+   648→  @override
+   649→  Future<void> deleteDepartment(String departmentId) async {
+   650→    try {
+   651→      await _supabaseClient
+   652→          .from(_departmentsTable)
+   653→          .delete()
+   654→          .eq('id', departmentId);
+   655→    } on sb.PostgrestException catch (e) {
+   656→      AppLogger.error('Delete department failed', error: e);
+   657→      throw ServerException(
+   658→        message: e.message,
+   659→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   660→        data: e.details,
+   661→      );
+   662→    } catch (e) {
+   663→      AppLogger.error('Delete department unexpected error', error: e);
+   664→      throw ServerException(
+   665→        message: 'Failed to delete department: $e',
+   666→        statusCode: 500,
+   667→      );
+   668→    }
+   669→  }
+   670→
+   671→  @override
+   672→  Future<List<DepartmentModel>> getDepartments(
+   673→    String schoolId, {
+   674→    int limit = PaginatedQueryMixin.defaultPageSize,
+   675→    int offset = 0,
+   676→  }) async {
+   677→    try {
+   678→      // PERF: Explicit columns + limit prevent unbounded result sets
+   679→      final response = await _supabaseClient
+   680→          .from(_departmentsTable)
+   681→          .select('id, school_id, name, head_teacher_id, is_active, created_at')
+   682→          .eq('school_id', schoolId)
+   683→          .order('name', ascending: true)
+   684→          .range(offset, offset + limit - 1);
+   685→
+   686→      return response
+   687→          .map<DepartmentModel>((json) => DepartmentModel.fromJson(json))
+   688→          .toList();
+   689→    } on sb.PostgrestException catch (e) {
+   690→      AppLogger.error('Get departments failed', error: e);
+   691→      throw ServerException(
+   692→        message: e.message,
+   693→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   694→        data: e.details,
+   695→      );
+   696→    } catch (e) {
+   697→      AppLogger.error('Get departments unexpected error', error: e);
+   698→      throw ServerException(
+   699→        message: 'Failed to get departments: $e',
+   700→        statusCode: 500,
+   701→      );
+   702→    }
+   703→  }
+   704→
+   705→  // ═══════════════════════════════════════════════════════════════════
+   706→  // Student Profiles
+   707→  // ═══════════════════════════════════════════════════════════════════
+   708→
+   709→  @override
+   710→  Future<StudentProfileModel> createStudentProfile(
+   711→    Map<String, dynamic> profileData,
+   712→  ) async {
+   713→    try {
+   714→      final response = await _supabaseClient
+   715→          .from(_studentProfilesTable)
+   716→          .insert(profileData)
+   717→          .select()
+   718→          .single();
+   719→
+   720→      return StudentProfileModel.fromJson(response);
+   721→    } on sb.PostgrestException catch (e) {
+   722→      AppLogger.error('Create student profile failed', error: e);
+   723→      throw ServerException(
+   724→        message: e.message,
+   725→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   726→        data: e.details,
+   727→      );
+   728→    } catch (e) {
+   729→      AppLogger.error('Create student profile unexpected error', error: e);
+   730→      throw ServerException(
+   731→        message: 'Failed to create student profile: $e',
+   732→        statusCode: 500,
+   733→      );
+   734→    }
+   735→  }
+   736→
+   737→  @override
+   738→  Future<StudentProfileModel> updateStudentProfile(
+   739→    String profileId,
+   740→    Map<String, dynamic> profileData,
+   741→  ) async {
+   742→    try {
+   743→      final response = await _supabaseClient
+   744→          .from(_studentProfilesTable)
+   745→          .update(profileData)
+   746→          .eq('id', profileId)
+   747→          .select()
+   748→          .single();
+   749→
+   750→      return StudentProfileModel.fromJson(response);
+   751→    } on sb.PostgrestException catch (e) {
+   752→      AppLogger.error('Update student profile failed', error: e);
+   753→      if (e.code == 'PGRST116') {
+   754→        throw NotFoundException(message: 'Student profile not found: $profileId');
+   755→      }
+   756→      throw ServerException(
+   757→        message: e.message,
+   758→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   759→        data: e.details,
+   760→      );
+   761→    } catch (e) {
+   762→      AppLogger.error('Update student profile unexpected error', error: e);
+   763→      throw ServerException(
+   764→        message: 'Failed to update student profile: $e',
+   765→        statusCode: 500,
+   766→      );
+   767→    }
+   768→  }
+   769→
+   770→  @override
+   771→  Future<StudentProfileModel> getStudentProfile(String userId) async {
+   772→    try {
+   773→      final response = await _supabaseClient
+   774→          .from(_studentProfilesTable)
+   775→          .select('*, users!student_profiles_user_id_fkey(full_name, email, phone, avatar_url)')
+   776→          .eq('user_id', userId)
+   777→          .single();
+   778→
+   779→      return StudentProfileModel.fromJson(response);
+   780→    } on sb.PostgrestException catch (e) {
+   781→      AppLogger.error('Get student profile failed', error: e);
+   782→      if (e.code == 'PGRST116') {
+   783→        throw NotFoundException(message: 'Student profile not found for user: $userId');
+   784→      }
+   785→      throw ServerException(
+   786→        message: e.message,
+   787→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   788→        data: e.details,
+   789→      );
+   790→    } catch (e) {
+   791→      AppLogger.error('Get student profile unexpected error', error: e);
+   792→      throw ServerException(
+   793→        message: 'Failed to get student profile: $e',
+   794→        statusCode: 500,
+   795→      );
+   796→    }
+   797→  }
+   798→
+   799→  @override
+   800→  Future<List<StudentProfileModel>> getStudentProfiles({
+   801→    required String schoolId,
+   802→    String? classId,
+   803→    bool? isActive,
+   804→    bool? isGraduated,
+   805→    String? searchQuery,
+   806→    int page = 1,
+   807→    int perPage = 20,
+   808→  }) async {
+   809→    try {
+   810→      // PERF: Explicit columns instead of * to reduce payload on list views
+   811→      var query = _supabaseClient
+   812→          .from(_studentProfilesTable)
+   813→          .select('id, user_id, school_id, class_id, admission_number, is_active, is_graduated, users!student_profiles_user_id_fkey(id, full_name, email)');
+   814→
+   815→      query = query.eq('school_id', schoolId);
+   816→
+   817→      if (classId != null) {
+   818→        query = query.eq('current_class_id', classId);
+   819→      }
+   820→      if (isActive != null) {
+   821→        query = query.eq('is_active', isActive);
+   822→      }
+   823→      if (isGraduated != null) {
+   824→        query = query.eq('is_graduated', isGraduated);
+   825→      }
+   826→      if (searchQuery != null && searchQuery.isNotEmpty) {
+   827→        query = query.or(
+   828→          'admission_number.ilike.%$searchQuery%,'
+   829→          'users.full_name.ilike.%$searchQuery%',
+   830→        );
+   831→      }
+   832→
+   833→      final offset = (page - 1) * perPage;
+   834→      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
+   835→
+   836→      return response
+   837→          .map<StudentProfileModel>((json) => StudentProfileModel.fromJson(json))
+   838→          .toList();
+   839→    } on sb.PostgrestException catch (e) {
+   840→      AppLogger.error('Get student profiles failed', error: e);
+   841→      throw ServerException(
+   842→        message: e.message,
+   843→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   844→        data: e.details,
+   845→      );
+   846→    } catch (e) {
+   847→      AppLogger.error('Get student profiles unexpected error', error: e);
+   848→      throw ServerException(
+   849→        message: 'Failed to get student profiles: $e',
+   850→        statusCode: 500,
+   851→      );
+   852→    }
+   853→  }
+   854→
+   855→  @override
+   856→  Future<PromotionHistoryModel> promoteStudent(Map<String, dynamic> data) async {
+   857→    try {
+   858→      // Update student profile with new class
+   859→      final studentId = data['student_id'] as String;
+   860→      final toClassId = data['to_class_id'] as String?;
+   861→
+   862→      if (toClassId != null) {
+   863→        await _supabaseClient
+   864→            .from(_studentProfilesTable)
+   865→            .update({
+   866→              'current_class_id': toClassId,
+   867→              'promoted_to_class_id': toClassId,
+   868→            })
+   869→            .eq('user_id', studentId);
+   870→      }
+   871→
+   872→      // Insert promotion history record
+   873→      final response = await _supabaseClient
+   874→          .from(_promotionHistoryTable)
+   875→          .insert(data)
+   876→          .select()
+   877→          .single();
+   878→
+   879→      return PromotionHistoryModel.fromJson(response);
+   880→    } on sb.PostgrestException catch (e) {
+   881→      AppLogger.error('Promote student failed', error: e);
+   882→      throw ServerException(
+   883→        message: e.message,
+   884→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   885→        data: e.details,
+   886→      );
+   887→    } catch (e) {
+   888→      AppLogger.error('Promote student unexpected error', error: e);
+   889→      throw ServerException(
+   890→        message: 'Failed to promote student: $e',
+   891→        statusCode: 500,
+   892→      );
+   893→    }
+   894→  }
+   895→
+   896→  @override
+   897→  Future<StudentProfileModel> graduateStudent(
+   898→    String studentId,
+   899→    String schoolId,
+   900→  ) async {
+   901→    try {
+   902→      final response = await _supabaseClient
+   903→          .from(_studentProfilesTable)
+   904→          .update({
+   905→            'is_graduated': true,
+   906→            'graduation_date': DateTime.now().toIso8601String(),
+   907→            'is_alumni': true,
+   908→            'is_active': false,
+   909→          })
+   910→          .eq('user_id', studentId)
+   911→          .eq('school_id', schoolId)
+   912→          .select()
+   913→          .single();
+   914→
+   915→      return StudentProfileModel.fromJson(response);
+   916→    } on sb.PostgrestException catch (e) {
+   917→      AppLogger.error('Graduate student failed', error: e);
+   918→      if (e.code == 'PGRST116') {
+   919→        throw NotFoundException(message: 'Student profile not found: $studentId');
+   920→      }
+   921→      throw ServerException(
+   922→        message: e.message,
+   923→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   924→        data: e.details,
+   925→      );
+   926→    } catch (e) {
+   927→      AppLogger.error('Graduate student unexpected error', error: e);
+   928→      throw ServerException(
+   929→        message: 'Failed to graduate student: $e',
+   930→        statusCode: 500,
+   931→      );
+   932→    }
+   933→  }
+   934→
+   935→  @override
+   936→  Future<List<PromotionHistoryModel>> getPromotionHistory(
+   937→    String studentId, {
+   938→    int limit = PaginatedQueryMixin.defaultPageSize,
+   939→    int offset = 0,
+   940→  }) async {
+   941→    try {
+   942→      // PERF: Explicit columns + limit prevent unbounded result sets
+   943→      final response = await _supabaseClient
+   944→          .from(_promotionHistoryTable)
+   945→          .select('id, student_id, from_class_id, to_class_id, promoted_at, promoted_by')
+   946→          .eq('student_id', studentId)
+   947→          .order('promoted_at', ascending: false)
+   948→          .range(offset, offset + limit - 1);
+   949→
+   950→      return response
+   951→          .map<PromotionHistoryModel>(
+   952→            (json) => PromotionHistoryModel.fromJson(json),
+   953→          )
+   954→          .toList();
+   955→    } on sb.PostgrestException catch (e) {
+   956→      AppLogger.error('Get promotion history failed', error: e);
+   957→      throw ServerException(
+   958→        message: e.message,
+   959→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   960→        data: e.details,
+   961→      );
+   962→    } catch (e) {
+   963→      AppLogger.error('Get promotion history unexpected error', error: e);
+   964→      throw ServerException(
+   965→        message: 'Failed to get promotion history: $e',
+   966→        statusCode: 500,
+   967→      );
+   968→    }
+   969→  }
+   970→
+   971→  // ═══════════════════════════════════════════════════════════════════
+   972→  // Teacher Profiles
+   973→  // ═══════════════════════════════════════════════════════════════════
+   974→
+   975→  @override
+   976→  Future<TeacherProfileModel> createTeacherProfile(
+   977→    Map<String, dynamic> profileData,
+   978→  ) async {
+   979→    try {
+   980→      final response = await _supabaseClient
+   981→          .from(_teacherProfilesTable)
+   982→          .insert(profileData)
+   983→          .select()
+   984→          .single();
+   985→
+   986→      return TeacherProfileModel.fromJson(response);
+   987→    } on sb.PostgrestException catch (e) {
+   988→      AppLogger.error('Create teacher profile failed', error: e);
+   989→      throw ServerException(
+   990→        message: e.message,
+   991→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   992→        data: e.details,
+   993→      );
+   994→    } catch (e) {
+   995→      AppLogger.error('Create teacher profile unexpected error', error: e);
+   996→      throw ServerException(
+   997→        message: 'Failed to create teacher profile: $e',
+   998→        statusCode: 500,
+   999→      );
+  1000→    }
+  1001→  }
+  1002→
+  1003→  @override
+  1004→  Future<TeacherProfileModel> updateTeacherProfile(
+  1005→    String profileId,
+  1006→    Map<String, dynamic> profileData,
+  1007→  ) async {
+  1008→    try {
+  1009→      final response = await _supabaseClient
+  1010→          .from(_teacherProfilesTable)
+  1011→          .update(profileData)
+  1012→          .eq('id', profileId)
+  1013→          .select()
+  1014→          .single();
+  1015→
+  1016→      return TeacherProfileModel.fromJson(response);
+  1017→    } on sb.PostgrestException catch (e) {
+  1018→      AppLogger.error('Update teacher profile failed', error: e);
+  1019→      if (e.code == 'PGRST116') {
+  1020→        throw NotFoundException(message: 'Teacher profile not found: $profileId');
+  1021→      }
+  1022→      throw ServerException(
+  1023→        message: e.message,
+  1024→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1025→        data: e.details,
+  1026→      );
+  1027→    } catch (e) {
+  1028→      AppLogger.error('Update teacher profile unexpected error', error: e);
+  1029→      throw ServerException(
+  1030→        message: 'Failed to update teacher profile: $e',
+  1031→        statusCode: 500,
+  1032→      );
+  1033→    }
+  1034→  }
+  1035→
+  1036→  @override
+  1037→  Future<TeacherProfileModel> getTeacherProfile(String userId) async {
+  1038→    try {
+  1039→      final response = await _supabaseClient
+  1040→          .from(_teacherProfilesTable)
+  1041→          .select('*, users!teacher_profiles_user_id_fkey(full_name, email, phone, avatar_url)')
+  1042→          .eq('user_id', userId)
+  1043→          .single();
+  1044→
+  1045→      return TeacherProfileModel.fromJson(response);
+  1046→    } on sb.PostgrestException catch (e) {
+  1047→      AppLogger.error('Get teacher profile failed', error: e);
+  1048→      if (e.code == 'PGRST116') {
+  1049→        throw NotFoundException(message: 'Teacher profile not found for user: $userId');
+  1050→      }
+  1051→      throw ServerException(
+  1052→        message: e.message,
+  1053→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1054→        data: e.details,
+  1055→      );
+  1056→    } catch (e) {
+  1057→      AppLogger.error('Get teacher profile unexpected error', error: e);
+  1058→      throw ServerException(
+  1059→        message: 'Failed to get teacher profile: $e',
+  1060→        statusCode: 500,
+  1061→      );
+  1062→    }
+  1063→  }
+  1064→
+  1065→  @override
+  1066→  Future<List<TeacherProfileModel>> getTeacherProfiles({
+  1067→    required String schoolId,
+  1068→    String? departmentId,
+  1069→    bool? isActive,
+  1070→    String? searchQuery,
+  1071→    int page = 1,
+  1072→    int perPage = 20,
+  1073→  }) async {
+  1074→    try {
+  1075→      // PERF: Explicit columns instead of * to reduce payload on list views
+  1076→      var query = _supabaseClient
+  1077→          .from(_teacherProfilesTable)
+  1078→          .select('id, user_id, school_id, department, employee_id, is_active, users!teacher_profiles_user_id_fkey(id, full_name, email)');
+  1079→
+  1080→      query = query.eq('school_id', schoolId);
+  1081→
+  1082→      if (departmentId != null) {
+  1083→        query = query.eq('department_id', departmentId);
+  1084→      }
+  1085→      if (isActive != null) {
+  1086→        query = query.eq('is_active', isActive);
+  1087→      }
+  1088→      if (searchQuery != null && searchQuery.isNotEmpty) {
+  1089→        query = query.or(
+  1090→          'employee_id.ilike.%$searchQuery%,'
+  1091→          'users.full_name.ilike.%$searchQuery%',
+  1092→        );
+  1093→      }
+  1094→
+  1095→      final offset = (page - 1) * perPage;
+  1096→      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
+  1097→
+  1098→      return response
+  1099→          .map<TeacherProfileModel>((json) => TeacherProfileModel.fromJson(json))
+  1100→          .toList();
+  1101→    } on sb.PostgrestException catch (e) {
+  1102→      AppLogger.error('Get teacher profiles failed', error: e);
+  1103→      throw ServerException(
+  1104→        message: e.message,
+  1105→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1106→        data: e.details,
+  1107→      );
+  1108→    } catch (e) {
+  1109→      AppLogger.error('Get teacher profiles unexpected error', error: e);
+  1110→      throw ServerException(
+  1111→        message: 'Failed to get teacher profiles: $e',
+  1112→        statusCode: 500,
+  1113→      );
+  1114→    }
+  1115→  }
+  1116→
+  1117→  // ═══════════════════════════════════════════════════════════════════
+  1118→  // Parent Profiles
+  1119→  // ═══════════════════════════════════════════════════════════════════
+  1120→
+  1121→  @override
+  1122→  Future<ParentProfileModel> createParentProfile(
+  1123→    Map<String, dynamic> profileData,
+  1124→  ) async {
+  1125→    try {
+  1126→      final response = await _supabaseClient
+  1127→          .from(_parentProfilesTable)
+  1128→          .insert(profileData)
+  1129→          .select()
+  1130→          .single();
+  1131→
+  1132→      return ParentProfileModel.fromJson(response);
+  1133→    } on sb.PostgrestException catch (e) {
+  1134→      AppLogger.error('Create parent profile failed', error: e);
+  1135→      throw ServerException(
+  1136→        message: e.message,
+  1137→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1138→        data: e.details,
+  1139→      );
+  1140→    } catch (e) {
+  1141→      AppLogger.error('Create parent profile unexpected error', error: e);
+  1142→      throw ServerException(
+  1143→        message: 'Failed to create parent profile: $e',
+  1144→        statusCode: 500,
+  1145→      );
+  1146→    }
+  1147→  }
+  1148→
+  1149→  @override
+  1150→  Future<ParentProfileModel> updateParentProfile(
+  1151→    String profileId,
+  1152→    Map<String, dynamic> profileData,
+  1153→  ) async {
+  1154→    try {
+  1155→      final response = await _supabaseClient
+  1156→          .from(_parentProfilesTable)
+  1157→          .update(profileData)
+  1158→          .eq('id', profileId)
+  1159→          .select()
+  1160→          .single();
+  1161→
+  1162→      return ParentProfileModel.fromJson(response);
+  1163→    } on sb.PostgrestException catch (e) {
+  1164→      AppLogger.error('Update parent profile failed', error: e);
+  1165→      if (e.code == 'PGRST116') {
+  1166→        throw NotFoundException(message: 'Parent profile not found: $profileId');
+  1167→      }
+  1168→      throw ServerException(
+  1169→        message: e.message,
+  1170→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1171→        data: e.details,
+  1172→      );
+  1173→    } catch (e) {
+  1174→      AppLogger.error('Update parent profile unexpected error', error: e);
+  1175→      throw ServerException(
+  1176→        message: 'Failed to update parent profile: $e',
+  1177→        statusCode: 500,
+  1178→      );
+  1179→    }
+  1180→  }
+  1181→
+  1182→  @override
+  1183→  Future<ParentProfileModel> getParentProfile(String userId) async {
+  1184→    try {
+  1185→      final response = await _supabaseClient
+  1186→          .from(_parentProfilesTable)
+  1187→          .select('*, users!parent_profiles_user_id_fkey(full_name, email, phone, avatar_url)')
+  1188→          .eq('user_id', userId)
+  1189→          .single();
+  1190→
+  1191→      return ParentProfileModel.fromJson(response);
+  1192→    } on sb.PostgrestException catch (e) {
+  1193→      AppLogger.error('Get parent profile failed', error: e);
+  1194→      if (e.code == 'PGRST116') {
+  1195→        throw NotFoundException(message: 'Parent profile not found for user: $userId');
+  1196→      }
+  1197→      throw ServerException(
+  1198→        message: e.message,
+  1199→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1200→        data: e.details,
+  1201→      );
+  1202→    } catch (e) {
+  1203→      AppLogger.error('Get parent profile unexpected error', error: e);
+  1204→      throw ServerException(
+  1205→        message: 'Failed to get parent profile: $e',
+  1206→        statusCode: 500,
+  1207→      );
+  1208→    }
+  1209→  }
+  1210→
+  1211→  @override
+  1212→  Future<List<ParentProfileModel>> getParentProfiles({
+  1213→    required String schoolId,
+  1214→    String? searchQuery,
+  1215→    int page = 1,
+  1216→    int perPage = 20,
+  1217→  }) async {
+  1218→    try {
+  1219→      // PERF: Explicit columns instead of * to reduce payload on list views
+  1220→      var query = _supabaseClient
+  1221→          .from(_parentProfilesTable)
+  1222→          .select('id, user_id, school_id, is_active, users!parent_profiles_user_id_fkey(id, full_name, email)');
+  1223→
+  1224→      query = query.eq('school_id', schoolId);
+  1225→
+  1226→      if (searchQuery != null && searchQuery.isNotEmpty) {
+  1227→        query = query.or(
+  1228→          'users.full_name.ilike.%$searchQuery%,'
+  1229→          'occupation.ilike.%$searchQuery%',
+  1230→        );
+  1231→      }
+  1232→
+  1233→      final offset = (page - 1) * perPage;
+  1234→      final response = await query.range(offset, offset + perPage - 1).order('created_at', ascending: false);
+  1235→
+  1236→      return response
+  1237→          .map<ParentProfileModel>((json) => ParentProfileModel.fromJson(json))
+  1238→          .toList();
+  1239→    } on sb.PostgrestException catch (e) {
+  1240→      AppLogger.error('Get parent profiles failed', error: e);
+  1241→      throw ServerException(
+  1242→        message: e.message,
+  1243→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1244→        data: e.details,
+  1245→      );
+  1246→    } catch (e) {
+  1247→      AppLogger.error('Get parent profiles unexpected error', error: e);
+  1248→      throw ServerException(
+  1249→        message: 'Failed to get parent profiles: $e',
+  1250→        statusCode: 500,
+  1251→      );
+  1252→    }
+  1253→  }
+  1254→
+  1255→  @override
+  1256→  Future<ParentStudentLinkModel> linkParentToStudent(
+  1257→    Map<String, dynamic> data,
+  1258→  ) async {
+  1259→    try {
+  1260→      final response = await _supabaseClient
+  1261→          .from(_parentStudentsTable)
+  1262→          .insert(data)
+  1263→          .select()
+  1264→          .single();
+  1265→
+  1266→      return ParentStudentLinkModel.fromJson(response);
+  1267→    } on sb.PostgrestException catch (e) {
+  1268→      AppLogger.error('Link parent to student failed', error: e);
+  1269→      throw ServerException(
+  1270→        message: e.message,
+  1271→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1272→        data: e.details,
+  1273→      );
+  1274→    } catch (e) {
+  1275→      AppLogger.error('Link parent to student unexpected error', error: e);
+  1276→      throw ServerException(
+  1277→        message: 'Failed to link parent to student: $e',
+  1278→        statusCode: 500,
+  1279→      );
+  1280→    }
+  1281→  }
+  1282→
+  1283→  @override
+  1284→  Future<void> unlinkParentFromStudent(String linkId) async {
+  1285→    try {
+  1286→      await _supabaseClient
+  1287→          .from(_parentStudentsTable)
+  1288→          .delete()
+  1289→          .eq('id', linkId);
+  1290→    } on sb.PostgrestException catch (e) {
+  1291→      AppLogger.error('Unlink parent from student failed', error: e);
+  1292→      throw ServerException(
+  1293→        message: e.message,
+  1294→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1295→        data: e.details,
+  1296→      );
+  1297→    } catch (e) {
+  1298→      AppLogger.error('Unlink parent from student unexpected error', error: e);
+  1299→      throw ServerException(
+  1300→        message: 'Failed to unlink parent from student: $e',
+  1301→        statusCode: 500,
+  1302→      );
+  1303→    }
+  1304→  }
+  1305→
+  1306→  @override
+  1307→  Future<List<ParentStudentLinkModel>> getParentStudentLinks(
+  1308→    String studentId, {
+  1309→    int limit = PaginatedQueryMixin.dropdownPageSize,
+  1310→    int offset = 0,
+  1311→  }) async {
+  1312→    try {
+  1313→      // Look up the student profile first to get the profile ID
+  1314→      final studentProfile = await _supabaseClient
+  1315→          .from(_studentProfilesTable)
+  1316→          .select('id')
+  1317→          .eq('user_id', studentId)
+  1318→          .single();
+  1319→
+  1320→      final profileId = studentProfile['id'] as String;
+  1321→
+  1322→      // PERF: Explicit columns + limit prevent unbounded result sets
+  1323→      final response = await _supabaseClient
+  1324→          .from(_parentStudentsTable)
+  1325→          .select('id, student_id, parent_id, relationship, parent_profiles(id, user_id, school_id, is_active, users!parent_profiles_user_id_fkey(id, full_name, email))')
+  1326→          .eq('student_id', profileId)
+  1327→          .order('created_at', ascending: false)
+  1328→          .range(offset, offset + limit - 1);
+  1329→
+  1330→      return response
+  1331→          .map<ParentStudentLinkModel>(
+  1332→            (json) => ParentStudentLinkModel.fromJson(json),
+  1333→          )
+  1334→          .toList();
+  1335→    } on sb.PostgrestException catch (e) {
+  1336→      AppLogger.error('Get parent-student links failed', error: e);
+  1337→      throw ServerException(
+  1338→        message: e.message,
+  1339→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1340→        data: e.details,
+  1341→      );
+  1342→    } catch (e) {
+  1343→      AppLogger.error('Get parent-student links unexpected error', error: e);
+  1344→      throw ServerException(
+  1345→        message: 'Failed to get parent-student links: $e',
+  1346→        statusCode: 500,
+  1347→      );
+  1348→    }
+  1349→  }
+  1350→
+  1351→  // ═══════════════════════════════════════════════════════════════════
+  1352→  // Academic Sessions
+  1353→  // ═══════════════════════════════════════════════════════════════════
+  1354→
+  1355→  @override
+  1356→  Future<AcademicSessionModel> createSession(
+  1357→    Map<String, dynamic> sessionData,
+  1358→  ) async {
+  1359→    try {
+  1360→      final response = await _supabaseClient
+  1361→          .from(_academicSessionsTable)
+  1362→          .insert(sessionData)
+  1363→          .select()
+  1364→          .single();
+  1365→
+  1366→      return AcademicSessionModel.fromJson(response);
+  1367→    } on sb.PostgrestException catch (e) {
+  1368→      AppLogger.error('Create session failed', error: e);
+  1369→      throw ServerException(
+  1370→        message: e.message,
+  1371→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1372→        data: e.details,
+  1373→      );
+  1374→    } catch (e) {
+  1375→      AppLogger.error('Create session unexpected error', error: e);
+  1376→      throw ServerException(
+  1377→        message: 'Failed to create session: $e',
+  1378→        statusCode: 500,
+  1379→      );
+  1380→    }
+  1381→  }
+  1382→
+  1383→  @override
+  1384→  Future<AcademicSessionModel> updateSession(
+  1385→    String sessionId,
+  1386→    Map<String, dynamic> sessionData,
+  1387→  ) async {
+  1388→    try {
+  1389→      final response = await _supabaseClient
+  1390→          .from(_academicSessionsTable)
+  1391→          .update(sessionData)
+  1392→          .eq('id', sessionId)
+  1393→          .select()
+  1394→          .single();
+  1395→
+  1396→      return AcademicSessionModel.fromJson(response);
+  1397→    } on sb.PostgrestException catch (e) {
+  1398→      AppLogger.error('Update session failed', error: e);
+  1399→      if (e.code == 'PGRST116') {
+  1400→        throw NotFoundException(message: 'Session not found: $sessionId');
+  1401→      }
+  1402→      throw ServerException(
+  1403→        message: e.message,
+  1404→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1405→        data: e.details,
+  1406→      );
+  1407→    } catch (e) {
+  1408→      AppLogger.error('Update session unexpected error', error: e);
+  1409→      throw ServerException(
+  1410→        message: 'Failed to update session: $e',
+  1411→        statusCode: 500,
+  1412→      );
+  1413→    }
+  1414→  }
+  1415→
+  1416→  @override
+  1417→  Future<void> deleteSession(String sessionId) async {
+  1418→    try {
+  1419→      await _supabaseClient
+  1420→          .from(_academicSessionsTable)
+  1421→          .delete()
+  1422→          .eq('id', sessionId);
+  1423→    } on sb.PostgrestException catch (e) {
+  1424→      AppLogger.error('Delete session failed', error: e);
+  1425→      throw ServerException(
+  1426→        message: e.message,
+  1427→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1428→        data: e.details,
+  1429→      );
+  1430→    } catch (e) {
+  1431→      AppLogger.error('Delete session unexpected error', error: e);
+  1432→      throw ServerException(
+  1433→        message: 'Failed to delete session: $e',
+  1434→        statusCode: 500,
+  1435→      );
+  1436→    }
+  1437→  }
+  1438→
+  1439→  @override
+  1440→  Future<AcademicSessionModel> getSession(String sessionId) async {
+  1441→    try {
+  1442→      final response = await _supabaseClient
+  1443→          .from(_academicSessionsTable)
+  1444→          .select()
+  1445→          .eq('id', sessionId)
+  1446→          .single();
+  1447→
+  1448→      return AcademicSessionModel.fromJson(response);
+  1449→    } on sb.PostgrestException catch (e) {
+  1450→      AppLogger.error('Get session failed', error: e);
+  1451→      if (e.code == 'PGRST116') {
+  1452→        throw NotFoundException(message: 'Session not found: $sessionId');
+  1453→      }
+  1454→      throw ServerException(
+  1455→        message: e.message,
+  1456→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1457→        data: e.details,
+  1458→      );
+  1459→    } catch (e) {
+  1460→      AppLogger.error('Get session unexpected error', error: e);
+  1461→      throw ServerException(
+  1462→        message: 'Failed to get session: $e',
+  1463→        statusCode: 500,
+  1464→      );
+  1465→    }
+  1466→  }
+  1467→
+  1468→  @override
+  1469→  Future<List<AcademicSessionModel>> getSessions(
+  1470→    String schoolId, {
+  1471→    int limit = PaginatedQueryMixin.dropdownPageSize,
+  1472→    int offset = 0,
+  1473→  }) async {
+  1474→    try {
+  1475→      // PERF: Explicit columns + limit; sessions are typically used in dropdowns
+  1476→      final response = await _supabaseClient
+  1477→          .from(_academicSessionsTable)
+  1478→          .select('id, school_id, name, start_date, end_date, is_current, is_active')
+  1479→          .eq('school_id', schoolId)
+  1480→          .order('start_date', ascending: false)
+  1481→          .range(offset, offset + limit - 1);
+  1482→
+  1483→      return response
+  1484→          .map<AcademicSessionModel>(
+  1485→            (json) => AcademicSessionModel.fromJson(json),
+  1486→          )
+  1487→          .toList();
+  1488→    } on sb.PostgrestException catch (e) {
+  1489→      AppLogger.error('Get sessions failed', error: e);
+  1490→      throw ServerException(
+  1491→        message: e.message,
+  1492→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1493→        data: e.details,
+  1494→      );
+  1495→    } catch (e) {
+  1496→      AppLogger.error('Get sessions unexpected error', error: e);
+  1497→      throw ServerException(
+  1498→        message: 'Failed to get sessions: $e',
+  1499→        statusCode: 500,
+  1500→      );
+  1501→    }
+  1502→  }
+  1503→
+  1504→  @override
+  1505→  Future<AcademicSessionModel> getCurrentSession(String schoolId) async {
+  1506→    try {
+  1507→      final response = await _supabaseClient
+  1508→          .from(_academicSessionsTable)
+  1509→          .select()
+  1510→          .eq('school_id', schoolId)
+  1511→          .eq('is_current', true)
+  1512→          .single();
+  1513→
+  1514→      return AcademicSessionModel.fromJson(response);
+  1515→    } on sb.PostgrestException catch (e) {
+  1516→      AppLogger.error('Get current session failed', error: e);
+  1517→      if (e.code == 'PGRST116') {
+  1518→        throw NotFoundException(message: 'No current session found for school: $schoolId');
+  1519→      }
+  1520→      throw ServerException(
+  1521→        message: e.message,
+  1522→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1523→        data: e.details,
+  1524→      );
+  1525→    } catch (e) {
+  1526→      AppLogger.error('Get current session unexpected error', error: e);
+  1527→      throw ServerException(
+  1528→        message: 'Failed to get current session: $e',
+  1529→        statusCode: 500,
+  1530→      );
+  1531→    }
+  1532→  }
+  1533→
+  1534→  @override
+  1535→  Future<AcademicSessionModel> setCurrentSession(String sessionId) async {
+  1536→    try {
+  1537→      final response = await _supabaseClient
+  1538→          .from(_academicSessionsTable)
+  1539→          .update({'is_current': true})
+  1540→          .eq('id', sessionId)
+  1541→          .select()
+  1542→          .single();
+  1543→
+  1544→      return AcademicSessionModel.fromJson(response);
+  1545→    } on sb.PostgrestException catch (e) {
+  1546→      AppLogger.error('Set current session failed', error: e);
+  1547→      throw ServerException(
+  1548→        message: e.message,
+  1549→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1550→        data: e.details,
+  1551→      );
+  1552→    } catch (e) {
+  1553→      AppLogger.error('Set current session unexpected error', error: e);
+  1554→      throw ServerException(
+  1555→        message: 'Failed to set current session: $e',
+  1556→        statusCode: 500,
+  1557→      );
+  1558→    }
+  1559→  }
+  1560→
+  1561→  // ═══════════════════════════════════════════════════════════════════
+  1562→  // Terms
+  1563→  // ═══════════════════════════════════════════════════════════════════
+  1564→
+  1565→  @override
+  1566→  Future<TermModel> createTerm(Map<String, dynamic> termData) async {
+  1567→    try {
+  1568→      final response = await _supabaseClient
+  1569→          .from(_termsTable)
+  1570→          .insert(termData)
+  1571→          .select()
+  1572→          .single();
+  1573→
+  1574→      return TermModel.fromJson(response);
+  1575→    } on sb.PostgrestException catch (e) {
+  1576→      AppLogger.error('Create term failed', error: e);
+  1577→      throw ServerException(
+  1578→        message: e.message,
+  1579→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1580→        data: e.details,
+  1581→      );
+  1582→    } catch (e) {
+  1583→      AppLogger.error('Create term unexpected error', error: e);
+  1584→      throw ServerException(
+  1585→        message: 'Failed to create term: $e',
+  1586→        statusCode: 500,
+  1587→      );
+  1588→    }
+  1589→  }
+  1590→
+  1591→  @override
+  1592→  Future<TermModel> updateTerm(
+  1593→    String termId,
+  1594→    Map<String, dynamic> termData,
+  1595→  ) async {
+  1596→    try {
+  1597→      final response = await _supabaseClient
+  1598→          .from(_termsTable)
+  1599→          .update(termData)
+  1600→          .eq('id', termId)
+  1601→          .select()
+  1602→          .single();
+  1603→
+  1604→      return TermModel.fromJson(response);
+  1605→    } on sb.PostgrestException catch (e) {
+  1606→      AppLogger.error('Update term failed', error: e);
+  1607→      if (e.code == 'PGRST116') {
+  1608→        throw NotFoundException(message: 'Term not found: $termId');
+  1609→      }
+  1610→      throw ServerException(
+  1611→        message: e.message,
+  1612→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1613→        data: e.details,
+  1614→      );
+  1615→    } catch (e) {
+  1616→      AppLogger.error('Update term unexpected error', error: e);
+  1617→      throw ServerException(
+  1618→        message: 'Failed to update term: $e',
+  1619→        statusCode: 500,
+  1620→      );
+  1621→    }
+  1622→  }
+  1623→
+  1624→  @override
+  1625→  Future<void> deleteTerm(String termId) async {
+  1626→    try {
+  1627→      await _supabaseClient
+  1628→          .from(_termsTable)
+  1629→          .delete()
+  1630→          .eq('id', termId);
+  1631→    } on sb.PostgrestException catch (e) {
+  1632→      AppLogger.error('Delete term failed', error: e);
+  1633→      throw ServerException(
+  1634→        message: e.message,
+  1635→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1636→        data: e.details,
+  1637→      );
+  1638→    } catch (e) {
+  1639→      AppLogger.error('Delete term unexpected error', error: e);
+  1640→      throw ServerException(
+  1641→        message: 'Failed to delete term: $e',
+  1642→        statusCode: 500,
+  1643→      );
+  1644→    }
+  1645→  }
+  1646→
+  1647→  @override
+  1648→  Future<List<TermModel>> getTerms(
+  1649→    String sessionId, {
+  1650→    int limit = PaginatedQueryMixin.dropdownPageSize,
+  1651→    int offset = 0,
+  1652→  }) async {
+  1653→    try {
+  1654→      // PERF: Explicit columns + limit; terms are typically used in dropdowns
+  1655→      final response = await _supabaseClient
+  1656→          .from(_termsTable)
+  1657→          .select('id, academic_session_id, term_number, name, start_date, end_date, is_current, is_active')
+  1658→          .eq('academic_session_id', sessionId)
+  1659→          .order('term_number', ascending: true)
+  1660→          .range(offset, offset + limit - 1);
+  1661→
+  1662→      return response
+  1663→          .map<TermModel>((json) => TermModel.fromJson(json))
+  1664→          .toList();
+  1665→    } on sb.PostgrestException catch (e) {
+  1666→      AppLogger.error('Get terms failed', error: e);
+  1667→      throw ServerException(
+  1668→        message: e.message,
+  1669→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1670→        data: e.details,
+  1671→      );
+  1672→    } catch (e) {
+  1673→      AppLogger.error('Get terms unexpected error', error: e);
+  1674→      throw ServerException(
+  1675→        message: 'Failed to get terms: $e',
+  1676→        statusCode: 500,
+  1677→      );
+  1678→    }
+  1679→  }
+  1680→
+  1681→  @override
+  1682→  Future<TermModel> getCurrentTerm(String schoolId) async {
+  1683→    try {
+  1684→      final response = await _supabaseClient
+  1685→          .from(_termsTable)
+  1686→          .select()
+  1687→          .eq('school_id', schoolId)
+  1688→          .eq('is_current', true)
+  1689→          .single();
+  1690→
+  1691→      return TermModel.fromJson(response);
+  1692→    } on sb.PostgrestException catch (e) {
+  1693→      AppLogger.error('Get current term failed', error: e);
+  1694→      if (e.code == 'PGRST116') {
+  1695→        throw NotFoundException(message: 'No current term found for school: $schoolId');
+  1696→      }
+  1697→      throw ServerException(
+  1698→        message: e.message,
+  1699→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1700→        data: e.details,
+  1701→      );
+  1702→    } catch (e) {
+  1703→      AppLogger.error('Get current term unexpected error', error: e);
+  1704→      throw ServerException(
+  1705→        message: 'Failed to get current term: $e',
+  1706→        statusCode: 500,
+  1707→      );
+  1708→    }
+  1709→  }
+  1710→
+  1711→  @override
+  1712→  Future<TermModel> setCurrentTerm(String termId) async {
+  1713→    try {
+  1714→      final response = await _supabaseClient
+  1715→          .from(_termsTable)
+  1716→          .update({'is_current': true})
+  1717→          .eq('id', termId)
+  1718→          .select()
+  1719→          .single();
+  1720→
+  1721→      return TermModel.fromJson(response);
+  1722→    } on sb.PostgrestException catch (e) {
+  1723→      AppLogger.error('Set current term failed', error: e);
+  1724→      throw ServerException(
+  1725→        message: e.message,
+  1726→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1727→        data: e.details,
+  1728→      );
+  1729→    } catch (e) {
+  1730→      AppLogger.error('Set current term unexpected error', error: e);
+  1731→      throw ServerException(
+  1732→        message: 'Failed to set current term: $e',
+  1733→        statusCode: 500,
+  1734→      );
+  1735→    }
+  1736→  }
+  1737→
+  1738→  // ═══════════════════════════════════════════════════════════════════
+  1739→  // Calendar Events
+  1740→  // ═══════════════════════════════════════════════════════════════════
+  1741→
+  1742→  @override
+  1743→  Future<CalendarEventModel> createCalendarEvent(
+  1744→    Map<String, dynamic> eventData,
+  1745→  ) async {
+  1746→    try {
+  1747→      final response = await _supabaseClient
+  1748→          .from(_calendarEventsTable)
+  1749→          .insert(eventData)
+  1750→          .select()
+  1751→          .single();
+  1752→
+  1753→      return CalendarEventModel.fromJson(response);
+  1754→    } on sb.PostgrestException catch (e) {
+  1755→      AppLogger.error('Create calendar event failed', error: e);
+  1756→      throw ServerException(
+  1757→        message: e.message,
+  1758→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1759→        data: e.details,
+  1760→      );
+  1761→    } catch (e) {
+  1762→      AppLogger.error('Create calendar event unexpected error', error: e);
+  1763→      throw ServerException(
+  1764→        message: 'Failed to create calendar event: $e',
+  1765→        statusCode: 500,
+  1766→      );
+  1767→    }
+  1768→  }
+  1769→
+  1770→  @override
+  1771→  Future<CalendarEventModel> updateCalendarEvent(
+  1772→    String eventId,
+  1773→    Map<String, dynamic> eventData,
+  1774→  ) async {
+  1775→    try {
+  1776→      final response = await _supabaseClient
+  1777→          .from(_calendarEventsTable)
+  1778→          .update(eventData)
+  1779→          .eq('id', eventId)
+  1780→          .select()
+  1781→          .single();
+  1782→
+  1783→      return CalendarEventModel.fromJson(response);
+  1784→    } on sb.PostgrestException catch (e) {
+  1785→      AppLogger.error('Update calendar event failed', error: e);
+  1786→      if (e.code == 'PGRST116') {
+  1787→        throw NotFoundException(message: 'Calendar event not found: $eventId');
+  1788→      }
+  1789→      throw ServerException(
+  1790→        message: e.message,
+  1791→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1792→        data: e.details,
+  1793→      );
+  1794→    } catch (e) {
+  1795→      AppLogger.error('Update calendar event unexpected error', error: e);
+  1796→      throw ServerException(
+  1797→        message: 'Failed to update calendar event: $e',
+  1798→        statusCode: 500,
+  1799→      );
+  1800→    }
+  1801→  }
+  1802→
+  1803→  @override
+  1804→  Future<void> deleteCalendarEvent(String eventId) async {
+  1805→    try {
+  1806→      await _supabaseClient
+  1807→          .from(_calendarEventsTable)
+  1808→          .delete()
+  1809→          .eq('id', eventId);
+  1810→    } on sb.PostgrestException catch (e) {
+  1811→      AppLogger.error('Delete calendar event failed', error: e);
+  1812→      throw ServerException(
+  1813→        message: e.message,
+  1814→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1815→        data: e.details,
+  1816→      );
+  1817→    } catch (e) {
+  1818→      AppLogger.error('Delete calendar event unexpected error', error: e);
+  1819→      throw ServerException(
+  1820→        message: 'Failed to delete calendar event: $e',
+  1821→        statusCode: 500,
+  1822→      );
+  1823→    }
+  1824→  }
+  1825→
+  1826→  @override
+  1827→  Future<List<CalendarEventModel>> getCalendarEvents({
+  1828→    required String schoolId,
+  1829→    String? termId,
+  1830→    String? startDate,
+  1831→    String? endDate,
+  1832→    String? eventType,
+  1833→    int limit = PaginatedQueryMixin.defaultPageSize,
+  1834→    int offset = 0,
+  1835→  }) async {
+  1836→    try {
+  1837→      // PERF: Explicit columns + limit prevent unbounded result sets
+  1838→      var query = _supabaseClient
+  1839→          .from(_calendarEventsTable)
+  1840→          .select('id, school_id, term_id, title, event_type, start_date, end_date, is_active')
+  1841→          .eq('school_id', schoolId)
+  1842→          .eq('is_active', true);
+  1843→
+  1844→      if (termId != null) {
+  1845→        query = query.eq('term_id', termId);
+  1846→      }
+  1847→      if (eventType != null) {
+  1848→        query = query.eq('event_type', eventType);
+  1849→      }
+  1850→      if (startDate != null) {
+  1851→        query = query.gte('start_date', startDate);
+  1852→      }
+  1853→      if (endDate != null) {
+  1854→        query = query.lte('start_date', endDate);
+  1855→      }
+  1856→
+  1857→      final response = await query.order('start_date', ascending: true).range(offset, offset + limit - 1);
+  1858→
+  1859→      return response
+  1860→          .map<CalendarEventModel>((json) => CalendarEventModel.fromJson(json))
+  1861→          .toList();
+  1862→    } on sb.PostgrestException catch (e) {
+  1863→      AppLogger.error('Get calendar events failed', error: e);
+  1864→      throw ServerException(
+  1865→        message: e.message,
+  1866→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1867→        data: e.details,
+  1868→      );
+  1869→    } catch (e) {
+  1870→      AppLogger.error('Get calendar events unexpected error', error: e);
+  1871→      throw ServerException(
+  1872→        message: 'Failed to get calendar events: $e',
+  1873→        statusCode: 500,
+  1874→      );
+  1875→    }
+  1876→  }
+  1877→
+  1878→  // ═══════════════════════════════════════════════════════════════════
+  1879→  // Timetables
+  1880→  // ═══════════════════════════════════════════════════════════════════
+  1881→
+  1882→  @override
+  1883→  Future<TimetableModel> createTimetable(
+  1884→    Map<String, dynamic> timetableData,
+  1885→  ) async {
+  1886→    try {
+  1887→      final response = await _supabaseClient
+  1888→          .from(_timetablesTable)
+  1889→          .insert(timetableData)
+  1890→          .select()
+  1891→          .single();
+  1892→
+  1893→      return TimetableModel.fromJson(response);
+  1894→    } on sb.PostgrestException catch (e) {
+  1895→      AppLogger.error('Create timetable failed', error: e);
+  1896→      throw ServerException(
+  1897→        message: e.message,
+  1898→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1899→        data: e.details,
+  1900→      );
+  1901→    } catch (e) {
+  1902→      AppLogger.error('Create timetable unexpected error', error: e);
+  1903→      throw ServerException(
+  1904→        message: 'Failed to create timetable: $e',
+  1905→        statusCode: 500,
+  1906→      );
+  1907→    }
+  1908→  }
+  1909→
+  1910→  @override
+  1911→  Future<TimetableModel> updateTimetable(
+  1912→    String timetableId,
+  1913→    Map<String, dynamic> timetableData,
+  1914→  ) async {
+  1915→    try {
+  1916→      final response = await _supabaseClient
+  1917→          .from(_timetablesTable)
+  1918→          .update(timetableData)
+  1919→          .eq('id', timetableId)
+  1920→          .select()
+  1921→          .single();
+  1922→
+  1923→      return TimetableModel.fromJson(response);
+  1924→    } on sb.PostgrestException catch (e) {
+  1925→      AppLogger.error('Update timetable failed', error: e);
+  1926→      if (e.code == 'PGRST116') {
+  1927→        throw NotFoundException(message: 'Timetable not found: $timetableId');
+  1928→      }
+  1929→      throw ServerException(
+  1930→        message: e.message,
+  1931→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1932→        data: e.details,
+  1933→      );
+  1934→    } catch (e) {
+  1935→      AppLogger.error('Update timetable unexpected error', error: e);
+  1936→      throw ServerException(
+  1937→        message: 'Failed to update timetable: $e',
+  1938→        statusCode: 500,
+  1939→      );
+  1940→    }
+  1941→  }
+  1942→
+  1943→  @override
+  1944→  Future<void> deleteTimetable(String timetableId) async {
+  1945→    try {
+  1946→      await _supabaseClient
+  1947→          .from(_timetablesTable)
+  1948→          .delete()
+  1949→          .eq('id', timetableId);
+  1950→    } on sb.PostgrestException catch (e) {
+  1951→      AppLogger.error('Delete timetable failed', error: e);
+  1952→      throw ServerException(
+  1953→        message: e.message,
+  1954→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1955→        data: e.details,
+  1956→      );
+  1957→    } catch (e) {
+  1958→      AppLogger.error('Delete timetable unexpected error', error: e);
+  1959→      throw ServerException(
+  1960→        message: 'Failed to delete timetable: $e',
+  1961→        statusCode: 500,
+  1962→      );
+  1963→    }
+  1964→  }
+  1965→
+  1966→  @override
+  1967→  Future<TimetableModel> getTimetable(String timetableId) async {
+  1968→    try {
+  1969→      final response = await _supabaseClient
+  1970→          .from(_timetablesTable)
+  1971→          .select('*, timetable_slots(*)')
+  1972→          .eq('id', timetableId)
+  1973→          .single();
+  1974→
+  1975→      return TimetableModel.fromJson(response);
+  1976→    } on sb.PostgrestException catch (e) {
+  1977→      AppLogger.error('Get timetable failed', error: e);
+  1978→      if (e.code == 'PGRST116') {
+  1979→        throw NotFoundException(message: 'Timetable not found: $timetableId');
+  1980→      }
+  1981→      throw ServerException(
+  1982→        message: e.message,
+  1983→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1984→        data: e.details,
+  1985→      );
+  1986→    } catch (e) {
+  1987→      AppLogger.error('Get timetable unexpected error', error: e);
+  1988→      throw ServerException(
+  1989→        message: 'Failed to get timetable: $e',
+  1990→        statusCode: 500,
+  1991→      );
+  1992→    }
+  1993→  }
+  1994→
+  1995→  @override
+  1996→  Future<List<TimetableModel>> getTimetables({
+  1997→    required String schoolId,
+  1998→    String? termId,
+  1999→    String? classId,
+  2000→    int limit = PaginatedQueryMixin.defaultPageSize,
+
+[showing lines 1-2000 of 3722; use offset=2001 with limit to continue reading]

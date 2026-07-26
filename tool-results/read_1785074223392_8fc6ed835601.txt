@@ -1,0 +1,1754 @@
+     1→     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→     2→
+     3→     3→import '../../../../core/errors/exceptions.dart';
+     4→     4→import '../../../../core/network/paginated_query_mixin.dart';
+     5→     5→import '../../../../core/utils/logger.dart';
+     6→     6→import '../models/results_models.dart';
+     7→     7→
+     8→     8→// ═══════════════════════════════════════════════════════════════════════
+     9→     9→// ABSTRACT INTERFACE
+    10→    10→// ═══════════════════════════════════════════════════════════════════════
+    11→    11→
+    12→    12→/// Abstract interface for all remote Results Engine data operations.
+    13→    13→///
+    14→    14→/// Implementations handle all network communication with the Supabase
+    15→    15→/// backend and return plain model instances. Exceptions are allowed to
+    16→    16→/// propagate so the repository layer can catch and convert them to
+    17→    17→/// domain [Failure] types.
+    18→    18→abstract class ResultsRemoteDataSource {
+    19→    19→  // ─── Grade Scales ──────────────────────────────────────────────────
+    20→    20→
+    21→    21→  Future<GradeScaleModel> createGradeScale(GradeScaleModel scale);
+    22→    22→  Future<GradeScaleModel> updateGradeScale(GradeScaleModel scale);
+    23→    23→  Future<void> deleteGradeScale(String scaleId);
+    24→    24→  Future<GradeScaleModel> getGradeScale(String scaleId);
+    25→    25→  Future<List<GradeScaleModel>> getGradeScales(
+    26→    26→    String schoolId, {
+    27→    27→    bool? isActive,
+    28→    28→    String? gradeType,
+    29→    29→    int limit = PaginatedQueryMixin.defaultPageSize,
+    30→    30→    int offset = 0,
+    31→    31→  });
+    32→    32→
+    33→    33→  // ─── AI Grading ────────────────────────────────────────────────────
+    34→    34→
+    35→    35→  Future<AiGradingResultModel> insertAiGradingResult(
+    36→    36→    AiGradingResultModel result,
+    37→    37→  );
+    38→    38→  Future<AiGradingResultModel> updateAiGradingResult(
+    39→    39→    AiGradingResultModel result,
+    40→    40→  );
+    41→    41→  Future<AiGradingResultModel?> getAiGradingByAnswer(String answerId);
+    42→    42→  Future<List<AiGradingResultModel>> getPendingAiGradings(
+    43→    43→    String examId, {
+    44→    44→    int limit = PaginatedQueryMixin.defaultPageSize,
+    45→    45→  });
+    46→    46→
+    47→    47→  // ─── Teacher Feedback ──────────────────────────────────────────────
+    48→    48→
+    49→    49→  Future<TeacherFeedbackModel> upsertTeacherFeedback(
+    50→    50→    TeacherFeedbackModel feedback,
+    51→    51→  );
+    52→    52→  Future<TeacherFeedbackModel?> getTeacherFeedbackByAnswer(String answerId);
+    53→    53→  Future<List<TeacherFeedbackModel>> getTeacherFeedbackByExam(
+    54→    54→    String examId,
+    55→    55→    String teacherId, {
+    56→    56→    int limit = PaginatedQueryMixin.defaultPageSize,
+    57→    57→  });
+    58→    58→
+    59→    59→  // ─── Student Results ───────────────────────────────────────────────
+    60→    60→
+    61→    61→  Future<StudentSubjectResultModel> upsertStudentSubjectResult(
+    62→    62→    StudentSubjectResultModel result,
+    63→    63→  );
+    64→    64→  Future<List<StudentSubjectResultModel>> getStudentSubjectResults(
+    65→    65→    String studentId,
+    66→    66→    String academicSessionId, {
+    67→    67→    int limit = PaginatedQueryMixin.defaultPageSize,
+    68→    68→  });
+    69→    69→  Future<List<StudentSubjectResultModel>> getClassSubjectResults(
+    70→    70→    String classId,
+    71→    71→    String subjectId,
+    72→    72→    String academicSessionId, {
+    73→    73→    int limit = PaginatedQueryMixin.defaultPageSize,
+    74→    74→  });
+    75→    75→  Future<StudentOverallResultModel> upsertStudentOverallResult(
+    76→    76→    StudentOverallResultModel result,
+    77→    77→  );
+    78→    78→  Future<StudentOverallResultModel?> getStudentOverallResult(
+    79→    79→    String studentId,
+    80→    80→    String classId,
+    81→    81→    String academicSessionId,
+    82→    82→  );
+    83→    83→  Future<List<StudentOverallResultModel>> getClassOverallResults(
+    84→    84→    String classId,
+    85→    85→    String academicSessionId, {
+    86→    86→    int limit = PaginatedQueryMixin.defaultPageSize,
+    87→    87→  });
+    88→    88→
+    89→    89→  // ─── Topic Mastery ────────────────────────────────────────────────
+    90→    90→
+    91→    91→  Future<TopicMasteryModel> upsertTopicMastery(TopicMasteryModel mastery);
+    92→    92→  Future<TopicMasteryModel?> getTopicMastery(
+    93→    93→    String studentId,
+    94→    94→    String topicId,
+    95→    95→  );
+    96→    96→  Future<List<TopicMasteryModel>> getStudentTopicMastery(
+    97→    97→    String studentId,
+    98→    98→    String subjectId, {
+    99→    99→    int limit = PaginatedQueryMixin.defaultPageSize,
+   100→   100→  });
+   101→   101→  Future<List<TopicMasteryModel>> getClassTopicMastery(
+   102→   102→    String classId,
+   103→   103→    String subjectId, {
+   104→   104→    int limit = PaginatedQueryMixin.defaultPageSize,
+   105→   105→  });
+   106→   106→
+   107→   107→  // ─── Class / School Performance ───────────────────────────────────
+   108→   108→
+   109→   109→  Future<ClassPerformanceModel> upsertClassPerformance(
+   110→   110→    ClassPerformanceModel performance,
+   111→   111→  );
+   112→   112→  Future<ClassPerformanceModel?> getClassPerformance(
+   113→   113→    String classId,
+   114→   114→    String? subjectId,
+   115→   115→    String academicSessionId,
+   116→   116→  );
+   117→   117→  Future<List<ClassPerformanceModel>> getSchoolClassPerformances(
+   118→   118→    String schoolId,
+   119→   119→    String academicSessionId, {
+   120→   120→    int limit = PaginatedQueryMixin.defaultPageSize,
+   121→   121→  });
+   122→   122→  Future<SchoolPerformanceModel> upsertSchoolPerformance(
+   123→   123→    SchoolPerformanceModel performance,
+   124→   124→  );
+   125→   125→  Future<SchoolPerformanceModel?> getSchoolPerformance(
+   126→   126→    String schoolId,
+   127→   127→    String academicSessionId,
+   128→   128→  );
+   129→   129→
+   130→   130→  // ─── Analytics Snapshots ──────────────────────────────────────────
+   131→   131→
+   132→   132→  Future<AnalyticsSnapshotModel> createAnalyticsSnapshot(
+   133→   133→    AnalyticsSnapshotModel snapshot,
+   134→   134→  );
+   135→   135→  Future<AnalyticsSnapshotModel?> getAnalyticsSnapshot(
+   136→   136→    String schoolId,
+   137→   137→    String snapshotType, {
+   138→   138→    String? entityId,
+   139→   139→    String? academicSessionId,
+   140→   140→  });
+   141→   141→
+   142→   142→  // ─── Dashboard Configuration ──────────────────────────────────────
+   143→   143→
+   144→   144→  Future<DashboardConfigurationModel> upsertDashboardConfiguration(
+   145→   145→    DashboardConfigurationModel config,
+   146→   146→  );
+   147→   147→  Future<DashboardConfigurationModel?> getDashboardConfiguration(
+   148→   148→    String schoolId,
+   149→   149→    String role,
+   150→   150→  );
+   151→   151→  Future<void> updateDashboardWidgets(
+   152→   152→    String dashboardId,
+   153→   153→    List<DashboardWidgetConfigModel> widgets,
+   154→   154→  );
+   155→   155→
+   156→   156→  // ─── Report Exports ───────────────────────────────────────────────
+   157→   157→
+   158→   158→  Future<ReportExportModel> createReportExport(ReportExportModel export);
+   159→   159→  Future<ReportExportModel> updateReportExport(ReportExportModel export);
+   160→   160→  Future<ReportExportModel?> getReportExport(String exportId);
+   161→   161→  Future<List<ReportExportModel>> getReportExports({
+   162→   162→    String? schoolId,
+   163→   163→    String? requestedBy,
+   164→   164→    String? status,
+   165→   165→    int page = 1,
+   166→   166→    int perPage = 20,
+   167→   167→  });
+   168→   168→
+   169→   169→  // ─── Result Locks ─────────────────────────────────────────────────
+   170→   170→
+   171→   171→  Future<ResultLockModel> createResultLock(ResultLockModel lock);
+   172→   172→  Future<ResultLockModel> updateResultLock(ResultLockModel lock);
+   173→   173→  Future<ResultLockModel?> getResultLock(String examId);
+   174→   174→
+   175→   175→  // ─── Result Access Log ────────────────────────────────────────────
+   176→   176→
+   177→   177→  Future<void> insertResultAccessLog({
+   178→   178→    required String schoolId,
+   179→   179→    required String userId,
+   180→   180→    required String action,
+   181→   181→    required String resourceType,
+   182→   182→    required String resourceId,
+   183→   183→    Map<String, dynamic>? details,
+   184→   184→  });
+   185→   185→}
+   186→   186→
+   187→   187→// ═══════════════════════════════════════════════════════════════════════
+   188→   188→// SUPABASE IMPLEMENTATION
+   189→   189→// ═══════════════════════════════════════════════════════════════════════
+   190→   190→
+   191→   191→class ResultsRemoteDataSourceImpl implements ResultsRemoteDataSource {
+   192→   192→  ResultsRemoteDataSourceImpl({
+   193→   193→    required sb.SupabaseClient supabaseClient,
+   194→   194→  }) : _supabaseClient = supabaseClient;
+   195→   195→
+   196→   196→  final sb.SupabaseClient _supabaseClient;
+   197→   197→
+   198→   198→  // ─── Table names ────────────────────────────────────────────────────
+   199→   199→
+   200→   200→  static const _gradeScalesTable = 'grade_scales';
+   201→   201→  static const _gradeScaleEntriesTable = 'grade_scale_entries';
+   202→   202→  static const _aiGradingResultsTable = 'ai_grading_results';
+   203→   203→  static const _teacherFeedbackTable = 'teacher_feedback';
+   204→   204→  static const _studentSubjectResultsTable = 'student_subject_results';
+   205→   205→  static const _studentOverallResultsTable = 'student_overall_results';
+   206→   206→  static const _topicMasteryTable = 'topic_mastery';
+   207→   207→  static const _classPerformanceTable = 'class_performance_summaries';
+   208→   208→  static const _schoolPerformanceTable = 'school_performance_summaries';
+   209→   209→  static const _analyticsSnapshotsTable = 'analytics_snapshots';
+   210→   210→  static const _dashboardConfigurationsTable = 'dashboard_configurations';
+   211→   211→  static const _dashboardWidgetConfigsTable = 'dashboard_widget_configs';
+   212→   212→  static const _reportExportsTable = 'report_exports';
+   213→   213→  static const _resultLocksTable = 'result_locks';
+   214→   214→  static const _resultAccessLogTable = 'result_access_log';
+   215→   215→
+   216→   216→  // ═══════════════════════════════════════════════════════════════════
+   217→   217→  // Grade Scales
+   218→   218→  // ═══════════════════════════════════════════════════════════════════
+   219→   219→
+   220→   220→  @override
+   221→   221→  Future<GradeScaleModel> createGradeScale(GradeScaleModel scale) async {
+   222→   222→    try {
+   223→   223→      // 1. Insert the grade_scale row (without nested entries)
+   224→   224→      final scaleJson = scale.toJson()
+   225→   225→        ..remove('scale_entries');
+   226→   226→
+   227→   227→      final response = await _supabaseClient
+   228→   228→          .from(_gradeScalesTable)
+   229→   229→          .insert(scaleJson)
+   230→   230→          .select()
+   231→   231→          .single();
+   232→   232→
+   233→   233→      final createdScale = GradeScaleModel.fromJson(response);
+   234→   234→
+   235→   235→      // 2. Insert entries
+   236→   236→      if (scale.scaleEntries.isNotEmpty) {
+   237→   237→        final entriesRows = scale.scaleEntries.map((e) {
+   238→   238→          final json = e.toJson();
+   239→   239→          json['grade_scale_id'] = createdScale.id;
+   240→   240→          return json;
+   241→   241→        }).toList();
+   242→   242→
+   243→   243→        await _supabaseClient
+   244→   244→            .from(_gradeScaleEntriesTable)
+   245→   245→            .insert(entriesRows);
+   246→   246→      }
+   247→   247→
+   248→   248→      // 3. Return scale with entries populated
+   249→   249→      return createdScale.copyWith(
+   250→   250→        scaleEntries: scale.scaleEntries,
+   251→   251→      );
+   252→   252→    } on sb.PostgrestException catch (e) {
+   253→   253→      AppLogger.error('Create grade scale failed', error: e);
+   254→   254→      throw ServerException(
+   255→   255→        message: e.message,
+   256→   256→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   257→   257→        data: e.details,
+   258→   258→      );
+   259→   259→    } catch (e) {
+   260→   260→      AppLogger.error('Create grade scale unexpected error', error: e);
+   261→   261→      throw ServerException(
+   262→   262→        message: 'Failed to create grade scale: $e',
+   263→   263→        statusCode: 500,
+   264→   264→      );
+   265→   265→    }
+   266→   266→  }
+   267→   267→
+   268→   268→  @override
+   269→   269→  Future<GradeScaleModel> updateGradeScale(GradeScaleModel scale) async {
+   270→   270→    try {
+   271→   271→      // 1. Update the grade_scale row
+   272→   272→      final scaleJson = scale.toJson()
+   273→   273→        ..remove('scale_entries');
+   274→   274→
+   275→   275→      final response = await _supabaseClient
+   276→   276→          .from(_gradeScalesTable)
+   277→   277→          .update(scaleJson)
+   278→   278→          .eq('id', scale.id)
+   279→   279→          .select()
+   280→   280→          .single();
+   281→   281→
+   282→   282→      final updatedScale = GradeScaleModel.fromJson(response);
+   283→   283→
+   284→   284→      // 2. Delete existing entries and re-insert
+   285→   285→      await _supabaseClient
+   286→   286→          .from(_gradeScaleEntriesTable)
+   287→   287→          .delete()
+   288→   288→          .eq('grade_scale_id', scale.id);
+   289→   289→
+   290→   290→      if (scale.scaleEntries.isNotEmpty) {
+   291→   291→        final entriesRows = scale.scaleEntries.map((e) {
+   292→   292→          final json = e.toJson();
+   293→   293→          json['grade_scale_id'] = scale.id;
+   294→   294→          return json;
+   295→   295→        }).toList();
+   296→   296→
+   297→   297→        await _supabaseClient
+   298→   298→            .from(_gradeScaleEntriesTable)
+   299→   299→            .insert(entriesRows);
+   300→   300→      }
+   301→   301→
+   302→   302→      // 3. Return scale with entries populated
+   303→   303→      return updatedScale.copyWith(
+   304→   304→        scaleEntries: scale.scaleEntries,
+   305→   305→      );
+   306→   306→    } on sb.PostgrestException catch (e) {
+   307→   307→      AppLogger.error('Update grade scale failed', error: e);
+   308→   308→      if (e.code == 'PGRST116') {
+   309→   309→        throw NotFoundException(message: 'Grade scale not found: ${scale.id}');
+   310→   310→      }
+   311→   311→      throw ServerException(
+   312→   312→        message: e.message,
+   313→   313→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   314→   314→        data: e.details,
+   315→   315→      );
+   316→   316→    } catch (e) {
+   317→   317→      AppLogger.error('Update grade scale unexpected error', error: e);
+   318→   318→      throw ServerException(
+   319→   319→        message: 'Failed to update grade scale: $e',
+   320→   320→        statusCode: 500,
+   321→   321→      );
+   322→   322→    }
+   323→   323→  }
+   324→   324→
+   325→   325→  @override
+   326→   326→  Future<void> deleteGradeScale(String scaleId) async {
+   327→   327→    try {
+   328→   328→      await _supabaseClient
+   329→   329→          .from(_gradeScalesTable)
+   330→   330→          .delete()
+   331→   331→          .eq('id', scaleId);
+   332→   332→    } on sb.PostgrestException catch (e) {
+   333→   333→      AppLogger.error('Delete grade scale failed', error: e);
+   334→   334→      throw ServerException(
+   335→   335→        message: e.message,
+   336→   336→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   337→   337→        data: e.details,
+   338→   338→      );
+   339→   339→    } catch (e) {
+   340→   340→      AppLogger.error('Delete grade scale unexpected error', error: e);
+   341→   341→      throw ServerException(
+   342→   342→        message: 'Failed to delete grade scale: $e',
+   343→   343→        statusCode: 500,
+   344→   344→      );
+   345→   345→    }
+   346→   346→  }
+   347→   347→
+   348→   348→  @override
+   349→   349→  Future<GradeScaleModel> getGradeScale(String scaleId) async {
+   350→   350→    try {
+   351→   351→      final response = await _supabaseClient
+   352→   352→          .from(_gradeScalesTable)
+   353→   353→          .select('*, grade_scale_entries(*)')
+   354→   354→          .eq('id', scaleId)
+   355→   355→          .single();
+   356→   356→
+   357→   357→      // Map nested entries from the join
+   358→   358→      final mappedResponse = _mapGradeScaleEntries(response);
+   359→   359→
+   360→   360→      return GradeScaleModel.fromJson(mappedResponse);
+   361→   361→    } on sb.PostgrestException catch (e) {
+   362→   362→      AppLogger.error('Get grade scale failed', error: e);
+   363→   363→      if (e.code == 'PGRST116') {
+   364→   364→        throw NotFoundException(message: 'Grade scale not found: $scaleId');
+   365→   365→      }
+   366→   366→      throw ServerException(
+   367→   367→        message: e.message,
+   368→   368→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   369→   369→        data: e.details,
+   370→   370→      );
+   371→   371→    } catch (e) {
+   372→   372→      AppLogger.error('Get grade scale unexpected error', error: e);
+   373→   373→      throw ServerException(
+   374→   374→        message: 'Failed to get grade scale: $e',
+   375→   375→        statusCode: 500,
+   376→   376→      );
+   377→   377→    }
+   378→   378→  }
+   379→   379→
+   380→   380→  @override
+   381→   381→  Future<List<GradeScaleModel>> getGradeScales(
+   382→   382→    String schoolId, {
+   383→   383→    bool? isActive,
+   384→   384→    String? gradeType,
+   385→   385→    int limit = PaginatedQueryMixin.defaultPageSize,
+   386→   386→    int offset = 0,
+   387→   387→  }) async {
+   388→   388→    try {
+   389→   389→      // PERF: Added pagination params + limit to grade scales list query
+   390→   390→      var filterQuery = _supabaseClient
+   391→   391→          .from(_gradeScalesTable)
+   392→   392→          .select('*, grade_scale_entries(*)');
+   393→   393→
+   394→   394→      filterQuery = filterQuery.eq('school_id', schoolId);
+   395→   395→
+   396→   396→      if (isActive != null) {
+   397→   397→        filterQuery = filterQuery.eq('is_active', isActive);
+   398→   398→      }
+   399→   399→      if (gradeType != null) {
+   400→   400→        filterQuery = filterQuery.eq('grade_type', gradeType);
+   401→   401→      }
+   402→   402→
+   403→   403→      final transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + limit - 1);
+   404→   404→
+   405→   405→      final response = await transformQuery;
+   406→   406→
+   407→   407→      return response.map<GradeScaleModel>((json) {
+   408→   408→        final mappedJson = _mapGradeScaleEntries(json);
+   409→   409→        return GradeScaleModel.fromJson(mappedJson);
+   410→   410→      }).toList();
+   411→   411→    } on sb.PostgrestException catch (e) {
+   412→   412→      AppLogger.error('Get grade scales failed', error: e);
+   413→   413→      throw ServerException(
+   414→   414→        message: e.message,
+   415→   415→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   416→   416→        data: e.details,
+   417→   417→      );
+   418→   418→    } catch (e) {
+   419→   419→      AppLogger.error('Get grade scales unexpected error', error: e);
+   420→   420→      throw ServerException(
+   421→   421→        message: 'Failed to get grade scales: $e',
+   422→   422→        statusCode: 500,
+   423→   423→      );
+   424→   424→    }
+   425→   425→  }
+   426→   426→
+   427→   427→  /// Maps the nested `grade_scale_entries` join result to the model's
+   428→   428→  /// expected `scale_entries` key.
+   429→   429→  Map<String, dynamic> _mapGradeScaleEntries(Map<String, dynamic> json) {
+   430→   430→    final entries = json['grade_scale_entries'];
+   431→   431→    if (entries is List) {
+   432→   432→      return {
+   433→   433→        ...json,
+   434→   434→        'scale_entries': entries,
+   435→   435→      };
+   436→   436→    }
+   437→   437→    return json;
+   438→   438→  }
+   439→   439→
+   440→   440→  // ═══════════════════════════════════════════════════════════════════
+   441→   441→  // AI Grading
+   442→   442→  // ═══════════════════════════════════════════════════════════════════
+   443→   443→
+   444→   444→  @override
+   445→   445→  Future<AiGradingResultModel> insertAiGradingResult(
+   446→   446→    AiGradingResultModel result,
+   447→   447→  ) async {
+   448→   448→    try {
+   449→   449→      final response = await _supabaseClient
+   450→   450→          .from(_aiGradingResultsTable)
+   451→   451→          .insert(result.toJson())
+   452→   452→          .select()
+   453→   453→          .single();
+   454→   454→
+   455→   455→      return AiGradingResultModel.fromJson(response);
+   456→   456→    } on sb.PostgrestException catch (e) {
+   457→   457→      AppLogger.error('Insert AI grading result failed', error: e);
+   458→   458→      throw ServerException(
+   459→   459→        message: e.message,
+   460→   460→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   461→   461→        data: e.details,
+   462→   462→      );
+   463→   463→    } catch (e) {
+   464→   464→      AppLogger.error('Insert AI grading result unexpected error', error: e);
+   465→   465→      throw ServerException(
+   466→   466→        message: 'Failed to insert AI grading result: $e',
+   467→   467→        statusCode: 500,
+   468→   468→      );
+   469→   469→    }
+   470→   470→  }
+   471→   471→
+   472→   472→  @override
+   473→   473→  Future<AiGradingResultModel> updateAiGradingResult(
+   474→   474→    AiGradingResultModel result,
+   475→   475→  ) async {
+   476→   476→    try {
+   477→   477→      final response = await _supabaseClient
+   478→   478→          .from(_aiGradingResultsTable)
+   479→   479→          .update(result.toJson())
+   480→   480→          .eq('id', result.id)
+   481→   481→          .select()
+   482→   482→          .single();
+   483→   483→
+   484→   484→      return AiGradingResultModel.fromJson(response);
+   485→   485→    } on sb.PostgrestException catch (e) {
+   486→   486→      AppLogger.error('Update AI grading result failed', error: e);
+   487→   487→      if (e.code == 'PGRST116') {
+   488→   488→        throw NotFoundException(
+   489→   489→          message: 'AI grading result not found: ${result.id}',
+   490→   490→        );
+   491→   491→      }
+   492→   492→      throw ServerException(
+   493→   493→        message: e.message,
+   494→   494→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   495→   495→        data: e.details,
+   496→   496→      );
+   497→   497→    } catch (e) {
+   498→   498→      AppLogger.error('Update AI grading result unexpected error', error: e);
+   499→   499→      throw ServerException(
+   500→   500→        message: 'Failed to update AI grading result: $e',
+   501→   501→        statusCode: 500,
+   502→   502→      );
+   503→   503→    }
+   504→   504→  }
+   505→   505→
+   506→   506→  @override
+   507→   507→  Future<AiGradingResultModel?> getAiGradingByAnswer(String answerId) async {
+   508→   508→    try {
+   509→   509→      // PERF: Added explicit columns — single lookup, avoids fetching all columns
+   510→   510→      final response = await _supabaseClient
+   511→   511→          .from(_aiGradingResultsTable)
+   512→   512→          .select('id, exam_id, answer_id, status, score, feedback, created_at')
+   513→   513→          .eq('answer_id', answerId)
+   514→   514→          .order('created_at', ascending: false)
+   515→   515→          .limit(1);
+   516→   516→
+   517→   517→      if (response.isEmpty) return null;
+   518→   518→
+   519→   519→      return AiGradingResultModel.fromJson(
+   520→   520→        response.first,
+   521→   521→      );
+   522→   522→    } on sb.PostgrestException catch (e) {
+   523→   523→      AppLogger.error('Get AI grading by answer failed', error: e);
+   524→   524→      throw ServerException(
+   525→   525→        message: e.message,
+   526→   526→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   527→   527→        data: e.details,
+   528→   528→      );
+   529→   529→    } catch (e) {
+   530→   530→      AppLogger.error('Get AI grading by answer unexpected error', error: e);
+   531→   531→      throw ServerException(
+   532→   532→        message: 'Failed to get AI grading by answer: $e',
+   533→   533→        statusCode: 500,
+   534→   534→      );
+   535→   535→    }
+   536→   536→  }
+   537→   537→
+   538→   538→  @override
+   539→   539→  Future<List<AiGradingResultModel>> getPendingAiGradings(
+   540→   540→    String examId, {
+   541→   541→    int limit = PaginatedQueryMixin.defaultPageSize,
+   542→   542→  }) async {
+   543→   543→    try {
+   544→   544→      // PERF: Added explicit columns + limit — pending gradings were unbounded
+   545→   545→      final response = await _supabaseClient
+   546→   546→          .from(_aiGradingResultsTable)
+   547→   547→          .select('id, exam_id, answer_id, status, score, feedback, created_at')
+   548→   548→          .eq('exam_id', examId)
+   549→   549→          .eq('status', 'pending')
+   550→   550→          .order('created_at')
+   551→   551→          .limit(limit);
+   552→   552→
+   553→   553→      return response
+   554→   554→          .map<AiGradingResultModel>(
+   555→   555→            (json) => AiGradingResultModel.fromJson(json),
+   556→   556→          )
+   557→   557→          .toList();
+   558→   558→    } on sb.PostgrestException catch (e) {
+   559→   559→      AppLogger.error('Get pending AI gradings failed', error: e);
+   560→   560→      throw ServerException(
+   561→   561→        message: e.message,
+   562→   562→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   563→   563→        data: e.details,
+   564→   564→      );
+   565→   565→    } catch (e) {
+   566→   566→      AppLogger.error('Get pending AI gradings unexpected error', error: e);
+   567→   567→      throw ServerException(
+   568→   568→        message: 'Failed to get pending AI gradings: $e',
+   569→   569→        statusCode: 500,
+   570→   570→      );
+   571→   571→    }
+   572→   572→  }
+   573→   573→
+   574→   574→  // ═══════════════════════════════════════════════════════════════════
+   575→   575→  // Teacher Feedback
+   576→   576→  // ═══════════════════════════════════════════════════════════════════
+   577→   577→
+   578→   578→  @override
+   579→   579→  Future<TeacherFeedbackModel> upsertTeacherFeedback(
+   580→   580→    TeacherFeedbackModel feedback,
+   581→   581→  ) async {
+   582→   582→    try {
+   583→   583→      final response = await _supabaseClient
+   584→   584→          .from(_teacherFeedbackTable)
+   585→   585→          .upsert(
+   586→   586→            feedback.toJson(),
+   587→   587→            onConflict: 'answer_id',
+   588→   588→          )
+   589→   589→          .select()
+   590→   590→          .single();
+   591→   591→
+   592→   592→      return TeacherFeedbackModel.fromJson(response);
+   593→   593→    } on sb.PostgrestException catch (e) {
+   594→   594→      AppLogger.error('Upsert teacher feedback failed', error: e);
+   595→   595→      throw ServerException(
+   596→   596→        message: e.message,
+   597→   597→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   598→   598→        data: e.details,
+   599→   599→      );
+   600→   600→    } catch (e) {
+   601→   601→      AppLogger.error('Upsert teacher feedback unexpected error', error: e);
+   602→   602→      throw ServerException(
+   603→   603→        message: 'Failed to upsert teacher feedback: $e',
+   604→   604→        statusCode: 500,
+   605→   605→      );
+   606→   606→    }
+   607→   607→  }
+   608→   608→
+   609→   609→  @override
+   610→   610→  Future<TeacherFeedbackModel?> getTeacherFeedbackByAnswer(
+   611→   611→    String answerId,
+   612→   612→  ) async {
+   613→   613→    try {
+   614→   614→      // PERF: Added explicit columns — single lookup, avoids fetching all columns
+   615→   615→      final response = await _supabaseClient
+   616→   616→          .from(_teacherFeedbackTable)
+   617→   617→          .select('id, answer_id, exam_id, teacher_id, content, created_at, updated_at')
+   618→   618→          .eq('answer_id', answerId)
+   619→   619→          .limit(1);
+   620→   620→
+   621→   621→      if (response.isEmpty) return null;
+   622→   622→
+   623→   623→      return TeacherFeedbackModel.fromJson(
+   624→   624→        response.first,
+   625→   625→      );
+   626→   626→    } on sb.PostgrestException catch (e) {
+   627→   627→      AppLogger.error('Get teacher feedback by answer failed', error: e);
+   628→   628→      throw ServerException(
+   629→   629→        message: e.message,
+   630→   630→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   631→   631→        data: e.details,
+   632→   632→      );
+   633→   633→    } catch (e) {
+   634→   634→      AppLogger.error(
+   635→   635→        'Get teacher feedback by answer unexpected error',
+   636→   636→        error: e,
+   637→   637→      );
+   638→   638→      throw ServerException(
+   639→   639→        message: 'Failed to get teacher feedback by answer: $e',
+   640→   640→        statusCode: 500,
+   641→   641→      );
+   642→   642→    }
+   643→   643→  }
+   644→   644→
+   645→   645→  @override
+   646→   646→  Future<List<TeacherFeedbackModel>> getTeacherFeedbackByExam(
+   647→   647→    String examId,
+   648→   648→    String teacherId, {
+   649→   649→    int limit = PaginatedQueryMixin.defaultPageSize,
+   650→   650→  }) async {
+   651→   651→    try {
+   652→   652→      // PERF: Added explicit columns + limit — feedback list was unbounded
+   653→   653→      final response = await _supabaseClient
+   654→   654→          .from(_teacherFeedbackTable)
+   655→   655→          .select('id, answer_id, exam_id, teacher_id, content, created_at, updated_at')
+   656→   656→          .eq('exam_id', examId)
+   657→   657→          .eq('teacher_id', teacherId)
+   658→   658→          .order('created_at')
+   659→   659→          .limit(limit);
+   660→   660→
+   661→   661→      return response
+   662→   662→          .map<TeacherFeedbackModel>(
+   663→   663→            (json) => TeacherFeedbackModel.fromJson(json),
+   664→   664→          )
+   665→   665→          .toList();
+   666→   666→    } on sb.PostgrestException catch (e) {
+   667→   667→      AppLogger.error('Get teacher feedback by exam failed', error: e);
+   668→   668→      throw ServerException(
+   669→   669→        message: e.message,
+   670→   670→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   671→   671→        data: e.details,
+   672→   672→      );
+   673→   673→    } catch (e) {
+   674→   674→      AppLogger.error(
+   675→   675→        'Get teacher feedback by exam unexpected error',
+   676→   676→        error: e,
+   677→   677→      );
+   678→   678→      throw ServerException(
+   679→   679→        message: 'Failed to get teacher feedback by exam: $e',
+   680→   680→        statusCode: 500,
+   681→   681→      );
+   682→   682→    }
+   683→   683→  }
+   684→   684→
+   685→   685→  // ═══════════════════════════════════════════════════════════════════
+   686→   686→  // Student Results
+   687→   687→  // ═══════════════════════════════════════════════════════════════════
+   688→   688→
+   689→   689→  @override
+   690→   690→  Future<StudentSubjectResultModel> upsertStudentSubjectResult(
+   691→   691→    StudentSubjectResultModel result,
+   692→   692→  ) async {
+   693→   693→    try {
+   694→   694→      final response = await _supabaseClient
+   695→   695→          .from(_studentSubjectResultsTable)
+   696→   696→          .upsert(
+   697→   697→            result.toJson(),
+   698→   698→            onConflict: 'student_id,subject_id,class_id,academic_session_id',
+   699→   699→          )
+   700→   700→          .select()
+   701→   701→          .single();
+   702→   702→
+   703→   703→      return StudentSubjectResultModel.fromJson(response);
+   704→   704→    } on sb.PostgrestException catch (e) {
+   705→   705→      AppLogger.error('Upsert student subject result failed', error: e);
+   706→   706→      throw ServerException(
+   707→   707→        message: e.message,
+   708→   708→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   709→   709→        data: e.details,
+   710→   710→      );
+   711→   711→    } catch (e) {
+   712→   712→      AppLogger.error(
+   713→   713→        'Upsert student subject result unexpected error',
+   714→   714→        error: e,
+   715→   715→      );
+   716→   716→      throw ServerException(
+   717→   717→        message: 'Failed to upsert student subject result: $e',
+   718→   718→        statusCode: 500,
+   719→   719→      );
+   720→   720→    }
+   721→   721→  }
+   722→   722→
+   723→   723→  @override
+   724→   724→  Future<List<StudentSubjectResultModel>> getStudentSubjectResults(
+   725→   725→    String studentId,
+   726→   726→    String academicSessionId, {
+   727→   727→    int limit = PaginatedQueryMixin.defaultPageSize,
+   728→   728→  }) async {
+   729→   729→    try {
+   730→   730→      // PERF: Added explicit columns + limit — student results were unbounded
+   731→   731→      final response = await _supabaseClient
+   732→   732→          .from(_studentSubjectResultsTable)
+   733→   733→          .select('id, student_id, subject_id, class_id, academic_session_id, percentage, grade, created_at')
+   734→   734→          .eq('student_id', studentId)
+   735→   735→          .eq('academic_session_id', academicSessionId)
+   736→   736→          .order('created_at')
+   737→   737→          .limit(limit);
+   738→   738→
+   739→   739→      return response
+   740→   740→          .map<StudentSubjectResultModel>(
+   741→   741→            (json) => StudentSubjectResultModel.fromJson(json),
+   742→   742→          )
+   743→   743→          .toList();
+   744→   744→    } on sb.PostgrestException catch (e) {
+   745→   745→      AppLogger.error('Get student subject results failed', error: e);
+   746→   746→      throw ServerException(
+   747→   747→        message: e.message,
+   748→   748→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   749→   749→        data: e.details,
+   750→   750→      );
+   751→   751→    } catch (e) {
+   752→   752→      AppLogger.error(
+   753→   753→        'Get student subject results unexpected error',
+   754→   754→        error: e,
+   755→   755→      );
+   756→   756→      throw ServerException(
+   757→   757→        message: 'Failed to get student subject results: $e',
+   758→   758→        statusCode: 500,
+   759→   759→      );
+   760→   760→    }
+   761→   761→  }
+   762→   762→
+   763→   763→  @override
+   764→   764→  Future<List<StudentSubjectResultModel>> getClassSubjectResults(
+   765→   765→    String classId,
+   766→   766→    String subjectId,
+   767→   767→    String academicSessionId, {
+   768→   768→    int limit = PaginatedQueryMixin.defaultPageSize,
+   769→   769→  }) async {
+   770→   770→    try {
+   771→   771→      // PERF: Added explicit columns + limit — class subject results were unbounded
+   772→   772→      final response = await _supabaseClient
+   773→   773→          .from(_studentSubjectResultsTable)
+   774→   774→          .select('id, student_id, subject_id, class_id, academic_session_id, percentage, grade, created_at')
+   775→   775→          .eq('class_id', classId)
+   776→   776→          .eq('subject_id', subjectId)
+   777→   777→          .eq('academic_session_id', academicSessionId)
+   778→   778→          .order('percentage', ascending: false)
+   779→   779→          .limit(limit);
+   780→   780→
+   781→   781→      return response
+   782→   782→          .map<StudentSubjectResultModel>(
+   783→   783→            (json) => StudentSubjectResultModel.fromJson(json),
+   784→   784→          )
+   785→   785→          .toList();
+   786→   786→    } on sb.PostgrestException catch (e) {
+   787→   787→      AppLogger.error('Get class subject results failed', error: e);
+   788→   788→      throw ServerException(
+   789→   789→        message: e.message,
+   790→   790→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   791→   791→        data: e.details,
+   792→   792→      );
+   793→   793→    } catch (e) {
+   794→   794→      AppLogger.error('Get class subject results unexpected error', error: e);
+   795→   795→      throw ServerException(
+   796→   796→        message: 'Failed to get class subject results: $e',
+   797→   797→        statusCode: 500,
+   798→   798→      );
+   799→   799→    }
+   800→   800→  }
+   801→   801→
+   802→   802→  @override
+   803→   803→  Future<StudentOverallResultModel> upsertStudentOverallResult(
+   804→   804→    StudentOverallResultModel result,
+   805→   805→  ) async {
+   806→   806→    try {
+   807→   807→      final response = await _supabaseClient
+   808→   808→          .from(_studentOverallResultsTable)
+   809→   809→          .upsert(
+   810→   810→            result.toJson(),
+   811→   811→            onConflict: 'student_id,class_id,academic_session_id',
+   812→   812→          )
+   813→   813→          .select()
+   814→   814→          .single();
+   815→   815→
+   816→   816→      return StudentOverallResultModel.fromJson(response);
+   817→   817→    } on sb.PostgrestException catch (e) {
+   818→   818→      AppLogger.error('Upsert student overall result failed', error: e);
+   819→   819→      throw ServerException(
+   820→   820→        message: e.message,
+   821→   821→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   822→   822→        data: e.details,
+   823→   823→      );
+   824→   824→    } catch (e) {
+   825→   825→      AppLogger.error(
+   826→   826→        'Upsert student overall result unexpected error',
+   827→   827→        error: e,
+   828→   828→      );
+   829→   829→      throw ServerException(
+   830→   830→        message: 'Failed to upsert student overall result: $e',
+   831→   831→        statusCode: 500,
+   832→   832→      );
+   833→   833→    }
+   834→   834→  }
+   835→   835→
+   836→   836→  @override
+   837→   837→  Future<StudentOverallResultModel?> getStudentOverallResult(
+   838→   838→    String studentId,
+   839→   839→    String classId,
+   840→   840→    String academicSessionId,
+   841→   841→  ) async {
+   842→   842→    try {
+   843→   843→      // PERF: Added explicit columns — single lookup, avoids fetching all columns
+   844→   844→      final response = await _supabaseClient
+   845→   845→          .from(_studentOverallResultsTable)
+   846→   846→          .select('id, student_id, class_id, academic_session_id, overall_percentage, overall_grade, rank, created_at')
+   847→   847→          .eq('student_id', studentId)
+   848→   848→          .eq('class_id', classId)
+   849→   849→          .eq('academic_session_id', academicSessionId)
+   850→   850→          .limit(1);
+   851→   851→
+   852→   852→      if (response.isEmpty) return null;
+   853→   853→
+   854→   854→      return StudentOverallResultModel.fromJson(
+   855→   855→        response.first,
+   856→   856→      );
+   857→   857→    } on sb.PostgrestException catch (e) {
+   858→   858→      AppLogger.error('Get student overall result failed', error: e);
+   859→   859→      throw ServerException(
+   860→   860→        message: e.message,
+   861→   861→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   862→   862→        data: e.details,
+   863→   863→      );
+   864→   864→    } catch (e) {
+   865→   865→      AppLogger.error(
+   866→   866→        'Get student overall result unexpected error',
+   867→   867→        error: e,
+   868→   868→      );
+   869→   869→      throw ServerException(
+   870→   870→        message: 'Failed to get student overall result: $e',
+   871→   871→        statusCode: 500,
+   872→   872→      );
+   873→   873→    }
+   874→   874→  }
+   875→   875→
+   876→   876→  @override
+   877→   877→  Future<List<StudentOverallResultModel>> getClassOverallResults(
+   878→   878→    String classId,
+   879→   879→    String academicSessionId, {
+   880→   880→    int limit = PaginatedQueryMixin.defaultPageSize,
+   881→   881→  }) async {
+   882→   882→    try {
+   883→   883→      // PERF: Added explicit columns + limit — class overall results were unbounded
+   884→   884→      final response = await _supabaseClient
+   885→   885→          .from(_studentOverallResultsTable)
+   886→   886→          .select('id, student_id, class_id, academic_session_id, overall_percentage, overall_grade, rank, created_at')
+   887→   887→          .eq('class_id', classId)
+   888→   888→          .eq('academic_session_id', academicSessionId)
+   889→   889→          .order('overall_percentage', ascending: false)
+   890→   890→          .limit(limit);
+   891→   891→
+   892→   892→      return response
+   893→   893→          .map<StudentOverallResultModel>(
+   894→   894→            (json) => StudentOverallResultModel.fromJson(json),
+   895→   895→          )
+   896→   896→          .toList();
+   897→   897→    } on sb.PostgrestException catch (e) {
+   898→   898→      AppLogger.error('Get class overall results failed', error: e);
+   899→   899→      throw ServerException(
+   900→   900→        message: e.message,
+   901→   901→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   902→   902→        data: e.details,
+   903→   903→      );
+   904→   904→    } catch (e) {
+   905→   905→      AppLogger.error('Get class overall results unexpected error', error: e);
+   906→   906→      throw ServerException(
+   907→   907→        message: 'Failed to get class overall results: $e',
+   908→   908→        statusCode: 500,
+   909→   909→      );
+   910→   910→    }
+   911→   911→  }
+   912→   912→
+   913→   913→  // ═══════════════════════════════════════════════════════════════════
+   914→   914→  // Topic Mastery
+   915→   915→  // ═══════════════════════════════════════════════════════════════════
+   916→   916→
+   917→   917→  @override
+   918→   918→  Future<TopicMasteryModel> upsertTopicMastery(
+   919→   919→    TopicMasteryModel mastery,
+   920→   920→  ) async {
+   921→   921→    try {
+   922→   922→      final response = await _supabaseClient
+   923→   923→          .from(_topicMasteryTable)
+   924→   924→          .upsert(
+   925→   925→            mastery.toJson(),
+   926→   926→            onConflict: 'student_id,topic_id',
+   927→   927→          )
+   928→   928→          .select()
+   929→   929→          .single();
+   930→   930→
+   931→   931→      return TopicMasteryModel.fromJson(response);
+   932→   932→    } on sb.PostgrestException catch (e) {
+   933→   933→      AppLogger.error('Upsert topic mastery failed', error: e);
+   934→   934→      throw ServerException(
+   935→   935→        message: e.message,
+   936→   936→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   937→   937→        data: e.details,
+   938→   938→      );
+   939→   939→    } catch (e) {
+   940→   940→      AppLogger.error('Upsert topic mastery unexpected error', error: e);
+   941→   941→      throw ServerException(
+   942→   942→        message: 'Failed to upsert topic mastery: $e',
+   943→   943→        statusCode: 500,
+   944→   944→      );
+   945→   945→    }
+   946→   946→  }
+   947→   947→
+   948→   948→  @override
+   949→   949→  Future<TopicMasteryModel?> getTopicMastery(
+   950→   950→    String studentId,
+   951→   951→    String topicId,
+   952→   952→  ) async {
+   953→   953→    try {
+   954→   954→      // PERF: Added explicit columns — single lookup, avoids fetching all columns
+   955→   955→      final response = await _supabaseClient
+   956→   956→          .from(_topicMasteryTable)
+   957→   957→          .select('id, student_id, subject_id, topic_id, mastery_level, accuracy_percentage, attempts, updated_at')
+   958→   958→          .eq('student_id', studentId)
+   959→   959→          .eq('topic_id', topicId)
+   960→   960→          .limit(1);
+   961→   961→
+   962→   962→      if (response.isEmpty) return null;
+   963→   963→
+   964→   964→      return TopicMasteryModel.fromJson(
+   965→   965→        response.first,
+   966→   966→      );
+   967→   967→    } on sb.PostgrestException catch (e) {
+   968→   968→      AppLogger.error('Get topic mastery failed', error: e);
+   969→   969→      throw ServerException(
+   970→   970→        message: e.message,
+   971→   971→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+   972→   972→        data: e.details,
+   973→   973→      );
+   974→   974→    } catch (e) {
+   975→   975→      AppLogger.error('Get topic mastery unexpected error', error: e);
+   976→   976→      throw ServerException(
+   977→   977→        message: 'Failed to get topic mastery: $e',
+   978→   978→        statusCode: 500,
+   979→   979→      );
+   980→   980→    }
+   981→   981→  }
+   982→   982→
+   983→   983→  @override
+   984→   984→  Future<List<TopicMasteryModel>> getStudentTopicMastery(
+   985→   985→    String studentId,
+   986→   986→    String subjectId, {
+   987→   987→    int limit = PaginatedQueryMixin.defaultPageSize,
+   988→   988→  }) async {
+   989→   989→    try {
+   990→   990→      // PERF: Added explicit columns + limit — topic mastery queries were unbounded
+   991→   991→      final response = await _supabaseClient
+   992→   992→          .from(_topicMasteryTable)
+   993→   993→          .select('id, student_id, subject_id, topic_id, mastery_level, accuracy_percentage, attempts, updated_at')
+   994→   994→          .eq('student_id', studentId)
+   995→   995→          .eq('subject_id', subjectId)
+   996→   996→          .order('updated_at', ascending: false)
+   997→   997→          .limit(limit);
+   998→   998→
+   999→   999→      return response
+  1000→  1000→          .map<TopicMasteryModel>(
+  1001→  1001→            (json) => TopicMasteryModel.fromJson(json),
+  1002→  1002→          )
+  1003→  1003→          .toList();
+  1004→  1004→    } on sb.PostgrestException catch (e) {
+  1005→  1005→      AppLogger.error('Get student topic mastery failed', error: e);
+  1006→  1006→      throw ServerException(
+  1007→  1007→        message: e.message,
+  1008→  1008→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1009→  1009→        data: e.details,
+  1010→  1010→      );
+  1011→  1011→    } catch (e) {
+  1012→  1012→      AppLogger.error('Get student topic mastery unexpected error', error: e);
+  1013→  1013→      throw ServerException(
+  1014→  1014→        message: 'Failed to get student topic mastery: $e',
+  1015→  1015→        statusCode: 500,
+  1016→  1016→      );
+  1017→  1017→    }
+  1018→  1018→  }
+  1019→  1019→
+  1020→  1020→  @override
+  1021→  1021→  Future<List<TopicMasteryModel>> getClassTopicMastery(
+  1022→  1022→    String classId,
+  1023→  1023→    String subjectId, {
+  1024→  1024→    int limit = PaginatedQueryMixin.defaultPageSize,
+  1025→  1025→  }) async {
+  1026→  1026→    try {
+  1027→  1027→      // PERF: Added explicit columns + limit — class topic mastery queries were unbounded
+  1028→  1028→      // topic_mastery rows don't have class_id directly; filter by
+  1029→  1029→      // school_id + subject_id and let the caller narrow by class
+  1030→  1030→      // enrollment. For now, query by subject_id across the school.
+  1031→  1031→      final response = await _supabaseClient
+  1032→  1032→          .from(_topicMasteryTable)
+  1033→  1033→          .select('id, student_id, subject_id, topic_id, mastery_level, accuracy_percentage, attempts, updated_at')
+  1034→  1034→          .eq('subject_id', subjectId)
+  1035→  1035→          .order('accuracy_percentage', ascending: false)
+  1036→  1036→          .limit(limit);
+  1037→  1037→
+  1038→  1038→      return response
+  1039→  1039→          .map<TopicMasteryModel>(
+  1040→  1040→            (json) => TopicMasteryModel.fromJson(json),
+  1041→  1041→          )
+  1042→  1042→          .toList();
+  1043→  1043→    } on sb.PostgrestException catch (e) {
+  1044→  1044→      AppLogger.error('Get class topic mastery failed', error: e);
+  1045→  1045→      throw ServerException(
+  1046→  1046→        message: e.message,
+  1047→  1047→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1048→  1048→        data: e.details,
+  1049→  1049→      );
+  1050→  1050→    } catch (e) {
+  1051→  1051→      AppLogger.error('Get class topic mastery unexpected error', error: e);
+  1052→  1052→      throw ServerException(
+  1053→  1053→        message: 'Failed to get class topic mastery: $e',
+  1054→  1054→        statusCode: 500,
+  1055→  1055→      );
+  1056→  1056→    }
+  1057→  1057→  }
+  1058→  1058→
+  1059→  1059→  // ═══════════════════════════════════════════════════════════════════
+  1060→  1060→  // Class / School Performance
+  1061→  1061→  // ═══════════════════════════════════════════════════════════════════
+  1062→  1062→
+  1063→  1063→  @override
+  1064→  1064→  Future<ClassPerformanceModel> upsertClassPerformance(
+  1065→  1065→    ClassPerformanceModel performance,
+  1066→  1066→  ) async {
+  1067→  1067→    try {
+  1068→  1068→      // Build conflict string depending on whether subjectId is present
+  1069→  1069→      final onConflict = performance.subjectId != null
+  1070→  1070→          ? 'class_id,subject_id,academic_session_id'
+  1071→  1071→          : 'class_id,academic_session_id';
+  1072→  1072→
+  1073→  1073→      final response = await _supabaseClient
+  1074→  1074→          .from(_classPerformanceTable)
+  1075→  1075→          .upsert(
+  1076→  1076→            performance.toJson(),
+  1077→  1077→            onConflict: onConflict,
+  1078→  1078→          )
+  1079→  1079→          .select()
+  1080→  1080→          .single();
+  1081→  1081→
+  1082→  1082→      return ClassPerformanceModel.fromJson(response);
+  1083→  1083→    } on sb.PostgrestException catch (e) {
+  1084→  1084→      AppLogger.error('Upsert class performance failed', error: e);
+  1085→  1085→      throw ServerException(
+  1086→  1086→        message: e.message,
+  1087→  1087→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1088→  1088→        data: e.details,
+  1089→  1089→      );
+  1090→  1090→    } catch (e) {
+  1091→  1091→      AppLogger.error('Upsert class performance unexpected error', error: e);
+  1092→  1092→      throw ServerException(
+  1093→  1093→        message: 'Failed to upsert class performance: $e',
+  1094→  1094→        statusCode: 500,
+  1095→  1095→      );
+  1096→  1096→    }
+  1097→  1097→  }
+  1098→  1098→
+  1099→  1099→  @override
+  1100→  1100→  Future<ClassPerformanceModel?> getClassPerformance(
+  1101→  1101→    String classId,
+  1102→  1102→    String? subjectId,
+  1103→  1103→    String academicSessionId,
+  1104→  1104→  ) async {
+  1105→  1105→    try {
+  1106→  1106→      // PERF: Added explicit columns — class performance single was using bare .select()
+  1107→  1107→      var query = _supabaseClient
+  1108→  1108→          .from(_classPerformanceTable)
+  1109→  1109→          .select('id, class_id, school_id, subject_id, academic_session_id, average_score, highest_score, lowest_score, created_at')
+  1110→  1110→          .eq('class_id', classId)
+  1111→  1111→          .eq('academic_session_id', academicSessionId);
+  1112→  1112→
+  1113→  1113→      if (subjectId != null) {
+  1114→  1114→        query = query.eq('subject_id', subjectId);
+  1115→  1115→      } else {
+  1116→  1116→        query = query.isFilter('subject_id', null);
+  1117→  1117→      }
+  1118→  1118→
+  1119→  1119→      final response = await query.limit(1);
+  1120→  1120→
+  1121→  1121→      if (response.isEmpty) return null;
+  1122→  1122→
+  1123→  1123→      return ClassPerformanceModel.fromJson(
+  1124→  1124→        response.first,
+  1125→  1125→      );
+  1126→  1126→    } on sb.PostgrestException catch (e) {
+  1127→  1127→      AppLogger.error('Get class performance failed', error: e);
+  1128→  1128→      throw ServerException(
+  1129→  1129→        message: e.message,
+  1130→  1130→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1131→  1131→        data: e.details,
+  1132→  1132→      );
+  1133→  1133→    } catch (e) {
+  1134→  1134→      AppLogger.error('Get class performance unexpected error', error: e);
+  1135→  1135→      throw ServerException(
+  1136→  1136→        message: 'Failed to get class performance: $e',
+  1137→  1137→        statusCode: 500,
+  1138→  1138→      );
+  1139→  1139→    }
+  1140→  1140→  }
+  1141→  1141→
+  1142→  1142→  @override
+  1143→  1143→  Future<List<ClassPerformanceModel>> getSchoolClassPerformances(
+  1144→  1144→    String schoolId,
+  1145→  1145→    String academicSessionId, {
+  1146→  1146→    int limit = PaginatedQueryMixin.defaultPageSize,
+  1147→  1147→  }) async {
+  1148→  1148→    try {
+  1149→  1149→      // PERF: Added explicit columns + limit — school class performances were unbounded
+  1150→  1150→      final response = await _supabaseClient
+  1151→  1151→          .from(_classPerformanceTable)
+  1152→  1152→          .select('id, class_id, school_id, subject_id, academic_session_id, average_score, highest_score, lowest_score, created_at')
+  1153→  1153→          .eq('school_id', schoolId)
+  1154→  1154→          .eq('academic_session_id', academicSessionId)
+  1155→  1155→          .order('average_score', ascending: false)
+  1156→  1156→          .limit(limit);
+  1157→  1157→
+  1158→  1158→      return response
+  1159→  1159→          .map<ClassPerformanceModel>(
+  1160→  1160→            (json) => ClassPerformanceModel.fromJson(json),
+  1161→  1161→          )
+  1162→  1162→          .toList();
+  1163→  1163→    } on sb.PostgrestException catch (e) {
+  1164→  1164→      AppLogger.error('Get school class performances failed', error: e);
+  1165→  1165→      throw ServerException(
+  1166→  1166→        message: e.message,
+  1167→  1167→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1168→  1168→        data: e.details,
+  1169→  1169→      );
+  1170→  1170→    } catch (e) {
+  1171→  1171→      AppLogger.error(
+  1172→  1172→        'Get school class performances unexpected error',
+  1173→  1173→        error: e,
+  1174→  1174→      );
+  1175→  1175→      throw ServerException(
+  1176→  1176→        message: 'Failed to get school class performances: $e',
+  1177→  1177→        statusCode: 500,
+  1178→  1178→      );
+  1179→  1179→    }
+  1180→  1180→  }
+  1181→  1181→
+  1182→  1182→  @override
+  1183→  1183→  Future<SchoolPerformanceModel> upsertSchoolPerformance(
+  1184→  1184→    SchoolPerformanceModel performance,
+  1185→  1185→  ) async {
+  1186→  1186→    try {
+  1187→  1187→      final response = await _supabaseClient
+  1188→  1188→          .from(_schoolPerformanceTable)
+  1189→  1189→          .upsert(
+  1190→  1190→            performance.toJson(),
+  1191→  1191→            onConflict: 'school_id,academic_session_id',
+  1192→  1192→          )
+  1193→  1193→          .select()
+  1194→  1194→          .single();
+  1195→  1195→
+  1196→  1196→      return SchoolPerformanceModel.fromJson(response);
+  1197→  1197→    } on sb.PostgrestException catch (e) {
+  1198→  1198→      AppLogger.error('Upsert school performance failed', error: e);
+  1199→  1199→      throw ServerException(
+  1200→  1200→        message: e.message,
+  1201→  1201→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1202→  1202→        data: e.details,
+  1203→  1203→      );
+  1204→  1204→    } catch (e) {
+  1205→  1205→      AppLogger.error('Upsert school performance unexpected error', error: e);
+  1206→  1206→      throw ServerException(
+  1207→  1207→        message: 'Failed to upsert school performance: $e',
+  1208→  1208→        statusCode: 500,
+  1209→  1209→      );
+  1210→  1210→    }
+  1211→  1211→  }
+  1212→  1212→
+  1213→  1213→  @override
+  1214→  1214→  Future<SchoolPerformanceModel?> getSchoolPerformance(
+  1215→  1215→    String schoolId,
+  1216→  1216→    String academicSessionId,
+  1217→  1217→  ) async {
+  1218→  1218→    try {
+  1219→  1219→      // PERF: Added explicit columns — school performance single was using bare .select()
+  1220→  1220→      final response = await _supabaseClient
+  1221→  1221→          .from(_schoolPerformanceTable)
+  1222→  1222→          .select('id, school_id, academic_session_id, average_score, total_students, created_at')
+  1223→  1223→          .eq('school_id', schoolId)
+  1224→  1224→          .eq('academic_session_id', academicSessionId)
+  1225→  1225→          .limit(1);
+  1226→  1226→
+  1227→  1227→      if (response.isEmpty) return null;
+  1228→  1228→
+  1229→  1229→      return SchoolPerformanceModel.fromJson(
+  1230→  1230→        response.first,
+  1231→  1231→      );
+  1232→  1232→    } on sb.PostgrestException catch (e) {
+  1233→  1233→      AppLogger.error('Get school performance failed', error: e);
+  1234→  1234→      throw ServerException(
+  1235→  1235→        message: e.message,
+  1236→  1236→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1237→  1237→        data: e.details,
+  1238→  1238→      );
+  1239→  1239→    } catch (e) {
+  1240→  1240→      AppLogger.error('Get school performance unexpected error', error: e);
+  1241→  1241→      throw ServerException(
+  1242→  1242→        message: 'Failed to get school performance: $e',
+  1243→  1243→        statusCode: 500,
+  1244→  1244→      );
+  1245→  1245→    }
+  1246→  1246→  }
+  1247→  1247→
+  1248→  1248→  // ═══════════════════════════════════════════════════════════════════
+  1249→  1249→  // Analytics Snapshots
+  1250→  1250→  // ═══════════════════════════════════════════════════════════════════
+  1251→  1251→
+  1252→  1252→  @override
+  1253→  1253→  Future<AnalyticsSnapshotModel> createAnalyticsSnapshot(
+  1254→  1254→    AnalyticsSnapshotModel snapshot,
+  1255→  1255→  ) async {
+  1256→  1256→    try {
+  1257→  1257→      final response = await _supabaseClient
+  1258→  1258→          .from(_analyticsSnapshotsTable)
+  1259→  1259→          .insert(snapshot.toJson())
+  1260→  1260→          .select()
+  1261→  1261→          .single();
+  1262→  1262→
+  1263→  1263→      return AnalyticsSnapshotModel.fromJson(response);
+  1264→  1264→    } on sb.PostgrestException catch (e) {
+  1265→  1265→      AppLogger.error('Create analytics snapshot failed', error: e);
+  1266→  1266→      throw ServerException(
+  1267→  1267→        message: e.message,
+  1268→  1268→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1269→  1269→        data: e.details,
+  1270→  1270→      );
+  1271→  1271→    } catch (e) {
+  1272→  1272→      AppLogger.error('Create analytics snapshot unexpected error', error: e);
+  1273→  1273→      throw ServerException(
+  1274→  1274→        message: 'Failed to create analytics snapshot: $e',
+  1275→  1275→        statusCode: 500,
+  1276→  1276→      );
+  1277→  1277→    }
+  1278→  1278→  }
+  1279→  1279→
+  1280→  1280→  @override
+  1281→  1281→  Future<AnalyticsSnapshotModel?> getAnalyticsSnapshot(
+  1282→  1282→    String schoolId,
+  1283→  1283→    String snapshotType, {
+  1284→  1284→    String? entityId,
+  1285→  1285→    String? academicSessionId,
+  1286→  1286→  }) async {
+  1287→  1287→    try {
+  1288→  1288→      // PERF: Added explicit columns — analytics snapshot was using bare .select()
+  1289→  1289→      var filterQuery = _supabaseClient
+  1290→  1290→          .from(_analyticsSnapshotsTable)
+  1291→  1291→          .select('id, school_id, snapshot_type, entity_id, academic_session_id, data, computed_at')
+  1292→  1292→          .eq('school_id', schoolId)
+  1293→  1293→          .eq('snapshot_type', snapshotType);
+  1294→  1294→
+  1295→  1295→      if (entityId != null) {
+  1296→  1296→        filterQuery = filterQuery.eq('entity_id', entityId);
+  1297→  1297→      }
+  1298→  1298→      if (academicSessionId != null) {
+  1299→  1299→        filterQuery = filterQuery.eq('academic_session_id', academicSessionId);
+  1300→  1300→      }
+  1301→  1301→
+  1302→  1302→      final transformQuery = filterQuery.order('computed_at', ascending: false).limit(1);
+  1303→  1303→
+  1304→  1304→      final response = await transformQuery;
+  1305→  1305→
+  1306→  1306→      if (response.isEmpty) return null;
+  1307→  1307→
+  1308→  1308→      return AnalyticsSnapshotModel.fromJson(
+  1309→  1309→        response.first,
+  1310→  1310→      );
+  1311→  1311→    } on sb.PostgrestException catch (e) {
+  1312→  1312→      AppLogger.error('Get analytics snapshot failed', error: e);
+  1313→  1313→      throw ServerException(
+  1314→  1314→        message: e.message,
+  1315→  1315→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1316→  1316→        data: e.details,
+  1317→  1317→      );
+  1318→  1318→    } catch (e) {
+  1319→  1319→      AppLogger.error('Get analytics snapshot unexpected error', error: e);
+  1320→  1320→      throw ServerException(
+  1321→  1321→        message: 'Failed to get analytics snapshot: $e',
+  1322→  1322→        statusCode: 500,
+  1323→  1323→      );
+  1324→  1324→    }
+  1325→  1325→  }
+  1326→  1326→
+  1327→  1327→  // ═══════════════════════════════════════════════════════════════════
+  1328→  1328→  // Dashboard Configuration
+  1329→  1329→  // ═══════════════════════════════════════════════════════════════════
+  1330→  1330→
+  1331→  1331→  @override
+  1332→  1332→  Future<DashboardConfigurationModel> upsertDashboardConfiguration(
+  1333→  1333→    DashboardConfigurationModel config,
+  1334→  1334→  ) async {
+  1335→  1335→    try {
+  1336→  1336→      // 1. Upsert the dashboard configuration row (without nested widgets)
+  1337→  1337→      final configJson = config.toJson()
+  1338→  1338→        ..remove('widgets');
+  1339→  1339→
+  1340→  1340→      final response = await _supabaseClient
+  1341→  1341→          .from(_dashboardConfigurationsTable)
+  1342→  1342→          .upsert(
+  1343→  1343→            configJson,
+  1344→  1344→            onConflict: 'school_id,role',
+  1345→  1345→          )
+  1346→  1346→          .select()
+  1347→  1347→          .single();
+  1348→  1348→
+  1349→  1349→      final savedConfig = DashboardConfigurationModel.fromJson(response);
+  1350→  1350→
+  1351→  1351→      // 2. Delete existing widget configs and re-insert
+  1352→  1352→      await _supabaseClient
+  1353→  1353→          .from(_dashboardWidgetConfigsTable)
+  1354→  1354→          .delete()
+  1355→  1355→          .eq('dashboard_id', savedConfig.id);
+  1356→  1356→
+  1357→  1357→      if (config.widgets.isNotEmpty) {
+  1358→  1358→        final widgetRows = config.widgets.map((w) {
+  1359→  1359→          final json = w.toJson();
+  1360→  1360→          json['dashboard_id'] = savedConfig.id;
+  1361→  1361→          return json;
+  1362→  1362→        }).toList();
+  1363→  1363→
+  1364→  1364→        await _supabaseClient
+  1365→  1365→            .from(_dashboardWidgetConfigsTable)
+  1366→  1366→            .insert(widgetRows);
+  1367→  1367→      }
+  1368→  1368→
+  1369→  1369→      // 3. Return config with widgets populated
+  1370→  1370→      return savedConfig.copyWith(
+  1371→  1371→        widgets: config.widgets,
+  1372→  1372→      );
+  1373→  1373→    } on sb.PostgrestException catch (e) {
+  1374→  1374→      AppLogger.error('Upsert dashboard configuration failed', error: e);
+  1375→  1375→      throw ServerException(
+  1376→  1376→        message: e.message,
+  1377→  1377→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1378→  1378→        data: e.details,
+  1379→  1379→      );
+  1380→  1380→    } catch (e) {
+  1381→  1381→      AppLogger.error(
+  1382→  1382→        'Upsert dashboard configuration unexpected error',
+  1383→  1383→        error: e,
+  1384→  1384→      );
+  1385→  1385→      throw ServerException(
+  1386→  1386→        message: 'Failed to upsert dashboard configuration: $e',
+  1387→  1387→        statusCode: 500,
+  1388→  1388→      );
+  1389→  1389→    }
+  1390→  1390→  }
+  1391→  1391→
+  1392→  1392→  @override
+  1393→  1393→  Future<DashboardConfigurationModel?> getDashboardConfiguration(
+  1394→  1394→    String schoolId,
+  1395→  1395→    String role,
+  1396→  1396→  ) async {
+  1397→  1397→    try {
+  1398→  1398→      final response = await _supabaseClient
+  1399→  1399→          .from(_dashboardConfigurationsTable)
+  1400→  1400→          .select('*, dashboard_widget_configs(*)')
+  1401→  1401→          .eq('school_id', schoolId)
+  1402→  1402→          .eq('role', role)
+  1403→  1403→          .limit(1);
+  1404→  1404→
+  1405→  1405→      if (response.isEmpty) return null;
+  1406→  1406→
+  1407→  1407→      final mappedJson = _mapDashboardWidgets(
+  1408→  1408→        response.first,
+  1409→  1409→      );
+  1410→  1410→
+  1411→  1411→      return DashboardConfigurationModel.fromJson(mappedJson);
+  1412→  1412→    } on sb.PostgrestException catch (e) {
+  1413→  1413→      AppLogger.error('Get dashboard configuration failed', error: e);
+  1414→  1414→      throw ServerException(
+  1415→  1415→        message: e.message,
+  1416→  1416→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1417→  1417→        data: e.details,
+  1418→  1418→      );
+  1419→  1419→    } catch (e) {
+  1420→  1420→      AppLogger.error(
+  1421→  1421→        'Get dashboard configuration unexpected error',
+  1422→  1422→        error: e,
+  1423→  1423→      );
+  1424→  1424→      throw ServerException(
+  1425→  1425→        message: 'Failed to get dashboard configuration: $e',
+  1426→  1426→        statusCode: 500,
+  1427→  1427→      );
+  1428→  1428→    }
+  1429→  1429→  }
+  1430→  1430→
+  1431→  1431→  @override
+  1432→  1432→  Future<void> updateDashboardWidgets(
+  1433→  1433→    String dashboardId,
+  1434→  1434→    List<DashboardWidgetConfigModel> widgets,
+  1435→  1435→  ) async {
+  1436→  1436→    try {
+  1437→  1437→      // 1. Delete existing widget configs
+  1438→  1438→      await _supabaseClient
+  1439→  1439→          .from(_dashboardWidgetConfigsTable)
+  1440→  1440→          .delete()
+  1441→  1441→          .eq('dashboard_id', dashboardId);
+  1442→  1442→
+  1443→  1443→      // 2. Insert new widget configs
+  1444→  1444→      if (widgets.isNotEmpty) {
+  1445→  1445→        final widgetRows = widgets.map((w) {
+  1446→  1446→          final json = w.toJson();
+  1447→  1447→          json['dashboard_id'] = dashboardId;
+  1448→  1448→          return json;
+  1449→  1449→        }).toList();
+  1450→  1450→
+  1451→  1451→        await _supabaseClient
+  1452→  1452→            .from(_dashboardWidgetConfigsTable)
+  1453→  1453→            .insert(widgetRows);
+  1454→  1454→      }
+  1455→  1455→    } on sb.PostgrestException catch (e) {
+  1456→  1456→      AppLogger.error('Update dashboard widgets failed', error: e);
+  1457→  1457→      throw ServerException(
+  1458→  1458→        message: e.message,
+  1459→  1459→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1460→  1460→        data: e.details,
+  1461→  1461→      );
+  1462→  1462→    } catch (e) {
+  1463→  1463→      AppLogger.error('Update dashboard widgets unexpected error', error: e);
+  1464→  1464→      throw ServerException(
+  1465→  1465→        message: 'Failed to update dashboard widgets: $e',
+  1466→  1466→        statusCode: 500,
+  1467→  1467→      );
+  1468→  1468→    }
+  1469→  1469→  }
+  1470→  1470→
+  1471→  1471→  /// Maps the nested `dashboard_widget_configs` join result to the
+  1472→  1472→  /// model's expected `widgets` key.
+  1473→  1473→  Map<String, dynamic> _mapDashboardWidgets(Map<String, dynamic> json) {
+  1474→  1474→    final widgets = json['dashboard_widget_configs'];
+  1475→  1475→    if (widgets is List) {
+  1476→  1476→      return {
+  1477→  1477→        ...json,
+  1478→  1478→        'widgets': widgets,
+  1479→  1479→      };
+  1480→  1480→    }
+  1481→  1481→    return json;
+  1482→  1482→  }
+  1483→  1483→
+  1484→  1484→  // ═══════════════════════════════════════════════════════════════════
+  1485→  1485→  // Report Exports
+  1486→  1486→  // ═══════════════════════════════════════════════════════════════════
+  1487→  1487→
+  1488→  1488→  @override
+  1489→  1489→  Future<ReportExportModel> createReportExport(
+  1490→  1490→    ReportExportModel export,
+  1491→  1491→  ) async {
+  1492→  1492→    try {
+  1493→  1493→      final response = await _supabaseClient
+  1494→  1494→          .from(_reportExportsTable)
+  1495→  1495→          .insert(export.toJson())
+  1496→  1496→          .select()
+  1497→  1497→          .single();
+  1498→  1498→
+  1499→  1499→      return ReportExportModel.fromJson(response);
+  1500→  1500→    } on sb.PostgrestException catch (e) {
+  1501→  1501→      AppLogger.error('Create report export failed', error: e);
+  1502→  1502→      throw ServerException(
+  1503→  1503→        message: e.message,
+  1504→  1504→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1505→  1505→        data: e.details,
+  1506→  1506→      );
+  1507→  1507→    } catch (e) {
+  1508→  1508→      AppLogger.error('Create report export unexpected error', error: e);
+  1509→  1509→      throw ServerException(
+  1510→  1510→        message: 'Failed to create report export: $e',
+  1511→  1511→        statusCode: 500,
+  1512→  1512→      );
+  1513→  1513→    }
+  1514→  1514→  }
+  1515→  1515→
+  1516→  1516→  @override
+  1517→  1517→  Future<ReportExportModel> updateReportExport(
+  1518→  1518→    ReportExportModel export,
+  1519→  1519→  ) async {
+  1520→  1520→    try {
+  1521→  1521→      final response = await _supabaseClient
+  1522→  1522→          .from(_reportExportsTable)
+  1523→  1523→          .update(export.toJson())
+  1524→  1524→          .eq('id', export.id)
+  1525→  1525→          .select()
+  1526→  1526→          .single();
+  1527→  1527→
+  1528→  1528→      return ReportExportModel.fromJson(response);
+  1529→  1529→    } on sb.PostgrestException catch (e) {
+  1530→  1530→      AppLogger.error('Update report export failed', error: e);
+  1531→  1531→      if (e.code == 'PGRST116') {
+  1532→  1532→        throw NotFoundException(message: 'Report export not found: ${export.id}');
+  1533→  1533→      }
+  1534→  1534→      throw ServerException(
+  1535→  1535→        message: e.message,
+  1536→  1536→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1537→  1537→        data: e.details,
+  1538→  1538→      );
+  1539→  1539→    } catch (e) {
+  1540→  1540→      AppLogger.error('Update report export unexpected error', error: e);
+  1541→  1541→      throw ServerException(
+  1542→  1542→        message: 'Failed to update report export: $e',
+  1543→  1543→        statusCode: 500,
+  1544→  1544→      );
+  1545→  1545→    }
+  1546→  1546→  }
+  1547→  1547→
+  1548→  1548→  @override
+  1549→  1549→  Future<ReportExportModel?> getReportExport(String exportId) async {
+  1550→  1550→    try {
+  1551→  1551→      // PERF: Added explicit columns — report export single was using bare .select()
+  1552→  1552→      final response = await _supabaseClient
+  1553→  1553→          .from(_reportExportsTable)
+  1554→  1554→          .select('id, school_id, requested_by, report_type, status, file_url, created_at, updated_at')
+  1555→  1555→          .eq('id', exportId)
+  1556→  1556→          .single();
+  1557→  1557→
+  1558→  1558→      return ReportExportModel.fromJson(response);
+  1559→  1559→    } on sb.PostgrestException catch (e) {
+  1560→  1560→      if (e.code == 'PGRST116') return null;
+  1561→  1561→      AppLogger.error('Get report export failed', error: e);
+  1562→  1562→      throw ServerException(
+  1563→  1563→        message: e.message,
+  1564→  1564→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1565→  1565→        data: e.details,
+  1566→  1566→      );
+  1567→  1567→    } catch (e) {
+  1568→  1568→      AppLogger.error('Get report export unexpected error', error: e);
+  1569→  1569→      throw ServerException(
+  1570→  1570→        message: 'Failed to get report export: $e',
+  1571→  1571→        statusCode: 500,
+  1572→  1572→      );
+  1573→  1573→    }
+  1574→  1574→  }
+  1575→  1575→
+  1576→  1576→  @override
+  1577→  1577→  Future<List<ReportExportModel>> getReportExports({
+  1578→  1578→    String? schoolId,
+  1579→  1579→    String? requestedBy,
+  1580→  1580→    String? status,
+  1581→  1581→    int page = 1,
+  1582→  1582→    int perPage = 20,
+  1583→  1583→  }) async {
+  1584→  1584→    try {
+  1585→  1585→      // PERF: Added explicit columns — report exports list was using bare .select()
+  1586→  1586→      var filterQuery = _supabaseClient.from(_reportExportsTable).select('id, school_id, requested_by, report_type, status, file_url, created_at, updated_at');
+  1587→  1587→
+  1588→  1588→      if (schoolId != null) {
+  1589→  1589→        filterQuery = filterQuery.eq('school_id', schoolId);
+  1590→  1590→      }
+  1591→  1591→      if (requestedBy != null) {
+  1592→  1592→        filterQuery = filterQuery.eq('requested_by', requestedBy);
+  1593→  1593→      }
+  1594→  1594→      if (status != null) {
+  1595→  1595→        filterQuery = filterQuery.eq('status', status);
+  1596→  1596→      }
+  1597→  1597→
+  1598→  1598→      final offset = (page - 1) * perPage;
+  1599→  1599→      final transformQuery = filterQuery.order('created_at', ascending: false).range(offset, offset + perPage - 1);
+  1600→  1600→
+  1601→  1601→      final response = await transformQuery;
+  1602→  1602→
+  1603→  1603→      return response
+  1604→  1604→          .map<ReportExportModel>(
+  1605→  1605→            (json) => ReportExportModel.fromJson(json),
+  1606→  1606→          )
+  1607→  1607→          .toList();
+  1608→  1608→    } on sb.PostgrestException catch (e) {
+  1609→  1609→      AppLogger.error('Get report exports failed', error: e);
+  1610→  1610→      throw ServerException(
+  1611→  1611→        message: e.message,
+  1612→  1612→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1613→  1613→        data: e.details,
+  1614→  1614→      );
+  1615→  1615→    } catch (e) {
+  1616→  1616→      AppLogger.error('Get report exports unexpected error', error: e);
+  1617→  1617→      throw ServerException(
+  1618→  1618→        message: 'Failed to get report exports: $e',
+  1619→  1619→        statusCode: 500,
+  1620→  1620→      );
+  1621→  1621→    }
+  1622→  1622→  }
+  1623→  1623→
+  1624→  1624→  // ═══════════════════════════════════════════════════════════════════
+  1625→  1625→  // Result Locks
+  1626→  1626→  // ═══════════════════════════════════════════════════════════════════
+  1627→  1627→
+  1628→  1628→  @override
+  1629→  1629→  Future<ResultLockModel> createResultLock(ResultLockModel lock) async {
+  1630→  1630→    try {
+  1631→  1631→      final response = await _supabaseClient
+  1632→  1632→          .from(_resultLocksTable)
+  1633→  1633→          .insert(lock.toJson())
+  1634→  1634→          .select()
+  1635→  1635→          .single();
+  1636→  1636→
+  1637→  1637→      return ResultLockModel.fromJson(response);
+  1638→  1638→    } on sb.PostgrestException catch (e) {
+  1639→  1639→      AppLogger.error('Create result lock failed', error: e);
+  1640→  1640→      throw ServerException(
+  1641→  1641→        message: e.message,
+  1642→  1642→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1643→  1643→        data: e.details,
+  1644→  1644→      );
+  1645→  1645→    } catch (e) {
+  1646→  1646→      AppLogger.error('Create result lock unexpected error', error: e);
+  1647→  1647→      throw ServerException(
+  1648→  1648→        message: 'Failed to create result lock: $e',
+  1649→  1649→        statusCode: 500,
+  1650→  1650→      );
+  1651→  1651→    }
+  1652→  1652→  }
+  1653→  1653→
+  1654→  1654→  @override
+  1655→  1655→  Future<ResultLockModel> updateResultLock(ResultLockModel lock) async {
+  1656→  1656→    try {
+  1657→  1657→      final response = await _supabaseClient
+  1658→  1658→          .from(_resultLocksTable)
+  1659→  1659→          .update(lock.toJson())
+  1660→  1660→          .eq('id', lock.id)
+  1661→  1661→          .select()
+  1662→  1662→          .single();
+  1663→  1663→
+  1664→  1664→      return ResultLockModel.fromJson(response);
+  1665→  1665→    } on sb.PostgrestException catch (e) {
+  1666→  1666→      AppLogger.error('Update result lock failed', error: e);
+  1667→  1667→      if (e.code == 'PGRST116') {
+  1668→  1668→        throw NotFoundException(message: 'Result lock not found: ${lock.id}');
+  1669→  1669→      }
+  1670→  1670→      throw ServerException(
+  1671→  1671→        message: e.message,
+  1672→  1672→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1673→  1673→        data: e.details,
+  1674→  1674→      );
+  1675→  1675→    } catch (e) {
+  1676→  1676→      AppLogger.error('Update result lock unexpected error', error: e);
+  1677→  1677→      throw ServerException(
+  1678→  1678→        message: 'Failed to update result lock: $e',
+  1679→  1679→        statusCode: 500,
+  1680→  1680→      );
+  1681→  1681→    }
+  1682→  1682→  }
+  1683→  1683→
+  1684→  1684→  @override
+  1685→  1685→  Future<ResultLockModel?> getResultLock(String examId) async {
+  1686→  1686→    try {
+  1687→  1687→      // PERF: Added explicit columns — result lock was using bare .select()
+  1688→  1688→      final response = await _supabaseClient
+  1689→  1689→          .from(_resultLocksTable)
+  1690→  1690→          .select('id, exam_id, is_locked, locked_by, locked_at, created_at')
+  1691→  1691→          .eq('exam_id', examId)
+  1692→  1692→          .limit(1);
+  1693→  1693→
+  1694→  1694→      if (response.isEmpty) return null;
+  1695→  1695→
+  1696→  1696→      return ResultLockModel.fromJson(
+  1697→  1697→        response.first,
+  1698→  1698→      );
+  1699→  1699→    } on sb.PostgrestException catch (e) {
+  1700→  1700→      AppLogger.error('Get result lock failed', error: e);
+  1701→  1701→      throw ServerException(
+  1702→  1702→        message: e.message,
+  1703→  1703→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1704→  1704→        data: e.details,
+  1705→  1705→      );
+  1706→  1706→    } catch (e) {
+  1707→  1707→      AppLogger.error('Get result lock unexpected error', error: e);
+  1708→  1708→      throw ServerException(
+  1709→  1709→        message: 'Failed to get result lock: $e',
+  1710→  1710→        statusCode: 500,
+  1711→  1711→      );
+  1712→  1712→    }
+  1713→  1713→  }
+  1714→  1714→
+  1715→  1715→  // ═══════════════════════════════════════════════════════════════════
+  1716→  1716→  // Result Access Log
+  1717→  1717→  // ═══════════════════════════════════════════════════════════════════
+  1718→  1718→
+  1719→  1719→  @override
+  1720→  1720→  Future<void> insertResultAccessLog({
+  1721→  1721→    required String schoolId,
+  1722→  1722→    required String userId,
+  1723→  1723→    required String action,
+  1724→  1724→    required String resourceType,
+  1725→  1725→    required String resourceId,
+  1726→  1726→    Map<String, dynamic>? details,
+  1727→  1727→  }) async {
+  1728→  1728→    try {
+  1729→  1729→      await _supabaseClient.from(_resultAccessLogTable).insert({
+  1730→  1730→        'school_id': schoolId,
+  1731→  1731→        'user_id': userId,
+  1732→  1732→        'action': action,
+  1733→  1733→        'resource_type': resourceType,
+  1734→  1734→        'resource_id': resourceId,
+  1735→  1735→        'details': details,
+  1736→  1736→        'accessed_at': DateTime.now().toIso8601String(),
+  1737→  1737→      });
+  1738→  1738→    } on sb.PostgrestException catch (e) {
+  1739→  1739→      AppLogger.error('Insert result access log failed', error: e);
+  1740→  1740→      throw ServerException(
+  1741→  1741→        message: e.message,
+  1742→  1742→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1743→  1743→        data: e.details,
+  1744→  1744→      );
+  1745→  1745→    } catch (e) {
+  1746→  1746→      AppLogger.error('Insert result access log unexpected error', error: e);
+  1747→  1747→      throw ServerException(
+  1748→  1748→        message: 'Failed to insert result access log: $e',
+  1749→  1749→        statusCode: 500,
+  1750→  1750→      );
+  1751→  1751→    }
+  1752→  1752→  }
+  1753→  1753→}
+  1754→  1754→

@@ -307,7 +307,13 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
   @override
   Future<List<ExamModel>> getExams(Map<String, dynamic> filters) async {
     try {
-      var filterQuery = _supabaseClient.from(_examsTable).select();
+      // PERF: Use column projection instead of unbounded select()
+      // Reduces payload from ~25 columns to 13 needed for list view
+      var filterQuery = _supabaseClient.from(_examsTable).select(
+        'id, title, school_id, subject_id, class_id, status, '
+        'time_limit_minutes, total_marks, start_time, end_time, '
+        'exam_type, created_at, created_by',
+      );
 
       if (filters['school_id'] != null) {
         filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
@@ -456,30 +462,34 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
 
       final clonedExam = await createExam(cloneData);
 
-      // Clone sections
-      for (final section in original.sections) {
-        await _supabaseClient.from(_examSectionsTable).insert({
-          'exam_id': clonedExam.id,
-          'title': section.title,
-          'description': section.description,
-          'instructions': section.instructions,
-          'sort_order': section.sortOrder,
-          'time_limit_minutes': section.timeLimitMinutes,
-          'randomize_questions': section.randomizeQuestions,
-        });
+      // PERF: Batch insert sections and questions instead of N+1 loop
+      // Reduces N network calls to 2 batch calls
+      final sectionRows = original.sections.map((section) => {
+        'exam_id': clonedExam.id,
+        'title': section.title,
+        'description': section.description,
+        'instructions': section.instructions,
+        'sort_order': section.sortOrder,
+        'time_limit_minutes': section.timeLimitMinutes,
+        'randomize_questions': section.randomizeQuestions,
+      }).toList();
+
+      if (sectionRows.isNotEmpty) {
+        await _supabaseClient.from(_examSectionsTable).insert(sectionRows);
       }
 
-      // Clone questions
-      for (final question in original.questions) {
-        await _supabaseClient.from(_examQuestionsTable).insert({
-          'exam_id': clonedExam.id,
-          'section_id': question.sectionId,
-          'question_id': question.questionId,
-          'sort_order': question.sortOrder,
-          'marks': question.marks,
-          'negative_marks': question.negativeMarks,
-          'is_compulsory': question.isCompulsory,
-        });
+      final questionRows = original.questions.map((question) => {
+        'exam_id': clonedExam.id,
+        'section_id': question.sectionId,
+        'question_id': question.questionId,
+        'sort_order': question.sortOrder,
+        'marks': question.marks,
+        'negative_marks': question.negativeMarks,
+        'is_compulsory': question.isCompulsory,
+      }).toList();
+
+      if (questionRows.isNotEmpty) {
+        await _supabaseClient.from(_examQuestionsTable).insert(questionRows);
       }
 
       return clonedExam;
@@ -566,14 +576,19 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
     List<String> questionIds,
   ) async {
     try {
-      // Update sort_order for each question in the new order
+      // PERF: Parallel updates instead of sequential N+1 loop
+      // Reduces N sequential calls to N concurrent calls
+      final futures = <Future<void>>[];
       for (var i = 0; i < questionIds.length; i++) {
-        await _supabaseClient
-            .from(_examQuestionsTable)
-            .update({'sort_order': i})
-            .eq('exam_id', examId)
-            .eq('question_id', questionIds[i]);
+        futures.add(
+          _supabaseClient
+              .from(_examQuestionsTable)
+              .update({'sort_order': i})
+              .eq('exam_id', examId)
+              .eq('question_id', questionIds[i]),
+        );
       }
+      await Future.wait(futures);
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Reorder questions failed', error: e);
       throw ServerException(
@@ -927,41 +942,22 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
           ? DateTime.parse(serverTime)
           : DateTime.now();
 
-      // Upsert: update existing answer or insert new one
-      final existing = await _supabaseClient
+      // PERF: Upsert replaces 3 sequential queries (timing → select → update/insert)
+      // with 2 queries (timing → upsert). Uses Supabase's native upsert
+      // with onConflict to handle insert-or-update in 1 call.
+      final response = await _supabaseClient
           .from(_studentAnswersTable)
-          .select('id')
-          .eq('attempt_id', attemptId)
-          .eq('question_id', questionId)
-          .maybeSingle();
+          .upsert({
+            'attempt_id': attemptId,
+            'question_id': questionId,
+            'answer_data': answerData,
+            'answered_at': now.toIso8601String(),
+            'updated_at': now.toIso8601String(),
+          }, onConflict: 'attempt_id,question_id')
+          .select()
+          .single();
 
-      if (existing != null) {
-        final response = await _supabaseClient
-            .from(_studentAnswersTable)
-            .update({
-              'answer_data': answerData,
-              'answered_at': now.toIso8601String(),
-              'updated_at': now.toIso8601String(),
-            })
-            .eq('id', existing['id'] as String)
-            .select()
-            .single();
-
-        return StudentAnswerModel.fromJson(response);
-      } else {
-        final response = await _supabaseClient
-            .from(_studentAnswersTable)
-            .insert({
-              'attempt_id': attemptId,
-              'question_id': questionId,
-              'answer_data': answerData,
-              'answered_at': now.toIso8601String(),
-            })
-            .select()
-            .single();
-
-        return StudentAnswerModel.fromJson(response);
-      }
+      return StudentAnswerModel.fromJson(response);
     } on sb.PostgrestException catch (e) {
       AppLogger.error('Save answer failed', error: e);
       throw ServerException(

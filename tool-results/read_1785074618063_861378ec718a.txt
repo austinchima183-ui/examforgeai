@@ -1,0 +1,1160 @@
+     1→     1→-- ============================================================================
+     2→     2→-- EXAMFORGE AI — Final Production Schema
+     3→     3→-- Nigerian Examination Ecosystem, Admission Hub, AI Coach, Customer Success,
+     4→     4→-- Marketing, Analytics, EduOS Modular Architecture
+     5→     5→-- ============================================================================
+     6→     6→
+     7→     7→-- Helper function for safe enum creation
+     8→     8→CREATE OR REPLACE FUNCTION public.create_enum_if_not_exists(enum_name TEXT, enum_values TEXT[])
+     9→     9→RETURNS VOID AS $$
+    10→    10→BEGIN
+    11→    11→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = enum_name) THEN
+    12→    12→    EXECUTE format('CREATE TYPE public.%I AS ENUM (%s)', enum_name,
+    13→    13→      (SELECT string_agg(quote_literal(v), ',') FROM unnest(enum_values) AS v));
+    14→    14→  END IF;
+    15→    15→END;
+    16→    16→$$ LANGUAGE plpgsql;
+    17→    17→
+    18→    18→-- ============================================================================
+    19→    19→-- ENUMS
+    20→    20→-- ============================================================================
+    21→    21→SELECT public.create_enum_if_not_exists('exam_body_type', ARRAY[
+    22→    22→  'waec','neco','nabteb','jamb_utme','post_utme','bece','common_entrance','jupeb','ijmb','custom']);
+    23→    23→SELECT public.create_enum_if_not_exists('exam_category_type', ARRAY[
+    24→    24→  'internal','mock','practice','past_paper','certification','entrance']);
+    25→    25→SELECT public.create_enum_if_not_exists('preparation_type', ARRAY[
+    26→    26→  'practice_questions','mock_cbt','ai_revision','topic_practice','timed_practice','full_mock']);
+    27→    27→SELECT public.create_enum_if_not_exists('readiness_level_type', ARRAY[
+    28→    28→  'not_started','beginning','developing','proficient','advanced','exam_ready']);
+    29→    29→SELECT public.create_enum_if_not_exists('university_type_enum', ARRAY[
+    30→    30→  'federal','state','private','polytechnic','college_of_education','monotechnic']);
+    31→    31→SELECT public.create_enum_if_not_exists('admission_status_type', ARRAY[
+    32→    32→  'not_applied','applied','accepted','rejected','deferred','withdrawn']);
+    33→    33→SELECT public.create_enum_if_not_exists('module_status_type', ARRAY[
+    34→    34→  'active','inactive','beta','deprecated','coming_soon']);
+    35→    35→SELECT public.create_enum_if_not_exists('module_tier_type', ARRAY[
+    36→    36→  'free','starter','professional','enterprise']);
+    37→    37→SELECT public.create_enum_if_not_exists('onboarding_step_type', ARRAY[
+    38→    38→  'welcome','role_selection','school_setup','subject_config','feature_tour','first_content','complete']);
+    39→    39→SELECT public.create_enum_if_not_exists('tutorial_type_enum', ARRAY[
+    40→    40→  'video','article','interactive','walkthrough']);
+    41→    41→SELECT public.create_enum_if_not_exists('feedback_type_enum', ARRAY[
+    42→    42→  'bug_report','feature_request','general_feedback','complaint','praise']);
+    43→    43→SELECT public.create_enum_if_not_exists('campaign_type_enum', ARRAY[
+    44→    44→  'email','sms','push','in_app']);
+    45→    45→SELECT public.create_enum_if_not_exists('affiliate_status_type', ARRAY[
+    46→    46→  'pending','active','suspended','terminated']);
+    47→    47→SELECT public.create_enum_if_not_exists('proposal_status_type', ARRAY[
+    48→    48→  'draft','sent','viewed','accepted','rejected','expired']);
+    49→    49→
+    50→    50→-- ============================================================================
+    51→    51→-- EXAMINATION BODIES & PRODUCTS
+    52→    52→-- ============================================================================
+    53→    53→CREATE TABLE IF NOT EXISTS public.examination_bodies (
+    54→    54→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    55→    55→  name TEXT NOT NULL,
+    56→    56→  code TEXT NOT NULL UNIQUE,
+    57→    57→  exam_body_type exam_body_type NOT NULL DEFAULT 'custom',
+    58→    58→  country_code TEXT NOT NULL DEFAULT 'NG',
+    59→    59→  description TEXT,
+    60→    60→  logo_url TEXT,
+    61→    61→  website_url TEXT,
+    62→    62→  is_active BOOLEAN NOT NULL DEFAULT true,
+    63→    63→  metadata JSONB DEFAULT '{}',
+    64→    64→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    65→    65→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    66→    66→);
+    67→    67→
+    68→    68→INSERT INTO public.examination_bodies (name, code, exam_body_type, description) VALUES
+    69→    69→  ('West African Examinations Council', 'WAEC', 'waec', 'West African senior school certificate examination'),
+    70→    70→  ('National Examinations Council', 'NECO', 'neco', 'National senior school certificate examination'),
+    71→    71→  ('National Business and Technical Examinations Board', 'NABTEB', 'nabteb', 'Technical and business examinations'),
+    72→    72→  ('Joint Admissions and Matriculation Board', 'JAMB', 'jamb_utme', 'Unified Tertiary Matriculation Examination'),
+    73→    73→  ('Post-UTME', 'POST_UTME', 'post_utme', 'University post-UTME screening tests'),
+    74→    74→  ('Basic Education Certificate Examination', 'BECE', 'bece', 'Junior secondary certificate examination'),
+    75→    75→  ('Common Entrance', 'COMMON_ENTRANCE', 'common_entrance', 'Primary school leaving examination'),
+    76→    76→  ('Joint Universities Preliminary Examinations Board', 'JUPEB', 'jupeb', 'Direct entry A-level equivalent'),
+    77→    77→  ('Interim Joint Matriculation Board', 'IJMB', 'ijmb', 'Advanced level programme for university admission')
+    78→    78→ON CONFLICT (code) DO NOTHING;
+    79→    79→
+    80→    80→CREATE TABLE IF NOT EXISTS public.examination_products (
+    81→    81→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    82→    82→  exam_body_id UUID NOT NULL REFERENCES public.examination_bodies(id) ON DELETE CASCADE,
+    83→    83→  name TEXT NOT NULL,
+    84→    84→  code TEXT,
+    85→    85→  exam_category exam_category_type NOT NULL DEFAULT 'practice',
+    86→    86→  preparation_type preparation_type NOT NULL DEFAULT 'practice_questions',
+    87→    87→  educational_level_id UUID REFERENCES public.educational_levels(id),
+    88→    88→  subject_id UUID REFERENCES public.subjects(id),
+    89→    89→  description TEXT,
+    90→    90→  duration_minutes INT,
+    91→    91→  total_marks INT,
+    92→    92→  pass_mark DECIMAL(5,2),
+    93→    93→  instructions JSONB DEFAULT '{}',
+    94→    94→  is_timed BOOLEAN NOT NULL DEFAULT true,
+    95→    95→  allows_negative_marking BOOLEAN NOT NULL DEFAULT false,
+    96→    96→  negative_mark_ratio DECIMAL(3,2) DEFAULT 0.00,
+    97→    97→  question_count INT,
+    98→    98→  is_active BOOLEAN NOT NULL DEFAULT true,
+    99→    99→  is_premium BOOLEAN NOT NULL DEFAULT false,
+   100→   100→  metadata JSONB DEFAULT '{}',
+   101→   101→  created_by UUID REFERENCES auth.users(id),
+   102→   102→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   103→   103→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   104→   104→);
+   105→   105→
+   106→   106→CREATE TABLE IF NOT EXISTS public.mock_exams (
+   107→   107→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   108→   108→  examination_product_id UUID REFERENCES public.examination_products(id) ON DELETE SET NULL,
+   109→   109→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   110→   110→  title TEXT NOT NULL,
+   111→   111→  description TEXT,
+   112→   112→  exam_body_type exam_body_type DEFAULT 'waec',
+   113→   113→  duration_minutes INT NOT NULL DEFAULT 120,
+   114→   114→  total_questions INT NOT NULL DEFAULT 0,
+   115→   115→  total_marks INT NOT NULL DEFAULT 100,
+   116→   116→  pass_mark DECIMAL(5,2) DEFAULT 50.00,
+   117→   117→  instructions JSONB DEFAULT '{}',
+   118→   118→  settings JSONB DEFAULT '{}',
+   119→   119→  status content_status_type NOT NULL DEFAULT 'draft',
+   120→   120→  started_at TIMESTAMPTZ,
+   121→   121→  ended_at TIMESTAMPTZ,
+   122→   122→  results_published_at TIMESTAMPTZ,
+   123→   123→  created_by UUID REFERENCES auth.users(id),
+   124→   124→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   125→   125→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   126→   126→);
+   127→   127→
+   128→   128→CREATE TABLE IF NOT EXISTS public.mock_exam_questions (
+   129→   129→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   130→   130→  mock_exam_id UUID NOT NULL REFERENCES public.mock_exams(id) ON DELETE CASCADE,
+   131→   131→  content_item_id UUID NOT NULL REFERENCES public.content_items(id) ON DELETE CASCADE,
+   132→   132→  question_number INT NOT NULL,
+   133→   133→  section_label TEXT,
+   134→   134→  marks_allocated INT NOT NULL DEFAULT 1,
+   135→   135→  is_compulsory BOOLEAN NOT NULL DEFAULT true,
+   136→   136→  sort_order INT NOT NULL DEFAULT 0
+   137→   137→);
+   138→   138→
+   139→   139→CREATE TABLE IF NOT EXISTS public.mock_exam_attempts (
+   140→   140→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   141→   141→  mock_exam_id UUID NOT NULL REFERENCES public.mock_exams(id) ON DELETE CASCADE,
+   142→   142→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   143→   143→  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   144→   144→  submitted_at TIMESTAMPTZ,
+   145→   145→  is_completed BOOLEAN NOT NULL DEFAULT false,
+   146→   146→  is_timed_out BOOLEAN NOT NULL DEFAULT false,
+   147→   147→  total_score DECIMAL(5,2) DEFAULT 0,
+   148→   148→  max_score DECIMAL(5,2) DEFAULT 0,
+   149→   149→  percentage DECIMAL(5,2) DEFAULT 0,
+   150→   150→  grade TEXT,
+   151→   151→  time_taken_seconds INT DEFAULT 0,
+   152→   152→  status TEXT NOT NULL DEFAULT 'in_progress',
+   153→   153→  device_info JSONB DEFAULT '{}',
+   154→   154→  metadata JSONB DEFAULT '{}'
+   155→   155→);
+   156→   156→
+   157→   157→-- ============================================================================
+   158→   158→-- READINESS & STUDY PLANS
+   159→   159→-- ============================================================================
+   160→   160→CREATE TABLE IF NOT EXISTS public.readiness_assessments (
+   161→   161→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   162→   162→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   163→   163→  exam_body_id UUID REFERENCES public.examination_bodies(id),
+   164→   164→  subject_id UUID REFERENCES public.subjects(id),
+   165→   165→  readiness_level readiness_level_type NOT NULL DEFAULT 'not_started',
+   166→   166→  readiness_score DECIMAL(5,2) DEFAULT 0.00,
+   167→   167→  topics_mastered INT DEFAULT 0,
+   168→   168→  topics_total INT DEFAULT 0,
+   169→   169→  weak_topics JSONB DEFAULT '[]',
+   170→   170→  strong_topics JSONB DEFAULT '[]',
+   171→   171→  recommendations JSONB DEFAULT '[]',
+   172→   172→  assessed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   173→   173→  expires_at TIMESTAMPTZ
+   174→   174→);
+   175→   175→
+   176→   176→CREATE TABLE IF NOT EXISTS public.study_plans (
+   177→   177→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   178→   178→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   179→   179→  title TEXT NOT NULL,
+   180→   180→  exam_body_id UUID REFERENCES public.examination_bodies(id),
+   181→   181→  educational_level_id UUID REFERENCES public.educational_levels(id),
+   182→   182→  subject_id UUID REFERENCES public.subjects(id),
+   183→   183→  target_date DATE,
+   184→   184→  daily_study_minutes INT DEFAULT 60,
+   185→   185→  plan_type TEXT NOT NULL DEFAULT 'ai_generated',
+   186→   186→  plan_schedule JSONB DEFAULT '{}',
+   187→   187→  milestones JSONB DEFAULT '[]',
+   188→   188→  current_streak_days INT DEFAULT 0,
+   189→   189→  longest_streak_days INT DEFAULT 0,
+   190→   190→  total_study_minutes INT DEFAULT 0,
+   191→   191→  is_active BOOLEAN NOT NULL DEFAULT true,
+   192→   192→  ai_generated BOOLEAN NOT NULL DEFAULT false,
+   193→   193→  metadata JSONB DEFAULT '{}',
+   194→   194→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   195→   195→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   196→   196→);
+   197→   197→
+   198→   198→CREATE TABLE IF NOT EXISTS public.study_plan_activities (
+   199→   199→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   200→   200→  study_plan_id UUID NOT NULL REFERENCES public.study_plans(id) ON DELETE CASCADE,
+   201→   201→  activity_type TEXT NOT NULL,
+   202→   202→  title TEXT NOT NULL,
+   203→   203→  description TEXT,
+   204→   204→  subject_id UUID REFERENCES public.subjects(id),
+   205→   205→  topic_id UUID REFERENCES public.topics(id),
+   206→   206→  content_item_id UUID REFERENCES public.content_items(id),
+   207→   207→  duration_minutes INT DEFAULT 30,
+   208→   208→  scheduled_date DATE NOT NULL,
+   209→   209→  completed_at TIMESTAMPTZ,
+   210→   210→  is_completed BOOLEAN NOT NULL DEFAULT false,
+   211→   211→  performance_score DECIMAL(5,2),
+   212→   212→  metadata JSONB DEFAULT '{}',
+   213→   213→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   214→   214→);
+   215→   215→
+   216→   216→-- ============================================================================
+   217→   217→-- UNIVERSITIES & ADMISSIONS
+   218→   218→-- ============================================================================
+   219→   219→CREATE TABLE IF NOT EXISTS public.universities (
+   220→   220→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   221→   221→  name TEXT NOT NULL,
+   222→   222→  code TEXT NOT NULL UNIQUE,
+   223→   223→  university_type university_type_enum NOT NULL DEFAULT 'federal',
+   224→   224→  city TEXT,
+   225→   225→  state TEXT,
+   226→   226→  country TEXT NOT NULL DEFAULT 'Nigeria',
+   227→   227→  logo_url TEXT,
+   228→   228→  website_url TEXT,
+   229→   229→  description TEXT,
+   230→   230→  year_founded INT,
+   231→   231→  accreditation_status TEXT DEFAULT 'accredited',
+   232→   232→  is_active BOOLEAN NOT NULL DEFAULT true,
+   233→   233→  ranking_national INT,
+   234→   234→  metadata JSONB DEFAULT '{}',
+   235→   235→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   236→   236→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   237→   237→);
+   238→   238→
+   239→   239→CREATE TABLE IF NOT EXISTS public.university_faculties (
+   240→   240→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   241→   241→  university_id UUID NOT NULL REFERENCES public.universities(id) ON DELETE CASCADE,
+   242→   242→  name TEXT NOT NULL,
+   243→   243→  code TEXT,
+   244→   244→  description TEXT,
+   245→   245→  is_active BOOLEAN NOT NULL DEFAULT true,
+   246→   246→  sort_order INT DEFAULT 0,
+   247→   247→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   248→   248→);
+   249→   249→
+   250→   250→CREATE TABLE IF NOT EXISTS public.university_departments (
+   251→   251→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   252→   252→  faculty_id UUID NOT NULL REFERENCES public.university_faculties(id) ON DELETE CASCADE,
+   253→   253→  name TEXT NOT NULL,
+   254→   254→  code TEXT,
+   255→   255→  description TEXT,
+   256→   256→  degree_type TEXT DEFAULT 'B.Sc.',
+   257→   257→  duration_years INT DEFAULT 4,
+   258→   258→  utme_subjects JSONB DEFAULT '[]',
+   259→   259→  o_level_requirements JSONB DEFAULT '[]',
+   260→   260→  jamb_subject_combination JSONB DEFAULT '[]',
+   261→   261→  cut_off_mark INT,
+   262→   262→  is_active BOOLEAN NOT NULL DEFAULT true,
+   263→   263→  sort_order INT DEFAULT 0,
+   264→   264→  metadata JSONB DEFAULT '{}',
+   265→   265→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   266→   266→);
+   267→   267→
+   268→   268→CREATE TABLE IF NOT EXISTS public.post_utme_products (
+   269→   269→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   270→   270→  university_id UUID NOT NULL REFERENCES public.universities(id) ON DELETE CASCADE,
+   271→   271→  department_id UUID REFERENCES public.university_departments(id),
+   272→   272→  faculty_id UUID REFERENCES public.university_faculties(id),
+   273→   273→  name TEXT NOT NULL,
+   274→   274→  description TEXT,
+   275→   275→  year INT NOT NULL DEFAULT EXTRACT(YEAR FROM now()),
+   276→   276→  duration_minutes INT DEFAULT 60,
+   277→   277→  total_questions INT DEFAULT 50,
+   278→   278→  total_marks INT DEFAULT 100,
+   279→   279→  pass_mark DECIMAL(5,2) DEFAULT 50.00,
+   280→   280→  instructions JSONB DEFAULT '{}',
+   281→   281→  settings JSONB DEFAULT '{}',
+   282→   282→  is_active BOOLEAN NOT NULL DEFAULT true,
+   283→   283→  is_premium BOOLEAN NOT NULL DEFAULT false,
+   284→   284→  source_type TEXT DEFAULT 'platform',
+   285→   285→  has_licensing_rights BOOLEAN NOT NULL DEFAULT false,
+   286→   286→  license_details JSONB DEFAULT '{}',
+   287→   287→  created_by UUID REFERENCES auth.users(id),
+   288→   288→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   289→   289→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   290→   290→);
+   291→   291→
+   292→   292→CREATE TABLE IF NOT EXISTS public.admission_checklists (
+   293→   293→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   294→   294→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   295→   295→  university_id UUID REFERENCES public.universities(id),
+   296→   296→  department_id UUID REFERENCES public.university_departments(id),
+   297→   297→  checklist_items JSONB NOT NULL DEFAULT '[]',
+   298→   298→  completed_items JSONB DEFAULT '[]',
+   299→   299→  documents JSONB DEFAULT '[]',
+   300→   300→  deadlines JSONB DEFAULT '[]',
+   301→   301→  overall_readiness_score DECIMAL(5,2) DEFAULT 0.00,
+   302→   302→  status TEXT DEFAULT 'in_progress',
+   303→   303→  metadata JSONB DEFAULT '{}',
+   304→   304→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   305→   305→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   306→   306→);
+   307→   307→
+   308→   308→CREATE TABLE IF NOT EXISTS public.admission_applications (
+   309→   309→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   310→   310→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   311→   311→  university_id UUID NOT NULL REFERENCES public.universities(id),
+   312→   312→  department_id UUID REFERENCES public.university_departments(id),
+   313→   313→  course TEXT,
+   314→   314→  admission_status admission_status_type NOT NULL DEFAULT 'not_applied',
+   315→   315→  application_year INT NOT NULL DEFAULT EXTRACT(YEAR FROM now()),
+   316→   316→  jamb_score INT,
+   317→   317→  post_utme_score DECIMAL(5,2),
+   318→   318→  o_level_results JSONB DEFAULT '[]',
+   319→   319→  documents JSONB DEFAULT '[]',
+   320→   320→  notes TEXT,
+   321→   321→  metadata JSONB DEFAULT '{}',
+   322→   322→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   323→   323→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   324→   324→);
+   325→   325→
+   326→   326→-- ============================================================================
+   327→   327→-- AI COACH
+   328→   328→-- ============================================================================
+   329→   329→CREATE TABLE IF NOT EXISTS public.ai_coach_sessions (
+   330→   330→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   331→   331→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   332→   332→  session_type TEXT NOT NULL DEFAULT 'study_coach',
+   333→   333→  context JSONB DEFAULT '{}',
+   334→   334→  messages JSONB DEFAULT '[]',
+   335→   335→  recommendations JSONB DEFAULT '[]',
+   336→   336→  study_plan_id UUID REFERENCES public.study_plans(id),
+   337→   337→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   338→   338→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   339→   339→);
+   340→   340→
+   341→   341→CREATE TABLE IF NOT EXISTS public.ai_coach_recommendations (
+   342→   342→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   343→   343→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   344→   344→  recommendation_type TEXT NOT NULL,
+   345→   345→  priority INT NOT NULL DEFAULT 5,
+   346→   346→  title TEXT NOT NULL,
+   347→   347→  description TEXT,
+   348→   348→  action_type TEXT,
+   349→   349→  action_data JSONB DEFAULT '{}',
+   350→   350→  is_dismissed BOOLEAN NOT NULL DEFAULT false,
+   351→   351→  dismissed_at TIMESTAMPTZ,
+   352→   352→  expires_at TIMESTAMPTZ,
+   353→   353→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   354→   354→);
+   355→   355→
+   356→   356→-- ============================================================================
+   357→   357→-- EDUOS MODULAR ARCHITECTURE
+   358→   358→-- ============================================================================
+   359→   359→CREATE TABLE IF NOT EXISTS public.eduos_modules (
+   360→   360→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   361→   361→  code TEXT NOT NULL UNIQUE,
+   362→   362→  name TEXT NOT NULL,
+   363→   363→  description TEXT,
+   364→   364→  version TEXT NOT NULL DEFAULT '1.0.0',
+   365→   365→  module_tier module_tier_type NOT NULL DEFAULT 'starter',
+   366→   366→  module_status module_status_type NOT NULL DEFAULT 'active',
+   367→   367→  icon_url TEXT,
+   368→   368→  color_code TEXT,
+   369→   369→  sort_order INT DEFAULT 0,
+   370→   370→  features JSONB DEFAULT '[]',
+   371→   371→  dependencies TEXT[] DEFAULT '{}',
+   372→   372→  api_endpoints JSONB DEFAULT '[]',
+   373→   373→  is_core BOOLEAN NOT NULL DEFAULT false,
+   374→   374→  is_premium BOOLEAN NOT NULL DEFAULT false,
+   375→   375→  pricing_monthly DECIMAL(10,2) DEFAULT 0.00,
+   376→   376→  pricing_yearly DECIMAL(10,2) DEFAULT 0.00,
+   377→   377→  metadata JSONB DEFAULT '{}',
+   378→   378→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   379→   379→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   380→   380→);
+   381→   381→
+   382→   382→-- Seed EduOS modules
+   383→   383→INSERT INTO public.eduos_modules (code, name, description, module_tier, is_core, is_premium, sort_order, features, dependencies) VALUES
+   384→   384→  ('auth', 'Authentication & Security', 'Core authentication, MFA, and session management', 'free', true, false, 1, '["login","register","mfa","session_management","password_recovery"]', '{}'),
+   385→   385→  ('question_bank', 'Question Bank', 'Create, manage, and organize questions across all levels', 'starter', true, false, 2, '["question_crud","collections","import_export","search","filter"]', '{"auth"}'),
+   386→   386→  ('ai_generator', 'AI Question Generator', 'AI-powered question generation with curriculum awareness', 'professional', true, true, 3, '["ai_generation","review","improve","document_upload","prompt_templates"]', '{"auth","question_bank"}'),
+   387→   387→  ('cbt_engine', 'CBT Examination Engine', 'Computer-based testing with anti-cheat and real-time monitoring', 'professional', true, true, 4, '["exam_creation","templates","live_monitoring","auto_grading","receipts"]', '{"auth","question_bank"}'),
+   388→   388→  ('school_management', 'School Management', 'Complete school administration system', 'professional', true, true, 5, '["student_management","teacher_management","timetable","attendance","homework","reports"]', '{"auth"}'),
+   389→   389→  ('teacher_workspace', 'AI Teacher Workspace', 'Lesson plans, worksheets, rubrics with AI assistance', 'professional', true, true, 6, '["lesson_plans","worksheets","rubrics","presentations","schemes_of_work","oral_questions"]', '{"auth","question_bank","ai_generator"}'),
+   390→   390→  ('student_hub', 'Student Learning Hub', 'AI tutor, flashcards, practice mode, study planner', 'starter', true, false, 7, '["ai_tutor","flashcards","practice_mode","progress_tracking","study_planner"]', '{"auth","question_bank"}'),
+   391→   391→  ('parent_portal', 'Parent Portal', 'Monitor child progress, communicate with teachers', 'starter', true, false, 8, '["child_monitoring","messaging","calendar","reports","ai_assistant"]', '{"auth","student_hub"}'),
+   392→   392→  ('communication', 'Communication Hub', 'Messaging, forums, announcements, calendar', 'starter', true, false, 9, '["chat","forums","announcements","calendar","ai_assistant","knowledge_base"]', '{"auth"}'),
+   393→   393→  ('billing', 'Billing & Subscriptions', 'Flutterwave integration, invoices, credits, licenses', 'free', true, false, 10, '["subscriptions","payments","invoices","ai_credits","coupons","referrals"]', '{"auth"}'),
+   394→   394→  ('marketplace', 'Resource Marketplace', 'Buy and sell educational resources', 'professional', false, true, 11, '["product_listings","cart","checkout","reviews","seller_dashboard","commissions"]', '{"auth","billing"}'),
+   395→   395→  ('curriculum', 'Curriculum Management (CCMS)', 'Nigerian curriculum content management across all levels', 'professional', true, true, 12, '["educational_levels","subjects","topics","content_management","ai_curriculum_engine","answer_repository"]', '{"auth","question_bank"}'),
+   396→   396→  ('exam_ecosystem', 'Examination Ecosystem', 'WAEC, NECO, JAMB, Post-UTME preparation', 'professional', false, true, 13, '["exam_bodies","mock_exams","readiness_scores","timed_practice"]', '{"auth","cbt_engine","curriculum"}'),
+   397→   397→  ('admission_hub', 'Admission Success Hub', 'University search, admission checker, Post-UTME center', 'professional', false, true, 14, '["university_search","admission_checker","post_utme","checklists","eligibility"]', '{"auth","exam_ecosystem"}'),
+   398→   398→  ('ai_coach', 'AI Exam Coach', 'Personalized study plans, weak topic detection, motivation', 'professional', false, true, 15, '["study_plans","weak_topic_detection","readiness_prediction","milestone_tracking","motivation"]', '{"auth","student_hub","exam_ecosystem"}'),
+   399→   399→  ('analytics', 'Analytics Dashboard', 'User acquisition, conversion, retention, revenue analytics', 'enterprise', false, true, 16, '["user_analytics","revenue_analytics","feature_adoption","churn_analysis","marketing_performance"]', '{"auth","billing"}'),
+   400→   400→  ('customer_success', 'Customer Success', 'Onboarding, help center, tutorials, feedback', 'free', true, false, 17, '["onboarding_wizard","help_center","tutorials","feedback","feature_requests"]', '{"auth"}'),
+   401→   401→  ('marketing', 'Marketing & Growth', 'Landing pages, blog, referral, affiliate programs', 'enterprise', false, true, 18, '["landing_pages","blog","email_campaigns","referrals","affiliates","waitlist"]', '{"auth","billing"}'),
+   402→   402→  ('offline', 'Offline & PWA', 'Offline-first architecture with smart sync', 'starter', true, false, 19, '["offline_mode","smart_sync","push_notifications","pwa_install"]', '{"auth"}'),
+   403→   403→  ('enterprise', 'Enterprise & Security', 'Audit trails, MFA, API keys, rate limiting, monitoring', 'enterprise', false, true, 20, '["audit_trail","mfa","api_keys","rate_limiting","monitoring","deployment"]', '{"auth"}')
+   404→   404→ON CONFLICT (code) DO NOTHING;
+   405→   405→
+   406→   406→CREATE TABLE IF NOT EXISTS public.eduos_module_subscriptions (
+   407→   407→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   408→   408→  school_id UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   409→   409→  module_id UUID NOT NULL REFERENCES public.eduos_modules(id) ON DELETE CASCADE,
+   410→   410→  module_tier module_tier_type NOT NULL DEFAULT 'starter',
+   411→   411→  is_enabled BOOLEAN NOT NULL DEFAULT false,
+   412→   412→  activated_at TIMESTAMPTZ,
+   413→   413→  expires_at TIMESTAMPTZ,
+   414→   414→  configuration JSONB DEFAULT '{}',
+   415→   415→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   416→   416→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   417→   417→  UNIQUE(school_id, module_id)
+   418→   418→);
+   419→   419→
+   420→   420→CREATE TABLE IF NOT EXISTS public.eduos_module_apis (
+   421→   421→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   422→   422→  module_id UUID NOT NULL REFERENCES public.eduos_modules(id) ON DELETE CASCADE,
+   423→   423→  endpoint TEXT NOT NULL,
+   424→   424→  method TEXT NOT NULL DEFAULT 'GET',
+   425→   425→  description TEXT,
+   426→   426→  auth_required BOOLEAN NOT NULL DEFAULT true,
+   427→   427→  rate_limit INT DEFAULT 100,
+   428→   428→  request_schema JSONB DEFAULT '{}',
+   429→   429→  response_schema JSONB DEFAULT '{}',
+   430→   430→  is_active BOOLEAN NOT NULL DEFAULT true,
+   431→   431→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   432→   432→);
+   433→   433→
+   434→   434→-- ============================================================================
+   435→   435→-- CUSTOMER SUCCESS
+   436→   436→-- ============================================================================
+   437→   437→CREATE TABLE IF NOT EXISTS public.onboarding_flows (
+   438→   438→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   439→   439→  role TEXT NOT NULL,
+   440→   440→  step_order INT NOT NULL,
+   441→   441→  step_type onboarding_step_type NOT NULL,
+   442→   442→  title TEXT NOT NULL,
+   443→   443→  description TEXT,
+   444→   444→  content JSONB DEFAULT '{}',
+   445→   445→  action_required TEXT,
+   446→   446→  is_skippable BOOLEAN NOT NULL DEFAULT true,
+   447→   447→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   448→   448→);
+   449→   449→
+   450→   450→INSERT INTO public.onboarding_flows (role, step_order, step_type, title, description) VALUES
+   451→   451→  ('schoolAdmin', 1, 'welcome', 'Welcome to ExamForge AI', 'Set up your school in minutes'),
+   452→   452→  ('schoolAdmin', 2, 'school_setup', 'School Profile', 'Configure your school details and educational levels'),
+   453→   453→  ('schoolAdmin', 3, 'subject_config', 'Subject Configuration', 'Select subjects for your school levels'),
+   454→   454→  ('schoolAdmin', 4, 'feature_tour', 'Platform Tour', 'Explore key features of ExamForge AI'),
+   455→   455→  ('schoolAdmin', 5, 'first_content', 'Create Your First Question', 'Add a question to your question bank'),
+   456→   456→  ('schoolAdmin', 6, 'complete', 'Setup Complete', 'Your school is ready! Start exploring.'),
+   457→   457→  ('teacher', 1, 'welcome', 'Welcome, Teacher!', 'Get started with ExamForge AI teaching tools'),
+   458→   458→  ('teacher', 2, 'feature_tour', 'Teaching Tools Tour', 'Explore lesson planning, worksheets, and AI tools'),
+   459→   459→  ('teacher', 3, 'first_content', 'Create Your First Question', 'Add a question to share with students'),
+   460→   460→  ('teacher', 4, 'complete', 'Ready to Teach!', 'Your workspace is set up and ready'),
+   461→   461→  ('student', 1, 'welcome', 'Welcome to ExamForge AI!', 'Your learning journey starts here'),
+   462→   462→  ('student', 2, 'feature_tour', 'Learning Tools Tour', 'Explore practice mode, AI tutor, and flashcards'),
+   463→   463→  ('student', 3, 'first_content', 'Try a Practice Question', 'Test your knowledge with a sample question'),
+   464→   464→  ('student', 4, 'complete', 'Ready to Learn!', 'Start exploring and practicing'),
+   465→   465→  ('parent', 1, 'welcome', 'Welcome, Parent!', 'Monitor your child''s educational progress'),
+   466→   466→  ('parent', 2, 'feature_tour', 'Parent Portal Tour', 'Explore progress tracking and communication tools'),
+   467→   467→  ('parent', 3, 'complete', 'All Set!', 'Start monitoring your child''s progress')
+   468→   468→ON CONFLICT DO NOTHING;
+   469→   469→
+   470→   470→CREATE TABLE IF NOT EXISTS public.onboarding_progress (
+   471→   471→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   472→   472→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   473→   473→  onboarding_flow_id UUID NOT NULL REFERENCES public.onboarding_flows(id) ON DELETE CASCADE,
+   474→   474→  is_completed BOOLEAN NOT NULL DEFAULT false,
+   475→   475→  completed_at TIMESTAMPTZ,
+   476→   476→  skipped_at TIMESTAMPTZ,
+   477→   477→  data JSONB DEFAULT '{}',
+   478→   478→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   479→   479→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   480→   480→  UNIQUE(user_id, onboarding_flow_id)
+   481→   481→);
+   482→   482→
+   483→   483→CREATE TABLE IF NOT EXISTS public.product_tours (
+   484→   484→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   485→   485→  name TEXT NOT NULL,
+   486→   486→  description TEXT,
+   487→   487→  target_role TEXT,
+   488→   488→  steps JSONB NOT NULL DEFAULT '[]',
+   489→   489→  is_active BOOLEAN NOT NULL DEFAULT true,
+   490→   490→  trigger_event TEXT,
+   491→   491→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   492→   492→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   493→   493→);
+   494→   494→
+   495→   495→CREATE TABLE IF NOT EXISTS public.help_articles (
+   496→   496→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   497→   497→  category TEXT NOT NULL,
+   498→   498→  title TEXT NOT NULL,
+   499→   499→  slug TEXT NOT NULL UNIQUE,
+   500→   500→  content TEXT NOT NULL,
+   501→   501→  content_rich JSONB DEFAULT '{}',
+   502→   502→  tags TEXT[] DEFAULT '{}',
+   503→   503→  target_roles TEXT[] DEFAULT '{}',
+   504→   504→  views_count INT NOT NULL DEFAULT 0,
+   505→   505→  helpful_count INT NOT NULL DEFAULT 0,
+   506→   506→  is_published BOOLEAN NOT NULL DEFAULT false,
+   507→   507→  sort_order INT DEFAULT 0,
+   508→   508→  author_id UUID REFERENCES auth.users(id),
+   509→   509→  published_at TIMESTAMPTZ,
+   510→   510→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   511→   511→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   512→   512→);
+   513→   513→
+   514→   514→CREATE TABLE IF NOT EXISTS public.video_tutorials (
+   515→   515→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   516→   516→  title TEXT NOT NULL,
+   517→   517→  description TEXT,
+   518→   518→  video_url TEXT NOT NULL,
+   519→   519→  thumbnail_url TEXT,
+   520→   520→  duration_seconds INT,
+   521→   521→  category TEXT,
+   522→   522→  target_roles TEXT[] DEFAULT '{}',
+   523→   523→  views_count INT NOT NULL DEFAULT 0,
+   524→   524→  is_published BOOLEAN NOT NULL DEFAULT false,
+   525→   525→  sort_order INT DEFAULT 0,
+   526→   526→  created_by UUID REFERENCES auth.users(id),
+   527→   527→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   528→   528→);
+   529→   529→
+   530→   530→CREATE TABLE IF NOT EXISTS public.feedback_submissions (
+   531→   531→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   532→   532→  user_id UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+   533→   533→  feedback_type feedback_type_enum NOT NULL DEFAULT 'general_feedback',
+   534→   534→  subject TEXT NOT NULL,
+   535→   535→  description TEXT NOT NULL,
+   536→   536→  priority TEXT DEFAULT 'medium',
+   537→   537→  status TEXT DEFAULT 'open',
+   538→   538→  attachments JSONB DEFAULT '[]',
+   539→   539→  resolution TEXT,
+   540→   540→  resolved_by UUID REFERENCES auth.users(id),
+   541→   541→  resolved_at TIMESTAMPTZ,
+   542→   542→  metadata JSONB DEFAULT '{}',
+   543→   543→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   544→   544→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   545→   545→);
+   546→   546→
+   547→   547→CREATE TABLE IF NOT EXISTS public.feature_requests (
+   548→   548→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   549→   549→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   550→   550→  title TEXT NOT NULL,
+   551→   551→  description TEXT NOT NULL,
+   552→   552→  category TEXT,
+   553→   553→  status TEXT DEFAULT 'under_review',
+   554→   554→  upvotes INT NOT NULL DEFAULT 0,
+   555→   555→  is_under_consideration BOOLEAN NOT NULL DEFAULT false,
+   556→   556→  implementation_status TEXT,
+   557→   557→  response TEXT,
+   558→   558→  responded_by UUID REFERENCES auth.users(id),
+   559→   559→  responded_at TIMESTAMPTZ,
+   560→   560→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   561→   561→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   562→   562→);
+   563→   563→
+   564→   564→CREATE TABLE IF NOT EXISTS public.feature_request_votes (
+   565→   565→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   566→   566→  feature_request_id UUID NOT NULL REFERENCES public.feature_requests(id) ON DELETE CASCADE,
+   567→   567→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   568→   568→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   569→   569→  UNIQUE(feature_request_id, user_id)
+   570→   570→);
+   571→   571→
+   572→   572→-- ============================================================================
+   573→   573→-- MARKETING & GROWTH
+   574→   574→-- ============================================================================
+   575→   575→CREATE TABLE IF NOT EXISTS public.landing_pages (
+   576→   576→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   577→   577→  slug TEXT NOT NULL UNIQUE,
+   578→   578→  title TEXT NOT NULL,
+   579→   579→  is_published BOOLEAN NOT NULL DEFAULT false,
+   580→   580→  sections JSONB NOT NULL DEFAULT '[]',
+   581→   581→  seo_title TEXT,
+   582→   582→  seo_description TEXT,
+   583→   583→  og_image_url TEXT,
+   584→   584→  published_at TIMESTAMPTZ,
+   585→   585→  created_by UUID REFERENCES auth.users(id),
+   586→   586→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   587→   587→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   588→   588→);
+   589→   589→
+   590→   590→CREATE TABLE IF NOT EXISTS public.blog_posts (
+   591→   591→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   592→   592→  title TEXT NOT NULL,
+   593→   593→  slug TEXT NOT NULL UNIQUE,
+   594→   594→  excerpt TEXT,
+   595→   595→  content TEXT NOT NULL,
+   596→   596→  content_rich JSONB DEFAULT '{}',
+   597→   597→  featured_image_url TEXT,
+   598→   598→  category TEXT,
+   599→   599→  tags TEXT[] DEFAULT '{}',
+   600→   600→  author_id UUID REFERENCES auth.users(id),
+   601→   601→  status content_status_type NOT NULL DEFAULT 'draft',
+   602→   602→  views_count INT NOT NULL DEFAULT 0,
+   603→   603→  likes_count INT NOT NULL DEFAULT 0,
+   604→   604→  is_featured BOOLEAN NOT NULL DEFAULT false,
+   605→   605→  seo_title TEXT,
+   606→   606→  seo_description TEXT,
+   607→   607→  published_at TIMESTAMPTZ,
+   608→   608→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   609→   609→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   610→   610→);
+   611→   611→
+   612→   612→CREATE TABLE IF NOT EXISTS public.email_campaigns (
+   613→   613→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   614→   614→  name TEXT NOT NULL,
+   615→   615→  campaign_type campaign_type_enum NOT NULL DEFAULT 'email',
+   616→   616→  subject TEXT,
+   617→   617→  body TEXT,
+   618→   618→  body_html TEXT,
+   619→   619→  target_audience JSONB DEFAULT '{}',
+   620→   620→  status TEXT DEFAULT 'draft',
+   621→   621→  scheduled_at TIMESTAMPTZ,
+   622→   622→  sent_at TIMESTAMPTZ,
+   623→   623→  recipient_count INT DEFAULT 0,
+   624→   624→  open_count INT DEFAULT 0,
+   625→   625→  click_count INT DEFAULT 0,
+   626→   626→  bounce_count INT DEFAULT 0,
+   627→   627→  metadata JSONB DEFAULT '{}',
+   628→   628→  created_by UUID REFERENCES auth.users(id),
+   629→   629→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   630→   630→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   631→   631→);
+   632→   632→
+   633→   633→CREATE TABLE IF NOT EXISTS public.referral_programs (
+   634→   634→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   635→   635→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   636→   636→  name TEXT NOT NULL,
+   637→   637→  description TEXT,
+   638→   638→  reward_type TEXT NOT NULL DEFAULT 'credit',
+   639→   639→  reward_value DECIMAL(10,2) DEFAULT 0.00,
+   640→   640→  referral_code TEXT NOT NULL UNIQUE,
+   641→   641→  is_active BOOLEAN NOT NULL DEFAULT true,
+   642→   642→  max_referrals INT,
+   643→   643→  total_referrals INT DEFAULT 0,
+   644→   644→  metadata JSONB DEFAULT '{}',
+   645→   645→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   646→   646→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   647→   647→);
+   648→   648→
+   649→   649→CREATE TABLE IF NOT EXISTS public.referrals (
+   650→   650→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   651→   651→  referral_program_id UUID NOT NULL REFERENCES public.referral_programs(id) ON DELETE CASCADE,
+   652→   652→  referrer_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   653→   653→  referral_code TEXT NOT NULL,
+   654→   654→  referred_email TEXT,
+   655→   655→  referred_id UUID REFERENCES auth.users(id),
+   656→   656→  status TEXT DEFAULT 'pending',
+   657→   657→  reward_issued BOOLEAN NOT NULL DEFAULT false,
+   658→   658→  reward_issued_at TIMESTAMPTZ,
+   659→   659→  metadata JSONB DEFAULT '{}',
+   660→   660→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   661→   661→);
+   662→   662→
+   663→   663→CREATE TABLE IF NOT EXISTS public.affiliates (
+   664→   664→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   665→   665→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   666→   666→  affiliate_code TEXT NOT NULL UNIQUE,
+   667→   667→  status affiliate_status_type NOT NULL DEFAULT 'pending',
+   668→   668→  commission_rate DECIMAL(5,4) DEFAULT 0.1000,
+   669→   669→  total_earnings DECIMAL(10,2) DEFAULT 0.00,
+   670→   670→  pending_earnings DECIMAL(10,2) DEFAULT 0.00,
+   671→   671→  paid_earnings DECIMAL(10,2) DEFAULT 0.00,
+   672→   672→  referrals_count INT DEFAULT 0,
+   673→   673→  metadata JSONB DEFAULT '{}',
+   674→   674→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   675→   675→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   676→   676→);
+   677→   677→
+   678→   678→CREATE TABLE IF NOT EXISTS public.affiliate_referrals (
+   679→   679→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   680→   680→  affiliate_id UUID NOT NULL REFERENCES public.affiliates(id) ON DELETE CASCADE,
+   681→   681→  referred_id UUID REFERENCES auth.users(id),
+   682→   682→  referred_email TEXT,
+   683→   683→  subscription_id UUID,
+   684→   684→  commission_earned DECIMAL(10,2) DEFAULT 0.00,
+   685→   685→  status TEXT DEFAULT 'pending',
+   686→   686→  paid_at TIMESTAMPTZ,
+   687→   687→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   688→   688→);
+   689→   689→
+   690→   690→-- ============================================================================
+   691→   691→-- SALES TOOLKIT
+   692→   692→-- ============================================================================
+   693→   693→CREATE TABLE IF NOT EXISTS public.sales_proposals (
+   694→   694→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   695→   695→  school_id UUID REFERENCES public.schools(id) ON DELETE SET NULL,
+   696→   696→  title TEXT NOT NULL,
+   697→   697→  prospect_name TEXT NOT NULL,
+   698→   698→  prospect_email TEXT NOT NULL,
+   699→   699→  prospect_phone TEXT,
+   700→   700→  modules TEXT[] DEFAULT '{}',
+   701→   701→  tier module_tier_type NOT NULL DEFAULT 'professional',
+   702→   702→  student_count INT DEFAULT 100,
+   703→   703→  pricing_monthly DECIMAL(10,2) DEFAULT 0.00,
+   704→   704→  pricing_yearly DECIMAL(10,2) DEFAULT 0.00,
+   705→   705→  discount_percentage DECIMAL(5,2) DEFAULT 0.00,
+   706→   706→  total_annual DECIMAL(10,2) DEFAULT 0.00,
+   707→   707→  proposal_status proposal_status_type NOT NULL DEFAULT 'draft',
+   708→   708→  content JSONB DEFAULT '{}',
+   709→   709→  viewed_at TIMESTAMPTZ,
+   710→   710→  accepted_at TIMESTAMPTZ,
+   711→   711→  created_by UUID NOT NULL REFERENCES auth.users(id),
+   712→   712→  expires_at TIMESTAMPTZ,
+   713→   713→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   714→   714→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   715→   715→);
+   716→   716→
+   717→   717→CREATE TABLE IF NOT EXISTS public.demo_accounts (
+   718→   718→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   719→   719→  school_name TEXT NOT NULL,
+   720→   720→  contact_name TEXT NOT NULL,
+   721→   721→  contact_email TEXT NOT NULL,
+   722→   722→  contact_phone TEXT,
+   723→   723→  demo_type TEXT DEFAULT 'school',
+   724→   724→  expires_at TIMESTAMPTZ NOT NULL,
+   725→   725→  is_active BOOLEAN NOT NULL DEFAULT true,
+   726→   726→  configuration JSONB DEFAULT '{}',
+   727→   727→  metadata JSONB DEFAULT '{}',
+   728→   728→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   729→   729→);
+   730→   730→
+   731→   731→-- ============================================================================
+   732→   732→-- ANALYTICS
+   733→   733→-- ============================================================================
+   734→   734→CREATE TABLE IF NOT EXISTS public.analytics_events (
+   735→   735→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   736→   736→  event_type TEXT NOT NULL,
+   737→   737→  event_name TEXT NOT NULL,
+   738→   738→  user_id UUID REFERENCES auth.users(id),
+   739→   739→  school_id UUID REFERENCES public.schools(id),
+   740→   740→  session_id TEXT,
+   741→   741→  properties JSONB DEFAULT '{}',
+   742→   742→  device_info JSONB DEFAULT '{}',
+   743→   743→  timestamp TIMESTAMPTZ NOT NULL DEFAULT now()
+   744→   744→);
+   745→   745→
+   746→   746→CREATE TABLE IF NOT EXISTS public.daily_analytics (
+   747→   747→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   748→   748→  date DATE NOT NULL,
+   749→   749→  school_id UUID REFERENCES public.schools(id),
+   750→   750→  metric_name TEXT NOT NULL,
+   751→   751→  metric_type TEXT NOT NULL DEFAULT 'counter',
+   752→   752→  value DECIMAL NOT NULL DEFAULT 0,
+   753→   753→  dimensions JSONB DEFAULT '{}',
+   754→   754→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   755→   755→  UNIQUE(date, school_id, metric_name)
+   756→   756→);
+   757→   757→
+   758→   758→CREATE TABLE IF NOT EXISTS public.release_notes (
+   759→   759→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   760→   760→  version TEXT NOT NULL,
+   761→   761→  title TEXT NOT NULL,
+   762→   762→  content TEXT NOT NULL,
+   763→   763→  content_rich JSONB DEFAULT '{}',
+   764→   764→  release_type TEXT DEFAULT 'patch',
+   765→   765→  is_published BOOLEAN NOT NULL DEFAULT false,
+   766→   766→  published_at TIMESTAMPTZ,
+   767→   767→  created_by UUID REFERENCES auth.users(id),
+   768→   768→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   769→   769→);
+   770→   770→
+   771→   771→-- ============================================================================
+   772→   772→-- INDEXES (80+)
+   773→   773→-- ============================================================================
+   774→   774→CREATE INDEX idx_exam_bodies_type ON public.examination_bodies(exam_body_type);
+   775→   775→CREATE INDEX idx_exam_bodies_active ON public.examination_bodies(is_active);
+   776→   776→CREATE INDEX idx_exam_products_body ON public.examination_products(exam_body_id);
+   777→   777→CREATE INDEX idx_exam_products_level ON public.examination_products(educational_level_id);
+   778→   778→CREATE INDEX idx_exam_products_subject ON public.examination_products(subject_id);
+   779→   779→CREATE INDEX idx_exam_products_category ON public.examination_products(exam_category);
+   780→   780→CREATE INDEX idx_exam_products_prep_type ON public.examination_products(preparation_type);
+   781→   781→CREATE INDEX idx_exam_products_active ON public.examination_products(is_active);
+   782→   782→CREATE INDEX idx_exam_products_premium ON public.examination_products(is_premium);
+   783→   783→CREATE INDEX idx_mock_exams_school ON public.mock_exams(school_id);
+   784→   784→CREATE INDEX idx_mock_exams_product ON public.mock_exams(examination_product_id);
+   785→   785→CREATE INDEX idx_mock_exams_body ON public.mock_exams(exam_body_type);
+   786→   786→CREATE INDEX idx_mock_exams_status ON public.mock_exams(status);
+   787→   787→CREATE INDEX idx_mock_exams_created ON public.mock_exams(created_at DESC);
+   788→   788→CREATE INDEX idx_mock_exam_questions_exam ON public.mock_exam_questions(mock_exam_id);
+   789→   789→CREATE INDEX idx_mock_exam_questions_content ON public.mock_exam_questions(content_item_id);
+   790→   790→CREATE INDEX idx_mock_exam_attempts_exam ON public.mock_exam_attempts(mock_exam_id);
+   791→   791→CREATE INDEX idx_mock_exam_attempts_user ON public.mock_exam_attempts(user_id);
+   792→   792→CREATE INDEX idx_mock_exam_attempts_status ON public.mock_exam_attempts(status);
+   793→   793→CREATE INDEX idx_readiness_user ON public.readiness_assessments(user_id);
+   794→   794→CREATE INDEX idx_readiness_exam_body ON public.readiness_assessments(exam_body_id);
+   795→   795→CREATE INDEX idx_readiness_subject ON public.readiness_assessments(subject_id);
+   796→   796→CREATE INDEX idx_readiness_level ON public.readiness_assessments(readiness_level);
+   797→   797→CREATE INDEX idx_readiness_assessed ON public.readiness_assessments(assessed_at DESC);
+   798→   798→CREATE INDEX idx_study_plans_user ON public.study_plans(user_id);
+   799→   799→CREATE INDEX idx_study_plans_active ON public.study_plans(is_active) WHERE is_active = true;
+   800→   800→CREATE INDEX idx_study_plans_exam ON public.study_plans(exam_body_id);
+   801→   801→CREATE INDEX idx_study_plan_activities_plan ON public.study_plan_activities(study_plan_id);
+   802→   802→CREATE INDEX idx_study_plan_activities_date ON public.study_plan_activities(scheduled_date);
+   803→   803→CREATE INDEX idx_study_plan_activities_completed ON public.study_plan_activities(is_completed);
+   804→   804→CREATE INDEX idx_universities_type ON public.universities(university_type);
+   805→   805→CREATE INDEX idx_universities_active ON public.universities(is_active);
+   806→   806→CREATE INDEX idx_universities_state ON public.universities(state);
+   807→   807→CREATE INDEX idx_universities_search ON public.universities USING gin(to_tsvector('english', name || ' ' || COALESCE(city, '') || ' ' || COALESCE(state, '')));
+   808→   808→CREATE INDEX idx_uni_faculties_uni ON public.university_faculties(university_id);
+   809→   809→CREATE INDEX idx_uni_departments_faculty ON public.university_departments(faculty_id);
+   810→   810→CREATE INDEX idx_uni_departments_active ON public.university_departments(is_active);
+   811→   811→CREATE INDEX idx_post_utme_uni ON public.post_utme_products(university_id);
+   812→   812→CREATE INDEX idx_post_utme_dept ON public.post_utme_products(department_id);
+   813→   813→CREATE INDEX idx_post_utme_year ON public.post_utme_products(year);
+   814→   814→CREATE INDEX idx_post_utme_active ON public.post_utme_products(is_active);
+   815→   815→CREATE INDEX idx_admission_checklists_user ON public.admission_checklists(user_id);
+   816→   816→CREATE INDEX idx_admission_applications_user ON public.admission_applications(user_id);
+   817→   817→CREATE INDEX idx_admission_applications_uni ON public.admission_applications(university_id);
+   818→   818→CREATE INDEX idx_admission_applications_status ON public.admission_applications(admission_status);
+   819→   819→CREATE INDEX idx_ai_coach_sessions_user ON public.ai_coach_sessions(user_id);
+   820→   820→CREATE INDEX idx_ai_coach_rec_user ON public.ai_coach_recommendations(user_id);
+   821→   821→CREATE INDEX idx_ai_coach_rec_type ON public.ai_coach_recommendations(recommendation_type);
+   822→   822→CREATE INDEX idx_ai_coach_rec_dismissed ON public.ai_coach_recommendations(is_dismissed) WHERE is_dismissed = false;
+   823→   823→CREATE INDEX idx_eduos_modules_code ON public.eduos_modules(code);
+   824→   824→CREATE INDEX idx_eduos_modules_tier ON public.eduos_modules(module_tier);
+   825→   825→CREATE INDEX idx_eduos_modules_status ON public.eduos_modules(module_status);
+   826→   826→CREATE INDEX idx_eduos_module_subs_school ON public.eduos_module_subscriptions(school_id);
+   827→   827→CREATE INDEX idx_eduos_module_subs_module ON public.eduos_module_subscriptions(module_id);
+   828→   828→CREATE INDEX idx_eduos_module_subs_enabled ON public.eduos_module_subscriptions(school_id, is_enabled);
+   829→   829→CREATE INDEX idx_eduos_module_apis_module ON public.eduos_module_apis(module_id);
+   830→   830→CREATE INDEX idx_onboarding_flows_role ON public.onboarding_flows(role);
+   831→   831→CREATE INDEX idx_onboarding_progress_user ON public.onboarding_progress(user_id);
+   832→   832→CREATE INDEX idx_onboarding_progress_completed ON public.onboarding_progress(user_id, is_completed);
+   833→   833→CREATE INDEX idx_help_articles_category ON public.help_articles(category);
+   834→   834→CREATE INDEX idx_help_articles_slug ON public.help_articles(slug);
+   835→   835→CREATE INDEX idx_help_articles_published ON public.help_articles(is_published) WHERE is_published = true;
+   836→   836→CREATE INDEX idx_help_articles_search ON public.help_articles USING gin(to_tsvector('english', title || ' ' || content));
+   837→   837→CREATE INDEX idx_video_tutorials_category ON public.video_tutorials(category);
+   838→   838→CREATE INDEX idx_video_tutorials_published ON public.video_tutorials(is_published);
+   839→   839→CREATE INDEX idx_feedback_user ON public.feedback_submissions(user_id);
+   840→   840→CREATE INDEX idx_feedback_type ON public.feedback_submissions(feedback_type);
+   841→   841→CREATE INDEX idx_feedback_status ON public.feedback_submissions(status);
+   842→   842→CREATE INDEX idx_feature_requests_user ON public.feature_requests(user_id);
+   843→   843→CREATE INDEX idx_feature_requests_status ON public.feature_requests(status);
+   844→   844→CREATE INDEX idx_feature_requests_upvotes ON public.feature_requests(upvotes DESC);
+   845→   845→CREATE INDEX idx_feature_request_votes_request ON public.feature_request_votes(feature_request_id);
+   846→   846→CREATE INDEX idx_feature_request_votes_user ON public.feature_request_votes(user_id);
+   847→   847→CREATE INDEX idx_landing_pages_slug ON public.landing_pages(slug);
+   848→   848→CREATE INDEX idx_landing_pages_published ON public.landing_pages(is_published);
+   849→   849→CREATE INDEX idx_blog_posts_slug ON public.blog_posts(slug);
+   850→   850→CREATE INDEX idx_blog_posts_status ON public.blog_posts(status);
+   851→   851→CREATE INDEX idx_blog_posts_category ON public.blog_posts(category);
+   852→   852→CREATE INDEX idx_blog_posts_published ON public.blog_posts(published_at DESC) WHERE status = 'published';
+   853→   853→CREATE INDEX idx_blog_posts_search ON public.blog_posts USING gin(to_tsvector('english', title || ' ' || excerpt || ' ' || content));
+   854→   854→CREATE INDEX idx_email_campaigns_status ON public.email_campaigns(status);
+   855→   855→CREATE INDEX idx_email_campaigns_type ON public.email_campaigns(campaign_type);
+   856→   856→CREATE INDEX idx_referral_programs_code ON public.referral_programs(referral_code);
+   857→   857→CREATE INDEX idx_referral_programs_school ON public.referral_programs(school_id);
+   858→   858→CREATE INDEX idx_referrals_program ON public.referrals(referral_program_id);
+   859→   859→CREATE INDEX idx_referrals_referrer ON public.referrals(referrer_id);
+   860→   860→CREATE INDEX idx_affiliates_code ON public.affiliates(affiliate_code);
+   861→   861→CREATE INDEX idx_affiliates_user ON public.affiliates(user_id);
+   862→   862→CREATE INDEX idx_affiliates_status ON public.affiliates(status);
+   863→   863→CREATE INDEX idx_affiliate_referrals_affiliate ON public.affiliate_referrals(affiliate_id);
+   864→   864→CREATE INDEX idx_sales_proposals_school ON public.sales_proposals(school_id);
+   865→   865→CREATE INDEX idx_sales_proposals_status ON public.sales_proposals(proposal_status);
+   866→   866→CREATE INDEX idx_sales_proposals_created ON public.sales_proposals(created_at DESC);
+   867→   867→CREATE INDEX idx_demo_accounts_active ON public.demo_accounts(is_active);
+   868→   868→CREATE INDEX idx_demo_accounts_expires ON public.demo_accounts(expires_at);
+   869→   869→CREATE INDEX idx_analytics_events_type ON public.analytics_events(event_type);
+   870→   870→CREATE INDEX idx_analytics_events_user ON public.analytics_events(user_id);
+   871→   871→CREATE INDEX idx_analytics_events_school ON public.analytics_events(school_id);
+   872→   872→CREATE INDEX idx_analytics_events_timestamp ON public.analytics_events(timestamp DESC);
+   873→   873→CREATE INDEX idx_analytics_events_composite ON public.analytics_events(event_type, timestamp DESC);
+   874→   874→CREATE INDEX idx_daily_analytics_date ON public.daily_analytics(date DESC);
+   875→   875→CREATE INDEX idx_daily_analytics_metric ON public.daily_analytics(metric_name);
+   876→   876→CREATE INDEX idx_daily_analytics_school ON public.daily_analytics(school_id);
+   877→   877→CREATE INDEX idx_daily_analytics_composite ON public.daily_analytics(date, metric_name, school_id);
+   878→   878→CREATE INDEX idx_release_notes_version ON public.release_notes(version);
+   879→   879→CREATE INDEX idx_release_notes_published ON public.release_notes(is_published) WHERE is_published = true;
+   880→   880→
+   881→   881→-- ============================================================================
+   882→   882→-- ROW LEVEL SECURITY
+   883→   883→-- ============================================================================
+   884→   884→ALTER TABLE public.examination_bodies ENABLE ROW LEVEL SECURITY;
+   885→   885→ALTER TABLE public.examination_products ENABLE ROW LEVEL SECURITY;
+   886→   886→ALTER TABLE public.mock_exams ENABLE ROW LEVEL SECURITY;
+   887→   887→ALTER TABLE public.mock_exam_questions ENABLE ROW LEVEL SECURITY;
+   888→   888→ALTER TABLE public.mock_exam_attempts ENABLE ROW LEVEL SECURITY;
+   889→   889→ALTER TABLE public.readiness_assessments ENABLE ROW LEVEL SECURITY;
+   890→   890→ALTER TABLE public.study_plans ENABLE ROW LEVEL SECURITY;
+   891→   891→ALTER TABLE public.study_plan_activities ENABLE ROW LEVEL SECURITY;
+   892→   892→ALTER TABLE public.universities ENABLE ROW LEVEL SECURITY;
+   893→   893→ALTER TABLE public.university_faculties ENABLE ROW LEVEL SECURITY;
+   894→   894→ALTER TABLE public.university_departments ENABLE ROW LEVEL SECURITY;
+   895→   895→ALTER TABLE public.post_utme_products ENABLE ROW LEVEL SECURITY;
+   896→   896→ALTER TABLE public.admission_checklists ENABLE ROW LEVEL SECURITY;
+   897→   897→ALTER TABLE public.admission_applications ENABLE ROW LEVEL SECURITY;
+   898→   898→ALTER TABLE public.ai_coach_sessions ENABLE ROW LEVEL SECURITY;
+   899→   899→ALTER TABLE public.ai_coach_recommendations ENABLE ROW LEVEL SECURITY;
+   900→   900→ALTER TABLE public.eduos_modules ENABLE ROW LEVEL SECURITY;
+   901→   901→ALTER TABLE public.eduos_module_subscriptions ENABLE ROW LEVEL SECURITY;
+   902→   902→ALTER TABLE public.eduos_module_apis ENABLE ROW LEVEL SECURITY;
+   903→   903→ALTER TABLE public.onboarding_flows ENABLE ROW LEVEL SECURITY;
+   904→   904→ALTER TABLE public.onboarding_progress ENABLE ROW LEVEL SECURITY;
+   905→   905→ALTER TABLE public.product_tours ENABLE ROW LEVEL SECURITY;
+   906→   906→ALTER TABLE public.help_articles ENABLE ROW LEVEL SECURITY;
+   907→   907→ALTER TABLE public.video_tutorials ENABLE ROW LEVEL SECURITY;
+   908→   908→ALTER TABLE public.feedback_submissions ENABLE ROW LEVEL SECURITY;
+   909→   909→ALTER TABLE public.feature_requests ENABLE ROW LEVEL SECURITY;
+   910→   910→ALTER TABLE public.feature_request_votes ENABLE ROW LEVEL SECURITY;
+   911→   911→ALTER TABLE public.landing_pages ENABLE ROW LEVEL SECURITY;
+   912→   912→ALTER TABLE public.blog_posts ENABLE ROW LEVEL SECURITY;
+   913→   913→ALTER TABLE public.email_campaigns ENABLE ROW LEVEL SECURITY;
+   914→   914→ALTER TABLE public.referral_programs ENABLE ROW LEVEL SECURITY;
+   915→   915→ALTER TABLE public.referrals ENABLE ROW LEVEL SECURITY;
+   916→   916→ALTER TABLE public.affiliates ENABLE ROW LEVEL SECURITY;
+   917→   917→ALTER TABLE public.affiliate_referrals ENABLE ROW LEVEL SECURITY;
+   918→   918→ALTER TABLE public.sales_proposals ENABLE ROW LEVEL SECURITY;
+   919→   919→ALTER TABLE public.demo_accounts ENABLE ROW LEVEL SECURITY;
+   920→   920→ALTER TABLE public.analytics_events ENABLE ROW LEVEL SECURITY;
+   921→   921→ALTER TABLE public.daily_analytics ENABLE ROW LEVEL SECURITY;
+   922→   922→ALTER TABLE public.release_notes ENABLE ROW LEVEL SECURITY;
+   923→   923→
+   924→   924→-- Public read
+   925→   925→CREATE POLICY "Exam bodies readable by all" ON public.examination_bodies FOR SELECT TO authenticated USING (true);
+   926→   926→CREATE POLICY "Exam products readable by all" ON public.examination_products FOR SELECT TO authenticated USING (true);
+   927→   927→CREATE POLICY "Universities readable by all" ON public.universities FOR SELECT TO authenticated USING (true);
+   928→   928→CREATE POLICY "Uni faculties readable by all" ON public.university_faculties FOR SELECT TO authenticated USING (true);
+   929→   929→CREATE POLICY "Uni departments readable by all" ON public.university_departments FOR SELECT TO authenticated USING (true);
+   930→   930→CREATE POLICY "EduOS modules readable by all" ON public.eduos_modules FOR SELECT TO authenticated USING (true);
+   931→   931→CREATE POLICY "Onboarding flows readable by all" ON public.onboarding_flows FOR SELECT TO authenticated USING (true);
+   932→   932→CREATE POLICY "Help articles readable by all" ON public.help_articles FOR SELECT TO authenticated USING (is_published = true);
+   933→   933→CREATE POLICY "Video tutorials readable by all" ON public.video_tutorials FOR SELECT TO authenticated USING (is_published = true);
+   934→   934→CREATE POLICY "Blog posts readable by all" ON public.blog_posts FOR SELECT TO authenticated USING (status = 'published');
+   935→   935→CREATE POLICY "Landing pages readable by all" ON public.landing_pages FOR SELECT TO authenticated USING (is_published = true);
+   936→   936→CREATE POLICY "Release notes readable by all" ON public.release_notes FOR SELECT TO authenticated USING (is_published = true);
+   937→   937→CREATE POLICY "Feature requests readable by all" ON public.feature_requests FOR SELECT TO authenticated USING (true);
+   938→   938→
+   939→   939→-- User-scoped access
+   940→   940→CREATE POLICY "Readiness assessments user scoped" ON public.readiness_assessments FOR ALL TO authenticated USING (user_id = auth.uid());
+   941→   941→CREATE POLICY "Study plans user scoped" ON public.study_plans FOR ALL TO authenticated USING (user_id = auth.uid());
+   942→   942→CREATE POLICY "Study plan activities via plan" ON public.study_plan_activities FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM public.study_plans WHERE study_plans.id = study_plan_activities.study_plan_id AND study_plans.user_id = auth.uid()));
+   943→   943→CREATE POLICY "Admission checklists user scoped" ON public.admission_checklists FOR ALL TO authenticated USING (user_id = auth.uid());
+   944→   944→CREATE POLICY "Admission applications user scoped" ON public.admission_applications FOR ALL TO authenticated USING (user_id = auth.uid());
+   945→   945→CREATE POLICY "AI coach sessions user scoped" ON public.ai_coach_sessions FOR ALL TO authenticated USING (user_id = auth.uid());
+   946→   946→CREATE POLICY "AI coach recommendations user scoped" ON public.ai_coach_recommendations FOR ALL TO authenticated USING (user_id = auth.uid());
+   947→   947→CREATE POLICY "Onboarding progress user scoped" ON public.onboarding_progress FOR ALL TO authenticated USING (user_id = auth.uid());
+   948→   948→CREATE POLICY "Feedback submissions user scoped" ON public.feedback_submissions FOR ALL TO authenticated USING (user_id = auth.uid());
+   949→   949→CREATE POLICY "Feature request votes user scoped" ON public.feature_request_votes FOR ALL TO authenticated USING (user_id = auth.uid());
+   950→   950→
+   951→   951→-- School-scoped
+   952→   952→CREATE POLICY "Mock exams school scoped" ON public.mock_exams FOR SELECT TO authenticated USING (school_id IS NULL OR school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid()) OR EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   953→   953→CREATE POLICY "Mock exams managed by teachers" ON public.mock_exams FOR INSERT TO authenticated WITH CHECK (auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('teacher','schoolAdmin','superAdmin')));
+   954→   954→CREATE POLICY "Post UTME readable by all" ON public.post_utme_products FOR SELECT TO authenticated USING (true);
+   955→   955→CREATE POLICY "Module subscriptions school scoped" ON public.eduos_module_subscriptions FOR SELECT TO authenticated USING (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid()) OR EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   956→   956→CREATE POLICY "Module subscriptions managed by admins" ON public.eduos_module_subscriptions FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' IN ('schoolAdmin','superAdmin')));
+   957→   957→
+   958→   958→-- Super admin only
+   959→   959→CREATE POLICY "Email campaigns managed by admins" ON public.email_campaigns FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' IN ('superAdmin','schoolAdmin')));
+   960→   960→CREATE POLICY "Sales proposals managed by admins" ON public.sales_proposals FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' IN ('superAdmin','schoolAdmin')));
+   961→   961→CREATE POLICY "Demo accounts managed by admins" ON public.demo_accounts FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   962→   962→CREATE POLICY "Daily analytics admin only" ON public.daily_analytics FOR SELECT TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' IN ('superAdmin','schoolAdmin')));
+   963→   963→CREATE POLICY "Analytics events insert by system" ON public.analytics_events FOR INSERT TO authenticated WITH CHECK (true);
+   964→   964→CREATE POLICY "Landing pages managed by admins" ON public.landing_pages FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   965→   965→CREATE POLICY "Blog posts managed by admins" ON public.blog_posts FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' IN ('superAdmin','schoolAdmin')));
+   966→   966→CREATE POLICY "EduOS modules managed by super admin" ON public.eduos_modules FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   967→   967→CREATE POLICY "EduOS APIs managed by super admin" ON public.eduos_module_apis FOR ALL TO authenticated USING (EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   968→   968→
+   969→   969→-- Affiliates user-scoped
+   970→   970→CREATE POLICY "Affiliates user scoped" ON public.affiliates FOR SELECT TO authenticated USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   971→   971→CREATE POLICY "Affiliates managed by owner" ON public.affiliates FOR ALL TO authenticated USING (user_id = auth.uid());
+   972→   972→
+   973→   973→-- Referrals
+   974→   974→CREATE POLICY "Referrals readable by referrer" ON public.referrals FOR SELECT TO authenticated USING (referrer_id = auth.uid() OR EXISTS (SELECT 1 FROM auth.users WHERE id = auth.uid() AND raw_user_meta_data->>'role' = 'superAdmin'));
+   975→   975→
+   976→   976→-- ============================================================================
+   977→   977→-- FUNCTIONS
+   978→   978→-- ============================================================================
+   979→   979→CREATE OR REPLACE FUNCTION public.get_exam_readiness(p_user_id UUID, p_exam_body_id UUID DEFAULT NULL, p_subject_id UUID DEFAULT NULL)
+   980→   980→RETURNS JSONB AS $$
+   981→   981→DECLARE
+   982→   982→  v_result JSONB;
+   983→   983→BEGIN
+   984→   984→  SELECT jsonb_build_object(
+   985→   985→    'user_id', p_user_id,
+   986→   986→    'assessments', (SELECT COALESCE(jsonb_agg(row_to_json(ra.*)), '[]'::jsonb)
+   987→   987→      FROM public.readiness_assessments ra
+   988→   988→      WHERE ra.user_id = p_user_id
+   989→   989→        AND (p_exam_body_id IS NULL OR ra.exam_body_id = p_exam_body_id)
+   990→   990→        AND (p_subject_id IS NULL OR ra.subject_id = p_subject_id)
+   991→   991→      ORDER BY ra.assessed_at DESC LIMIT 10),
+   992→   992→    'overall_readiness', (SELECT ROUND(AVG(readiness_score), 2)
+   993→   993→      FROM public.readiness_assessments
+   994→   994→      WHERE user_id = p_user_id
+   995→   995→        AND (p_exam_body_id IS NULL OR exam_body_id = p_exam_body_id)),
+   996→   996→    'weak_areas', (SELECT COALESCE(jsonb_agg(DISTINCT jsonb_array_elements(weak_topics)), '[]'::jsonb)
+   997→   997→      FROM public.readiness_assessments
+   998→   998→      WHERE user_id = p_user_id AND (p_exam_body_id IS NULL OR exam_body_id = p_exam_body_id)),
+   999→   999→    'study_plans', (SELECT COUNT(*) FROM public.study_plans WHERE user_id = p_user_id AND is_active = true),
+  1000→  1000→    'total_study_minutes', (SELECT COALESCE(SUM(total_study_minutes), 0) FROM public.study_plans WHERE user_id = p_user_id)
+  1001→  1001→  ) INTO v_result;
+  1002→  1002→  RETURN v_result;
+  1003→  1003→END;
+  1004→  1004→$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+  1005→  1005→
+  1006→  1006→CREATE OR REPLACE FUNCTION public.check_admission_eligibility(
+  1007→  1007→  p_user_id UUID,
+  1008→  1008→  p_university_id UUID,
+  1009→  1009→  p_department_id UUID DEFAULT NULL
+  1010→  1010→)
+  1011→  1011→RETURNS JSONB AS $$
+  1012→  1012→DECLARE
+  1013→  1013→  v_dept RECORD;
+  1014→  1014→  v_result JSONB;
+  1015→  1015→BEGIN
+  1016→  1016→  SELECT * INTO v_dept FROM public.university_departments WHERE id = p_department_id AND is_active = true;
+  1017→  1017→  IF NOT FOUND THEN
+  1018→  1018→    RETURN jsonb_build_object('eligible', false, 'reason', 'Department not found');
+  1019→  1019→  END IF;
+  1020→  1020→
+  1021→  1021→  SELECT jsonb_build_object(
+  1022→  1022→    'eligible', true,
+  1023→  1023→    'university_id', p_university_id,
+  1024→  1024→    'department_id', p_department_id,
+  1025→  1025→    'department_name', v_dept.name,
+  1026→  1026→    'degree_type', v_dept.degree_type,
+  1027→  1027→    'duration_years', v_dept.duration_years,
+  1028→  1028→    'cut_off_mark', v_dept.cut_off_mark,
+  1029→  1029→    'utme_subjects', v_dept.utme_subjects,
+  1030→  1030→    'o_level_requirements', v_dept.o_level_requirements,
+  1031→  1031→    'jamb_subject_combination', v_dept.jamb_subject_combination,
+  1032→  1032→    'checks', jsonb_build_object(
+  1033→  1033→      'jamb_subjects_match', true,
+  1034→  1034→      'o_level_requirements_met', true,
+  1035→  1035→      'cut_off_mark_info', v_dept.cut_off_mark
+  1036→  1036→    )
+  1037→  1037→  ) INTO v_result;
+  1038→  1038→  RETURN v_result;
+  1039→  1039→END;
+  1040→  1040→$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+  1041→  1041→
+  1042→  1042→CREATE OR REPLACE FUNCTION public.track_analytics_event(
+  1043→  1043→  p_event_type TEXT,
+  1044→  1044→  p_event_name TEXT,
+  1045→  1045→  p_user_id UUID DEFAULT NULL,
+  1046→  1046→  p_school_id UUID DEFAULT NULL,
+  1047→  1047→  p_session_id TEXT DEFAULT NULL,
+  1048→  1048→  p_properties JSONB DEFAULT '{}',
+  1049→  1049→  p_device_info JSONB DEFAULT '{}'
+  1050→  1050→)
+  1051→  1051→RETURNS UUID AS $$
+  1052→  1052→DECLARE
+  1053→  1053→  v_id UUID;
+  1054→  1054→BEGIN
+  1055→  1055→  INSERT INTO public.analytics_events (event_type, event_name, user_id, school_id, session_id, properties, device_info)
+  1056→  1056→  VALUES (p_event_type, p_event_name, p_user_id, p_school_id, p_session_id, p_properties, p_device_info)
+  1057→  1057→  RETURNING id INTO v_id;
+  1058→  1058→  RETURN v_id;
+  1059→  1059→END;
+  1060→  1060→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1061→  1061→
+  1062→  1062→CREATE OR REPLACE FUNCTION public.get_analytics_summary(
+  1063→  1063→  p_school_id UUID DEFAULT NULL,
+  1064→  1064→  p_start_date DATE DEFAULT NULL,
+  1065→  1065→  p_end_date DATE DEFAULT NULL
+  1066→  1066→)
+  1067→  1067→RETURNS JSONB AS $$
+  1068→  1068→DECLARE
+  1069→  1069→  v_result JSONB;
+  1070→  1070→BEGIN
+  1071→  1071→  SELECT jsonb_build_object(
+  1072→  1072→    'total_users', (SELECT COUNT(DISTINCT user_id) FROM public.analytics_events WHERE (p_school_id IS NULL OR school_id = p_school_id) AND (p_start_date IS NULL OR timestamp >= p_start_date) AND (p_end_date IS NULL OR timestamp <= p_end_date)),
+  1073→  1073→    'total_events', (SELECT COUNT(*) FROM public.analytics_events WHERE (p_school_id IS NULL OR school_id = p_school_id) AND (p_start_date IS NULL OR timestamp >= p_start_date) AND (p_end_date IS NULL OR timestamp <= p_end_date)),
+  1074→  1074→    'event_types', (SELECT jsonb_object_agg(event_type, cnt) FROM (SELECT event_type, COUNT(*) as cnt FROM public.analytics_events WHERE (p_school_id IS NULL OR school_id = p_school_id) AND (p_start_date IS NULL OR timestamp >= p_start_date) AND (p_end_date IS NULL OR timestamp <= p_end_date) GROUP BY event_type) t),
+  1075→  1075→    'daily_active_users', (SELECT COUNT(DISTINCT user_id) FROM public.analytics_events WHERE timestamp >= CURRENT_DATE AND (p_school_id IS NULL OR school_id = p_school_id)),
+  1076→  1076→    'monthly_active_users', (SELECT COUNT(DISTINCT user_id) FROM public.analytics_events WHERE timestamp >= date_trunc('month', CURRENT_DATE) AND (p_school_id IS NULL OR school_id = p_school_id))
+  1077→  1077→  ) INTO v_result;
+  1078→  1078→  RETURN v_result;
+  1079→  1079→END;
+  1080→  1080→$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+  1081→  1081→
+  1082→  1082→CREATE OR REPLACE FUNCTION public.get_module_subscriptions(p_school_id UUID)
+  1083→  1083→RETURNS TABLE (
+  1084→  1084→  module_code TEXT, module_name TEXT, module_tier module_tier_type,
+  1085→  1085→  module_status module_status_type, is_enabled BOOLEAN, is_core BOOLEAN,
+  1086→  1086→  is_premium BOOLEAN, features JSONB, pricing_monthly DECIMAL, pricing_yearly DECIMAL
+  1087→  1087→) AS $$
+  1088→  1088→SELECT m.code, m.name, m.module_tier, m.module_status,
+  1089→  1089→       COALESCE(ms.is_enabled, m.is_core) AS is_enabled,
+  1090→  1090→       m.is_core, m.is_premium, m.features,
+  1091→  1091→       m.pricing_monthly, m.pricing_yearly
+  1092→  1092→FROM public.eduos_modules m
+  1093→  1093→LEFT JOIN public.eduos_module_subscriptions ms ON ms.module_id = m.id AND ms.school_id = p_school_id
+  1094→  1094→WHERE m.module_status = 'active'
+  1095→  1095→ORDER BY m.sort_order;
+  1096→  1096→$$ LANGUAGE sql STABLE;
+  1097→  1097→
+  1098→  1098→-- Updated_at triggers
+  1099→  1099→CREATE TRIGGER update_examination_bodies_updated_at BEFORE UPDATE ON public.examination_bodies FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1100→  1100→CREATE TRIGGER update_examination_products_updated_at BEFORE UPDATE ON public.examination_products FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1101→  1101→CREATE TRIGGER update_mock_exams_updated_at BEFORE UPDATE ON public.mock_exams FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1102→  1102→CREATE TRIGGER update_study_plans_updated_at BEFORE UPDATE ON public.study_plans FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1103→  1103→CREATE TRIGGER update_universities_updated_at BEFORE UPDATE ON public.universities FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1104→  1104→CREATE TRIGGER update_post_utme_products_updated_at BEFORE UPDATE ON public.post_utme_products FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1105→  1105→CREATE TRIGGER update_admission_checklists_updated_at BEFORE UPDATE ON public.admission_checklists FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1106→  1106→CREATE TRIGGER update_admission_applications_updated_at BEFORE UPDATE ON public.admission_applications FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1107→  1107→CREATE TRIGGER update_ai_coach_sessions_updated_at BEFORE UPDATE ON public.ai_coach_sessions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1108→  1108→CREATE TRIGGER update_eduos_modules_updated_at BEFORE UPDATE ON public.eduos_modules FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1109→  1109→CREATE TRIGGER update_eduos_module_subscriptions_updated_at BEFORE UPDATE ON public.eduos_module_subscriptions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1110→  1110→CREATE TRIGGER update_help_articles_updated_at BEFORE UPDATE ON public.help_articles FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1111→  1111→CREATE TRIGGER update_feedback_submissions_updated_at BEFORE UPDATE ON public.feedback_submissions FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1112→  1112→CREATE TRIGGER update_feature_requests_updated_at BEFORE UPDATE ON public.feature_requests FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1113→  1113→CREATE TRIGGER update_landing_pages_updated_at BEFORE UPDATE ON public.landing_pages FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1114→  1114→CREATE TRIGGER update_blog_posts_updated_at BEFORE UPDATE ON public.blog_posts FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1115→  1115→CREATE TRIGGER update_email_campaigns_updated_at BEFORE UPDATE ON public.email_campaigns FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1116→  1116→CREATE TRIGGER update_referral_programs_updated_at BEFORE UPDATE ON public.referral_programs FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1117→  1117→CREATE TRIGGER update_affiliates_updated_at BEFORE UPDATE ON public.affiliates FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1118→  1118→CREATE TRIGGER update_sales_proposals_updated_at BEFORE UPDATE ON public.sales_proposals FOR EACH ROW EXECUTE FUNCTION public.update_updated_at_column();
+  1119→  1119→
+  1120→  1120→-- ============================================================================
+  1121→  1121→-- GRANTS & COMMENTS
+  1122→  1122→-- ============================================================================
+  1123→  1123→GRANT USAGE ON ALL SEQUENCES IN SCHEMA public TO authenticated;
+  1124→  1124→GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO authenticated;
+  1125→  1125→GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA public TO authenticated;
+  1126→  1126→
+  1127→  1127→COMMENT ON TABLE public.examination_bodies IS 'Nigerian examination bodies: WAEC, NECO, NABTEB, JAMB, Post-UTME, BECE, Common Entrance';
+  1128→  1128→COMMENT ON TABLE public.examination_products IS 'Exam preparation products by body, level, and subject';
+  1129→  1129→COMMENT ON TABLE public.mock_exams IS 'Timed mock examinations with scoring and grading';
+  1130→  1130→COMMENT ON TABLE public.mock_exam_attempts IS 'Student attempts at mock exams with scores';
+  1131→  1131→COMMENT ON TABLE public.readiness_assessments IS 'Readiness scores for exam preparation tracking';
+  1132→  1132→COMMENT ON TABLE public.study_plans IS 'AI-generated and custom study plans for students';
+  1133→  1133→COMMENT ON TABLE public.study_plan_activities IS 'Individual activities within study plans';
+  1134→  1134→COMMENT ON TABLE public.universities IS 'Nigerian universities with faculties and departments';
+  1135→  1135→COMMENT ON TABLE public.university_faculties IS 'University faculties (Arts, Science, Engineering, etc.)';
+  1136→  1136→COMMENT ON TABLE public.university_departments IS 'University departments with admission requirements';
+  1137→  1137→COMMENT ON TABLE public.post_utme_products IS 'Post-UTME practice tests by university and department';
+  1138→  1138→COMMENT ON TABLE public.admission_checklists IS 'Student admission preparation checklists';
+  1139→  1139→COMMENT ON TABLE public.admission_applications IS 'Student admission applications tracking';
+  1140→  1140→COMMENT ON TABLE public.ai_coach_sessions IS 'AI study coach conversation sessions';
+  1141→  1141→COMMENT ON TABLE public.ai_coach_recommendations IS 'Personalized AI recommendations for students';
+  1142→  1142→COMMENT ON TABLE public.eduos_modules IS 'Education OS modular architecture — each capability is an independent module';
+  1143→  1143→COMMENT ON TABLE public.eduos_module_subscriptions IS 'Per-school module activation and configuration';
+  1144→  1144→COMMENT ON TABLE public.eduos_module_apis IS 'API endpoints exposed by each EduOS module';
+  1145→  1145→COMMENT ON TABLE public.onboarding_flows IS 'Role-specific onboarding steps for new users';
+  1146→  1146→COMMENT ON TABLE public.help_articles IS 'Help center knowledge base articles';
+  1147→  1147→COMMENT ON TABLE public.video_tutorials IS 'Video tutorials for platform features';
+  1148→  1148→COMMENT ON TABLE public.feedback_submissions IS 'User feedback, bug reports, and feature requests';
+  1149→  1149→COMMENT ON TABLE public.feature_requests IS 'Community feature requests with voting';
+  1150→  1150→COMMENT ON TABLE public.landing_pages IS 'Marketing landing pages with SEO';
+  1151→  1151→COMMENT ON TABLE public.blog_posts IS 'Blog posts for content marketing';
+  1152→  1152→COMMENT ON TABLE public.email_campaigns IS 'Email and push notification campaigns';
+  1153→  1153→COMMENT ON TABLE public.referral_programs IS 'Referral programs with reward tracking';
+  1154→  1154→COMMENT ON TABLE public.affiliates IS 'Affiliate program with commission tracking';
+  1155→  1155→COMMENT ON TABLE public.sales_proposals IS 'Sales proposals for school subscriptions';
+  1156→  1156→COMMENT ON TABLE public.demo_accounts IS 'Demo school accounts for sales demonstrations';
+  1157→  1157→COMMENT ON TABLE public.analytics_events IS 'Raw analytics events for platform metrics';
+  1158→  1158→COMMENT ON TABLE public.daily_analytics IS 'Aggregated daily analytics metrics';
+  1159→  1159→COMMENT ON TABLE public.release_notes IS 'Platform release notes and changelog';
+  1160→  1160→

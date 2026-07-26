@@ -1,0 +1,1780 @@
+     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→
+     3→import '../../../../core/errors/exceptions.dart';
+     4→import '../../../../core/network/paginated_query_mixin.dart';
+     5→import '../../../../core/utils/logger.dart';
+     6→import '../models/question_models.dart';
+     7→
+     8→// ═══════════════════════════════════════════════════════════════════════
+     9→// ABSTRACT INTERFACE
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→
+    12→/// Abstract interface for all remote question bank data operations.
+    13→///
+    14→/// Implementations handle all network communication with the Supabase
+    15→/// backend and return plain model instances. Exceptions are allowed to
+    16→/// propagate so the repository layer can catch and convert them to
+    17→/// domain [Failure] types.
+    18→abstract class QuestionBankRemoteDataSource {
+    19→  // ─── CRUD ──────────────────────────────────────────────────────────
+    20→
+    21→  Future<QuestionModel> createQuestion(Map<String, dynamic> questionData);
+    22→  Future<QuestionModel> updateQuestion(
+    23→    String questionId,
+    24→    Map<String, dynamic> questionData,
+    25→  );
+    26→  Future<void> deleteQuestion(String questionId);
+    27→  Future<QuestionModel> getQuestion(String questionId);
+    28→  Future<Map<String, dynamic>> getQuestionWithDetails(String questionId);
+    29→  Future<List<QuestionModel>> getQuestions(Map<String, dynamic> filters);
+    30→  Future<int> getQuestionCount(Map<String, dynamic> filters);
+    31→
+    32→  // ─── Status Management ─────────────────────────────────────────────
+    33→
+    34→  Future<void> publishQuestion(String questionId);
+    35→  Future<void> archiveQuestion(String questionId);
+    36→  Future<void> restoreQuestion(String questionId);
+    37→  Future<QuestionModel> duplicateQuestion(String questionId);
+    38→  Future<void> moveQuestions(
+    39→    List<String> questionIds,
+    40→    Map<String, dynamic> target,
+    41→  );
+    42→
+    43→  // ─── Answer Options ────────────────────────────────────────────────
+    44→
+    45→  Future<List<AnswerOptionModel>> getAnswerOptions(String questionId);
+    46→  Future<List<AnswerOptionModel>> updateAnswerOptions(
+    47→    String questionId,
+    48→    List<Map<String, dynamic>> options,
+    49→  );
+    50→
+    51→  // ─── Tags ──────────────────────────────────────────────────────────
+    52→
+    53→  Future<List<QuestionTagModel>> getTags({
+    54→    String? schoolId,
+    55→    String? searchQuery,
+    56→  });
+    57→  Future<QuestionTagModel> createTag(Map<String, dynamic> tagData);
+    58→  Future<void> addTagsToQuestion(String questionId, List<String> tagIds);
+    59→  Future<void> removeTagFromQuestion(String questionId, String tagId);
+    60→
+    61→  // ─── Favorites ─────────────────────────────────────────────────────
+    62→
+    63→  Future<void> toggleFavorite(String questionId);
+    64→  Future<List<QuestionModel>> getFavorites({
+    65→    int page = 1,
+    66→    int perPage = 20,
+    67→  });
+    68→  Future<bool> isFavorite(String questionId);
+    69→
+    70→  // ─── Collections ───────────────────────────────────────────────────
+    71→
+    72→  Future<QuestionCollectionModel> createCollection(
+    73→    Map<String, dynamic> collectionData,
+    74→  );
+    75→  Future<QuestionCollectionModel> updateCollection(
+    76→    String collectionId,
+    77→    Map<String, dynamic> collectionData,
+    78→  );
+    79→  Future<void> deleteCollection(String collectionId);
+    80→  Future<List<QuestionCollectionModel>> getCollections({
+    81→    String? schoolId,
+    82→    String? createdBy,
+    83→    bool? isShared,
+    84→  });
+    85→  Future<void> addQuestionToCollection(
+    86→    String collectionId,
+    87→    String questionId,
+    88→  );
+    89→  Future<void> removeQuestionFromCollection(
+    90→    String collectionId,
+    91→    String questionId,
+    92→  );
+    93→  Future<List<QuestionModel>> getCollectionQuestions(
+    94→    String collectionId, {
+    95→    int page = 1,
+    96→    int perPage = 20,
+    97→  });
+    98→
+    99→  // ─── Sharing ───────────────────────────────────────────────────────
+   100→
+   101→  Future<void> shareQuestion(
+   102→    String questionId,
+   103→    Map<String, dynamic> shareData,
+   104→  );
+   105→  Future<void> removeShare(String shareId);
+   106→  Future<List<QuestionShareModel>> getSharedQuestions({
+   107→    String? sharedWith,
+   108→  });
+   109→
+   110→  // ─── Import / Export ───────────────────────────────────────────────
+   111→
+   112→  Future<QuestionImportModel> startImport(Map<String, dynamic> importData);
+   113→  Future<QuestionImportModel> getImportStatus(String importId);
+   114→  Future<QuestionExportModel> startExport(Map<String, dynamic> exportData);
+   115→  Future<QuestionExportModel> getExportStatus(String exportId);
+   116→
+   117→  // ─── Search ────────────────────────────────────────────────────────
+   118→
+   119→  Future<List<QuestionModel>> searchQuestions(
+   120→    String query,
+   121→    Map<String, dynamic> filters,
+   122→  );
+   123→
+   124→  // ─── Stats ─────────────────────────────────────────────────────────
+   125→
+   126→  Future<QuestionBankStatsModel> getStats({String? schoolId});
+   127→
+   128→  // ─── Reference Data ────────────────────────────────────────────────
+   129→
+   130→  Future<List<TopicModel>> getTopics(String subjectId);
+   131→  Future<List<SubtopicModel>> getSubtopics(String topicId);
+   132→  Future<List<QuestionCategoryModel>> getCategories({String? schoolId});
+   133→  Future<List<AcademicSessionModel>> getAcademicSessions({String? schoolId});
+   134→
+   135→  // ─── Version History ───────────────────────────────────────────────
+   136→
+   137→  Future<List<QuestionVersionModel>> getVersionHistory(String questionId);
+   138→  Future<QuestionModel> restoreVersion(String questionId, int version);
+   139→}
+   140→
+   141→// ═══════════════════════════════════════════════════════════════════════
+   142→// SUPABASE IMPLEMENTATION
+   143→// ═══════════════════════════════════════════════════════════════════════
+   144→
+   145→/// Supabase-backed implementation of [QuestionBankRemoteDataSource].
+   146→///
+   147→/// Every method maps Supabase-specific responses and errors into the
+   148→/// domain-agnostic types defined in the data layer. Supabase
+   149→/// [sb.PostgrestException] instances are converted to our custom
+   150→/// exceptions with user-friendly messages.
+   151→class QuestionBankRemoteDataSourceImpl
+   152→    implements QuestionBankRemoteDataSource {
+   153→  QuestionBankRemoteDataSourceImpl({
+   154→    required sb.SupabaseClient supabaseClient,
+   155→  }) : _supabase = supabaseClient;
+   156→
+   157→  final sb.SupabaseClient _supabase;
+   158→
+   159→  // ─── Table names ───────────────────────────────────────────────────
+   160→  static const _questionsTable = 'question_bank';
+   161→  static const _answerOptionsTable = 'answer_options';
+   162→  static const _matchingPairsTable = 'matching_pairs';
+   163→  static const _orderingItemsTable = 'ordering_items';
+   164→  static const _fillInBlankTable = 'fill_in_blank_answers';
+   165→  static const _attachmentsTable = 'question_attachments';
+   166→  static const _tagsTable = 'question_tags';
+   167→  static const _tagRelationsTable = 'question_tag_relations';
+   168→  static const _collectionsTable = 'question_collections';
+   169→  static const _collectionQuestionsTable = 'collection_questions';
+   170→  static const _favoritesTable = 'question_favorites';
+   171→  static const _sharesTable = 'question_shares';
+   172→  static const _versionHistoryTable = 'question_version_history';
+   173→  static const _importsTable = 'question_imports';
+   174→  static const _exportsTable = 'question_exports';
+   175→  static const _topicsTable = 'topics';
+   176→  static const _subtopicsTable = 'subtopics';
+   177→  static const _categoriesTable = 'question_categories';
+   178→  static const _academicSessionsTable = 'academic_sessions';
+   179→
+   180→  // ═══════════════════════════════════════════════════════════════════
+   181→  // CRUD
+   182→  // ═══════════════════════════════════════════════════════════════════
+   183→
+   184→  @override
+   185→  Future<QuestionModel> createQuestion(
+   186→    Map<String, dynamic> questionData,
+   187→  ) async {
+   188→    try {
+   189→      final response =
+   190→          await _supabase.from(_questionsTable).insert(questionData).select();
+   191→
+   192→      if (response.isEmpty) {
+   193→        throw const ServerException(
+   194→          message: 'Question creation returned no data.',
+   195→          statusCode: 500,
+   196→        );
+   197→      }
+   198→
+   199→      AppLogger.info('Question created: ${response.first['id']}');
+   200→      return QuestionModel.fromJson(response.first);
+   201→    } on sb.PostgrestException catch (e) {
+   202→      throw _mapPostgrestException(e);
+   203→    } on ServerException {
+   204→      rethrow;
+   205→    } catch (e) {
+   206→      AppLogger.error('Unexpected createQuestion error', error: e);
+   207→      throw const ServerException(
+   208→        message: 'Failed to create question.',
+   209→        statusCode: 500,
+   210→      );
+   211→    }
+   212→  }
+   213→
+   214→  @override
+   215→  Future<QuestionModel> updateQuestion(
+   216→    String questionId,
+   217→    Map<String, dynamic> questionData,
+   218→  ) async {
+   219→    try {
+   220→      questionData['updated_at'] = DateTime.now().toIso8601String();
+   221→
+   222→      final response = await _supabase
+   223→          .from(_questionsTable)
+   224→          .update(questionData)
+   225→          .eq('id', questionId)
+   226→          .select();
+   227→
+   228→      if (response.isEmpty) {
+   229→        throw const NotFoundException(message: 'Question not found for update.');
+   230→      }
+   231→
+   232→      AppLogger.info('Question updated: $questionId');
+   233→      return QuestionModel.fromJson(response.first);
+   234→    } on sb.PostgrestException catch (e) {
+   235→      throw _mapPostgrestException(e);
+   236→    } on NotFoundException {
+   237→      rethrow;
+   238→    } catch (e) {
+   239→      AppLogger.error('Unexpected updateQuestion error', error: e);
+   240→      throw const ServerException(
+   241→        message: 'Failed to update question.',
+   242→        statusCode: 500,
+   243→      );
+   244→    }
+   245→  }
+   246→
+   247→  @override
+   248→  Future<void> deleteQuestion(String questionId) async {
+   249→    try {
+   250→      await _supabase
+   251→          .from(_questionsTable)
+   252→          .delete()
+   253→          .eq('id', questionId);
+   254→
+   255→      AppLogger.info('Question deleted: $questionId');
+   256→    } on sb.PostgrestException catch (e) {
+   257→      throw _mapPostgrestException(e);
+   258→    } catch (e) {
+   259→      AppLogger.error('Unexpected deleteQuestion error', error: e);
+   260→      throw const ServerException(
+   261→        message: 'Failed to delete question.',
+   262→        statusCode: 500,
+   263→      );
+   264→    }
+   265→  }
+   266→
+   267→  @override
+   268→  Future<QuestionModel> getQuestion(String questionId) async {
+   269→    try {
+   270→      final response = await _supabase
+   271→          .from(_questionsTable)
+   272→          .select()
+   273→          .eq('id', questionId)
+   274→          .limit(1);
+   275→
+   276→      if (response.isEmpty) {
+   277→        throw const NotFoundException(message: 'Question not found.');
+   278→      }
+   279→
+   280→      return QuestionModel.fromJson(response.first);
+   281→    } on sb.PostgrestException catch (e) {
+   282→      throw _mapPostgrestException(e);
+   283→    } on NotFoundException {
+   284→      rethrow;
+   285→    } catch (e) {
+   286→      AppLogger.error('Unexpected getQuestion error', error: e);
+   287→      throw const ServerException(
+   288→        message: 'Failed to retrieve question.',
+   289→        statusCode: 500,
+   290→      );
+   291→    }
+   292→  }
+   293→
+   294→  @override
+   295→  Future<Map<String, dynamic>> getQuestionWithDetails(
+   296→    String questionId,
+   297→  ) async {
+   298→    try {
+   299→      // Fetch the base question
+   300→      final questionResponse = await _supabase
+   301→          .from(_questionsTable)
+   302→          .select()
+   303→          .eq('id', questionId)
+   304→          .limit(1);
+   305→
+   306→      if (questionResponse.isEmpty) {
+   307→        throw const NotFoundException(message: 'Question not found.');
+   308→      }
+   309→
+   310→      final questionJson = Map<String, dynamic>.from(questionResponse.first);
+   311→
+   312→      // Fetch related data in parallel
+   313→      final results = await Future.wait([
+   314→        _supabase
+   315→            .from(_answerOptionsTable)
+   316→            .select()
+   317→            .eq('question_id', questionId)
+   318→            .order('sort_order'),
+   319→        _supabase
+   320→            .from(_matchingPairsTable)
+   321→            .select()
+   322→            .eq('question_id', questionId)
+   323→            .order('sort_order'),
+   324→        _supabase
+   325→            .from(_orderingItemsTable)
+   326→            .select()
+   327→            .eq('question_id', questionId)
+   328→            .order('correct_position'),
+   329→        _supabase
+   330→            .from(_fillInBlankTable)
+   331→            .select()
+   332→            .eq('question_id', questionId)
+   333→            .order('blank_index'),
+   334→        _supabase
+   335→            .from(_attachmentsTable)
+   336→            .select()
+   337→            .eq('question_id', questionId)
+   338→            .order('sort_order'),
+   339→        // Tags need a join through the relation table
+   340→        _supabase
+   341→            .from(_tagRelationsTable)
+   342→            .select('question_tags(*)')
+   343→            .eq('question_id', questionId),
+   344→      ]);
+   345→
+   346→      questionJson['answer_options'] = results[0] as List;
+   347→      questionJson['matching_pairs'] = results[1] as List;
+   348→      questionJson['ordering_items'] = results[2] as List;
+   349→      questionJson['fill_in_blank_answers'] = results[3] as List;
+   350→      questionJson['question_attachments'] = results[4] as List;
+   351→
+   352→      // Flatten tag join results
+   353→      final tagRows = results[5] as List;
+   354→      final tagList = tagRows
+   355→          .map((row) => row['question_tags'] as Map<String, dynamic>?)
+   356→          .whereType<Map<String, dynamic>>()
+   357→          .toList();
+   358→      questionJson['question_tags'] = tagList;
+   359→
+   360→      return questionJson;
+   361→    } on sb.PostgrestException catch (e) {
+   362→      throw _mapPostgrestException(e);
+   363→    } on NotFoundException {
+   364→      rethrow;
+   365→    } catch (e) {
+   366→      AppLogger.error('Unexpected getQuestionWithDetails error', error: e);
+   367→      throw const ServerException(
+   368→        message: 'Failed to retrieve question details.',
+   369→        statusCode: 500,
+   370→      );
+   371→    }
+   372→  }
+   373→
+   374→  @override
+   375→  Future<List<QuestionModel>> getQuestions(
+   376→    Map<String, dynamic> filters,
+   377→  ) async {
+   378→    try {
+   379→      final filterQuery = _applyFilters(_supabase.from(_questionsTable).select(), filters);
+   380→      var transformQuery = _applySorting(filterQuery, filters['sort_by'] as String?);
+   381→      transformQuery = _applyPagination(
+   382→        transformQuery,
+   383→        page: filters['page'] as int?,
+   384→        perPage: filters['per_page'] as int?,
+   385→      );
+   386→
+   387→      final response = await transformQuery;
+   388→      return response
+   389→          .map((json) => QuestionModel.fromJson(json as Map<String, dynamic>))
+   390→          .toList();
+   391→    } on sb.PostgrestException catch (e) {
+   392→      throw _mapPostgrestException(e);
+   393→    } catch (e) {
+   394→      AppLogger.error('Unexpected getQuestions error', error: e);
+   395→      throw const ServerException(
+   396→        message: 'Failed to retrieve questions.',
+   397→        statusCode: 500,
+   398→      );
+   399→    }
+   400→  }
+   401→
+   402→  @override
+   403→  Future<int> getQuestionCount(Map<String, dynamic> filters) async {
+   404→    try {
+   405→      final filterQuery = _applyFilters(
+   406→        _supabase.from(_questionsTable).select('id'),
+   407→        filters,
+   408→      );
+   409→
+   410→      final response = await filterQuery;
+   411→      return response.length;
+   412→    } on sb.PostgrestException catch (e) {
+   413→      throw _mapPostgrestException(e);
+   414→    } catch (e) {
+   415→      AppLogger.error('Unexpected getQuestionCount error', error: e);
+   416→      throw const ServerException(
+   417→        message: 'Failed to count questions.',
+   418→        statusCode: 500,
+   419→      );
+   420→    }
+   421→  }
+   422→
+   423→  // ═══════════════════════════════════════════════════════════════════
+   424→  // STATUS MANAGEMENT
+   425→  // ═══════════════════════════════════════════════════════════════════
+   426→
+   427→  @override
+   428→  Future<void> publishQuestion(String questionId) async {
+   429→    try {
+   430→      await _supabase
+   431→          .from(_questionsTable)
+   432→          .update({
+   433→            'is_published': true,
+   434→            'is_archived': false,
+   435→            'updated_at': DateTime.now().toIso8601String(),
+   436→          })
+   437→          .eq('id', questionId);
+   438→
+   439→      AppLogger.info('Question published: $questionId');
+   440→    } on sb.PostgrestException catch (e) {
+   441→      throw _mapPostgrestException(e);
+   442→    } catch (e) {
+   443→      AppLogger.error('Unexpected publishQuestion error', error: e);
+   444→      throw const ServerException(
+   445→        message: 'Failed to publish question.',
+   446→        statusCode: 500,
+   447→      );
+   448→    }
+   449→  }
+   450→
+   451→  @override
+   452→  Future<void> archiveQuestion(String questionId) async {
+   453→    try {
+   454→      await _supabase
+   455→          .from(_questionsTable)
+   456→          .update({
+   457→            'is_archived': true,
+   458→            'is_published': false,
+   459→            'updated_at': DateTime.now().toIso8601String(),
+   460→          })
+   461→          .eq('id', questionId);
+   462→
+   463→      AppLogger.info('Question archived: $questionId');
+   464→    } on sb.PostgrestException catch (e) {
+   465→      throw _mapPostgrestException(e);
+   466→    } catch (e) {
+   467→      AppLogger.error('Unexpected archiveQuestion error', error: e);
+   468→      throw const ServerException(
+   469→        message: 'Failed to archive question.',
+   470→        statusCode: 500,
+   471→      );
+   472→    }
+   473→  }
+   474→
+   475→  @override
+   476→  Future<void> restoreQuestion(String questionId) async {
+   477→    try {
+   478→      await _supabase
+   479→          .from(_questionsTable)
+   480→          .update({
+   481→            'is_archived': false,
+   482→            'updated_at': DateTime.now().toIso8601String(),
+   483→          })
+   484→          .eq('id', questionId);
+   485→
+   486→      AppLogger.info('Question restored: $questionId');
+   487→    } on sb.PostgrestException catch (e) {
+   488→      throw _mapPostgrestException(e);
+   489→    } catch (e) {
+   490→      AppLogger.error('Unexpected restoreQuestion error', error: e);
+   491→      throw const ServerException(
+   492→        message: 'Failed to restore question.',
+   493→        statusCode: 500,
+   494→      );
+   495→    }
+   496→  }
+   497→
+   498→  @override
+   499→  Future<QuestionModel> duplicateQuestion(String questionId) async {
+   500→    try {
+   501→      // Fetch the original question
+   502→      final original = await getQuestion(questionId);
+   503→
+   504→      // Prepare the duplicate data (strip ID, reset version)
+   505→      final duplicateData = original.toJson()
+   506→        ..remove('id')
+   507→        ..remove('created_at')
+   508→        ..remove('updated_at')
+   509→        ..['version'] = 1
+   510→        ..['parent_id'] = original.id
+   511→        ..['is_published'] = false
+   512→        ..['is_archived'] = false
+   513→        ..['usage_count'] = 0
+   514→        ..['avg_score'] = 0.0;
+   515→
+   516→      return createQuestion(duplicateData);
+   517→    } on sb.PostgrestException catch (e) {
+   518→      throw _mapPostgrestException(e);
+   519→    } on ServerException {
+   520→      rethrow;
+   521→    } on NotFoundException {
+   522→      rethrow;
+   523→    } catch (e) {
+   524→      AppLogger.error('Unexpected duplicateQuestion error', error: e);
+   525→      throw const ServerException(
+   526→        message: 'Failed to duplicate question.',
+   527→        statusCode: 500,
+   528→      );
+   529→    }
+   530→  }
+   531→
+   532→  @override
+   533→  Future<void> moveQuestions(
+   534→    List<String> questionIds,
+   535→    Map<String, dynamic> target,
+   536→  ) async {
+   537→    try {
+   538→      final updateData = <String, dynamic>{
+   539→        'updated_at': DateTime.now().toIso8601String(),
+   540→      };
+   541→
+   542→      if (target.containsKey('topic_id')) {
+   543→        updateData['topic_id'] = target['topic_id'];
+   544→      }
+   545→      if (target.containsKey('category_id')) {
+   546→        updateData['category_id'] = target['category_id'];
+   547→      }
+   548→
+   549→      for (final id in questionIds) {
+   550→        await _supabase
+   551→            .from(_questionsTable)
+   552→            .update(updateData)
+   553→            .eq('id', id);
+   554→      }
+   555→
+   556→      AppLogger.info('Moved ${questionIds.length} questions');
+   557→    } on sb.PostgrestException catch (e) {
+   558→      throw _mapPostgrestException(e);
+   559→    } catch (e) {
+   560→      AppLogger.error('Unexpected moveQuestions error', error: e);
+   561→      throw const ServerException(
+   562→        message: 'Failed to move questions.',
+   563→        statusCode: 500,
+   564→      );
+   565→    }
+   566→  }
+   567→
+   568→  // ═══════════════════════════════════════════════════════════════════
+   569→  // ANSWER OPTIONS
+   570→  // ═══════════════════════════════════════════════════════════════════
+   571→
+   572→  @override
+   573→  Future<List<AnswerOptionModel>> getAnswerOptions(
+   574→    String questionId,
+   575→  ) async {
+   576→    try {
+   577→      final response = await _supabase
+   578→          .from(_answerOptionsTable)
+   579→          .select()
+   580→          .eq('question_id', questionId)
+   581→          .order('sort_order');
+   582→
+   583→      return response
+   584→          .map((json) =>
+   585→              AnswerOptionModel.fromJson(json),)
+   586→          .toList();
+   587→    } on sb.PostgrestException catch (e) {
+   588→      throw _mapPostgrestException(e);
+   589→    } catch (e) {
+   590→      AppLogger.error('Unexpected getAnswerOptions error', error: e);
+   591→      throw const ServerException(
+   592→        message: 'Failed to retrieve answer options.',
+   593→        statusCode: 500,
+   594→      );
+   595→    }
+   596→  }
+   597→
+   598→  @override
+   599→  Future<List<AnswerOptionModel>> updateAnswerOptions(
+   600→    String questionId,
+   601→    List<Map<String, dynamic>> options,
+   602→  ) async {
+   603→    try {
+   604→      // Delete existing options
+   605→      await _supabase
+   606→          .from(_answerOptionsTable)
+   607→          .delete()
+   608→          .eq('question_id', questionId);
+   609→
+   610→      // Insert new options
+   611→      if (options.isNotEmpty) {
+   612→        final optionsData = options
+   613→            .map((o) => {
+   614→                  ...o,
+   615→                  'question_id': questionId,
+   616→                },)
+   617→            .toList();
+   618→
+   619→        await _supabase
+   620→            .from(_answerOptionsTable)
+   621→            .insert(optionsData);
+   622→      }
+   623→
+   624→      // Fetch the newly inserted options
+   625→      return getAnswerOptions(questionId);
+   626→    } on sb.PostgrestException catch (e) {
+   627→      throw _mapPostgrestException(e);
+   628→    } catch (e) {
+   629→      AppLogger.error('Unexpected updateAnswerOptions error', error: e);
+   630→      throw const ServerException(
+   631→        message: 'Failed to update answer options.',
+   632→        statusCode: 500,
+   633→      );
+   634→    }
+   635→  }
+   636→
+   637→  // ═══════════════════════════════════════════════════════════════════
+   638→  // TAGS
+   639→  // ═══════════════════════════════════════════════════════════════════
+   640→
+   641→  @override
+   642→  Future<List<QuestionTagModel>> getTags({
+   643→    String? schoolId,
+   644→    String? searchQuery,
+   645→  }) async {
+   646→    try {
+   647→      var query = _supabase.from(_tagsTable).select();
+   648→
+   649→      if (schoolId != null) {
+   650→        query = query.eq('school_id', schoolId);
+   651→      }
+   652→      if (searchQuery != null && searchQuery.isNotEmpty) {
+   653→        query = query.ilike('name', '%$searchQuery%');
+   654→      }
+   655→
+   656→      // PERF: Use PaginatedQueryMixin constant instead of magic number
+   657→      final response = await query.order('usage_count', ascending: false).limit(PaginatedQueryMixin.dropdownPageSize);
+   658→      return response
+   659→          .map((json) =>
+   660→              QuestionTagModel.fromJson(json),)
+   661→          .toList();
+   662→    } on sb.PostgrestException catch (e) {
+   663→      throw _mapPostgrestException(e);
+   664→    } catch (e) {
+   665→      AppLogger.error('Unexpected getTags error', error: e);
+   666→      throw const ServerException(
+   667→        message: 'Failed to retrieve tags.',
+   668→        statusCode: 500,
+   669→      );
+   670→    }
+   671→  }
+   672→
+   673→  @override
+   674→  Future<QuestionTagModel> createTag(Map<String, dynamic> tagData) async {
+   675→    try {
+   676→      final response =
+   677→          await _supabase.from(_tagsTable).insert(tagData).select();
+   678→
+   679→      if (response.isEmpty) {
+   680→        throw const ServerException(
+   681→          message: 'Tag creation returned no data.',
+   682→          statusCode: 500,
+   683→        );
+   684→      }
+   685→
+   686→      AppLogger.info('Tag created: ${response.first['id']}');
+   687→      return QuestionTagModel.fromJson(response.first);
+   688→    } on sb.PostgrestException catch (e) {
+   689→      throw _mapPostgrestException(e);
+   690→    } on ServerException {
+   691→      rethrow;
+   692→    } catch (e) {
+   693→      AppLogger.error('Unexpected createTag error', error: e);
+   694→      throw const ServerException(
+   695→        message: 'Failed to create tag.',
+   696→        statusCode: 500,
+   697→      );
+   698→    }
+   699→  }
+   700→
+   701→  @override
+   702→  Future<void> addTagsToQuestion(
+   703→    String questionId,
+   704→    List<String> tagIds,
+   705→  ) async {
+   706→    try {
+   707→      final relations = tagIds
+   708→          .map((tagId) => {
+   709→                'question_id': questionId,
+   710→                'tag_id': tagId,
+   711→              },)
+   712→          .toList();
+   713→
+   714→      await _supabase.from(_tagRelationsTable).insert(relations);
+   715→      AppLogger.info(
+   716→        'Added ${tagIds.length} tags to question: $questionId',
+   717→      );
+   718→    } on sb.PostgrestException catch (e) {
+   719→      throw _mapPostgrestException(e);
+   720→    } catch (e) {
+   721→      AppLogger.error('Unexpected addTagsToQuestion error', error: e);
+   722→      throw const ServerException(
+   723→        message: 'Failed to add tags to question.',
+   724→        statusCode: 500,
+   725→      );
+   726→    }
+   727→  }
+   728→
+   729→  @override
+   730→  Future<void> removeTagFromQuestion(
+   731→    String questionId,
+   732→    String tagId,
+   733→  ) async {
+   734→    try {
+   735→      await _supabase
+   736→          .from(_tagRelationsTable)
+   737→          .delete()
+   738→          .eq('question_id', questionId)
+   739→          .eq('tag_id', tagId);
+   740→
+   741→      AppLogger.info(
+   742→        'Removed tag $tagId from question: $questionId',
+   743→      );
+   744→    } on sb.PostgrestException catch (e) {
+   745→      throw _mapPostgrestException(e);
+   746→    } catch (e) {
+   747→      AppLogger.error('Unexpected removeTagFromQuestion error', error: e);
+   748→      throw const ServerException(
+   749→        message: 'Failed to remove tag from question.',
+   750→        statusCode: 500,
+   751→      );
+   752→    }
+   753→  }
+   754→
+   755→  // ═══════════════════════════════════════════════════════════════════
+   756→  // FAVORITES
+   757→  // ═══════════════════════════════════════════════════════════════════
+   758→
+   759→  @override
+   760→  Future<void> toggleFavorite(String questionId) async {
+   761→    try {
+   762→      final userId = _currentUserId;
+   763→      if (userId == null) {
+   764→        throw const UnauthorizedException(message: 'User not authenticated.');
+   765→      }
+   766→
+   767→      // Check if already favorited
+   768→      final existing = await _supabase
+   769→          .from(_favoritesTable)
+   770→          .select('id')
+   771→          .eq('user_id', userId)
+   772→          .eq('question_id', questionId);
+   773→
+   774→      if (existing.isNotEmpty) {
+   775→        // Remove favorite
+   776→        await _supabase
+   777→            .from(_favoritesTable)
+   778→            .delete()
+   779→            .eq('user_id', userId)
+   780→            .eq('question_id', questionId);
+   781→        AppLogger.info('Removed favorite: $questionId');
+   782→      } else {
+   783→        // Add favorite
+   784→        await _supabase.from(_favoritesTable).insert({
+   785→          'user_id': userId,
+   786→          'question_id': questionId,
+   787→        });
+   788→        AppLogger.info('Added favorite: $questionId');
+   789→      }
+   790→    } on sb.PostgrestException catch (e) {
+   791→      throw _mapPostgrestException(e);
+   792→    } on UnauthorizedException {
+   793→      rethrow;
+   794→    } catch (e) {
+   795→      AppLogger.error('Unexpected toggleFavorite error', error: e);
+   796→      throw const ServerException(
+   797→        message: 'Failed to toggle favorite.',
+   798→        statusCode: 500,
+   799→      );
+   800→    }
+   801→  }
+   802→
+   803→  @override
+   804→  Future<List<QuestionModel>> getFavorites({
+   805→    int page = 1,
+   806→    int perPage = 20,
+   807→  }) async {
+   808→    try {
+   809→      final userId = _currentUserId;
+   810→      if (userId == null) {
+   811→        throw const UnauthorizedException(message: 'User not authenticated.');
+   812→      }
+   813→
+   814→      final offset = (page - 1) * perPage;
+   815→
+   816→      // Join through favorites to get questions
+   817→      final response = await _supabase
+   818→          .from(_favoritesTable)
+   819→          .select('$_questionsTable(*)')
+   820→          .eq('user_id', userId)
+   821→          .order('created_at', ascending: false)
+   822→          .range(offset, offset + perPage - 1);
+   823→
+   824→      return response
+   825→          .map((row) {
+   826→            final questionData =
+   827→                row[_questionsTable] as Map<String, dynamic>?;
+   828→            if (questionData == null) return null;
+   829→            return QuestionModel.fromJson(questionData);
+   830→          })
+   831→          .whereType<QuestionModel>()
+   832→          .toList();
+   833→    } on sb.PostgrestException catch (e) {
+   834→      throw _mapPostgrestException(e);
+   835→    } on UnauthorizedException {
+   836→      rethrow;
+   837→    } catch (e) {
+   838→      AppLogger.error('Unexpected getFavorites error', error: e);
+   839→      throw const ServerException(
+   840→        message: 'Failed to retrieve favorites.',
+   841→        statusCode: 500,
+   842→      );
+   843→    }
+   844→  }
+   845→
+   846→  @override
+   847→  Future<bool> isFavorite(String questionId) async {
+   848→    try {
+   849→      final userId = _currentUserId;
+   850→      if (userId == null) return false;
+   851→
+   852→      final response = await _supabase
+   853→          .from(_favoritesTable)
+   854→          .select('id')
+   855→          .eq('user_id', userId)
+   856→          .eq('question_id', questionId);
+   857→
+   858→      return response.isNotEmpty;
+   859→    } on sb.PostgrestException catch (e) {
+   860→      throw _mapPostgrestException(e);
+   861→    } catch (e) {
+   862→      AppLogger.error('Unexpected isFavorite error', error: e);
+   863→      throw const ServerException(
+   864→        message: 'Failed to check favorite status.',
+   865→        statusCode: 500,
+   866→      );
+   867→    }
+   868→  }
+   869→
+   870→  // ═══════════════════════════════════════════════════════════════════
+   871→  // COLLECTIONS
+   872→  // ═══════════════════════════════════════════════════════════════════
+   873→
+   874→  @override
+   875→  Future<QuestionCollectionModel> createCollection(
+   876→    Map<String, dynamic> collectionData,
+   877→  ) async {
+   878→    try {
+   879→      final response = await _supabase
+   880→          .from(_collectionsTable)
+   881→          .insert(collectionData)
+   882→          .select();
+   883→
+   884→      if (response.isEmpty) {
+   885→        throw const ServerException(
+   886→          message: 'Collection creation returned no data.',
+   887→          statusCode: 500,
+   888→        );
+   889→      }
+   890→
+   891→      AppLogger.info('Collection created: ${response.first['id']}');
+   892→      return QuestionCollectionModel.fromJson(response.first);
+   893→    } on sb.PostgrestException catch (e) {
+   894→      throw _mapPostgrestException(e);
+   895→    } on ServerException {
+   896→      rethrow;
+   897→    } catch (e) {
+   898→      AppLogger.error('Unexpected createCollection error', error: e);
+   899→      throw const ServerException(
+   900→        message: 'Failed to create collection.',
+   901→        statusCode: 500,
+   902→      );
+   903→    }
+   904→  }
+   905→
+   906→  @override
+   907→  Future<QuestionCollectionModel> updateCollection(
+   908→    String collectionId,
+   909→    Map<String, dynamic> collectionData,
+   910→  ) async {
+   911→    try {
+   912→      collectionData['updated_at'] = DateTime.now().toIso8601String();
+   913→
+   914→      final response = await _supabase
+   915→          .from(_collectionsTable)
+   916→          .update(collectionData)
+   917→          .eq('id', collectionId)
+   918→          .select();
+   919→
+   920→      if (response.isEmpty) {
+   921→        throw const NotFoundException(message: 'Collection not found for update.');
+   922→      }
+   923→
+   924→      AppLogger.info('Collection updated: $collectionId');
+   925→      return QuestionCollectionModel.fromJson(response.first);
+   926→    } on sb.PostgrestException catch (e) {
+   927→      throw _mapPostgrestException(e);
+   928→    } on NotFoundException {
+   929→      rethrow;
+   930→    } catch (e) {
+   931→      AppLogger.error('Unexpected updateCollection error', error: e);
+   932→      throw const ServerException(
+   933→        message: 'Failed to update collection.',
+   934→        statusCode: 500,
+   935→      );
+   936→    }
+   937→  }
+   938→
+   939→  @override
+   940→  Future<void> deleteCollection(String collectionId) async {
+   941→    try {
+   942→      await _supabase
+   943→          .from(_collectionsTable)
+   944→          .delete()
+   945→          .eq('id', collectionId);
+   946→
+   947→      AppLogger.info('Collection deleted: $collectionId');
+   948→    } on sb.PostgrestException catch (e) {
+   949→      throw _mapPostgrestException(e);
+   950→    } catch (e) {
+   951→      AppLogger.error('Unexpected deleteCollection error', error: e);
+   952→      throw const ServerException(
+   953→        message: 'Failed to delete collection.',
+   954→        statusCode: 500,
+   955→      );
+   956→    }
+   957→  }
+   958→
+   959→  @override
+   960→  Future<List<QuestionCollectionModel>> getCollections({
+   961→    String? schoolId,
+   962→    String? createdBy,
+   963→    bool? isShared,
+   964→  }) async {
+   965→    try {
+   966→      var filterQuery = _supabase.from(_collectionsTable).select();
+   967→
+   968→      if (schoolId != null) {
+   969→        filterQuery = filterQuery.eq('school_id', schoolId);
+   970→      }
+   971→      if (createdBy != null) {
+   972→        filterQuery = filterQuery.eq('created_by', createdBy);
+   973→      }
+   974→      if (isShared != null) {
+   975→        filterQuery = filterQuery.eq('is_shared', isShared);
+   976→      }
+   977→
+   978→      filterQuery = filterQuery.eq('is_active', true);
+   979→      final transformQuery = filterQuery.order('sort_order');
+   980→
+   981→      // PERF: Added limit to prevent unbounded query on question_collections
+   982→      final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
+   983→      return response
+   984→          .map((json) => QuestionCollectionModel.fromJson(
+   985→                json,
+   986→              ),)
+   987→          .toList();
+   988→    } on sb.PostgrestException catch (e) {
+   989→      throw _mapPostgrestException(e);
+   990→    } catch (e) {
+   991→      AppLogger.error('Unexpected getCollections error', error: e);
+   992→      throw const ServerException(
+   993→        message: 'Failed to retrieve collections.',
+   994→        statusCode: 500,
+   995→      );
+   996→    }
+   997→  }
+   998→
+   999→  @override
+  1000→  Future<void> addQuestionToCollection(
+  1001→    String collectionId,
+  1002→    String questionId,
+  1003→  ) async {
+  1004→    try {
+  1005→      await _supabase.from(_collectionQuestionsTable).insert({
+  1006→        'collection_id': collectionId,
+  1007→        'question_id': questionId,
+  1008→      });
+  1009→
+  1010→      AppLogger.info(
+  1011→        'Added question $questionId to collection $collectionId',
+  1012→      );
+  1013→    } on sb.PostgrestException catch (e) {
+  1014→      throw _mapPostgrestException(e);
+  1015→    } catch (e) {
+  1016→      AppLogger.error('Unexpected addQuestionToCollection error', error: e);
+  1017→      throw const ServerException(
+  1018→        message: 'Failed to add question to collection.',
+  1019→        statusCode: 500,
+  1020→      );
+  1021→    }
+  1022→  }
+  1023→
+  1024→  @override
+  1025→  Future<void> removeQuestionFromCollection(
+  1026→    String collectionId,
+  1027→    String questionId,
+  1028→  ) async {
+  1029→    try {
+  1030→      await _supabase
+  1031→          .from(_collectionQuestionsTable)
+  1032→          .delete()
+  1033→          .eq('collection_id', collectionId)
+  1034→          .eq('question_id', questionId);
+  1035→
+  1036→      AppLogger.info(
+  1037→        'Removed question $questionId from collection $collectionId',
+  1038→      );
+  1039→    } on sb.PostgrestException catch (e) {
+  1040→      throw _mapPostgrestException(e);
+  1041→    } catch (e) {
+  1042→      AppLogger.error(
+  1043→        'Unexpected removeQuestionFromCollection error',
+  1044→        error: e,
+  1045→      );
+  1046→      throw const ServerException(
+  1047→        message: 'Failed to remove question from collection.',
+  1048→        statusCode: 500,
+  1049→      );
+  1050→    }
+  1051→  }
+  1052→
+  1053→  @override
+  1054→  Future<List<QuestionModel>> getCollectionQuestions(
+  1055→    String collectionId, {
+  1056→    int page = 1,
+  1057→    int perPage = 20,
+  1058→  }) async {
+  1059→    try {
+  1060→      final offset = (page - 1) * perPage;
+  1061→
+  1062→      final response = await _supabase
+  1063→          .from(_collectionQuestionsTable)
+  1064→          .select('$_questionsTable(*)')
+  1065→          .eq('collection_id', collectionId)
+  1066→          .order('sort_order')
+  1067→          .range(offset, offset + perPage - 1);
+  1068→
+  1069→      return response
+  1070→          .map((row) {
+  1071→            final questionData =
+  1072→                row[_questionsTable] as Map<String, dynamic>?;
+  1073→            if (questionData == null) return null;
+  1074→            return QuestionModel.fromJson(questionData);
+  1075→          })
+  1076→          .whereType<QuestionModel>()
+  1077→          .toList();
+  1078→    } on sb.PostgrestException catch (e) {
+  1079→      throw _mapPostgrestException(e);
+  1080→    } catch (e) {
+  1081→      AppLogger.error('Unexpected getCollectionQuestions error', error: e);
+  1082→      throw const ServerException(
+  1083→        message: 'Failed to retrieve collection questions.',
+  1084→        statusCode: 500,
+  1085→      );
+  1086→    }
+  1087→  }
+  1088→
+  1089→  // ═══════════════════════════════════════════════════════════════════
+  1090→  // SHARING
+  1091→  // ═══════════════════════════════════════════════════════════════════
+  1092→
+  1093→  @override
+  1094→  Future<void> shareQuestion(
+  1095→    String questionId,
+  1096→    Map<String, dynamic> shareData,
+  1097→  ) async {
+  1098→    try {
+  1099→      await _supabase.from(_sharesTable).insert({
+  1100→        'question_id': questionId,
+  1101→        ...shareData,
+  1102→      });
+  1103→
+  1104→      AppLogger.info('Shared question: $questionId');
+  1105→    } on sb.PostgrestException catch (e) {
+  1106→      throw _mapPostgrestException(e);
+  1107→    } catch (e) {
+  1108→      AppLogger.error('Unexpected shareQuestion error', error: e);
+  1109→      throw const ServerException(
+  1110→        message: 'Failed to share question.',
+  1111→        statusCode: 500,
+  1112→      );
+  1113→    }
+  1114→  }
+  1115→
+  1116→  @override
+  1117→  Future<void> removeShare(String shareId) async {
+  1118→    try {
+  1119→      await _supabase.from(_sharesTable).delete().eq('id', shareId);
+  1120→      AppLogger.info('Removed share: $shareId');
+  1121→    } on sb.PostgrestException catch (e) {
+  1122→      throw _mapPostgrestException(e);
+  1123→    } catch (e) {
+  1124→      AppLogger.error('Unexpected removeShare error', error: e);
+  1125→      throw const ServerException(
+  1126→        message: 'Failed to remove share.',
+  1127→        statusCode: 500,
+  1128→      );
+  1129→    }
+  1130→  }
+  1131→
+  1132→  @override
+  1133→  Future<List<QuestionShareModel>> getSharedQuestions({
+  1134→    String? sharedWith,
+  1135→  }) async {
+  1136→    try {
+  1137→      var filterQuery = _supabase.from(_sharesTable).select();
+  1138→
+  1139→      if (sharedWith != null) {
+  1140→        filterQuery = filterQuery.eq('shared_with', sharedWith);
+  1141→      }
+  1142→
+  1143→      final transformQuery = filterQuery.order('created_at', ascending: false);
+  1144→
+  1145→      // PERF: Added limit to prevent unbounded query on question_shares
+  1146→      final response = await transformQuery.limit(PaginatedQueryMixin.defaultPageSize);
+  1147→      return response
+  1148→          .map((json) => QuestionShareModel.fromJson(
+  1149→                json,
+  1150→              ),)
+  1151→          .toList();
+  1152→    } on sb.PostgrestException catch (e) {
+  1153→      throw _mapPostgrestException(e);
+  1154→    } catch (e) {
+  1155→      AppLogger.error('Unexpected getSharedQuestions error', error: e);
+  1156→      throw const ServerException(
+  1157→        message: 'Failed to retrieve shared questions.',
+  1158→        statusCode: 500,
+  1159→      );
+  1160→    }
+  1161→  }
+  1162→
+  1163→  // ═══════════════════════════════════════════════════════════════════
+  1164→  // IMPORT / EXPORT
+  1165→  // ═══════════════════════════════════════════════════════════════════
+  1166→
+  1167→  @override
+  1168→  Future<QuestionImportModel> startImport(
+  1169→    Map<String, dynamic> importData,
+  1170→  ) async {
+  1171→    try {
+  1172→      final response =
+  1173→          await _supabase.from(_importsTable).insert(importData).select();
+  1174→
+  1175→      if (response.isEmpty) {
+  1176→        throw const ServerException(
+  1177→          message: 'Import creation returned no data.',
+  1178→          statusCode: 500,
+  1179→        );
+  1180→      }
+  1181→
+  1182→      AppLogger.info('Import started: ${response.first['id']}');
+  1183→      return QuestionImportModel.fromJson(response.first);
+  1184→    } on sb.PostgrestException catch (e) {
+  1185→      throw _mapPostgrestException(e);
+  1186→    } on ServerException {
+  1187→      rethrow;
+  1188→    } catch (e) {
+  1189→      AppLogger.error('Unexpected startImport error', error: e);
+  1190→      throw const ServerException(
+  1191→        message: 'Failed to start import.',
+  1192→        statusCode: 500,
+  1193→      );
+  1194→    }
+  1195→  }
+  1196→
+  1197→  @override
+  1198→  Future<QuestionImportModel> getImportStatus(String importId) async {
+  1199→    try {
+  1200→      final response = await _supabase
+  1201→          .from(_importsTable)
+  1202→          .select()
+  1203→          .eq('id', importId)
+  1204→          .limit(1);
+  1205→
+  1206→      if (response.isEmpty) {
+  1207→        throw const NotFoundException(message: 'Import job not found.');
+  1208→      }
+  1209→
+  1210→      return QuestionImportModel.fromJson(response.first);
+  1211→    } on sb.PostgrestException catch (e) {
+  1212→      throw _mapPostgrestException(e);
+  1213→    } on NotFoundException {
+  1214→      rethrow;
+  1215→    } catch (e) {
+  1216→      AppLogger.error('Unexpected getImportStatus error', error: e);
+  1217→      throw const ServerException(
+  1218→        message: 'Failed to get import status.',
+  1219→        statusCode: 500,
+  1220→      );
+  1221→    }
+  1222→  }
+  1223→
+  1224→  @override
+  1225→  Future<QuestionExportModel> startExport(
+  1226→    Map<String, dynamic> exportData,
+  1227→  ) async {
+  1228→    try {
+  1229→      final response =
+  1230→          await _supabase.from(_exportsTable).insert(exportData).select();
+  1231→
+  1232→      if (response.isEmpty) {
+  1233→        throw const ServerException(
+  1234→          message: 'Export creation returned no data.',
+  1235→          statusCode: 500,
+  1236→        );
+  1237→      }
+  1238→
+  1239→      AppLogger.info('Export started: ${response.first['id']}');
+  1240→      return QuestionExportModel.fromJson(response.first);
+  1241→    } on sb.PostgrestException catch (e) {
+  1242→      throw _mapPostgrestException(e);
+  1243→    } on ServerException {
+  1244→      rethrow;
+  1245→    } catch (e) {
+  1246→      AppLogger.error('Unexpected startExport error', error: e);
+  1247→      throw const ServerException(
+  1248→        message: 'Failed to start export.',
+  1249→        statusCode: 500,
+  1250→      );
+  1251→    }
+  1252→  }
+  1253→
+  1254→  @override
+  1255→  Future<QuestionExportModel> getExportStatus(String exportId) async {
+  1256→    try {
+  1257→      final response = await _supabase
+  1258→          .from(_exportsTable)
+  1259→          .select()
+  1260→          .eq('id', exportId)
+  1261→          .limit(1);
+  1262→
+  1263→      if (response.isEmpty) {
+  1264→        throw const NotFoundException(message: 'Export job not found.');
+  1265→      }
+  1266→
+  1267→      return QuestionExportModel.fromJson(response.first);
+  1268→    } on sb.PostgrestException catch (e) {
+  1269→      throw _mapPostgrestException(e);
+  1270→    } on NotFoundException {
+  1271→      rethrow;
+  1272→    } catch (e) {
+  1273→      AppLogger.error('Unexpected getExportStatus error', error: e);
+  1274→      throw const ServerException(
+  1275→        message: 'Failed to get export status.',
+  1276→        statusCode: 500,
+  1277→      );
+  1278→    }
+  1279→  }
+  1280→
+  1281→  // ═══════════════════════════════════════════════════════════════════
+  1282→  // SEARCH
+  1283→  // ═══════════════════════════════════════════════════════════════════
+  1284→
+  1285→  @override
+  1286→  Future<List<QuestionModel>> searchQuestions(
+  1287→    String query,
+  1288→    Map<String, dynamic> filters,
+  1289→  ) async {
+  1290→    try {
+  1291→      // Full-text search using Supabase text search, then apply additional filters
+  1292→      final filterQuery = _applyFilters(
+  1293→        _supabase.from(_questionsTable).select().textSearch(
+  1294→          'content',
+  1295→          query,
+  1296→          config: 'english',
+  1297→        ),
+  1298→        filters,
+  1299→      );
+  1300→      var transformQuery = _applySorting(
+  1301→        filterQuery,
+  1302→        filters['sort_by'] as String?,
+  1303→      );
+  1304→      transformQuery = _applyPagination(
+  1305→        transformQuery,
+  1306→        page: filters['page'] as int?,
+  1307→        perPage: filters['per_page'] as int?,
+  1308→      );
+  1309→
+  1310→      final response = await transformQuery;
+  1311→      return response
+  1312→          .map((json) => QuestionModel.fromJson(json as Map<String, dynamic>))
+  1313→          .toList();
+  1314→    } on sb.PostgrestException catch (e) {
+  1315→      throw _mapPostgrestException(e);
+  1316→    } catch (e) {
+  1317→      AppLogger.error('Unexpected searchQuestions error', error: e);
+  1318→      throw const ServerException(
+  1319→        message: 'Failed to search questions.',
+  1320→        statusCode: 500,
+  1321→      );
+  1322→    }
+  1323→  }
+  1324→
+  1325→  // ═══════════════════════════════════════════════════════════════════
+  1326→  // STATS
+  1327→  // ═══════════════════════════════════════════════════════════════════
+  1328→
+  1329→  @override
+  1330→  Future<QuestionBankStatsModel> getStats({String? schoolId}) async {
+  1331→    try {
+  1332→      // Base query builder
+  1333→      var baseQuery = _supabase.from(_questionsTable).select();
+  1334→
+  1335→      if (schoolId != null) {
+  1336→        baseQuery = baseQuery.eq('school_id', schoolId);
+  1337→      }
+  1338→
+  1339→      // Fetch all questions for stats computation
+  1340→      final allQuestions = await baseQuery;
+  1341→
+  1342→      final totalQuestions = allQuestions.length;
+  1343→      final publishedQuestions = allQuestions
+  1344→          .where((q) => q['is_published'] == true)
+  1345→          .length;
+  1346→      final draftQuestions = allQuestions
+  1347→          .where((q) => q['is_published'] == false && q['is_archived'] == false)
+  1348→          .length;
+  1349→      final archivedQuestions = allQuestions
+  1350→          .where((q) => q['is_archived'] == true)
+  1351→          .length;
+  1352→
+  1353→      // Compute breakdowns
+  1354→      final Map<String, int> bySubject = {};
+  1355→      final Map<String, int> byDifficulty = {};
+  1356→      final Map<String, int> byType = {};
+  1357→      final Map<String, int> byExamType = {};
+  1358→
+  1359→      for (final q in allQuestions) {
+  1360→        final subjectId = q['subject_id'] as String?;
+  1361→        if (subjectId != null) {
+  1362→          bySubject[subjectId] = (bySubject[subjectId] ?? 0) + 1;
+  1363→        }
+  1364→
+  1365→        final diff = q['difficulty'] as String?;
+  1366→        if (diff != null) {
+  1367→          byDifficulty[diff] = (byDifficulty[diff] ?? 0) + 1;
+  1368→        }
+  1369→
+  1370→        final type = q['question_type'] as String?;
+  1371→        if (type != null) {
+  1372→          byType[type] = (byType[type] ?? 0) + 1;
+  1373→        }
+  1374→
+  1375→        final exam = q['exam_type'] as String?;
+  1376→        if (exam != null) {
+  1377→          byExamType[exam] = (byExamType[exam] ?? 0) + 1;
+  1378→        }
+  1379→      }
+  1380→
+  1381→      // Recent questions (last 7 days)
+  1382→      final weekAgo = DateTime.now().subtract(const Duration(days: 7));
+  1383→      final recentQuestions = allQuestions
+  1384→          .where((q) {
+  1385→            final createdAt = q['created_at'] as String?;
+  1386→            if (createdAt == null) return false;
+  1387→            return DateTime.parse(createdAt).isAfter(weekAgo);
+  1388→          })
+  1389→          .length;
+  1390→
+  1391→      // Collection count
+  1392→      var collectionQuery =
+  1393→          _supabase.from(_collectionsTable).select('id');
+  1394→      if (schoolId != null) {
+  1395→        collectionQuery = collectionQuery.eq('school_id', schoolId);
+  1396→      }
+  1397→      final collections = await collectionQuery;
+  1398→
+  1399→      // Favorites count for current user
+  1400→      final userId = _currentUserId;
+  1401→      int totalFavorites = 0;
+  1402→      if (userId != null) {
+  1403→        final favorites = await _supabase
+  1404→            .from(_favoritesTable)
+  1405→            .select('id')
+  1406→            .eq('user_id', userId);
+  1407→        totalFavorites = favorites.length;
+  1408→      }
+  1409→
+  1410→      // Most used questions (top 5)
+  1411→      final sortedByUsage = List<Map<String, dynamic>>.from(allQuestions)
+  1412→        ..sort((a, b) => (b['usage_count'] as int? ?? 0)
+  1413→            .compareTo(a['usage_count'] as int? ?? 0),);
+  1414→      final mostUsed = sortedByUsage
+  1415→          .take(5)
+  1416→          .map((q) => QuestionModel.fromJson(q))
+  1417→          .toList();
+  1418→
+  1419→      return QuestionBankStatsModel(
+  1420→        totalQuestions: totalQuestions,
+  1421→        publishedQuestions: publishedQuestions,
+  1422→        draftQuestions: draftQuestions,
+  1423→        archivedQuestions: archivedQuestions,
+  1424→        questionsBySubject: bySubject,
+  1425→        questionsByDifficulty: byDifficulty,
+  1426→        questionsByType: byType,
+  1427→        questionsByExamType: byExamType,
+  1428→        recentQuestions: recentQuestions,
+  1429→        totalCollections: collections.length,
+  1430→        totalFavorites: totalFavorites,
+  1431→        mostUsedQuestions: mostUsed,
+  1432→      );
+  1433→    } on sb.PostgrestException catch (e) {
+  1434→      throw _mapPostgrestException(e);
+  1435→    } catch (e) {
+  1436→      AppLogger.error('Unexpected getStats error', error: e);
+  1437→      throw const ServerException(
+  1438→        message: 'Failed to retrieve question bank stats.',
+  1439→        statusCode: 500,
+  1440→      );
+  1441→    }
+  1442→  }
+  1443→
+  1444→  // ═══════════════════════════════════════════════════════════════════
+  1445→  // REFERENCE DATA
+  1446→  // ═══════════════════════════════════════════════════════════════════
+  1447→
+  1448→  @override
+  1449→  Future<List<TopicModel>> getTopics(String subjectId) async {
+  1450→    try {
+  1451→      final response = await _supabase
+  1452→          .from(_topicsTable)
+  1453→          .select()
+  1454→          .eq('subject_id', subjectId)
+  1455→          .eq('is_active', true)
+  1456→          .order('sort_order');
+  1457→
+  1458→      return response
+  1459→          .map((json) =>
+  1460→              TopicModel.fromJson(json),)
+  1461→          .toList();
+  1462→    } on sb.PostgrestException catch (e) {
+  1463→      throw _mapPostgrestException(e);
+  1464→    } catch (e) {
+  1465→      AppLogger.error('Unexpected getTopics error', error: e);
+  1466→      throw const ServerException(
+  1467→        message: 'Failed to retrieve topics.',
+  1468→        statusCode: 500,
+  1469→      );
+  1470→    }
+  1471→  }
+  1472→
+  1473→  @override
+  1474→  Future<List<SubtopicModel>> getSubtopics(String topicId) async {
+  1475→    try {
+  1476→      final response = await _supabase
+  1477→          .from(_subtopicsTable)
+  1478→          .select()
+  1479→          .eq('topic_id', topicId)
+  1480→          .eq('is_active', true)
+  1481→          .order('sort_order');
+  1482→
+  1483→      return response
+  1484→          .map((json) =>
+  1485→              SubtopicModel.fromJson(json),)
+  1486→          .toList();
+  1487→    } on sb.PostgrestException catch (e) {
+  1488→      throw _mapPostgrestException(e);
+  1489→    } catch (e) {
+  1490→      AppLogger.error('Unexpected getSubtopics error', error: e);
+  1491→      throw const ServerException(
+  1492→        message: 'Failed to retrieve subtopics.',
+  1493→        statusCode: 500,
+  1494→      );
+  1495→    }
+  1496→  }
+  1497→
+  1498→  @override
+  1499→  Future<List<QuestionCategoryModel>> getCategories({
+  1500→    String? schoolId,
+  1501→  }) async {
+  1502→    try {
+  1503→      var filterQuery = _supabase.from(_categoriesTable).select();
+  1504→
+  1505→      if (schoolId != null) {
+  1506→        filterQuery = filterQuery.eq('school_id', schoolId);
+  1507→      }
+  1508→
+  1509→      filterQuery = filterQuery.eq('is_active', true);
+  1510→      final transformQuery = filterQuery.order('sort_order');
+  1511→
+  1512→      // PERF: Added limit to prevent unbounded query on question_categories
+  1513→      final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
+  1514→      return response
+  1515→          .map((json) => QuestionCategoryModel.fromJson(
+  1516→                json,
+  1517→              ),)
+  1518→          .toList();
+  1519→    } on sb.PostgrestException catch (e) {
+  1520→      throw _mapPostgrestException(e);
+  1521→    } catch (e) {
+  1522→      AppLogger.error('Unexpected getCategories error', error: e);
+  1523→      throw const ServerException(
+  1524→        message: 'Failed to retrieve categories.',
+  1525→        statusCode: 500,
+  1526→      );
+  1527→    }
+  1528→  }
+  1529→
+  1530→  @override
+  1531→  Future<List<AcademicSessionModel>> getAcademicSessions({
+  1532→    String? schoolId,
+  1533→  }) async {
+  1534→    try {
+  1535→      var filterQuery = _supabase.from(_academicSessionsTable).select();
+  1536→
+  1537→      if (schoolId != null) {
+  1538→        filterQuery = filterQuery.eq('school_id', schoolId);
+  1539→      }
+  1540→
+  1541→      filterQuery = filterQuery.eq('is_active', true);
+  1542→      final transformQuery = filterQuery.order('start_date');
+  1543→
+  1544→      // PERF: Added limit to prevent unbounded query on academic_sessions
+  1545→      final response = await transformQuery.limit(PaginatedQueryMixin.dropdownPageSize);
+  1546→      return response
+  1547→          .map((json) => AcademicSessionModel.fromJson(
+  1548→                json,
+  1549→              ),)
+  1550→          .toList();
+  1551→    } on sb.PostgrestException catch (e) {
+  1552→      throw _mapPostgrestException(e);
+  1553→    } catch (e) {
+  1554→      AppLogger.error('Unexpected getAcademicSessions error', error: e);
+  1555→      throw const ServerException(
+  1556→        message: 'Failed to retrieve academic sessions.',
+  1557→        statusCode: 500,
+  1558→      );
+  1559→    }
+  1560→  }
+  1561→
+  1562→  // ═══════════════════════════════════════════════════════════════════
+  1563→  // VERSION HISTORY
+  1564→  // ═══════════════════════════════════════════════════════════════════
+  1565→
+  1566→  @override
+  1567→  Future<List<QuestionVersionModel>> getVersionHistory(
+  1568→    String questionId,
+  1569→  ) async {
+  1570→    try {
+  1571→      // PERF: Added limit to prevent unbounded query on question_version_history
+  1572→      final response = await _supabase
+  1573→          .from(_versionHistoryTable)
+  1574→          .select()
+  1575→          .eq('question_id', questionId)
+  1576→          .order('version', ascending: false)
+  1577→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1578→
+  1579→      return response
+  1580→          .map((json) => QuestionVersionModel.fromJson(
+  1581→                json,
+  1582→              ),)
+  1583→          .toList();
+  1584→    } on sb.PostgrestException catch (e) {
+  1585→      throw _mapPostgrestException(e);
+  1586→    } catch (e) {
+  1587→      AppLogger.error('Unexpected getVersionHistory error', error: e);
+  1588→      throw const ServerException(
+  1589→        message: 'Failed to retrieve version history.',
+  1590→        statusCode: 500,
+  1591→      );
+  1592→    }
+  1593→  }
+  1594→
+  1595→  @override
+  1596→  Future<QuestionModel> restoreVersion(
+  1597→    String questionId,
+  1598→    int version,
+  1599→  ) async {
+  1600→    try {
+  1601→      // Fetch the version snapshot
+  1602→      final versionResponse = await _supabase
+  1603→          .from(_versionHistoryTable)
+  1604→          .select()
+  1605→          .eq('question_id', questionId)
+  1606→          .eq('version', version)
+  1607→          .limit(1);
+  1608→
+  1609→      if (versionResponse.isEmpty) {
+  1610→        throw NotFoundException(
+  1611→          message: 'Version $version not found for question $questionId.',
+  1612→        );
+  1613→      }
+  1614→
+  1615→      final versionData = versionResponse.first;
+  1616→      final snapshot = versionData['snapshot'] as Map<String, dynamic>?;
+  1617→
+  1618→      if (snapshot == null) {
+  1619→        throw const ServerException(
+  1620→          message: 'Version snapshot is empty.',
+  1621→          statusCode: 500,
+  1622→        );
+  1623→      }
+  1624→
+  1625→      // Update the question with the snapshot data
+  1626→      final restoredData = Map<String, dynamic>.from(snapshot)
+  1627→        ..remove('id')
+  1628→        ..remove('created_at')
+  1629→        ..['updated_at'] = DateTime.now().toIso8601String()
+  1630→        ..['version'] = (await getQuestion(questionId)).version + 1;
+  1631→
+  1632→      return updateQuestion(questionId, restoredData);
+  1633→    } on sb.PostgrestException catch (e) {
+  1634→      throw _mapPostgrestException(e);
+  1635→    } on ServerException {
+  1636→      rethrow;
+  1637→    } on NotFoundException {
+  1638→      rethrow;
+  1639→    } catch (e) {
+  1640→      AppLogger.error('Unexpected restoreVersion error', error: e);
+  1641→      throw const ServerException(
+  1642→        message: 'Failed to restore question version.',
+  1643→        statusCode: 500,
+  1644→      );
+  1645→    }
+  1646→  }
+  1647→
+  1648→  // ═══════════════════════════════════════════════════════════════════
+  1649→  // PRIVATE HELPERS
+  1650→  // ═══════════════════════════════════════════════════════════════════
+  1651→
+  1652→  /// Returns the currently authenticated user's ID, or null.
+  1653→  String? get _currentUserId => _supabase.auth.currentUser?.id;
+  1654→
+  1655→  /// Applies filter criteria from a filter map to a Supabase query.
+  1656→  sb.PostgrestFilterBuilder<dynamic> _applyFilters(
+  1657→    sb.PostgrestFilterBuilder<dynamic> query,
+  1658→    Map<String, dynamic> filters,
+  1659→  ) {
+  1660→    var q = query;
+  1661→
+  1662→    if (filters['subject_id'] != null) {
+  1663→      q = q.eq('subject_id', filters['subject_id'] as String);
+  1664→    }
+  1665→    if (filters['topic_id'] != null) {
+  1666→      q = q.eq('topic_id', filters['topic_id'] as String);
+  1667→    }
+  1668→    if (filters['subtopic_id'] != null) {
+  1669→      q = q.eq('subtopic_id', filters['subtopic_id'] as String);
+  1670→    }
+  1671→    if (filters['class_id'] != null) {
+  1672→      q = q.eq('class_id', filters['class_id'] as String);
+  1673→    }
+  1674→    if (filters['category_id'] != null) {
+  1675→      q = q.eq('category_id', filters['category_id'] as String);
+  1676→    }
+  1677→    if (filters['difficulty'] != null) {
+  1678→      q = q.eq('difficulty', filters['difficulty'] as String);
+  1679→    }
+  1680→    if (filters['question_type'] != null) {
+  1681→      q = q.eq('question_type', filters['question_type'] as String);
+  1682→    }
+  1683→    if (filters['exam_type'] != null) {
+  1684→      q = q.eq('exam_type', filters['exam_type'] as String);
+  1685→    }
+  1686→    if (filters['academic_session_id'] != null) {
+  1687→      q = q.eq(
+  1688→        'academic_session_id',
+  1689→        filters['academic_session_id'] as String,
+  1690→      );
+  1691→    }
+  1692→    if (filters['is_published'] != null) {
+  1693→      q = q.eq('is_published', filters['is_published'] as bool);
+  1694→    }
+  1695→    if (filters['is_archived'] != null) {
+  1696→      q = q.eq('is_archived', filters['is_archived'] as bool);
+  1697→    }
+  1698→    if (filters['is_featured'] != null) {
+  1699→      q = q.eq('is_featured', filters['is_featured'] as bool);
+  1700→    }
+  1701→    if (filters['created_by'] != null) {
+  1702→      q = q.eq('created_by', filters['created_by'] as String);
+  1703→    }
+  1704→    if (filters['school_id'] != null) {
+  1705→      q = q.eq('school_id', filters['school_id'] as String);
+  1706→    }
+  1707→
+  1708→    return q;
+  1709→  }
+  1710→
+  1711→  /// Applies sorting based on the [sortBy] value.
+  1712→  sb.PostgrestTransformBuilder<dynamic> _applySorting(
+  1713→    sb.PostgrestFilterBuilder<dynamic> query,
+  1714→    String? sortBy,
+  1715→  ) {
+  1716→    switch (sortBy) {
+  1717→      case 'oldest':
+  1718→        return query.order('created_at', ascending: true);
+  1719→      case 'most_used':
+  1720→        return query.order('usage_count', ascending: false);
+  1721→      case 'least_used':
+  1722→        return query.order('usage_count', ascending: true);
+  1723→      case 'highest_rated':
+  1724→        return query.order('avg_score', ascending: false);
+  1725→      case 'a_z':
+  1726→        return query.order('content', ascending: true);
+  1727→      case 'z_a':
+  1728→        return query.order('content', ascending: false);
+  1729→      case 'newest':
+  1730→      default:
+  1731→        return query.order('created_at', ascending: false);
+  1732→    }
+  1733→  }
+  1734→
+  1735→  /// Applies pagination using Supabase range.
+  1736→  sb.PostgrestTransformBuilder<dynamic> _applyPagination(
+  1737→    sb.PostgrestTransformBuilder<dynamic> query, {
+  1738→    int? page,
+  1739→    int? perPage,
+  1740→  }) {
+  1741→    final p = page ?? 1;
+  1742→    final pp = perPage ?? 20;
+  1743→    final from = (p - 1) * pp;
+  1744→    final to = from + pp - 1;
+  1745→    return query.range(from, to);
+  1746→  }
+  1747→
+  1748→  /// Maps a Supabase [sb.PostgrestException] to a domain exception.
+  1749→  Exception _mapPostgrestException(sb.PostgrestException e) {
+  1750→    final statusCode = e.code != null ? int.tryParse(e.code!) ?? 0 : 0;
+  1751→    final message = e.message ?? 'An unexpected database error occurred.';
+  1752→
+  1753→    AppLogger.warning(
+  1754→      'Supabase PostgrestException — code: ${e.code}, message: $message',
+  1755→    );
+  1756→
+  1757→    switch (statusCode) {
+  1758→      case 401:
+  1759→        return UnauthorizedException(message: message);
+  1760→      case 403:
+  1761→        return ForbiddenException(message: message);
+  1762→      case 404:
+  1763→        return NotFoundException(message: message);
+  1764→      case 422:
+  1765→        return ValidationException(
+  1766→          message: message,
+  1767→          fieldErrors: e.details is Map<String, dynamic>
+  1768→              ? e.details as Map<String, String>
+  1769→              : {},
+  1770→        );
+  1771→      default:
+  1772→        return ServerException(
+  1773→          message: message,
+  1774→          statusCode: statusCode,
+  1775→          data: e.details,
+  1776→        );
+  1777→    }
+  1778→  }
+  1779→}
+  1780→

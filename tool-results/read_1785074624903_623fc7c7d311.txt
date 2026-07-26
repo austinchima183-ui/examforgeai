@@ -1,0 +1,2002 @@
+     1→// ===========================================================================
+     2→// ExamForge AI — Smart Synchronization Engine
+     3→// ===========================================================================
+     4→//
+     5→// The heart of the offline-first architecture. Manages a persistent queue
+     6→// of pending operations, processes them in priority order respecting
+     7→// connectivity quality, detects and resolves conflicts, and provides
+     8→// an [OfflineAwareRepository] mixin so any repository can transparently
+     9→// fall back to cached data when offline.
+    10→//
+    11→// Usage:
+    12→//   // Watch sync state:
+    13→//   final syncState = ref.watch(syncEngineProvider);
+    14→//
+    15→//   // Enqueue an operation:
+    16→//   ref.read(syncEngineProvider.notifier).enqueueOperation(
+    17→//     tableName: 'questions',
+    18→//     operation: SyncOperationType.insert,
+    19→//     payload: {'title': 'New Question', ...},
+    20→//     priority: SyncPriority.high,
+    21→//   );
+    22→//
+    23→//   // Use offline-aware execution:
+    24→//   final result = await OfflineAwareRepository(ref).executeOfflineAware(
+    25→//     remoteCall: () => apiClient.get('/questions'),
+    26→//     localFallback: () => cacheManager.getCachedData(...),
+    27→//     tableName: 'questions',
+    28→//     operation: SyncOperationType.insert,
+    29→//     syncPayload: data,
+    30→//   );
+    31→// ===========================================================================
+    32→
+    33→import 'dart:async';
+    34→import 'dart:convert';
+    35→
+    36→import 'package:equatable/equatable.dart';
+    37→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    38→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+    39→import 'package:uuid/uuid.dart';
+    40→
+    41→import '../../config/dependency_injection.dart';
+    42→import '../connectivity/connectivity_engine.dart';
+    43→import '../errors/failures.dart';
+    44→import '../storage/cache_manager.dart';
+    45→import '../storage/local_database.dart';
+    46→import '../utils/logger.dart';
+    47→import '../utils/result.dart';
+    48→
+    49→// ═══════════════════════════════════════════════════════════════════════════════
+    50→// SYNC OPERATION TYPE — Enhanced Enum
+    51→// ═══════════════════════════════════════════════════════════════════════════════
+    52→
+    53→/// Represents the type of database operation being synced.
+    54→enum SyncOperationType {
+    55→  insert(value: 'insert', label: 'Insert'),
+    56→  update(value: 'update', label: 'Update'),
+    57→  delete(value: 'delete', label: 'Delete');
+    58→
+    59→  const SyncOperationType({required this.value, required this.label});
+    60→
+    61→  /// String identifier used for serialisation and database storage.
+    62→  final String value;
+    63→
+    64→  /// Human-readable label for UI display and logging.
+    65→  final String label;
+    66→
+    67→  /// Constructs a [SyncOperationType] from its serialised [value] string.
+    68→  ///
+    69→  /// Returns [SyncOperationType.update] as a safe default if the string
+    70→  /// does not match any known operation type.
+    71→  static SyncOperationType fromString(String value) {
+    72→    return SyncOperationType.values.firstWhere(
+    73→      (t) => t.value == value,
+    74→      orElse: () => SyncOperationType.update,
+    75→    );
+    76→  }
+    77→}
+    78→
+    79→// ═══════════════════════════════════════════════════════════════════════════════
+    80→// SYNC STATUS — Enhanced Enum
+    81→// ═══════════════════════════════════════════════════════════════════════════════
+    82→
+    83→/// Represents the lifecycle state of a sync queue item.
+    84→enum SyncStatus {
+    85→  pending(value: 'pending', label: 'Pending'),
+    86→  inProgress(value: 'in_progress', label: 'In Progress'),
+    87→  completed(value: 'completed', label: 'Completed'),
+    88→  failed(value: 'failed', label: 'Failed'),
+    89→  dead(value: 'dead', label: 'Dead'),
+    90→  conflict(value: 'conflict', label: 'Conflict');
+    91→
+    92→  const SyncStatus({required this.value, required this.label});
+    93→
+    94→  /// String identifier used for serialisation and database storage.
+    95→  final String value;
+    96→
+    97→  /// Human-readable label for UI display and logging.
+    98→  final String label;
+    99→
+   100→  /// Constructs a [SyncStatus] from its serialised [value] string.
+   101→  ///
+   102→  /// Returns [SyncStatus.pending] as a safe default if the string
+   103→  /// does not match any known status.
+   104→  static SyncStatus fromString(String value) {
+   105→    return SyncStatus.values.firstWhere(
+   106→      (s) => s.value == value,
+   107→      orElse: () => SyncStatus.pending,
+   108→    );
+   109→  }
+   110→}
+   111→
+   112→// ═══════════════════════════════════════════════════════════════════════════════
+   113→// CONFLICT RESOLUTION — Enhanced Enum
+   114→// ═══════════════════════════════════════════════════════════════════════════════
+   115→
+   116→/// Strategy for resolving a sync conflict between local and server data.
+   117→enum ConflictResolution {
+   118→  localWins(value: 'local_wins', label: 'Local Wins'),
+   119→  serverWins(value: 'server_wins', label: 'Server Wins'),
+   120→  merge(value: 'merge', label: 'Merge'),
+   121→  manual(value: 'manual', label: 'Manual');
+   122→
+   123→  const ConflictResolution({required this.value, required this.label});
+   124→
+   125→  /// String identifier used for serialisation and database storage.
+   126→  final String value;
+   127→
+   128→  /// Human-readable label for UI display and logging.
+   129→  final String label;
+   130→
+   131→  /// Constructs a [ConflictResolution] from its serialised [value] string.
+   132→  ///
+   133→  /// Returns [ConflictResolution.manual] as a safe default so that
+   134→  /// unrecognised strategies never silently discard data.
+   135→  static ConflictResolution fromString(String value) {
+   136→    return ConflictResolution.values.firstWhere(
+   137→      (r) => r.value == value,
+   138→      orElse: () => ConflictResolution.manual,
+   139→    );
+   140→  }
+   141→}
+   142→
+   143→// ═══════════════════════════════════════════════════════════════════════════════
+   144→// SYNC PRIORITY — Enhanced Enum
+   145→// ═══════════════════════════════════════════════════════════════════════════════
+   146→
+   147→/// Priority level for a sync queue item. Lower values are processed first.
+   148→///
+   149→/// The [level] integer is used for sorting; the semantic names are for
+   150→/// human consumption and UI rendering.
+   151→enum SyncPriority {
+   152→  critical(value: 'critical', label: 'Critical', level: 1),
+   153→  high(value: 'high', label: 'High', level: 3),
+   154→  normal(value: 'normal', label: 'Normal', level: 5),
+   155→  low(value: 'low', label: 'Low', level: 7),
+   156→  background(value: 'background', label: 'Background', level: 10);
+   157→
+   158→  const SyncPriority({
+   159→    required this.value,
+   160→    required this.label,
+   161→    required this.level,
+   162→  });
+   163→
+   164→  /// String identifier used for serialisation and database storage.
+   165→  final String value;
+   166→
+   167→  /// Human-readable label for UI display and logging.
+   168→  final String label;
+   169→
+   170→  /// Numeric level used for priority sorting (lower = higher priority).
+   171→  final int level;
+   172→
+   173→  /// Constructs a [SyncPriority] from its serialised [value] string.
+   174→  ///
+   175→  /// Returns [SyncPriority.normal] as a safe default.
+   176→  static SyncPriority fromString(String value) {
+   177→    return SyncPriority.values.firstWhere(
+   178→      (p) => p.value == value,
+   179→      orElse: () => SyncPriority.normal,
+   180→    );
+   181→  }
+   182→
+   183→  /// Constructs a [SyncPriority] from its numeric [level].
+   184→  ///
+   185→  /// Returns [SyncPriority.normal] if no priority matches exactly.
+   186→  static SyncPriority fromLevel(int level) {
+   187→    return SyncPriority.values.firstWhere(
+   188→      (p) => p.level == level,
+   189→      orElse: () => SyncPriority.normal,
+   190→    );
+   191→  }
+   192→}
+   193→
+   194→// ═══════════════════════════════════════════════════════════════════════════════
+   195→// SYNC QUEUE ITEM
+   196→// ═══════════════════════════════════════════════════════════════════════════════
+   197→
+   198→/// Represents a single pending sync operation in the persistent queue.
+   199→///
+   200→/// Instances are stored in the local [LocalSyncQueueTable] via
+   201→/// [CacheManager] and processed by [SyncEngine.processQueue].
+   202→class SyncQueueItem extends Equatable {
+   203→  const SyncQueueItem({
+   204→    required this.id,
+   205→    required this.userId,
+   206→    required this.tableName,
+   207→    required this.recordId,
+   208→    required this.operationType,
+   209→    required this.payload,
+   210→    required this.priority,
+   211→    required this.attempts,
+   212→    required this.maxAttempts,
+   213→    required this.status,
+   214→    required this.errorMessage,
+   215→    required this.createdAt,
+   216→    required this.updatedAt,
+   217→    required this.nextRetryAt,
+   218→  });
+   219→
+   220→  /// Unique identifier for this queue entry.
+   221→  final String id;
+   222→
+   223→  /// Owner of the sync entry.
+   224→  final String userId;
+   225→
+   226→  /// Target table name on the remote (e.g. `questions`, `exams`).
+   227→  final String tableName;
+   228→
+   229→  /// Remote record ID. Null for inserts (server assigns the ID).
+   230→  final String? recordId;
+   231→
+   232→  /// The type of operation to perform.
+   233→  final SyncOperationType operationType;
+   234→
+   235→  /// JSON-serialisable payload for the operation.
+   236→  final Map<String, dynamic> payload;
+   237→
+   238→  /// Priority level (lower = higher priority).
+   239→  final SyncPriority priority;
+   240→
+   241→  /// Number of attempts made so far.
+   242→  final int attempts;
+   243→
+   244→  /// Maximum number of retry attempts before marking dead.
+   245→  final int maxAttempts;
+   246→
+   247→  /// Current lifecycle state.
+   248→  final SyncStatus status;
+   249→
+   250→  /// Error message from the last failed attempt, if any.
+   251→  final String? errorMessage;
+   252→
+   253→  /// When the entry was created locally.
+   254→  final DateTime createdAt;
+   255→
+   256→  /// When the entry was last updated.
+   257→  final DateTime updatedAt;
+   258→
+   259→  /// When the next retry should be attempted (null = immediate).
+   260→  final DateTime? nextRetryAt;
+   261→
+   262→  // ── Computed Getters ──────────────────────────────────────────────────
+   263→
+   264→  /// Whether this item can be retried (has not exceeded max attempts
+   265→  /// and is not in a terminal dead state).
+   266→  bool get isRetryable => attempts < maxAttempts && status != SyncStatus.dead;
+   267→
+   268→  /// Whether this item is critical or high priority (level <= 3).
+   269→  bool get isCritical => priority.level <= 3;
+   270→
+   271→  // ── Factory ───────────────────────────────────────────────────────────
+   272→
+   273→  /// Constructs a [SyncQueueItem] from a raw database row map
+   274→  /// (as returned by [CacheManager.getPendingSyncItems]).
+   275→  factory SyncQueueItem.fromMap(Map<String, dynamic> map) {
+   276→    return SyncQueueItem(
+   277→      id: map['id'] as String,
+   278→      userId: map['userId'] as String,
+   279→      tableName: map['tableName'] as String,
+   280→      recordId: map['recordId'] as String?,
+   281→      operationType: SyncOperationType.fromString(map['operation'] as String),
+   282→      payload: map['payload'] is String
+   283→          ? jsonDecode(map['payload'] as String) as Map<String, dynamic>
+   284→          : Map<String, dynamic>.from(map['payload'] as Map),
+   285→      priority: map['priority'] is int
+   286→          ? SyncPriority.fromLevel(map['priority'] as int)
+   287→          : SyncPriority.fromString(map['priority'] as String),
+   288→      attempts: map['attempts'] as int,
+   289→      maxAttempts: map['maxAttempts'] as int,
+   290→      status: SyncStatus.fromString(map['status'] as String),
+   291→      errorMessage: map['errorMessage'] as String?,
+   292→      createdAt: map['createdAt'] is DateTime
+   293→          ? map['createdAt'] as DateTime
+   294→          : DateTime.parse(map['createdAt'] as String),
+   295→      updatedAt: map['updatedAt'] is DateTime
+   296→          ? map['updatedAt'] as DateTime
+   297→          : DateTime.parse(map['updatedAt'] as String),
+   298→      nextRetryAt: map['nextRetryAt'] == null
+   299→          ? null
+   300→          : map['nextRetryAt'] is DateTime
+   301→              ? map['nextRetryAt'] as DateTime
+   302→              : DateTime.parse(map['nextRetryAt'] as String),
+   303→    );
+   304→  }
+   305→
+   306→  /// Serialises this item to a JSON-compatible map.
+   307→  Map<String, dynamic> toMap() => {
+   308→        'id': id,
+   309→        'userId': userId,
+   310→        'tableName': tableName,
+   311→        'recordId': recordId,
+   312→        'operation': operationType.value,
+   313→        'payload': jsonEncode(payload),
+   314→        'priority': priority.level,
+   315→        'attempts': attempts,
+   316→        'maxAttempts': maxAttempts,
+   317→        'status': status.value,
+   318→        'errorMessage': errorMessage,
+   319→        'createdAt': createdAt.toIso8601String(),
+   320→        'updatedAt': updatedAt.toIso8601String(),
+   321→        'nextRetryAt': nextRetryAt?.toIso8601String(),
+   322→      };
+   323→
+   324→  /// Returns a copy with the specified fields replaced.
+   325→  SyncQueueItem copyWith({
+   326→    String? id,
+   327→    String? userId,
+   328→    String? tableName,
+   329→    String? recordId,
+   330→    SyncOperationType? operationType,
+   331→    Map<String, dynamic>? payload,
+   332→    SyncPriority? priority,
+   333→    int? attempts,
+   334→    int? maxAttempts,
+   335→    SyncStatus? status,
+   336→    String? errorMessage,
+   337→    DateTime? createdAt,
+   338→    DateTime? updatedAt,
+   339→    DateTime? nextRetryAt,
+   340→    bool clearErrorMessage = false,
+   341→    bool clearNextRetryAt = false,
+   342→  }) {
+   343→    return SyncQueueItem(
+   344→      id: id ?? this.id,
+   345→      userId: userId ?? this.userId,
+   346→      tableName: tableName ?? this.tableName,
+   347→      recordId: recordId ?? this.recordId,
+   348→      operationType: operationType ?? this.operationType,
+   349→      payload: payload ?? this.payload,
+   350→      priority: priority ?? this.priority,
+   351→      attempts: attempts ?? this.attempts,
+   352→      maxAttempts: maxAttempts ?? this.maxAttempts,
+   353→      status: status ?? this.status,
+   354→      errorMessage:
+   355→          clearErrorMessage ? null : (errorMessage ?? this.errorMessage),
+   356→      createdAt: createdAt ?? this.createdAt,
+   357→      updatedAt: updatedAt ?? this.updatedAt,
+   358→      nextRetryAt: clearNextRetryAt ? null : (nextRetryAt ?? this.nextRetryAt),
+   359→    );
+   360→  }
+   361→
+   362→  @override
+   363→  List<Object?> get props => [
+   364→        id,
+   365→        userId,
+   366→        tableName,
+   367→        recordId,
+   368→        operationType,
+   369→        payload,
+   370→        priority,
+   371→        attempts,
+   372→        maxAttempts,
+   373→        status,
+   374→        errorMessage,
+   375→        createdAt,
+   376→        updatedAt,
+   377→        nextRetryAt,
+   378→      ];
+   379→
+   380→  @override
+   381→  String toString() => 'SyncQueueItem('
+   382→      'id: $id, '
+   383→      'table: $tableName, '
+   384→      'operation: ${operationType.value}, '
+   385→      'priority: ${priority.value}, '
+   386→      'status: ${status.value}, '
+   387→      'attempts: $attempts/$maxAttempts'
+   388→      ')';
+   389→}
+   390→
+   391→// ═══════════════════════════════════════════════════════════════════════════════
+   392→// SYNC CONFLICT
+   393→// ═══════════════════════════════════════════════════════════════════════════════
+   394→
+   395→/// Represents a detected conflict between local and server data.
+   396→///
+   397→/// Created when [SyncEngine.detectConflict] determines that the local
+   398→/// version of a record diverges from the server version. The conflict
+   399→/// must be resolved before the sync can proceed.
+   400→class SyncConflict extends Equatable {
+   401→  const SyncConflict({
+   402→    required this.id,
+   403→    required this.userId,
+   404→    required this.tableName,
+   405→    required this.recordId,
+   406→    required this.localData,
+   407→    required this.serverData,
+   408→    required this.resolution,
+   409→    required this.resolvedData,
+   410→    required this.createdAt,
+   411→  });
+   412→
+   413→  /// Unique identifier for this conflict entry.
+   414→  final String id;
+   415→
+   416→  /// Owner of the conflicting record.
+   417→  final String userId;
+   418→
+   419→  /// Table where the conflict occurred.
+   420→  final String tableName;
+   421→
+   422→  /// ID of the conflicting record.
+   423→  final String recordId;
+   424→
+   425→  /// The local version of the data at the time of conflict detection.
+   426→  final Map<String, dynamic> localData;
+   427→
+   428→  /// The server version of the data at the time of conflict detection.
+   429→  final Map<String, dynamic> serverData;
+   430→
+   431→  /// The resolution strategy that was (or will be) applied.
+   432→  final ConflictResolution resolution;
+   433→
+   434→  /// The merged / resolved data, or null if not yet resolved.
+   435→  final Map<String, dynamic>? resolvedData;
+   436→
+   437→  /// When the conflict was first detected.
+   438→  final DateTime createdAt;
+   439→
+   440→  /// Whether the conflict has been resolved.
+   441→  bool get isResolved => resolution != ConflictResolution.manual ||
+   442→      resolvedData != null;
+   443→
+   444→  /// Factory for creating a new unresolved conflict.
+   445→  factory SyncConflict.create({
+   446→    required String userId,
+   447→    required String tableName,
+   448→    required String recordId,
+   449→    required Map<String, dynamic> localData,
+   450→    required Map<String, dynamic> serverData,
+   451→  }) {
+   452→    return SyncConflict(
+   453→      id: const Uuid().v4(),
+   454→      userId: userId,
+   455→      tableName: tableName,
+   456→      recordId: recordId,
+   457→      localData: localData,
+   458→      serverData: serverData,
+   459→      resolution: ConflictResolution.manual,
+   460→      resolvedData: null,
+   461→      createdAt: DateTime.now(),
+   462→    );
+   463→  }
+   464→
+   465→  /// Returns a copy with the conflict resolved.
+   466→  SyncConflict resolve(
+   467→    ConflictResolution resolution, {
+   468→    Map<String, dynamic>? mergedData,
+   469→  }) {
+   470→    return SyncConflict(
+   471→      id: id,
+   472→      userId: userId,
+   473→      tableName: tableName,
+   474→      recordId: recordId,
+   475→      localData: localData,
+   476→      serverData: serverData,
+   477→      resolution: resolution,
+   478→      resolvedData: mergedData,
+   479→      createdAt: createdAt,
+   480→    );
+   481→  }
+   482→
+   483→  @override
+   484→  List<Object?> get props => [
+   485→        id,
+   486→        userId,
+   487→        tableName,
+   488→        recordId,
+   489→        localData,
+   490→        serverData,
+   491→        resolution,
+   492→        resolvedData,
+   493→        createdAt,
+   494→      ];
+   495→
+   496→  @override
+   497→  String toString() => 'SyncConflict('
+   498→      'id: $id, '
+   499→      'table: $tableName, '
+   500→      'record: $recordId, '
+   501→      'resolution: ${resolution.value}'
+   502→      ')';
+   503→}
+   504→
+   505→// ═══════════════════════════════════════════════════════════════════════════════
+   506→// SYNC RESULT
+   507→// ═══════════════════════════════════════════════════════════════════════════════
+   508→
+   509→/// Aggregated result of a sync batch operation.
+   510→///
+   511→/// Returned by [SyncEngine.processQueue] to summarise what happened
+   512→/// during a single sync pass.
+   513→class SyncResult extends Equatable {
+   514→  const SyncResult({
+   515→    required this.itemsSynced,
+   516→    required this.itemsFailed,
+   517→    required this.conflicts,
+   518→    required this.duration,
+   519→    required this.errors,
+   520→  });
+   521→
+   522→  /// Number of items successfully synced to the server.
+   523→  final int itemsSynced;
+   524→
+   525→  /// Number of items that failed to sync.
+   526→  final int itemsFailed;
+   527→
+   528→  /// List of conflicts detected during this sync pass.
+   529→  final List<SyncConflict> conflicts;
+   530→
+   531→  /// Wall-clock duration of the sync operation.
+   532→  final Duration duration;
+   533→
+   534→  /// Human-readable error messages from failed items.
+   535→  final List<String> errors;
+   536→
+   537→  // ── Computed Getters ──────────────────────────────────────────────────
+   538→
+   539→  /// Whether all items synced successfully (zero failures).
+   540→  bool get isSuccess => itemsFailed == 0;
+   541→
+   542→  /// Whether any conflicts were detected.
+   543→  bool get hasConflicts => conflicts.isNotEmpty;
+   544→
+   545→  /// Total number of items processed.
+   546→  int get totalProcessed => itemsSynced + itemsFailed;
+   547→
+   548→  /// Success rate as a value between 0.0 and 1.0.
+   549→  double get successRate => totalProcessed == 0
+   550→      ? 0.0
+   551→      : itemsSynced / totalProcessed;
+   552→
+   553→  /// An empty result indicating no work was done.
+   554→  static const empty = SyncResult(
+   555→    itemsSynced: 0,
+   556→    itemsFailed: 0,
+   557→    conflicts: [],
+   558→    duration: Duration.zero,
+   559→    errors: [],
+   560→  );
+   561→
+   562→  @override
+   563→  List<Object?> get props => [
+   564→        itemsSynced,
+   565→        itemsFailed,
+   566→        conflicts,
+   567→        duration,
+   568→        errors,
+   569→      ];
+   570→
+   571→  @override
+   572→  String toString() => 'SyncResult('
+   573→      'synced: $itemsSynced, '
+   574→      'failed: $itemsFailed, '
+   575→      'conflicts: ${conflicts.length}, '
+   576→      'duration: ${duration.inMilliseconds}ms'
+   577→      ')';
+   578→}
+   579→
+   580→// ═══════════════════════════════════════════════════════════════════════════════
+   581→// SYNC ENGINE STATE
+   582→// ═══════════════════════════════════════════════════════════════════════════════
+   583→
+   584→/// Immutable state snapshot for the [SyncEngine].
+   585→///
+   586→/// Follows the same pattern as [ConnectivityState] — emitted via
+   587→/// [StateNotifier] and consumed by Riverpod providers so that widgets
+   588→/// rebuild only when the state genuinely changes.
+   589→class SyncEngineState extends Equatable {
+   590→  const SyncEngineState({
+   591→    this.isSyncing = false,
+   592→    this.lastSyncAt,
+   593→    this.pendingCount = 0,
+   594→    this.failedCount = 0,
+   595→    this.currentBatch = 0,
+   596→    this.lastResult,
+   597→    this.errors = const [],
+   598→    this.syncProgress = 0.0,
+   599→    this.isAutoSyncEnabled = true,
+   600→    this.conflictItems = const [],
+   601→  });
+   602→
+   603→  /// Whether a sync operation is currently in progress.
+   604→  final bool isSyncing;
+   605→
+   606→  /// Timestamp of the last successful sync completion.
+   607→  final DateTime? lastSyncAt;
+   608→
+   609→  /// Number of items currently in the pending state.
+   610→  final int pendingCount;
+   611→
+   612→  /// Number of items currently in the failed state.
+   613→  final int failedCount;
+   614→
+   615→  /// Number of items being processed in the current batch.
+   616→  final int currentBatch;
+   617→
+   618→  /// Result of the most recent sync pass, if any.
+   619→  final SyncResult? lastResult;
+   620→
+   621→  /// Transient error messages for UI display.
+   622→  final List<String> errors;
+   623→
+   624→  /// Sync progress as a value between 0.0 and 1.0.
+   625→  final double syncProgress;
+   626→
+   627→  /// Whether automatic periodic sync is enabled.
+   628→  final bool isAutoSyncEnabled;
+   629→
+   630→  /// Currently unresolved conflicts awaiting manual resolution.
+   631→  final List<SyncConflict> conflictItems;
+   632→
+   633→  // ── Computed Getters ──────────────────────────────────────────────────
+   634→
+   635→  /// Whether there are any items waiting to be synced.
+   636→  bool get hasPendingItems => pendingCount > 0;
+   637→
+   638→  /// Whether there are any failed items that may be retryable.
+   639→  bool get hasFailedItems => failedCount > 0;
+   640→
+   641→  /// Whether there are any unresolved conflicts.
+   642→  bool get hasConflicts => conflictItems.isNotEmpty;
+   643→
+   644→  /// Overall sync health assessment.
+   645→  ///
+   646→  ///   - **good**: no failed items and no conflicts.
+   647→  ///   - **warning**: some failures but < 20 % of total, or conflicts exist.
+   648→  ///   - **critical**: failures >= 20 % of total, or more than 10 dead items.
+   649→  String get syncHealth {
+   650→    final total = pendingCount + failedCount;
+   651→    if (total == 0 && !hasConflicts) return 'good';
+   652→
+   653→    final failureRatio = total > 0 ? failedCount / total : 0.0;
+   654→
+   655→    if (failureRatio >= 0.2 || failedCount > 10) return 'critical';
+   656→    if (failedCount > 0 || hasConflicts) return 'warning';
+   657→    return 'good';
+   658→  }
+   659→
+   660→  // ── copyWith ──────────────────────────────────────────────────────────
+   661→
+   662→  /// Returns a new [SyncEngineState] with the specified fields replaced.
+   663→  SyncEngineState copyWith({
+   664→    bool? isSyncing,
+   665→    DateTime? lastSyncAt,
+   666→    int? pendingCount,
+   667→    int? failedCount,
+   668→    int? currentBatch,
+   669→    SyncResult? lastResult,
+   670→    List<String>? errors,
+   671→    double? syncProgress,
+   672→    bool? isAutoSyncEnabled,
+   673→    List<SyncConflict>? conflictItems,
+   674→    bool clearLastSyncAt = false,
+   675→    bool clearLastResult = false,
+   676→  }) {
+   677→    return SyncEngineState(
+   678→      isSyncing: isSyncing ?? this.isSyncing,
+   679→      lastSyncAt: clearLastSyncAt ? null : (lastSyncAt ?? this.lastSyncAt),
+   680→      pendingCount: pendingCount ?? this.pendingCount,
+   681→      failedCount: failedCount ?? this.failedCount,
+   682→      currentBatch: currentBatch ?? this.currentBatch,
+   683→      lastResult: clearLastResult ? null : (lastResult ?? this.lastResult),
+   684→      errors: errors ?? this.errors,
+   685→      syncProgress: syncProgress ?? this.syncProgress,
+   686→      isAutoSyncEnabled: isAutoSyncEnabled ?? this.isAutoSyncEnabled,
+   687→      conflictItems: conflictItems ?? this.conflictItems,
+   688→    );
+   689→  }
+   690→
+   691→  /// Convenience that returns a copy with [errors] cleared.
+   692→  SyncEngineState clearError() => copyWith(errors: []);
+   693→
+   694→  /// Convenience that returns a copy with [lastResult] cleared.
+   695→  SyncEngineState clearSuccess() => copyWith(clearLastResult: true);
+   696→
+   697→  @override
+   698→  List<Object?> get props => [
+   699→        isSyncing,
+   700→        lastSyncAt,
+   701→        pendingCount,
+   702→        failedCount,
+   703→        currentBatch,
+   704→        lastResult,
+   705→        errors,
+   706→        syncProgress,
+   707→        isAutoSyncEnabled,
+   708→        conflictItems,
+   709→      ];
+   710→
+   711→  @override
+   712→  String toString() => 'SyncEngineState('
+   713→      'syncing: $isSyncing, '
+   714→      'pending: $pendingCount, '
+   715→      'failed: $failedCount, '
+   716→      'progress: ${(syncProgress * 100).toStringAsFixed(0)}%, '
+   717→      'health: $syncHealth, '
+   718→      'conflicts: ${conflictItems.length}'
+   719→      ')';
+   720→}
+   721→
+   722→// ═══════════════════════════════════════════════════════════════════════════════
+   723→// SYNC ENGINE
+   724→// ═══════════════════════════════════════════════════════════════════════════════
+   725→
+   726→/// Core synchronisation engine for ExamForge AI's offline-first architecture.
+   727→///
+   728→/// Extends [StateNotifier]<[SyncEngineState]> so that any widget or
+   729→/// provider watching [syncEngineProvider] rebuilds automatically when
+   730→/// sync state changes.
+   731→///
+   732→/// The engine:
+   733→///   1. Maintains a persistent queue of pending operations in the local DB.
+   734→///   2. Processes them in priority order, respecting batch size limits
+   735→///      derived from the current connectivity quality.
+   736→///   3. Detects conflicts by comparing local and server timestamps.
+   737→///   4. Auto-resolves conflicts where possible (server wins for non-drafts,
+   738→///      merge for drafts) and escalates the rest to manual resolution.
+   739→///   5. Applies exponential backoff for failed items.
+   740→///   6. Runs a periodic auto-sync timer when enabled and online.
+   741→class SyncEngine extends StateNotifier<SyncEngineState> {
+   742→  SyncEngine({
+   743→    required CacheManager cacheManager,
+   744→    required dynamic supabaseClient,
+   745→    required ConnectivityEngine connectivityEngine,
+   746→    this.maxRetryAttempts = 5,
+   747→    this.defaultSyncInterval = const Duration(seconds: 30),
+   748→  })  : _cacheManager = cacheManager,
+   749→        _supabaseClient = supabaseClient,
+   750→        _connectivityEngine = connectivityEngine,
+   751→        super(const SyncEngineState());
+   752→
+   753→  // ── Dependencies ──────────────────────────────────────────────────────
+   754→
+   755→  /// Persistent cache / sync-queue manager.
+   756→  final CacheManager _cacheManager;
+   757→
+   758→  /// Supabase client for remote operations. Typed as `dynamic` to
+   759→  /// decouple from the concrete Supabase version at compile time.
+   760→  final dynamic _supabaseClient;
+   761→
+   762→  /// Reference to the connectivity engine for quality-aware decisions.
+   763→  final ConnectivityEngine _connectivityEngine;
+   764→
+   765→  // ── Configuration ─────────────────────────────────────────────────────
+   766→
+   767→  /// Maximum retry attempts before marking an item as dead.
+   768→  final int maxRetryAttempts;
+   769→
+   770→  /// Default interval between automatic sync passes.
+   771→  final Duration defaultSyncInterval;
+   772→
+   773→  /// UUID generator for new records.
+   774→  static const _uuid = Uuid();
+   775→
+   776→  // ── Internal State ────────────────────────────────────────────────────
+   777→
+   778→  /// Periodic timer for auto-sync.
+   779→  Timer? _autoSyncTimer;
+   780→
+   781→  /// Subscription to connectivity state changes.
+   782→  StreamSubscription<ConnectivityState>? _connectivitySubscription;
+   783→
+   784→  /// In-memory list of pending items loaded from the DB.
+   785→  List<SyncQueueItem> _pendingItems = [];
+   786→
+   787→  /// In-memory list of detected conflicts.
+   788→  List<SyncConflict> _conflicts = [];
+   789→
+   790→  /// Whether the engine has been initialised.
+   791→  bool _isInitialized = false;
+   792→
+   793→  /// Whether the engine has been disposed.
+   794→  bool _isDisposed = false;
+   795→
+   796→  // ═══════════════════════════════════════════════════════════════════════
+   797→  // LIFECYCLE
+   798→  // ═══════════════════════════════════════════════════════════════════════
+   799→
+   800→  /// Initialises the engine by loading pending items from the local DB
+   801→  /// and starting the auto-sync timer if enabled.
+   802→  ///
+   803→  /// Should be called once after the engine is created (typically from
+   804→  /// the Riverpod provider's constructor).
+   805→  Future<void> initialize() async {
+   806→    if (_isInitialized) return;
+   807→
+   808→    AppLogger.info('SyncEngine: initializing...');
+   809→
+   810→    try {
+   811→      // Load pending items from the local database.
+   812→      await _loadPendingItems();
+   813→
+   814→      // Load any persisted conflicts (could be stored in cache).
+   815→      await _loadConflicts();
+   816→
+   817→      // Subscribe to connectivity changes to trigger sync when coming online.
+   818→      _connectivitySubscription =
+   819→          _connectivityEngine.stream.listen(_onConnectivityChanged);
+   820→
+   821→      // Start auto-sync if enabled.
+   822→      if (state.isAutoSyncEnabled) {
+   823→        _startAutoSyncTimer();
+   824→      }
+   825→
+   826→      _isInitialized = true;
+   827→
+   828→      // Update state with loaded counts.
+   829→      state = state.copyWith(
+   830→        pendingCount: _pendingItems
+   831→            .where((i) => i.status == SyncStatus.pending)
+   832→            .length,
+   833→        failedCount: _pendingItems
+   834→            .where((i) => i.status == SyncStatus.failed)
+   835→            .length,
+   836→        conflictItems: _conflicts,
+   837→      );
+   838→
+   839→      AppLogger.info(
+   840→        'SyncEngine: initialized '
+   841→        '(pending: ${state.pendingCount}, failed: ${state.failedCount}, '
+   842→        'conflicts: ${_conflicts.length})',
+   843→      );
+   844→    } catch (e, st) {
+   845→      AppLogger.error(
+   846→        'SyncEngine: initialization failed',
+   847→        error: e,
+   848→        stackTrace: st,
+   849→      );
+   850→      state = state.copyWith(
+   851→        errors: ['Initialization failed: $e'],
+   852→      );
+   853→    }
+   854→  }
+   855→
+   856→  @override
+   857→  void dispose() {
+   858→    _isDisposed = true;
+   859→    _autoSyncTimer?.cancel();
+   860→    _connectivitySubscription?.cancel();
+   861→    _pendingItems.clear();
+   862→    _conflicts.clear();
+   863→    super.dispose();
+   864→  }
+   865→
+   866→  // ═══════════════════════════════════════════════════════════════════════
+   867→  // PUBLIC API — ENQUEUE & CANCEL
+   868→  // ═══════════════════════════════════════════════════════════════════════
+   869→
+   870→  /// Adds an operation to the sync queue.
+   871→  ///
+   872→  /// If the device is online and the engine is not currently syncing,
+   873→  /// the operation may be processed immediately on the next sync tick.
+   874→  Future<void> enqueueOperation({
+   875→    required String tableName,
+   876→    required SyncOperationType operation,
+   877→    required Map<String, dynamic> payload,
+   878→    String? recordId,
+   879→    SyncPriority priority = SyncPriority.normal,
+   880→  }) async {
+   881→    try {
+   882→      // Get current user ID from Supabase auth.
+   883→      final userId = _currentUserId;
+   884→      if (userId == null) {
+   885→        AppLogger.warning('SyncEngine: cannot enqueue — no authenticated user');
+   886→        return;
+   887→      }
+   888→
+   889→      // Persist to the local database via CacheManager.
+   890→      await _cacheManager.enqueueSync(
+   891→        userId: userId,
+   892→        tableName: tableName,
+   893→        operation: operation.value,
+   894→        payload: payload,
+   895→        recordId: recordId,
+   896→        priority: priority.level,
+   897→      );
+   898→
+   899→      // Create an in-memory representation.
+   900→      final now = DateTime.now();
+   901→      final item = SyncQueueItem(
+   902→        id: _uuid.v4(),
+   903→        userId: userId,
+   904→        tableName: tableName,
+   905→        recordId: recordId,
+   906→        operationType: operation,
+   907→        payload: payload,
+   908→        priority: priority,
+   909→        attempts: 0,
+   910→        maxAttempts: maxRetryAttempts,
+   911→        status: SyncStatus.pending,
+   912→        errorMessage: null,
+   913→        createdAt: now,
+   914→        updatedAt: now,
+   915→        nextRetryAt: null,
+   916→      );
+   917→
+   918→      _pendingItems.add(item);
+   919→      _sortPendingItems();
+   920→
+   921→      state = state.copyWith(
+   922→        pendingCount: _pendingItems
+   923→            .where((i) => i.status == SyncStatus.pending)
+   924→            .length,
+   925→      );
+   926→
+   927→      AppLogger.info(
+   928→        'SyncEngine: enqueued ${operation.value} on $tableName '
+   929→        '(priority: ${priority.value}, queue depth: ${_pendingItems.length})',
+   930→      );
+   931→    } catch (e, st) {
+   932→      AppLogger.error(
+   933→        'SyncEngine: failed to enqueue operation',
+   934→        error: e,
+   935→        stackTrace: st,
+   936→      );
+   937→      state = state.copyWith(
+   938→        errors: ['Failed to enqueue operation: $e'],
+   939→      );
+   940→    }
+   941→  }
+   942→
+   943→  /// Cancels a pending operation by its [id].
+   944→  ///
+   945→  /// Completed, dead, or in-progress items cannot be cancelled.
+   946→  Future<void> cancelOperation(String id) async {
+   947→    try {
+   948→      final index = _pendingItems.indexWhere((i) => i.id == id);
+   949→      if (index == -1) {
+   950→        AppLogger.warning('SyncEngine: cancel — item $id not found in memory');
+   951→        return;
+   952→      }
+   953→
+   954→      final item = _pendingItems[index];
+   955→      if (item.status == SyncStatus.completed ||
+   956→          item.status == SyncStatus.dead ||
+   957→          item.status == SyncStatus.inProgress) {
+   958→        AppLogger.warning(
+   959→          'SyncEngine: cannot cancel item $id in state ${item.status.value}',
+   960→        );
+   961→        return;
+   962→      }
+   963→
+   964→      // Remove from in-memory list.
+   965→      _pendingItems.removeAt(index);
+   966→
+   967→      // Remove from persistent store.
+   968→      await _cacheManager.markSyncItemCompleted(id: id);
+   969→
+   970→      state = state.copyWith(
+   971→        pendingCount: _pendingItems
+   972→            .where((i) => i.status == SyncStatus.pending)
+   973→            .length,
+   974→        failedCount: _pendingItems
+   975→            .where((i) => i.status == SyncStatus.failed)
+   976→            .length,
+   977→      );
+   978→
+   979→      AppLogger.info('SyncEngine: cancelled operation $id');
+   980→    } catch (e, st) {
+   981→      AppLogger.error(
+   982→        'SyncEngine: failed to cancel operation $id',
+   983→        error: e,
+   984→        stackTrace: st,
+   985→      );
+   986→    }
+   987→  }
+   988→
+   989→  /// Removes all completed items from the queue (both in-memory and DB).
+   990→  Future<void> clearCompleted() async {
+   991→    try {
+   992→      final completedIds = _pendingItems
+   993→          .where((i) => i.status == SyncStatus.completed)
+   994→          .map((i) => i.id)
+   995→          .toList();
+   996→
+   997→      _pendingItems.removeWhere((i) => i.status == SyncStatus.completed);
+   998→
+   999→      // Clean up dead items while we are at it.
+  1000→      await _cacheManager.cleanupDeadSyncItems();
+  1001→
+  1002→      state = state.copyWith(
+  1003→        pendingCount: _pendingItems
+  1004→            .where((i) => i.status == SyncStatus.pending)
+  1005→            .length,
+  1006→        failedCount: _pendingItems
+  1007→            .where((i) => i.status == SyncStatus.failed)
+  1008→            .length,
+  1009→      );
+  1010→
+  1011→      AppLogger.info(
+  1012→        'SyncEngine: cleared ${completedIds.length} completed items',
+  1013→      );
+  1014→    } catch (e, st) {
+  1015→      AppLogger.error(
+  1016→        'SyncEngine: failed to clear completed items',
+  1017→        error: e,
+  1018→        stackTrace: st,
+  1019→      );
+  1020→    }
+  1021→  }
+  1022→
+  1023→  /// Returns pending items for a specific [tableName].
+  1024→  List<SyncQueueItem> getPendingForTable(String tableName) {
+  1025→    return _pendingItems
+  1026→        .where(
+  1027→          (i) =>
+  1028→              i.tableName == tableName &&
+  1029→              (i.status == SyncStatus.pending ||
+  1030→                  i.status == SyncStatus.failed),
+  1031→        )
+  1032→        .toList();
+  1033→  }
+  1034→
+  1035→  // ═══════════════════════════════════════════════════════════════════════
+  1036→  // PUBLIC API — PROCESS QUEUE
+  1037→  // ═══════════════════════════════════════════════════════════════════════
+  1038→
+  1039→  /// Processes pending sync items in priority order, respecting the
+  1040→  /// batch size dictated by the current connectivity quality.
+  1041→  ///
+  1042→  /// Returns a [SyncResult] summarising the outcome of this sync pass.
+  1043→  Future<SyncResult> processQueue() async {
+  1044→    if (state.isSyncing) {
+  1045→      AppLogger.debug('SyncEngine: processQueue skipped — already syncing');
+  1046→      return SyncResult.empty;
+  1047→    }
+  1048→
+  1049→    // Check if we should sync at all given current connectivity.
+  1050→    if (!_connectivityEngine.shouldPerformSync()) {
+  1051→      AppLogger.info(
+  1052→        'SyncEngine: processQueue skipped — '
+  1053→        'connectivity quality is ${_connectivityEngine.state.connectionQuality.value}',
+  1054→      );
+  1055→      return SyncResult.empty;
+  1056→    }
+  1057→
+  1058→    // Filter items that are eligible for processing.
+  1059→    final eligibleItems = _pendingItems.where((i) {
+  1060→      if (i.status == SyncStatus.completed || i.status == SyncStatus.dead) {
+  1061→        return false;
+  1062→      }
+  1063→      if (i.status == SyncStatus.inProgress) return false;
+  1064→      // Respect scheduled retry time.
+  1065→      if (i.nextRetryAt != null &&
+  1066→          DateTime.now().isBefore(i.nextRetryAt!)) {
+  1067→        return false;
+  1068→      }
+  1069→      return true;
+  1070→    }).toList();
+  1071→
+  1072→    if (eligibleItems.isEmpty) {
+  1073→      AppLogger.debug('SyncEngine: no eligible items to process');
+  1074→      return SyncResult.empty;
+  1075→    }
+  1076→
+  1077→    // Determine batch size from adaptive behaviour.
+  1078→    final behavior = AdaptiveBehavior(_connectivityEngine.state);
+  1079→    final batchSize = behavior.batchSize;
+  1080→    final batch = eligibleItems.take(batchSize).toList();
+  1081→
+  1082→    AppLogger.info(
+  1083→      'SyncEngine: processing ${batch.length} items '
+  1084→      '(batch size: $batchSize, quality: ${_connectivityEngine.state.connectionQuality.value})',
+  1085→    );
+  1086→
+  1087→    state = state.copyWith(
+  1088→      isSyncing: true,
+  1089→      currentBatch: batch.length,
+  1090→      syncProgress: 0.0,
+  1091→    );
+  1092→
+  1093→    final stopwatch = Stopwatch()..start();
+  1094→    var itemsSynced = 0;
+  1095→    var itemsFailed = 0;
+  1096→    final detectedConflicts = <SyncConflict>[];
+  1097→    final errors = <String>[];
+  1098→
+  1099→    for (var i = 0; i < batch.length; i++) {
+  1100→      if (_isDisposed) break;
+  1101→
+  1102→      final item = batch[i];
+  1103→
+  1104→      // Update progress.
+  1105→      state = state.copyWith(
+  1106→        syncProgress: (i + 1) / batch.length,
+  1107→      );
+  1108→
+  1109→      try {
+  1110→        final result = await processItem(item);
+  1111→        result.fold(
+  1112→          onSuccess: (_) {
+  1113→            itemsSynced++;
+  1114→          },
+  1115→          onFailure: (failure) {
+  1116→            // Check if this is a conflict.
+  1117→            if (failure is ServerFailure && failure.statusCode == 409) {
+  1118→              // Conflict detected — try auto-resolution.
+  1119→              final conflictResult = _handleConflictForItem(item, failure);
+  1120→              if (conflictResult != null) {
+  1121→                detectedConflicts.add(conflictResult);
+  1122→                itemsFailed++;
+  1123→              } else {
+  1124→                itemsSynced++; // Auto-resolved
+  1125→              }
+  1126→            } else if (failure is ValidationFailure) {
+  1127→              // Validation errors are permanent — mark as dead.
+  1128→              _markItemDead(item, failure.message);
+  1129→              itemsFailed++;
+  1130→              errors.add('${item.tableName}/${item.recordId}: ${failure.message}');
+  1131→            } else if (failure is NetworkFailure) {
+  1132→              // Network errors are transient — mark for retry.
+  1133→              _markItemFailed(item, failure.message);
+  1134→              itemsFailed++;
+  1135→              errors.add('${item.tableName}/${item.recordId}: ${failure.message}');
+  1136→            } else {
+  1137→              _markItemFailed(item, failure.message);
+  1138→              itemsFailed++;
+  1139→              errors.add('${item.tableName}/${item.recordId}: ${failure.message}');
+  1140→            }
+  1141→          },
+  1142→        );
+  1143→      } catch (e, st) {
+  1144→        AppLogger.error(
+  1145→          'SyncEngine: unexpected error processing item ${item.id}',
+  1146→          error: e,
+  1147→          stackTrace: st,
+  1148→        );
+  1149→        _markItemFailed(item, e.toString());
+  1150→        itemsFailed++;
+  1151→        errors.add('${item.tableName}/${item.recordId}: $e');
+  1152→      }
+  1153→    }
+  1154→
+  1155→    stopwatch.stop();
+  1156→
+  1157→    final result = SyncResult(
+  1158→      itemsSynced: itemsSynced,
+  1159→      itemsFailed: itemsFailed,
+  1160→      conflicts: detectedConflicts,
+  1161→      duration: stopwatch.elapsed,
+  1162→      errors: errors,
+  1163→    );
+  1164→
+  1165→    // Refresh pending items from DB to get accurate counts.
+  1166→    await _loadPendingItems();
+  1167→
+  1168→    state = state.copyWith(
+  1169→      isSyncing: false,
+  1170→      lastSyncAt: DateTime.now(),
+  1171→      currentBatch: 0,
+  1172→      syncProgress: 1.0,
+  1173→      lastResult: result,
+  1174→      pendingCount: _pendingItems
+  1175→          .where((i) => i.status == SyncStatus.pending)
+  1176→          .length,
+  1177→      failedCount: _pendingItems
+  1178→          .where((i) => i.status == SyncStatus.failed)
+  1179→          .length,
+  1180→    );
+  1181→
+  1182→    AppLogger.info(
+  1183→      'SyncEngine: sync completed — '
+  1184→      'synced: $itemsSynced, failed: $itemsFailed, '
+  1185→      'conflicts: ${detectedConflicts.length}, '
+  1186→      'duration: ${stopwatch.elapsedMilliseconds}ms',
+  1187→    );
+  1188→
+  1189→    return result;
+  1190→  }
+  1191→
+  1192→  /// Processes a single sync item against the Supabase backend.
+  1193→  ///
+  1194→  /// Returns a [Result] indicating success or failure with a [Failure].
+  1195→  Future<Result<void>> processItem(SyncQueueItem item) async {
+  1196→    AppLogger.debug(
+  1197→      'SyncEngine: processing ${item.operationType.value} '
+  1198→      'on ${item.tableName}/${item.recordId ?? "new"}',
+  1199→    );
+  1200→
+  1201→    // Mark as in-progress in memory.
+  1202→    _updateItemInMemory(item.id, status: SyncStatus.inProgress);
+  1203→
+  1204→    try {
+  1205→      final table = _supabaseClient.from(item.tableName);
+  1206→
+  1207→      switch (item.operationType) {
+  1208→        case SyncOperationType.insert:
+  1209→          await table.insert(item.payload);
+  1210→          AppLogger.debug(
+  1211→            'SyncEngine: inserted into ${item.tableName}',
+  1212→          );
+  1213→
+  1214→        case SyncOperationType.update:
+  1215→          if (item.recordId == null) {
+  1216→            return const FailureResult(Failure.validation(
+  1217→              message: 'Cannot update without a recordId',
+  1218→              fieldErrors: {},
+  1219→            ),);
+  1220→          }
+  1221→          await table.update(item.payload).eq('id', item.recordId!);
+  1222→          AppLogger.debug(
+  1223→            'SyncEngine: updated ${item.tableName}/${item.recordId}',
+  1224→          );
+  1225→
+  1226→        case SyncOperationType.delete:
+  1227→          if (item.recordId == null) {
+  1228→            return const FailureResult(Failure.validation(
+  1229→              message: 'Cannot delete without a recordId',
+  1230→              fieldErrors: {},
+  1231→            ),);
+  1232→          }
+  1233→          await table.delete().eq('id', item.recordId!);
+  1234→          AppLogger.debug(
+  1235→            'SyncEngine: deleted from ${item.tableName}/${item.recordId}',
+  1236→          );
+  1237→      }
+  1238→
+  1239→      // Mark as completed in the persistent store.
+  1240→      await _cacheManager.markSyncItemCompleted(id: item.id);
+  1241→      _updateItemInMemory(item.id, status: SyncStatus.completed);
+  1242→
+  1243→      // Update local cache to reflect the synced state.
+  1244→      await _updateLocalCache(item);
+  1245→
+  1246→      return const Success(null);
+  1247→    } on sb.PostgrestException catch (e) {
+  1248→      AppLogger.warning(
+  1249→        'SyncEngine: Supabase error for ${item.id}: ${e.message} '
+  1250→        '(code: ${e.code})',
+  1251→      );
+  1252→
+  1253→      // Map Postgrest error codes to failure types.
+  1254→      if (e.code == '409' || e.code == '23505') {
+  1255→        return FailureResult(Failure.server(
+  1256→          message: e.message,
+  1257→          statusCode: 409,
+  1258→          data: e.details,
+  1259→        ),);
+  1260→      }
+  1261→      if (e.code == '422' || e.code == '400') {
+  1262→        return FailureResult(Failure.validation(
+  1263→          message: e.message,
+  1264→          fieldErrors: {},
+  1265→        ),);
+  1266→      }
+  1267→      if (e.code == '401') {
+  1268→        return FailureResult(Failure.unauthorized(
+  1269→          message: e.message,
+  1270→        ),);
+  1271→      }
+  1272→      if (e.code == '403') {
+  1273→        return FailureResult(Failure.forbidden(
+  1274→          message: e.message,
+  1275→        ),);
+  1276→      }
+  1277→      if (e.code == '404') {
+  1278→        return FailureResult(Failure.notFound(
+  1279→          message: e.message,
+  1280→        ),);
+  1281→      }
+  1282→      return FailureResult(Failure.server(
+  1283→        message: e.message,
+  1284→        statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1285→      ),);
+  1286→    } on sb.AuthException catch (e) {
+  1287→      return FailureResult(Failure.auth(
+  1288→        message: e.message,
+  1289→        code: 'auth_error',
+  1290→      ),);
+  1291→    } catch (e) {
+  1292→      // Assume network-level error for any other exception.
+  1293→      return FailureResult(Failure.network(
+  1294→        message: e.toString(),
+  1295→      ),);
+  1296→    }
+  1297→  }
+  1298→
+  1299→  // ═══════════════════════════════════════════════════════════════════════
+  1300→  // PUBLIC API — CONFLICT DETECTION & RESOLUTION
+  1301→  // ═══════════════════════════════════════════════════════════════════════
+  1302→
+  1303→  /// Detects a conflict by comparing local and server data using
+  1304→  /// timestamps and checksums.
+  1305→  ///
+  1306→  /// A conflict exists when:
+  1307→  ///   - The server's `updated_at` is newer than the local `updated_at`
+  1308→  ///     embedded in the payload, **and**
+  1309→  ///   - The payload content differs from the server version.
+  1310→  ///
+  1311→  /// Returns a [SyncConflict] if a conflict is detected, or `null`
+  1312→  /// if the data is compatible.
+  1313→  SyncConflict? detectConflict(
+  1314→    SyncQueueItem item,
+  1315→    Map<String, dynamic> serverData,
+  1316→  ) {
+  1317→    final localUpdatedAt = item.payload['updated_at'];
+  1318→    final serverUpdatedAt = serverData['updated_at'];
+  1319→
+  1320→    // Parse timestamps for comparison.
+  1321→    DateTime? localTime;
+  1322→    DateTime? serverTime;
+  1323→
+  1324→    if (localUpdatedAt is String) {
+  1325→      localTime = DateTime.tryParse(localUpdatedAt);
+  1326→    } else if (localUpdatedAt is DateTime) {
+  1327→      localTime = localUpdatedAt;
+  1328→    }
+  1329→
+  1330→    if (serverUpdatedAt is String) {
+  1331→      serverTime = DateTime.tryParse(serverUpdatedAt);
+  1332→    } else if (serverUpdatedAt is DateTime) {
+  1333→      serverTime = serverUpdatedAt;
+  1334→    }
+  1335→
+  1336→    // If we can't parse timestamps, assume conflict to be safe.
+  1337→    if (localTime == null || serverTime == null) {
+  1338→      AppLogger.warning(
+  1339→        'SyncEngine: conflict detection — unparseable timestamps for '
+  1340→        '${item.tableName}/${item.recordId}',
+  1341→      );
+  1342→      return SyncConflict.create(
+  1343→        userId: item.userId,
+  1344→        tableName: item.tableName,
+  1345→        recordId: item.recordId ?? item.id,
+  1346→        localData: item.payload,
+  1347→        serverData: serverData,
+  1348→      );
+  1349→    }
+  1350→
+  1351→    // Server is newer → potential conflict.
+  1352→    if (serverTime.isAfter(localTime)) {
+  1353→      // Check if the actual content differs by comparing checksums
+  1354→      // or by a key-by-key comparison of non-metadata fields.
+  1355→      if (_dataDiffers(item.payload, serverData)) {
+  1356→        AppLogger.info(
+  1357→          'SyncEngine: conflict detected for '
+  1358→          '${item.tableName}/${item.recordId} '
+  1359→          '(local: $localTime, server: $serverTime)',
+  1360→        );
+  1361→        return SyncConflict.create(
+  1362→          userId: item.userId,
+  1363→          tableName: item.tableName,
+  1364→          recordId: item.recordId ?? item.id,
+  1365→          localData: item.payload,
+  1366→          serverData: serverData,
+  1367→        );
+  1368→      }
+  1369→      // Server is newer but data is the same — no real conflict.
+  1370→      return null;
+  1371→    }
+  1372→
+  1373→    // Local is newer or same — no conflict (local wins).
+  1374→    return null;
+  1375→  }
+  1376→
+  1377→  /// Resolves a conflict according to the specified [resolution] strategy.
+  1378→  ///
+  1379→  /// For [ConflictResolution.merge], [mergedData] must be provided.
+  1380→  /// For other strategies, the resolution is deterministic.
+  1381→  Future<void> resolveConflict(
+  1382→    SyncQueueItem item,
+  1383→    ConflictResolution resolution, {
+  1384→    Map<String, dynamic>? mergedData,
+  1385→  }) async {
+  1386→    try {
+  1387→      final conflictIndex = _conflicts.indexWhere(
+  1388→        (c) => c.recordId == (item.recordId ?? item.id),
+  1389→      );
+  1390→
+  1391→      if (conflictIndex == -1) {
+  1392→        AppLogger.warning(
+  1393→          'SyncEngine: resolveConflict — no matching conflict found for '
+  1394→          '${item.tableName}/${item.recordId}',
+  1395→        );
+  1396→        return;
+  1397→      }
+  1398→
+  1399→      final conflict = _conflicts[conflictIndex];
+  1400→      Map<String, dynamic> resolvedData;
+  1401→
+  1402→      switch (resolution) {
+  1403→        case ConflictResolution.localWins:
+  1404→          resolvedData = conflict.localData;
+  1405→          AppLogger.info(
+  1406→            'SyncEngine: conflict resolved — local wins for '
+  1407→            '${item.tableName}/${conflict.recordId}',
+  1408→          );
+  1409→
+  1410→        case ConflictResolution.serverWins:
+  1411→          resolvedData = conflict.serverData;
+  1412→          AppLogger.info(
+  1413→            'SyncEngine: conflict resolved — server wins for '
+  1414→            '${item.tableName}/${conflict.recordId}',
+  1415→          );
+  1416→
+  1417→        case ConflictResolution.merge:
+  1418→          if (mergedData == null) {
+  1419→            AppLogger.error(
+  1420→              'SyncEngine: merge resolution requires mergedData',
+  1421→            );
+  1422→            return;
+  1423→          }
+  1424→          resolvedData = mergedData;
+  1425→          AppLogger.info(
+  1426→            'SyncEngine: conflict resolved — merge for '
+  1427→            '${item.tableName}/${conflict.recordId}',
+  1428→          );
+  1429→
+  1430→        case ConflictResolution.manual:
+  1431→          AppLogger.info(
+  1432→            'SyncEngine: conflict resolution deferred to manual for '
+  1433→            '${item.tableName}/${conflict.recordId}',
+  1434→          );
+  1435→          return;
+  1436→      }
+  1437→
+  1438→      // Update the conflict record.
+  1439→      _conflicts[conflictIndex] = conflict.resolve(
+  1440→        resolution,
+  1441→        mergedData: resolvedData,
+  1442→      );
+  1443→
+  1444→      // Update the queue item's payload and re-enqueue.
+  1445→      _updateItemInMemory(
+  1446→        item.id,
+  1447→        payload: resolvedData,
+  1448→        status: SyncStatus.pending,
+  1449→      );
+  1450→
+  1451→      // Update the server with resolved data.
+  1452→      try {
+  1453→        final table = _supabaseClient.from(item.tableName);
+  1454→        if (item.recordId != null) {
+  1455→          await table.update(resolvedData).eq('id', item.recordId!);
+  1456→        }
+  1457→        await _cacheManager.markSyncItemCompleted(id: item.id);
+  1458→        _updateItemInMemory(item.id, status: SyncStatus.completed);
+  1459→      } catch (e) {
+  1460→        AppLogger.error(
+  1461→          'SyncEngine: failed to apply resolved data to server',
+  1462→          error: e,
+  1463→        );
+  1464→        _markItemFailed(item, 'Failed to apply resolution: $e');
+  1465→      }
+  1466→
+  1467→      // Remove the resolved conflict.
+  1468→      _conflicts.removeAt(conflictIndex);
+  1469→
+  1470→      state = state.copyWith(
+  1471→        conflictItems: List.from(_conflicts),
+  1472→        pendingCount: _pendingItems
+  1473→            .where((i) => i.status == SyncStatus.pending)
+  1474→            .length,
+  1475→      );
+  1476→    } catch (e, st) {
+  1477→      AppLogger.error(
+  1478→        'SyncEngine: failed to resolve conflict',
+  1479→        error: e,
+  1480→        stackTrace: st,
+  1481→      );
+  1482→    }
+  1483→  }
+  1484→
+  1485→  /// Attempts automatic conflict resolution.
+  1486→  ///
+  1487→  /// Strategy:
+  1488→  ///   - **Non-draft data**: Server wins (the server is the source of truth
+  1489→  ///     for committed records).
+  1490→  ///   - **Draft data** (payload contains `is_draft: true`): Merge by
+  1491→  ///     taking the union of local and server fields, with server fields
+  1492→  ///     winning for overlapping keys — except `content` and `title`,
+  1493→  ///     which prefer the local version.
+  1494→  ///
+  1495→  /// Returns the resolution used, or `null` if auto-resolution is not
+  1496→  /// possible and manual intervention is required.
+  1497→  ConflictResolution? autoResolveConflict(
+  1498→    SyncQueueItem item,
+  1499→    Map<String, dynamic> serverData,
+  1500→  ) {
+  1501→    final isDraft = item.payload['is_draft'] == true;
+  1502→
+  1503→    if (!isDraft) {
+  1504→      // For non-draft data, server is authoritative.
+  1505→      AppLogger.info(
+  1506→        'SyncEngine: auto-resolving conflict — server wins '
+  1507→        '(non-draft ${item.tableName}/${item.recordId})',
+  1508→      );
+  1509→      return ConflictResolution.serverWins;
+  1510→    }
+  1511→
+  1512→    // For drafts, attempt a merge.
+  1513→    // Merge strategy: start with server data, overlay local changes for
+  1514→    // user-editable fields.
+  1515→    final mergedData = Map<String, dynamic>.from(serverData);
+  1516→    const localPreferredFields = {'content', 'title', 'description', 'body'};
+  1517→
+  1518→    for (final field in localPreferredFields) {
+  1519→      if (item.payload.containsKey(field) &&
+  1520→          item.payload[field] != null) {
+  1521→        mergedData[field] = item.payload[field];
+  1522→      }
+  1523→    }
+  1524→
+  1525→    // Check if the merge actually differs from both sides.
+  1526→    // If it does, we can auto-resolve; otherwise, manual is needed.
+  1527→    if (_dataDiffers(mergedData, serverData) ||
+  1528→        _dataDiffers(mergedData, item.payload)) {
+  1529→      AppLogger.info(
+  1530→        'SyncEngine: auto-resolving conflict — merge '
+  1531→        '(draft ${item.tableName}/${item.recordId})',
+  1532→      );
+  1533→      return ConflictResolution.merge;
+  1534→    }
+  1535→
+  1536→    // Data is identical after merge — no real conflict.
+  1537→    return ConflictResolution.serverWins;
+  1538→  }
+  1539→
+  1540→  // ═══════════════════════════════════════════════════════════════════════
+  1541→  // PUBLIC API — RETRY, SYNC, AUTO-SYNC
+  1542→  // ═══════════════════════════════════════════════════════════════════════
+  1543→
+  1544→  /// Retries all failed items that are retryable.
+  1545→  ///
+  1546→  /// Items that have exceeded their max attempts are skipped.
+  1547→  Future<SyncResult> retryFailed() async {
+  1548→    final retryable = _pendingItems
+  1549→        .where((i) =>
+  1550→            i.status == SyncStatus.failed &&
+  1551→            i.isRetryable &&
+  1552→            (i.nextRetryAt == null ||
+  1553→                DateTime.now().isAfter(i.nextRetryAt!)),)
+  1554→        .toList();
+  1555→
+  1556→    if (retryable.isEmpty) {
+  1557→      AppLogger.debug('SyncEngine: no retryable failed items');
+  1558→      return SyncResult.empty;
+  1559→    }
+  1560→
+  1561→    AppLogger.info(
+  1562→      'SyncEngine: retrying ${retryable.length} failed items',
+  1563→    );
+  1564→
+  1565→    // Reset their status to pending so processQueue picks them up.
+  1566→    for (final item in retryable) {
+  1567→      _updateItemInMemory(item.id, status: SyncStatus.pending);
+  1568→    }
+  1569→
+  1570→    return processQueue();
+  1571→  }
+  1572→
+  1573→  /// Forces a full sync of a specific table — pulls from server and
+  1574→  /// pushes local changes.
+  1575→  ///
+  1576→  /// 1. Push any pending local mutations for [tableName].
+  1577→  /// 2. Pull latest data from server and update the local cache.
+  1578→  Future<SyncResult> syncTable(String tableName) async {
+  1579→    AppLogger.info('SyncEngine: forcing full sync for table $tableName');
+  1580→
+  1581→    // Step 1: Push local changes first.
+  1582→    final pushResult = await processQueue();
+  1583→
+  1584→    // Step 2: Pull latest from server.
+  1585→    try {
+  1586→      final userId = _currentUserId;
+  1587→      if (userId == null) {
+  1588→        AppLogger.warning('SyncEngine: cannot sync table — no user');
+  1589→        return pushResult;
+  1590→      }
+  1591→
+  1592→      final response = await _supabaseClient
+  1593→          .from(tableName)
+  1594→          .select()
+  1595→          .eq('user_id', userId);
+  1596→
+  1597→      if (response is List) {
+  1598→        // Cache each record locally.
+  1599→        for (final record in response) {
+  1600→          if (record is Map<String, dynamic>) {
+  1601→            final recordId = record['id'] as String?;
+  1602→            if (recordId != null) {
+  1603→              await _cacheManager.cacheData(
+  1604→                key: '$tableName:$recordId',
+  1605→                userId: userId,
+  1606→                resourceType: tableName,
+  1607→                resourceId: recordId,
+  1608→                data: record,
+  1609→              );
+  1610→            }
+  1611→          }
+  1612→        }
+  1613→        AppLogger.info(
+  1614→          'SyncEngine: pulled ${response.length} records from $tableName',
+  1615→        );
+  1616→      }
+  1617→    } catch (e, st) {
+  1618→      AppLogger.error(
+  1619→        'SyncEngine: failed to pull data from $tableName',
+  1620→        error: e,
+  1621→        stackTrace: st,
+  1622→      );
+  1623→    }
+  1624→
+  1625→    return pushResult;
+  1626→  }
+  1627→
+  1628→  /// Forces a complete synchronisation of all tables.
+  1629→  ///
+  1630→  /// Processes all pending operations and then pulls the latest data
+  1631→  /// for each known table.
+  1632→  Future<SyncResult> forceFullSync() async {
+  1633→    AppLogger.info('SyncEngine: forcing full sync across all tables');
+  1634→
+  1635→    final result = await processQueue();
+  1636→
+  1637→    // Pull from each table that has pending items.
+  1638→    final tables = _pendingItems
+  1639→        .map((i) => i.tableName)
+  1640→        .toSet();
+  1641→
+  1642→    for (final table in tables) {
+  1643→      try {
+  1644→        final userId = _currentUserId;
+  1645→        if (userId == null) continue;
+  1646→
+  1647→        final response = await _supabaseClient
+  1648→            .from(table)
+  1649→            .select()
+  1650→            .eq('user_id', userId);
+  1651→
+  1652→        if (response is List) {
+  1653→          for (final record in response) {
+  1654→            if (record is Map<String, dynamic>) {
+  1655→              final recordId = record['id'] as String?;
+  1656→              if (recordId != null) {
+  1657→                await _cacheManager.cacheData(
+  1658→                  key: '$table:$recordId',
+  1659→                  userId: userId,
+  1660→                  resourceType: table,
+  1661→                  resourceId: recordId,
+  1662→                  data: record,
+  1663→                );
+  1664→              }
+  1665→            }
+  1666→          }
+  1667→        }
+  1668→      } catch (e, st) {
+  1669→        AppLogger.error(
+  1670→          'SyncEngine: full sync pull failed for $table',
+  1671→          error: e,
+  1672→          stackTrace: st,
+  1673→        );
+  1674→      }
+  1675→    }
+  1676→
+  1677→    AppLogger.info('SyncEngine: full sync completed');
+  1678→    return result;
+  1679→  }
+  1680→
+  1681→  /// Enables automatic periodic sync.
+  1682→  void enableAutoSync() {
+  1683→    if (state.isAutoSyncEnabled) return;
+  1684→
+  1685→    state = state.copyWith(isAutoSyncEnabled: true);
+  1686→    _startAutoSyncTimer();
+  1687→    AppLogger.info('SyncEngine: auto-sync enabled');
+  1688→  }
+  1689→
+  1690→  /// Disables automatic periodic sync.
+  1691→  void disableAutoSync() {
+  1692→    if (!state.isAutoSyncEnabled) return;
+  1693→
+  1694→    state = state.copyWith(isAutoSyncEnabled: false);
+  1695→    _autoSyncTimer?.cancel();
+  1696→    _autoSyncTimer = null;
+  1697→    AppLogger.info('SyncEngine: auto-sync disabled');
+  1698→  }
+  1699→
+  1700→  /// Returns the overall sync health assessment.
+  1701→  ///
+  1702→  /// Mirrors [SyncEngineState.syncHealth] but is accessible as a method.
+  1703→  String getSyncHealth() => state.syncHealth;
+  1704→
+  1705→  // ═══════════════════════════════════════════════════════════════════════
+  1706→  // INTERNAL — LOAD & REFRESH
+  1707→  // ═══════════════════════════════════════════════════════════════════════
+  1708→
+  1709→  /// Loads pending items from the persistent store into memory.
+  1710→  Future<void> _loadPendingItems() async {
+  1711→    try {
+  1712→      final userId = _currentUserId;
+  1713→      if (userId == null) {
+  1714→        _pendingItems = [];
+  1715→        return;
+  1716→      }
+  1717→
+  1718→      final rows = await _cacheManager.getPendingSyncItems(
+  1719→        userId: userId,
+  1720→        limit: 500,
+  1721→      );
+  1722→
+  1723→      _pendingItems = rows.map(SyncQueueItem.fromMap).toList();
+  1724→      _sortPendingItems();
+  1725→
+  1726→      AppLogger.debug(
+  1727→        'SyncEngine: loaded ${_pendingItems.length} pending items',
+  1728→      );
+  1729→    } catch (e, st) {
+  1730→      AppLogger.error(
+  1731→        'SyncEngine: failed to load pending items',
+  1732→        error: e,
+  1733→        stackTrace: st,
+  1734→      );
+  1735→      _pendingItems = [];
+  1736→    }
+  1737→  }
+  1738→
+  1739→  /// Loads persisted conflicts from the cache.
+  1740→  Future<void> _loadConflicts() async {
+  1741→    try {
+  1742→      final userId = _currentUserId;
+  1743→      if (userId == null) {
+  1744→        _conflicts = [];
+  1745→        return;
+  1746→      }
+  1747→
+  1748→      final data = await _cacheManager.getCachedData(
+  1749→        key: 'sync:conflicts',
+  1750→        userId: userId,
+  1751→      );
+  1752→
+  1753→      if (data != null && data['conflicts'] is List) {
+  1754→        _conflicts = (data['conflicts'] as List)
+  1755→            .whereType<Map<String, dynamic>>()
+  1756→            .map((m) => SyncConflict(
+  1757→                  id: m['id'] as String,
+  1758→                  userId: m['userId'] as String,
+  1759→                  tableName: m['tableName'] as String,
+  1760→                  recordId: m['recordId'] as String,
+  1761→                  localData: Map<String, dynamic>.from(
+  1762→                    m['localData'] as Map,
+  1763→                  ),
+  1764→                  serverData: Map<String, dynamic>.from(
+  1765→                    m['serverData'] as Map,
+  1766→                  ),
+  1767→                  resolution:
+  1768→                      ConflictResolution.fromString(m['resolution'] as String),
+  1769→                  resolvedData: m['resolvedData'] != null
+  1770→                      ? Map<String, dynamic>.from(
+  1771→                          m['resolvedData'] as Map,
+  1772→                        )
+  1773→                      : null,
+  1774→                  createdAt: DateTime.parse(m['createdAt'] as String),
+  1775→                ),)
+  1776→            .where((c) => c.resolution == ConflictResolution.manual)
+  1777→            .toList();
+  1778→      }
+  1779→    } catch (e, st) {
+  1780→      AppLogger.error(
+  1781→        'SyncEngine: failed to load conflicts',
+  1782→        error: e,
+  1783→        stackTrace: st,
+  1784→      );
+  1785→      _conflicts = [];
+  1786→    }
+  1787→  }
+  1788→
+  1789→  /// Persists current conflicts to the cache.
+  1790→  Future<void> _persistConflicts() async {
+  1791→    try {
+  1792→      final userId = _currentUserId;
+  1793→      if (userId == null) return;
+  1794→
+  1795→      final conflictMaps = _conflicts
+  1796→          .map((c) => {
+  1797→                'id': c.id,
+  1798→                'userId': c.userId,
+  1799→                'tableName': c.tableName,
+  1800→                'recordId': c.recordId,
+  1801→                'localData': c.localData,
+  1802→                'serverData': c.serverData,
+  1803→                'resolution': c.resolution.value,
+  1804→                'resolvedData': c.resolvedData,
+  1805→                'createdAt': c.createdAt.toIso8601String(),
+  1806→              },)
+  1807→          .toList();
+  1808→
+  1809→      await _cacheManager.cacheData(
+  1810→        key: 'sync:conflicts',
+  1811→        userId: userId,
+  1812→        resourceType: 'sync',
+  1813→        resourceId: 'conflicts',
+  1814→        data: {'conflicts': conflictMaps},
+  1815→      );
+  1816→    } catch (e, st) {
+  1817→      AppLogger.error(
+  1818→        'SyncEngine: failed to persist conflicts',
+  1819→        error: e,
+  1820→        stackTrace: st,
+  1821→      );
+  1822→    }
+  1823→  }
+  1824→
+  1825→  // ═══════════════════════════════════════════════════════════════════════
+  1826→  // INTERNAL — ITEM MANAGEMENT
+  1827→  // ═══════════════════════════════════════════════════════════════════════
+  1828→
+  1829→  /// Updates an item's in-memory state by [id].
+  1830→  void _updateItemInMemory(
+  1831→    String id, {
+  1832→    SyncStatus? status,
+  1833→    Map<String, dynamic>? payload,
+  1834→    int? attempts,
+  1835→    String? errorMessage,
+  1836→    bool clearErrorMessage = false,
+  1837→    DateTime? nextRetryAt,
+  1838→    bool clearNextRetryAt = false,
+  1839→  }) {
+  1840→    final index = _pendingItems.indexWhere((i) => i.id == id);
+  1841→    if (index == -1) return;
+  1842→
+  1843→    _pendingItems[index] = _pendingItems[index].copyWith(
+  1844→      status: status,
+  1845→      payload: payload,
+  1846→      attempts: attempts,
+  1847→      errorMessage: errorMessage,
+  1848→      clearErrorMessage: clearErrorMessage,
+  1849→      nextRetryAt: nextRetryAt,
+  1850→      clearNextRetryAt: clearNextRetryAt,
+  1851→      updatedAt: DateTime.now(),
+  1852→    );
+  1853→
+  1854→    _sortPendingItems();
+  1855→  }
+  1856→
+  1857→  /// Marks an item as failed and schedules a retry with exponential backoff.
+  1858→  void _markItemFailed(SyncQueueItem item, String errorMessage) {
+  1859→    final newAttempts = item.attempts + 1;
+  1860→    final isDead = newAttempts >= item.maxAttempts;
+  1861→
+  1862→    // Compute backoff using adaptive behaviour.
+  1863→    final behavior = AdaptiveBehavior(_connectivityEngine.state);
+  1864→    final backoff = behavior.retryDelay(attempt: newAttempts);
+  1865→
+  1866→    _updateItemInMemory(
+  1867→      item.id,
+  1868→      status: isDead ? SyncStatus.dead : SyncStatus.failed,
+  1869→      attempts: newAttempts,
+  1870→      errorMessage: errorMessage,
+  1871→      nextRetryAt: isDead ? null : DateTime.now().add(backoff),
+  1872→      clearNextRetryAt: isDead,
+  1873→    );
+  1874→
+  1875→    // Persist to the database.
+  1876→    _cacheManager.markSyncItemFailed(id: item.id, errorMessage: errorMessage);
+  1877→
+  1878→    AppLogger.debug(
+  1879→      'SyncEngine: item ${item.id} failed '
+  1880→      '(attempt $newAttempts/${item.maxAttempts})'
+  1881→      '${isDead ? ' → dead' : ', retry after ${backoff.inSeconds}s'}',
+  1882→    );
+  1883→  }
+  1884→
+  1885→  /// Marks an item as dead (no further retries).
+  1886→  void _markItemDead(SyncQueueItem item, String errorMessage) {
+  1887→    _updateItemInMemory(
+  1888→      item.id,
+  1889→      status: SyncStatus.dead,
+  1890→      attempts: item.maxAttempts,
+  1891→      errorMessage: errorMessage,
+  1892→      clearNextRetryAt: true,
+  1893→    );
+  1894→
+  1895→    // Persist to the database.
+  1896→    _cacheManager.markSyncItemFailed(id: item.id, errorMessage: errorMessage);
+  1897→
+  1898→    AppLogger.warning(
+  1899→      'SyncEngine: item ${item.id} marked dead — $errorMessage',
+  1900→    );
+  1901→  }
+  1902→
+  1903→  /// Handles a conflict for an item, attempting auto-resolution.
+  1904→  ///
+  1905→  /// Returns a [SyncConflict] if the conflict requires manual resolution,
+  1906→  /// or `null` if it was auto-resolved.
+  1907→  SyncConflict? _handleConflictForItem(SyncQueueItem item, Failure failure) {
+  1908→    // Extract server data from the failure details if available.
+  1909→    final serverData = failure is ServerFailure && failure.data != null
+  1910→        ? Map<String, dynamic>.from(failure.data as Map)
+  1911→        : <String, dynamic>{};
+  1912→
+  1913→    // If we don't have server data, try to fetch it.
+  1914→    if (serverData.isEmpty && item.recordId != null) {
+  1915→      _fetchServerDataForConflict(item);
+  1916→    }
+  1917→
+  1918→    final conflict = detectConflict(item, serverData);
+  1919→    if (conflict == null) {
+  1920→      // No actual conflict — server data is compatible.
+  1921→      AppLogger.debug(
+  1922→        'SyncEngine: 409 response but no real conflict for ${item.id}',
+  1923→      );
+  1924→      return null;
+  1925→    }
+  1926→
+  1927→    // Attempt auto-resolution.
+  1928→    final resolution = autoResolveConflict(item, serverData);
+  1929→    if (resolution == null) {
+  1930→      // Cannot auto-resolve — add to conflict list.
+  1931→      _conflicts.add(conflict);
+  1932→      _persistConflicts();
+  1933→      _updateItemInMemory(item.id, status: SyncStatus.conflict);
+  1934→
+  1935→      state = state.copyWith(
+  1936→        conflictItems: List.from(_conflicts),
+  1937→      );
+  1938→
+  1939→      AppLogger.warning(
+  1940→        'SyncEngine: conflict requires manual resolution for '
+  1941→        '${item.tableName}/${item.recordId}',
+  1942→      );
+  1943→      return conflict;
+  1944→    }
+  1945→
+  1946→    // Auto-resolve the conflict.
+  1947→    AppLogger.info(
+  1948→      'SyncEngine: auto-resolving conflict with ${resolution.value} '
+  1949→      'for ${item.tableName}/${item.recordId}',
+  1950→    );
+  1951→
+  1952→    Map<String, dynamic>? resolvedData;
+  1953→    switch (resolution) {
+  1954→      case ConflictResolution.localWins:
+  1955→        resolvedData = item.payload;
+  1956→      case ConflictResolution.serverWins:
+  1957→        resolvedData = serverData;
+  1958→      case ConflictResolution.merge:
+  1959→        // Merge: server base + local user-editable fields.
+  1960→        resolvedData = Map<String, dynamic>.from(serverData);
+  1961→        const localPreferredFields = {
+  1962→          'content',
+  1963→          'title',
+  1964→          'description',
+  1965→          'body',
+  1966→        };
+  1967→        for (final field in localPreferredFields) {
+  1968→          if (item.payload.containsKey(field) &&
+  1969→              item.payload[field] != null) {
+  1970→            resolvedData[field] = item.payload[field];
+  1971→          }
+  1972→        }
+  1973→      case ConflictResolution.manual:
+  1974→        // Should not reach here, but handle gracefully.
+  1975→        _conflicts.add(conflict);
+  1976→        _persistConflicts();
+  1977→        state = state.copyWith(conflictItems: List.from(_conflicts));
+  1978→        return conflict;
+  1979→    }
+  1980→
+  1981→    // Apply the resolution by updating the item's payload.
+  1982→    _updateItemInMemory(
+  1983→      item.id,
+  1984→      payload: resolvedData,
+  1985→      status: SyncStatus.pending,
+  1986→    );
+  1987→
+  1988→    return null; // Auto-resolved.
+  1989→  }
+  1990→
+  1991→  /// Attempts to fetch server data for a conflict item.
+  1992→  Future<void> _fetchServerDataForConflict(SyncQueueItem item) async {
+  1993→    try {
+  1994→      if (item.recordId == null) return;
+  1995→
+  1996→      final response = await _supabaseClient
+  1997→          .from(item.tableName)
+  1998→          .select()
+  1999→          .eq('id', item.recordId!)
+  2000→          .maybeSingle();
+
+[showing lines 1-2000 of 2378; use offset=2001 with limit to continue reading]

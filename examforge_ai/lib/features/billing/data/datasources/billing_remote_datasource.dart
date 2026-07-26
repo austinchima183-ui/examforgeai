@@ -389,23 +389,20 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
     int perPage = 20,
   }) async {
     try {
-      var query = _supabase.from(_subscriptionsTable).select();
+      // PERF: Fix duplicate filter application bug
+      // Previous code applied filters TWICE: once inline (lines 394-402)
+      // then again via _applyFilters (lines 404-408). Now uses only _applyFilters.
+      var query = _supabase.from(_subscriptionsTable).select(
+        'id, subscriber_id, subscriber_type, plan_id, '
+        'status, current_period_start, current_period_end, created_at',
+      );
 
-      if (schoolId != null) {
-        query = query.eq('school_id', schoolId);
-      }
-      if (subscriberType != null) {
-        query = query.eq('subscriber_type', subscriberType);
-      }
-      if (status != null) {
-        query = query.eq('status', status);
-      }
+      final filters = <String, String>{};
+      if (schoolId != null) filters['school_id'] = schoolId;
+      if (subscriberType != null) filters['subscriber_type'] = subscriberType;
+      if (status != null) filters['status'] = status;
 
-      final filtered = _applyFilters(query, {
-        if (schoolId != null) 'school_id': schoolId,
-        if (subscriberType != null) 'subscriber_type': subscriberType,
-        if (status != null) 'status': status,
-      });
+      final filtered = _applyFilters(query, filters);
 
       var transformed =
           filtered.order('created_at', ascending: false);
@@ -527,23 +524,18 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
     int perPage = 20,
   }) async {
     try {
-      var query = _supabase.from(_transactionsTable).select();
+      // PERF: Fix duplicate filter application bug — use only _applyFilters
+      var query = _supabase.from(_transactionsTable).select(
+        'id, user_id, school_id, amount, currency, '
+        'status, transaction_type, flutterwave_tx_ref, created_at',
+      );
 
-      if (userId != null) {
-        query = query.eq('user_id', userId);
-      }
-      if (schoolId != null) {
-        query = query.eq('school_id', schoolId);
-      }
-      if (status != null) {
-        query = query.eq('status', status);
-      }
+      final filters = <String, String>{};
+      if (userId != null) filters['user_id'] = userId;
+      if (schoolId != null) filters['school_id'] = schoolId;
+      if (status != null) filters['status'] = status;
 
-      final filtered = _applyFilters(query, {
-        if (userId != null) 'user_id': userId,
-        if (schoolId != null) 'school_id': schoolId,
-        if (status != null) 'status': status,
-      });
+      final filtered = _applyFilters(query, filters);
 
       var transformed =
           filtered.order('created_at', ascending: false);
@@ -670,23 +662,18 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
     int perPage = 20,
   }) async {
     try {
-      var query = _supabase.from(_invoicesTable).select();
+      // PERF: Fix duplicate filter application bug — use only _applyFilters
+      var query = _supabase.from(_invoicesTable).select(
+        'id, user_id, school_id, invoice_number, '
+        'amount_due, amount_paid, status, due_date, created_at',
+      );
 
-      if (userId != null) {
-        query = query.eq('user_id', userId);
-      }
-      if (schoolId != null) {
-        query = query.eq('school_id', schoolId);
-      }
-      if (status != null) {
-        query = query.eq('status', status);
-      }
+      final filters = <String, String>{};
+      if (userId != null) filters['user_id'] = userId;
+      if (schoolId != null) filters['school_id'] = schoolId;
+      if (status != null) filters['status'] = status;
 
-      final filtered = _applyFilters(query, {
-        if (userId != null) 'user_id': userId,
-        if (schoolId != null) 'school_id': schoolId,
-        if (status != null) 'status': status,
-      });
+      final filtered = _applyFilters(query, filters);
 
       var transformed =
           filtered.order('created_at', ascending: false);

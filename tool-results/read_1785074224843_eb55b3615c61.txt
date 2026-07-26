@@ -1,0 +1,502 @@
+     1→import 'package:connectivity_plus/connectivity_plus.dart';
+     2→import 'package:dio/dio.dart';
+     3→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     4→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     5→
+     6→import '../config/app_config.dart';
+     7→import '../config/env_config.dart';
+     8→import '../config/supabase_config.dart';
+     9→import '../core/constants/api_constants.dart';
+    10→import '../core/database/database_pool_manager.dart';
+    11→import '../core/network/api_client.dart';
+    12→import '../core/network/network_info.dart';
+    13→import '../core/performance/ai_cache_service.dart';
+    14→import '../core/performance/performance_manager.dart';
+    15→import '../core/storage/cache_manager.dart';
+    16→import '../core/sync/sync_engine.dart';
+    17→import '../core/utils/logger.dart';
+    18→import '../features/ai_generator/data/datasources/ai_generator_remote_datasource.dart';
+    19→import '../features/ai_generator/data/repositories/ai_generator_repository_impl.dart';
+    20→import '../features/ai_generator/domain/repositories/ai_generator_repository.dart';
+    21→import '../features/ai_generator/domain/usecases/generate_questions_usecase.dart';
+    22→import '../features/ai_generator/domain/usecases/get_ai_dashboard_stats_usecase.dart';
+    23→import '../features/ai_generator/domain/usecases/get_generation_history_usecase.dart';
+    24→import '../features/ai_generator/domain/usecases/improve_question_usecase.dart';
+    25→import '../features/ai_generator/domain/usecases/manage_prompt_templates_usecase.dart';
+    26→import '../features/ai_generator/domain/usecases/review_generated_question_usecase.dart';
+    27→import '../features/ai_generator/domain/usecases/save_to_question_bank_usecase.dart';
+    28→import '../features/ai_generator/domain/usecases/upload_document_usecase.dart' as ai_upload;
+    29→import '../features/ai_generator/domain/usecases/validate_question_usecase.dart';
+    30→import '../features/ai_generator/presentation/providers/ai_document_provider.dart';
+    31→import '../features/ai_generator/presentation/providers/ai_generator_provider.dart';
+    32→import '../features/ai_generator/presentation/providers/ai_review_provider.dart';
+    33→import '../features/ai_generator/presentation/providers/ai_stats_provider.dart';
+    34→import '../features/ai_generator/presentation/providers/prompt_template_provider.dart';
+    35→import '../features/auth/data/datasources/auth_remote_datasource.dart';
+    36→import '../features/auth/data/repositories/auth_repository_impl.dart';
+    37→import '../features/auth/domain/repositories/auth_repository.dart';
+    38→import '../features/auth/domain/usecases/forgot_password_usecase.dart';
+    39→import '../features/auth/domain/usecases/get_current_user_usecase.dart';
+    40→import '../features/auth/domain/usecases/login_usecase.dart';
+    41→import '../features/auth/domain/usecases/logout_usecase.dart';
+    42→import '../features/auth/domain/usecases/signup_usecase.dart';
+    43→import '../features/auth/presentation/providers/auth_form_provider.dart';
+    44→import '../features/auth/presentation/providers/auth_provider.dart';
+    45→import '../features/billing/data/datasources/billing_remote_datasource.dart';
+    46→import '../features/billing/data/datasources/flutterwave_datasource.dart';
+    47→import '../features/billing/data/repositories/billing_repository_impl.dart';
+    48→import '../features/billing/domain/repositories/billing_repository.dart';
+    49→import '../features/billing/domain/usecases/get_revenue_analytics_usecase.dart';
+    50→import '../features/billing/domain/usecases/get_subscription_plans_usecase.dart';
+    51→import '../features/billing/domain/usecases/manage_ai_credits_usecase.dart';
+    52→import '../features/billing/domain/usecases/manage_billing_notifications_usecase.dart' as bn;
+    53→import '../features/billing/domain/usecases/manage_coupons_usecase.dart';
+    54→import '../features/billing/domain/usecases/manage_invoices_usecase.dart';
+    55→import '../features/billing/domain/usecases/manage_licenses_usecase.dart';
+    56→import '../features/billing/domain/usecases/manage_referrals_usecase.dart';
+    57→import '../features/billing/domain/usecases/manage_school_billing_usecase.dart';
+    58→import '../features/billing/domain/usecases/manage_subscription_usecase.dart';
+    59→import '../features/billing/domain/usecases/process_payment_usecase.dart' as bn_payment;
+    60→import '../features/billing/presentation/providers/ai_credits_provider.dart';
+    61→import '../features/billing/presentation/providers/billing_notification_provider.dart';
+    62→import '../features/billing/presentation/providers/coupon_provider.dart';
+    63→import '../features/billing/presentation/providers/invoice_provider.dart';
+    64→import '../features/billing/presentation/providers/license_provider.dart';
+    65→import '../features/billing/presentation/providers/payment_provider.dart';
+    66→import '../features/billing/presentation/providers/referral_provider.dart';
+    67→import '../features/billing/presentation/providers/revenue_provider.dart';
+    68→import '../features/billing/presentation/providers/school_billing_provider.dart';
+    69→import '../features/billing/presentation/providers/subscription_provider.dart';
+    70→import '../features/cbt_engine/data/datasources/cbt_remote_datasource.dart';
+    71→import '../features/cbt_engine/data/datasources/exam_template_remote_datasource.dart';
+    72→import '../features/cbt_engine/data/repositories/cbt_repository_impl.dart';
+    73→import '../features/cbt_engine/data/repositories/exam_template_repository_impl.dart';
+    74→import '../features/cbt_engine/domain/repositories/cbt_repository.dart';
+    75→import '../features/cbt_engine/domain/repositories/exam_template_repository.dart';
+    76→import '../features/cbt_engine/domain/usecases/create_exam_usecase.dart';
+    77→import '../features/cbt_engine/domain/usecases/get_exam_results_usecase.dart';
+    78→import '../features/cbt_engine/domain/usecases/get_exam_statistics_usecase.dart';
+    79→import '../features/cbt_engine/domain/usecases/get_live_exam_stats_usecase.dart';
+    80→import '../features/cbt_engine/domain/usecases/get_submission_receipt_usecase.dart';
+    81→import '../features/cbt_engine/domain/usecases/grade_exam_usecase.dart';
+    82→import '../features/cbt_engine/domain/usecases/manage_exam_status_usecase.dart';
+    83→import '../features/cbt_engine/domain/usecases/manage_exam_templates_usecase.dart';
+    84→import '../features/cbt_engine/domain/usecases/save_answer_usecase.dart';
+    85→import '../features/cbt_engine/domain/usecases/start_exam_attempt_usecase.dart';
+    86→import '../features/cbt_engine/domain/usecases/submit_exam_attempt_usecase.dart';
+    87→import '../features/cbt_engine/domain/usecases/update_exam_usecase.dart';
+    88→import '../features/cbt_engine/presentation/providers/exam_builder_provider.dart';
+    89→import '../features/cbt_engine/presentation/providers/exam_list_provider.dart';
+    90→import '../features/cbt_engine/presentation/providers/exam_monitor_provider.dart';
+    91→import '../features/cbt_engine/presentation/providers/exam_notification_provider.dart';
+    92→import '../features/cbt_engine/presentation/providers/exam_results_provider.dart';
+    93→import '../features/cbt_engine/presentation/providers/exam_taker_provider.dart';
+    94→import '../features/cbt_engine/presentation/providers/exam_template_provider.dart';
+    95→import '../features/cbt_engine/presentation/providers/student_exams_provider.dart';
+    96→import '../features/cbt_engine/presentation/providers/submission_receipt_provider.dart';
+    97→import '../features/communication/data/datasources/communication_remote_datasource.dart';
+    98→import '../features/communication/data/repositories/communication_repository_impl.dart';
+    99→import '../features/communication/domain/repositories/communication_repository.dart';
+   100→import '../features/communication/domain/usecases/acknowledge_announcement_usecase.dart';
+   101→import '../features/communication/domain/usecases/add_reaction_usecase.dart';
+   102→import '../features/communication/domain/usecases/ai_adjust_tone_usecase.dart';
+   103→import '../features/communication/domain/usecases/ai_correct_grammar_usecase.dart';
+   104→import '../features/communication/domain/usecases/ai_draft_announcement_usecase.dart';
+   105→import '../features/communication/domain/usecases/ai_rewrite_message_usecase.dart';
+   106→import '../features/communication/domain/usecases/ai_suggest_reply_usecase.dart';
+   107→import '../features/communication/domain/usecases/ai_summarize_conversation_usecase.dart';
+   108→import '../features/communication/domain/usecases/ai_translate_message_usecase.dart';
+   109→import '../features/communication/domain/usecases/archive_conversation_usecase.dart';
+   110→import '../features/communication/domain/usecases/ask_school_knowledge_usecase.dart';
+   111→import '../features/communication/domain/usecases/create_announcement_usecase.dart';
+   112→import '../features/communication/domain/usecases/create_calendar_event_usecase.dart';
+   113→import '../features/communication/domain/usecases/create_conversation_usecase.dart';
+   114→import '../features/communication/domain/usecases/create_forum_comment_usecase.dart';
+   115→import '../features/communication/domain/usecases/create_forum_post_usecase.dart';
+   116→import '../features/communication/domain/usecases/create_forum_usecase.dart';
+   117→import '../features/communication/domain/usecases/delete_message_usecase.dart';
+   118→import '../features/communication/domain/usecases/edit_message_usecase.dart';
+   119→import '../features/communication/domain/usecases/get_announcements_usecase.dart';
+   120→import '../features/communication/domain/usecases/get_audit_logs_usecase.dart';
+   121→import '../features/communication/domain/usecases/get_calendar_events_usecase.dart';
+   122→import '../features/communication/domain/usecases/get_communication_dashboard_usecase.dart';
+   123→import '../features/communication/domain/usecases/get_conversations_usecase.dart';
+   124→import '../features/communication/domain/usecases/get_forum_posts_usecase.dart';
+   125→import '../features/communication/domain/usecases/get_forums_usecase.dart';
+   126→import '../features/communication/domain/usecases/get_knowledge_documents_usecase.dart';
+   127→import '../features/communication/domain/usecases/get_messages_usecase.dart';
+   128→import '../features/communication/domain/usecases/get_notification_preferences_usecase.dart';
+   129→import '../features/communication/domain/usecases/get_notifications_usecase.dart';
+   130→import '../features/communication/domain/usecases/mark_all_notifications_read_usecase.dart';
+   131→import '../features/communication/domain/usecases/mark_as_read_usecase.dart';
+   132→import '../features/communication/domain/usecases/mark_notification_read_usecase.dart';
+   133→import '../features/communication/domain/usecases/mute_conversation_usecase.dart';
+   134→import '../features/communication/domain/usecases/pin_message_usecase.dart';
+   135→import '../features/communication/domain/usecases/report_message_usecase.dart';
+   136→import '../features/communication/domain/usecases/rsvp_to_event_usecase.dart';
+   137→import '../features/communication/domain/usecases/send_message_usecase.dart';
+   138→import '../features/communication/domain/usecases/set_typing_usecase.dart';
+   139→import '../features/communication/domain/usecases/update_notification_preferences_usecase.dart';
+   140→import '../features/communication/domain/usecases/update_presence_usecase.dart';
+   141→import '../features/communication/domain/usecases/upload_knowledge_document_usecase.dart';
+   142→import '../features/communication/presentation/providers/ai_assistant_provider.dart';
+   143→import '../features/communication/presentation/providers/announcement_provider.dart';
+   144→import '../features/communication/presentation/providers/calendar_provider.dart';
+   145→import '../features/communication/presentation/providers/communication_dashboard_provider.dart';
+   146→import '../features/communication/presentation/providers/conversation_provider.dart';
+   147→import '../features/communication/presentation/providers/forum_provider.dart';
+   148→import '../features/communication/presentation/providers/knowledge_assistant_provider.dart';
+   149→import '../features/communication/presentation/providers/message_provider.dart';
+   150→import '../features/communication/presentation/providers/notification_provider.dart';
+   151→import '../features/edu_os/data/datasources/edu_os_remote_datasource.dart';
+   152→import '../features/edu_os/data/repositories/edu_os_repository_impl.dart';
+   153→import '../features/edu_os/domain/repositories/edu_os_repository.dart';
+   154→import '../features/edu_os/domain/usecases/edu_os_usecases.dart';
+   155→import '../features/edu_os/presentation/providers/edu_os_provider.dart';
+   156→import '../features/marketplace/data/datasources/marketplace_remote_datasource.dart';
+   157→import '../features/marketplace/data/repositories/marketplace_repository_impl.dart';
+   158→import '../features/marketplace/domain/repositories/marketplace_repository.dart';
+   159→import '../features/marketplace/domain/usecases/add_to_cart_usecase.dart';
+   160→import '../features/marketplace/domain/usecases/approve_product_usecase.dart';
+   161→import '../features/marketplace/domain/usecases/clear_cart_usecase.dart';
+   162→import '../features/marketplace/domain/usecases/create_dispute_usecase.dart';
+   163→import '../features/marketplace/domain/usecases/create_order_usecase.dart';
+   164→import '../features/marketplace/domain/usecases/create_product_usecase.dart';
+   165→import '../features/marketplace/domain/usecases/create_review_usecase.dart';
+   166→import '../features/marketplace/domain/usecases/delete_product_usecase.dart';
+   167→import '../features/marketplace/domain/usecases/feature_product_usecase.dart';
+   168→import '../features/marketplace/domain/usecases/get_cart_usecase.dart';
+   169→import '../features/marketplace/domain/usecases/get_categories_usecase.dart';
+   170→import '../features/marketplace/domain/usecases/get_commission_rates_usecase.dart';
+   171→import '../features/marketplace/domain/usecases/get_commission_records_usecase.dart';
+   172→import '../features/marketplace/domain/usecases/get_disputes_usecase.dart';
+   173→import '../features/marketplace/domain/usecases/get_featured_products_usecase.dart';
+   174→import '../features/marketplace/domain/usecases/get_notifications_usecase.dart' as mp_notif;
+   175→import '../features/marketplace/domain/usecases/get_order_usecase.dart';
+   176→import '../features/marketplace/domain/usecases/get_product_analytics_usecase.dart';
+   177→import '../features/marketplace/domain/usecases/get_product_reviews_usecase.dart';
+   178→import '../features/marketplace/domain/usecases/get_product_usecase.dart';
+   179→import '../features/marketplace/domain/usecases/get_products_usecase.dart';
+   180→import '../features/marketplace/domain/usecases/get_quality_check_usecase.dart';
+   181→import '../features/marketplace/domain/usecases/get_recommendations_usecase.dart';
+   182→import '../features/marketplace/domain/usecases/get_related_products_usecase.dart';
+   183→import '../features/marketplace/domain/usecases/get_seller_analytics_usecase.dart';
+   184→import '../features/marketplace/domain/usecases/get_seller_products_usecase.dart';
+   185→import '../features/marketplace/domain/usecases/get_seller_profile_usecase.dart';
+   186→import '../features/marketplace/domain/usecases/get_sellers_usecase.dart';
+   187→import '../features/marketplace/domain/usecases/get_trending_products_usecase.dart';
+   188→import '../features/marketplace/domain/usecases/get_user_orders_usecase.dart';
+   189→import '../features/marketplace/domain/usecases/get_user_purchases_usecase.dart';
+   190→import '../features/marketplace/domain/usecases/get_wishlist_usecase.dart';
+   191→import '../features/marketplace/domain/usecases/increment_product_view_usecase.dart';
+   192→import '../features/marketplace/domain/usecases/mark_notification_read_usecase.dart' as mp_mark_notif;
+   193→import '../features/marketplace/domain/usecases/moderate_review_usecase.dart';
+   194→import '../features/marketplace/domain/usecases/record_download_usecase.dart';
+   195→import '../features/marketplace/domain/usecases/reject_product_usecase.dart';
+   196→import '../features/marketplace/domain/usecases/remove_from_cart_usecase.dart';
+   197→import '../features/marketplace/domain/usecases/report_review_usecase.dart';
+   198→import '../features/marketplace/domain/usecases/resolve_dispute_usecase.dart';
+   199→import '../features/marketplace/domain/usecases/respond_to_review_usecase.dart';
+   200→import '../features/marketplace/domain/usecases/run_quality_check_usecase.dart';
+   201→import '../features/marketplace/domain/usecases/suspend_seller_usecase.dart';
+   202→import '../features/marketplace/domain/usecases/toggle_wishlist_usecase.dart';
+   203→import '../features/marketplace/domain/usecases/update_cart_item_usecase.dart';
+   204→import '../features/marketplace/domain/usecases/update_order_status_usecase.dart';
+   205→import '../features/marketplace/domain/usecases/update_product_status_usecase.dart';
+   206→import '../features/marketplace/domain/usecases/update_product_usecase.dart';
+   207→import '../features/marketplace/domain/usecases/update_seller_status_usecase.dart';
+   208→import '../features/marketplace/domain/usecases/upsert_category_usecase.dart';
+   209→import '../features/marketplace/domain/usecases/upsert_commission_rate_usecase.dart';
+   210→import '../features/marketplace/domain/usecases/upsert_seller_profile_usecase.dart';
+   211→import '../features/marketplace/domain/usecases/validate_promo_code_usecase.dart';
+   212→import '../features/marketplace/domain/usecases/verify_payment_usecase.dart';
+   213→import '../features/marketplace/domain/usecases/verify_purchase_usecase.dart';
+   214→import '../features/marketplace/domain/usecases/vote_review_helpful_usecase.dart';
+   215→import '../features/marketplace/presentation/providers/cart_provider.dart';
+   216→import '../features/marketplace/presentation/providers/commission_provider.dart';
+   217→import '../features/marketplace/presentation/providers/marketplace_notification_provider.dart';
+   218→import '../features/marketplace/presentation/providers/marketplace_provider.dart';
+   219→import '../features/marketplace/presentation/providers/moderation_provider.dart';
+   220→import '../features/marketplace/presentation/providers/order_provider.dart';
+   221→import '../features/marketplace/presentation/providers/product_detail_provider.dart';
+   222→import '../features/marketplace/presentation/providers/purchase_provider.dart';
+   223→import '../features/marketplace/presentation/providers/quality_check_provider.dart';
+   224→import '../features/marketplace/presentation/providers/seller_provider.dart';
+   225→import '../features/offline/data/datasources/offline_local_datasource.dart';
+   226→import '../features/offline/data/datasources/offline_remote_datasource.dart';
+   227→import '../features/offline/data/repositories/offline_repository_impl.dart';
+   228→import '../features/offline/domain/repositories/offline_repository.dart';
+   229→import '../features/offline/domain/usecases/delete_draft_usecase.dart';
+   230→import '../features/offline/domain/usecases/download_resource_usecase.dart';
+   231→import '../features/offline/domain/usecases/get_connectivity_info_usecase.dart';
+   232→import '../features/offline/domain/usecases/get_downloads_usecase.dart';
+   233→import '../features/offline/domain/usecases/get_drafts_usecase.dart';
+   234→import '../features/offline/domain/usecases/get_offline_resources_usecase.dart';
+   235→import '../features/offline/domain/usecases/get_sync_status_usecase.dart';
+   236→import '../features/offline/domain/usecases/register_device_usecase.dart';
+   237→import '../features/offline/domain/usecases/remove_offline_resource_usecase.dart';
+   238→import '../features/offline/domain/usecases/save_draft_usecase.dart';
+   239→import '../features/offline/domain/usecases/save_offline_exam_attempt_usecase.dart';
+   240→import '../features/offline/domain/usecases/start_download_usecase.dart';
+   241→import '../features/offline/domain/usecases/sync_exam_attempt_usecase.dart';
+   242→import '../features/offline/domain/usecases/trigger_sync_usecase.dart';
+   243→import '../features/offline/presentation/providers/offline_provider.dart';
+   244→import '../features/parent_portal/data/datasources/parent_portal_remote_datasource.dart';
+   245→import '../features/parent_portal/data/repositories/parent_portal_repository_impl.dart';
+   246→import '../features/parent_portal/domain/repositories/parent_portal_repository.dart';
+   247→import '../features/parent_portal/domain/usecases/ask_parent_assistant_usecase.dart';
+   248→import '../features/parent_portal/domain/usecases/dismiss_insight_usecase.dart';
+   249→import '../features/parent_portal/domain/usecases/download_report_usecase.dart' as pp_download;
+   250→import '../features/parent_portal/domain/usecases/get_child_assignments_usecase.dart';
+   251→import '../features/parent_portal/domain/usecases/get_child_attendance_usecase.dart';
+   252→import '../features/parent_portal/domain/usecases/get_child_performance_usecase.dart';
+   253→import '../features/parent_portal/domain/usecases/get_child_profile_usecase.dart';
+   254→import '../features/parent_portal/domain/usecases/get_engagement_analytics_usecase.dart';
+   255→import '../features/parent_portal/domain/usecases/get_message_threads_usecase.dart';
+   256→import '../features/parent_portal/domain/usecases/get_parent_calendar_usecase.dart';
+   257→import '../features/parent_portal/domain/usecases/get_parent_dashboard_usecase.dart';
+   258→import '../features/parent_portal/domain/usecases/get_parent_insights_usecase.dart';
+   259→import '../features/parent_portal/domain/usecases/get_parent_messages_usecase.dart';
+   260→import '../features/parent_portal/domain/usecases/get_parent_notifications_usecase.dart';
+   261→import '../features/parent_portal/domain/usecases/mark_message_read_usecase.dart';
+   262→import '../features/parent_portal/domain/usecases/mark_notification_read_usecase.dart' as pp_mark_notif;
+   263→import '../features/parent_portal/domain/usecases/record_engagement_usecase.dart';
+   264→import '../features/parent_portal/domain/usecases/send_parent_message_usecase.dart';
+   265→import '../features/parent_portal/presentation/providers/child_assignments_provider.dart';
+   266→import '../features/parent_portal/presentation/providers/child_attendance_provider.dart';
+   267→import '../features/parent_portal/presentation/providers/child_performance_provider.dart';
+   268→import '../features/parent_portal/presentation/providers/child_profile_provider.dart';
+   269→import '../features/parent_portal/presentation/providers/parent_assistant_provider.dart';
+   270→import '../features/parent_portal/presentation/providers/parent_calendar_provider.dart';
+   271→import '../features/parent_portal/presentation/providers/parent_dashboard_provider.dart';
+   272→import '../features/parent_portal/presentation/providers/parent_engagement_provider.dart';
+   273→import '../features/parent_portal/presentation/providers/parent_insights_provider.dart';
+   274→import '../features/parent_portal/presentation/providers/parent_messaging_provider.dart';
+   275→import '../features/parent_portal/presentation/providers/parent_notification_provider.dart';
+   276→import '../features/parent_portal/presentation/providers/parent_reports_provider.dart';
+   277→import '../features/question_bank/data/datasources/question_bank_remote_datasource.dart';
+   278→import '../features/question_bank/data/repositories/question_bank_repository_impl.dart';
+   279→import '../features/question_bank/domain/repositories/question_bank_repository.dart';
+   280→import '../features/question_bank/domain/usecases/create_question_usecase.dart';
+   281→import '../features/question_bank/domain/usecases/delete_question_usecase.dart';
+   282→import '../features/question_bank/domain/usecases/export_questions_usecase.dart';
+   283→import '../features/question_bank/domain/usecases/get_question_detail_usecase.dart';
+   284→import '../features/question_bank/domain/usecases/get_question_stats_usecase.dart';
+   285→import '../features/question_bank/domain/usecases/get_questions_usecase.dart';
+   286→import '../features/question_bank/domain/usecases/import_questions_usecase.dart';
+   287→import '../features/question_bank/domain/usecases/manage_collections_usecase.dart';
+   288→import '../features/question_bank/domain/usecases/manage_question_status_usecase.dart';
+   289→import '../features/question_bank/domain/usecases/search_questions_usecase.dart';
+   290→import '../features/question_bank/domain/usecases/update_question_usecase.dart';
+   291→import '../features/question_bank/presentation/providers/collection_provider.dart';
+   292→import '../features/question_bank/presentation/providers/import_export_provider.dart';
+   293→import '../features/question_bank/presentation/providers/question_bank_stats_provider.dart';
+   294→import '../features/question_bank/presentation/providers/question_editor_provider.dart';
+   295→import '../features/question_bank/presentation/providers/question_filter_provider.dart';
+   296→import '../features/question_bank/presentation/providers/question_provider.dart';
+   297→import '../features/results/data/datasources/results_remote_datasource.dart';
+   298→import '../features/results/data/repositories/results_repository_impl.dart';
+   299→import '../features/results/domain/repositories/results_repository.dart';
+   300→import '../features/results/domain/usecases/results_usecases.dart';
+   301→import '../features/results/presentation/providers/results_providers.dart';
+   302→import '../features/school_management/data/datasources/school_management_remote_datasource.dart';
+   303→import '../features/school_management/data/repositories/school_management_repository_impl.dart';
+   304→import '../features/school_management/domain/repositories/school_management_repository.dart';
+   305→import '../features/school_management/domain/usecases/academic_session_usecases.dart' hide CreateCalendarEventUseCase, GetCalendarEventsUseCase;
+   306→import '../features/school_management/domain/usecases/announcement_usecases.dart' hide CreateAnnouncementUseCase, GetAnnouncementsUseCase;
+   307→import '../features/school_management/domain/usecases/attendance_usecases.dart';
+   308→import '../features/school_management/domain/usecases/homework_usecases.dart';
+   309→import '../features/school_management/domain/usecases/parent_usecases.dart';
+   310→import '../features/school_management/domain/usecases/report_usecases.dart';
+   311→import '../features/school_management/domain/usecases/school_usecases.dart';
+   312→import '../features/school_management/domain/usecases/student_usecases.dart';
+   313→import '../features/school_management/domain/usecases/teacher_usecases.dart';
+   314→import '../features/school_management/domain/usecases/timetable_usecases.dart';
+   315→import '../features/student_portal/data/datasources/student_portal_remote_datasource.dart';
+   316→import '../features/student_portal/data/repositories/student_portal_repository_impl.dart';
+   317→import '../features/student_portal/domain/repositories/student_portal_repository.dart';
+   318→import '../features/student_portal/domain/usecases/student_portal_usecases.dart' as sp_usecases;
+   319→import '../features/super_admin/data/datasources/super_admin_remote_datasource.dart';
+   320→import '../features/super_admin/data/repositories/super_admin_repository_impl.dart';
+   321→import '../features/super_admin/domain/repositories/super_admin_repository.dart';
+   322→import '../features/super_admin/domain/usecases/super_admin_usecases.dart' as sa;
+   323→import '../features/super_admin/domain/usecases/super_admin_usecases.dart' hide CreateSchoolUseCase, GetAuditLogsUseCase, GetNotificationsUseCase, GetSchoolsUseCase, MarkNotificationReadUseCase;
+   324→import '../features/super_admin/presentation/providers/super_admin_providers.dart' hide AnalyticsNotifier, AnalyticsState;
+   325→import '../features/teacher_workspace/data/datasources/teacher_workspace_remote_datasource.dart';
+   326→import '../features/teacher_workspace/data/repositories/teacher_workspace_repository_impl.dart';
+   327→import '../features/teacher_workspace/domain/repositories/teacher_workspace_repository.dart';
+   328→import '../features/teacher_workspace/domain/usecases/add_comment_usecase.dart';
+   329→import '../features/teacher_workspace/domain/usecases/ai_content_assistant_usecase.dart';
+   330→import '../features/teacher_workspace/domain/usecases/create_assignment_usecase.dart';
+   331→import '../features/teacher_workspace/domain/usecases/create_communication_usecase.dart';
+   332→import '../features/teacher_workspace/domain/usecases/create_event_usecase.dart';
+   333→import '../features/teacher_workspace/domain/usecases/create_lesson_plan_usecase.dart';
+   334→import '../features/teacher_workspace/domain/usecases/create_oral_questions_usecase.dart';
+   335→import '../features/teacher_workspace/domain/usecases/create_practical_assessment_usecase.dart';
+   336→import '../features/teacher_workspace/domain/usecases/create_presentation_usecase.dart';
+   337→import '../features/teacher_workspace/domain/usecases/create_report_comment_usecase.dart';
+   338→import '../features/teacher_workspace/domain/usecases/create_resource_usecase.dart';
+   339→import '../features/teacher_workspace/domain/usecases/create_rubric_usecase.dart';
+   340→import '../features/teacher_workspace/domain/usecases/create_scheme_of_work_usecase.dart';
+   341→import '../features/teacher_workspace/domain/usecases/create_task_usecase.dart';
+   342→import '../features/teacher_workspace/domain/usecases/create_worksheet_usecase.dart';
+   343→import '../features/teacher_workspace/domain/usecases/delete_lesson_plan_usecase.dart';
+   344→import '../features/teacher_workspace/domain/usecases/delete_task_usecase.dart';
+   345→import '../features/teacher_workspace/domain/usecases/export_presentation_usecase.dart';
+   346→import '../features/teacher_workspace/domain/usecases/export_worksheet_usecase.dart';
+   347→import '../features/teacher_workspace/domain/usecases/generate_assignment_usecase.dart';
+   348→import '../features/teacher_workspace/domain/usecases/generate_communication_usecase.dart';
+   349→import '../features/teacher_workspace/domain/usecases/generate_lesson_plan_usecase.dart';
+   350→import '../features/teacher_workspace/domain/usecases/generate_oral_questions_usecase.dart';
+   351→import '../features/teacher_workspace/domain/usecases/generate_practical_assessment_usecase.dart';
+   352→import '../features/teacher_workspace/domain/usecases/generate_presentation_usecase.dart';
+   353→import '../features/teacher_workspace/domain/usecases/generate_questions_from_content_usecase.dart';
+   354→import '../features/teacher_workspace/domain/usecases/generate_report_comments_usecase.dart';
+   355→import '../features/teacher_workspace/domain/usecases/generate_resource_usecase.dart';
+   356→import '../features/teacher_workspace/domain/usecases/generate_rubric_usecase.dart';
+   357→import '../features/teacher_workspace/domain/usecases/generate_scheme_of_work_usecase.dart';
+   358→import '../features/teacher_workspace/domain/usecases/generate_worksheet_usecase.dart';
+   359→import '../features/teacher_workspace/domain/usecases/get_assignments_usecase.dart';
+   360→import '../features/teacher_workspace/domain/usecases/get_comments_usecase.dart';
+   361→import '../features/teacher_workspace/domain/usecases/get_communications_usecase.dart';
+   362→import '../features/teacher_workspace/domain/usecases/get_content_history_usecase.dart';
+   363→import '../features/teacher_workspace/domain/usecases/get_enhanced_dashboard_usecase.dart';
+   364→import '../features/teacher_workspace/domain/usecases/get_events_usecase.dart';
+   365→import '../features/teacher_workspace/domain/usecases/get_lesson_plans_usecase.dart';
+   366→import '../features/teacher_workspace/domain/usecases/get_oral_questions_usecase.dart';
+   367→import '../features/teacher_workspace/domain/usecases/get_practical_assessments_usecase.dart';
+   368→import '../features/teacher_workspace/domain/usecases/get_presentations_usecase.dart';
+   369→import '../features/teacher_workspace/domain/usecases/get_resources_usecase.dart';
+   370→import '../features/teacher_workspace/domain/usecases/get_rubrics_usecase.dart';
+   371→import '../features/teacher_workspace/domain/usecases/get_schemes_of_work_usecase.dart';
+   372→import '../features/teacher_workspace/domain/usecases/get_tasks_usecase.dart';
+   373→import '../features/teacher_workspace/domain/usecases/get_version_history_usecase.dart';
+   374→import '../features/teacher_workspace/domain/usecases/get_worksheets_usecase.dart';
+   375→import '../features/teacher_workspace/domain/usecases/get_workspace_dashboard_usecase.dart';
+   376→import '../features/teacher_workspace/domain/usecases/publish_assignment_usecase.dart';
+   377→import '../features/teacher_workspace/domain/usecases/share_resource_usecase.dart';
+   378→import '../features/teacher_workspace/domain/usecases/suggest_schedule_usecase.dart';
+   379→import '../features/teacher_workspace/domain/usecases/toggle_favorite_usecase.dart';
+   380→import '../features/teacher_workspace/domain/usecases/update_lesson_plan_usecase.dart';
+   381→import '../features/teacher_workspace/domain/usecases/update_task_usecase.dart';
+   382→import '../features/teacher_workspace/presentation/providers/assignment_provider.dart';
+   383→import '../features/teacher_workspace/presentation/providers/calendar_planner_provider.dart';
+   384→import '../features/teacher_workspace/presentation/providers/collaboration_provider.dart';
+   385→import '../features/teacher_workspace/presentation/providers/communication_provider.dart';
+   386→import '../features/teacher_workspace/presentation/providers/content_assistant_provider.dart';
+   387→import '../features/teacher_workspace/presentation/providers/enhanced_dashboard_provider.dart';
+   388→import '../features/teacher_workspace/presentation/providers/generate_questions_provider.dart';
+   389→import '../features/teacher_workspace/presentation/providers/lesson_plan_provider.dart';
+   390→import '../features/teacher_workspace/presentation/providers/oral_question_provider.dart';
+   391→import '../features/teacher_workspace/presentation/providers/practical_assessment_provider.dart';
+   392→import '../features/teacher_workspace/presentation/providers/presentation_provider.dart';
+   393→import '../features/teacher_workspace/presentation/providers/report_comment_provider.dart';
+   394→import '../features/teacher_workspace/presentation/providers/resource_library_provider.dart';
+   395→import '../features/teacher_workspace/presentation/providers/rubric_provider.dart';
+   396→import '../features/teacher_workspace/presentation/providers/scheme_of_work_provider.dart';
+   397→import '../features/teacher_workspace/presentation/providers/task_provider.dart';
+   398→import '../features/teacher_workspace/presentation/providers/teaching_resource_provider.dart';
+   399→import '../features/teacher_workspace/presentation/providers/worksheet_provider.dart';
+   400→import '../features/teacher_workspace/presentation/providers/workspace_dashboard_provider.dart';
+   401→import '../services/ai/ai_providers_registry.dart';
+   402→import '../services/ai/ai_service.dart';
+   403→import '../services/ai/prompt_engine.dart';
+   404→import '../services/ai/providers/gemini_provider.dart';
+   405→import '../services/ai/providers/openai_provider.dart';
+   406→import '../services/ai/validation_engine.dart';
+   407→import '../services/auth_service.dart';
+   408→import '../services/cbt/anti_cheat_service.dart';
+   409→import '../services/cbt/auto_save_service.dart';
+   410→import '../services/cbt/exam_notification_service.dart';
+   411→import '../services/cbt/exam_timer_service.dart';
+   412→import '../services/cbt/rate_limiting_service.dart';
+   413→import '../services/cbt/realtime_service.dart';
+   414→import '../services/cbt/result_processor.dart';
+   415→import '../services/cbt/session_recovery_service.dart';
+   416→import '../services/notification_service.dart';
+   417→import '../services/results/ai_grading_service.dart';
+   418→import '../services/results/analytics_engine.dart';
+   419→import '../services/results/report_generator.dart';
+   420→import '../services/storage_service.dart';
+   421→
+   422→
+   423→final supabaseClientProvider = Provider<sb.SupabaseClient>((ref) {
+   424→  try {
+   425→    return SupabaseConfig.client;
+   426→  } catch (e) {
+   427→    AppLogger.error('Failed to resolve Supabase client', error: e);
+   428→    rethrow;
+   429→  }
+   430→});
+   431→
+   432→/// Provides a configured [Dio] instance with base options pulled from
+   433→/// [AppConfig] and [ApiConstants].
+   434→final dioProvider = Provider<Dio>((ref) {
+   435→  final dio = Dio(
+   436→    BaseOptions(
+   437→      baseUrl: AppConfig.baseUrl,
+   438→      connectTimeout: AppConfig.connectTimeoutDuration,
+   439→      receiveTimeout: AppConfig.receiveTimeoutDuration,
+   440→      sendTimeout: AppConfig.sendTimeoutDuration,
+   441→      headers: ApiConstants.baseHeaders(),
+   442→      responseType: ResponseType.json,
+   443→      validateStatus: (status) => status != null && status < 500,
+   444→    ),
+   445→  );
+   446→  return dio;
+   447→});
+   448→
+   449→/// Provides the [ApiClient] wrapper around [Dio].
+   450→///
+   451→/// FIX: Now injects [StorageService] so that auth tokens are actually
+   452→/// read from secure storage instead of returning null (the root cause
+   453→/// of the "ApiClient auth always returning null" bug).
+   454→final apiClientProvider = Provider<ApiClient>((ref) {
+   455→  final dio = ref.watch(dioProvider);
+   456→  final storageService = ref.watch(storageServiceProvider);
+   457→  return ApiClient(dio, storageService: storageService);
+   458→});
+   459→
+   460→/// Re-exports the [NetworkInfo] provider from the core layer so that
+   461→/// it is accessible through the DI container alongside other services.
+   462→final networkInfoProvider = Provider<NetworkInfo>((ref) {
+   463→  // Delegate to the core-layer provider.
+   464→  return ref.watch(coreNetworkInfoProvider);
+   465→});
+   466→
+   467→// ═══════════════════════════════════════════════════════════════════════
+   468→// SERVICE PROVIDERS
+   469→// ═══════════════════════════════════════════════════════════════════════
+   470→
+   471→/// Provides the [StorageService] singleton.
+   472→///
+   473→/// Lazily initialized on first access.
+   474→final storageServiceProvider = Provider<StorageService>((ref) {
+   475→  final service = StorageService();
+   476→  ref.onDispose(() {
+   477→    // StorageService wraps singletons; no explicit dispose needed.
+   478→  });
+   479→  return service;
+   480→});
+   481→
+   482→/// Provides the [AuthService] instance, injecting the Supabase client
+   483→/// and the storage service.
+   484→final authServiceProvider = Provider<AuthService>((ref) {
+   485→  final supabaseClient = ref.watch(supabaseClientProvider);
+   486→  final storageService = ref.watch(storageServiceProvider);
+   487→  return AuthService(
+   488→    supabaseClient: supabaseClient,
+   489→    storageService: storageService,
+   490→  );
+   491→});
+   492→
+   493→/// Provides the [NotificationService] instance, injecting the Supabase
+   494→/// client and the storage service.
+   495→final notificationServiceProvider = Provider<NotificationService>((ref) {
+   496→  final supabaseClient = ref.watch(supabaseClientProvider);
+   497→  final storageService = ref.watch(storageServiceProvider);
+   498→  return NotificationService(
+   499→    supabaseClient: supabaseClient,
+   500→    storageService: storageService,
+
+[showing lines 1-500 of 4644; use offset=501 with limit to continue reading]

@@ -1,0 +1,1944 @@
+     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→
+     3→import '../../../../../core/network/paginated_query_mixin.dart';
+     4→import '../../../../core/errors/exceptions.dart';
+     5→import '../../../../core/utils/logger.dart';
+     6→import '../models/billing_models.dart';
+     7→
+     8→// ═══════════════════════════════════════════════════════════════════════
+     9→// ABSTRACT INTERFACE
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→
+    12→/// Abstract interface for all remote billing data operations.
+    13→///
+    14→/// Implementations handle all network communication with the Supabase
+    15→/// backend and return plain model instances. Exceptions are allowed to
+    16→/// propagate so the repository layer can catch and convert them to
+    17→/// domain [Failure] types.
+    18→abstract class BillingRemoteDataSource {
+    19→  // ─── Plans ──────────────────────────────────────────────────────────
+    20→
+    21→  Future<List<SubscriptionPlanModel>> getSubscriptionPlans({
+    22→    String? billingModel,
+    23→    bool activeOnly = true,
+    24→    int limit = PaginatedQueryMixin.dropdownPageSize,
+    25→  });
+    26→  Future<SubscriptionPlanModel> getSubscriptionPlan(String planId);
+    27→  Future<SubscriptionPlanModel> upsertSubscriptionPlan(
+    28→    Map<String, dynamic> planData,
+    29→  );
+    30→
+    31→  // ─── Subscriptions ─────────────────────────────────────────────────
+    32→
+    33→  Future<SubscriptionModel> getCurrentSubscription({
+    34→    required String subscriberId,
+    35→    required String subscriberType,
+    36→  });
+    37→  Future<List<SubscriptionModel>> getSubscriptions({
+    38→    String? schoolId,
+    39→    String? subscriberType,
+    40→    String? status,
+    41→    int page = 1,
+    42→    int perPage = 20,
+    43→  });
+    44→  Future<SubscriptionModel> createSubscription(Map<String, dynamic> data);
+    45→  Future<SubscriptionModel> updateSubscription(
+    46→    String subscriptionId,
+    47→    Map<String, dynamic> data,
+    48→  );
+    49→  Future<void> deleteSubscription(String subscriptionId);
+    50→
+    51→  // ─── Transactions ──────────────────────────────────────────────────
+    52→
+    53→  Future<List<TransactionModel>> getTransactions({
+    54→    String? userId,
+    55→    String? schoolId,
+    56→    String? status,
+    57→    int page = 1,
+    58→    int perPage = 20,
+    59→  });
+    60→  Future<TransactionModel> getTransaction(String transactionId);
+    61→  Future<TransactionModel> createTransaction(Map<String, dynamic> data);
+    62→  Future<TransactionModel> updateTransaction(
+    63→    String transactionId,
+    64→    Map<String, dynamic> data,
+    65→  );
+    66→
+    67→  // ─── Invoices ──────────────────────────────────────────────────────
+    68→
+    69→  Future<List<InvoiceModel>> getInvoices({
+    70→    String? userId,
+    71→    String? schoolId,
+    72→    String? status,
+    73→    int page = 1,
+    74→    int perPage = 20,
+    75→  });
+    76→  Future<InvoiceModel> getInvoice(String invoiceId);
+    77→  Future<InvoiceModel> createInvoice(Map<String, dynamic> data);
+    78→  Future<InvoiceModel> updateInvoice(
+    79→    String invoiceId,
+    80→    Map<String, dynamic> data,
+    81→  );
+    82→
+    83→  // ─── Receipts ──────────────────────────────────────────────────────
+    84→
+    85→  Future<List<ReceiptModel>> getReceipts({
+    86→    required String userId,
+    87→    int page = 1,
+    88→    int perPage = 20,
+    89→  });
+    90→  Future<ReceiptModel> createReceipt(Map<String, dynamic> data);
+    91→
+    92→  // ─── AI Credits ────────────────────────────────────────────────────
+    93→
+    94→  Future<AiCreditBalanceModel> getCreditBalance({
+    95→    required String ownerId,
+    96→    required String ownerType,
+    97→  });
+    98→  Future<List<AiCreditTransactionModel>> getCreditTransactions({
+    99→    required String ownerId,
+   100→    required String ownerType,
+   101→    String? type,
+   102→    int page = 1,
+   103→    int perPage = 20,
+   104→  });
+   105→  Future<bool> consumeCredits({
+   106→    required String ownerId,
+   107→    required String ownerType,
+   108→    required int credits,
+   109→    required String featureName,
+   110→    String? referenceId,
+   111→    double estimatedCostUsd = 0,
+   112→  });
+   113→  Future<AiCreditBalanceModel> purchaseCredits(Map<String, dynamic> data);
+   114→  Future<List<AiCreditPackModel>> getCreditPacks({
+   115→    String? billingModel,
+   116→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   117→  });
+   118→
+   119→  // ─── Coupons ───────────────────────────────────────────────────────
+   120→
+   121→  Future<CouponModel> validateCoupon({
+   122→    required String code,
+   123→    required String billingModel,
+   124→    String? planId,
+   125→  });
+   126→  Future<CouponModel> redeemCoupon({
+   127→    required String couponId,
+   128→    required String userId,
+   129→    String? schoolId,
+   130→    String? subscriptionId,
+   131→  });
+   132→  Future<List<CouponModel>> getCoupons({
+   133→    bool activeOnly = false,
+   134→    int page = 1,
+   135→    int perPage = 20,
+   136→  });
+   137→  Future<CouponModel> createCoupon(Map<String, dynamic> data);
+   138→  Future<CouponModel> updateCoupon(
+   139→    String couponId,
+   140→    Map<String, dynamic> data,
+   141→  );
+   142→
+   143→  // ─── Referrals ─────────────────────────────────────────────────────
+   144→
+   145→  Future<ReferralCodeModel> getOrCreateReferralCode({
+   146→    required String referrerId,
+   147→    required String referrerType,
+   148→    String? schoolId,
+   149→  });
+   150→  Future<bool> applyReferralCode({
+   151→    required String code,
+   152→    required String refereeId,
+   153→    required String refereeType,
+   154→  });
+   155→  Future<List<Map<String, dynamic>>> getReferralTracking({
+   156→    required String referrerId,
+   157→    int page = 1,
+   158→    int perPage = 20,
+   159→  });
+   160→
+   161→  // ─── Licenses ──────────────────────────────────────────────────────
+   162→
+   163→  Future<List<LicenseModel>> getLicenses({
+   164→    String? schoolId,
+   165→    String? userId,
+   166→    String? type,
+   167→    bool activeOnly = true,
+   168→    int limit = PaginatedQueryMixin.defaultPageSize,
+   169→    int offset = 0,
+   170→  });
+   171→  Future<LicenseModel> revokeLicense({
+   172→    required String licenseId,
+   173→    required String reason,
+   174→  });
+   175→
+   176→  // ─── School Billing ────────────────────────────────────────────────
+   177→
+   178→  Future<SchoolBillingProfileModel> getSchoolBillingProfile(String schoolId);
+   179→  Future<SchoolBillingProfileModel> updateSchoolBillingProfile(
+   180→    String schoolId,
+   181→    Map<String, dynamic> data,
+   182→  );
+   183→
+   184→  // ─── Revenue ───────────────────────────────────────────────────────
+   185→
+   186→  Future<List<RevenueDataPointModel>> getRevenueData({
+   187→    required String periodType,
+   188→    required String startDate,
+   189→    required String endDate,
+   190→  });
+   191→  Future<Map<String, dynamic>> getBillingDashboardSummary();
+   192→
+   193→  // ─── Notifications ─────────────────────────────────────────────────
+   194→
+   195→  Future<List<BillingNotificationModel>> getBillingNotifications({
+   196→    required String userId,
+   197→    bool unreadOnly = false,
+   198→    int page = 1,
+   199→    int perPage = 20,
+   200→  });
+   201→  Future<bool> markNotificationRead(String notificationId);
+   202→  Future<bool> updateNotificationPreferences({
+   203→    required String userId,
+   204→    required Map<String, bool> preferences,
+   205→  });
+   206→}
+   207→
+   208→// ═══════════════════════════════════════════════════════════════════════
+   209→// SUPABASE IMPLEMENTATION
+   210→// ═══════════════════════════════════════════════════════════════════════
+   211→
+   212→/// Supabase-backed implementation of [BillingRemoteDataSource].
+   213→///
+   214→/// Every method maps Supabase-specific responses and errors into the
+   215→/// domain-agnostic types defined in the data layer. Supabase
+   216→/// [sb.PostgrestException] instances are converted to our custom
+   217→/// exceptions with user-friendly messages.
+   218→class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
+   219→  BillingRemoteDataSourceImpl({
+   220→    required sb.SupabaseClient supabaseClient,
+   221→  }) : _supabase = supabaseClient;
+   222→
+   223→  final sb.SupabaseClient _supabase;
+   224→
+   225→  // ─── Table names ───────────────────────────────────────────────────
+   226→  static const _plansTable = 'subscription_plans';
+   227→  static const _subscriptionsTable = 'subscriptions';
+   228→  static const _transactionsTable = 'transactions';
+   229→  static const _invoicesTable = 'invoices';
+   230→  static const _receiptsTable = 'receipts';
+   231→  static const _creditBalancesTable = 'ai_credit_balances';
+   232→  static const _creditTransactionsTable = 'ai_credit_transactions';
+   233→  static const _couponsTable = 'coupons';
+   234→  static const _couponRedemptionsTable = 'coupon_redemptions';
+   235→  static const _referralCodesTable = 'referral_codes';
+   236→  static const _referralTrackingTable = 'referral_tracking';
+   237→  static const _licensesTable = 'licenses';
+   238→  static const _schoolBillingTable = 'school_billing_profiles';
+   239→  static const _revenueTable = 'revenue_reports';
+   240→  static const _creditPacksTable = 'ai_credit_packs';
+   241→  static const _notificationsTable = 'billing_notifications';
+   242→  static const _notificationPrefsTable = 'billing_notification_preferences';
+   243→
+   244→  // ═══════════════════════════════════════════════════════════════════
+   245→  // PLANS
+   246→  // ═══════════════════════════════════════════════════════════════════
+   247→
+   248→  @override
+   249→  Future<List<SubscriptionPlanModel>> getSubscriptionPlans({
+   250→    String? billingModel,
+   251→    bool activeOnly = true,
+   252→    int limit = PaginatedQueryMixin.dropdownPageSize,
+   253→  }) async {
+   254→    try {
+   255→      var query = _supabase.from(_plansTable).select();
+   256→
+   257→      if (billingModel != null) {
+   258→        query = query.eq('billing_model', billingModel);
+   259→      }
+   260→      if (activeOnly) {
+   261→        query = query.eq('is_active', true);
+   262→      }
+   263→
+   264→      // PERF: Added limit to prevent unbounded query on subscription_plans
+   265→      final response = query.order('sort_order', ascending: true).limit(limit);
+   266→
+   267→      final list = await response;
+   268→      AppLogger.info('Fetched ${list.length} subscription plans');
+   269→      return list
+   270→          .map<SubscriptionPlanModel>(
+   271→            (row) => SubscriptionPlanModel.fromJson(row),
+   272→          )
+   273→          .toList();
+   274→    } on sb.PostgrestException catch (e) {
+   275→      throw _mapPostgrestException(e);
+   276→    } catch (e) {
+   277→      AppLogger.error('Unexpected getSubscriptionPlans error', error: e);
+   278→      throw const ServerException(
+   279→        message: 'Failed to fetch subscription plans.',
+   280→        statusCode: 500,
+   281→      );
+   282→    }
+   283→  }
+   284→
+   285→  @override
+   286→  Future<SubscriptionPlanModel> getSubscriptionPlan(String planId) async {
+   287→    try {
+   288→      final response = await _supabase
+   289→          .from(_plansTable)
+   290→          .select()
+   291→          .eq('id', planId)
+   292→          .limit(1);
+   293→
+   294→      if (response.isEmpty) {
+   295→        throw const NotFoundException(message: 'Subscription plan not found.');
+   296→      }
+   297→
+   298→      return SubscriptionPlanModel.fromJson(response.first);
+   299→    } on sb.PostgrestException catch (e) {
+   300→      throw _mapPostgrestException(e);
+   301→    } on NotFoundException {
+   302→      rethrow;
+   303→    } catch (e) {
+   304→      AppLogger.error('Unexpected getSubscriptionPlan error', error: e);
+   305→      throw const ServerException(
+   306→        message: 'Failed to fetch subscription plan.',
+   307→        statusCode: 500,
+   308→      );
+   309→    }
+   310→  }
+   311→
+   312→  @override
+   313→  Future<SubscriptionPlanModel> upsertSubscriptionPlan(
+   314→    Map<String, dynamic> planData,
+   315→  ) async {
+   316→    try {
+   317→      planData['updated_at'] = DateTime.now().toIso8601String();
+   318→
+   319→      final response = await _supabase
+   320→          .from(_plansTable)
+   321→          .upsert(planData)
+   322→          .select();
+   323→
+   324→      if (response.isEmpty) {
+   325→        throw const ServerException(
+   326→          message: 'Subscription plan upsert returned no data.',
+   327→          statusCode: 500,
+   328→        );
+   329→      }
+   330→
+   331→      AppLogger.info('Subscription plan upserted: ${response.first['id']}');
+   332→      return SubscriptionPlanModel.fromJson(response.first);
+   333→    } on sb.PostgrestException catch (e) {
+   334→      throw _mapPostgrestException(e);
+   335→    } on ServerException {
+   336→      rethrow;
+   337→    } catch (e) {
+   338→      AppLogger.error('Unexpected upsertSubscriptionPlan error', error: e);
+   339→      throw const ServerException(
+   340→        message: 'Failed to upsert subscription plan.',
+   341→        statusCode: 500,
+   342→      );
+   343→    }
+   344→  }
+   345→
+   346→  // ═══════════════════════════════════════════════════════════════════
+   347→  // SUBSCRIPTIONS
+   348→  // ═══════════════════════════════════════════════════════════════════
+   349→
+   350→  @override
+   351→  Future<SubscriptionModel> getCurrentSubscription({
+   352→    required String subscriberId,
+   353→    required String subscriberType,
+   354→  }) async {
+   355→    try {
+   356→      final response = await _supabase
+   357→          .from(_subscriptionsTable)
+   358→          .select()
+   359→          .eq('subscriber_id', subscriberId)
+   360→          .eq('subscriber_type', subscriberType)
+   361→          .inFilter('status', ['active', 'trial'])
+   362→          .order('created_at', ascending: false)
+   363→          .limit(1);
+   364→
+   365→      if (response.isEmpty) {
+   366→        throw const NotFoundException(message: 'No active subscription found.');
+   367→      }
+   368→
+   369→      return SubscriptionModel.fromJson(response.first);
+   370→    } on sb.PostgrestException catch (e) {
+   371→      throw _mapPostgrestException(e);
+   372→    } on NotFoundException {
+   373→      rethrow;
+   374→    } catch (e) {
+   375→      AppLogger.error('Unexpected getCurrentSubscription error', error: e);
+   376→      throw const ServerException(
+   377→        message: 'Failed to fetch current subscription.',
+   378→        statusCode: 500,
+   379→      );
+   380→    }
+   381→  }
+   382→
+   383→  @override
+   384→  Future<List<SubscriptionModel>> getSubscriptions({
+   385→    String? schoolId,
+   386→    String? subscriberType,
+   387→    String? status,
+   388→    int page = 1,
+   389→    int perPage = 20,
+   390→  }) async {
+   391→    try {
+   392→      var query = _supabase.from(_subscriptionsTable).select();
+   393→
+   394→      if (schoolId != null) {
+   395→        query = query.eq('school_id', schoolId);
+   396→      }
+   397→      if (subscriberType != null) {
+   398→        query = query.eq('subscriber_type', subscriberType);
+   399→      }
+   400→      if (status != null) {
+   401→        query = query.eq('status', status);
+   402→      }
+   403→
+   404→      final filtered = _applyFilters(query, {
+   405→        if (schoolId != null) 'school_id': schoolId,
+   406→        if (subscriberType != null) 'subscriber_type': subscriberType,
+   407→        if (status != null) 'status': status,
+   408→      });
+   409→
+   410→      var transformed =
+   411→          filtered.order('created_at', ascending: false);
+   412→      transformed = _applyPagination(transformed, page: page, perPage: perPage);
+   413→
+   414→      final list = await transformed;
+   415→      AppLogger.info('Fetched ${list.length} subscriptions');
+   416→      return list
+   417→          .map<SubscriptionModel>(
+   418→            (row) => SubscriptionModel.fromJson(row),
+   419→          )
+   420→          .toList();
+   421→    } on sb.PostgrestException catch (e) {
+   422→      throw _mapPostgrestException(e);
+   423→    } catch (e) {
+   424→      AppLogger.error('Unexpected getSubscriptions error', error: e);
+   425→      throw const ServerException(
+   426→        message: 'Failed to fetch subscriptions.',
+   427→        statusCode: 500,
+   428→      );
+   429→    }
+   430→  }
+   431→
+   432→  @override
+   433→  Future<SubscriptionModel> createSubscription(
+   434→    Map<String, dynamic> data,
+   435→  ) async {
+   436→    try {
+   437→      final response = await _supabase
+   438→          .from(_subscriptionsTable)
+   439→          .insert(data)
+   440→          .select();
+   441→
+   442→      if (response.isEmpty) {
+   443→        throw const ServerException(
+   444→          message: 'Subscription creation returned no data.',
+   445→          statusCode: 500,
+   446→        );
+   447→      }
+   448→
+   449→      AppLogger.info('Subscription created: ${response.first['id']}');
+   450→      return SubscriptionModel.fromJson(response.first);
+   451→    } on sb.PostgrestException catch (e) {
+   452→      throw _mapPostgrestException(e);
+   453→    } on ServerException {
+   454→      rethrow;
+   455→    } catch (e) {
+   456→      AppLogger.error('Unexpected createSubscription error', error: e);
+   457→      throw const ServerException(
+   458→        message: 'Failed to create subscription.',
+   459→        statusCode: 500,
+   460→      );
+   461→    }
+   462→  }
+   463→
+   464→  @override
+   465→  Future<SubscriptionModel> updateSubscription(
+   466→    String subscriptionId,
+   467→    Map<String, dynamic> data,
+   468→  ) async {
+   469→    try {
+   470→      data['updated_at'] = DateTime.now().toIso8601String();
+   471→
+   472→      final response = await _supabase
+   473→          .from(_subscriptionsTable)
+   474→          .update(data)
+   475→          .eq('id', subscriptionId)
+   476→          .select();
+   477→
+   478→      if (response.isEmpty) {
+   479→        throw const NotFoundException(message: 'Subscription not found for update.');
+   480→      }
+   481→
+   482→      AppLogger.info('Subscription updated: $subscriptionId');
+   483→      return SubscriptionModel.fromJson(response.first);
+   484→    } on sb.PostgrestException catch (e) {
+   485→      throw _mapPostgrestException(e);
+   486→    } on NotFoundException {
+   487→      rethrow;
+   488→    } catch (e) {
+   489→      AppLogger.error('Unexpected updateSubscription error', error: e);
+   490→      throw const ServerException(
+   491→        message: 'Failed to update subscription.',
+   492→        statusCode: 500,
+   493→      );
+   494→    }
+   495→  }
+   496→
+   497→  @override
+   498→  Future<void> deleteSubscription(String subscriptionId) async {
+   499→    try {
+   500→      await _supabase
+   501→          .from(_subscriptionsTable)
+   502→          .delete()
+   503→          .eq('id', subscriptionId);
+   504→
+   505→      AppLogger.info('Subscription deleted: $subscriptionId');
+   506→    } on sb.PostgrestException catch (e) {
+   507→      throw _mapPostgrestException(e);
+   508→    } catch (e) {
+   509→      AppLogger.error('Unexpected deleteSubscription error', error: e);
+   510→      throw const ServerException(
+   511→        message: 'Failed to delete subscription.',
+   512→        statusCode: 500,
+   513→      );
+   514→    }
+   515→  }
+   516→
+   517→  // ═══════════════════════════════════════════════════════════════════
+   518→  // TRANSACTIONS
+   519→  // ═══════════════════════════════════════════════════════════════════
+   520→
+   521→  @override
+   522→  Future<List<TransactionModel>> getTransactions({
+   523→    String? userId,
+   524→    String? schoolId,
+   525→    String? status,
+   526→    int page = 1,
+   527→    int perPage = 20,
+   528→  }) async {
+   529→    try {
+   530→      var query = _supabase.from(_transactionsTable).select();
+   531→
+   532→      if (userId != null) {
+   533→        query = query.eq('user_id', userId);
+   534→      }
+   535→      if (schoolId != null) {
+   536→        query = query.eq('school_id', schoolId);
+   537→      }
+   538→      if (status != null) {
+   539→        query = query.eq('status', status);
+   540→      }
+   541→
+   542→      final filtered = _applyFilters(query, {
+   543→        if (userId != null) 'user_id': userId,
+   544→        if (schoolId != null) 'school_id': schoolId,
+   545→        if (status != null) 'status': status,
+   546→      });
+   547→
+   548→      var transformed =
+   549→          filtered.order('created_at', ascending: false);
+   550→      transformed = _applyPagination(transformed, page: page, perPage: perPage);
+   551→
+   552→      final list = await transformed;
+   553→      AppLogger.info('Fetched ${list.length} transactions');
+   554→      return list
+   555→          .map<TransactionModel>(
+   556→            (row) => TransactionModel.fromJson(row),
+   557→          )
+   558→          .toList();
+   559→    } on sb.PostgrestException catch (e) {
+   560→      throw _mapPostgrestException(e);
+   561→    } catch (e) {
+   562→      AppLogger.error('Unexpected getTransactions error', error: e);
+   563→      throw const ServerException(
+   564→        message: 'Failed to fetch transactions.',
+   565→        statusCode: 500,
+   566→      );
+   567→    }
+   568→  }
+   569→
+   570→  @override
+   571→  Future<TransactionModel> getTransaction(String transactionId) async {
+   572→    try {
+   573→      final response = await _supabase
+   574→          .from(_transactionsTable)
+   575→          .select()
+   576→          .eq('id', transactionId)
+   577→          .limit(1);
+   578→
+   579→      if (response.isEmpty) {
+   580→        throw const NotFoundException(message: 'Transaction not found.');
+   581→      }
+   582→
+   583→      return TransactionModel.fromJson(response.first);
+   584→    } on sb.PostgrestException catch (e) {
+   585→      throw _mapPostgrestException(e);
+   586→    } on NotFoundException {
+   587→      rethrow;
+   588→    } catch (e) {
+   589→      AppLogger.error('Unexpected getTransaction error', error: e);
+   590→      throw const ServerException(
+   591→        message: 'Failed to fetch transaction.',
+   592→        statusCode: 500,
+   593→      );
+   594→    }
+   595→  }
+   596→
+   597→  @override
+   598→  Future<TransactionModel> createTransaction(Map<String, dynamic> data) async {
+   599→    try {
+   600→      final response = await _supabase
+   601→          .from(_transactionsTable)
+   602→          .insert(data)
+   603→          .select();
+   604→
+   605→      if (response.isEmpty) {
+   606→        throw const ServerException(
+   607→          message: 'Transaction creation returned no data.',
+   608→          statusCode: 500,
+   609→        );
+   610→      }
+   611→
+   612→      AppLogger.info('Transaction created: ${response.first['id']}');
+   613→      return TransactionModel.fromJson(response.first);
+   614→    } on sb.PostgrestException catch (e) {
+   615→      throw _mapPostgrestException(e);
+   616→    } on ServerException {
+   617→      rethrow;
+   618→    } catch (e) {
+   619→      AppLogger.error('Unexpected createTransaction error', error: e);
+   620→      throw const ServerException(
+   621→        message: 'Failed to create transaction.',
+   622→        statusCode: 500,
+   623→      );
+   624→    }
+   625→  }
+   626→
+   627→  @override
+   628→  Future<TransactionModel> updateTransaction(
+   629→    String transactionId,
+   630→    Map<String, dynamic> data,
+   631→  ) async {
+   632→    try {
+   633→      data['updated_at'] = DateTime.now().toIso8601String();
+   634→
+   635→      final response = await _supabase
+   636→          .from(_transactionsTable)
+   637→          .update(data)
+   638→          .eq('id', transactionId)
+   639→          .select();
+   640→
+   641→      if (response.isEmpty) {
+   642→        throw const NotFoundException(message: 'Transaction not found for update.');
+   643→      }
+   644→
+   645→      AppLogger.info('Transaction updated: $transactionId');
+   646→      return TransactionModel.fromJson(response.first);
+   647→    } on sb.PostgrestException catch (e) {
+   648→      throw _mapPostgrestException(e);
+   649→    } on NotFoundException {
+   650→      rethrow;
+   651→    } catch (e) {
+   652→      AppLogger.error('Unexpected updateTransaction error', error: e);
+   653→      throw const ServerException(
+   654→        message: 'Failed to update transaction.',
+   655→        statusCode: 500,
+   656→      );
+   657→    }
+   658→  }
+   659→
+   660→  // ═══════════════════════════════════════════════════════════════════
+   661→  // INVOICES
+   662→  // ═══════════════════════════════════════════════════════════════════
+   663→
+   664→  @override
+   665→  Future<List<InvoiceModel>> getInvoices({
+   666→    String? userId,
+   667→    String? schoolId,
+   668→    String? status,
+   669→    int page = 1,
+   670→    int perPage = 20,
+   671→  }) async {
+   672→    try {
+   673→      var query = _supabase.from(_invoicesTable).select();
+   674→
+   675→      if (userId != null) {
+   676→        query = query.eq('user_id', userId);
+   677→      }
+   678→      if (schoolId != null) {
+   679→        query = query.eq('school_id', schoolId);
+   680→      }
+   681→      if (status != null) {
+   682→        query = query.eq('status', status);
+   683→      }
+   684→
+   685→      final filtered = _applyFilters(query, {
+   686→        if (userId != null) 'user_id': userId,
+   687→        if (schoolId != null) 'school_id': schoolId,
+   688→        if (status != null) 'status': status,
+   689→      });
+   690→
+   691→      var transformed =
+   692→          filtered.order('created_at', ascending: false);
+   693→      transformed = _applyPagination(transformed, page: page, perPage: perPage);
+   694→
+   695→      final list = await transformed;
+   696→      AppLogger.info('Fetched ${list.length} invoices');
+   697→      return list
+   698→          .map<InvoiceModel>((row) => InvoiceModel.fromJson(row))
+   699→          .toList();
+   700→    } on sb.PostgrestException catch (e) {
+   701→      throw _mapPostgrestException(e);
+   702→    } catch (e) {
+   703→      AppLogger.error('Unexpected getInvoices error', error: e);
+   704→      throw const ServerException(
+   705→        message: 'Failed to fetch invoices.',
+   706→        statusCode: 500,
+   707→      );
+   708→    }
+   709→  }
+   710→
+   711→  @override
+   712→  Future<InvoiceModel> getInvoice(String invoiceId) async {
+   713→    try {
+   714→      final response = await _supabase
+   715→          .from(_invoicesTable)
+   716→          .select()
+   717→          .eq('id', invoiceId)
+   718→          .limit(1);
+   719→
+   720→      if (response.isEmpty) {
+   721→        throw const NotFoundException(message: 'Invoice not found.');
+   722→      }
+   723→
+   724→      return InvoiceModel.fromJson(response.first);
+   725→    } on sb.PostgrestException catch (e) {
+   726→      throw _mapPostgrestException(e);
+   727→    } on NotFoundException {
+   728→      rethrow;
+   729→    } catch (e) {
+   730→      AppLogger.error('Unexpected getInvoice error', error: e);
+   731→      throw const ServerException(
+   732→        message: 'Failed to fetch invoice.',
+   733→        statusCode: 500,
+   734→      );
+   735→    }
+   736→  }
+   737→
+   738→  @override
+   739→  Future<InvoiceModel> createInvoice(Map<String, dynamic> data) async {
+   740→    try {
+   741→      final response = await _supabase
+   742→          .from(_invoicesTable)
+   743→          .insert(data)
+   744→          .select();
+   745→
+   746→      if (response.isEmpty) {
+   747→        throw const ServerException(
+   748→          message: 'Invoice creation returned no data.',
+   749→          statusCode: 500,
+   750→        );
+   751→      }
+   752→
+   753→      AppLogger.info('Invoice created: ${response.first['id']}');
+   754→      return InvoiceModel.fromJson(response.first);
+   755→    } on sb.PostgrestException catch (e) {
+   756→      throw _mapPostgrestException(e);
+   757→    } on ServerException {
+   758→      rethrow;
+   759→    } catch (e) {
+   760→      AppLogger.error('Unexpected createInvoice error', error: e);
+   761→      throw const ServerException(
+   762→        message: 'Failed to create invoice.',
+   763→        statusCode: 500,
+   764→      );
+   765→    }
+   766→  }
+   767→
+   768→  @override
+   769→  Future<InvoiceModel> updateInvoice(
+   770→    String invoiceId,
+   771→    Map<String, dynamic> data,
+   772→  ) async {
+   773→    try {
+   774→      data['updated_at'] = DateTime.now().toIso8601String();
+   775→
+   776→      final response = await _supabase
+   777→          .from(_invoicesTable)
+   778→          .update(data)
+   779→          .eq('id', invoiceId)
+   780→          .select();
+   781→
+   782→      if (response.isEmpty) {
+   783→        throw const NotFoundException(message: 'Invoice not found for update.');
+   784→      }
+   785→
+   786→      AppLogger.info('Invoice updated: $invoiceId');
+   787→      return InvoiceModel.fromJson(response.first);
+   788→    } on sb.PostgrestException catch (e) {
+   789→      throw _mapPostgrestException(e);
+   790→    } on NotFoundException {
+   791→      rethrow;
+   792→    } catch (e) {
+   793→      AppLogger.error('Unexpected updateInvoice error', error: e);
+   794→      throw const ServerException(
+   795→        message: 'Failed to update invoice.',
+   796→        statusCode: 500,
+   797→      );
+   798→    }
+   799→  }
+   800→
+   801→  // ═══════════════════════════════════════════════════════════════════
+   802→  // RECEIPTS
+   803→  // ═══════════════════════════════════════════════════════════════════
+   804→
+   805→  @override
+   806→  Future<List<ReceiptModel>> getReceipts({
+   807→    required String userId,
+   808→    int page = 1,
+   809→    int perPage = 20,
+   810→  }) async {
+   811→    try {
+   812→      var query = _supabase
+   813→          .from(_receiptsTable)
+   814→          .select()
+   815→          .eq('user_id', userId) as sb.PostgrestTransformBuilder<dynamic>;
+   816→
+   817→      query = _applyPagination(query, page: page, perPage: perPage);
+   818→
+   819→      final list = await query;
+   820→      AppLogger.info('Fetched ${list.length} receipts for user $userId');
+   821→      return list
+   822→          .map<ReceiptModel>((row) => ReceiptModel.fromJson(row))
+   823→          .toList();
+   824→    } on sb.PostgrestException catch (e) {
+   825→      throw _mapPostgrestException(e);
+   826→    } catch (e) {
+   827→      AppLogger.error('Unexpected getReceipts error', error: e);
+   828→      throw const ServerException(
+   829→        message: 'Failed to fetch receipts.',
+   830→        statusCode: 500,
+   831→      );
+   832→    }
+   833→  }
+   834→
+   835→  @override
+   836→  Future<ReceiptModel> createReceipt(Map<String, dynamic> data) async {
+   837→    try {
+   838→      final response = await _supabase
+   839→          .from(_receiptsTable)
+   840→          .insert(data)
+   841→          .select();
+   842→
+   843→      if (response.isEmpty) {
+   844→        throw const ServerException(
+   845→          message: 'Receipt creation returned no data.',
+   846→          statusCode: 500,
+   847→        );
+   848→      }
+   849→
+   850→      AppLogger.info('Receipt created: ${response.first['id']}');
+   851→      return ReceiptModel.fromJson(response.first);
+   852→    } on sb.PostgrestException catch (e) {
+   853→      throw _mapPostgrestException(e);
+   854→    } on ServerException {
+   855→      rethrow;
+   856→    } catch (e) {
+   857→      AppLogger.error('Unexpected createReceipt error', error: e);
+   858→      throw const ServerException(
+   859→        message: 'Failed to create receipt.',
+   860→        statusCode: 500,
+   861→      );
+   862→    }
+   863→  }
+   864→
+   865→  // ═══════════════════════════════════════════════════════════════════
+   866→  // AI CREDITS
+   867→  // ═══════════════════════════════════════════════════════════════════
+   868→
+   869→  @override
+   870→  Future<AiCreditBalanceModel> getCreditBalance({
+   871→    required String ownerId,
+   872→    required String ownerType,
+   873→  }) async {
+   874→    try {
+   875→      final response = await _supabase
+   876→          .from(_creditBalancesTable)
+   877→          .select()
+   878→          .eq('owner_id', ownerId)
+   879→          .eq('owner_type', ownerType)
+   880→          .limit(1);
+   881→
+   882→      if (response.isEmpty) {
+   883→        throw const NotFoundException(message: 'Credit balance not found.');
+   884→      }
+   885→
+   886→      return AiCreditBalanceModel.fromJson(response.first);
+   887→    } on sb.PostgrestException catch (e) {
+   888→      throw _mapPostgrestException(e);
+   889→    } on NotFoundException {
+   890→      rethrow;
+   891→    } catch (e) {
+   892→      AppLogger.error('Unexpected getCreditBalance error', error: e);
+   893→      throw const ServerException(
+   894→        message: 'Failed to fetch credit balance.',
+   895→        statusCode: 500,
+   896→      );
+   897→    }
+   898→  }
+   899→
+   900→  @override
+   901→  Future<List<AiCreditTransactionModel>> getCreditTransactions({
+   902→    required String ownerId,
+   903→    required String ownerType,
+   904→    String? type,
+   905→    int page = 1,
+   906→    int perPage = 20,
+   907→  }) async {
+   908→    try {
+   909→      var query = _supabase
+   910→          .from(_creditTransactionsTable)
+   911→          .select()
+   912→          .eq('owner_id', ownerId)
+   913→          .eq('owner_type', ownerType) as sb.PostgrestFilterBuilder<dynamic>;
+   914→
+   915→      if (type != null) {
+   916→        query = query.eq('type', type);
+   917→      }
+   918→
+   919→      var transformed =
+   920→          query.order('created_at', ascending: false);
+   921→      transformed = _applyPagination(transformed, page: page, perPage: perPage);
+   922→
+   923→      final list = await transformed;
+   924→      AppLogger.info(
+   925→        'Fetched ${list.length} credit transactions for $ownerId',
+   926→      );
+   927→      return list
+   928→          .map<AiCreditTransactionModel>(
+   929→            (row) => AiCreditTransactionModel.fromJson(row),
+   930→          )
+   931→          .toList();
+   932→    } on sb.PostgrestException catch (e) {
+   933→      throw _mapPostgrestException(e);
+   934→    } catch (e) {
+   935→      AppLogger.error('Unexpected getCreditTransactions error', error: e);
+   936→      throw const ServerException(
+   937→        message: 'Failed to fetch credit transactions.',
+   938→        statusCode: 500,
+   939→      );
+   940→    }
+   941→  }
+   942→
+   943→  @override
+   944→  Future<bool> consumeCredits({
+   945→    required String ownerId,
+   946→    required String ownerType,
+   947→    required int credits,
+   948→    required String featureName,
+   949→    String? referenceId,
+   950→    double estimatedCostUsd = 0,
+   951→  }) async {
+   952→    try {
+   953→      final result = await _supabase.rpc(
+   954→        'consume_ai_credits',
+   955→        params: {
+   956→          'p_owner_id': ownerId,
+   957→          'p_owner_type': ownerType,
+   958→          'p_credits': credits,
+   959→          'p_feature_name': featureName,
+   960→          'p_reference_id': referenceId,
+   961→          'p_estimated_cost_usd': estimatedCostUsd,
+   962→        },
+   963→      );
+   964→
+   965→      final success = result as bool? ?? false;
+   966→      AppLogger.info(
+   967→        'consume_ai_credits for $ownerId: credits=$credits, success=$success',
+   968→      );
+   969→      return success;
+   970→    } on sb.PostgrestException catch (e) {
+   971→      throw _mapPostgrestException(e);
+   972→    } catch (e) {
+   973→      AppLogger.error('Unexpected consumeCredits error', error: e);
+   974→      throw const ServerException(
+   975→        message: 'Failed to consume credits.',
+   976→        statusCode: 500,
+   977→      );
+   978→    }
+   979→  }
+   980→
+   981→  @override
+   982→  Future<AiCreditBalanceModel> purchaseCredits(
+   983→    Map<String, dynamic> data,
+   984→  ) async {
+   985→    try {
+   986→      // Insert the credit transaction record
+   987→      final txResponse = await _supabase
+   988→          .from(_creditTransactionsTable)
+   989→          .insert(data)
+   990→          .select();
+   991→
+   992→      if (txResponse.isEmpty) {
+   993→        throw const ServerException(
+   994→          message: 'Credit purchase returned no data.',
+   995→          statusCode: 500,
+   996→        );
+   997→      }
+   998→
+   999→      // Fetch the updated balance
+  1000→      final ownerId = data['owner_id'] as String;
+  1001→      final ownerType = data['owner_type'] as String;
+  1002→
+  1003→      final balanceResponse = await _supabase
+  1004→          .from(_creditBalancesTable)
+  1005→          .select()
+  1006→          .eq('owner_id', ownerId)
+  1007→          .eq('owner_type', ownerType)
+  1008→          .limit(1);
+  1009→
+  1010→      if (balanceResponse.isEmpty) {
+  1011→        throw const ServerException(
+  1012→          message: 'Credit balance not found after purchase.',
+  1013→          statusCode: 500,
+  1014→        );
+  1015→      }
+  1016→
+  1017→      AppLogger.info('Credits purchased for $ownerId');
+  1018→      return AiCreditBalanceModel.fromJson(balanceResponse.first);
+  1019→    } on sb.PostgrestException catch (e) {
+  1020→      throw _mapPostgrestException(e);
+  1021→    } on ServerException {
+  1022→      rethrow;
+  1023→    } catch (e) {
+  1024→      AppLogger.error('Unexpected purchaseCredits error', error: e);
+  1025→      throw const ServerException(
+  1026→        message: 'Failed to purchase credits.',
+  1027→        statusCode: 500,
+  1028→      );
+  1029→    }
+  1030→  }
+  1031→
+  1032→  @override
+  1033→  Future<List<AiCreditPackModel>> getCreditPacks({
+  1034→    String? billingModel,
+  1035→    int limit = PaginatedQueryMixin.dropdownPageSize,
+  1036→  }) async {
+  1037→    try {
+  1038→      var query = _supabase
+  1039→          .from(_creditPacksTable)
+  1040→          .select()
+  1041→          .eq('is_active', true) as sb.PostgrestFilterBuilder<dynamic>;
+  1042→
+  1043→      if (billingModel != null) {
+  1044→        query = query.eq('billing_model', billingModel);
+  1045→      }
+  1046→
+  1047→      // PERF: Added limit to prevent unbounded query on credit_packs
+  1048→      final list = await query.order('sort_order', ascending: true).limit(limit);
+  1049→      AppLogger.info('Fetched ${list.length} credit packs');
+  1050→      return list
+  1051→          .map<AiCreditPackModel>(
+  1052→            (row) => AiCreditPackModel.fromJson(row),
+  1053→          )
+  1054→          .toList();
+  1055→    } on sb.PostgrestException catch (e) {
+  1056→      throw _mapPostgrestException(e);
+  1057→    } catch (e) {
+  1058→      AppLogger.error('Unexpected getCreditPacks error', error: e);
+  1059→      throw const ServerException(
+  1060→        message: 'Failed to fetch credit packs.',
+  1061→        statusCode: 500,
+  1062→      );
+  1063→    }
+  1064→  }
+  1065→
+  1066→  // ═══════════════════════════════════════════════════════════════════
+  1067→  // COUPONS
+  1068→  // ═══════════════════════════════════════════════════════════════════
+  1069→
+  1070→  @override
+  1071→  Future<CouponModel> validateCoupon({
+  1072→    required String code,
+  1073→    required String billingModel,
+  1074→    String? planId,
+  1075→  }) async {
+  1076→    try {
+  1077→      var query = _supabase
+  1078→          .from(_couponsTable)
+  1079→          .select()
+  1080→          .eq('code', code)
+  1081→          .eq('billing_model', billingModel)
+  1082→          .eq('is_active', true) as sb.PostgrestFilterBuilder<dynamic>;
+  1083→
+  1084→      if (planId != null) {
+  1085→        query = query.eq('plan_id', planId);
+  1086→      }
+  1087→
+  1088→      final response = await query.limit(1);
+  1089→
+  1090→      if (response.isEmpty) {
+  1091→        throw const NotFoundException(message: 'Invalid or expired coupon code.');
+  1092→      }
+  1093→
+  1094→      final couponData = response.first;
+  1095→
+  1096→      // Validate expiry
+  1097→      final validUntil = couponData['valid_until'] != null
+  1098→          ? DateTime.tryParse(couponData['valid_until'] as String)
+  1099→          : null;
+  1100→      if (validUntil != null && validUntil.isBefore(DateTime.now())) {
+  1101→        throw const ValidationException(
+  1102→          message: 'This coupon has expired.',
+  1103→          fieldErrors: {'code': 'Coupon has expired.'},
+  1104→        );
+  1105→      }
+  1106→
+  1107→      final validFrom = couponData['valid_from'] != null
+  1108→          ? DateTime.tryParse(couponData['valid_from'] as String)
+  1109→          : null;
+  1110→      if (validFrom != null && validFrom.isAfter(DateTime.now())) {
+  1111→        throw const ValidationException(
+  1112→          message: 'This coupon is not yet valid.',
+  1113→          fieldErrors: {'code': 'Coupon is not yet valid.'},
+  1114→        );
+  1115→      }
+  1116→
+  1117→      // Validate redemption count
+  1118→      final maxRedemptions = couponData['max_redemptions'] as int?;
+  1119→      final currentRedemptions =
+  1120→          couponData['current_redemptions'] as int? ?? 0;
+  1121→      if (maxRedemptions != null &&
+  1122→          currentRedemptions >= maxRedemptions) {
+  1123→        throw const ValidationException(
+  1124→          message: 'This coupon has reached its maximum redemptions.',
+  1125→          fieldErrors: {'code': 'Coupon redemption limit reached.'},
+  1126→        );
+  1127→      }
+  1128→
+  1129→      AppLogger.info('Coupon validated: $code');
+  1130→      return CouponModel.fromJson(couponData);
+  1131→    } on sb.PostgrestException catch (e) {
+  1132→      throw _mapPostgrestException(e);
+  1133→    } on NotFoundException {
+  1134→      rethrow;
+  1135→    } on ValidationException {
+  1136→      rethrow;
+  1137→    } catch (e) {
+  1138→      AppLogger.error('Unexpected validateCoupon error', error: e);
+  1139→      throw const ServerException(
+  1140→        message: 'Failed to validate coupon.',
+  1141→        statusCode: 500,
+  1142→      );
+  1143→    }
+  1144→  }
+  1145→
+  1146→  @override
+  1147→  Future<CouponModel> redeemCoupon({
+  1148→    required String couponId,
+  1149→    required String userId,
+  1150→    String? schoolId,
+  1151→    String? subscriptionId,
+  1152→  }) async {
+  1153→    try {
+  1154→      // Insert a redemption record
+  1155→      await _supabase.from(_couponRedemptionsTable).insert({
+  1156→        'coupon_id': couponId,
+  1157→        'user_id': userId,
+  1158→        'school_id': schoolId,
+  1159→        'subscription_id': subscriptionId,
+  1160→        'redeemed_at': DateTime.now().toIso8601String(),
+  1161→      });
+  1162→
+  1163→      // Increment the coupon's current_redemptions counter
+  1164→      final couponResponse = await _supabase
+  1165→          .from(_couponsTable)
+  1166→          .select('current_redemptions')
+  1167→          .eq('id', couponId)
+  1168→          .limit(1);
+  1169→
+  1170→      if (couponResponse.isEmpty) {
+  1171→        throw const NotFoundException(message: 'Coupon not found for redemption.');
+  1172→      }
+  1173→
+  1174→      final currentCount =
+  1175→          couponResponse.first['current_redemptions'] as int? ?? 0;
+  1176→
+  1177→      final updateResponse = await _supabase
+  1178→          .from(_couponsTable)
+  1179→          .update({
+  1180→            'current_redemptions': currentCount + 1,
+  1181→            'updated_at': DateTime.now().toIso8601String(),
+  1182→          })
+  1183→          .eq('id', couponId)
+  1184→          .select();
+  1185→
+  1186→      if (updateResponse.isEmpty) {
+  1187→        throw const ServerException(
+  1188→          message: 'Coupon redemption update failed.',
+  1189→          statusCode: 500,
+  1190→        );
+  1191→      }
+  1192→
+  1193→      AppLogger.info('Coupon redeemed: $couponId by user $userId');
+  1194→      return CouponModel.fromJson(updateResponse.first);
+  1195→    } on sb.PostgrestException catch (e) {
+  1196→      throw _mapPostgrestException(e);
+  1197→    } on NotFoundException {
+  1198→      rethrow;
+  1199→    } on ServerException {
+  1200→      rethrow;
+  1201→    } catch (e) {
+  1202→      AppLogger.error('Unexpected redeemCoupon error', error: e);
+  1203→      throw const ServerException(
+  1204→        message: 'Failed to redeem coupon.',
+  1205→        statusCode: 500,
+  1206→      );
+  1207→    }
+  1208→  }
+  1209→
+  1210→  @override
+  1211→  Future<List<CouponModel>> getCoupons({
+  1212→    bool activeOnly = false,
+  1213→    int page = 1,
+  1214→    int perPage = 20,
+  1215→  }) async {
+  1216→    try {
+  1217→      var query =
+  1218→          _supabase.from(_couponsTable).select() as sb.PostgrestFilterBuilder<dynamic>;
+  1219→
+  1220→      if (activeOnly) {
+  1221→        query = query.eq('is_active', true);
+  1222→      }
+  1223→
+  1224→      var transformed =
+  1225→          query.order('created_at', ascending: false);
+  1226→      transformed = _applyPagination(transformed, page: page, perPage: perPage);
+  1227→
+  1228→      final list = await transformed;
+  1229→      AppLogger.info('Fetched ${list.length} coupons');
+  1230→      return list
+  1231→          .map<CouponModel>((row) => CouponModel.fromJson(row))
+  1232→          .toList();
+  1233→    } on sb.PostgrestException catch (e) {
+  1234→      throw _mapPostgrestException(e);
+  1235→    } catch (e) {
+  1236→      AppLogger.error('Unexpected getCoupons error', error: e);
+  1237→      throw const ServerException(
+  1238→        message: 'Failed to fetch coupons.',
+  1239→        statusCode: 500,
+  1240→      );
+  1241→    }
+  1242→  }
+  1243→
+  1244→  @override
+  1245→  Future<CouponModel> createCoupon(Map<String, dynamic> data) async {
+  1246→    try {
+  1247→      final response = await _supabase
+  1248→          .from(_couponsTable)
+  1249→          .insert(data)
+  1250→          .select();
+  1251→
+  1252→      if (response.isEmpty) {
+  1253→        throw const ServerException(
+  1254→          message: 'Coupon creation returned no data.',
+  1255→          statusCode: 500,
+  1256→        );
+  1257→      }
+  1258→
+  1259→      AppLogger.info('Coupon created: ${response.first['id']}');
+  1260→      return CouponModel.fromJson(response.first);
+  1261→    } on sb.PostgrestException catch (e) {
+  1262→      throw _mapPostgrestException(e);
+  1263→    } on ServerException {
+  1264→      rethrow;
+  1265→    } catch (e) {
+  1266→      AppLogger.error('Unexpected createCoupon error', error: e);
+  1267→      throw const ServerException(
+  1268→        message: 'Failed to create coupon.',
+  1269→        statusCode: 500,
+  1270→      );
+  1271→    }
+  1272→  }
+  1273→
+  1274→  @override
+  1275→  Future<CouponModel> updateCoupon(
+  1276→    String couponId,
+  1277→    Map<String, dynamic> data,
+  1278→  ) async {
+  1279→    try {
+  1280→      data['updated_at'] = DateTime.now().toIso8601String();
+  1281→
+  1282→      final response = await _supabase
+  1283→          .from(_couponsTable)
+  1284→          .update(data)
+  1285→          .eq('id', couponId)
+  1286→          .select();
+  1287→
+  1288→      if (response.isEmpty) {
+  1289→        throw const NotFoundException(message: 'Coupon not found for update.');
+  1290→      }
+  1291→
+  1292→      AppLogger.info('Coupon updated: $couponId');
+  1293→      return CouponModel.fromJson(response.first);
+  1294→    } on sb.PostgrestException catch (e) {
+  1295→      throw _mapPostgrestException(e);
+  1296→    } on NotFoundException {
+  1297→      rethrow;
+  1298→    } catch (e) {
+  1299→      AppLogger.error('Unexpected updateCoupon error', error: e);
+  1300→      throw const ServerException(
+  1301→        message: 'Failed to update coupon.',
+  1302→        statusCode: 500,
+  1303→      );
+  1304→    }
+  1305→  }
+  1306→
+  1307→  // ═══════════════════════════════════════════════════════════════════
+  1308→  // REFERRALS
+  1309→  // ═══════════════════════════════════════════════════════════════════
+  1310→
+  1311→  @override
+  1312→  Future<ReferralCodeModel> getOrCreateReferralCode({
+  1313→    required String referrerId,
+  1314→    required String referrerType,
+  1315→    String? schoolId,
+  1316→  }) async {
+  1317→    try {
+  1318→      // First, try to select an existing code
+  1319→      var query = _supabase
+  1320→          .from(_referralCodesTable)
+  1321→          .select()
+  1322→          .eq('referrer_id', referrerId)
+  1323→          .eq('referrer_type', referrerType) as sb.PostgrestFilterBuilder<dynamic>;
+  1324→
+  1325→      if (schoolId != null) {
+  1326→        query = query.eq('school_id', schoolId);
+  1327→      }
+  1328→
+  1329→      final existing = await query.eq('is_active', true).limit(1);
+  1330→
+  1331→      if (existing.isNotEmpty) {
+  1332→        AppLogger.info('Found existing referral code for $referrerId');
+  1333→        return ReferralCodeModel.fromJson(existing.first);
+  1334→      }
+  1335→
+  1336→      // Not found — generate a new code and insert
+  1337→      final code = _generateReferralCode(referrerId, referrerType);
+  1338→
+  1339→      final insertData = <String, dynamic>{
+  1340→        'code': code,
+  1341→        'referrer_id': referrerId,
+  1342→        'referrer_type': referrerType,
+  1343→        'school_id': schoolId,
+  1344→        'is_active': true,
+  1345→        'reward_type': 'credit_days',
+  1346→        'reward_value': 7,
+  1347→        'max_uses': 0,
+  1348→        'current_uses': 0,
+  1349→      };
+  1350→
+  1351→      final response = await _supabase
+  1352→          .from(_referralCodesTable)
+  1353→          .insert(insertData)
+  1354→          .select();
+  1355→
+  1356→      if (response.isEmpty) {
+  1357→        throw const ServerException(
+  1358→          message: 'Referral code creation returned no data.',
+  1359→          statusCode: 500,
+  1360→        );
+  1361→      }
+  1362→
+  1363→      AppLogger.info('Referral code created for $referrerId: $code');
+  1364→      return ReferralCodeModel.fromJson(response.first);
+  1365→    } on sb.PostgrestException catch (e) {
+  1366→      throw _mapPostgrestException(e);
+  1367→    } on ServerException {
+  1368→      rethrow;
+  1369→    } catch (e) {
+  1370→      AppLogger.error('Unexpected getOrCreateReferralCode error', error: e);
+  1371→      throw const ServerException(
+  1372→        message: 'Failed to get or create referral code.',
+  1373→        statusCode: 500,
+  1374→      );
+  1375→    }
+  1376→  }
+  1377→
+  1378→  @override
+  1379→  Future<bool> applyReferralCode({
+  1380→    required String code,
+  1381→    required String refereeId,
+  1382→    required String refereeType,
+  1383→  }) async {
+  1384→    try {
+  1385→      // Look up the referral code
+  1386→      final codeResponse = await _supabase
+  1387→          .from(_referralCodesTable)
+  1388→          .select()
+  1389→          .eq('code', code)
+  1390→          .eq('is_active', true)
+  1391→          .limit(1);
+  1392→
+  1393→      if (codeResponse.isEmpty) {
+  1394→        throw const NotFoundException(message: 'Referral code not found or inactive.');
+  1395→      }
+  1396→
+  1397→      final referrerId = codeResponse.first['referrer_id'] as String;
+  1398→
+  1399→      // Prevent self-referral
+  1400→      if (referrerId == refereeId) {
+  1401→        throw const ValidationException(
+  1402→          message: 'You cannot use your own referral code.',
+  1403→          fieldErrors: {'code': 'Self-referral is not allowed.'},
+  1404→        );
+  1405→      }
+  1406→
+  1407→      // Insert into referral_tracking
+  1408→      await _supabase.from(_referralTrackingTable).insert({
+  1409→        'referral_code_id': codeResponse.first['id'],
+  1410→        'referrer_id': referrerId,
+  1411→        'referee_id': refereeId,
+  1412→        'referee_type': refereeType,
+  1413→        'code_used': code,
+  1414→        'applied_at': DateTime.now().toIso8601String(),
+  1415→        'reward_granted': false,
+  1416→      });
+  1417→
+  1418→      // Increment the referral code usage
+  1419→      final currentUses =
+  1420→          codeResponse.first['current_uses'] as int? ?? 0;
+  1421→      await _supabase
+  1422→          .from(_referralCodesTable)
+  1423→          .update({
+  1424→            'current_uses': currentUses + 1,
+  1425→            'updated_at': DateTime.now().toIso8601String(),
+  1426→          })
+  1427→          .eq('id', codeResponse.first['id']);
+  1428→
+  1429→      AppLogger.info('Referral code applied: $code by $refereeId');
+  1430→      return true;
+  1431→    } on sb.PostgrestException catch (e) {
+  1432→      throw _mapPostgrestException(e);
+  1433→    } on NotFoundException {
+  1434→      rethrow;
+  1435→    } on ValidationException {
+  1436→      rethrow;
+  1437→    } catch (e) {
+  1438→      AppLogger.error('Unexpected applyReferralCode error', error: e);
+  1439→      throw const ServerException(
+  1440→        message: 'Failed to apply referral code.',
+  1441→        statusCode: 500,
+  1442→      );
+  1443→    }
+  1444→  }
+  1445→
+  1446→  @override
+  1447→  Future<List<Map<String, dynamic>>> getReferralTracking({
+  1448→    required String referrerId,
+  1449→    int page = 1,
+  1450→    int perPage = 20,
+  1451→  }) async {
+  1452→    try {
+  1453→      var query = _supabase
+  1454→          .from(_referralTrackingTable)
+  1455→          .select()
+  1456→          .eq('referrer_id', referrerId) as sb.PostgrestTransformBuilder<dynamic>;
+  1457→
+  1458→      query = _applyPagination(query, page: page, perPage: perPage);
+  1459→
+  1460→      final list = await query;
+  1461→      AppLogger.info(
+  1462→        'Fetched ${list.length} referral tracking records for $referrerId',
+  1463→      );
+  1464→      return List<Map<String, dynamic>>.from(list);
+  1465→    } on sb.PostgrestException catch (e) {
+  1466→      throw _mapPostgrestException(e);
+  1467→    } catch (e) {
+  1468→      AppLogger.error('Unexpected getReferralTracking error', error: e);
+  1469→      throw const ServerException(
+  1470→        message: 'Failed to fetch referral tracking.',
+  1471→        statusCode: 500,
+  1472→      );
+  1473→    }
+  1474→  }
+  1475→
+  1476→  // ═══════════════════════════════════════════════════════════════════
+  1477→  // LICENSES
+  1478→  // ═══════════════════════════════════════════════════════════════════
+  1479→
+  1480→  @override
+  1481→  Future<List<LicenseModel>> getLicenses({
+  1482→    String? schoolId,
+  1483→    String? userId,
+  1484→    String? type,
+  1485→    bool activeOnly = true,
+  1486→    int limit = PaginatedQueryMixin.defaultPageSize,
+  1487→    int offset = 0,
+  1488→  }) async {
+  1489→    try {
+  1490→      var query = _supabase.from(_licensesTable).select() as sb.PostgrestFilterBuilder<dynamic>;
+  1491→
+  1492→      if (schoolId != null) {
+  1493→        query = query.eq('school_id', schoolId);
+  1494→      }
+  1495→      if (userId != null) {
+  1496→        query = query.eq('user_id', userId);
+  1497→      }
+  1498→      if (type != null) {
+  1499→        query = query.eq('type', type);
+  1500→      }
+  1501→      if (activeOnly) {
+  1502→        query = query.eq('is_active', true);
+  1503→      }
+  1504→
+  1505→      // PERF: Added range-based pagination to prevent unbounded query
+  1506→      final list = await query.order('created_at', ascending: false).range(offset, offset + limit - 1);
+  1507→      AppLogger.info('Fetched ${list.length} licenses');
+  1508→      return list
+  1509→          .map<LicenseModel>((row) => LicenseModel.fromJson(row))
+  1510→          .toList();
+  1511→    } on sb.PostgrestException catch (e) {
+  1512→      throw _mapPostgrestException(e);
+  1513→    } catch (e) {
+  1514→      AppLogger.error('Unexpected getLicenses error', error: e);
+  1515→      throw const ServerException(
+  1516→        message: 'Failed to fetch licenses.',
+  1517→        statusCode: 500,
+  1518→      );
+  1519→    }
+  1520→  }
+  1521→
+  1522→  @override
+  1523→  Future<LicenseModel> revokeLicense({
+  1524→    required String licenseId,
+  1525→    required String reason,
+  1526→  }) async {
+  1527→    try {
+  1528→      final now = DateTime.now().toIso8601String();
+  1529→
+  1530→      final response = await _supabase
+  1531→          .from(_licensesTable)
+  1532→          .update({
+  1533→            'is_active': false,
+  1534→            'revoked_at': now,
+  1535→            'revoke_reason': reason,
+  1536→            'updated_at': now,
+  1537→          })
+  1538→          .eq('id', licenseId)
+  1539→          .select();
+  1540→
+  1541→      if (response.isEmpty) {
+  1542→        throw const NotFoundException(message: 'License not found for revocation.');
+  1543→      }
+  1544→
+  1545→      AppLogger.info('License revoked: $licenseId');
+  1546→      return LicenseModel.fromJson(response.first);
+  1547→    } on sb.PostgrestException catch (e) {
+  1548→      throw _mapPostgrestException(e);
+  1549→    } on NotFoundException {
+  1550→      rethrow;
+  1551→    } catch (e) {
+  1552→      AppLogger.error('Unexpected revokeLicense error', error: e);
+  1553→      throw const ServerException(
+  1554→        message: 'Failed to revoke license.',
+  1555→        statusCode: 500,
+  1556→      );
+  1557→    }
+  1558→  }
+  1559→
+  1560→  // ═══════════════════════════════════════════════════════════════════
+  1561→  // SCHOOL BILLING
+  1562→  // ═══════════════════════════════════════════════════════════════════
+  1563→
+  1564→  @override
+  1565→  Future<SchoolBillingProfileModel> getSchoolBillingProfile(
+  1566→    String schoolId,
+  1567→  ) async {
+  1568→    try {
+  1569→      final response = await _supabase
+  1570→          .from(_schoolBillingTable)
+  1571→          .select()
+  1572→          .eq('school_id', schoolId)
+  1573→          .limit(1);
+  1574→
+  1575→      if (response.isEmpty) {
+  1576→        throw const NotFoundException(message: 'School billing profile not found.');
+  1577→      }
+  1578→
+  1579→      return SchoolBillingProfileModel.fromJson(response.first);
+  1580→    } on sb.PostgrestException catch (e) {
+  1581→      throw _mapPostgrestException(e);
+  1582→    } on NotFoundException {
+  1583→      rethrow;
+  1584→    } catch (e) {
+  1585→      AppLogger.error('Unexpected getSchoolBillingProfile error', error: e);
+  1586→      throw const ServerException(
+  1587→        message: 'Failed to fetch school billing profile.',
+  1588→        statusCode: 500,
+  1589→      );
+  1590→    }
+  1591→  }
+  1592→
+  1593→  @override
+  1594→  Future<SchoolBillingProfileModel> updateSchoolBillingProfile(
+  1595→    String schoolId,
+  1596→    Map<String, dynamic> data,
+  1597→  ) async {
+  1598→    try {
+  1599→      data['updated_at'] = DateTime.now().toIso8601String();
+  1600→
+  1601→      final response = await _supabase
+  1602→          .from(_schoolBillingTable)
+  1603→          .update(data)
+  1604→          .eq('school_id', schoolId)
+  1605→          .select();
+  1606→
+  1607→      if (response.isEmpty) {
+  1608→        throw const NotFoundException(
+  1609→          message: 'School billing profile not found for update.',
+  1610→        );
+  1611→      }
+  1612→
+  1613→      AppLogger.info('School billing profile updated for: $schoolId');
+  1614→      return SchoolBillingProfileModel.fromJson(response.first);
+  1615→    } on sb.PostgrestException catch (e) {
+  1616→      throw _mapPostgrestException(e);
+  1617→    } on NotFoundException {
+  1618→      rethrow;
+  1619→    } catch (e) {
+  1620→      AppLogger.error('Unexpected updateSchoolBillingProfile error', error: e);
+  1621→      throw const ServerException(
+  1622→        message: 'Failed to update school billing profile.',
+  1623→        statusCode: 500,
+  1624→      );
+  1625→    }
+  1626→  }
+  1627→
+  1628→  // ═══════════════════════════════════════════════════════════════════
+  1629→  // REVENUE
+  1630→  // ═══════════════════════════════════════════════════════════════════
+  1631→
+  1632→  @override
+  1633→  Future<List<RevenueDataPointModel>> getRevenueData({
+  1634→    required String periodType,
+  1635→    required String startDate,
+  1636→    required String endDate,
+  1637→  }) async {
+  1638→    try {
+  1639→      // PERF: Added limit to prevent unbounded query on revenue data
+  1640→      final response = await _supabase
+  1641→          .from(_revenueTable)
+  1642→          .select()
+  1643→          .eq('period_type', periodType)
+  1644→          .gte('period_start', startDate)
+  1645→          .lte('period_end', endDate)
+  1646→          .order('period_start', ascending: true)
+  1647→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1648→
+  1649→      AppLogger.info('Fetched ${response.length} revenue data points');
+  1650→      return response
+  1651→          .map<RevenueDataPointModel>(
+  1652→            (row) => RevenueDataPointModel.fromJson(row),
+  1653→          )
+  1654→          .toList();
+  1655→    } on sb.PostgrestException catch (e) {
+  1656→      throw _mapPostgrestException(e);
+  1657→    } catch (e) {
+  1658→      AppLogger.error('Unexpected getRevenueData error', error: e);
+  1659→      throw const ServerException(
+  1660→        message: 'Failed to fetch revenue data.',
+  1661→        statusCode: 500,
+  1662→      );
+  1663→    }
+  1664→  }
+  1665→
+  1666→  @override
+  1667→  Future<Map<String, dynamic>> getBillingDashboardSummary() async {
+  1668→    try {
+  1669→      // Aggregate from multiple tables for the dashboard summary
+  1670→
+  1671→      // Active subscriptions count
+  1672→      final activeSubs = await _supabase
+  1673→          .from(_subscriptionsTable)
+  1674→          .select('id')
+  1675→          .inFilter('status', ['active', 'trial']);
+  1676→
+  1677→      // Total revenue from transactions
+  1678→      final successfulTx = await _supabase
+  1679→          .from(_transactionsTable)
+  1680→          .select('amount')
+  1681→          .eq('status', 'successful');
+  1682→
+  1683→      final totalRevenue = successfulTx.fold<double>(
+  1684→        0,
+  1685→        (sum, row) => sum + ((row['amount'] as num?)?.toDouble() ?? 0),
+  1686→      );
+  1687→
+  1688→      // MRR — sum of active subscription prices
+  1689→      final activeSubDetails = await _supabase
+  1690→          .from(_subscriptionsTable)
+  1691→          .select('price_at_subscription, billing_cycle')
+  1692→          .inFilter('status', ['active', 'trial']);
+  1693→
+  1694→      double mrr = 0;
+  1695→      for (final sub in activeSubDetails) {
+  1696→        final price = (sub['price_at_subscription'] as num?)?.toDouble() ?? 0;
+  1697→        final cycle = sub['billing_cycle'] as String? ?? 'monthly';
+  1698→        if (cycle == 'annual') {
+  1699→          mrr += price / 12;
+  1700→        } else {
+  1701→          mrr += price;
+  1702→        }
+  1703→      }
+  1704→
+  1705→      // Pending transactions
+  1706→      final pendingTx = await _supabase
+  1707→          .from(_transactionsTable)
+  1708→          .select('id')
+  1709→          .eq('status', 'pending');
+  1710→
+  1711→      // Trial subscriptions
+  1712→      final trialSubs = await _supabase
+  1713→          .from(_subscriptionsTable)
+  1714→          .select('id')
+  1715→          .eq('status', 'trial');
+  1716→
+  1717→      // Cancelled subscriptions
+  1718→      final cancelledSubs = await _supabase
+  1719→          .from(_subscriptionsTable)
+  1720→          .select('id')
+  1721→          .eq('status', 'cancelled');
+  1722→
+  1723→      // Overdue invoices
+  1724→      final overdueInvoices = await _supabase
+  1725→          .from(_invoicesTable)
+  1726→          .select('id')
+  1727→          .eq('status', 'overdue');
+  1728→
+  1729→      final summary = <String, dynamic>{
+  1730→        'active_subscriptions': activeSubs.length,
+  1731→        'trial_subscriptions': trialSubs.length,
+  1732→        'cancelled_subscriptions': cancelledSubs.length,
+  1733→        'total_revenue': totalRevenue,
+  1734→        'mrr': mrr,
+  1735→        'arr': mrr * 12,
+  1736→        'pending_transactions': pendingTx.length,
+  1737→        'overdue_invoices': overdueInvoices.length,
+  1738→        'total_transactions': successfulTx.length,
+  1739→      };
+  1740→
+  1741→      AppLogger.info('Billing dashboard summary compiled');
+  1742→      return summary;
+  1743→    } on sb.PostgrestException catch (e) {
+  1744→      throw _mapPostgrestException(e);
+  1745→    } catch (e) {
+  1746→      AppLogger.error('Unexpected getBillingDashboardSummary error', error: e);
+  1747→      throw const ServerException(
+  1748→        message: 'Failed to fetch billing dashboard summary.',
+  1749→        statusCode: 500,
+  1750→      );
+  1751→    }
+  1752→  }
+  1753→
+  1754→  // ═══════════════════════════════════════════════════════════════════
+  1755→  // NOTIFICATIONS
+  1756→  // ═══════════════════════════════════════════════════════════════════
+  1757→
+  1758→  @override
+  1759→  Future<List<BillingNotificationModel>> getBillingNotifications({
+  1760→    required String userId,
+  1761→    bool unreadOnly = false,
+  1762→    int page = 1,
+  1763→    int perPage = 20,
+  1764→  }) async {
+  1765→    try {
+  1766→      var query = _supabase
+  1767→          .from(_notificationsTable)
+  1768→          .select()
+  1769→          .eq('user_id', userId) as sb.PostgrestFilterBuilder<dynamic>;
+  1770→
+  1771→      if (unreadOnly) {
+  1772→        query = query.eq('is_read', false);
+  1773→      }
+  1774→
+  1775→      var transformed =
+  1776→          query.order('created_at', ascending: false);
+  1777→      transformed = _applyPagination(transformed, page: page, perPage: perPage);
+  1778→
+  1779→      final list = await transformed;
+  1780→      AppLogger.info(
+  1781→        'Fetched ${list.length} billing notifications for $userId',
+  1782→      );
+  1783→      return list
+  1784→          .map<BillingNotificationModel>(
+  1785→            (row) => BillingNotificationModel.fromJson(row),
+  1786→          )
+  1787→          .toList();
+  1788→    } on sb.PostgrestException catch (e) {
+  1789→      throw _mapPostgrestException(e);
+  1790→    } catch (e) {
+  1791→      AppLogger.error('Unexpected getBillingNotifications error', error: e);
+  1792→      throw const ServerException(
+  1793→        message: 'Failed to fetch billing notifications.',
+  1794→        statusCode: 500,
+  1795→      );
+  1796→    }
+  1797→  }
+  1798→
+  1799→  @override
+  1800→  Future<bool> markNotificationRead(String notificationId) async {
+  1801→    try {
+  1802→      await _supabase
+  1803→          .from(_notificationsTable)
+  1804→          .update({
+  1805→            'is_read': true,
+  1806→          })
+  1807→          .eq('id', notificationId);
+  1808→
+  1809→      AppLogger.info('Billing notification marked read: $notificationId');
+  1810→      return true;
+  1811→    } on sb.PostgrestException catch (e) {
+  1812→      throw _mapPostgrestException(e);
+  1813→    } catch (e) {
+  1814→      AppLogger.error('Unexpected markNotificationRead error', error: e);
+  1815→      throw const ServerException(
+  1816→        message: 'Failed to mark notification as read.',
+  1817→        statusCode: 500,
+  1818→      );
+  1819→    }
+  1820→  }
+  1821→
+  1822→  @override
+  1823→  Future<bool> updateNotificationPreferences({
+  1824→    required String userId,
+  1825→    required Map<String, bool> preferences,
+  1826→  }) async {
+  1827→    try {
+  1828→      // Try to update existing preferences first
+  1829→      final existing = await _supabase
+  1830→          .from(_notificationPrefsTable)
+  1831→          .select()
+  1832→          .eq('user_id', userId)
+  1833→          .limit(1);
+  1834→
+  1835→      if (existing.isNotEmpty) {
+  1836→        await _supabase
+  1837→            .from(_notificationPrefsTable)
+  1838→            .update({
+  1839→              'preferences': preferences,
+  1840→              'updated_at': DateTime.now().toIso8601String(),
+  1841→            })
+  1842→            .eq('user_id', userId);
+  1843→      } else {
+  1844→        await _supabase.from(_notificationPrefsTable).insert({
+  1845→          'user_id': userId,
+  1846→          'preferences': preferences,
+  1847→        });
+  1848→      }
+  1849→
+  1850→      AppLogger.info('Notification preferences updated for $userId');
+  1851→      return true;
+  1852→    } on sb.PostgrestException catch (e) {
+  1853→      throw _mapPostgrestException(e);
+  1854→    } catch (e) {
+  1855→      AppLogger.error(
+  1856→        'Unexpected updateNotificationPreferences error',
+  1857→        error: e,
+  1858→      );
+  1859→      throw const ServerException(
+  1860→        message: 'Failed to update notification preferences.',
+  1861→        statusCode: 500,
+  1862→      );
+  1863→    }
+  1864→  }
+  1865→
+  1866→  // ═══════════════════════════════════════════════════════════════════
+  1867→  // PRIVATE HELPERS
+  1868→  // ═══════════════════════════════════════════════════════════════════
+  1869→
+  1870→  /// Returns the current authenticated user ID, or `null` if not signed in.
+  1871→  String? get _currentUserId => _supabase.auth.currentUser?.id;
+  1872→
+  1873→  /// Applies filter criteria from a filter map to a Supabase query.
+  1874→  sb.PostgrestFilterBuilder<dynamic> _applyFilters(
+  1875→    sb.PostgrestFilterBuilder<dynamic> query,
+  1876→    Map<String, dynamic> filters,
+  1877→  ) {
+  1878→    var q = query;
+  1879→
+  1880→    for (final entry in filters.entries) {
+  1881→      q = q.eq(entry.key, entry.value as String);
+  1882→    }
+  1883→
+  1884→    return q;
+  1885→  }
+  1886→
+  1887→  /// Applies pagination using Supabase range.
+  1888→  sb.PostgrestTransformBuilder<dynamic> _applyPagination(
+  1889→    sb.PostgrestTransformBuilder<dynamic> query, {
+  1890→    int? page,
+  1891→    int? perPage,
+  1892→  }) {
+  1893→    final p = page ?? 1;
+  1894→    final pp = perPage ?? 20;
+  1895→    final from = (p - 1) * pp;
+  1896→    final to = from + pp - 1;
+  1897→    return query.range(from, to);
+  1898→  }
+  1899→
+  1900→  /// Maps a Supabase [sb.PostgrestException] to a domain exception.
+  1901→  Exception _mapPostgrestException(sb.PostgrestException e) {
+  1902→    final statusCode = e.code != null ? int.tryParse(e.code!) ?? 0 : 0;
+  1903→    final message = e.message ?? 'An unexpected database error occurred.';
+  1904→
+  1905→    AppLogger.warning(
+  1906→      'Supabase PostgrestException — code: ${e.code}, message: $message',
+  1907→    );
+  1908→
+  1909→    switch (statusCode) {
+  1910→      case 401:
+  1911→        return UnauthorizedException(message: message);
+  1912→      case 403:
+  1913→        return ForbiddenException(message: message);
+  1914→      case 404:
+  1915→        return NotFoundException(message: message);
+  1916→      case 422:
+  1917→        return ValidationException(
+  1918→          message: message,
+  1919→          fieldErrors: e.details is Map<String, dynamic>
+  1920→              ? e.details as Map<String, String>
+  1921→              : {},
+  1922→        );
+  1923→      default:
+  1924→        return ServerException(
+  1925→          message: message,
+  1926→          statusCode: statusCode,
+  1927→          data: e.details,
+  1928→        );
+  1929→    }
+  1930→  }
+  1931→
+  1932→  /// Generates a unique referral code from the referrer ID and type.
+  1933→  String _generateReferralCode(String referrerId, String referrerType) {
+  1934→    final prefix = referrerType == 'teacher_saas'
+  1935→        ? 'TCH'
+  1936→        : referrerType == 'school_saas'
+  1937→            ? 'SCH'
+  1938→            : 'ENT';
+  1939→    final suffix = referrerId.substring(0, referrerId.length > 8 ? 8 : referrerId.length).toUpperCase();
+  1940→    final timestamp = DateTime.now().millisecondsSinceEpoch.toRadixString(36).toUpperCase();
+  1941→    return '$prefix-$suffix-$timestamp';
+  1942→  }
+  1943→}
+  1944→

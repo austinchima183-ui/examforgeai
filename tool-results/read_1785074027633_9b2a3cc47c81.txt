@@ -1,0 +1,1822 @@
+     1→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     2→
+     3→import '../../../../core/errors/exceptions.dart';
+     4→import '../../../../core/network/paginated_query_mixin.dart';
+     5→import '../../../../core/utils/logger.dart';
+     6→import '../models/ai_models.dart';
+     7→
+     8→// ═══════════════════════════════════════════════════════════════════════
+     9→// ABSTRACT INTERFACE
+    10→// ═══════════════════════════════════════════════════════════════════════
+    11→
+    12→/// Abstract interface for all remote AI generator data operations.
+    13→///
+    14→/// Implementations handle all network communication with the Supabase
+    15→/// backend and return plain model instances. Exceptions propagate to
+    16→/// the repository layer for conversion to domain [Failure] types.
+    17→abstract class AiGeneratorRemoteDataSource {
+    18→  // ─── Question Generation ──────────────────────────────────────────
+    19→
+    20→  Future<GenerationRequestModel> createGenerationRequest(
+    21→    Map<String, dynamic> requestData,
+    22→  );
+    23→  Future<GenerationRequestModel> updateGenerationRequest(
+    24→    String id,
+    25→    Map<String, dynamic> data,
+    26→  );
+    27→  Future<GenerationRequestModel> getGenerationRequest(String id);
+    28→  Future<List<GenerationRequestModel>> getGenerationRequests(
+    29→    Map<String, dynamic> filters,
+    30→  );
+    31→  Future<void> cancelGenerationRequest(String id);
+    32→
+    33→  Future<GeneratedQuestionModel> createGeneratedQuestion(
+    34→    Map<String, dynamic> questionData,
+    35→  );
+    36→  Future<List<GeneratedQuestionModel>> createGeneratedQuestions(
+    37→    List<Map<String, dynamic>> questionsData,
+    38→  );
+    39→  Future<GeneratedQuestionModel> updateGeneratedQuestion(
+    40→    String id,
+    41→    Map<String, dynamic> data,
+    42→  );
+    43→  Future<GeneratedQuestionModel> getGeneratedQuestion(String id);
+    44→  Future<List<GeneratedQuestionModel>> getGeneratedQuestions(
+    45→    Map<String, dynamic> filters,
+    46→  );
+    47→  Future<int> getGeneratedQuestionCount(Map<String, dynamic> filters);
+    48→
+    49→  // ─── Review ───────────────────────────────────────────────────────
+    50→
+    51→  Future<GeneratedQuestionModel> approveQuestion(
+    52→    String id, {
+    53→    String? reviewNotes,
+    54→  });
+    55→  Future<GeneratedQuestionModel> rejectQuestion(
+    56→    String id,
+    57→    String reason,
+    58→  );
+    59→  Future<GeneratedQuestionModel> requestRevision(
+    60→    String id,
+    61→    String notes,
+    62→  );
+    63→
+    64→  // ─── Question Improvement ─────────────────────────────────────────
+    65→
+    66→  Future<QuestionImprovementModel> createImprovement(
+    67→    Map<String, dynamic> improvementData,
+    68→  );
+    69→  Future<QuestionImprovementModel> updateImprovement(
+    70→    String id,
+    71→    Map<String, dynamic> data,
+    72→  );
+    73→  Future<QuestionImprovementModel> getImprovement(String id);
+    74→  Future<List<QuestionImprovementModel>> getImprovements(
+    75→    String generatedQuestionId,
+    76→  );
+    77→
+    78→  // ─── Validation ───────────────────────────────────────────────────
+    79→
+    80→  Future<ValidationResultModel> createValidationResult(
+    81→    Map<String, dynamic> resultData,
+    82→  );
+    83→  Future<List<ValidationResultModel>> createValidationResults(
+    84→    List<Map<String, dynamic>> resultsData,
+    85→  );
+    86→  Future<List<ValidationResultModel>> getValidationResults(
+    87→    String generatedQuestionId,
+    88→  );
+    89→  Future<ValidationResultModel> resolveValidationResult(
+    90→    String id,
+    91→    String resolvedBy,
+    92→  );
+    93→
+    94→  // ─── Document Upload & Processing ─────────────────────────────────
+    95→
+    96→  Future<DocumentUploadModel> createDocumentUpload(
+    97→    Map<String, dynamic> documentData,
+    98→  );
+    99→  Future<DocumentUploadModel> updateDocumentUpload(
+   100→    String id,
+   101→    Map<String, dynamic> data,
+   102→  );
+   103→  Future<DocumentUploadModel> getDocumentUpload(String id);
+   104→  Future<List<DocumentUploadModel>> getDocumentUploads(
+   105→    Map<String, dynamic> filters,
+   106→  );
+   107→
+   108→  // ─── Question Bank Integration ────────────────────────────────────
+   109→
+   110→  Future<GeneratedQuestionModel> saveToQuestionBank(
+   111→    String generatedQuestionId,
+   112→    String questionBankId,
+   113→  );
+   114→
+   115→  // ─── Prompt Templates ─────────────────────────────────────────────
+   116→
+   117→  Future<PromptTemplateModel> createPromptTemplate(
+   118→    Map<String, dynamic> templateData,
+   119→  );
+   120→  Future<PromptTemplateModel> updatePromptTemplate(
+   121→    String id,
+   122→    Map<String, dynamic> data,
+   123→  );
+   124→  Future<PromptTemplateModel> getPromptTemplate(String id);
+   125→  Future<List<PromptTemplateModel>> getPromptTemplates(
+   126→    Map<String, dynamic> filters,
+   127→  );
+   128→  Future<void> incrementTemplateUsage(String id);
+   129→
+   130→  // ─── Provider Configuration ───────────────────────────────────────
+   131→
+   132→  Future<AiProviderConfigModel> createProviderConfig(
+   133→    Map<String, dynamic> configData,
+   134→  );
+   135→  Future<AiProviderConfigModel> updateProviderConfig(
+   136→    String id,
+   137→    Map<String, dynamic> data,
+   138→  );
+   139→  Future<AiProviderConfigModel> getProviderConfig(String id);
+   140→  Future<List<AiProviderConfigModel>> getProviderConfigs();
+   141→  Future<AiApiKeyModel> getApiKey(String providerType, String schoolId);
+   142→
+   143→  // ─── Generation Queue ─────────────────────────────────────────────
+   144→
+   145→  Future<GenerationQueueModel> enqueueGeneration(
+   146→    Map<String, dynamic> queueData,
+   147→  );
+   148→  Future<GenerationQueueModel> updateQueueEntry(
+   149→    String id,
+   150→    Map<String, dynamic> data,
+   151→  );
+   152→  Future<GenerationQueueModel> dequeueNextGeneration();
+   153→  Future<List<GenerationQueueModel>> getPendingQueueEntries();
+   154→
+   155→  // ─── Usage Statistics ─────────────────────────────────────────────
+   156→
+   157→  Future<AiUsageStatsModel> upsertUsageStats(
+   158→    Map<String, dynamic> statsData,
+   159→  );
+   160→  Future<List<AiUsageStatsModel>> getUsageStats(
+   161→    Map<String, dynamic> filters,
+   162→  );
+   163→  Future<Map<String, dynamic>> getDashboardStats(String? schoolId);
+   164→
+   165→  // ─── Curriculum Mappings ──────────────────────────────────────────
+   166→
+   167→  Future<List<CurriculumMappingModel>> getCurriculumMappings(
+   168→    Map<String, dynamic> filters,
+   169→  );
+   170→}
+   171→
+   172→// ═══════════════════════════════════════════════════════════════════════
+   173→// SUPABASE IMPLEMENTATION
+   174→// ═══════════════════════════════════════════════════════════════════════
+   175→
+   176→class AiGeneratorRemoteDataSourceImpl implements AiGeneratorRemoteDataSource {
+   177→  AiGeneratorRemoteDataSourceImpl({
+   178→    required sb.SupabaseClient supabaseClient,
+   179→  }) : _supabase = supabaseClient;
+   180→
+   181→  final sb.SupabaseClient _supabase;
+   182→
+   183→  // ─── Table names ──────────────────────────────────────────────────
+   184→
+   185→  static const _generationRequestsTable = 'ai_generation_requests';
+   186→  static const _generatedQuestionsTable = 'ai_generated_questions';
+   187→  static const _improvementsTable = 'ai_question_improvements';
+   188→  static const _validationResultsTable = 'ai_validation_results';
+   189→  static const _documentsTable = 'ai_document_uploads';
+   190→  static const _promptTemplatesTable = 'ai_prompt_templates';
+   191→  static const _providerConfigsTable = 'ai_provider_configs';
+   192→  static const _apiKeysTable = 'ai_api_keys';
+   193→  static const _queueTable = 'ai_generation_queue';
+   194→  static const _usageStatsTable = 'ai_usage_stats';
+   195→  static const _curriculumMappingsTable = 'ai_curriculum_mappings';
+   196→
+   197→  // ═══════════════════════════════════════════════════════════════════
+   198→  // QUESTION GENERATION
+   199→  // ═══════════════════════════════════════════════════════════════════
+   200→
+   201→  @override
+   202→  Future<GenerationRequestModel> createGenerationRequest(
+   203→    Map<String, dynamic> requestData,
+   204→  ) async {
+   205→    try {
+   206→      final response = await _supabase
+   207→          .from(_generationRequestsTable)
+   208→          .insert(requestData)
+   209→          .select();
+   210→
+   211→      if (response.isEmpty) {
+   212→        throw const ServerException(
+   213→          message: 'Generation request creation returned no data.',
+   214→          statusCode: 500,
+   215→        );
+   216→      }
+   217→
+   218→      AppLogger.info('Generation request created: ${response.first['id']}');
+   219→      return GenerationRequestModel.fromJson(response.first);
+   220→    } on sb.PostgrestException catch (e) {
+   221→      throw _mapPostgrestException(e);
+   222→    } on ServerException {
+   223→      rethrow;
+   224→    } catch (e) {
+   225→      AppLogger.error('Unexpected createGenerationRequest error', error: e);
+   226→      throw const ServerException(
+   227→        message: 'Failed to create generation request.',
+   228→        statusCode: 500,
+   229→      );
+   230→    }
+   231→  }
+   232→
+   233→  @override
+   234→  Future<GenerationRequestModel> updateGenerationRequest(
+   235→    String id,
+   236→    Map<String, dynamic> data,
+   237→  ) async {
+   238→    try {
+   239→      data['updated_at'] = DateTime.now().toIso8601String();
+   240→
+   241→      final response = await _supabase
+   242→          .from(_generationRequestsTable)
+   243→          .update(data)
+   244→          .eq('id', id)
+   245→          .select();
+   246→
+   247→      if (response.isEmpty) {
+   248→        throw const NotFoundException(message: 'Generation request not found for update.');
+   249→      }
+   250→
+   251→      return GenerationRequestModel.fromJson(response.first);
+   252→    } on sb.PostgrestException catch (e) {
+   253→      throw _mapPostgrestException(e);
+   254→    } on NotFoundException {
+   255→      rethrow;
+   256→    } catch (e) {
+   257→      AppLogger.error('Unexpected updateGenerationRequest error', error: e);
+   258→      throw const ServerException(
+   259→        message: 'Failed to update generation request.',
+   260→        statusCode: 500,
+   261→      );
+   262→    }
+   263→  }
+   264→
+   265→  @override
+   266→  Future<GenerationRequestModel> getGenerationRequest(String id) async {
+   267→    try {
+   268→      final response = await _supabase
+   269→          .from(_generationRequestsTable)
+   270→          .select()
+   271→          .eq('id', id)
+   272→          .limit(1);
+   273→
+   274→      if (response.isEmpty) {
+   275→        throw const NotFoundException(message: 'Generation request not found.');
+   276→      }
+   277→
+   278→      return GenerationRequestModel.fromJson(response.first);
+   279→    } on sb.PostgrestException catch (e) {
+   280→      throw _mapPostgrestException(e);
+   281→    } on NotFoundException {
+   282→      rethrow;
+   283→    } catch (e) {
+   284→      AppLogger.error('Unexpected getGenerationRequest error', error: e);
+   285→      throw const ServerException(
+   286→        message: 'Failed to get generation request.',
+   287→        statusCode: 500,
+   288→      );
+   289→    }
+   290→  }
+   291→
+   292→  @override
+   293→  Future<List<GenerationRequestModel>> getGenerationRequests(
+   294→    Map<String, dynamic> filters,
+   295→  ) async {
+   296→    try {
+   297→      // Build filter chain first (on PostgrestFilterBuilder),
+   298→      // then apply transforms (order, range) which return PostgrestTransformBuilder.
+   299→      var filterQuery = _supabase
+   300→          .from(_generationRequestsTable)
+   301→          .select();
+   302→
+   303→      // Apply filters on PostgrestFilterBuilder
+   304→      if (filters.containsKey('school_id')) {
+   305→        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
+   306→      }
+   307→      if (filters.containsKey('status')) {
+   308→        filterQuery = filterQuery.eq('status', filters['status'] as String);
+   309→      }
+   310→      if (filters.containsKey('requested_by')) {
+   311→        filterQuery = filterQuery.eq('requested_by', filters['requested_by'] as String);
+   312→      }
+   313→
+   314→      // Now apply transforms on PostgrestTransformBuilder
+   315→      var transformQuery = filterQuery.order('created_at', ascending: false);
+   316→
+   317→      // Pagination
+   318→      final page = filters['page'] as int? ?? 1;
+   319→      final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
+   320→      final from = (page - 1) * perPage;
+   321→      transformQuery = transformQuery.range(from, from + perPage - 1);
+   322→
+   323→      final response = await transformQuery;
+   324→      return response
+   325→          .map<GenerationRequestModel>(
+   326→              (json) => GenerationRequestModel.fromJson(json),)
+   327→          .toList();
+   328→    } on sb.PostgrestException catch (e) {
+   329→      throw _mapPostgrestException(e);
+   330→    } catch (e) {
+   331→      AppLogger.error('Unexpected getGenerationRequests error', error: e);
+   332→      throw const ServerException(
+   333→        message: 'Failed to get generation requests.',
+   334→        statusCode: 500,
+   335→      );
+   336→    }
+   337→  }
+   338→
+   339→  @override
+   340→  Future<void> cancelGenerationRequest(String id) async {
+   341→    try {
+   342→      await _supabase
+   343→          .from(_generationRequestsTable)
+   344→          .update({
+   345→            'status': 'cancelled',
+   346→            'updated_at': DateTime.now().toIso8601String(),
+   347→          })
+   348→          .eq('id', id);
+   349→
+   350→      AppLogger.info('Generation request cancelled: $id');
+   351→    } on sb.PostgrestException catch (e) {
+   352→      throw _mapPostgrestException(e);
+   353→    } catch (e) {
+   354→      AppLogger.error('Unexpected cancelGenerationRequest error', error: e);
+   355→      throw const ServerException(
+   356→        message: 'Failed to cancel generation request.',
+   357→        statusCode: 500,
+   358→      );
+   359→    }
+   360→  }
+   361→
+   362→  @override
+   363→  Future<GeneratedQuestionModel> createGeneratedQuestion(
+   364→    Map<String, dynamic> questionData,
+   365→  ) async {
+   366→    try {
+   367→      final response = await _supabase
+   368→          .from(_generatedQuestionsTable)
+   369→          .insert(questionData)
+   370→          .select();
+   371→
+   372→      if (response.isEmpty) {
+   373→        throw const ServerException(
+   374→          message: 'Generated question creation returned no data.',
+   375→          statusCode: 500,
+   376→        );
+   377→      }
+   378→
+   379→      return GeneratedQuestionModel.fromJson(response.first);
+   380→    } on sb.PostgrestException catch (e) {
+   381→      throw _mapPostgrestException(e);
+   382→    } on ServerException {
+   383→      rethrow;
+   384→    } catch (e) {
+   385→      AppLogger.error('Unexpected createGeneratedQuestion error', error: e);
+   386→      throw const ServerException(
+   387→        message: 'Failed to create generated question.',
+   388→        statusCode: 500,
+   389→      );
+   390→    }
+   391→  }
+   392→
+   393→  @override
+   394→  Future<List<GeneratedQuestionModel>> createGeneratedQuestions(
+   395→    List<Map<String, dynamic>> questionsData,
+   396→  ) async {
+   397→    try {
+   398→      final response = await _supabase
+   399→          .from(_generatedQuestionsTable)
+   400→          .insert(questionsData)
+   401→          .select();
+   402→
+   403→      return response
+   404→          .map<GeneratedQuestionModel>(
+   405→              (json) => GeneratedQuestionModel.fromJson(json),)
+   406→          .toList();
+   407→    } on sb.PostgrestException catch (e) {
+   408→      throw _mapPostgrestException(e);
+   409→    } catch (e) {
+   410→      AppLogger.error('Unexpected createGeneratedQuestions error', error: e);
+   411→      throw const ServerException(
+   412→        message: 'Failed to create generated questions.',
+   413→        statusCode: 500,
+   414→      );
+   415→    }
+   416→  }
+   417→
+   418→  @override
+   419→  Future<GeneratedQuestionModel> updateGeneratedQuestion(
+   420→    String id,
+   421→    Map<String, dynamic> data,
+   422→  ) async {
+   423→    try {
+   424→      data['updated_at'] = DateTime.now().toIso8601String();
+   425→
+   426→      final response = await _supabase
+   427→          .from(_generatedQuestionsTable)
+   428→          .update(data)
+   429→          .eq('id', id)
+   430→          .select();
+   431→
+   432→      if (response.isEmpty) {
+   433→        throw const NotFoundException(message: 'Generated question not found for update.');
+   434→      }
+   435→
+   436→      return GeneratedQuestionModel.fromJson(response.first);
+   437→    } on sb.PostgrestException catch (e) {
+   438→      throw _mapPostgrestException(e);
+   439→    } on NotFoundException {
+   440→      rethrow;
+   441→    } catch (e) {
+   442→      AppLogger.error('Unexpected updateGeneratedQuestion error', error: e);
+   443→      throw const ServerException(
+   444→        message: 'Failed to update generated question.',
+   445→        statusCode: 500,
+   446→      );
+   447→    }
+   448→  }
+   449→
+   450→  @override
+   451→  Future<GeneratedQuestionModel> getGeneratedQuestion(String id) async {
+   452→    try {
+   453→      final response = await _supabase
+   454→          .from(_generatedQuestionsTable)
+   455→          .select()
+   456→          .eq('id', id)
+   457→          .limit(1);
+   458→
+   459→      if (response.isEmpty) {
+   460→        throw const NotFoundException(message: 'Generated question not found.');
+   461→      }
+   462→
+   463→      return GeneratedQuestionModel.fromJson(response.first);
+   464→    } on sb.PostgrestException catch (e) {
+   465→      throw _mapPostgrestException(e);
+   466→    } on NotFoundException {
+   467→      rethrow;
+   468→    } catch (e) {
+   469→      AppLogger.error('Unexpected getGeneratedQuestion error', error: e);
+   470→      throw const ServerException(
+   471→        message: 'Failed to get generated question.',
+   472→        statusCode: 500,
+   473→      );
+   474→    }
+   475→  }
+   476→
+   477→  @override
+   478→  Future<List<GeneratedQuestionModel>> getGeneratedQuestions(
+   479→    Map<String, dynamic> filters,
+   480→  ) async {
+   481→    try {
+   482→      var filterQuery = _supabase
+   483→          .from(_generatedQuestionsTable)
+   484→          .select();
+   485→
+   486→      if (filters.containsKey('school_id')) {
+   487→        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
+   488→      }
+   489→      if (filters.containsKey('review_status')) {
+   490→        filterQuery = filterQuery.eq('review_status', filters['review_status'] as String);
+   491→      }
+   492→      if (filters.containsKey('generation_request_id')) {
+   493→        filterQuery = filterQuery.eq('generation_request_id',
+   494→            filters['generation_request_id'] as String,);
+   495→      }
+   496→
+   497→      var transformQuery = filterQuery.order('created_at', ascending: false);
+   498→
+   499→      final page = filters['page'] as int? ?? 1;
+   500→      final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? 20;
+   501→      final from = (page - 1) * perPage;
+   502→      transformQuery = transformQuery.range(from, from + perPage - 1);
+   503→
+   504→      final response = await transformQuery;
+   505→      return response
+   506→          .map<GeneratedQuestionModel>(
+   507→              (json) => GeneratedQuestionModel.fromJson(json),)
+   508→          .toList();
+   509→    } on sb.PostgrestException catch (e) {
+   510→      throw _mapPostgrestException(e);
+   511→    } catch (e) {
+   512→      AppLogger.error('Unexpected getGeneratedQuestions error', error: e);
+   513→      throw const ServerException(
+   514→        message: 'Failed to get generated questions.',
+   515→        statusCode: 500,
+   516→      );
+   517→    }
+   518→  }
+   519→
+   520→  @override
+   521→  Future<int> getGeneratedQuestionCount(Map<String, dynamic> filters) async {
+   522→    try {
+   523→      var query = _supabase
+   524→          .from(_generatedQuestionsTable)
+   525→          .select('id');
+   526→
+   527→      if (filters.containsKey('school_id')) {
+   528→        query = query.eq('school_id', filters['school_id'] as String);
+   529→      }
+   530→      if (filters.containsKey('review_status')) {
+   531→        query = query.eq('review_status', filters['review_status'] as String);
+   532→      }
+   533→
+   534→      final response = await query;
+   535→      return response.length;
+   536→    } on sb.PostgrestException catch (e) {
+   537→      throw _mapPostgrestException(e);
+   538→    } catch (e) {
+   539→      AppLogger.error('Unexpected getGeneratedQuestionCount error', error: e);
+   540→      throw const ServerException(
+   541→        message: 'Failed to count generated questions.',
+   542→        statusCode: 500,
+   543→      );
+   544→    }
+   545→  }
+   546→
+   547→  // ═══════════════════════════════════════════════════════════════════
+   548→  // REVIEW
+   549→  // ═══════════════════════════════════════════════════════════════════
+   550→
+   551→  @override
+   552→  Future<GeneratedQuestionModel> approveQuestion(
+   553→    String id, {
+   554→    String? reviewNotes,
+   555→  }) async {
+   556→    try {
+   557→      final data = <String, dynamic>{
+   558→        'review_status': 'approved',
+   559→        'is_approved': true,
+   560→        'reviewed_at': DateTime.now().toIso8601String(),
+   561→        'updated_at': DateTime.now().toIso8601String(),
+   562→      };
+   563→      if (reviewNotes != null) {
+   564→        data['review_notes'] = reviewNotes;
+   565→      }
+   566→
+   567→      final response = await _supabase
+   568→          .from(_generatedQuestionsTable)
+   569→          .update(data)
+   570→          .eq('id', id)
+   571→          .select();
+   572→
+   573→      if (response.isEmpty) {
+   574→        throw const NotFoundException(message: 'Generated question not found for approval.');
+   575→      }
+   576→
+   577→      AppLogger.info('Question approved: $id');
+   578→      return GeneratedQuestionModel.fromJson(response.first);
+   579→    } on sb.PostgrestException catch (e) {
+   580→      throw _mapPostgrestException(e);
+   581→    } on NotFoundException {
+   582→      rethrow;
+   583→    } catch (e) {
+   584→      AppLogger.error('Unexpected approveQuestion error', error: e);
+   585→      throw const ServerException(
+   586→        message: 'Failed to approve question.',
+   587→        statusCode: 500,
+   588→      );
+   589→    }
+   590→  }
+   591→
+   592→  @override
+   593→  Future<GeneratedQuestionModel> rejectQuestion(
+   594→    String id,
+   595→    String reason,
+   596→  ) async {
+   597→    try {
+   598→      final response = await _supabase
+   599→          .from(_generatedQuestionsTable)
+   600→          .update({
+   601→            'review_status': 'rejected',
+   602→            'is_approved': false,
+   603→            'review_notes': reason,
+   604→            'reviewed_at': DateTime.now().toIso8601String(),
+   605→            'updated_at': DateTime.now().toIso8601String(),
+   606→          })
+   607→          .eq('id', id)
+   608→          .select();
+   609→
+   610→      if (response.isEmpty) {
+   611→        throw const NotFoundException(message: 'Generated question not found for rejection.');
+   612→      }
+   613→
+   614→      AppLogger.info('Question rejected: $id');
+   615→      return GeneratedQuestionModel.fromJson(response.first);
+   616→    } on sb.PostgrestException catch (e) {
+   617→      throw _mapPostgrestException(e);
+   618→    } on NotFoundException {
+   619→      rethrow;
+   620→    } catch (e) {
+   621→      AppLogger.error('Unexpected rejectQuestion error', error: e);
+   622→      throw const ServerException(
+   623→        message: 'Failed to reject question.',
+   624→        statusCode: 500,
+   625→      );
+   626→    }
+   627→  }
+   628→
+   629→  @override
+   630→  Future<GeneratedQuestionModel> requestRevision(
+   631→    String id,
+   632→    String notes,
+   633→  ) async {
+   634→    try {
+   635→      final response = await _supabase
+   636→          .from(_generatedQuestionsTable)
+   637→          .update({
+   638→            'review_status': 'needs_revision',
+   639→            'review_notes': notes,
+   640→            'reviewed_at': DateTime.now().toIso8601String(),
+   641→            'updated_at': DateTime.now().toIso8601String(),
+   642→          })
+   643→          .eq('id', id)
+   644→          .select();
+   645→
+   646→      if (response.isEmpty) {
+   647→        throw const NotFoundException(message: 
+   648→            'Generated question not found for revision request.',);
+   649→      }
+   650→
+   651→      AppLogger.info('Question revision requested: $id');
+   652→      return GeneratedQuestionModel.fromJson(response.first);
+   653→    } on sb.PostgrestException catch (e) {
+   654→      throw _mapPostgrestException(e);
+   655→    } on NotFoundException {
+   656→      rethrow;
+   657→    } catch (e) {
+   658→      AppLogger.error('Unexpected requestRevision error', error: e);
+   659→      throw const ServerException(
+   660→        message: 'Failed to request revision.',
+   661→        statusCode: 500,
+   662→      );
+   663→    }
+   664→  }
+   665→
+   666→  // ═══════════════════════════════════════════════════════════════════
+   667→  // QUESTION IMPROVEMENT
+   668→  // ═══════════════════════════════════════════════════════════════════
+   669→
+   670→  @override
+   671→  Future<QuestionImprovementModel> createImprovement(
+   672→    Map<String, dynamic> improvementData,
+   673→  ) async {
+   674→    try {
+   675→      final response = await _supabase
+   676→          .from(_improvementsTable)
+   677→          .insert(improvementData)
+   678→          .select();
+   679→
+   680→      if (response.isEmpty) {
+   681→        throw const ServerException(
+   682→          message: 'Improvement creation returned no data.',
+   683→          statusCode: 500,
+   684→        );
+   685→      }
+   686→
+   687→      return QuestionImprovementModel.fromJson(response.first);
+   688→    } on sb.PostgrestException catch (e) {
+   689→      throw _mapPostgrestException(e);
+   690→    } on ServerException {
+   691→      rethrow;
+   692→    } catch (e) {
+   693→      AppLogger.error('Unexpected createImprovement error', error: e);
+   694→      throw const ServerException(
+   695→        message: 'Failed to create improvement.',
+   696→        statusCode: 500,
+   697→      );
+   698→    }
+   699→  }
+   700→
+   701→  @override
+   702→  Future<QuestionImprovementModel> updateImprovement(
+   703→    String id,
+   704→    Map<String, dynamic> data,
+   705→  ) async {
+   706→    try {
+   707→      final response = await _supabase
+   708→          .from(_improvementsTable)
+   709→          .update(data)
+   710→          .eq('id', id)
+   711→          .select();
+   712→
+   713→      if (response.isEmpty) {
+   714→        throw const NotFoundException(message: 'Improvement not found for update.');
+   715→      }
+   716→
+   717→      return QuestionImprovementModel.fromJson(response.first);
+   718→    } on sb.PostgrestException catch (e) {
+   719→      throw _mapPostgrestException(e);
+   720→    } on NotFoundException {
+   721→      rethrow;
+   722→    } catch (e) {
+   723→      AppLogger.error('Unexpected updateImprovement error', error: e);
+   724→      throw const ServerException(
+   725→        message: 'Failed to update improvement.',
+   726→        statusCode: 500,
+   727→      );
+   728→    }
+   729→  }
+   730→
+   731→  @override
+   732→  Future<QuestionImprovementModel> getImprovement(String id) async {
+   733→    try {
+   734→      final response = await _supabase
+   735→          .from(_improvementsTable)
+   736→          .select()
+   737→          .eq('id', id)
+   738→          .limit(1);
+   739→
+   740→      if (response.isEmpty) {
+   741→        throw const NotFoundException(message: 'Improvement not found.');
+   742→      }
+   743→
+   744→      return QuestionImprovementModel.fromJson(response.first);
+   745→    } on sb.PostgrestException catch (e) {
+   746→      throw _mapPostgrestException(e);
+   747→    } on NotFoundException {
+   748→      rethrow;
+   749→    } catch (e) {
+   750→      AppLogger.error('Unexpected getImprovement error', error: e);
+   751→      throw const ServerException(
+   752→        message: 'Failed to get improvement.',
+   753→        statusCode: 500,
+   754→      );
+   755→    }
+   756→  }
+   757→
+   758→  @override
+   759→  Future<List<QuestionImprovementModel>> getImprovements(
+   760→    String generatedQuestionId,
+   761→  ) async {
+   762→    try {
+   763→      // PERF: Added limit to prevent unbounded query on improvements
+   764→      final response = await _supabase
+   765→          .from(_improvementsTable)
+   766→          .select()
+   767→          .eq('generated_question_id', generatedQuestionId)
+   768→          .order('created_at', ascending: false)
+   769→          .limit(PaginatedQueryMixin.dropdownPageSize);
+   770→
+   771→      return response
+   772→          .map<QuestionImprovementModel>(
+   773→              (json) => QuestionImprovementModel.fromJson(json),)
+   774→          .toList();
+   775→    } on sb.PostgrestException catch (e) {
+   776→      throw _mapPostgrestException(e);
+   777→    } catch (e) {
+   778→      AppLogger.error('Unexpected getImprovements error', error: e);
+   779→      throw const ServerException(
+   780→        message: 'Failed to get improvements.',
+   781→        statusCode: 500,
+   782→      );
+   783→    }
+   784→  }
+   785→
+   786→  // ═══════════════════════════════════════════════════════════════════
+   787→  // VALIDATION
+   788→  // ═══════════════════════════════════════════════════════════════════
+   789→
+   790→  @override
+   791→  Future<ValidationResultModel> createValidationResult(
+   792→    Map<String, dynamic> resultData,
+   793→  ) async {
+   794→    try {
+   795→      final response = await _supabase
+   796→          .from(_validationResultsTable)
+   797→          .insert(resultData)
+   798→          .select();
+   799→
+   800→      if (response.isEmpty) {
+   801→        throw const ServerException(
+   802→          message: 'Validation result creation returned no data.',
+   803→          statusCode: 500,
+   804→        );
+   805→      }
+   806→
+   807→      return ValidationResultModel.fromJson(response.first);
+   808→    } on sb.PostgrestException catch (e) {
+   809→      throw _mapPostgrestException(e);
+   810→    } on ServerException {
+   811→      rethrow;
+   812→    } catch (e) {
+   813→      AppLogger.error('Unexpected createValidationResult error', error: e);
+   814→      throw const ServerException(
+   815→        message: 'Failed to create validation result.',
+   816→        statusCode: 500,
+   817→      );
+   818→    }
+   819→  }
+   820→
+   821→  @override
+   822→  Future<List<ValidationResultModel>> createValidationResults(
+   823→    List<Map<String, dynamic>> resultsData,
+   824→  ) async {
+   825→    try {
+   826→      final response = await _supabase
+   827→          .from(_validationResultsTable)
+   828→          .insert(resultsData)
+   829→          .select();
+   830→
+   831→      return response
+   832→          .map<ValidationResultModel>(
+   833→              (json) => ValidationResultModel.fromJson(json),)
+   834→          .toList();
+   835→    } on sb.PostgrestException catch (e) {
+   836→      throw _mapPostgrestException(e);
+   837→    } catch (e) {
+   838→      AppLogger.error('Unexpected createValidationResults error', error: e);
+   839→      throw const ServerException(
+   840→        message: 'Failed to create validation results.',
+   841→        statusCode: 500,
+   842→      );
+   843→    }
+   844→  }
+   845→
+   846→  @override
+   847→  Future<List<ValidationResultModel>> getValidationResults(
+   848→    String generatedQuestionId,
+   849→  ) async {
+   850→    try {
+   851→      final response = await _supabase
+   852→          .from(_validationResultsTable)
+   853→          .select()
+   854→          .eq('generated_question_id', generatedQuestionId)
+   855→          .order('created_at', ascending: false);
+   856→
+   857→      return response
+   858→          .map<ValidationResultModel>(
+   859→              (json) => ValidationResultModel.fromJson(json),)
+   860→          .toList();
+   861→    } on sb.PostgrestException catch (e) {
+   862→      throw _mapPostgrestException(e);
+   863→    } catch (e) {
+   864→      AppLogger.error('Unexpected getValidationResults error', error: e);
+   865→      throw const ServerException(
+   866→        message: 'Failed to get validation results.',
+   867→        statusCode: 500,
+   868→      );
+   869→    }
+   870→  }
+   871→
+   872→  @override
+   873→  Future<ValidationResultModel> resolveValidationResult(
+   874→    String id,
+   875→    String resolvedBy,
+   876→  ) async {
+   877→    try {
+   878→      final response = await _supabase
+   879→          .from(_validationResultsTable)
+   880→          .update({
+   881→            'is_resolved': true,
+   882→            'resolved_by': resolvedBy,
+   883→            'resolved_at': DateTime.now().toIso8601String(),
+   884→          })
+   885→          .eq('id', id)
+   886→          .select();
+   887→
+   888→      if (response.isEmpty) {
+   889→        throw const NotFoundException(message: 'Validation result not found.');
+   890→      }
+   891→
+   892→      return ValidationResultModel.fromJson(response.first);
+   893→    } on sb.PostgrestException catch (e) {
+   894→      throw _mapPostgrestException(e);
+   895→    } on NotFoundException {
+   896→      rethrow;
+   897→    } catch (e) {
+   898→      AppLogger.error('Unexpected resolveValidationResult error', error: e);
+   899→      throw const ServerException(
+   900→        message: 'Failed to resolve validation result.',
+   901→        statusCode: 500,
+   902→      );
+   903→    }
+   904→  }
+   905→
+   906→  // ═══════════════════════════════════════════════════════════════════
+   907→  // DOCUMENT UPLOAD & PROCESSING
+   908→  // ═══════════════════════════════════════════════════════════════════
+   909→
+   910→  @override
+   911→  Future<DocumentUploadModel> createDocumentUpload(
+   912→    Map<String, dynamic> documentData,
+   913→  ) async {
+   914→    try {
+   915→      final response = await _supabase
+   916→          .from(_documentsTable)
+   917→          .insert(documentData)
+   918→          .select();
+   919→
+   920→      if (response.isEmpty) {
+   921→        throw const ServerException(
+   922→          message: 'Document upload creation returned no data.',
+   923→          statusCode: 500,
+   924→        );
+   925→      }
+   926→
+   927→      return DocumentUploadModel.fromJson(response.first);
+   928→    } on sb.PostgrestException catch (e) {
+   929→      throw _mapPostgrestException(e);
+   930→    } on ServerException {
+   931→      rethrow;
+   932→    } catch (e) {
+   933→      AppLogger.error('Unexpected createDocumentUpload error', error: e);
+   934→      throw const ServerException(
+   935→        message: 'Failed to create document upload.',
+   936→        statusCode: 500,
+   937→      );
+   938→    }
+   939→  }
+   940→
+   941→  @override
+   942→  Future<DocumentUploadModel> updateDocumentUpload(
+   943→    String id,
+   944→    Map<String, dynamic> data,
+   945→  ) async {
+   946→    try {
+   947→      final response = await _supabase
+   948→          .from(_documentsTable)
+   949→          .update(data)
+   950→          .eq('id', id)
+   951→          .select();
+   952→
+   953→      if (response.isEmpty) {
+   954→        throw const NotFoundException(message: 'Document upload not found for update.');
+   955→      }
+   956→
+   957→      return DocumentUploadModel.fromJson(response.first);
+   958→    } on sb.PostgrestException catch (e) {
+   959→      throw _mapPostgrestException(e);
+   960→    } on NotFoundException {
+   961→      rethrow;
+   962→    } catch (e) {
+   963→      AppLogger.error('Unexpected updateDocumentUpload error', error: e);
+   964→      throw const ServerException(
+   965→        message: 'Failed to update document upload.',
+   966→        statusCode: 500,
+   967→      );
+   968→    }
+   969→  }
+   970→
+   971→  @override
+   972→  Future<DocumentUploadModel> getDocumentUpload(String id) async {
+   973→    try {
+   974→      final response = await _supabase
+   975→          .from(_documentsTable)
+   976→          .select()
+   977→          .eq('id', id)
+   978→          .limit(1);
+   979→
+   980→      if (response.isEmpty) {
+   981→        throw const NotFoundException(message: 'Document upload not found.');
+   982→      }
+   983→
+   984→      return DocumentUploadModel.fromJson(response.first);
+   985→    } on sb.PostgrestException catch (e) {
+   986→      throw _mapPostgrestException(e);
+   987→    } on NotFoundException {
+   988→      rethrow;
+   989→    } catch (e) {
+   990→      AppLogger.error('Unexpected getDocumentUpload error', error: e);
+   991→      throw const ServerException(
+   992→        message: 'Failed to get document upload.',
+   993→        statusCode: 500,
+   994→      );
+   995→    }
+   996→  }
+   997→
+   998→  @override
+   999→  Future<List<DocumentUploadModel>> getDocumentUploads(
+  1000→    Map<String, dynamic> filters,
+  1001→  ) async {
+  1002→    try {
+  1003→      var filterQuery = _supabase
+  1004→          .from(_documentsTable)
+  1005→          .select();
+  1006→
+  1007→      if (filters.containsKey('school_id')) {
+  1008→        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
+  1009→      }
+  1010→      if (filters.containsKey('uploaded_by')) {
+  1011→        filterQuery = filterQuery.eq('uploaded_by', filters['uploaded_by'] as String);
+  1012→      }
+  1013→
+  1014→      var transformQuery = filterQuery.order('created_at', ascending: false);
+  1015→
+  1016→      // PERF: Added default pagination to prevent unbounded query
+  1017→      final page = filters['page'] as int? ?? 1;
+  1018→      final perPage = filters['per_page'] as int? ?? filters['perPage'] as int? ?? PaginatedQueryMixin.defaultPageSize;
+  1019→      final from = (page - 1) * perPage;
+  1020→      transformQuery = transformQuery.range(from, from + perPage - 1);
+  1021→
+  1022→      final response = await transformQuery;
+  1023→      return response
+  1024→          .map<DocumentUploadModel>(
+  1025→              (json) => DocumentUploadModel.fromJson(json),)
+  1026→          .toList();
+  1027→    } on sb.PostgrestException catch (e) {
+  1028→      throw _mapPostgrestException(e);
+  1029→    } catch (e) {
+  1030→      AppLogger.error('Unexpected getDocumentUploads error', error: e);
+  1031→      throw const ServerException(
+  1032→        message: 'Failed to get document uploads.',
+  1033→        statusCode: 500,
+  1034→      );
+  1035→    }
+  1036→  }
+  1037→
+  1038→  // ═══════════════════════════════════════════════════════════════════
+  1039→  // QUESTION BANK INTEGRATION
+  1040→  // ═══════════════════════════════════════════════════════════════════
+  1041→
+  1042→  @override
+  1043→  Future<GeneratedQuestionModel> saveToQuestionBank(
+  1044→    String generatedQuestionId,
+  1045→    String questionBankId,
+  1046→  ) async {
+  1047→    try {
+  1048→      final response = await _supabase
+  1049→          .from(_generatedQuestionsTable)
+  1050→          .update({
+  1051→            'question_bank_id': questionBankId,
+  1052→            'review_status': 'approved',
+  1053→            'is_approved': true,
+  1054→            'updated_at': DateTime.now().toIso8601String(),
+  1055→          })
+  1056→          .eq('id', generatedQuestionId)
+  1057→          .select();
+  1058→
+  1059→      if (response.isEmpty) {
+  1060→        throw const NotFoundException(message: 
+  1061→            'Generated question not found for save-to-bank.',);
+  1062→      }
+  1063→
+  1064→      AppLogger.info(
+  1065→          'Question saved to bank: $generatedQuestionId -> $questionBankId',);
+  1066→      return GeneratedQuestionModel.fromJson(response.first);
+  1067→    } on sb.PostgrestException catch (e) {
+  1068→      throw _mapPostgrestException(e);
+  1069→    } on NotFoundException {
+  1070→      rethrow;
+  1071→    } catch (e) {
+  1072→      AppLogger.error('Unexpected saveToQuestionBank error', error: e);
+  1073→      throw const ServerException(
+  1074→        message: 'Failed to save question to bank.',
+  1075→        statusCode: 500,
+  1076→      );
+  1077→    }
+  1078→  }
+  1079→
+  1080→  // ═══════════════════════════════════════════════════════════════════
+  1081→  // PROMPT TEMPLATES
+  1082→  // ═══════════════════════════════════════════════════════════════════
+  1083→
+  1084→  @override
+  1085→  Future<PromptTemplateModel> createPromptTemplate(
+  1086→    Map<String, dynamic> templateData,
+  1087→  ) async {
+  1088→    try {
+  1089→      final response = await _supabase
+  1090→          .from(_promptTemplatesTable)
+  1091→          .insert(templateData)
+  1092→          .select();
+  1093→
+  1094→      if (response.isEmpty) {
+  1095→        throw const ServerException(
+  1096→          message: 'Prompt template creation returned no data.',
+  1097→          statusCode: 500,
+  1098→        );
+  1099→      }
+  1100→
+  1101→      AppLogger.info('Prompt template created: ${response.first['id']}');
+  1102→      return PromptTemplateModel.fromJson(response.first);
+  1103→    } on sb.PostgrestException catch (e) {
+  1104→      throw _mapPostgrestException(e);
+  1105→    } on ServerException {
+  1106→      rethrow;
+  1107→    } catch (e) {
+  1108→      AppLogger.error('Unexpected createPromptTemplate error', error: e);
+  1109→      throw const ServerException(
+  1110→        message: 'Failed to create prompt template.',
+  1111→        statusCode: 500,
+  1112→      );
+  1113→    }
+  1114→  }
+  1115→
+  1116→  @override
+  1117→  Future<PromptTemplateModel> updatePromptTemplate(
+  1118→    String id,
+  1119→    Map<String, dynamic> data,
+  1120→  ) async {
+  1121→    try {
+  1122→      data['updated_at'] = DateTime.now().toIso8601String();
+  1123→
+  1124→      final response = await _supabase
+  1125→          .from(_promptTemplatesTable)
+  1126→          .update(data)
+  1127→          .eq('id', id)
+  1128→          .select();
+  1129→
+  1130→      if (response.isEmpty) {
+  1131→        throw const NotFoundException(message: 'Prompt template not found for update.');
+  1132→      }
+  1133→
+  1134→      return PromptTemplateModel.fromJson(response.first);
+  1135→    } on sb.PostgrestException catch (e) {
+  1136→      throw _mapPostgrestException(e);
+  1137→    } on NotFoundException {
+  1138→      rethrow;
+  1139→    } catch (e) {
+  1140→      AppLogger.error('Unexpected updatePromptTemplate error', error: e);
+  1141→      throw const ServerException(
+  1142→        message: 'Failed to update prompt template.',
+  1143→        statusCode: 500,
+  1144→      );
+  1145→    }
+  1146→  }
+  1147→
+  1148→  @override
+  1149→  Future<PromptTemplateModel> getPromptTemplate(String id) async {
+  1150→    try {
+  1151→      final response = await _supabase
+  1152→          .from(_promptTemplatesTable)
+  1153→          .select()
+  1154→          .eq('id', id)
+  1155→          .limit(1);
+  1156→
+  1157→      if (response.isEmpty) {
+  1158→        throw const NotFoundException(message: 'Prompt template not found.');
+  1159→      }
+  1160→
+  1161→      return PromptTemplateModel.fromJson(response.first);
+  1162→    } on sb.PostgrestException catch (e) {
+  1163→      throw _mapPostgrestException(e);
+  1164→    } on NotFoundException {
+  1165→      rethrow;
+  1166→    } catch (e) {
+  1167→      AppLogger.error('Unexpected getPromptTemplate error', error: e);
+  1168→      throw const ServerException(
+  1169→        message: 'Failed to get prompt template.',
+  1170→        statusCode: 500,
+  1171→      );
+  1172→    }
+  1173→  }
+  1174→
+  1175→  @override
+  1176→  Future<List<PromptTemplateModel>> getPromptTemplates(
+  1177→    Map<String, dynamic> filters,
+  1178→  ) async {
+  1179→    try {
+  1180→      var filterQuery = _supabase
+  1181→          .from(_promptTemplatesTable)
+  1182→          .select()
+  1183→          .eq('is_active', true);
+  1184→
+  1185→      if (filters.containsKey('prompt_type')) {
+  1186→        filterQuery = filterQuery.eq('prompt_type', filters['prompt_type'] as String);
+  1187→      }
+  1188→      if (filters.containsKey('subject_id')) {
+  1189→        filterQuery = filterQuery.eq('subject_id', filters['subject_id'] as String);
+  1190→      }
+  1191→      if (filters.containsKey('curriculum')) {
+  1192→        filterQuery = filterQuery.eq('curriculum', filters['curriculum'] as String);
+  1193→      }
+  1194→
+  1195→      // PERF: Added limit to prevent unbounded query on prompt_templates
+  1196→      final response = await filterQuery
+  1197→          .order('is_default', ascending: false)
+  1198→          .order('quality_score', ascending: true)
+  1199→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1200→      return response
+  1201→          .map<PromptTemplateModel>(
+  1202→              (json) => PromptTemplateModel.fromJson(json),)
+  1203→          .toList();
+  1204→    } on sb.PostgrestException catch (e) {
+  1205→      throw _mapPostgrestException(e);
+  1206→    } catch (e) {
+  1207→      AppLogger.error('Unexpected getPromptTemplates error', error: e);
+  1208→      throw const ServerException(
+  1209→        message: 'Failed to get prompt templates.',
+  1210→        statusCode: 500,
+  1211→      );
+  1212→    }
+  1213→  }
+  1214→
+  1215→  @override
+  1216→  Future<void> incrementTemplateUsage(String id) async {
+  1217→    try {
+  1218→      // Use an RPC call to atomically increment the usage_count
+  1219→      await _supabase.rpc('increment_template_usage', params: {
+  1220→        'template_id': id,
+  1221→      },);
+  1222→    } on sb.PostgrestException catch (e) {
+  1223→      // If the RPC doesn't exist, fall back to a manual update
+  1224→      if (e.code == '42883') {
+  1225→        // undefined function
+  1226→        try {
+  1227→          final current = await _supabase
+  1228→              .from(_promptTemplatesTable)
+  1229→              .select('usage_count')
+  1230→              .eq('id', id)
+  1231→              .limit(1);
+  1232→
+  1233→          if (current.isNotEmpty) {
+  1234→            final count = current.first['usage_count'] as int? ?? 0;
+  1235→            await _supabase
+  1236→                .from(_promptTemplatesTable)
+  1237→                .update({
+  1238→                  'usage_count': count + 1,
+  1239→                  'updated_at': DateTime.now().toIso8601String(),
+  1240→                })
+  1241→                .eq('id', id);
+  1242→          }
+  1243→        } catch (_) {
+  1244→          // Silently fail for usage increment
+  1245→        }
+  1246→      }
+  1247→    } catch (e) {
+  1248→      // Silently fail for usage increment - not critical
+  1249→      AppLogger.debug('Failed to increment template usage: $e');
+  1250→    }
+  1251→  }
+  1252→
+  1253→  // ═══════════════════════════════════════════════════════════════════
+  1254→  // PROVIDER CONFIGURATION
+  1255→  // ═══════════════════════════════════════════════════════════════════
+  1256→
+  1257→  @override
+  1258→  Future<AiProviderConfigModel> createProviderConfig(
+  1259→    Map<String, dynamic> configData,
+  1260→  ) async {
+  1261→    try {
+  1262→      final response = await _supabase
+  1263→          .from(_providerConfigsTable)
+  1264→          .insert(configData)
+  1265→          .select();
+  1266→
+  1267→      if (response.isEmpty) {
+  1268→        throw const ServerException(
+  1269→          message: 'Provider config creation returned no data.',
+  1270→          statusCode: 500,
+  1271→        );
+  1272→      }
+  1273→
+  1274→      return AiProviderConfigModel.fromJson(response.first);
+  1275→    } on sb.PostgrestException catch (e) {
+  1276→      throw _mapPostgrestException(e);
+  1277→    } on ServerException {
+  1278→      rethrow;
+  1279→    } catch (e) {
+  1280→      AppLogger.error('Unexpected createProviderConfig error', error: e);
+  1281→      throw const ServerException(
+  1282→        message: 'Failed to create provider config.',
+  1283→        statusCode: 500,
+  1284→      );
+  1285→    }
+  1286→  }
+  1287→
+  1288→  @override
+  1289→  Future<AiProviderConfigModel> updateProviderConfig(
+  1290→    String id,
+  1291→    Map<String, dynamic> data,
+  1292→  ) async {
+  1293→    try {
+  1294→      data['updated_at'] = DateTime.now().toIso8601String();
+  1295→
+  1296→      final response = await _supabase
+  1297→          .from(_providerConfigsTable)
+  1298→          .update(data)
+  1299→          .eq('id', id)
+  1300→          .select();
+  1301→
+  1302→      if (response.isEmpty) {
+  1303→        throw const NotFoundException(message: 'Provider config not found for update.');
+  1304→      }
+  1305→
+  1306→      return AiProviderConfigModel.fromJson(response.first);
+  1307→    } on sb.PostgrestException catch (e) {
+  1308→      throw _mapPostgrestException(e);
+  1309→    } on NotFoundException {
+  1310→      rethrow;
+  1311→    } catch (e) {
+  1312→      AppLogger.error('Unexpected updateProviderConfig error', error: e);
+  1313→      throw const ServerException(
+  1314→        message: 'Failed to update provider config.',
+  1315→        statusCode: 500,
+  1316→      );
+  1317→    }
+  1318→  }
+  1319→
+  1320→  @override
+  1321→  Future<AiProviderConfigModel> getProviderConfig(String id) async {
+  1322→    try {
+  1323→      final response = await _supabase
+  1324→          .from(_providerConfigsTable)
+  1325→          .select()
+  1326→          .eq('id', id)
+  1327→          .limit(1);
+  1328→
+  1329→      if (response.isEmpty) {
+  1330→        throw const NotFoundException(message: 'Provider config not found.');
+  1331→      }
+  1332→
+  1333→      return AiProviderConfigModel.fromJson(response.first);
+  1334→    } on sb.PostgrestException catch (e) {
+  1335→      throw _mapPostgrestException(e);
+  1336→    } on NotFoundException {
+  1337→      rethrow;
+  1338→    } catch (e) {
+  1339→      AppLogger.error('Unexpected getProviderConfig error', error: e);
+  1340→      throw const ServerException(
+  1341→        message: 'Failed to get provider config.',
+  1342→        statusCode: 500,
+  1343→      );
+  1344→    }
+  1345→  }
+  1346→
+  1347→  @override
+  1348→  Future<List<AiProviderConfigModel>> getProviderConfigs() async {
+  1349→    try {
+  1350→      // PERF: Added limit to prevent unbounded query on provider_configs
+  1351→      final response = await _supabase
+  1352→          .from(_providerConfigsTable)
+  1353→          .select()
+  1354→          .order('provider', ascending: true)
+  1355→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1356→
+  1357→      return response
+  1358→          .map<AiProviderConfigModel>(
+  1359→              (json) => AiProviderConfigModel.fromJson(json),)
+  1360→          .toList();
+  1361→    } on sb.PostgrestException catch (e) {
+  1362→      throw _mapPostgrestException(e);
+  1363→    } catch (e) {
+  1364→      AppLogger.error('Unexpected getProviderConfigs error', error: e);
+  1365→      throw const ServerException(
+  1366→        message: 'Failed to get provider configs.',
+  1367→        statusCode: 500,
+  1368→      );
+  1369→    }
+  1370→  }
+  1371→
+  1372→  @override
+  1373→  Future<AiApiKeyModel> getApiKey(
+  1374→    String providerType,
+  1375→    String schoolId,
+  1376→  ) async {
+  1377→    try {
+  1378→      final response = await _supabase
+  1379→          .from(_apiKeysTable)
+  1380→          .select()
+  1381→          .eq('provider', providerType)
+  1382→          .eq('school_id', schoolId)
+  1383→          .eq('is_active', true)
+  1384→          .limit(1);
+  1385→
+  1386→      if (response.isEmpty) {
+  1387→        throw const NotFoundException(message: 'Active API key not found for provider.');
+  1388→      }
+  1389→
+  1390→      return AiApiKeyModel.fromJson(response.first);
+  1391→    } on sb.PostgrestException catch (e) {
+  1392→      throw _mapPostgrestException(e);
+  1393→    } on NotFoundException {
+  1394→      rethrow;
+  1395→    } catch (e) {
+  1396→      AppLogger.error('Unexpected getApiKey error', error: e);
+  1397→      throw const ServerException(
+  1398→        message: 'Failed to get API key.',
+  1399→        statusCode: 500,
+  1400→      );
+  1401→    }
+  1402→  }
+  1403→
+  1404→  // ═══════════════════════════════════════════════════════════════════
+  1405→  // GENERATION QUEUE
+  1406→  // ═══════════════════════════════════════════════════════════════════
+  1407→
+  1408→  @override
+  1409→  Future<GenerationQueueModel> enqueueGeneration(
+  1410→    Map<String, dynamic> queueData,
+  1411→  ) async {
+  1412→    try {
+  1413→      final response = await _supabase
+  1414→          .from(_queueTable)
+  1415→          .insert(queueData)
+  1416→          .select();
+  1417→
+  1418→      if (response.isEmpty) {
+  1419→        throw const ServerException(
+  1420→          message: 'Queue entry creation returned no data.',
+  1421→          statusCode: 500,
+  1422→        );
+  1423→      }
+  1424→
+  1425→      return GenerationQueueModel.fromJson(response.first);
+  1426→    } on sb.PostgrestException catch (e) {
+  1427→      throw _mapPostgrestException(e);
+  1428→    } on ServerException {
+  1429→      rethrow;
+  1430→    } catch (e) {
+  1431→      AppLogger.error('Unexpected enqueueGeneration error', error: e);
+  1432→      throw const ServerException(
+  1433→        message: 'Failed to enqueue generation.',
+  1434→        statusCode: 500,
+  1435→      );
+  1436→    }
+  1437→  }
+  1438→
+  1439→  @override
+  1440→  Future<GenerationQueueModel> updateQueueEntry(
+  1441→    String id,
+  1442→    Map<String, dynamic> data,
+  1443→  ) async {
+  1444→    try {
+  1445→      data['updated_at'] = DateTime.now().toIso8601String();
+  1446→
+  1447→      final response = await _supabase
+  1448→          .from(_queueTable)
+  1449→          .update(data)
+  1450→          .eq('id', id)
+  1451→          .select();
+  1452→
+  1453→      if (response.isEmpty) {
+  1454→        throw const NotFoundException(message: 'Queue entry not found for update.');
+  1455→      }
+  1456→
+  1457→      return GenerationQueueModel.fromJson(response.first);
+  1458→    } on sb.PostgrestException catch (e) {
+  1459→      throw _mapPostgrestException(e);
+  1460→    } on NotFoundException {
+  1461→      rethrow;
+  1462→    } catch (e) {
+  1463→      AppLogger.error('Unexpected updateQueueEntry error', error: e);
+  1464→      throw const ServerException(
+  1465→        message: 'Failed to update queue entry.',
+  1466→        statusCode: 500,
+  1467→      );
+  1468→    }
+  1469→  }
+  1470→
+  1471→  @override
+  1472→  Future<GenerationQueueModel> dequeueNextGeneration() async {
+  1473→    try {
+  1474→      // Get the highest priority, oldest pending entry
+  1475→      final response = await _supabase
+  1476→          .from(_queueTable)
+  1477→          .select()
+  1478→          .eq('status', 'pending')
+  1479→          .order('priority', ascending: false)
+  1480→          .order('created_at', ascending: true)
+  1481→          .limit(1);
+  1482→
+  1483→      if (response.isEmpty) {
+  1484→        throw const NotFoundException(message: 'No pending generation in queue.');
+  1485→      }
+  1486→
+  1487→      final entry = response.first;
+  1488→      final id = entry['id'] as String;
+  1489→
+  1490→      // Mark as processing
+  1491→      final updated = await _supabase
+  1492→          .from(_queueTable)
+  1493→          .update({
+  1494→            'status': 'processing',
+  1495→            'updated_at': DateTime.now().toIso8601String(),
+  1496→          })
+  1497→          .eq('id', id)
+  1498→          .select();
+  1499→
+  1500→      return GenerationQueueModel.fromJson(
+  1501→          updated.isNotEmpty ? updated.first : entry,);
+  1502→    } on sb.PostgrestException catch (e) {
+  1503→      throw _mapPostgrestException(e);
+  1504→    } on NotFoundException {
+  1505→      rethrow;
+  1506→    } catch (e) {
+  1507→      AppLogger.error('Unexpected dequeueNextGeneration error', error: e);
+  1508→      throw const ServerException(
+  1509→        message: 'Failed to dequeue generation.',
+  1510→        statusCode: 500,
+  1511→      );
+  1512→    }
+  1513→  }
+  1514→
+  1515→  @override
+  1516→  Future<List<GenerationQueueModel>> getPendingQueueEntries() async {
+  1517→    try {
+  1518→      final response = await _supabase
+  1519→          .from(_queueTable)
+  1520→          .select()
+  1521→          .eq('status', 'pending')
+  1522→          .order('priority', ascending: false)
+  1523→          // PERF: Added limit to prevent unbounded query on generation_queue
+  1524→          .order('created_at', ascending: true)
+  1525→          .limit(PaginatedQueryMixin.defaultPageSize);
+  1526→
+  1527→      return response
+  1528→          .map<GenerationQueueModel>(
+  1529→              (json) => GenerationQueueModel.fromJson(json),)
+  1530→          .toList();
+  1531→    } on sb.PostgrestException catch (e) {
+  1532→      throw _mapPostgrestException(e);
+  1533→    } catch (e) {
+  1534→      AppLogger.error('Unexpected getPendingQueueEntries error', error: e);
+  1535→      throw const ServerException(
+  1536→        message: 'Failed to get pending queue entries.',
+  1537→        statusCode: 500,
+  1538→      );
+  1539→    }
+  1540→  }
+  1541→
+  1542→  // ═══════════════════════════════════════════════════════════════════
+  1543→  // USAGE STATISTICS
+  1544→  // ═══════════════════════════════════════════════════════════════════
+  1545→
+  1546→  @override
+  1547→  Future<AiUsageStatsModel> upsertUsageStats(
+  1548→    Map<String, dynamic> statsData,
+  1549→  ) async {
+  1550→    try {
+  1551→      final response = await _supabase
+  1552→          .from(_usageStatsTable)
+  1553→          .upsert(statsData, onConflict: 'school_id,provider,date')
+  1554→          .select();
+  1555→
+  1556→      if (response.isEmpty) {
+  1557→        throw const ServerException(
+  1558→          message: 'Usage stats upsert returned no data.',
+  1559→          statusCode: 500,
+  1560→        );
+  1561→      }
+  1562→
+  1563→      return AiUsageStatsModel.fromJson(response.first);
+  1564→    } on sb.PostgrestException catch (e) {
+  1565→      throw _mapPostgrestException(e);
+  1566→    } on ServerException {
+  1567→      rethrow;
+  1568→    } catch (e) {
+  1569→      AppLogger.error('Unexpected upsertUsageStats error', error: e);
+  1570→      throw const ServerException(
+  1571→        message: 'Failed to upsert usage stats.',
+  1572→        statusCode: 500,
+  1573→      );
+  1574→    }
+  1575→  }
+  1576→
+  1577→  @override
+  1578→  Future<List<AiUsageStatsModel>> getUsageStats(
+  1579→    Map<String, dynamic> filters,
+  1580→  ) async {
+  1581→    try {
+  1582→      var filterQuery = _supabase
+  1583→          .from(_usageStatsTable)
+  1584→          .select();
+  1585→
+  1586→      if (filters.containsKey('school_id')) {
+  1587→        filterQuery = filterQuery.eq('school_id', filters['school_id'] as String);
+  1588→      }
+  1589→      if (filters.containsKey('provider')) {
+  1590→        filterQuery = filterQuery.eq('provider', filters['provider'] as String);
+  1591→      }
+  1592→      if (filters.containsKey('start_date')) {
+  1593→        filterQuery = filterQuery.gte('date', filters['start_date'] as String);
+  1594→      }
+  1595→      if (filters.containsKey('end_date')) {
+  1596→        filterQuery = filterQuery.lte('date', filters['end_date'] as String);
+  1597→      }
+  1598→
+  1599→      // PERF: Added limit to prevent unbounded query on ai_usage_stats
+  1600→      final response = await filterQuery
+  1601→          .order('date', ascending: false)
+  1602→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1603→      return response
+  1604→          .map<AiUsageStatsModel>(
+  1605→              (json) => AiUsageStatsModel.fromJson(json),)
+  1606→          .toList();
+  1607→    } on sb.PostgrestException catch (e) {
+  1608→      throw _mapPostgrestException(e);
+  1609→    } catch (e) {
+  1610→      AppLogger.error('Unexpected getUsageStats error', error: e);
+  1611→      throw const ServerException(
+  1612→        message: 'Failed to get usage stats.',
+  1613→        statusCode: 500,
+  1614→      );
+  1615→    }
+  1616→  }
+  1617→
+  1618→  @override
+  1619→  Future<Map<String, dynamic>> getDashboardStats(String? schoolId) async {
+  1620→    try {
+  1621→      // Use an RPC call if available, otherwise aggregate manually
+  1622→      try {
+  1623→        final response = await _supabase.rpc(
+  1624→          'get_ai_dashboard_stats',
+  1625→          params: schoolId != null ? {'p_school_id': schoolId} : {},
+  1626→        );
+  1627→        return response as Map<String, dynamic>;
+  1628→      } on sb.PostgrestException catch (e) {
+  1629→        if (e.code != '42883') rethrow; // not undefined function
+  1630→
+  1631→        // Fallback: manually aggregate stats
+  1632→        final questionsQuery = _supabase
+  1633→            .from(_generatedQuestionsTable)
+  1634→            .select('review_status, question_type, difficulty, bloom_level, '
+  1635→                'confidence_score, school_id');
+  1636→
+  1637→        var filteredQuery = questionsQuery;
+  1638→        if (schoolId != null) {
+  1639→          filteredQuery = filteredQuery.eq('school_id', schoolId);
+  1640→        }
+  1641→
+  1642→        final questions = await filteredQuery;
+  1643→
+  1644→        final int totalGenerated = questions.length;
+  1645→        int totalApproved = 0;
+  1646→        int totalRejected = 0;
+  1647→        int pendingReview = 0;
+  1648→        final questionsByType = <String, int>{};
+  1649→        final questionsByDifficulty = <String, int>{};
+  1650→        final questionsByBloomLevel = <String, int>{};
+  1651→        double totalConfidence = 0;
+  1652→        int confidenceCount = 0;
+  1653→
+  1654→        for (final q in questions) {
+  1655→          final status = q['review_status'] as String? ?? 'pending';
+  1656→          switch (status) {
+  1657→            case 'approved':
+  1658→              totalApproved++;
+  1659→              break;
+  1660→            case 'rejected':
+  1661→              totalRejected++;
+  1662→              break;
+  1663→            default:
+  1664→              pendingReview++;
+  1665→          }
+  1666→
+  1667→          final type = q['question_type'] as String? ?? 'unknown';
+  1668→          questionsByType[type] = (questionsByType[type] ?? 0) + 1;
+  1669→
+  1670→          final diff = q['difficulty'] as String? ?? 'unknown';
+  1671→          questionsByDifficulty[diff] =
+  1672→              (questionsByDifficulty[diff] ?? 0) + 1;
+  1673→
+  1674→          final bloom = q['bloom_level'] as String?;
+  1675→          if (bloom != null) {
+  1676→            questionsByBloomLevel[bloom] =
+  1677→                (questionsByBloomLevel[bloom] ?? 0) + 1;
+  1678→          }
+  1679→
+  1680→          final conf = q['confidence_score'] as num?;
+  1681→          if (conf != null) {
+  1682→            totalConfidence += conf.toDouble();
+  1683→            confidenceCount++;
+  1684→          }
+  1685→        }
+  1686→
+  1687→        // Get cost info from usage stats
+  1688→        var usageQuery = _supabase
+  1689→            .from(_usageStatsTable)
+  1690→            .select('total_cost, total_input_tokens, total_output_tokens, provider');
+  1691→        if (schoolId != null) {
+  1692→          usageQuery = usageQuery.eq('school_id', schoolId);
+  1693→        }
+  1694→
+  1695→        final usage = await usageQuery;
+  1696→        double totalCost = 0;
+  1697→        int totalTokensUsed = 0;
+  1698→        final costByProvider = <String, double>{};
+  1699→
+  1700→        for (final u in usage) {
+  1701→          final cost = (u['total_cost'] as num?)?.toDouble() ?? 0;
+  1702→          totalCost += cost;
+  1703→          totalTokensUsed +=
+  1704→              (u['total_input_tokens'] as int? ?? 0) +
+  1705→                  (u['total_output_tokens'] as int? ?? 0);
+  1706→          final prov = u['provider'] as String? ?? 'unknown';
+  1707→          costByProvider[prov] = (costByProvider[prov] ?? 0) + cost;
+  1708→        }
+  1709→
+  1710→        return {
+  1711→          'total_generated': totalGenerated,
+  1712→          'total_approved': totalApproved,
+  1713→          'total_rejected': totalRejected,
+  1714→          'pending_review': pendingReview,
+  1715→          'total_cost': totalCost,
+  1716→          'total_tokens_used': totalTokensUsed,
+  1717→          'questions_by_type': questionsByType,
+  1718→          'questions_by_difficulty': questionsByDifficulty,
+  1719→          'questions_by_bloom_level': questionsByBloomLevel,
+  1720→          'avg_confidence_score':
+  1721→              confidenceCount > 0 ? totalConfidence / confidenceCount : null,
+  1722→          'avg_generation_time_ms': null,
+  1723→          'recent_generations': [],
+  1724→          'cost_by_provider': costByProvider,
+  1725→          'daily_usage': [],
+  1726→        };
+  1727→      }
+  1728→    } on sb.PostgrestException catch (e) {
+  1729→      throw _mapPostgrestException(e);
+  1730→    } catch (e) {
+  1731→      AppLogger.error('Unexpected getDashboardStats error', error: e);
+  1732→      throw const ServerException(
+  1733→        message: 'Failed to get dashboard stats.',
+  1734→        statusCode: 500,
+  1735→      );
+  1736→    }
+  1737→  }
+  1738→
+  1739→  // ═══════════════════════════════════════════════════════════════════
+  1740→  // CURRICULUM MAPPINGS
+  1741→  // ═══════════════════════════════════════════════════════════════════
+  1742→
+  1743→  @override
+  1744→  Future<List<CurriculumMappingModel>> getCurriculumMappings(
+  1745→    Map<String, dynamic> filters,
+  1746→  ) async {
+  1747→    try {
+  1748→      var filterQuery = _supabase
+  1749→          .from(_curriculumMappingsTable)
+  1750→          .select()
+  1751→          .eq('is_active', true);
+  1752→
+  1753→      if (filters.containsKey('curriculum')) {
+  1754→        filterQuery = filterQuery.eq('curriculum', filters['curriculum'] as String);
+  1755→      }
+  1756→      if (filters.containsKey('subject_id')) {
+  1757→        filterQuery = filterQuery.eq('subject_id', filters['subject_id'] as String);
+  1758→      }
+  1759→
+  1760→      // PERF: Added limit to prevent unbounded query on curriculum_mappings
+  1761→      final response = await filterQuery
+  1762→          .order('curriculum', ascending: true)
+  1763→          .limit(PaginatedQueryMixin.dropdownPageSize);
+  1764→      return response
+  1765→          .map<CurriculumMappingModel>(
+  1766→              (json) => CurriculumMappingModel.fromJson(json),)
+  1767→          .toList();
+  1768→    } on sb.PostgrestException catch (e) {
+  1769→      throw _mapPostgrestException(e);
+  1770→    } catch (e) {
+  1771→      AppLogger.error('Unexpected getCurriculumMappings error', error: e);
+  1772→      throw const ServerException(
+  1773→        message: 'Failed to get curriculum mappings.',
+  1774→        statusCode: 500,
+  1775→      );
+  1776→    }
+  1777→  }
+  1778→
+  1779→  // ═══════════════════════════════════════════════════════════════════
+  1780→  // ERROR MAPPING
+  1781→  // ═══════════════════════════════════════════════════════════════════
+  1782→
+  1783→  /// Maps a Supabase PostgrestException to a domain-appropriate exception.
+  1784→  ServerException _mapPostgrestException(sb.PostgrestException e) {
+  1785→    AppLogger.error('Supabase error: ${e.message}', error: e);
+  1786→
+  1787→    switch (e.code) {
+  1788→      case '23505':
+  1789→        return ServerException(
+  1790→          message: 'A record with this data already exists.',
+  1791→          statusCode: 409,
+  1792→          data: e.details,
+  1793→        );
+  1794→      case '23503':
+  1795→        return ServerException(
+  1796→          message: 'Referenced record not found.',
+  1797→          statusCode: 400,
+  1798→          data: e.details,
+  1799→        );
+  1800→      case '42501':
+  1801→      case 'PGRST301':
+  1802→        return ServerException(
+  1803→          message: 'Insufficient permissions.',
+  1804→          statusCode: 403,
+  1805→          data: e.details,
+  1806→        );
+  1807→      case 'PGRST116':
+  1808→        return ServerException(
+  1809→          message: 'Resource not found.',
+  1810→          statusCode: 404,
+  1811→          data: e.details,
+  1812→        );
+  1813→      default:
+  1814→        return ServerException(
+  1815→          message: e.message ?? 'An unexpected database error occurred.',
+  1816→          statusCode: int.tryParse(e.code ?? '') ?? 500,
+  1817→          data: e.details,
+  1818→        );
+  1819→    }
+  1820→  }
+  1821→}
+  1822→
