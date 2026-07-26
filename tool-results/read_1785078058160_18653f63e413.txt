@@ -1,0 +1,597 @@
+     1→# ExamForge AI — Security Operations Guide
+     2→
+     3→> **Version:** 1.0  
+     4→> **Last Updated:** 2025-03-01  
+     5→> **Owner:** Security & Platform Engineering  
+     6→> **Classification:** Internal — Highly Confidential  
+     7→> **Compliance:** Nigeria Data Protection Regulation (NDPR) / NDPA 2023
+     8→
+     9→---
+    10→
+    11→## Table of Contents
+    12→
+    13→1. [Secret Rotation Procedures](#1-secret-rotation-procedures)
+    14→2. [Access Review Schedule](#2-access-review-schedule)
+    15→3. [Vulnerability Scanning Schedule](#3-vulnerability-scanning-schedule)
+    16→4. [Security Incident Classification](#4-security-incident-classification)
+    17→5. [Forensic Investigation Procedures](#5-forensic-investigation-procedures)
+    18→6. [Compliance Requirements](#6-compliance-requirements)
+    19→7. [Penetration Testing Schedule](#7-penetration-testing-schedule)
+    20→
+    21→---
+    22→
+    23→## 1. Secret Rotation Procedures
+    24→
+    25→### 1.1 Secret Inventory
+    26→
+    27→| Secret | Storage Location | Rotation Period | Rotation Method | Impact of Rotation |
+    28→|--------|-----------------|----------------|-----------------|-------------------|
+    29→| `SUPABASE_SERVICE_KEY` | GitHub Secrets + Supabase Vault | 90 days | Supabase Dashboard → Settings → API | All Edge Functions must be redeployed with new key |
+    30→| `FLUTTERWAVE_SECRET_KEY` | GitHub Secrets + Supabase Vault | 90 days | Flutterwave Dashboard → Settings → API Keys | Payment processing briefly interrupted during swap |
+    31→| `FLUTTERWAVE_WEBHOOK_SECRET_HASH` | Supabase Vault | 90 days | Flutterwave Dashboard → Settings → Webhooks | Webhook processing fails until new hash is set |
+    32→| `FCM_SERVER_KEY` | GitHub Secrets | 180 days | Firebase Console → Cloud Messaging | Push notifications interrupted until new key |
+    33→| `DATABASE_URL` (password) | GitHub Secrets | 90 days | SQL `ALTER ROLE` + update all secrets | Database connections fail until all services updated |
+    34→| `AWS_ACCESS_KEY_ID` + `AWS_SECRET_ACCESS_KEY` | GitHub Secrets | 90 days | AWS IAM → Rotate credentials | Backup uploads fail until updated |
+    35→| `GPG_RECIPIENT` key | Offline (HSM/encrypted storage) | 365 days | Generate new key, re-encrypt backups | Old backups require old key for decryption |
+    36→| `ENCRYPTION_MASTER_KEY` | Supabase Vault + offline | On compromise only | Key rotation procedure | Local encrypted data must be re-encrypted |
+    37→
+    38→### 1.2 Rotation Procedure: `SUPABASE_SERVICE_KEY`
+    39→
+    40→```bash
+    41→# Step 1: Generate new key in Supabase Dashboard
+    42→# Go to: Supabase Dashboard → Settings → API → Service Role Key → Regenerate
+    43→
+    44→# Step 2: Update GitHub Secrets
+    45→gh secret set SUPABASE_SERVICE_KEY --body "<new-key>" --repo examforge-ai/examforge-ai
+    46→
+    47→# Step 3: Update Supabase Vault (for Edge Functions)
+    48→# Go to: Supabase Dashboard → Vault → Update SUPABASE_SERVICE_ROLE_KEY
+    49→
+    50→# Step 4: Redeploy all Edge Functions
+    51→supabase functions deploy health-check --project-id examforge-production
+    52→supabase functions deploy flutterwave-webhook --project-id examforge-production
+    53→supabase functions deploy process-refund --project-id examforge-production
+    54→supabase functions deploy marketplace-download --project-id examforge-production
+    55→
+    56→# Step 5: Verify health
+    57→curl -s https://examforge.ai/functions/v1/health-check | jq .
+    58→
+    59→# Step 6: Revoke the old key (wait 1 hour for propagation)
+    60→# Go to: Supabase Dashboard → Settings → API → Old Service Role Key → Revoke
+    61→
+    62→# Step 7: Log the rotation
+    63→INSERT INTO admin_access_log (admin_user_id, admin_role, action, target_resource)
+    64→VALUES ('<admin-uuid>', 'super_admin', 'secret_rotation', 'SUPABASE_SERVICE_KEY');
+    65→```
+    66→
+    67→### 1.3 Rotation Procedure: `FLUTTERWAVE_SECRET_KEY`
+    68→
+    69→```bash
+    70→# Step 1: Generate new key in Flutterwave Dashboard
+    71→# Go to: Flutterwave Dashboard → Settings → API Keys → Generate New Key
+    72→
+    73→# Step 2: Update GitHub Secrets
+    74→gh secret set FLUTTERWAVE_SECRET_KEY --body "<new-key>" --repo examforge-ai/examforge-ai
+    75→
+    76→# Step 3: Update Supabase Vault
+    77→# Go to: Supabase Dashboard → Vault → Update FLUTTERWAVE_SECRET_KEY
+    78→
+    79→# Step 4: Redeploy affected Edge Functions
+    80→supabase functions deploy flutterwave-webhook --project-id examforge-production
+    81→supabase functions deploy process-refund --project-id examforge-production
+    82→supabase functions deploy health-check --project-id examforge-production
+    83→
+    84→# Step 5: Test payment processing
+    85→# Initiate a small test transaction via the Flutterwave test mode
+    86→
+    87→# Step 6: Disable the old key in Flutterwave Dashboard
+    88→# Go to: Flutterwave Dashboard → Settings → API Keys → Old Key → Disable
+    89→
+    90→# Step 7: Log the rotation
+    91→INSERT INTO admin_access_log (admin_user_id, admin_role, action, target_resource)
+    92→VALUES ('<admin-uuid>', 'super_admin', 'secret_rotation', 'FLUTTERWAVE_SECRET_KEY');
+    93→```
+    94→
+    95→### 1.4 Rotation Procedure: `DATABASE_URL` Password
+    96→
+    97→```bash
+    98→# Step 1: Generate a new strong password
+    99→NEW_PASSWORD=$(openssl rand -base64 32)
+   100→echo "New password generated (length: ${#NEW_PASSWORD})"
+   101→
+   102→# Step 2: Update the database role password
+   103→psql "${PRODUCTION_DATABASE_URL}" -c "ALTER ROLE examforge_app WITH PASSWORD '${NEW_PASSWORD}';"
+   104→
+   105→# Step 3: Update PRODUCTION_DATABASE_URL in GitHub Secrets
+   106→NEW_URL="postgresql://examforge_app:${NEW_PASSWORD}@prod-db.examforge.ai:5432/examforge_production"
+   107→gh secret set PRODUCTION_DATABASE_URL --body "${NEW_URL}" --repo examforge-ai/examforge-ai
+   108→
+   109→# Step 4: Update any services that use the database URL directly
+   110→# (Deploy scripts, backup scripts, monitoring agents)
+   111→
+   112→# Step 5: Verify connectivity
+   113→psql "${NEW_URL}" -c "SELECT 1;"
+   114→
+   115→# Step 6: Log the rotation
+   116→INSERT INTO admin_access_log (admin_user_id, admin_role, action, target_resource)
+   117→VALUES ('<admin-uuid>', 'super_admin', 'secret_rotation', 'DATABASE_URL_PASSWORD');
+   118→```
+   119→
+   120→### 1.5 Emergency Secret Rotation
+   121→
+   122→If a secret is known to be compromised:
+   123→
+   124→1. **Immediately rotate** — Do not wait for the scheduled rotation date
+   125→2. **Revoke the old key** — Do not leave the compromised key active
+   126→3. **Audit access** — Check logs for any unauthorized use of the compromised secret
+   127→4. **Assess impact** — Determine if the compromised secret was used to access any data
+   128→5. **Notify stakeholders** — If personal data was accessed, follow NDPR notification requirements
+   129→6. **Document** — Record the compromise, rotation, and assessment in the security incident log
+   130→
+   131→---
+   132→
+   133→## 2. Access Review Schedule
+   134→
+   135→### 2.1 Review Calendar
+   136→
+   137→| Review Type | Frequency | Scope | Responsible Party |
+   138→|------------|-----------|-------|-------------------|
+   139→| **Full access audit** | Quarterly (Jan, Apr, Jul, Oct) | All users, roles, and permissions | Security team + CTO |
+   140→| **Admin access review** | Monthly | Super admins and school admins | CTO |
+   141→| **Service account audit** | Quarterly | All service accounts, API keys, and tokens | Platform engineering |
+   142→| **SSH key audit** | Semi-annually | All SSH keys on production servers | Infrastructure team |
+   143→| **Third-party access review** | Quarterly | Vendor access, contractor accounts | Security team |
+   144→| **Supabase project membership** | Quarterly | All users with Supabase Dashboard access | CTO |
+   145→
+   146→### 2.2 Access Review Checklist
+   147→
+   148→For each quarterly review, verify:
+   149→
+   150→- [ ] **Principle of least privilege:** Every user has the minimum access required
+   151→- [ ] **Orphaned accounts:** No accounts belonging to departed team members
+   152→- [ ] **Dormant accounts:** No accounts with no login in 90+ days
+   153→- [ ] **Role accuracy:** User roles in the `users` table match their actual job function
+   154→- [ ] **MFA enforcement:** All admin accounts have multi-factor authentication enabled
+   155→- [ ] **Service account scope:** All service accounts (`webhook_processor`, `refund_processor`, `monitoring_agent`, `backup_reader`, `analytics_reader`) have only the permissions defined in `operational_security.sql`
+   156→- [ ] **RLS policy integrity:** No RLS policies have been disabled or modified without approval
+   157→- [ ] **Feature flag access:** Only authorized personnel can modify feature flags
+   158→
+   159→### 2.3 Review Procedure
+   160→
+   161→```sql
+   162→-- Find users who haven't logged in for 90 days
+   163→SELECT id, email, full_name, role, last_login_at
+   164→FROM users
+   165→WHERE last_login_at < now() - INTERVAL '90 days'
+   166→  AND is_active = true
+   167→ORDER BY last_login_at ASC;
+   168→
+   169→-- Find super admins
+   170→SELECT id, email, full_name, last_login_at
+   171→FROM users
+   172→WHERE role = 'super_admin' AND is_active = true;
+   173→
+   174→-- Check admin access log for unusual patterns
+   175→SELECT admin_user_id, action, COUNT(*) as action_count
+   176→FROM admin_access_log
+   177→WHERE created_at > now() - INTERVAL '90 days'
+   178→GROUP BY admin_user_id, action
+   179→ORDER BY action_count DESC;
+   180→
+   181→-- Verify RLS is enabled on all tables
+   182→SELECT tablename FROM pg_tables
+   183→WHERE schemaname = 'public' AND rowsecurity = false;
+   184→
+   185→-- Check for disabled RLS policies
+   186→SELECT tablename, policyname FROM pg_policies
+   187→WHERE schemaname = 'public' AND cmd = 'ALL';
+   188→```
+   189→
+   190→### 2.4 Review Output
+   191→
+   192→After each review, produce a report containing:
+   193→
+   194→1. Total user count by role
+   195→2. Dormant accounts identified (with action taken)
+   196→3. Access changes made during the review
+   197→4. Any security concerns discovered
+   198→5. Recommendations for the next review period
+   199→
+   200→---
+   201→
+   202→## 3. Vulnerability Scanning Schedule
+   203→
+   204→### 3.1 Scanning Tools
+   205→
+   206→| Tool | Target | Scan Type | Frequency |
+   207→|------|--------|-----------|-----------|
+   208→| **GitHub Dependabot** | Dart/Flutter dependencies (`pubspec.yaml`) | Dependency vulnerability | Continuous (on push) |
+   209→| **GitHub CodeQL** | Dart source code | Static analysis (SAST) | On every PR |
+   210→| **Gitleaks** | Full codebase | Secret/credential detection | On every PR + nightly |
+   211→| **OWASP ZAP** | `https://examforge.ai` | Dynamic analysis (DAST) | Weekly |
+   212→| **Trivy** | Docker images, infrastructure config | Container/IaC scanning | On every build |
+   213→| **Supabase Security Advisor** | Supabase project configuration | Platform-specific checks | Weekly |
+   214→| **Nikto** | Web server | Web server misconfiguration | Monthly |
+   215→
+   216→### 3.2 Scan Schedule
+   217→
+   218→| Day | Scan | Time (UTC) | Duration | Alert On |
+   219→|-----|------|-----------|----------|----------|
+   220→| Monday | OWASP ZAP (full scan) | 02:00 | ~3 hours | High/Critical findings |
+   221→| Wednesday | Supabase Security Advisor | 10:00 | ~15 minutes | Any findings |
+   222→| Friday | Gitleaks (full repo scan) | 02:00 | ~10 minutes | Any findings |
+   223→| 1st of month | Nikto web server scan | 02:00 | ~1 hour | Any findings |
+   224→| Continuous | Dependabot + CodeQL | On every PR | ~5 minutes | High/Critical findings |
+   225→| On build | Trivy container scan | CI/CD pipeline | ~2 minutes | High/Critical findings |
+   226→
+   227→### 3.3 Vulnerability Severity Classification
+   228→
+   229→| Severity | CVSS Score | Response Time | Example |
+   230→|----------|-----------|---------------|---------|
+   231→| **Critical** | 9.0–10.0 | Fix within 24 hours | Remote code execution, SQL injection |
+   232→| **High** | 7.0–8.9 | Fix within 7 days | Authentication bypass, XSS with session hijack |
+   233→| **Medium** | 4.0–6.9 | Fix within 30 days | Reflected XSS, information disclosure |
+   234→| **Low** | 0.1–3.9 | Fix within 90 days | Verbose error messages, minor info leak |
+   235→
+   236→### 3.4 Vulnerability Remediation Process
+   237→
+   238→1. **Triage** — Classify severity based on CVSS and business context
+   239→2. **Assign** — Assign to the appropriate team member
+   240→3. **Remediate** — Develop and test the fix
+   241→4. **Verify** — Re-scan to confirm the vulnerability is resolved
+   242→5. **Document** — Record the vulnerability, remediation, and verification in the security log
+   243→
+   244→```sql
+   245→-- Track vulnerability remediation
+   246→INSERT INTO admin_access_log (admin_user_id, admin_role, action, target_resource, details)
+   247→VALUES (
+   248→  '<admin-uuid>', 'super_admin', 'vulnerability_remediated',
+   249→  'CVE-2025-XXXX', '{"severity": "high", "description": "...", "fix": "..."}'
+   250→);
+   251→```
+   252→
+   253→---
+   254→
+   255→## 4. Security Incident Classification
+   256→
+   257→### 4.1 Incident Categories
+   258→
+   259→| Category | Code | Examples |
+   260→|----------|------|----------|
+   261→| **Unauthorized Access** | SEC-UNAUTH | Account takeover, privilege escalation, unauthorized API access |
+   262→| **Data Breach** | SEC-DATA | Personal data exposure, database exfiltration, storage leak |
+   263→| **Payment Fraud** | SEC-PAY | Transaction manipulation, webhook replay, refund abuse |
+   264→| **AI Security** | SEC-AI | Prompt injection, model manipulation, AI-generated content abuse |
+   265→| **Denial of Service** | SEC-DOS | API flooding, database overload, resource exhaustion |
+   266→| **Insider Threat** | SEC-INSIDER | Unauthorized admin actions, data theft by employee |
+   267→| **Phishing/Social Engineering** | SEC-PHISH | Credential theft via phishing, social engineering attacks |
+   268→| **Infrastructure Compromise** | SEC-INFRA | Server breach, key compromise, supply chain attack |
+   269→
+   270→### 4.2 Severity Matrix
+   271→
+   272→| Category | Low | Medium | High | Critical |
+   273→|----------|-----|--------|------|----------|
+   274→| **SEC-UNAUTH** | Failed attempt blocked | Single account compromised | Admin account compromised | Multiple accounts compromised |
+   275→| **SEC-DATA** | Non-sensitive data exposed | PII of <100 users | PII of 100-10,000 users | PII of >10,000 users |
+   276→| **SEC-PAY** | Test transaction anomaly | Single fraudulent transaction | Multiple fraudulent transactions | Payment system compromise |
+   277→| **SEC-AI** | Blocked injection attempt | Successful injection, limited output | AI generating harmful content | AI used as attack vector |
+   278→| **SEC-DOS** | Brief slowdown | Service degraded for <1 hour | Service down for 1-4 hours | Service down for >4 hours |
+   279→| **SEC-INSIDER** | Policy violation | Unauthorized data viewing | Data exfiltration attempt | Confirmed data theft |
+   280→| **SEC-PHISH** | Phishing email reported | Credential entered on phishing site | Account accessed by attacker | Multiple accounts compromised |
+   281→| **SEC-INFRA** | Unusual login attempt | Unauthorized access detected | Server compromised | Full infrastructure compromise |
+   282→
+   283→### 4.3 Response Actions by Severity
+   284→
+   285→**Critical:**
+   286→1. Immediately isolate affected systems
+   287→2. Escalate to CTO (Level 2)
+   288→3. Engage legal counsel within 24 hours
+   289→4. Notify affected users within 72 hours (NDPR requirement)
+   290→5. Report to NDPC (Nigeria Data Protection Commission) if personal data is involved
+   291→6. Preserve all forensic evidence
+   292→
+   293→**High:**
+   294→1. Contain the incident immediately
+   295→2. Escalate to Team Lead (Level 1)
+   296→3. Investigate and remediate within 24 hours
+   297→4. Document all actions taken
+   298→5. Assess if user notification is required
+   299→
+   300→**Medium:**
+   301→1. Investigate within 4 hours
+   302→2. Remediate within 48 hours
+   303→3. Document findings
+   304→4. Update security controls if needed
+   305→
+   306→**Low:**
+   307→1. Log the incident
+   308→2. Investigate within 24 hours
+   309→3. Remediate within 7 days
+   310→4. Include in monthly security report
+   311→
+   312→---
+   313→
+   314→## 5. Forensic Investigation Procedures
+   315→
+   316→### 5.1 Evidence Preservation
+   317→
+   318→When a security incident is detected:
+   319→
+   320→1. **Do not destroy evidence** — Do not restart services, clear logs, or modify data until evidence is preserved
+   321→2. **Capture system state** — Take snapshots of affected systems:
+   322→   ```bash
+   323→   # Database snapshot
+   324→   pg_dump --format=custom --file=/secure/evidence/db_snapshot_$(date +%Y%m%d%H%M%S).dump "${PRODUCTION_DATABASE_URL}"
+   325→   
+   326→   # Log capture
+   327→   cp /var/log/examforge/app.log /secure/evidence/app_$(date +%Y%m%d%H%M%S).log
+   328→   
+   329→   # Configuration snapshot
+   330→   tar -czf /secure/evidence/config_$(date +%Y%m%d%H%M%S).tar.gz supabase/ lib/config/ infra/
+   331→   ```
+   332→
+   333→3. **Record timestamps** — All evidence must have accurate timestamps (UTC)
+   334→4. **Calculate hashes** — Generate SHA-256 checksums for all evidence files:
+   335→   ```bash
+   336→   sha256sum /secure/evidence/* > /secure/evidence/checksums.txt
+   337→   ```
+   338→
+   339→### 5.2 Database Forensics
+   340→
+   341→```sql
+   342→-- Check for unauthorized data access
+   343→SELECT user_id, school_id, action, target_resource, client_ip, created_at
+   344→FROM admin_access_log
+   345→WHERE created_at > now() - INTERVAL '7 days'
+   346→  AND action IN ('data_export', 'user_management', 'config_change')
+   347→ORDER BY created_at DESC;
+   348→
+   349→-- Check for RLS policy bypasses
+   350→SELECT * FROM admin_access_log
+   351→WHERE action = 'unauthorized_access_attempt'
+   352→  AND created_at > now() - INTERVAL '7 days';
+   353→
+   354→-- Check authentication anomalies
+   355→SELECT client_ip, COUNT(*) as attempts,
+   356→  SUM(CASE WHEN event_type = 'login_success' THEN 1 ELSE 0 END) as successes,
+   357→  SUM(CASE WHEN event_type = 'login_failure' THEN 1 ELSE 0 END) as failures
+   358→FROM auth_metrics
+   359→WHERE created_at > now() - INTERVAL '7 days'
+   360→GROUP BY client_ip
+   361→HAVING SUM(CASE WHEN event_type = 'login_failure' THEN 1 ELSE 0 END) > 10
+   362→ORDER BY failures DESC;
+   363→
+   364→-- Check AI security incidents
+   365→SELECT user_id, feature, block_reason, created_at
+   366→FROM ai_service_metrics
+   367→WHERE was_blocked = true AND created_at > now() - INTERVAL '7 days'
+   368→ORDER BY created_at DESC;
+   369→```
+   370→
+   371→### 5.3 Forensic Investigation Checklist
+   372→
+   373→- [ ] Preserve database snapshot
+   374→- [ ] Capture application logs
+   375→- [ ] Capture access logs (Supabase, Caddy/nginx)
+   376→- [ ] Calculate evidence hashes
+   377→- [ ] Document the timeline of events
+   378→- [ ] Identify the attack vector
+   379→- [ ] Determine the scope of data accessed
+   380→- [ ] Assess whether notification is required under NDPR
+   381→- [ ] Prepare incident report
+   382→- [ ] Implement remediation measures
+   383→- [ ] Verify remediation effectiveness
+   384→
+   385→---
+   386→
+   387→## 6. Compliance Requirements
+   388→
+   389→### 6.1 Nigerian Data Protection Regulation (NDPR / NDPA 2023)
+   390→
+   391→ExamForge AI processes personal data of Nigerian students, teachers, and parents. The following compliance requirements apply:
+   392→
+   393→#### 6.1.1 Data Processing Principles
+   394→
+   395→| Principle | Requirement | Implementation |
+   396→|-----------|-------------|----------------|
+   397→| **Lawfulness** | Process data only with legal basis | User consent obtained at registration; legitimate interest for operational data |
+   398→| **Purpose Limitation** | Use data only for stated purposes | Data collected for educational services only; no secondary use |
+   399→| **Data Minimization** | Collect only necessary data | Required fields only in registration; optional fields clearly marked |
+   400→| **Accuracy** | Keep data accurate and up-to-date | Users can update profile; `updated_at` triggers on all tables |
+   401→| **Storage Limitation** | Retain data only as long as needed | Retention policies per table (see monitoring guide) |
+   402→| **Security** | Protect data with appropriate measures | Encryption at rest and in transit; RLS policies; least-privilege access |
+   403→| **Accountability** | Demonstrate compliance | Audit log on all operations; `admin_access_log` table |
+   404→
+   405→#### 6.1.2 Data Subject Rights
+   406→
+   407→| Right | Implementation | Contact |
+   408→|-------|---------------|---------|
+   409→| Right of access | Users can view their data via profile page | privacy@examforge.ai |
+   410→| Right to rectification | Users can edit their profile | In-app profile settings |
+   411→| Right to erasure | Account deletion with data cleanup | privacy@examforge.ai (manual process) |
+   412→| Right to data portability | Export available upon request | privacy@examforge.ai |
+   413→| Right to object | Users can opt out of non-essential processing | In-app settings |
+   414→
+   415→#### 6.1.3 Data Breach Notification
+   416→
+   417→Under NDPR/NDPA, data breaches involving personal data must be reported:
+   418→
+   419→| Timeline | Action |
+   420→|----------|--------|
+   421→| Within 24 hours | Assess the breach and determine if personal data is affected |
+   422→| Within 72 hours | Notify the Nigeria Data Protection Commission (NDPC) if personal data is involved |
+   423→| Without undue delay | Notify affected data subjects if the breach is likely to result in high risk |
+   424→
+   425→**Notification must include:**
+   426→- Nature of the breach
+   427→- Categories and approximate number of data subjects affected
+   428→- Likely consequences of the breach
+   429→- Measures taken or proposed to address the breach
+   430→
+   431→#### 6.1.4 Data Protection Officer
+   432→
+   433→| Role | Name | Contact |
+   434→|------|------|---------|
+   435→| Data Protection Officer | (To be designated) | dpo@examforge.ai |
+   436→
+   437→The DPO is responsible for:
+   438→- Monitoring compliance with NDPR/NDPA
+   439→- Advising on data protection impact assessments
+   440→- Serving as the contact point for the NDPC
+   441→- Managing data subject requests
+   442→
+   443→### 6.2 Payment Card Industry (PCI) Considerations
+   444→
+   445→ExamForge AI uses Flutterwave as the payment processor. Because card data never touches our servers (Flutterwave handles all card details), we fall under **PCI DSS SAQ A** (the simplest level of compliance):
+   446→
+   447→| Requirement | Implementation |
+   448→|-------------|---------------|
+   449→| Card data never touches our servers | Flutterwave hosted checkout and API |
+   450→| Webhook signature verification | `FLUTTERWAVE_WEBHOOK_SECRET_HASH` with constant-time comparison |
+   451→| Amount verification | Server-side expected amount comparison in webhook processing |
+   452→| Idempotency | `WebhookIdempotencyTracker` prevents replay attacks |
+   453→| Secure transmission | TLS 1.2+ enforced on all endpoints |
+   454→
+   455→### 6.3 Regular Compliance Audits
+   456→
+   457→| Audit Type | Frequency | Scope | Auditor |
+   458→|------------|-----------|-------|---------|
+   459→| NDPR self-assessment | Annually | All data processing activities | DPO |
+   460→| PCI SAQ A self-assessment | Annually | Payment processing | Finance + Security |
+   461→| Internal security audit | Semi-annually | Full platform security posture | Security team |
+   462→| Third-party penetration test | Annually | External attack surface | External security firm |
+   463→| Access control audit | Quarterly | User roles and permissions | Security team |
+   464→
+   465→---
+   466→
+   467→## 7. Penetration Testing Schedule
+   468→
+   469→### 7.1 Annual Penetration Test
+   470→
+   471→| Parameter | Detail |
+   472→|-----------|--------|
+   473→| **Frequency** | Annually (Q1 each year) |
+   474→| **Duration** | 2 weeks |
+   475→| **Scope** | Full external attack surface |
+   476→| **Provider** | Certified third-party security firm |
+   477→| **Budget** | Allocated in annual security budget |
+   478→
+   479→### 7.2 Scope Definition
+   480→
+   481→The annual penetration test covers:
+   482→
+   483→1. **Web Application** (`https://examforge.ai`)
+   484→   - Authentication and authorization testing
+   485→   - Session management
+   486→   - Input validation and injection testing
+   487→   - Business logic testing
+   488→   - API endpoint testing
+   489→
+   490→2. **API Endpoints**
+   491→   - `/functions/v1/health-check`
+   492→   - `/functions/v1/flutterwave-webhook`
+   493→   - `/functions/v1/process-refund`
+   494→   - `/functions/v1/marketplace-download`
+   495→   - All Supabase REST API endpoints
+   496→
+   497→3. **Infrastructure**
+   498→   - TLS configuration
+   499→   - Security headers (HSTS, CSP, X-Frame-Options)
+   500→   - DNS configuration
+   501→   - S3 bucket permissions
+   502→
+   503→4. **Mobile Application** (if applicable)
+   504→   - Local storage security
+   505→   - Certificate pinning
+   506→   - API key exposure
+   507→
+   508→### 7.3 Testing Methodology
+   509→
+   510→Based on OWASP Testing Guide v4:
+   511→
+   512→| Phase | Activities |
+   513→|-------|-----------|
+   514→| **Reconnaissance** | DNS enumeration, technology fingerprinting, API discovery |
+   515→| **Authentication Testing** | Brute force, session hijacking, privilege escalation |
+   516→| **Authorization Testing** | RLS bypass, horizontal/vertical privilege escalation |
+   517→| **Input Validation** | SQL injection, XSS, SSRF, command injection |
+   518→| **Business Logic** | Payment bypass, exam cheating, marketplace fraud |
+   519→| **AI Security** | Prompt injection, model manipulation, output filtering bypass |
+   520→| **Reporting** | Detailed findings with reproduction steps and remediation |
+   521→
+   522→### 7.4 Internal Adversary Simulations
+   523→
+   524→Between annual penetration tests, the security team runs internal adversary simulations:
+   525→
+   526→| Simulation | Frequency | Duration | Team |
+   527→|-----------|-----------|----------|------|
+   528→| Web app attack simulation | Quarterly | 1 day | Security team |
+   529→| Phishing simulation | Semi-annually | 1 week | Security team |
+   530→| Insider threat simulation | Annually | 2 days | Security team |
+   531→| Payment fraud simulation | Quarterly | 4 hours | Security + Finance |
+   532→
+   533→### 7.5 Findings Remediation
+   534→
+   535→All penetration test findings are tracked to resolution:
+   536→
+   537→| Severity | Remediation SLA | Verification |
+   538→|----------|----------------|-------------|
+   539→| Critical | 7 days | Re-test by original tester |
+   540→| High | 14 days | Re-test by security team |
+   541→| Medium | 30 days | Re-test by security team |
+   542→| Low | 90 days | Verified in next penetration test |
+   543→
+   544→```sql
+   545→-- Track penetration test findings
+   546→INSERT INTO admin_access_log (admin_user_id, admin_role, action, target_resource, details)
+   547→VALUES (
+   548→  '<admin-uuid>', 'super_admin', 'pentest_finding',
+   549→  'PENTEST-2025-001', '{"severity": "high", "description": "...", "remediation": "...", "status": "open"}'
+   550→);
+   551→```
+   552→
+   553→### 7.6 Post-Test Report
+   554→
+   555→The penetration test report includes:
+   556→
+   557→1. Executive summary
+   558→2. Scope and methodology
+   559→3. Findings by severity (with CVSS scores)
+   560→4. Detailed reproduction steps for each finding
+   561→5. Remediation recommendations
+   562→6. Risk rating for the overall platform
+   563→7. Comparison with previous year's findings (trend analysis)
+   564→
+   565→---
+   566→
+   567→## Appendix A: Security Checklist for Production
+   568→
+   569→| # | Check | Method | Status |
+   570→|---|-------|--------|--------|
+   571→| SEC-001 | Webhook signatures use constant-time comparison | Code review | ✅ |
+   572→| SEC-002 | Payment amount verification enabled | Code review | ✅ |
+   573→| SEC-003 | Webhook idempotency enabled | Code review | ✅ |
+   574→| SEC-004 | API tokens stored in secure storage | Code review | ✅ |
+   575→| SEC-005 | Exam answers encrypted at rest | Code review | ✅ |
+   576→| SEC-006 | Marketplace downloads use signed URLs | Code review | ✅ |
+   577→| SEC-007 | RLS policies use correct role references | SQL query | ✅ |
+   578→| SEC-008 | AI prompt injection detection active | Code review | ✅ |
+   579→| SEC-009 | No secrets in source code | Gitleaks scan | ✅ |
+   580→| SEC-010 | All tables have RLS enabled | SQL query | ✅ |
+   581→| SEC-011 | Security headers configured | Curl check | ✅ |
+   582→| SEC-012 | TLS 1.2+ enforced | SSL Labs test | ✅ |
+   583→| SEC-013 | Rate limiting active | Load test | ✅ |
+   584→| SEC-014 | Admin actions audited | Log review | ✅ |
+   585→| SEC-015 | Dual approval for high-risk operations | Code review | ✅ |
+   586→
+   587→## Appendix B: Database Security Roles
+   588→
+   589→| Role | Purpose | Permissions |
+   590→|------|---------|-------------|
+   591→| `authenticated` | Flutter app users (via anon key + RLS) | Per-table RLS policies |
+   592→| `webhook_processor` | Flutterwave webhook Edge Function | SELECT/INSERT/UPDATE on `transactions`, `webhook_events` |
+   593→| `refund_processor` | Process-refund Edge Function | SELECT/UPDATE on `transactions`, INSERT on `refund_audit_log`, SELECT on `users` |
+   594→| `monitoring_agent` | Health check and metrics Edge Function | SELECT/INSERT on all monitoring tables, ALL on `alert_state` |
+   595→| `backup_reader` | Backup scripts | SELECT on all tables |
+   596→| `analytics_reader` | Super admin dashboard | SELECT on all tables + summary views |
+   597→
