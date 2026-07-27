@@ -1,0 +1,1395 @@
+     1→-- ═══════════════════════════════════════════════════════════════════════════════
+     2→-- EXAMFORGE AI — UNIFIED COMMUNICATION & COLLABORATION SYSTEM SCHEMA
+     3→-- ═══════════════════════════════════════════════════════════════════════════════
+     4→-- Real-time messaging, announcements, notifications, discussion forums,
+     5→-- calendar events, AI communication assistant, AI school knowledge assistant,
+     6→-- file sharing, moderation, and audit logging.
+     7→-- Depends on: schema.sql, school_management_schema.sql, parent_portal_schema.sql
+     8→-- ═══════════════════════════════════════════════════════════════════════════════
+     9→
+    10→BEGIN;
+    11→
+    12→-- ─── Custom Enums ──────────────────────────────────────────────────────────────
+    13→
+    14→CREATE TYPE conversation_type AS ENUM (
+    15→  'direct',
+    16→  'group',
+    17→  'department',
+    18→  'class',
+    19→  'school_wide'
+    20→);
+    21→
+    22→CREATE TYPE message_type AS ENUM (
+    23→  'text',
+    24→  'image',
+    25→  'pdf',
+    26→  'document',
+    27→  'voice_note',
+    28→  'audio',
+    29→  'video',
+    30→  'system'
+    31→);
+    32→
+    33→CREATE TYPE announcement_type AS ENUM (
+    34→  'school_wide',
+    35→  'class',
+    36→  'subject',
+    37→  'emergency',
+    38→  'event',
+    39→  'holiday',
+    40→  'timetable_update',
+    41→  'examination',
+    42→  'general'
+    43→);
+    44→
+    45→CREATE TYPE announcement_priority AS ENUM (
+    46→  'low',
+    47→  'normal',
+    48→  'high',
+    49→  'urgent'
+    50→);
+    51→
+    52→CREATE TYPE notification_channel AS ENUM (
+    53→  'in_app',
+    54→  'push',
+    55→  'email',
+    56→  'sms'
+    57→);
+    58→
+    59→CREATE TYPE forum_type AS ENUM (
+    60→  'school_community',
+    61→  'subject',
+    62→  'class',
+    63→  'club',
+    64→  'department'
+    65→);
+    66→
+    67→CREATE TYPE calendar_event_type AS ENUM (
+    68→  'meeting',
+    69→  'parent_teacher',
+    70→  'academic',
+    71→  'exam',
+    72→  'holiday',
+    73→  'event',
+    74→  'deadline',
+    75→  'custom'
+    76→);
+    77→
+    78→CREATE TYPE meeting_status AS ENUM (
+    79→  'scheduled',
+    80→  'confirmed',
+    81→  'in_progress',
+    82→  'completed',
+    83→  'cancelled',
+    84→  'rescheduled'
+    85→);
+    86→
+    87→CREATE TYPE attachment_type AS ENUM (
+    88→  'pdf',
+    89→  'docx',
+    90→  'pptx',
+    91→  'xlsx',
+    92→  'image',
+    93→  'video',
+    94→  'audio',
+    95→  'other'
+    96→);
+    97→
+    98→CREATE TYPE knowledge_document_status AS ENUM (
+    99→  'pending',
+   100→  'processing',
+   101→  'indexed',
+   102→  'failed'
+   103→);
+   104→
+   105→-- ═══════════════════════════════════════════════════════════════════════════════
+   106→-- CONVERSATIONS TABLE
+   107→-- ═══════════════════════════════════════════════════════════════════════════════
+   108→
+   109→CREATE TABLE IF NOT EXISTS conversations (
+   110→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   111→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   112→
+   113→  -- Conversation metadata
+   114→  type            conversation_type NOT NULL DEFAULT 'direct',
+   115→  name            TEXT,                    -- required for group/department/class/school_wide
+   116→  description     TEXT,
+   117→  avatar_url      TEXT,
+   118→
+   119→  -- Context references
+   120→  department_id   UUID REFERENCES departments(id) ON DELETE SET NULL,
+   121→  class_id        UUID REFERENCES classes(id) ON DELETE SET NULL,
+   122→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   123→
+   124→  -- Settings
+   125→  is_muted        BOOLEAN NOT NULL DEFAULT FALSE,
+   126→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+   127→  is_pinned       BOOLEAN NOT NULL DEFAULT FALSE,
+   128→  max_participants INTEGER DEFAULT 500,
+   129→
+   130→  -- Creator
+   131→  created_by      UUID NOT NULL REFERENCES auth.users(id),
+   132→
+   133→  -- Last message snapshot
+   134→  last_message_id     UUID,
+   135→  last_message_text   TEXT,
+   136→  last_message_at     TIMESTAMPTZ,
+   137→  last_sender_id      UUID,
+   138→  last_sender_name    TEXT,
+   139→
+   140→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   141→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   142→);
+   143→
+   144→CREATE INDEX idx_conversations_school ON conversations(school_id);
+   145→CREATE INDEX idx_conversations_type ON conversations(type);
+   146→CREATE INDEX idx_conversations_class ON conversations(class_id);
+   147→CREATE INDEX idx_conversations_department ON conversations(department_id);
+   148→CREATE INDEX idx_conversations_last_message ON conversations(last_message_at DESC);
+   149→CREATE INDEX idx_conversations_created ON conversations(created_at DESC);
+   150→
+   151→-- ═══════════════════════════════════════════════════════════════════════════════
+   152→-- CONVERSATION PARTICIPANTS TABLE
+   153→-- ═══════════════════════════════════════════════════════════════════════════════
+   154→
+   155→CREATE TABLE IF NOT EXISTS conversation_participants (
+   156→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   157→  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+   158→  user_id         UUID NOT NULL REFERENCES auth.users(id),
+   159→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   160→
+   161→  -- Participant role in conversation
+   162→  role            TEXT NOT NULL DEFAULT 'member',  -- admin, moderator, member
+   163→  user_role       user_role NOT NULL,              -- system role for permission checks
+   164→
+   165→  -- State
+   166→  is_muted        BOOLEAN NOT NULL DEFAULT FALSE,
+   167→  is_archived     BOOLEAN NOT NULL DEFAULT FALSE,
+   168→  is_pinned       BOOLEAN NOT NULL DEFAULT FALSE,
+   169→  is_blocked      BOOLEAN NOT NULL DEFAULT FALSE,
+   170→
+   171→  -- Read tracking
+   172→  last_read_message_id UUID,
+   173→  last_read_at    TIMESTAMPTZ,
+   174→  unread_count    INTEGER NOT NULL DEFAULT 0,
+   175→
+   176→  -- Typing indicator
+   177→  is_typing       BOOLEAN NOT NULL DEFAULT FALSE,
+   178→  typing_at       TIMESTAMPTZ,
+   179→
+   180→  -- Online / last seen
+   181→  is_online       BOOLEAN NOT NULL DEFAULT FALSE,
+   182→  last_seen_at    TIMESTAMPTZ,
+   183→
+   184→  joined_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+   185→  left_at         TIMESTAMPTZ,
+   186→  removed_at      TIMESTAMPTZ,
+   187→
+   188→  UNIQUE(conversation_id, user_id)
+   189→);
+   190→
+   191→CREATE INDEX idx_conv_participants_conversation ON conversation_participants(conversation_id);
+   192→CREATE INDEX idx_conv_participants_user ON conversation_participants(user_id);
+   193→CREATE INDEX idx_conv_participants_school ON conversation_participants(school_id);
+   194→CREATE INDEX idx_conv_participants_unread ON conversation_participants(user_id, unread_count) WHERE unread_count > 0;
+   195→CREATE INDEX idx_conv_participants_online ON conversation_participants(is_online) WHERE is_online = TRUE;
+   196→
+   197→-- ═══════════════════════════════════════════════════════════════════════════════
+   198→-- MESSAGES TABLE
+   199→-- ═══════════════════════════════════════════════════════════════════════════════
+   200→
+   201→CREATE TABLE IF NOT EXISTS messages (
+   202→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   203→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   204→  conversation_id UUID NOT NULL REFERENCES conversations(id) ON DELETE CASCADE,
+   205→
+   206→  -- Sender
+   207→  sender_id       UUID NOT NULL REFERENCES auth.users(id),
+   208→  sender_role     user_role NOT NULL,
+   209→  sender_name     TEXT NOT NULL,
+   210→  sender_avatar   TEXT,
+   211→
+   212→  -- Content
+   213→  type            message_type NOT NULL DEFAULT 'text',
+   214→  body            TEXT NOT NULL DEFAULT '',
+   215→
+   216→  -- Reply / Forward / Pin
+   217→  reply_to_id     UUID REFERENCES messages(id) ON DELETE SET NULL,
+   218→  forwarded_from_id UUID REFERENCES messages(id) ON DELETE SET NULL,
+   219→  is_pinned       BOOLEAN NOT NULL DEFAULT FALSE,
+   220→  pinned_at       TIMESTAMPTZ,
+   221→  pinned_by       UUID REFERENCES auth.users(id),
+   222→
+   223→  -- Edit / Delete
+   224→  is_edited       BOOLEAN NOT NULL DEFAULT FALSE,
+   225→  edited_at       TIMESTAMPTZ,
+   226→  is_deleted      BOOLEAN NOT NULL DEFAULT FALSE,
+   227→  deleted_at      TIMESTAMPTZ,
+   228→  deleted_by      UUID REFERENCES auth.users(id),
+   229→
+   230→  -- Read receipts
+   231→  read_by         UUID[] DEFAULT '{}',
+   232→  delivered_to    UUID[] DEFAULT '{}',
+   233→
+   234→  -- Metadata
+   235→  metadata        JSONB DEFAULT '{}'::jsonb,
+   236→
+   237→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   238→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   239→);
+   240→
+   241→CREATE INDEX idx_messages_conversation ON messages(conversation_id, created_at DESC);
+   242→CREATE INDEX idx_messages_school ON messages(school_id);
+   243→CREATE INDEX idx_messages_sender ON messages(sender_id);
+   244→CREATE INDEX idx_messages_reply ON messages(reply_to_id);
+   245→CREATE INDEX idx_messages_pinned ON messages(conversation_id, is_pinned) WHERE is_pinned = TRUE;
+   246→CREATE INDEX idx_messages_created ON messages(created_at DESC);
+   247→CREATE INDEX idx_messages_type ON messages(type);
+   248→
+   249→-- ═══════════════════════════════════════════════════════════════════════════════
+   250→-- MESSAGE REACTIONS TABLE
+   251→-- ═══════════════════════════════════════════════════════════════════════════════
+   252→
+   253→CREATE TABLE IF NOT EXISTS message_reactions (
+   254→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   255→  message_id      UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+   256→  user_id         UUID NOT NULL REFERENCES auth.users(id),
+   257→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   258→
+   259→  emoji           TEXT NOT NULL,
+   260→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   261→
+   262→  UNIQUE(message_id, user_id, emoji)
+   263→);
+   264→
+   265→CREATE INDEX idx_reactions_message ON message_reactions(message_id);
+   266→CREATE INDEX idx_reactions_user ON message_reactions(user_id);
+   267→
+   268→-- ═══════════════════════════════════════════════════════════════════════════════
+   269→-- MESSAGE ATTACHMENTS TABLE
+   270→-- ═══════════════════════════════════════════════════════════════════════════════
+   271→
+   272→CREATE TABLE IF NOT EXISTS message_attachments (
+   273→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   274→  message_id      UUID NOT NULL REFERENCES messages(id) ON DELETE CASCADE,
+   275→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   276→
+   277→  file_name       TEXT NOT NULL,
+   278→  file_url        TEXT NOT NULL,
+   279→  file_type       attachment_type NOT NULL DEFAULT 'other',
+   280→  file_size_bytes BIGINT,
+   281→  mime_type       TEXT,
+   282→  thumbnail_url   TEXT,
+   283→
+   284→  -- Preview
+   285→  preview_text    TEXT,
+   286→  is_previewable  BOOLEAN NOT NULL DEFAULT FALSE,
+   287→
+   288→  uploaded_by     UUID NOT NULL REFERENCES auth.users(id),
+   289→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   290→);
+   291→
+   292→CREATE INDEX idx_attachments_message ON message_attachments(message_id);
+   293→CREATE INDEX idx_attachments_school ON message_attachments(school_id);
+   294→CREATE INDEX idx_attachments_type ON message_attachments(file_type);
+   295→
+   296→-- ═══════════════════════════════════════════════════════════════════════════════
+   297→-- ANNOUNCEMENTS TABLE
+   298→-- ═══════════════════════════════════════════════════════════════════════════════
+   299→
+   300→CREATE TABLE IF NOT EXISTS communication_announcements (
+   301→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   302→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   303→
+   304→  -- Content
+   305→  title           TEXT NOT NULL,
+   306→  body            TEXT NOT NULL,
+   307→  announcement_type announcement_type NOT NULL DEFAULT 'general',
+   308→  priority        announcement_priority NOT NULL DEFAULT 'normal',
+   309→
+   310→  -- Targeting
+   311→  target_audience TEXT[] NOT NULL DEFAULT ARRAY['all']::text[],  -- all, teachers, students, parents, specific_roles
+   312→  target_class_ids UUID[] DEFAULT '{}',
+   313→  target_department_ids UUID[] DEFAULT '{}',
+   314→  target_subject_ids UUID[] DEFAULT '{}',
+   315→
+   316→  -- Author
+   317→  author_id       UUID NOT NULL REFERENCES auth.users(id),
+   318→  author_name     TEXT NOT NULL,
+   319→  author_role     user_role NOT NULL,
+   320→
+   321→  -- Scheduling & Expiry
+   322→  is_scheduled    BOOLEAN NOT NULL DEFAULT FALSE,
+   323→  scheduled_at    TIMESTAMPTZ,
+   324→  expires_at      TIMESTAMPTZ,
+   325→  is_pinned       BOOLEAN NOT NULL DEFAULT FALSE,
+   326→
+   327→  -- Attachments
+   328→  attachments     JSONB DEFAULT '[]'::jsonb,  -- [{name, url, type, size}]
+   329→
+   330→  -- Status
+   331→  is_published    BOOLEAN NOT NULL DEFAULT FALSE,
+   332→  published_at    TIMESTAMPTZ,
+   333→
+   334→  -- Tracking
+   335→  view_count      INTEGER NOT NULL DEFAULT 0,
+   336→  acknowledged_by UUID[] DEFAULT '{}',
+   337→
+   338→  -- AI assistant generated
+   339→  is_ai_generated BOOLEAN NOT NULL DEFAULT FALSE,
+   340→  ai_reviewed     BOOLEAN NOT NULL DEFAULT FALSE,
+   341→
+   342→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   343→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   344→);
+   345→
+   346→CREATE INDEX idx_announcements_school ON communication_announcements(school_id);
+   347→CREATE INDEX idx_announcements_type ON communication_announcements(announcement_type);
+   348→CREATE INDEX idx_announcements_priority ON communication_announcements(priority);
+   349→CREATE INDEX idx_announcements_author ON communication_announcements(author_id);
+   350→CREATE INDEX idx_announcements_published ON communication_announcements(is_published, published_at DESC);
+   351→CREATE INDEX idx_announcements_scheduled ON communication_announcements(is_scheduled, scheduled_at) WHERE is_scheduled = TRUE AND is_published = FALSE;
+   352→CREATE INDEX idx_announcements_created ON communication_announcements(created_at DESC);
+   353→
+   354→-- ═══════════════════════════════════════════════════════════════════════════════
+   355→-- COMMUNICATION NOTIFICATIONS TABLE
+   356→-- ═══════════════════════════════════════════════════════════════════════════════
+   357→
+   358→CREATE TABLE IF NOT EXISTS communication_notifications (
+   359→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   360→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   361→  user_id         UUID NOT NULL REFERENCES auth.users(id),
+   362→
+   363→  -- Content
+   364→  title           TEXT NOT NULL,
+   365→  body            TEXT NOT NULL,
+   366→  category        TEXT NOT NULL DEFAULT 'general',  -- message, assignment, exam, result, attendance, announcement, system, payment
+   367→  priority        TEXT NOT NULL DEFAULT 'normal',    -- low, normal, high, urgent
+   368→
+   369→  -- Source reference
+   370→  source_type     TEXT,  -- conversation, announcement, exam, assignment, etc.
+   371→  source_id       UUID,
+   372→
+   373→  -- Data payload
+   374→  data            JSONB DEFAULT '{}'::jsonb,
+   375→
+   376→  -- Read status
+   377→  is_read         BOOLEAN NOT NULL DEFAULT FALSE,
+   378→  read_at         TIMESTAMPTZ,
+   379→
+   380→  -- Delivery tracking
+   381→  delivered_in_app    BOOLEAN NOT NULL DEFAULT FALSE,
+   382→  delivered_push      BOOLEAN NOT NULL DEFAULT FALSE,
+   383→  delivered_email     BOOLEAN NOT NULL DEFAULT FALSE,
+   384→  delivered_sms       BOOLEAN NOT NULL DEFAULT FALSE,
+   385→
+   386→  -- Action
+   387→  action_url      TEXT,
+   388→  action_label    TEXT,
+   389→
+   390→  expires_at      TIMESTAMPTZ,
+   391→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   392→);
+   393→
+   394→CREATE INDEX idx_comm_notifications_user ON communication_notifications(user_id);
+   395→CREATE INDEX idx_comm_notifications_user_unread ON communication_notifications(user_id, is_read) WHERE is_read = FALSE;
+   396→CREATE INDEX idx_comm_notifications_school ON communication_notifications(school_id);
+   397→CREATE INDEX idx_comm_notifications_category ON communication_notifications(category);
+   398→CREATE INDEX idx_comm_notifications_created ON communication_notifications(created_at DESC);
+   399→
+   400→-- ═══════════════════════════════════════════════════════════════════════════════
+   401→-- USER NOTIFICATION PREFERENCES TABLE
+   402→-- ═══════════════════════════════════════════════════════════════════════════════
+   403→
+   404→CREATE TABLE IF NOT EXISTS user_notification_preferences (
+   405→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   406→  user_id         UUID NOT NULL REFERENCES auth.users(id),
+   407→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   408→
+   409→  -- Channel preferences per category
+   410→  preferences     JSONB NOT NULL DEFAULT '{
+   411→    "message": {"in_app": true, "push": true, "email": true, "sms": false},
+   412→    "assignment": {"in_app": true, "push": true, "email": true, "sms": false},
+   413→    "exam": {"in_app": true, "push": true, "email": true, "sms": true},
+   414→    "result": {"in_app": true, "push": true, "email": true, "sms": true},
+   415→    "attendance": {"in_app": true, "push": true, "email": false, "sms": true},
+   416→    "announcement": {"in_app": true, "push": true, "email": true, "sms": false},
+   417→    "system": {"in_app": true, "push": false, "email": false, "sms": false},
+   418→    "payment": {"in_app": true, "push": true, "email": true, "sms": true}
+   419→  }'::jsonb,
+   420→
+   421→  -- Quiet hours
+   422→  quiet_hours_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+   423→  quiet_hours_start   TIME DEFAULT '22:00',
+   424→  quiet_hours_end     TIME DEFAULT '07:00',
+   425→
+   426→  -- Digest
+   427→  digest_enabled    BOOLEAN NOT NULL DEFAULT FALSE,
+   428→  digest_frequency  TEXT DEFAULT 'daily',  -- daily, weekly
+   429→
+   430→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   431→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   432→
+   433→  UNIQUE(user_id, school_id)
+   434→);
+   435→
+   436→CREATE INDEX idx_notification_prefs_user ON user_notification_preferences(user_id);
+   437→
+   438→-- ═══════════════════════════════════════════════════════════════════════════════
+   439→-- DISCUSSION FORUMS TABLE
+   440→-- ═══════════════════════════════════════════════════════════════════════════════
+   441→
+   442→CREATE TABLE IF NOT EXISTS discussion_forums (
+   443→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   444→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   445→
+   446→  name            TEXT NOT NULL,
+   447→  description     TEXT,
+   448→  forum_type      forum_type NOT NULL DEFAULT 'school_community',
+   449→  avatar_url      TEXT,
+   450→
+   451→  -- Context references
+   452→  department_id   UUID REFERENCES departments(id) ON DELETE SET NULL,
+   453→  class_id        UUID REFERENCES classes(id) ON DELETE SET NULL,
+   454→  subject_id      UUID REFERENCES subjects(id) ON DELETE SET NULL,
+   455→
+   456→  -- Moderation
+   457→  is_moderated    BOOLEAN NOT NULL DEFAULT TRUE,
+   458→  is_locked       BOOLEAN NOT NULL DEFAULT FALSE,
+   459→  is_pinned       BOOLEAN NOT NULL DEFAULT FALSE,
+   460→
+   461→  -- Moderators
+   462→  moderator_ids   UUID[] DEFAULT '{}',
+   463→
+   464→  -- Creator
+   465→  created_by      UUID NOT NULL REFERENCES auth.users(id),
+   466→
+   467→  -- Stats
+   468→  post_count      INTEGER NOT NULL DEFAULT 0,
+   469→  member_count    INTEGER NOT NULL DEFAULT 0,
+   470→  last_activity_at TIMESTAMPTZ,
+   471→
+   472→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   473→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   474→);
+   475→
+   476→CREATE INDEX idx_forums_school ON discussion_forums(school_id);
+   477→CREATE INDEX idx_forums_type ON discussion_forums(forum_type);
+   478→CREATE INDEX idx_forums_class ON discussion_forums(class_id);
+   479→CREATE INDEX idx_forums_subject ON discussion_forums(subject_id);
+   480→CREATE INDEX idx_forums_activity ON discussion_forums(last_activity_at DESC);
+   481→
+   482→-- ═══════════════════════════════════════════════════════════════════════════════
+   483→-- FORUM POSTS TABLE
+   484→-- ═══════════════════════════════════════════════════════════════════════════════
+   485→
+   486→CREATE TABLE IF NOT EXISTS forum_posts (
+   487→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   488→  forum_id        UUID NOT NULL REFERENCES discussion_forums(id) ON DELETE CASCADE,
+   489→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   490→
+   491→  -- Author
+   492→  author_id       UUID NOT NULL REFERENCES auth.users(id),
+   493→  author_name     TEXT NOT NULL,
+   494→  author_avatar   TEXT,
+   495→  author_role     user_role NOT NULL,
+   496→
+   497→  -- Content
+   498→  title           TEXT NOT NULL,
+   499→  body            TEXT NOT NULL,
+   500→
+   501→  -- Attachments
+   502→  attachments     JSONB DEFAULT '[]'::jsonb,
+   503→
+   504→  -- Status
+   505→  is_pinned       BOOLEAN NOT NULL DEFAULT FALSE,
+   506→  is_locked       BOOLEAN NOT NULL DEFAULT FALSE,
+   507→  is_hidden       BOOLEAN NOT NULL DEFAULT FALSE,
+   508→  hidden_reason   TEXT,
+   509→
+   510→  -- Stats
+   511→  comment_count   INTEGER NOT NULL DEFAULT 0,
+   512→  view_count      INTEGER NOT NULL DEFAULT 0,
+   513→  like_count      INTEGER NOT NULL DEFAULT 0,
+   514→
+   515→  -- Moderation
+   516→  reported_count  INTEGER NOT NULL DEFAULT 0,
+   517→  is_reported     BOOLEAN NOT NULL DEFAULT FALSE,
+   518→
+   519→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   520→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   521→);
+   522→
+   523→CREATE INDEX idx_forum_posts_forum ON forum_posts(forum_id, created_at DESC);
+   524→CREATE INDEX idx_forum_posts_author ON forum_posts(author_id);
+   525→CREATE INDEX idx_forum_posts_pinned ON forum_posts(forum_id, is_pinned) WHERE is_pinned = TRUE;
+   526→CREATE INDEX idx_forum_posts_created ON forum_posts(created_at DESC);
+   527→
+   528→-- ═══════════════════════════════════════════════════════════════════════════════
+   529→-- FORUM COMMENTS TABLE
+   530→-- ═══════════════════════════════════════════════════════════════════════════════
+   531→
+   532→CREATE TABLE IF NOT EXISTS forum_comments (
+   533→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   534→  post_id         UUID NOT NULL REFERENCES forum_posts(id) ON DELETE CASCADE,
+   535→  forum_id        UUID NOT NULL REFERENCES discussion_forums(id) ON DELETE CASCADE,
+   536→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   537→
+   538→  -- Author
+   539→  author_id       UUID NOT NULL REFERENCES auth.users(id),
+   540→  author_name     TEXT NOT NULL,
+   541→  author_avatar   TEXT,
+   542→  author_role     user_role NOT NULL,
+   543→
+   544→  -- Content
+   545→  body            TEXT NOT NULL,
+   546→
+   547→  -- Threading
+   548→  parent_comment_id UUID REFERENCES forum_comments(id) ON DELETE SET NULL,
+   549→  reply_to_user_id  UUID REFERENCES auth.users(id),
+   550→
+   551→  -- Attachments
+   552→  attachments     JSONB DEFAULT '[]'::jsonb,
+   553→
+   554→  -- Status
+   555→  is_hidden       BOOLEAN NOT NULL DEFAULT FALSE,
+   556→  hidden_reason   TEXT,
+   557→
+   558→  -- Stats
+   559→  like_count      INTEGER NOT NULL DEFAULT 0,
+   560→
+   561→  -- Moderation
+   562→  reported_count  INTEGER NOT NULL DEFAULT 0,
+   563→  is_reported     BOOLEAN NOT NULL DEFAULT FALSE,
+   564→
+   565→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   566→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   567→);
+   568→
+   569→CREATE INDEX idx_forum_comments_post ON forum_comments(post_id, created_at);
+   570→CREATE INDEX idx_forum_comments_author ON forum_comments(author_id);
+   571→CREATE INDEX idx_forum_comments_parent ON forum_comments(parent_comment_id);
+   572→CREATE INDEX idx_forum_comments_created ON forum_comments(created_at DESC);
+   573→
+   574→-- ═══════════════════════════════════════════════════════════════════════════════
+   575→-- CALENDAR EVENTS TABLE
+   576→-- ═══════════════════════════════════════════════════════════════════════════════
+   577→
+   578→CREATE TABLE IF NOT EXISTS communication_calendar_events (
+   579→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   580→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   581→
+   582→  -- Content
+   583→  title           TEXT NOT NULL,
+   584→  description     TEXT,
+   585→  event_type      calendar_event_type NOT NULL DEFAULT 'custom',
+   586→
+   587→  -- Timing
+   588→  start_time      TIMESTAMPTZ NOT NULL,
+   589→  end_time        TIMESTAMPTZ NOT NULL,
+   590→  is_all_day      BOOLEAN NOT NULL DEFAULT FALSE,
+   591→
+   592→  -- Location
+   593→  location        TEXT,
+   594→  meeting_link    TEXT,
+   595→
+   596→  -- Recurrence
+   597→  is_recurring    BOOLEAN NOT NULL DEFAULT FALSE,
+   598→  recurrence_rule TEXT,
+   599→
+   600→  -- Organizer
+   601→  organizer_id    UUID NOT NULL REFERENCES auth.users(id),
+   602→  organizer_name  TEXT NOT NULL,
+   603→
+   604→  -- Targeting
+   605→  target_audience TEXT[] NOT NULL DEFAULT ARRAY['all']::text[],
+   606→  target_class_ids UUID[] DEFAULT '{}',
+   607→  target_department_ids UUID[] DEFAULT '{}',
+   608→
+   609→  -- Attendees
+   610→  attendee_ids    UUID[] DEFAULT '{}',
+   611→  rsvp_required   BOOLEAN NOT NULL DEFAULT FALSE,
+   612→
+   613→  -- Parent-Teacher meetings
+   614→  meeting_status  meeting_status DEFAULT 'scheduled',
+   615→  max_attendees   INTEGER,
+   616→  current_attendees INTEGER DEFAULT 0,
+   617→
+   618→  -- Source reference
+   619→  source_type     TEXT,  -- 'announcement', 'exam', 'homework', 'custom'
+   620→  source_id       UUID,
+   621→
+   622→  -- Reminders
+   623→  reminder_minutes INTEGER[] DEFAULT '{15, 60}',
+   624→
+   625→  -- Calendar sync
+   626→  external_calendar_id TEXT,
+   627→  ical_uid        TEXT,
+   628→
+   629→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   630→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   631→);
+   632→
+   633→CREATE INDEX idx_calendar_events_school ON communication_calendar_events(school_id);
+   634→CREATE INDEX idx_calendar_events_type ON communication_calendar_events(event_type);
+   635→CREATE INDEX idx_calendar_events_time ON communication_calendar_events(start_time, end_time);
+   636→CREATE INDEX idx_calendar_events_organizer ON communication_calendar_events(organizer_id);
+   637→CREATE INDEX idx_calendar_events_attendee ON communication_calendar_events(attendee_ids);
+   638→CREATE INDEX idx_calendar_events_created ON communication_calendar_events(created_at DESC);
+   639→
+   640→-- ═══════════════════════════════════════════════════════════════════════════════
+   641→-- COMMUNICATION AUDIT LOGS TABLE
+   642→-- ═══════════════════════════════════════════════════════════════════════════════
+   643→
+   644→CREATE TABLE IF NOT EXISTS communication_audit_logs (
+   645→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   646→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   647→
+   648→  -- Who
+   649→  user_id         UUID NOT NULL REFERENCES auth.users(id),
+   650→  user_role       user_role NOT NULL,
+   651→  user_name       TEXT NOT NULL,
+   652→
+   653→  -- What
+   654→  action          TEXT NOT NULL,  -- sent_message, edited_message, deleted_message, created_announcement, etc.
+   655→  resource_type   TEXT NOT NULL,  -- conversation, message, announcement, forum_post, etc.
+   656→  resource_id     UUID,
+   657→
+   658→  -- Details
+   659→  details         JSONB DEFAULT '{}'::jsonb,
+   660→  severity        TEXT NOT NULL DEFAULT 'info',  -- info, warning, critical
+   661→
+   662→  -- Context
+   663→  ip_address      INET,
+   664→  user_agent      TEXT,
+   665→  device_type     TEXT,
+   666→
+   667→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   668→);
+   669→
+   670→CREATE INDEX idx_audit_logs_school ON communication_audit_logs(school_id);
+   671→CREATE INDEX idx_audit_logs_user ON communication_audit_logs(user_id);
+   672→CREATE INDEX idx_audit_logs_action ON communication_audit_logs(action);
+   673→CREATE INDEX idx_audit_logs_resource ON communication_audit_logs(resource_type, resource_id);
+   674→CREATE INDEX idx_audit_logs_created ON communication_audit_logs(created_at DESC);
+   675→CREATE INDEX idx_audit_logs_severity ON communication_audit_logs(severity);
+   676→
+   677→-- ═══════════════════════════════════════════════════════════════════════════════
+   678→-- SCHOOL KNOWLEDGE DOCUMENTS TABLE (AI School Knowledge Assistant)
+   679→-- ═══════════════════════════════════════════════════════════════════════════════
+   680→
+   681→CREATE TABLE IF NOT EXISTS school_knowledge_documents (
+   682→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   683→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   684→
+   685→  -- Document info
+   686→  title           TEXT NOT NULL,
+   687→  description     TEXT,
+   688→  document_type   TEXT NOT NULL DEFAULT 'policy',  -- policy, handbook, calendar, timetable, faq, announcement, other
+   689→  file_name       TEXT NOT NULL,
+   690→  file_url        TEXT NOT NULL,
+   691→  file_size_bytes BIGINT,
+   692→  mime_type       TEXT,
+   693→
+   694→  -- Processing
+   695→  status          knowledge_document_status NOT NULL DEFAULT 'pending',
+   696→  processing_error TEXT,
+   697→  chunk_count     INTEGER DEFAULT 0,
+   698→
+   699→  -- Content (extracted text for search)
+   700→  extracted_text  TEXT,
+   701→
+   702→  -- Metadata
+   703→  tags            TEXT[] DEFAULT '{}',
+   704→  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+   705→  version         INTEGER DEFAULT 1,
+   706→
+   707→  -- Uploader
+   708→  uploaded_by     UUID NOT NULL REFERENCES auth.users(id),
+   709→
+   710→  -- Search vector
+   711→  search_vector   tsvector,
+   712→
+   713→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   714→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   715→);
+   716→
+   717→CREATE INDEX idx_knowledge_docs_school ON school_knowledge_documents(school_id);
+   718→CREATE INDEX idx_knowledge_docs_type ON school_knowledge_documents(document_type);
+   719→CREATE INDEX idx_knowledge_docs_status ON school_knowledge_documents(status);
+   720→CREATE INDEX idx_knowledge_docs_active ON school_knowledge_documents(is_active) WHERE is_active = TRUE;
+   721→CREATE INDEX idx_knowledge_docs_search ON school_knowledge_documents USING GIN(search_vector);
+   722→CREATE INDEX idx_knowledge_docs_created ON school_knowledge_documents(created_at DESC);
+   723→
+   724→-- ═══════════════════════════════════════════════════════════════════════════════
+   725→-- SCHOOL KNOWLEDGE EMBEDDINGS TABLE (for retrieval-based AI assistant)
+   726→-- ═══════════════════════════════════════════════════════════════════════════════
+   727→
+   728→CREATE TABLE IF NOT EXISTS school_knowledge_embeddings (
+   729→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   730→  document_id     UUID NOT NULL REFERENCES school_knowledge_documents(id) ON DELETE CASCADE,
+   731→  school_id       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   732→
+   733→  chunk_text      TEXT NOT NULL,
+   734→  chunk_index     INTEGER NOT NULL,
+   735→  embedding       VECTOR(1536),  -- OpenAI ada-002 dimension; adjust for your model
+   736→
+   737→  metadata        JSONB DEFAULT '{}'::jsonb,
+   738→
+   739→  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+   740→);
+   741→
+   742→CREATE INDEX idx_knowledge_embeddings_document ON school_knowledge_embeddings(document_id);
+   743→CREATE INDEX idx_knowledge_embeddings_school ON school_knowledge_embeddings(school_id);
+   744→
+   745→-- ═══════════════════════════════════════════════════════════════════════════════
+   746→-- ROW LEVEL SECURITY
+   747→-- ═══════════════════════════════════════════════════════════════════════════════
+   748→
+   749→ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
+   750→ALTER TABLE conversation_participants ENABLE ROW LEVEL SECURITY;
+   751→ALTER TABLE messages ENABLE ROW LEVEL SECURITY;
+   752→ALTER TABLE message_reactions ENABLE ROW LEVEL SECURITY;
+   753→ALTER TABLE message_attachments ENABLE ROW LEVEL SECURITY;
+   754→ALTER TABLE communication_announcements ENABLE ROW LEVEL SECURITY;
+   755→ALTER TABLE communication_notifications ENABLE ROW LEVEL SECURITY;
+   756→ALTER TABLE user_notification_preferences ENABLE ROW LEVEL SECURITY;
+   757→ALTER TABLE discussion_forums ENABLE ROW LEVEL SECURITY;
+   758→ALTER TABLE forum_posts ENABLE ROW LEVEL SECURITY;
+   759→ALTER TABLE forum_comments ENABLE ROW LEVEL SECURITY;
+   760→ALTER TABLE communication_calendar_events ENABLE ROW LEVEL SECURITY;
+   761→ALTER TABLE communication_audit_logs ENABLE ROW LEVEL SECURITY;
+   762→ALTER TABLE school_knowledge_documents ENABLE ROW LEVEL SECURITY;
+   763→ALTER TABLE school_knowledge_embeddings ENABLE ROW LEVEL SECURITY;
+   764→
+   765→-- ─── Conversations RLS ────────────────────────────────────────────────────
+   766→
+   767→CREATE POLICY "Users see conversations they belong to"
+   768→  ON conversations FOR SELECT
+   769→  USING (
+   770→    id IN (SELECT conversation_id FROM conversation_participants WHERE user_id = auth.uid())
+   771→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   772→  );
+   773→
+   774→CREATE POLICY "Users can create conversations"
+   775→  ON conversations FOR INSERT
+   776→  WITH CHECK (created_by = auth.uid());
+   777→
+   778→CREATE POLICY "Participants and admins can update conversations"
+   779→  ON conversations FOR UPDATE
+   780→  USING (
+   781→    id IN (SELECT conversation_id FROM conversation_participants WHERE user_id = auth.uid() AND role IN ('admin', 'moderator'))
+   782→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   783→  );
+   784→
+   785→-- ─── Conversation Participants RLS ────────────────────────────────────────
+   786→
+   787→CREATE POLICY "Users see participants of their conversations"
+   788→  ON conversation_participants FOR SELECT
+   789→  USING (
+   790→    conversation_id IN (SELECT cp.conversation_id FROM conversation_participants cp WHERE cp.user_id = auth.uid())
+   791→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   792→  );
+   793→
+   794→CREATE POLICY "System can manage participants"
+   795→  ON conversation_participants FOR INSERT
+   796→  WITH CHECK (TRUE);
+   797→
+   798→CREATE POLICY "Participants and admins can update participant state"
+   799→  ON conversation_participants FOR UPDATE
+   800→  USING (
+   801→    user_id = auth.uid()
+   802→    OR conversation_id IN (SELECT cp.conversation_id FROM conversation_participants cp WHERE cp.user_id = auth.uid() AND cp.role IN ('admin', 'moderator'))
+   803→  );
+   804→
+   805→-- ─── Messages RLS ────────────────────────────────────────────────────────
+   806→
+   807→CREATE POLICY "Users see messages in their conversations"
+   808→  ON messages FOR SELECT
+   809→  USING (
+   810→    conversation_id IN (SELECT conversation_id FROM conversation_participants WHERE user_id = auth.uid())
+   811→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   812→  );
+   813→
+   814→CREATE POLICY "Participants can send messages"
+   815→  ON messages FOR INSERT
+   816→  WITH CHECK (
+   817→    sender_id = auth.uid()
+   818→    AND conversation_id IN (SELECT conversation_id FROM conversation_participants WHERE user_id = auth.uid())
+   819→  );
+   820→
+   821→CREATE POLICY "Senders can edit own messages"
+   822→  ON messages FOR UPDATE
+   823→  USING (
+   824→    sender_id = auth.uid()
+   825→    OR conversation_id IN (SELECT cp.conversation_id FROM conversation_participants cp WHERE cp.user_id = auth.uid() AND cp.role IN ('admin', 'moderator'))
+   826→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   827→  );
+   828→
+   829→-- ─── Message Reactions RLS ────────────────────────────────────────────────
+   830→
+   831→CREATE POLICY "Users see reactions on accessible messages"
+   832→  ON message_reactions FOR SELECT
+   833→  USING (
+   834→    message_id IN (SELECT m.id FROM messages m WHERE m.conversation_id IN (SELECT conversation_id FROM conversation_participants WHERE user_id = auth.uid()))
+   835→  );
+   836→
+   837→CREATE POLICY "Users can add reactions"
+   838→  ON message_reactions FOR INSERT
+   839→  WITH CHECK (user_id = auth.uid());
+   840→
+   841→CREATE POLICY "Users can remove own reactions"
+   842→  ON message_reactions FOR DELETE
+   843→  USING (user_id = auth.uid());
+   844→
+   845→-- ─── Message Attachments RLS ────────────────────────────────────────────────
+   846→
+   847→CREATE POLICY "Users see attachments on accessible messages"
+   848→  ON message_attachments FOR SELECT
+   849→  USING (
+   850→    message_id IN (SELECT m.id FROM messages m WHERE m.conversation_id IN (SELECT conversation_id FROM conversation_participants WHERE user_id = auth.uid()))
+   851→  );
+   852→
+   853→-- ─── Announcements RLS ────────────────────────────────────────────────────
+   854→
+   855→CREATE POLICY "Users see announcements for their audience"
+   856→  ON communication_announcements FOR SELECT
+   857→  USING (
+   858→    school_id IN (SELECT u.school_id FROM users u WHERE u.id = auth.uid())
+   859→    AND is_published = TRUE
+   860→    OR author_id = auth.uid()
+   861→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   862→  );
+   863→
+   864→CREATE POLICY "Authorized users can create announcements"
+   865→  ON communication_announcements FOR INSERT
+   866→  WITH CHECK (
+   867→    author_id = auth.uid()
+   868→    AND author_role IN ('school_admin', 'super_admin', 'teacher')
+   869→  );
+   870→
+   871→CREATE POLICY "Authors and admins can update announcements"
+   872→  ON communication_announcements FOR UPDATE
+   873→  USING (
+   874→    author_id = auth.uid()
+   875→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   876→  );
+   877→
+   878→-- ─── Notifications RLS ────────────────────────────────────────────────────
+   879→
+   880→CREATE POLICY "Users see own notifications"
+   881→  ON communication_notifications FOR SELECT
+   882→  USING (user_id = auth.uid());
+   883→
+   884→CREATE POLICY "System can create notifications"
+   885→  ON communication_notifications FOR INSERT
+   886→  WITH CHECK (TRUE);
+   887→
+   888→CREATE POLICY "Users can update own notifications"
+   889→  ON communication_notifications FOR UPDATE
+   890→  USING (user_id = auth.uid());
+   891→
+   892→-- ─── Notification Preferences RLS ────────────────────────────────────────
+   893→
+   894→CREATE POLICY "Users manage own preferences"
+   895→  ON user_notification_preferences FOR ALL
+   896→  USING (user_id = auth.uid());
+   897→
+   898→-- ─── Discussion Forums RLS ────────────────────────────────────────────────
+   899→
+   900→CREATE POLICY "School members can view forums"
+   901→  ON discussion_forums FOR SELECT
+   902→  USING (
+   903→    school_id IN (SELECT u.school_id FROM users u WHERE u.id = auth.uid())
+   904→  );
+   905→
+   906→CREATE POLICY "Teachers and admins can create forums"
+   907→  ON discussion_forums FOR INSERT
+   908→  WITH CHECK (
+   909→    created_by = auth.uid()
+   910→  );
+   911→
+   912→CREATE POLICY "Moderators and admins can update forums"
+   913→  ON discussion_forums FOR UPDATE
+   914→  USING (
+   915→    created_by = auth.uid()
+   916→    OR moderator_ids @> ARRAY[auth.uid()]
+   917→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   918→  );
+   919→
+   920→-- ─── Forum Posts RLS ────────────────────────────────────────────────────
+   921→
+   922→CREATE POLICY "School members can view posts"
+   923→  ON forum_posts FOR SELECT
+   924→  USING (
+   925→    school_id IN (SELECT u.school_id FROM users u WHERE u.id = auth.uid())
+   926→    AND is_hidden = FALSE
+   927→    OR author_id = auth.uid()
+   928→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   929→  );
+   930→
+   931→CREATE POLICY "School members can create posts"
+   932→  ON forum_posts FOR INSERT
+   933→  WITH CHECK (author_id = auth.uid());
+   934→
+   935→CREATE POLICY "Authors and moderators can update posts"
+   936→  ON forum_posts FOR UPDATE
+   937→  USING (
+   938→    author_id = auth.uid()
+   939→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   940→  );
+   941→
+   942→-- ─── Forum Comments RLS ────────────────────────────────────────────────────
+   943→
+   944→CREATE POLICY "School members can view comments"
+   945→  ON forum_comments FOR SELECT
+   946→  USING (
+   947→    school_id IN (SELECT u.school_id FROM users u WHERE u.id = auth.uid())
+   948→    AND is_hidden = FALSE
+   949→    OR author_id = auth.uid()
+   950→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   951→  );
+   952→
+   953→CREATE POLICY "School members can create comments"
+   954→  ON forum_comments FOR INSERT
+   955→  WITH CHECK (author_id = auth.uid());
+   956→
+   957→CREATE POLICY "Authors and moderators can update comments"
+   958→  ON forum_comments FOR UPDATE
+   959→  USING (
+   960→    author_id = auth.uid()
+   961→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   962→  );
+   963→
+   964→-- ─── Calendar Events RLS ────────────────────────────────────────────────
+   965→
+   966→CREATE POLICY "Users see events for their audience"
+   967→  ON communication_calendar_events FOR SELECT
+   968→  USING (
+   969→    organizer_id = auth.uid()
+   970→    OR attendee_ids @> ARRAY[auth.uid()]
+   971→    OR school_id IN (SELECT u.school_id FROM users u WHERE u.id = auth.uid())
+   972→  );
+   973→
+   974→CREATE POLICY "Users can create events"
+   975→  ON communication_calendar_events FOR INSERT
+   976→  WITH CHECK (organizer_id = auth.uid());
+   977→
+   978→CREATE POLICY "Organizers and admins can update events"
+   979→  ON communication_calendar_events FOR UPDATE
+   980→  USING (
+   981→    organizer_id = auth.uid()
+   982→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   983→  );
+   984→
+   985→-- ─── Audit Logs RLS ────────────────────────────────────────────────────
+   986→
+   987→CREATE POLICY "Admins can view audit logs"
+   988→  ON communication_audit_logs FOR SELECT
+   989→  USING (
+   990→    user_id = auth.uid()
+   991→    OR school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+   992→  );
+   993→
+   994→CREATE POLICY "System can create audit logs"
+   995→  ON communication_audit_logs FOR INSERT
+   996→  WITH CHECK (TRUE);
+   997→
+   998→-- ─── Knowledge Documents RLS ────────────────────────────────────────────
+   999→
+  1000→CREATE POLICY "School members can view knowledge docs"
+  1001→  ON school_knowledge_documents FOR SELECT
+  1002→  USING (
+  1003→    school_id IN (SELECT u.school_id FROM users u WHERE u.id = auth.uid())
+  1004→  );
+  1005→
+  1006→CREATE POLICY "Admins can manage knowledge docs"
+  1007→  ON school_knowledge_documents FOR INSERT
+  1008→  WITH CHECK (
+  1009→    uploaded_by = auth.uid()
+  1010→    AND school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin', 'teacher'))
+  1011→  );
+  1012→
+  1013→CREATE POLICY "Admins can update knowledge docs"
+  1014→  ON school_knowledge_documents FOR UPDATE
+  1015→  USING (
+  1016→    school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+  1017→  );
+  1018→
+  1019→-- ─── Knowledge Embeddings RLS ────────────────────────────────────────────
+  1020→
+  1021→CREATE POLICY "System can manage embeddings"
+  1022→  ON school_knowledge_embeddings FOR ALL
+  1023→  USING (
+  1024→    school_id IN (SELECT s.id FROM schools s JOIN users u ON u.school_id = s.id WHERE u.id = auth.uid() AND u.role IN ('school_admin', 'super_admin'))
+  1025→  );
+  1026→
+  1027→-- ═══════════════════════════════════════════════════════════════════════════════
+  1028→-- TRIGGERS
+  1029→-- ═══════════════════════════════════════════════════════════════════════════════
+  1030→
+  1031→-- Updated at triggers
+  1032→CREATE TRIGGER set_conversations_updated_at
+  1033→  BEFORE UPDATE ON conversations
+  1034→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1035→
+  1036→CREATE TRIGGER set_messages_updated_at
+  1037→  BEFORE UPDATE ON messages
+  1038→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1039→
+  1040→CREATE TRIGGER set_announcements_updated_at
+  1041→  BEFORE UPDATE ON communication_announcements
+  1042→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1043→
+  1044→CREATE TRIGGER set_notification_prefs_updated_at
+  1045→  BEFORE UPDATE ON user_notification_preferences
+  1046→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1047→
+  1048→CREATE TRIGGER set_forums_updated_at
+  1049→  BEFORE UPDATE ON discussion_forums
+  1050→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1051→
+  1052→CREATE TRIGGER set_forum_posts_updated_at
+  1053→  BEFORE UPDATE ON forum_posts
+  1054→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1055→
+  1056→CREATE TRIGGER set_forum_comments_updated_at
+  1057→  BEFORE UPDATE ON forum_comments
+  1058→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1059→
+  1060→CREATE TRIGGER set_calendar_events_updated_at
+  1061→  BEFORE UPDATE ON communication_calendar_events
+  1062→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1063→
+  1064→CREATE TRIGGER set_knowledge_docs_updated_at
+  1065→  BEFORE UPDATE ON school_knowledge_documents
+  1066→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+  1067→
+  1068→-- ─── Update conversation last message on new message ─────────────────────
+  1069→
+  1070→CREATE OR REPLACE FUNCTION update_conversation_last_message()
+  1071→RETURNS TRIGGER AS $$
+  1072→BEGIN
+  1073→  UPDATE conversations
+  1074→  SET last_message_id = NEW.id,
+  1075→      last_message_text = LEFT(NEW.body, 100),
+  1076→      last_message_at = NEW.created_at,
+  1077→      last_sender_id = NEW.sender_id,
+  1078→      last_sender_name = NEW.sender_name,
+  1079→      updated_at = now()
+  1080→  WHERE id = NEW.conversation_id;
+  1081→  RETURN NEW;
+  1082→END;
+  1083→$$ LANGUAGE plpgsql;
+  1084→
+  1085→CREATE TRIGGER trigger_update_conversation_last_message
+  1086→  AFTER INSERT ON messages
+  1087→  FOR EACH ROW EXECUTE FUNCTION update_conversation_last_message();
+  1088→
+  1089→-- ─── Increment unread count for participants on new message ─────────────
+  1090→
+  1091→CREATE OR REPLACE FUNCTION increment_unread_counts()
+  1092→RETURNS TRIGGER AS $$
+  1093→BEGIN
+  1094→  UPDATE conversation_participants
+  1095→  SET unread_count = unread_count + 1
+  1096→  WHERE conversation_id = NEW.conversation_id
+  1097→  AND user_id != NEW.sender_id
+  1098→  AND left_at IS NULL;
+  1099→  RETURN NEW;
+  1100→END;
+  1101→$$ LANGUAGE plpgsql;
+  1102→
+  1103→CREATE TRIGGER trigger_increment_unread_counts
+  1104→  AFTER INSERT ON messages
+  1105→  FOR EACH ROW EXECUTE FUNCTION increment_unread_counts();
+  1106→
+  1107→-- ─── Update forum stats on new post ─────────────────────────────────────
+  1108→
+  1109→CREATE OR REPLACE FUNCTION update_forum_post_stats()
+  1110→RETURNS TRIGGER AS $$
+  1111→BEGIN
+  1112→  IF TG_OP = 'INSERT' THEN
+  1113→    UPDATE discussion_forums
+  1114→    SET post_count = post_count + 1,
+  1115→        last_activity_at = now()
+  1116→    WHERE id = NEW.forum_id;
+  1117→    RETURN NEW;
+  1118→  ELSIF TG_OP = 'DELETE' THEN
+  1119→    UPDATE discussion_forums
+  1120→    SET post_count = GREATEST(post_count - 1, 0)
+  1121→    WHERE id = OLD.forum_id;
+  1122→    RETURN OLD;
+  1123→  END IF;
+  1124→  RETURN NULL;
+  1125→END;
+  1126→$$ LANGUAGE plpgsql;
+  1127→
+  1128→CREATE TRIGGER trigger_update_forum_post_stats
+  1129→  AFTER INSERT OR DELETE ON forum_posts
+  1130→  FOR EACH ROW EXECUTE FUNCTION update_forum_post_stats();
+  1131→
+  1132→-- ─── Update forum stats on new comment ─────────────────────────────────────
+  1133→
+  1134→CREATE OR REPLACE FUNCTION update_post_comment_stats()
+  1135→RETURNS TRIGGER AS $$
+  1136→BEGIN
+  1137→  IF TG_OP = 'INSERT' THEN
+  1138→    UPDATE forum_posts
+  1139→    SET comment_count = comment_count + 1
+  1140→    WHERE id = NEW.post_id;
+  1141→    RETURN NEW;
+  1142→  ELSIF TG_OP = 'DELETE' THEN
+  1143→    UPDATE forum_posts
+  1144→    SET comment_count = GREATEST(comment_count - 1, 0)
+  1145→    WHERE id = OLD.post_id;
+  1146→    RETURN OLD;
+  1147→  END IF;
+  1148→  RETURN NULL;
+  1149→END;
+  1150→$$ LANGUAGE plpgsql;
+  1151→
+  1152→CREATE TRIGGER trigger_update_post_comment_stats
+  1153→  AFTER INSERT OR DELETE ON forum_comments
+  1154→  FOR EACH ROW EXECUTE FUNCTION update_post_comment_stats();
+  1155→
+  1156→-- ─── Update announcement view count ────────────────────────────────────
+  1157→
+  1158→CREATE OR REPLACE FUNCTION increment_announcement_view()
+  1159→RETURNS TRIGGER AS $$
+  1160→BEGIN
+  1161→  NEW.view_count = OLD.view_count + 1;
+  1162→  RETURN NEW;
+  1163→END;
+  1164→$$ LANGUAGE plpgsql;
+  1165→
+  1166→-- ─── Update knowledge doc search vector on insert/update ─────────────────
+  1167→
+  1168→CREATE OR REPLACE FUNCTION update_knowledge_doc_search()
+  1169→RETURNS TRIGGER AS $$
+  1170→BEGIN
+  1171→  NEW.search_vector :=
+  1172→    setweight(to_tsvector('english', COALESCE(NEW.title, '')), 'A') ||
+  1173→    setweight(to_tsvector('english', COALESCE(NEW.description, '')), 'B') ||
+  1174→    setweight(to_tsvector('english', COALESCE(NEW.extracted_text, '')), 'C') ||
+  1175→    setweight(to_tsvector('english', COALESCE(array_to_string(NEW.tags, ' '), '')), 'D');
+  1176→  RETURN NEW;
+  1177→END;
+  1178→$$ LANGUAGE plpgsql;
+  1179→
+  1180→CREATE TRIGGER trigger_update_knowledge_doc_search
+  1181→  BEFORE INSERT OR UPDATE ON school_knowledge_documents
+  1182→  FOR EACH ROW EXECUTE FUNCTION update_knowledge_doc_search();
+  1183→
+  1184→-- ═══════════════════════════════════════════════════════════════════════════════
+  1185→-- SUPABASE REALTIME SUBSCRIPTIONS
+  1186→-- ═══════════════════════════════════════════════════════════════════════════════
+  1187→
+  1188→ALTER PUBLICATION supabase_realtime ADD TABLE conversations;
+  1189→ALTER PUBLICATION supabase_realtime ADD TABLE conversation_participants;
+  1190→ALTER PUBLICATION supabase_realtime ADD TABLE messages;
+  1191→ALTER PUBLICATION supabase_realtime ADD TABLE message_reactions;
+  1192→ALTER PUBLICATION supabase_realtime ADD TABLE communication_notifications;
+  1193→ALTER PUBLICATION supabase_realtime ADD TABLE communication_announcements;
+  1194→ALTER PUBLICATION supabase_realtime ADD TABLE communication_calendar_events;
+  1195→
+  1196→-- ═══════════════════════════════════════════════════════════════════════════════
+  1197→-- HELPER FUNCTIONS
+  1198→-- ═══════════════════════════════════════════════════════════════════════════════
+  1199→
+  1200→-- Get conversations for a user
+  1201→CREATE OR REPLACE FUNCTION get_user_conversations(
+  1202→  p_user_id UUID,
+  1203→  p_page INT DEFAULT 1,
+  1204→  p_per_page INT DEFAULT 20
+  1205→)
+  1206→RETURNS JSONB AS $$
+  1207→DECLARE
+  1208→  v_result JSONB;
+  1209→BEGIN
+  1210→  SELECT jsonb_agg(conv_data) INTO v_result
+  1211→  FROM (
+  1212→    SELECT jsonb_build_object(
+  1213→      'id', c.id,
+  1214→      'type', c.type,
+  1215→      'name', c.name,
+  1216→      'avatar_url', c.avatar_url,
+  1217→      'last_message_text', c.last_message_text,
+  1218→      'last_message_at', c.last_message_at,
+  1219→      'last_sender_name', c.last_sender_name,
+  1220→      'unread_count', cp.unread_count,
+  1221→      'is_muted', cp.is_muted,
+  1222→      'is_pinned', cp.is_pinned,
+  1223→      'is_archived', cp.is_archived,
+  1224→      'is_typing', cp.is_typing,
+  1225→      'participants', (
+  1226→        SELECT COALESCE(jsonb_agg(
+  1227→          jsonb_build_object(
+  1228→            'user_id', cp2.user_id,
+  1229→            'role', cp2.role,
+  1230→            'is_online', cp2.is_online,
+  1231→            'last_seen_at', cp2.last_seen_at
+  1232→          )
+  1233→        ), '[]'::jsonb)
+  1234→        FROM conversation_participants cp2
+  1235→        WHERE cp2.conversation_id = c.id AND cp2.left_at IS NULL
+  1236→      )
+  1237→    ) AS conv_data
+  1238→    FROM conversations c
+  1239→    JOIN conversation_participants cp ON cp.conversation_id = c.id
+  1240→    WHERE cp.user_id = p_user_id AND cp.left_at IS NULL
+  1241→    ORDER BY cp.is_pinned DESC, c.last_message_at DESC NULLS LAST
+  1242→    LIMIT p_per_page OFFSET (p_page - 1) * p_per_page
+  1243→  ) sub;
+  1244→
+  1245→  RETURN COALESCE(v_result, '[]'::jsonb);
+  1246→END;
+  1247→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1248→
+  1249→-- Get messages for a conversation
+  1250→CREATE OR REPLACE FUNCTION get_conversation_messages(
+  1251→  p_conversation_id UUID,
+  1252→  p_page INT DEFAULT 1,
+  1253→  p_per_page INT DEFAULT 50,
+  1254→  p_before TIMESTAMPTZ DEFAULT NULL
+  1255→)
+  1256→RETURNS JSONB AS $$
+  1257→DECLARE
+  1258→  v_result JSONB;
+  1259→BEGIN
+  1260→  SELECT jsonb_agg(msg_data) INTO v_result
+  1261→  FROM (
+  1262→    SELECT jsonb_build_object(
+  1263→      'id', m.id,
+  1264→      'conversation_id', m.conversation_id,
+  1265→      'sender_id', m.sender_id,
+  1266→      'sender_name', m.sender_name,
+  1267→      'sender_avatar', m.sender_avatar,
+  1268→      'sender_role', m.sender_role,
+  1269→      'type', m.type,
+  1270→      'body', m.body,
+  1271→      'reply_to_id', m.reply_to_id,
+  1272→      'is_pinned', m.is_pinned,
+  1273→      'is_edited', m.is_edited,
+  1274→      'is_deleted', m.is_deleted,
+  1275→      'read_by', m.read_by,
+  1276→      'reactions', (
+  1277→        SELECT COALESCE(jsonb_agg(
+  1278→          jsonb_build_object('emoji', mr.emoji, 'user_id', mr.user_id, 'created_at', mr.created_at)
+  1279→        ), '[]'::jsonb)
+  1280→        FROM message_reactions mr WHERE mr.message_id = m.id
+  1281→      ),
+  1282→      'attachments', (
+  1283→        SELECT COALESCE(jsonb_agg(
+  1284→          jsonb_build_object(
+  1285→            'id', ma.id, 'file_name', ma.file_name, 'file_url', ma.file_url,
+  1286→            'file_type', ma.file_type, 'file_size_bytes', ma.file_size_bytes,
+  1287→            'thumbnail_url', ma.thumbnail_url, 'is_previewable', ma.is_previewable
+  1288→          )
+  1289→        ), '[]'::jsonb)
+  1290→        FROM message_attachments ma WHERE ma.message_id = m.id
+  1291→      ),
+  1292→      'reply_to', CASE WHEN m.reply_to_id IS NOT NULL THEN (
+  1293→        SELECT jsonb_build_object(
+  1294→          'id', rm.id, 'sender_name', rm.sender_name, 'body', LEFT(rm.body, 80), 'type', rm.type
+  1295→        )
+  1296→        FROM messages rm WHERE rm.id = m.reply_to_id
+  1297→      ) END,
+  1298→      'created_at', m.created_at,
+  1299→      'updated_at', m.updated_at
+  1300→    ) AS msg_data
+  1301→    FROM messages m
+  1302→    WHERE m.conversation_id = p_conversation_id
+  1303→    AND m.is_deleted = FALSE
+  1304→    AND (p_before IS NULL OR m.created_at < p_before)
+  1305→    ORDER BY m.created_at DESC
+  1306→    LIMIT p_per_page OFFSET (p_page - 1) * p_per_page
+  1307→  ) sub;
+  1308→
+  1309→  RETURN COALESCE(v_result, '[]'::jsonb);
+  1310→END;
+  1311→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1312→
+  1313→-- Search school knowledge base (for AI Knowledge Assistant)
+  1314→CREATE OR REPLACE FUNCTION search_school_knowledge(
+  1315→  p_school_id UUID,
+  1316→  p_query TEXT,
+  1317→  p_limit INT DEFAULT 5
+  1318→)
+  1319→RETURNS JSONB AS $$
+  1320→DECLARE
+  1321→  v_result JSONB;
+  1322→BEGIN
+  1323→  SELECT COALESCE(jsonb_agg(
+  1324→    jsonb_build_object(
+  1325→      'id', skd.id,
+  1326→      'title', skd.title,
+  1327→      'document_type', skd.document_type,
+  1328→      'relevance', ts_rank(skd.search_vector, plainto_tsquery('english', p_query)),
+  1329→      'snippet', ts_headline('english', COALESCE(skd.extracted_text, ''), plainto_tsquery('english', p_query))
+  1330→    )
+  1331→  ), '[]'::jsonb) INTO v_result
+  1332→  FROM school_knowledge_documents skd
+  1333→  WHERE skd.school_id = p_school_id
+  1334→  AND skd.is_active = TRUE
+  1335→  AND skd.status = 'indexed'
+  1336→  AND skd.search_vector @@ plainto_tsquery('english', p_query)
+  1337→  ORDER BY ts_rank(skd.search_vector, plainto_tsquery('english', p_query)) DESC
+  1338→  LIMIT p_limit;
+  1339→
+  1340→  RETURN v_result;
+  1341→END;
+  1342→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1343→
+  1344→-- Get communication dashboard stats
+  1345→CREATE OR REPLACE FUNCTION get_communication_dashboard(
+  1346→  p_school_id UUID
+  1347→)
+  1348→RETURNS JSONB AS $$
+  1349→DECLARE
+  1350→  v_result JSONB;
+  1351→BEGIN
+  1352→  SELECT jsonb_build_object(
+  1353→    'total_conversations', (SELECT COUNT(*) FROM conversations WHERE school_id = p_school_id),
+  1354→    'active_conversations', (SELECT COUNT(*) FROM conversations WHERE school_id = p_school_id AND last_message_at > now() - INTERVAL '24 hours'),
+  1355→    'total_messages_today', (SELECT COUNT(*) FROM messages WHERE school_id = p_school_id AND created_at > date_trunc('day', now())),
+  1356→    'total_announcements', (SELECT COUNT(*) FROM communication_announcements WHERE school_id = p_school_id AND is_published = TRUE),
+  1357→    'unread_notifications', (SELECT COUNT(*) FROM communication_notifications WHERE school_id = p_school_id AND is_read = FALSE),
+  1358→    'upcoming_events', (
+  1359→      SELECT COALESCE(jsonb_agg(
+  1360→        jsonb_build_object('id', id, 'title', title, 'start_time', start_time, 'event_type', event_type)
+  1361→      ), '[]'::jsonb)
+  1362→      FROM communication_calendar_events
+  1363→      WHERE school_id = p_school_id AND start_time > now()
+  1364→      ORDER BY start_time LIMIT 5
+  1365→    ),
+  1366→    'active_forums', (SELECT COUNT(*) FROM discussion_forums WHERE school_id = p_school_id AND is_locked = FALSE),
+  1367→    'knowledge_documents', (SELECT COUNT(*) FROM school_knowledge_documents WHERE school_id = p_school_id AND is_active = TRUE)
+  1368→  ) INTO v_result;
+  1369→
+  1370→  RETURN v_result;
+  1371→END;
+  1372→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1373→
+  1374→-- ═══════════════════════════════════════════════════════════════════════════════
+  1375→-- COMMENTS
+  1376→-- ═══════════════════════════════════════════════════════════════════════════════
+  1377→
+  1378→COMMENT ON TABLE conversations IS 'Real-time conversation threads supporting direct, group, department, class, and school-wide chats';
+  1379→COMMENT ON TABLE conversation_participants IS 'User membership in conversations with read tracking and typing indicators';
+  1380→COMMENT ON TABLE messages IS 'Individual messages within conversations with support for text, media, replies, edits, and soft deletes';
+  1381→COMMENT ON TABLE message_reactions IS 'Emoji reactions attached to messages';
+  1382→COMMENT ON TABLE message_attachments IS 'File attachments (PDF, DOCX, PPTX, images, etc.) linked to messages';
+  1383→COMMENT ON TABLE communication_announcements IS 'School-wide and targeted announcements with scheduling and expiry';
+  1384→COMMENT ON TABLE communication_notifications IS 'Centralized notification system with multi-channel delivery tracking';
+  1385→COMMENT ON TABLE user_notification_preferences IS 'Per-user notification channel preferences and quiet hours';
+  1386→COMMENT ON TABLE discussion_forums IS 'Moderated discussion spaces for school communities, subjects, classes, and departments';
+  1387→COMMENT ON TABLE forum_posts IS 'Posts within discussion forums with attachments and moderation';
+  1388→COMMENT ON TABLE forum_comments IS 'Threaded comments on forum posts with moderation support';
+  1389→COMMENT ON TABLE communication_calendar_events IS 'Calendar events, meetings, and parent-teacher booking system';
+  1390→COMMENT ON TABLE communication_audit_logs IS 'Audit trail for all communication actions';
+  1391→COMMENT ON TABLE school_knowledge_documents IS 'School documents indexed for the AI School Knowledge Assistant';
+  1392→COMMENT ON TABLE school_knowledge_embeddings IS 'Vector embeddings for retrieval-based AI knowledge search';
+  1393→
+  1394→COMMIT;
+  1395→

@@ -1,0 +1,1022 @@
+     1→-- ═══════════════════════════════════════════════════════════════════════════════
+     2→-- ExamForge AI — Enterprise Super Admin Platform Schema
+     3→-- ═══════════════════════════════════════════════════════════════════════════════
+     4→-- Provides complete operational visibility and control over the SaaS ecosystem:
+     5→--   • Platform settings & feature flags
+     6→--   • Audit logs & security monitoring
+     7→--   • Support tickets & feedback
+     8→--   • AI provider management
+     9→--   • Infrastructure health tracking
+    10→--   • Marketplace content moderation
+    11→--   • Operations intelligence & AI predictions
+    12→--   • Admin notifications & reports
+    13→-- ═══════════════════════════════════════════════════════════════════════════════
+    14→
+    15→BEGIN;
+    16→
+    17→-- ─── Custom Enum Types ────────────────────────────────────────────────────────
+    18→
+    19→DO $$ BEGIN
+    20→  -- Platform setting scope
+    21→  CREATE TYPE setting_scope AS ENUM ('global', 'billing', 'ai', 'communication', 'security', 'infrastructure', 'marketplace', 'email', 'notification', 'feature_flag');
+    22→
+    23→  -- Setting value type
+    24→  CREATE TYPE setting_value_type AS ENUM ('string', 'integer', 'boolean', 'json', 'float', 'encrypted');
+    25→
+    26→  -- Audit log severity
+    27→  CREATE TYPE audit_severity AS ENUM ('info', 'warning', 'error', 'critical');
+    28→
+    29→  -- Audit log category
+    30→  CREATE TYPE audit_category AS ENUM ('authentication', 'authorization', 'data_access', 'data_modification', 'system_configuration', 'billing', 'ai_operations', 'security', 'user_management', 'school_management', 'marketplace', 'support', 'infrastructure');
+    31→
+    32→  -- Ticket status
+    33→  CREATE TYPE ticket_status AS ENUM ('open', 'in_progress', 'waiting_on_user', 'waiting_on_third_party', 'resolved', 'closed', 'reopened');
+    34→
+    35→  -- Ticket priority
+    36→  CREATE TYPE ticket_priority AS ENUM ('low', 'medium', 'high', 'urgent', 'critical');
+    37→
+    38→  -- Ticket category
+    39→  CREATE TYPE ticket_category AS ENUM ('technical', 'billing', 'account', 'feature_request', 'bug_report', 'general', 'ai_related', 'security');
+    40→
+    41→  -- Feedback type
+    42→  CREATE TYPE feedback_type AS ENUM ('bug_report', 'feature_request', 'complaint', 'compliment', 'suggestion', 'rating');
+    43→
+    44→  -- AI provider status
+    45→  CREATE TYPE ai_provider_status AS ENUM ('active', 'inactive', 'degraded', 'maintenance', 'suspended');
+    46→
+    47→  -- Health status
+    48→  CREATE TYPE health_status AS ENUM ('healthy', 'degraded', 'unhealthy', 'down', 'maintenance');
+    49→
+    50→  -- Marketplace content status
+    51→  CREATE TYPE marketplace_status AS ENUM ('pending_review', 'approved', 'rejected', 'featured', 'archived', 'flagged', 'suspended');
+    52→
+    53→  -- Marketplace content type
+    54→  CREATE TYPE marketplace_content_type AS ENUM ('resource', 'lesson_note', 'worksheet', 'question_bank', 'template', 'exam_format', 'video', 'document');
+    55→
+    56→  -- Feature flag type
+    57→  CREATE TYPE feature_flag_type AS ENUM ('boolean', 'percentage', 'user_segment', 'school_segment', 'gradual_rollout');
+    58→
+    59→  -- Notification priority
+    60→  CREATE TYPE notification_priority AS ENUM ('low', 'normal', 'high', 'urgent', 'critical');
+    61→
+    62→  -- Notification category
+    63→  CREATE TYPE notification_category AS ENUM ('payment_failure', 'ai_provider_issue', 'system_error', 'security_alert', 'new_registration', 'subscription_expiration', 'infrastructure', 'support', 'feature_release', 'maintenance', 'report_ready', 'intelligence');
+    64→
+    65→  -- Report type
+    66→  CREATE TYPE report_type AS ENUM ('daily_summary', 'weekly_summary', 'monthly_summary', 'revenue_report', 'user_analytics', 'ai_usage_report', 'churn_analysis', 'school_performance', 'system_health', 'security_audit', 'custom');
+    67→
+    68→  -- Report format
+    69→  CREATE TYPE report_format AS ENUM ('pdf', 'csv', 'xlsx', 'json');
+    70→
+    71→  -- Report status
+    72→  CREATE TYPE report_status AS ENUM ('pending', 'generating', 'completed', 'failed', 'expired');
+    73→
+    74→  -- Maintenance window status
+    75→  CREATE TYPE maintenance_status AS ENUM ('scheduled', 'in_progress', 'completed', 'cancelled');
+    76→
+    77→  -- Intelligence alert type
+    78→  CREATE TYPE intelligence_alert_type AS ENUM ('churn_prediction', 'anomaly_detection', 'engagement_drop', 'upsell_opportunity', 'revenue_forecast', 'cost_optimization', 'infrastructure_bottleneck', 'support_needed', 'unusual_usage', 'growth_opportunity');
+    79→
+    80→  -- Intelligence alert severity
+    81→  CREATE TYPE intelligence_severity AS ENUM ('info', 'attention', 'warning', 'critical');
+    82→
+    83→  -- Impersonation status
+    84→  CREATE TYPE impersonation_status AS ENUM ('active', 'ended', 'expired', 'revoked');
+    85→
+    86→  -- Background job status
+    87→  CREATE TYPE job_status AS ENUM ('pending', 'running', 'completed', 'failed', 'cancelled', 'retrying');
+    88→
+    89→EXCEPTION
+    90→  WHEN duplicate_object THEN NULL;
+    91→END $$;
+    92→
+    93→-- ─── Platform Settings ────────────────────────────────────────────────────────
+    94→
+    95→CREATE TABLE IF NOT EXISTS platform_settings (
+    96→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    97→  key VARCHAR(255) NOT NULL,
+    98→  value JSONB NOT NULL DEFAULT '{}',
+    99→  value_type setting_value_type NOT NULL DEFAULT 'string',
+   100→  scope setting_scope NOT NULL DEFAULT 'global',
+   101→  description TEXT,
+   102→  is_encrypted BOOLEAN NOT NULL DEFAULT FALSE,
+   103→  is_readonly BOOLEAN NOT NULL DEFAULT FALSE,
+   104→  default_value JSONB,
+   105→  validation_rules JSONB DEFAULT '{}',
+   106→  updated_by UUID REFERENCES auth.users(id),
+   107→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   108→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   109→  UNIQUE(key, scope)
+   110→);
+   111→
+   112→CREATE INDEX IF NOT EXISTS idx_platform_settings_scope ON platform_settings(scope);
+   113→CREATE INDEX IF NOT EXISTS idx_platform_settings_key ON platform_settings(key);
+   114→
+   115→-- ─── Feature Flags ────────────────────────────────────────────────────────────
+   116→
+   117→CREATE TABLE IF NOT EXISTS feature_flags (
+   118→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   119→  key VARCHAR(255) NOT NULL UNIQUE,
+   120→  name VARCHAR(255) NOT NULL,
+   121→  description TEXT,
+   122→  flag_type feature_flag_type NOT NULL DEFAULT 'boolean',
+   123→  value JSONB NOT NULL DEFAULT '{"enabled": false}',
+   124→  target_segments JSONB DEFAULT '[]',
+   125→  school_ids UUID[] DEFAULT '{}',
+   126→  user_roles VARCHAR[] DEFAULT '{}',
+   127→  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+   128→  starts_at TIMESTAMPTZ,
+   129→  expires_at TIMESTAMPTZ,
+   130→  rollout_percentage INTEGER DEFAULT 0 CHECK (rollout_percentage BETWEEN 0 AND 100),
+   131→  created_by UUID REFERENCES auth.users(id),
+   132→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   133→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   134→);
+   135→
+   136→CREATE INDEX IF NOT EXISTS idx_feature_flags_key ON feature_flags(key);
+   137→CREATE INDEX IF NOT EXISTS idx_feature_flags_active ON feature_flags(is_active) WHERE is_active = TRUE;
+   138→
+   139→-- ─── Audit Logs ───────────────────────────────────────────────────────────────
+   140→
+   141→CREATE TABLE IF NOT EXISTS audit_logs (
+   142→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   143→  actor_id UUID REFERENCES auth.users(id),
+   144→  actor_email VARCHAR(320),
+   145→  actor_role VARCHAR(50),
+   146→  action VARCHAR(255) NOT NULL,
+   147→  category audit_category NOT NULL DEFAULT 'system_configuration',
+   148→  severity audit_severity NOT NULL DEFAULT 'info',
+   149→  resource_type VARCHAR(100),
+   150→  resource_id VARCHAR(255),
+   151→  school_id UUID,
+   152→  description TEXT,
+   153→  old_values JSONB,
+   154→  new_values JSONB,
+   155→  metadata JSONB DEFAULT '{}',
+   156→  ip_address INET,
+   157→  user_agent TEXT,
+   158→  session_id VARCHAR(255),
+   159→  request_id VARCHAR(255),
+   160→  duration_ms INTEGER,
+   161→  is_sensitive BOOLEAN NOT NULL DEFAULT FALSE,
+   162→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   163→);
+   164→
+   165→-- Partition audit_logs by month for performance at scale
+   166→CREATE INDEX IF NOT EXISTS idx_audit_logs_actor ON audit_logs(actor_id);
+   167→CREATE INDEX IF NOT EXISTS idx_audit_logs_action ON audit_logs(action);
+   168→CREATE INDEX IF NOT EXISTS idx_audit_logs_category ON audit_logs(category);
+   169→CREATE INDEX IF NOT EXISTS idx_audit_logs_severity ON audit_logs(severity);
+   170→CREATE INDEX IF NOT EXISTS idx_audit_logs_resource ON audit_logs(resource_type, resource_id);
+   171→CREATE INDEX IF NOT EXISTS idx_audit_logs_school ON audit_logs(school_id);
+   172→CREATE INDEX IF NOT EXISTS idx_audit_logs_created ON audit_logs(created_at);
+   173→CREATE INDEX IF NOT EXISTS idx_audit_logs_created_desc ON audit_logs(created_at DESC);
+   174→
+   175→-- ─── Support Tickets ──────────────────────────────────────────────────────────
+   176→
+   177→CREATE TABLE IF NOT EXISTS support_tickets (
+   178→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   179→  ticket_number VARCHAR(50) NOT NULL UNIQUE,
+   180→  reporter_id UUID NOT NULL REFERENCES auth.users(id),
+   181→  school_id UUID,
+   182→  subject VARCHAR(500) NOT NULL,
+   183→  description TEXT NOT NULL,
+   184→  category ticket_category NOT NULL DEFAULT 'general',
+   185→  priority ticket_priority NOT NULL DEFAULT 'medium',
+   186→  status ticket_status NOT NULL DEFAULT 'open',
+   187→  assigned_to UUID REFERENCES auth.users(id),
+   188→  related_resource_type VARCHAR(100),
+   189→  related_resource_id VARCHAR(255),
+   190→  tags TEXT[] DEFAULT '{}',
+   191→  attachments JSONB DEFAULT '[]',
+   192→  resolution_notes TEXT,
+   193→  first_response_at TIMESTAMPTZ,
+   194→  resolved_at TIMESTAMPTZ,
+   195→  closed_at TIMESTAMPTZ,
+   196→  satisfaction_rating INTEGER CHECK (satisfaction_rating BETWEEN 1 AND 5),
+   197→  satisfaction_comment TEXT,
+   198→  is_escalated BOOLEAN NOT NULL DEFAULT FALSE,
+   199→  escalated_at TIMESTAMPTZ,
+   200→  escalated_to UUID REFERENCES auth.users(id),
+   201→  due_date TIMESTAMPTZ,
+   202→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   203→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   204→);
+   205→
+   206→CREATE INDEX IF NOT EXISTS idx_support_tickets_reporter ON support_tickets(reporter_id);
+   207→CREATE INDEX IF NOT EXISTS idx_support_tickets_assignee ON support_tickets(assigned_to);
+   208→CREATE INDEX IF NOT EXISTS idx_support_tickets_status ON support_tickets(status);
+   209→CREATE INDEX IF NOT EXISTS idx_support_tickets_priority ON support_tickets(priority);
+   210→CREATE INDEX IF NOT EXISTS idx_support_tickets_category ON support_tickets(category);
+   211→CREATE INDEX IF NOT EXISTS idx_support_tickets_school ON support_tickets(school_id);
+   212→CREATE INDEX IF NOT EXISTS idx_support_tickets_created_desc ON support_tickets(created_at DESC);
+   213→
+   214→-- Ticket comments/conversation
+   215→CREATE TABLE IF NOT EXISTS ticket_comments (
+   216→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   217→  ticket_id UUID NOT NULL REFERENCES support_tickets(id) ON DELETE CASCADE,
+   218→  author_id UUID NOT NULL REFERENCES auth.users(id),
+   219→  content TEXT NOT NULL,
+   220→  is_internal BOOLEAN NOT NULL DEFAULT FALSE,
+   221→  attachments JSONB DEFAULT '[]',
+   222→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   223→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   224→);
+   225→
+   226→CREATE INDEX IF NOT EXISTS idx_ticket_comments_ticket ON ticket_comments(ticket_id);
+   227→CREATE INDEX IF NOT EXISTS idx_ticket_comments_created ON ticket_comments(ticket_id, created_at);
+   228→
+   229→-- ─── User Feedback ────────────────────────────────────────────────────────────
+   230→
+   231→CREATE TABLE IF NOT EXISTS user_feedback (
+   232→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   233→  user_id UUID NOT NULL REFERENCES auth.users(id),
+   234→  school_id UUID,
+   235→  feedback_type feedback_type NOT NULL,
+   236→  title VARCHAR(500),
+   237→  content TEXT NOT NULL,
+   238→  rating INTEGER CHECK (rating BETWEEN 1 AND 5),
+   239→  feature_area VARCHAR(100),
+   240→  page_url VARCHAR(1000),
+   241→  screenshot_urls JSONB DEFAULT '[]',
+   242→  is_anonymous BOOLEAN NOT NULL DEFAULT FALSE,
+   243→  status ticket_status NOT NULL DEFAULT 'open',
+   244→  admin_response TEXT,
+   245→  responded_by UUID REFERENCES auth.users(id),
+   246→  responded_at TIMESTAMPTZ,
+   247→  upvotes INTEGER NOT NULL DEFAULT 0,
+   248→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   249→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   250→);
+   251→
+   252→CREATE INDEX IF NOT EXISTS idx_user_feedback_user ON user_feedback(user_id);
+   253→CREATE INDEX IF NOT EXISTS idx_user_feedback_type ON user_feedback(feedback_type);
+   254→CREATE INDEX IF NOT EXISTS idx_user_feedback_status ON user_feedback(status);
+   255→CREATE INDEX IF NOT EXISTS idx_user_feedback_school ON user_feedback(school_id);
+   256→
+   257→-- ─── AI Providers ─────────────────────────────────────────────────────────────
+   258→
+   259→CREATE TABLE IF NOT EXISTS ai_providers (
+   260→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   261→  name VARCHAR(100) NOT NULL UNIQUE,
+   262→  slug VARCHAR(100) NOT NULL UNIQUE,
+   263→  provider_type VARCHAR(50) NOT NULL,
+   264→  api_base_url VARCHAR(500) NOT NULL,
+   265→  api_key_encrypted TEXT,
+   266→  is_default BOOLEAN NOT NULL DEFAULT FALSE,
+   267→  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+   268→  status ai_provider_status NOT NULL DEFAULT 'active',
+   269→  supported_models JSONB NOT NULL DEFAULT '[]',
+   270→  default_model VARCHAR(100),
+   271→  rate_limit_per_minute INTEGER DEFAULT 60,
+   272→  rate_limit_per_day INTEGER DEFAULT 10000,
+   273→  cost_per_1k_input_tokens DECIMAL(10, 6) DEFAULT 0,
+   274→  cost_per_1k_output_tokens DECIMAL(10, 6) DEFAULT 0,
+   275→  monthly_budget DECIMAL(12, 2),
+   276→  current_month_spend DECIMAL(12, 2) NOT NULL DEFAULT 0,
+   277→  priority INTEGER NOT NULL DEFAULT 0,
+   278→  failover_provider_id UUID REFERENCES ai_providers(id),
+   279→  health_check_url VARCHAR(500),
+   280→  last_health_check_at TIMESTAMPTZ,
+   281→  configuration JSONB DEFAULT '{}',
+   282→  metadata JSONB DEFAULT '{}',
+   283→  created_by UUID REFERENCES auth.users(id),
+   284→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   285→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   286→);
+   287→
+   288→CREATE INDEX IF NOT EXISTS idx_ai_providers_active ON ai_providers(is_active) WHERE is_active = TRUE;
+   289→CREATE INDEX IF NOT EXISTS idx_ai_providers_default ON ai_providers(is_default) WHERE is_default = TRUE;
+   290→CREATE INDEX IF NOT EXISTS idx_ai_providers_priority ON ai_providers(priority);
+   291→
+   292→-- AI request logs (for monitoring and analytics)
+   293→CREATE TABLE IF NOT EXISTS ai_request_logs (
+   294→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   295→  provider_id UUID NOT NULL REFERENCES ai_providers(id),
+   296→  user_id UUID REFERENCES auth.users(id),
+   297→  school_id UUID,
+   298→  model VARCHAR(100) NOT NULL,
+   299→  request_type VARCHAR(100) NOT NULL,
+   300→  input_tokens INTEGER NOT NULL DEFAULT 0,
+   301→  output_tokens INTEGER NOT NULL DEFAULT 0,
+   302→  total_tokens INTEGER NOT NULL DEFAULT 0,
+   303→  cost DECIMAL(12, 6) NOT NULL DEFAULT 0,
+   304→  latency_ms INTEGER NOT NULL DEFAULT 0,
+   305→  is_success BOOLEAN NOT NULL DEFAULT TRUE,
+   306→  error_message TEXT,
+   307→  error_code VARCHAR(50),
+   308→  request_metadata JSONB DEFAULT '{}',
+   309→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   310→);
+   311→
+   312→CREATE INDEX IF NOT EXISTS idx_ai_request_logs_provider ON ai_request_logs(provider_id);
+   313→CREATE INDEX IF NOT EXISTS idx_ai_request_logs_user ON ai_request_logs(user_id);
+   314→CREATE INDEX IF NOT EXISTS idx_ai_request_logs_school ON ai_request_logs(school_id);
+   315→CREATE INDEX IF NOT EXISTS idx_ai_request_logs_created ON ai_request_logs(created_at);
+   316→CREATE INDEX IF NOT EXISTS idx_ai_request_logs_created_desc ON ai_request_logs(created_at DESC);
+   317→CREATE INDEX IF NOT EXISTS idx_ai_request_logs_success ON ai_request_logs(is_success) WHERE is_success = FALSE;
+   318→
+   319→-- ─── Infrastructure Health ────────────────────────────────────────────────────
+   320→
+   321→CREATE TABLE IF NOT EXISTS infrastructure_services (
+   322→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   323→  service_name VARCHAR(100) NOT NULL UNIQUE,
+   324→  service_type VARCHAR(50) NOT NULL,
+   325→  endpoint_url VARCHAR(500),
+   326→  health_status health_status NOT NULL DEFAULT 'healthy',
+   327→  last_check_at TIMESTAMPTZ,
+   328→  last_healthy_at TIMESTAMPTZ,
+   329→  response_time_ms INTEGER,
+   330→  uptime_percentage DECIMAL(5, 2) DEFAULT 100.00,
+   331→  error_rate DECIMAL(5, 2) DEFAULT 0.00,
+   332→  configuration JSONB DEFAULT '{}',
+   333→  metadata JSONB DEFAULT '{}',
+   334→  is_critical BOOLEAN NOT NULL DEFAULT FALSE,
+   335→  alert_threshold_response_ms INTEGER DEFAULT 5000,
+   336→  alert_threshold_error_rate DECIMAL(5, 2) DEFAULT 5.00,
+   337→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   338→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   339→);
+   340→
+   341→CREATE INDEX IF NOT EXISTS idx_infra_services_status ON infrastructure_services(health_status);
+   342→CREATE INDEX IF NOT EXISTS idx_infra_services_critical ON infrastructure_services(is_critical) WHERE is_critical = TRUE;
+   343→
+   344→-- Health check history for trend analysis
+   345→CREATE TABLE IF NOT EXISTS health_check_history (
+   346→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   347→  service_id UUID NOT NULL REFERENCES infrastructure_services(id) ON DELETE CASCADE,
+   348→  health_status health_status NOT NULL,
+   349→  response_time_ms INTEGER,
+   350→  error_message TEXT,
+   351→  checked_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   352→);
+   353→
+   354→CREATE INDEX IF NOT EXISTS idx_health_check_service ON health_check_history(service_id);
+   355→CREATE INDEX IF NOT EXISTS idx_health_check_time ON health_check_history(checked_at DESC);
+   356→
+   357→-- ─── Marketplace Content ──────────────────────────────────────────────────────
+   358→
+   359→CREATE TABLE IF NOT EXISTS marketplace_content (
+   360→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   361→  author_id UUID NOT NULL REFERENCES auth.users(id),
+   362→  school_id UUID,
+   363→  title VARCHAR(500) NOT NULL,
+   364→  description TEXT NOT NULL,
+   365→  content_type marketplace_content_type NOT NULL,
+   366→  status marketplace_status NOT NULL DEFAULT 'pending_review',
+   367→  subject VARCHAR(100),
+   368→  class_level VARCHAR(100),
+   369→  curriculum VARCHAR(100),
+   370→  tags TEXT[] DEFAULT '{}',
+   371→  thumbnail_url VARCHAR(1000),
+   372→  content_urls JSONB DEFAULT '[]',
+   373→  price DECIMAL(10, 2) DEFAULT 0,
+   374→  is_free BOOLEAN NOT NULL DEFAULT TRUE,
+   375→  download_count INTEGER NOT NULL DEFAULT 0,
+   376→  rating_average DECIMAL(3, 2) DEFAULT 0,
+   377→  rating_count INTEGER NOT NULL DEFAULT 0,
+   378→  review_notes TEXT,
+   379→  reviewed_by UUID REFERENCES auth.users(id),
+   380→  reviewed_at TIMESTAMPTZ,
+   381→  featured_until TIMESTAMPTZ,
+   382→  is_flagged BOOLEAN NOT NULL DEFAULT FALSE,
+   383→  flag_reason TEXT,
+   384→  flagged_by UUID REFERENCES auth.users(id),
+   385→  flagged_at TIMESTAMPTZ,
+   386→  metadata JSONB DEFAULT '{}',
+   387→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   388→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   389→);
+   390→
+   391→CREATE INDEX IF NOT EXISTS idx_marketplace_status ON marketplace_content(status);
+   392→CREATE INDEX IF NOT EXISTS idx_marketplace_type ON marketplace_content(content_type);
+   393→CREATE INDEX IF NOT EXISTS idx_marketplace_author ON marketplace_content(author_id);
+   394→CREATE INDEX IF NOT EXISTS idx_marketplace_school ON marketplace_content(school_id);
+   395→CREATE INDEX IF NOT EXISTS idx_marketplace_featured ON marketplace_content(status) WHERE status = 'featured';
+   396→CREATE INDEX IF NOT EXISTS idx_marketplace_flagged ON marketplace_content(is_flagged) WHERE is_flagged = TRUE;
+   397→
+   398→-- ─── Maintenance Windows ──────────────────────────────────────────────────────
+   399→
+   400→CREATE TABLE IF NOT EXISTS maintenance_windows (
+   401→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   402→  title VARCHAR(255) NOT NULL,
+   403→  description TEXT,
+   404→  status maintenance_status NOT NULL DEFAULT 'scheduled',
+   405→  affected_services JSONB DEFAULT '[]',
+   406→  start_at TIMESTAMPTZ NOT NULL,
+   407→  end_at TIMESTAMPTZ NOT NULL,
+   408→  actual_start_at TIMESTAMPTZ,
+   409→  actual_end_at TIMESTAMPTZ,
+   410→  is_planned BOOLEAN NOT NULL DEFAULT TRUE,
+   411→  notification_sent BOOLEAN NOT NULL DEFAULT FALSE,
+   412→  created_by UUID REFERENCES auth.users(id),
+   413→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   414→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   415→  CONSTRAINT maintenance_end_after_start CHECK (end_at > start_at)
+   416→);
+   417→
+   418→CREATE INDEX IF NOT EXISTS idx_maintenance_status ON maintenance_windows(status);
+   419→CREATE INDEX IF NOT EXISTS idx_maintenance_start ON maintenance_windows(start_at);
+   420→
+   421→-- ─── Platform Notifications ──────────────────────────────────────────────────
+   422→
+   423→CREATE TABLE IF NOT EXISTS platform_notifications (
+   424→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   425→  recipient_id UUID REFERENCES auth.users(id),
+   426→  category notification_category NOT NULL,
+   427→  priority notification_priority NOT NULL DEFAULT 'normal',
+   428→  title VARCHAR(500) NOT NULL,
+   429→  message TEXT NOT NULL,
+   430→  action_url VARCHAR(1000),
+   431→  action_label VARCHAR(100),
+   432→  is_read BOOLEAN NOT NULL DEFAULT FALSE,
+   433→  read_at TIMESTAMPTZ,
+   434→  is_dismissed BOOLEAN NOT NULL DEFAULT FALSE,
+   435→  dismissed_at TIMESTAMPTZ,
+   436→  related_entity_type VARCHAR(100),
+   437→  related_entity_id VARCHAR(255),
+   438→  metadata JSONB DEFAULT '{}',
+   439→  expires_at TIMESTAMPTZ,
+   440→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   441→);
+   442→
+   443→CREATE INDEX IF NOT EXISTS idx_platform_notif_recipient ON platform_notifications(recipient_id);
+   444→CREATE INDEX IF NOT EXISTS idx_platform_notif_read ON platform_notifications(recipient_id, is_read) WHERE is_read = FALSE;
+   445→CREATE INDEX IF NOT EXISTS idx_platform_notif_category ON platform_notifications(category);
+   446→CREATE INDEX IF NOT EXISTS idx_platform_notif_priority ON platform_notifications(priority);
+   447→CREATE INDEX IF NOT EXISTS idx_platform_notif_created ON platform_notifications(created_at DESC);
+   448→
+   449→-- ─── System Reports ──────────────────────────────────────────────────────────
+   450→
+   451→CREATE TABLE IF NOT EXISTS system_reports (
+   452→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   453→  report_type report_type NOT NULL,
+   454→  title VARCHAR(255) NOT NULL,
+   455→  description TEXT,
+   456→  format report_format NOT NULL DEFAULT 'pdf',
+   457→  status report_status NOT NULL DEFAULT 'pending',
+   458→  parameters JSONB DEFAULT '{}',
+   459→  file_url VARCHAR(1000),
+   460→  file_size_bytes BIGINT,
+   461→  generated_by UUID REFERENCES auth.users(id),
+   462→  started_at TIMESTAMPTZ,
+   463→  completed_at TIMESTAMPTZ,
+   464→  error_message TEXT,
+   465→  is_scheduled BOOLEAN NOT NULL DEFAULT FALSE,
+   466→  schedule_cron VARCHAR(100),
+   467→  next_run_at TIMESTAMPTZ,
+   468→  recipients JSONB DEFAULT '[]',
+   469→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   470→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   471→);
+   472→
+   473→CREATE INDEX IF NOT EXISTS idx_system_reports_type ON system_reports(report_type);
+   474→CREATE INDEX IF NOT EXISTS idx_system_reports_status ON system_reports(status);
+   475→CREATE INDEX IF NOT EXISTS idx_system_reports_scheduled ON system_reports(is_scheduled) WHERE is_scheduled = TRUE;
+   476→
+   477→-- ─── Background Jobs ─────────────────────────────────────────────────────────
+   478→
+   479→CREATE TABLE IF NOT EXISTS background_jobs (
+   480→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   481→  job_type VARCHAR(100) NOT NULL,
+   482→  job_name VARCHAR(255) NOT NULL,
+   483→  status job_status NOT NULL DEFAULT 'pending',
+   484→  priority INTEGER NOT NULL DEFAULT 0,
+   485→  payload JSONB DEFAULT '{}',
+   486→  result JSONB,
+   487→  error_message TEXT,
+   488→  max_retries INTEGER NOT NULL DEFAULT 3,
+   489→  retry_count INTEGER NOT NULL DEFAULT 0,
+   490→  scheduled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   491→  started_at TIMESTAMPTZ,
+   492→  completed_at TIMESTAMPTZ,
+   493→  created_by UUID REFERENCES auth.users(id),
+   494→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   495→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   496→);
+   497→
+   498→CREATE INDEX IF NOT EXISTS idx_bg_jobs_status ON background_jobs(status);
+   499→CREATE INDEX IF NOT EXISTS idx_bg_jobs_type ON background_jobs(job_type);
+   500→CREATE INDEX IF NOT EXISTS idx_bg_jobs_scheduled ON background_jobs(scheduled_at) WHERE status = 'pending';
+   501→CREATE INDEX IF NOT EXISTS idx_bg_jobs_priority ON background_jobs(priority DESC);
+   502→
+   503→-- ─── Impersonation Sessions ──────────────────────────────────────────────────
+   504→
+   505→CREATE TABLE IF NOT EXISTS impersonation_sessions (
+   506→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   507→  admin_id UUID NOT NULL REFERENCES auth.users(id),
+   508→  target_user_id UUID NOT NULL REFERENCES auth.users(id),
+   509→  target_user_role VARCHAR(50) NOT NULL,
+   510→  target_school_id UUID,
+   511→  reason TEXT NOT NULL,
+   512→  status impersonation_status NOT NULL DEFAULT 'active',
+   513→  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   514→  expires_at TIMESTAMPTZ NOT NULL,
+   515→  ended_at TIMESTAMPTZ,
+   516→  end_reason VARCHAR(100),
+   517→  ip_address INET,
+   518→  user_agent TEXT,
+   519→  actions_taken JSONB DEFAULT '[]',
+   520→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   521→  CONSTRAINT impersonation_expiry_future CHECK (expires_at > started_at)
+   522→);
+   523→
+   524→CREATE INDEX IF NOT EXISTS idx_impersonation_admin ON impersonation_sessions(admin_id);
+   525→CREATE INDEX IF NOT EXISTS idx_impersonation_target ON impersonation_sessions(target_user_id);
+   526→CREATE INDEX IF NOT EXISTS idx_impersonation_status ON impersonation_sessions(status) WHERE status = 'active';
+   527→
+   528→-- ─── Usage Statistics ─────────────────────────────────────────────────────────
+   529→
+   530→CREATE TABLE IF NOT EXISTS usage_statistics (
+   531→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   532→  school_id UUID,
+   533→  stat_date DATE NOT NULL,
+   534→  metric_key VARCHAR(100) NOT NULL,
+   535→  metric_value DECIMAL(18, 4) NOT NULL DEFAULT 0,
+   536→  dimensions JSONB DEFAULT '{}',
+   537→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   538→  UNIQUE(school_id, stat_date, metric_key, dimensions)
+   539→);
+   540→
+   541→CREATE INDEX IF NOT EXISTS idx_usage_stats_school ON usage_statistics(school_id);
+   542→CREATE INDEX IF NOT EXISTS idx_usage_stats_date ON usage_statistics(stat_date DESC);
+   543→CREATE INDEX IF NOT EXISTS idx_usage_stats_metric ON usage_statistics(metric_key);
+   544→CREATE INDEX IF NOT EXISTS idx_usage_stats_school_date ON usage_statistics(school_id, stat_date DESC);
+   545→
+   546→-- ─── Operations Intelligence ─────────────────────────────────────────────────
+   547→
+   548→CREATE TABLE IF NOT EXISTS intelligence_alerts (
+   549→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   550→  alert_type intelligence_alert_type NOT NULL,
+   551→  severity intelligence_severity NOT NULL DEFAULT 'attention',
+   552→  title VARCHAR(500) NOT NULL,
+   553→  description TEXT NOT NULL,
+   554→  affected_entity_type VARCHAR(100),
+   555→  affected_entity_id VARCHAR(255),
+   556→  affected_school_id UUID,
+   557→  predicted_value DECIMAL(18, 4),
+   558→  predicted_date DATE,
+   559→  confidence_score DECIMAL(5, 2) CHECK (confidence_score BETWEEN 0 AND 100),
+   560→  supporting_data JSONB DEFAULT '{}',
+   561→  recommended_actions JSONB DEFAULT '[]',
+   562→  is_acknowledged BOOLEAN NOT NULL DEFAULT FALSE,
+   563→  acknowledged_by UUID REFERENCES auth.users(id),
+   564→  acknowledged_at TIMESTAMPTZ,
+   565→  is_resolved BOOLEAN NOT NULL DEFAULT FALSE,
+   566→  resolved_by UUID REFERENCES auth.users(id),
+   567→  resolved_at TIMESTAMPTZ,
+   568→  resolution_notes TEXT,
+   569→  expires_at TIMESTAMPTZ,
+   570→  model_version VARCHAR(50),
+   571→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   572→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   573→);
+   574→
+   575→CREATE INDEX IF NOT EXISTS idx_intelligence_type ON intelligence_alerts(alert_type);
+   576→CREATE INDEX IF NOT EXISTS idx_intelligence_severity ON intelligence_alerts(severity);
+   577→CREATE INDEX IF NOT EXISTS idx_intelligence_ack ON intelligence_alerts(is_acknowledged) WHERE is_acknowledged = FALSE;
+   578→CREATE INDEX IF NOT EXISTS idx_intelligence_resolved ON intelligence_alerts(is_resolved) WHERE is_resolved = FALSE;
+   579→CREATE INDEX IF NOT EXISTS idx_intelligence_school ON intelligence_alerts(affected_school_id);
+   580→CREATE INDEX IF NOT EXISTS idx_intelligence_created ON intelligence_alerts(created_at DESC);
+   581→
+   582→-- ─── Login Monitoring ─────────────────────────────────────────────────────────
+   583→
+   584→CREATE TABLE IF NOT EXISTS login_monitoring (
+   585→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   586→  user_id UUID REFERENCES auth.users(id),
+   587→  email VARCHAR(320),
+   588→  role VARCHAR(50),
+   589→  school_id UUID,
+   590→  is_success BOOLEAN NOT NULL,
+   591→  failure_reason VARCHAR(255),
+   592→  ip_address INET,
+   593→  user_agent TEXT,
+   594→  device_fingerprint VARCHAR(255),
+   595→  country VARCHAR(3),
+   596→  city VARCHAR(100),
+   597→  latitude DECIMAL(10, 8),
+   598→  longitude DECIMAL(11, 8),
+   599→  session_id VARCHAR(255),
+   600→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   601→);
+   602→
+   603→CREATE INDEX IF NOT EXISTS idx_login_monitor_user ON login_monitoring(user_id);
+   604→CREATE INDEX IF NOT EXISTS idx_login_monitor_success ON login_monitoring(is_success) WHERE is_success = FALSE;
+   605→CREATE INDEX IF NOT EXISTS idx_login_monitor_ip ON login_monitoring(ip_address);
+   606→CREATE INDEX IF NOT EXISTS idx_login_monitor_created ON login_monitoring(created_at DESC);
+   607→
+   608→-- ─── Active Sessions ──────────────────────────────────────────────────────────
+   609→
+   610→CREATE TABLE IF NOT EXISTS active_sessions (
+   611→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   612→  user_id UUID NOT NULL REFERENCES auth.users(id),
+   613→  session_token_hash VARCHAR(255) NOT NULL,
+   614→  device_info JSONB DEFAULT '{}',
+   615→  ip_address INET,
+   616→  user_agent TEXT,
+   617→  country VARCHAR(3),
+   618→  city VARCHAR(100),
+   619→  is_current BOOLEAN NOT NULL DEFAULT FALSE,
+   620→  last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   621→  expires_at TIMESTAMPTZ NOT NULL,
+   622→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   623→);
+   624→
+   625→CREATE INDEX IF NOT EXISTS idx_active_sessions_user ON active_sessions(user_id);
+   626→CREATE INDEX IF NOT EXISTS idx_active_sessions_token ON active_sessions(session_token_hash);
+   627→CREATE INDEX IF NOT EXISTS idx_active_sessions_expires ON active_sessions(expires_at);
+   628→
+   629→-- ─── Dashboard Snapshots (cached metrics for fast loading) ────────────────────
+   630→
+   631→CREATE TABLE IF NOT EXISTS dashboard_snapshots (
+   632→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   633→  snapshot_type VARCHAR(50) NOT NULL,
+   634→  data JSONB NOT NULL DEFAULT '{}',
+   635→  computed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   636→  expires_at TIMESTAMPTZ NOT NULL,
+   637→  UNIQUE(snapshot_type)
+   638→);
+   639→
+   640→CREATE INDEX IF NOT EXISTS idx_dashboard_snapshots_type ON dashboard_snapshots(snapshot_type);
+   641→CREATE INDEX IF NOT EXISTS idx_dashboard_snapshots_expires ON dashboard_snapshots(expires_at);
+   642→
+   643→-- ─── Platform Policies ────────────────────────────────────────────────────────
+   644→
+   645→CREATE TABLE IF NOT EXISTS platform_policies (
+   646→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   647→  policy_key VARCHAR(100) NOT NULL UNIQUE,
+   648→  title VARCHAR(255) NOT NULL,
+   649→  content TEXT NOT NULL,
+   650→  version INTEGER NOT NULL DEFAULT 1,
+   651→  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+   652→  effective_date DATE NOT NULL,
+   653→  created_by UUID REFERENCES auth.users(id),
+   654→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   655→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   656→);
+   657→
+   658→CREATE INDEX IF NOT EXISTS idx_platform_policies_key ON platform_policies(policy_key);
+   659→CREATE INDEX IF NOT EXISTS idx_platform_policies_active ON platform_policies(is_active) WHERE is_active = TRUE;
+   660→
+   661→-- ─── Email Templates ──────────────────────────────────────────────────────────
+   662→
+   663→CREATE TABLE IF NOT EXISTS email_templates (
+   664→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   665→  template_key VARCHAR(100) NOT NULL UNIQUE,
+   666→  name VARCHAR(255) NOT NULL,
+   667→  subject VARCHAR(500) NOT NULL,
+   668→  html_body TEXT NOT NULL,
+   669→  text_body TEXT,
+   670→  category VARCHAR(50),
+   671→  variables JSONB DEFAULT '[]',
+   672→  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+   673→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   674→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   675→);
+   676→
+   677→CREATE INDEX IF NOT EXISTS idx_email_templates_key ON email_templates(template_key);
+   678→CREATE INDEX IF NOT EXISTS idx_email_templates_category ON email_templates(category);
+   679→
+   680→-- ─── Notification Templates ──────────────────────────────────────────────────
+   681→
+   682→CREATE TABLE IF NOT EXISTS notification_templates (
+   683→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   684→  template_key VARCHAR(100) NOT NULL UNIQUE,
+   685→  name VARCHAR(255) NOT NULL,
+   686→  title_template VARCHAR(500) NOT NULL,
+   687→  body_template TEXT NOT NULL,
+   688→  category notification_category,
+   689→  channel VARCHAR(20) NOT NULL DEFAULT 'in_app',
+   690→  variables JSONB DEFAULT '[]',
+   691→  is_active BOOLEAN NOT NULL DEFAULT TRUE,
+   692→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   693→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   694→);
+   695→
+   696→CREATE INDEX IF NOT EXISTS idx_notif_templates_key ON notification_templates(template_key);
+   697→
+   698→-- ═══════════════════════════════════════════════════════════════════════════════
+   699→-- ROW LEVEL SECURITY
+   700→-- ═══════════════════════════════════════════════════════════════════════════════
+   701→
+   702→-- Platform Settings: only super admins can modify
+   703→ALTER TABLE platform_settings ENABLE ROW LEVEL SECURITY;
+   704→CREATE POLICY "Super admins can read platform settings" ON platform_settings
+   705→  FOR SELECT USING (
+   706→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   707→  );
+   708→CREATE POLICY "Super admins can modify platform settings" ON platform_settings
+   709→  FOR ALL USING (
+   710→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   711→  );
+   712→
+   713→-- Feature Flags: super admins manage, others read
+   714→ALTER TABLE feature_flags ENABLE ROW LEVEL SECURITY;
+   715→CREATE POLICY "Authenticated users can read feature flags" ON feature_flags
+   716→  FOR SELECT USING (auth.role() = 'authenticated');
+   717→CREATE POLICY "Super admins can manage feature flags" ON feature_flags
+   718→  FOR ALL USING (
+   719→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   720→  );
+   721→
+   722→-- Audit Logs: super admins only
+   723→ALTER TABLE audit_logs ENABLE ROW LEVEL SECURITY;
+   724→CREATE POLICY "Super admins can read audit logs" ON audit_logs
+   725→  FOR SELECT USING (
+   726→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   727→  );
+   728→CREATE POLICY "System can insert audit logs" ON audit_logs
+   729→  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+   730→
+   731→-- Support Tickets: reporters + assigned admins + super admins
+   732→ALTER TABLE support_tickets ENABLE ROW LEVEL SECURITY;
+   733→CREATE POLICY "Users can read own tickets" ON support_tickets
+   734→  FOR SELECT USING (
+   735→    reporter_id = auth.uid() OR assigned_to = auth.uid()
+   736→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   737→  );
+   738→CREATE POLICY "Users can create tickets" ON support_tickets
+   739→  FOR INSERT WITH CHECK (auth.role() = 'authenticated');
+   740→CREATE POLICY "Admins can update tickets" ON support_tickets
+   741→  FOR UPDATE USING (
+   742→    assigned_to = auth.uid() OR
+   743→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   744→  );
+   745→
+   746→-- Ticket comments
+   747→ALTER TABLE ticket_comments ENABLE ROW LEVEL SECURITY;
+   748→CREATE POLICY "Ticket participants can read comments" ON ticket_comments
+   749→  FOR SELECT USING (
+   750→    EXISTS (SELECT 1 FROM support_tickets WHERE support_tickets.id = ticket_comments.ticket_id AND
+   751→      (support_tickets.reporter_id = auth.uid() OR support_tickets.assigned_to = auth.uid()
+   752→       OR EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')))
+   753→  );
+   754→
+   755→-- AI Providers: super admins only
+   756→ALTER TABLE ai_providers ENABLE ROW LEVEL SECURITY;
+   757→CREATE POLICY "Super admins can manage AI providers" ON ai_providers
+   758→  FOR ALL USING (
+   759→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   760→  );
+   761→
+   762→-- AI request logs: super admins read, system writes
+   763→ALTER TABLE ai_request_logs ENABLE ROW LEVEL SECURITY;
+   764→CREATE POLICY "Super admins can read AI logs" ON ai_request_logs
+   765→  FOR SELECT USING (
+   766→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   767→  );
+   768→
+   769→-- Infrastructure: super admins only
+   770→ALTER TABLE infrastructure_services ENABLE ROW LEVEL SECURITY;
+   771→CREATE POLICY "Super admins manage infrastructure" ON infrastructure_services
+   772→  FOR ALL USING (
+   773→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   774→  );
+   775→
+   776→-- Marketplace: anyone can read approved, super admins manage
+   777→ALTER TABLE marketplace_content ENABLE ROW LEVEL SECURITY;
+   778→CREATE POLICY "Anyone can read approved marketplace content" ON marketplace_content
+   779→  FOR SELECT USING (status IN ('approved', 'featured'));
+   780→CREATE POLICY "Authors can read own content" ON marketplace_content
+   781→  FOR SELECT USING (author_id = auth.uid());
+   782→CREATE POLICY "Super admins manage marketplace" ON marketplace_content
+   783→  FOR ALL USING (
+   784→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   785→  );
+   786→
+   787→-- Platform notifications: recipient only
+   788→ALTER TABLE platform_notifications ENABLE ROW LEVEL SECURITY;
+   789→CREATE POLICY "Users can read own notifications" ON platform_notifications
+   790→  FOR SELECT USING (
+   791→    recipient_id = auth.uid()
+   792→    OR recipient_id IS NULL
+   793→  );
+   794→CREATE POLICY "Super admins manage notifications" ON platform_notifications
+   795→  FOR ALL USING (
+   796→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   797→  );
+   798→
+   799→-- Intelligence alerts: super admins only
+   800→ALTER TABLE intelligence_alerts ENABLE ROW LEVEL SECURITY;
+   801→CREATE POLICY "Super admins manage intelligence" ON intelligence_alerts
+   802→  FOR ALL USING (
+   803→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   804→  );
+   805→
+   806→-- Impersonation: super admins only
+   807→ALTER TABLE impersonation_sessions ENABLE ROW LEVEL SECURITY;
+   808→CREATE POLICY "Super admins manage impersonation" ON impersonation_sessions
+   809→  FOR ALL USING (
+   810→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   811→  );
+   812→
+   813→-- Login monitoring: super admins only
+   814→ALTER TABLE login_monitoring ENABLE ROW LEVEL SECURITY;
+   815→CREATE POLICY "Super admins read login monitoring" ON login_monitoring
+   816→  FOR SELECT USING (
+   817→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   818→  );
+   819→
+   820→-- Active sessions: owner + super admins
+   821→ALTER TABLE active_sessions ENABLE ROW LEVEL SECURITY;
+   822→CREATE POLICY "Users can read own sessions" ON active_sessions
+   823→  FOR SELECT USING (user_id = auth.uid()
+   824→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin'));
+   825→
+   826→-- Background jobs: super admins only
+   827→ALTER TABLE background_jobs ENABLE ROW LEVEL SECURITY;
+   828→CREATE POLICY "Super admins manage jobs" ON background_jobs
+   829→  FOR ALL USING (
+   830→    EXISTS (SELECT 1 FROM auth.users WHERE auth.uid() = id AND raw_user_meta_data->>'role' = 'superAdmin')
+   831→  );
+   832→
+   833→-- ═══════════════════════════════════════════════════════════════════════════════
+   834→-- TRIGGERS
+   835→-- ═══════════════════════════════════════════════════════════════════════════════
+   836→
+   837→-- Auto-update updated_at
+   838→CREATE OR REPLACE FUNCTION update_updated_at_column()
+   839→RETURNS TRIGGER AS $$
+   840→BEGIN
+   841→  NEW.updated_at = now();
+   842→  RETURN NEW;
+   843→END;
+   844→$$ LANGUAGE plpgsql;
+   845→
+   846→CREATE TRIGGER trg_platform_settings_updated BEFORE UPDATE ON platform_settings
+   847→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   848→CREATE TRIGGER trg_feature_flags_updated BEFORE UPDATE ON feature_flags
+   849→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   850→CREATE TRIGGER trg_support_tickets_updated BEFORE UPDATE ON support_tickets
+   851→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   852→CREATE TRIGGER trg_ai_providers_updated BEFORE UPDATE ON ai_providers
+   853→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   854→CREATE TRIGGER trg_infra_services_updated BEFORE UPDATE ON infrastructure_services
+   855→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   856→CREATE TRIGGER trg_marketplace_updated BEFORE UPDATE ON marketplace_content
+   857→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   858→CREATE TRIGGER trg_maintenance_updated BEFORE UPDATE ON maintenance_windows
+   859→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   860→CREATE TRIGGER trg_bg_jobs_updated BEFORE UPDATE ON background_jobs
+   861→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   862→CREATE TRIGGER trg_intelligence_updated BEFORE UPDATE ON intelligence_alerts
+   863→  FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+   864→
+   865→-- Auto-generate ticket numbers
+   866→CREATE OR REPLACE FUNCTION generate_ticket_number()
+   867→RETURNS TRIGGER AS $$
+   868→BEGIN
+   869→  NEW.ticket_number := 'TKT-' || to_char(now(), 'YYYYMMDD') || '-' || lpad(nextval('ticket_number_seq')::TEXT, 5, '0');
+   870→  RETURN NEW;
+   871→END;
+   872→$$ LANGUAGE plpgsql;
+   873→
+   874→CREATE SEQUENCE IF NOT EXISTS ticket_number_seq START 1;
+   875→CREATE TRIGGER trg_support_tickets_number BEFORE INSERT ON support_tickets
+   876→  FOR EACH ROW EXECUTE FUNCTION generate_ticket_number();
+   877→
+   878→-- ═══════════════════════════════════════════════════════════════════════════════
+   879→-- HELPER FUNCTIONS
+   880→-- ═══════════════════════════════════════════════════════════════════════════════
+   881→
+   882→-- Get platform-wide dashboard metrics (cached in dashboard_snapshots)
+   883→CREATE OR REPLACE FUNCTION get_platform_dashboard_metrics()
+   884→RETURNS JSONB AS $$
+   885→DECLARE
+   886→  result JSONB;
+   887→BEGIN
+   888→  SELECT jsonb_build_object(
+   889→    'total_schools', (SELECT COUNT(*) FROM schools WHERE is_active = TRUE),
+   890→    'total_teachers', (SELECT COUNT(*) FROM user_profiles WHERE role = 'teacher' AND is_active = TRUE),
+   891→    'total_students', (SELECT COUNT(*) FROM user_profiles WHERE role = 'student' AND is_active = TRUE),
+   892→    'total_parents', (SELECT COUNT(*) FROM user_profiles WHERE role = 'parent' AND is_active = TRUE),
+   893→    'active_exams', (SELECT COUNT(*) FROM exams WHERE status IN ('active', 'in_progress')),
+   894→    'daily_active_users', (SELECT COUNT(DISTINCT user_id) FROM login_monitoring WHERE is_success = TRUE AND created_at >= now() - INTERVAL '24 hours'),
+   895→    'monthly_active_users', (SELECT COUNT(DISTINCT user_id) FROM login_monitoring WHERE is_success = TRUE AND created_at >= now() - INTERVAL '30 days'),
+   896→    'ai_requests_today', (SELECT COUNT(*) FROM ai_request_logs WHERE created_at >= CURRENT_DATE),
+   897→    'revenue_today', (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE status = 'completed' AND created_at >= CURRENT_DATE),
+   898→    'monthly_revenue', (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE status = 'completed' AND created_at >= DATE_TRUNC('month', CURRENT_DATE)),
+   899→    'annual_revenue', (SELECT COALESCE(SUM(amount), 0) FROM transactions WHERE status = 'completed' AND created_at >= DATE_TRUNC('year', CURRENT_DATE)),
+   900→    'active_subscriptions', (SELECT COUNT(*) FROM subscriptions WHERE status = 'active'),
+   901→    'trial_accounts', (SELECT COUNT(*) FROM subscriptions WHERE status = 'trialing'),
+   902→    'computed_at', now()
+   903→  ) INTO result;
+   904→
+   905→  -- Cache the result
+   906→  INSERT INTO dashboard_snapshots (snapshot_type, data, expires_at)
+   907→  VALUES ('platform_metrics', result, now() + INTERVAL '5 minutes')
+   908→  ON CONFLICT (snapshot_type) DO UPDATE SET data = result, computed_at = now(), expires_at = now() + INTERVAL '5 minutes';
+   909→
+   910→  RETURN result;
+   911→END;
+   912→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   913→
+   914→-- Get school growth metrics
+   915→CREATE OR REPLACE FUNCTION get_school_growth_metrics(
+   916→  period_start DATE DEFAULT CURRENT_DATE - INTERVAL '12 months',
+   917→  period_end DATE DEFAULT CURRENT_DATE
+   918→)
+   919→RETURNS TABLE(month DATE, new_schools BIGINT, total_schools BIGINT, churned_schools BIGINT) AS $$
+   920→BEGIN
+   921→  RETURN QUERY
+   922→  WITH months AS (
+   923→    SELECT generate_series(period_start, period_end, INTERVAL '1 month')::DATE AS month
+   924→  ),
+   925→  new_counts AS (
+   926→    SELECT DATE_TRUNC('month', created_at)::DATE AS month, COUNT(*)::BIGINT AS new_schools
+   927→    FROM schools WHERE created_at >= period_start AND created_at <= period_end
+   928→    GROUP BY DATE_TRUNC('month', created_at)
+   929→  ),
+   930→  churn_counts AS (
+   931→    SELECT DATE_TRUNC('month', updated_at)::DATE AS month, COUNT(*)::BIGINT AS churned_schools
+   932→    FROM schools WHERE is_active = FALSE AND updated_at >= period_start AND updated_at <= period_end
+   933→    GROUP BY DATE_TRUNC('month', updated_at)
+   934→  )
+   935→  SELECT m.month,
+   936→    COALESCE(nc.new_schools, 0),
+   937→    (SELECT COUNT(*) FROM schools WHERE created_at <= m.month + INTERVAL '1 month' AND is_active = TRUE)::BIGINT,
+   938→    COALESCE(cc.churned_schools, 0)
+   939→  FROM months m
+   940→  LEFT JOIN new_counts nc ON nc.month = m.month
+   941→  LEFT JOIN churn_counts cc ON cc.month = m.month
+   942→  ORDER BY m.month;
+   943→END;
+   944→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   945→
+   946→-- Get AI usage analytics
+   947→CREATE OR REPLACE FUNCTION get_ai_usage_analytics(
+   948→  period_start DATE DEFAULT CURRENT_DATE - INTERVAL '30 days',
+   949→  period_end DATE DEFAULT CURRENT_DATE
+   950→)
+   951→RETURNS TABLE(date DATE, total_requests BIGINT, successful_requests BIGINT, failed_requests BIGINT,
+   952→  total_tokens BIGINT, total_cost DECIMAL, avg_latency_ms DECIMAL) AS $$
+   953→BEGIN
+   954→  RETURN QUERY
+   955→  SELECT created_at::DATE AS date,
+   956→    COUNT(*)::BIGINT,
+   957→    COUNT(*) FILTER (WHERE is_success = TRUE)::BIGINT,
+   958→    COUNT(*) FILTER (WHERE is_success = FALSE)::BIGINT,
+   959→    SUM(total_tokens)::BIGINT,
+   960→    SUM(cost)::DECIMAL,
+   961→    AVG(latency_ms)::DECIMAL
+   962→  FROM ai_request_logs
+   963→  WHERE created_at >= period_start AND created_at <= period_end + INTERVAL '1 day'
+   964→  GROUP BY created_at::DATE
+   965→  ORDER BY date;
+   966→END;
+   967→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   968→
+   969→-- Detect suspicious login activity
+   970→CREATE OR REPLACE FUNCTION detect_suspicious_logins(
+   971→  lookback_hours INTEGER DEFAULT 24,
+   972→  failure_threshold INTEGER DEFAULT 5
+   973→)
+   974→RETURNS TABLE(user_id UUID, email VARCHAR, failure_count BIGINT, distinct_ips BIGINT, last_attempt TIMESTAMPTZ) AS $$
+   975→BEGIN
+   976→  RETURN QUERY
+   977→  SELECT lm.user_id, lm.email,
+   978→    COUNT(*)::BIGINT AS failure_count,
+   979→    COUNT(DISTINCT lm.ip_address)::BIGINT AS distinct_ips,
+   980→    MAX(lm.created_at) AS last_attempt
+   981→  FROM login_monitoring lm
+   982→  WHERE lm.is_success = FALSE
+   983→    AND lm.created_at >= now() - (lookback_hours || ' hours')::INTERVAL
+   984→  GROUP BY lm.user_id, lm.email
+   985→  HAVING COUNT(*) >= failure_threshold
+   986→  ORDER BY failure_count DESC;
+   987→END;
+   988→$$ LANGUAGE plpgsql SECURITY DEFINER;
+   989→
+   990→-- Seed default platform settings
+   991→INSERT INTO platform_settings (key, value, value_type, scope, description, default_value) VALUES
+   992→  ('maintenance_mode', 'false', 'boolean', 'global', 'Enable maintenance mode to disable platform access', 'false'),
+   993→  ('max_login_attempts', '5', 'integer', 'security', 'Maximum failed login attempts before lockout', '5'),
+   994→  ('lockout_duration_minutes', '30', 'integer', 'security', 'Account lockout duration in minutes', '30'),
+   995→  ('session_timeout_minutes', '480', 'integer', 'security', 'Session timeout in minutes', '480'),
+   996→  ('impersonation_max_duration_minutes', '60', 'integer', 'security', 'Maximum impersonation session duration', '60'),
+   997→  ('enable_registration', 'true', 'boolean', 'global', 'Allow new user registrations', 'true'),
+   998→  ('default_ai_provider', 'openai', 'string', 'ai', 'Default AI provider slug', 'openai'),
+   999→  ('ai_budget_alert_threshold', '80', 'integer', 'ai', 'Alert when AI spend reaches this percentage of budget', '80'),
+  1000→  ('support_auto_assign', 'true', 'boolean', 'support', 'Automatically assign support tickets', 'true'),
+  1001→  ('marketplace_auto_approve', 'false', 'boolean', 'marketplace', 'Automatically approve marketplace submissions', 'false'),
+  1002→  ('backup_frequency_hours', '24', 'integer', 'infrastructure', 'Database backup frequency in hours', '24'),
+  1003→  ('dashboard_cache_minutes', '5', 'integer', 'infrastructure', 'Dashboard data cache duration in minutes', '5'),
+  1004→  ('max_file_upload_mb', '50', 'integer', 'global', 'Maximum file upload size in MB', '50')
+  1005→ON CONFLICT (key, scope) DO NOTHING;
+  1006→
+  1007→-- Seed default infrastructure services
+  1008→INSERT INTO infrastructure_services (service_name, service_type, is_critical, health_status) VALUES
+  1009→  ('API Server', 'api', TRUE, 'healthy'),
+  1010→  ('Database (PostgreSQL)', 'database', TRUE, 'healthy'),
+  1011→  ('Authentication Service', 'auth', TRUE, 'healthy'),
+  1012→  ('AI Provider Gateway', 'ai_gateway', TRUE, 'healthy'),
+  1013→  ('File Storage (S3)', 'storage', TRUE, 'healthy'),
+  1014→  ('Email Service', 'email', FALSE, 'healthy'),
+  1015→  ('Push Notification Service', 'push', FALSE, 'healthy'),
+  1016→  ('CDN', 'cdn', FALSE, 'healthy'),
+  1017→  ('Background Job Queue', 'queue', TRUE, 'healthy'),
+  1018→  ('WebSocket Server', 'websocket', FALSE, 'healthy')
+  1019→ON CONFLICT (service_name) DO NOTHING;
+  1020→
+  1021→COMMIT;
+  1022→
