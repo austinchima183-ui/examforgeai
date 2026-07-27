@@ -1,0 +1,206 @@
+# ============================================================================
+# ExamForge AI — Caddy Reverse Proxy Configuration (Hardened)
+# ============================================================================
+# Production-grade Caddy configuration with security headers, TLS,
+# compression, and rate limiting.
+#
+# ROOT CAUSE: The original Caddyfile had no security headers, no rate
+# limiting, no TLS configuration, and no security hardening.
+# ============================================================================
+
+# ─── Production Configuration ─────────────────────────────────────────────
+
+examforge.ai, www.examforge.ai {
+    # ─── TLS Configuration ───────────────────────────────────────────
+    # Caddy auto-provisions Let's Encrypt certificates.
+    # Additional hardening:
+    tls {
+        protocols tls1.2 tls1.3
+        ciphers TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384 TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256 TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305 TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305
+        curve x25519 secp256r1 secp384r1
+    }
+
+    # ─── Security Headers ────────────────────────────────────────────
+    header {
+        # Content Security Policy
+        Content-Security-Policy "default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob: https://examforge.ai https://*.supabase.co; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.flutterwave.com; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+
+        # HSTS — 2 years, include subdomains, preload
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+
+        # Prevent MIME sniffing
+        X-Content-Type-Options "nosniff"
+
+        # Prevent clickjacking
+        X-Frame-Options "DENY"
+
+        # XSS Protection
+        X-XSS-Protection "1; mode=block"
+
+        # Referrer policy
+        Referrer-Policy "strict-origin-when-cross-origin"
+
+        # Permissions policy
+        Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(self), usb=(), fullscreen=(self)"
+
+        # Cross-origin policies
+        Cross-Origin-Opener-Policy "same-origin"
+        Cross-Origin-Resource-Policy "same-origin"
+
+        # Cache control for API
+        Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+        Pragma "no-cache"
+
+        # Remove server identification
+        -Server
+    }
+
+    # ─── Reverse Proxy to Flutter Web ────────────────────────────────
+    reverse_proxy localhost:3000 {
+        # Health check
+        health_uri /health
+        health_interval 30s
+        health_timeout 5s
+
+        # Timeouts
+        transport http {
+            read_timeout 300s
+            write_timeout 300s
+            dial_timeout 30s
+        }
+    }
+
+    # ─── Rate Limiting ───────────────────────────────────────────────
+    rate_limit {
+        zone static_zone 10r/m
+        zone api_zone 60r/m
+        key {remote_host}
+    }
+
+    # ─── Compression ─────────────────────────────────────────────────
+    encode gzip zstd
+
+    # ─── Logging ─────────────────────────────────────────────────────
+    log {
+        output file /var/log/caddy/examforge.log {
+            roll_size 100mb
+            roll_keep 30
+            roll_keep_days 90
+        }
+        format json {
+            time_format rfc3339
+        }
+        level INFO
+    }
+
+    # ─── Redirect www to non-www ─────────────────────────────────────
+    redir https://examforge.ai{uri} permanent
+}
+
+# ─── API Subdomain ────────────────────────────────────────────────────────
+
+api.examforge.ai {
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Referrer-Policy "no-referrer"
+        -Server
+    }
+
+    # ─── Supabase Edge Functions ─────────────────────────────────────
+    # Webhook endpoint
+    handle /webhooks/flutterwave* {
+        reverse_proxy localhost:54321/functions/v1/flutterwave-webhook
+    }
+
+    # Refund endpoint
+    handle /api/refund* {
+        reverse_proxy localhost:54321/functions/v1/process-refund
+    }
+
+    # Marketplace download
+    handle /api/marketplace/download* {
+        reverse_proxy localhost:54321/functions/v1/marketplace-download
+    }
+
+    # ─── Default API proxy ──────────────────────────────────────────
+    handle {
+        reverse_proxy localhost:54321 {
+            health_uri /rest/v1/
+            health_interval 30s
+        }
+    }
+
+    # ─── Rate limiting for API ───────────────────────────────────────
+    rate_limit {
+        zone api_zone 120r/m
+        key {remote_host}
+    }
+
+    # ─── Logging ─────────────────────────────────────────────────────
+    log {
+        output file /var/log/caddy/api.log {
+            roll_size 100mb
+            roll_keep 30
+        }
+        format json
+        level INFO
+    }
+}
+
+# ─── Admin Subdomain ─────────────────────────────────────────────────────
+
+admin.examforge.ai {
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains; preload"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        Content-Security-Policy "default-src 'self'; frame-ancestors 'none'"
+        -Server
+    }
+
+    reverse_proxy localhost:3000 {
+        header_up X-Admin-Portal "true"
+    }
+
+    rate_limit {
+        zone admin_zone 30r/m
+        key {remote_host}
+    }
+
+    log {
+        output file /var/log/caddy/admin.log
+        format json
+    }
+}
+
+# ─── Staging Environment ─────────────────────────────────────────────────
+
+staging.examforge.ai {
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    header {
+        Strict-Transport-Security "max-age=63072000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        X-Frame-Options "DENY"
+        -Server
+    }
+
+    reverse_proxy localhost:3000
+
+    log {
+        output file /var/log/caddy/staging.log
+        format json
+    }
+}
