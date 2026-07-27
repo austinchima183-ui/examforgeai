@@ -1,0 +1,18 @@
+import '../../../../core/utils/result.dart';
+import '../../domain/entities/marketplace_entities.dart';
+import '../../domain/repositories/marketplace_repository.dart';
+
+
+class VerifyPaymentParams {
+  const VerifyPaymentParams({required this.txRef});
+  final String txRef;
+}
+
+class VerifyPaymentUseCase {
+  VerifyPaymentUseCase(this._repository);
+  final MarketplaceRepository _repository;
+
+  Future<Result<MarketplaceOrderEntity>> call(VerifyPaymentParams params) async {
+    return _repository.verifyPayment(params.txRef);
+  }
+}

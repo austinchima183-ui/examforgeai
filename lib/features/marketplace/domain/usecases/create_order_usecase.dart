@@ -1,0 +1,18 @@
+import '../../../../core/utils/result.dart';
+import '../../domain/entities/marketplace_entities.dart';
+import '../../domain/repositories/marketplace_repository.dart';
+
+
+class CreateOrderParams {
+  const CreateOrderParams({required this.order});
+  final MarketplaceOrderEntity order;
+}
+
+class CreateOrderUseCase {
+  CreateOrderUseCase(this._repository);
+  final MarketplaceRepository _repository;
+
+  Future<Result<MarketplaceOrderEntity>> call(CreateOrderParams params) async {
+    return _repository.createOrder(params.order);
+  }
+}
