@@ -24,8 +24,8 @@
 # --- Supabase ---
 SUPABASE_URL                    # Project URL (not a secret, but environment-specific)
 SUPABASE_ANON_KEY               # Public anon key (safe in client code, rotates yearly)
-SUPABASE_SERVICE_KEY            # Service role key (CRITICAL — server-side only, never in client)
-SUPABASE_SERVICE_ROLE_KEY       # Alias for service key in Edge Functions
+SUPABASE_SERVICE_ROLE_KEY       # Service role key (CRITICAL — server-side only, never in client)
+# NOTE: Do NOT use SUPABASE_SERVICE_KEY — all Edge Functions use SUPABASE_SERVICE_ROLE_KEY
 
 # --- Flutterwave Payment ---
 FLUTTERWAVE_PUBLIC_KEY          # Client-side key (safe in Flutter app)
@@ -125,7 +125,7 @@ LOG_LEVEL                       # debug | info | warning | error | critical
 
 # | Secret                          | Rotation Period | Process                          |
 # |---------------------------------|-----------------|----------------------------------|
-# | SUPABASE_SERVICE_KEY            | 90 days         | Supabase Dashboard → Settings    |
+# | SUPABASE_SERVICE_ROLE_KEY        | 90 days         | Supabase Dashboard → Settings    |
 # | FLUTTERWAVE_SECRET_KEY          | 90 days         | Flutterwave Dashboard → API Keys |
 # | FLUTTERWAVE_WEBHOOK_SECRET_HASH | 90 days         | Flutterwave Dashboard → Webhooks |
 # | FCM_SERVER_KEY                  | 180 days        | Firebase Console → Cloud Message |
