@@ -1,0 +1,238 @@
+# ============================================================================
+# ExamForge AI — Production Deployment Pipeline
+# ============================================================================
+# Runs on manual approval after CI passes.
+# Features: Deployment approval, blue-green deploy, health checks, rollback.
+#
+# SECURITY MODEL:
+#   - Production deployments require manual approval
+#   - All previous CI checks must pass
+#   - Build artifact is verified before deployment
+#   - Health check must pass after deployment
+#   - Automatic rollback on failure
+# ============================================================================
+
+name: Deploy — Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Deployment environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      strategy:
+        description: 'Deployment strategy'
+        required: true
+        default: 'blue-green'
+        type: choice
+        options:
+          - blue-green
+          - standard
+      skip_migrations:
+        description: 'Skip database migrations'
+        required: false
+        default: false
+        type: boolean
+
+env:
+  FLUTTER_VERSION: '3.24.0'
+
+permissions:
+  contents: read
+  deployments: write
+
+jobs:
+  # ────────────────────────────────────────────────────────────────────────────
+  # STAGE 1: PRE-DEPLOYMENT VALIDATION
+  # ────────────────────────────────────────────────────────────────────────────
+  validate:
+    name: Pre-deployment Validation
+    runs-on: ubuntu-latest
+    outputs:
+      deploy_id: ${{ steps.deploy-id.outputs.id }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify CI passed for this commit
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const runs = await github.rest.actions.listWorkflowRuns({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'ci.yml',
+              head_sha: context.sha,
+              status: 'completed',
+              conclusion: 'success'
+            });
+            if (runs.data.workflow_runs.length === 0) {
+              core.setFailed('No successful CI run found for this commit. Deploy blocked.');
+            }
+            console.log(`Found ${runs.data.workflow_runs.length} successful CI runs`);
+
+      - name: Generate deploy ID
+        id: deploy-id
+        run: |
+          deploy_id="deploy-$(date +%Y%m%d%H%M%S)-$(openssl rand -hex 4)"
+          echo "id=$deploy_id" >> $GITHUB_OUTPUT
+          echo "Deploy ID: $deploy_id"
+
+      - name: Validate environment secrets
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            if [ -z "${{ secrets.PRODUCTION_HOST }}" ]; then
+              echo "::error::PRODUCTION_HOST secret not configured"
+              exit 1
+            fi
+            if [ -z "${{ secrets.PRODUCTION_DATABASE_URL }}" ]; then
+              echo "::error::PRODUCTION_DATABASE_URL secret not configured"
+              exit 1
+            fi
+          fi
+          echo "Environment secrets validated for ${{ inputs.environment }}"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # STAGE 2: PRODUCTION APPROVAL GATE
+  # ────────────────────────────────────────────────────────────────────────────
+  approval:
+    name: Deployment Approval
+    runs-on: ubuntu-latest
+    needs: validate
+    if: inputs.environment == 'production'
+    environment:
+      name: production
+      url: https://examforge.ai
+    steps:
+      - name: Approve deployment
+        run: |
+          echo "Production deployment approved by ${{ github.actor }}"
+          echo "Deploy ID: ${{ needs.validate.outputs.deploy_id }}"
+          echo "Strategy: ${{ inputs.strategy }}"
+          echo "Skip migrations: ${{ inputs.skip_migrations }}"
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # STAGE 3: DEPLOY
+  # ────────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: Deploy to ${{ inputs.environment }}
+    runs-on: ubuntu-latest
+    needs: [validate, approval]
+    if: always() && needs.validate.result == 'success' && (needs.approval.result == 'success' || inputs.environment != 'production')
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download build artifact
+        uses: actions/download-artifact@v4
+        with:
+          pattern: web-build-*
+          merge-multiple: true
+
+      - name: Verify build artifact integrity
+        run: |
+          if [ -f examforge-web-build.tar.gz.sha256 ]; then
+            sha256sum -c examforge-web-build.tar.gz.sha256
+            echo "Build artifact integrity verified"
+          else
+            echo "::error::Build artifact checksum not found"
+            exit 1
+          fi
+
+      - name: Configure deployment environment
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            echo "DEPLOY_HOST=${{ secrets.PRODUCTION_HOST }}" >> $GITHUB_ENV
+            echo "DEPLOY_USER=${{ secrets.PRODUCTION_USER }}" >> $GITHUB_ENV
+            echo "DEPLOY_PATH=/var/www/examforge" >> $GITHUB_ENV
+            echo "APP_URL=https://examforge.ai" >> $GITHUB_ENV
+            echo "DATABASE_URL=${{ secrets.PRODUCTION_DATABASE_URL }}" >> $GITHUB_ENV
+          else
+            echo "DEPLOY_HOST=${{ secrets.STAGING_HOST }}" >> $GITHUB_ENV
+            echo "DEPLOY_USER=deploy" >> $GITHUB_ENV
+            echo "DEPLOY_PATH=/var/www/examforge-staging" >> $GITHUB_ENV
+            echo "APP_URL=https://staging.examforge.ai" >> $GITHUB_ENV
+            echo "DATABASE_URL=${{ secrets.STAGING_DATABASE_URL }}" >> $GITHUB_ENV
+          fi
+
+      - name: Run database migrations
+        if: ${{ !inputs.skip_migrations }}
+        run: |
+          echo "Running database migrations for ${{ inputs.environment }}..."
+          # Migrations are handled by Supabase CLI or direct psql
+          chmod +x examforge_ai/scripts/deploy.sh
+          ./examforge_ai/scripts/deploy.sh ${{ inputs.environment }} --migrate-only
+        continue-on-error: false
+
+      - name: Deploy application
+        run: |
+          chmod +x examforge_ai/scripts/deploy.sh
+          if [ "${{ inputs.strategy }}" = "blue-green" ]; then
+            ./examforge_ai/scripts/deploy.sh ${{ inputs.environment }} --blue-green
+          else
+            ./examforge_ai/scripts/deploy.sh ${{ inputs.environment }}
+          fi
+        env:
+          DEPLOY_ID: ${{ needs.validate.outputs.deploy_id }}
+
+      - name: Post-deployment health check
+        run: |
+          chmod +x examforge_ai/scripts/deploy.sh
+          ./examforge_ai/scripts/deploy.sh ${{ inputs.environment }} --health-check
+        continue-on-error: false
+
+      - name: Record deployment
+        uses: actions/github-script@v7
+        if: always()
+        with:
+          script: |
+            await github.rest.repos.createDeploymentStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              deployment_id: context.deployment?.id || 0,
+              state: '${{ job.status }}' === 'success' ? 'success' : 'failure',
+              description: 'Deploy ${{ needs.validate.outputs.deploy_id }} to ${{ inputs.environment }}',
+              environment: '${{ inputs.environment }}'
+            });
+
+  # ────────────────────────────────────────────────────────────────────────────
+  # STAGE 4: POST-DEPLOYMENT VERIFICATION
+  # ────────────────────────────────────────────────────────────────────────────
+  verify:
+    name: Post-deployment Verification
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: needs.deploy.result == 'success'
+    timeout-minutes: 10
+    steps:
+      - name: Smoke test — health endpoint
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            url="https://examforge.ai/health"
+          else
+            url="https://staging.examforge.ai/health"
+          fi
+          for i in $(seq 1 5); do
+            status=$(curl -s -o /dev/null -w "%{http_code}" "$url" || echo "000")
+            if [ "$status" = "200" ]; then
+              echo "Health check passed (attempt $i)"
+              exit 0
+            fi
+            echo "Health check returned $status (attempt $i), retrying..."
+            sleep 5
+          done
+          echo "::error::Post-deployment health check failed after 5 attempts"
+          exit 1
+
+      - name: Smoke test — API endpoint
+        run: |
+          if [ "${{ inputs.environment }}" = "production" ]; then
+            api_url="https://api.examforge.ai/health"
+          else
+            api_url="https://staging-api.examforge.ai/health"
+          fi
+          curl -sf "$api_url" --max-time 10 || echo "::warning::API health endpoint not reachable"
