@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import '../core/utils/logger.dart';
+import '../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // MEMORY OPTIMIZATION SERVICE
@@ -302,9 +302,9 @@ class MemoryPressureDetector {
     // Each Timer ≈ negligible
     // Each active subscription ≈ 8KB
     final estimatedControllerMemory =
-        leakReport['controllers']['open'] as int * 64; // KB
+        (leakReport['controllers']['open'] as int) * 64; // KB
     final estimatedSubscriptionMemory =
-        leakReport['subscriptions']['count'] as int * 8; // KB
+        ((leakReport['subscriptions']['count'] as int) * 8); // KB
 
     final totalKB = estimatedControllerMemory + estimatedSubscriptionMemory;
     final totalMB = (totalKB / 1024).round();

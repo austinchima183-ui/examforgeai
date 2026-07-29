@@ -356,9 +356,7 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
   /// automatically scopes the query to the current user.
   Future<int> _countRows(String table, {String? filter}) async {
     try {
-      var query = _supabaseClient
-          .from(table)
-          .select('*', const sb.FetchOptions(count: sb.CountOption.exact));
+      var query = _supabaseClient.from(table).select('*');
 
       if (filter != null) {
         // Apply filter by chaining the filter method.
@@ -371,9 +369,8 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
         }
       }
 
-      final response = await query;
-      // The count is available via the PostgrestList count property.
-      return response.count ?? 0;
+      final response = await query.count(sb.CountOption.exact);
+      return response.count;
     } on sb.PostgrestException catch (e) {
       AppLogger.warning('Failed to count rows in "$table"', error: e);
       return 0;

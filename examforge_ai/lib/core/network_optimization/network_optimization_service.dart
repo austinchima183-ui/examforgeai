@@ -6,6 +6,7 @@ import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../utils/logger.dart';
 import '../performance/performance_manager.dart';
+import '../../../config/dependency_injection.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // NETWORK OPTIMIZATION SERVICE
@@ -255,7 +256,7 @@ class NetworkOptimizationService implements Disposable {
 
   String _buildKey(String table, String columns, Map<String, String> filters) {
     final sortedFilters = Map.fromEntries(
-      filters.entries.toList().sorted((a, b) => a.key.compareTo(b.key)),
+      (filters.entries.toList()..sort((a, b) => a.key.compareTo(b.key))),
     );
     return '$table:$columns:$sortedFilters';
   }
@@ -265,7 +266,7 @@ class NetworkOptimizationService implements Disposable {
 
     // Evict least-recently-accessed entries
     final entries = _responseCache.entries.toList()
-        .sorted((a, b) => a.value.lastAccessed.compareTo(b.value.lastAccessed));
+      ..sort((a, b) => a.value.lastAccessed.compareTo(b.value.lastAccessed));
 
     final toRemove = entries.take(_responseCache.length - _config.cacheMaxEntries);
     for (final entry in toRemove) {

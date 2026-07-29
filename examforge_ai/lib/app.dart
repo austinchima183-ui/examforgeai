@@ -60,16 +60,16 @@ class _ExamForgeAppState extends ConsumerState<ExamForgeApp>
     try {
       final notificationService = ref.read(notificationServiceProvider);
       await notificationService.initialize(
-        onForegroundMessage: (message) {
+        onForegroundNotification: (notification) {
           AppLogger.info(
-            'Foreground notification: ${message.messageId}',
+            'Foreground notification: ${notification.id} — ${notification.title}',
           );
         },
-        onNotificationTap: (message) {
+        onNotificationTap: (notification) {
           AppLogger.info(
-            'Notification tap: ${message.messageId}',
+            'Notification tap: ${notification.id} — ${notification.title}',
           );
-          // TODO: Navigate to the relevant screen based on message.data.
+          // TODO: Navigate to the relevant screen based on notification.data.
         },
       );
       AppLogger.info('NotificationService initialized from App widget');

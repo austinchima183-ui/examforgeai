@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../utils/logger.dart';
 import '../performance/ai_cache_service.dart';
+import '../performance/performance_manager.dart' show Disposable;
 
 // ═══════════════════════════════════════════════════════════════════════
 // AI PERFORMANCE OPTIMIZATION
@@ -206,7 +207,7 @@ class ModelSelectionStrategy {
   };
 
   /// Estimate total cost for a request.
-  double estimateCost(String model, int inputTokens, int outputTokens) {
+  static double estimateCost(String model, int inputTokens, int outputTokens) {
     final inputCost = (costPer1kInput[model] ?? 0.005) * (inputTokens / 1000);
     final outputCost = (costPer1kOutput[model] ?? 0.015) * (outputTokens / 1000);
     return inputCost + outputCost;
@@ -268,7 +269,7 @@ class BatchGenerationConfig {
         systemPromptTokens + (questionCount * userPromptTokensPerQuestion * 0.7); // 30% reduction from merging
 
     return ModelSelectionStrategy.estimateCost(model, individualInputTokens, 0) -
-           ModelSelectionStrategy.estimateCost(model, batchInputTokens, 0);
+           ModelSelectionStrategy.estimateCost(model, batchInputTokens.toInt(), 0);
   }
 }
 
@@ -278,14 +279,14 @@ class AIPerformanceOptimizer implements Disposable {
   AIPerformanceOptimizer({
     this.retryPolicy = const AIRetryPolicy(),
     this.timeoutPolicy = const AITimeoutPolicy(),
-    this.fallbackStrategy = const ProviderFallbackStrategy(
+    ProviderFallbackStrategy? fallbackStrategy,
+    this.modelSelection = const ModelSelectionStrategy(),
+    this.batchConfig = const BatchGenerationConfig(),
+  }) : fallbackStrategy = fallbackStrategy ?? ProviderFallbackStrategy(
       primaryProvider: 'openai',
       fallbackProviders: ['gemini'],
       maxPrimaryFailures: 3,
-    ),
-    this.modelSelection = const ModelSelectionStrategy(),
-    this.batchConfig = const BatchGenerationConfig(),
-  });
+    );
 
   final AIRetryPolicy retryPolicy;
   final AITimeoutPolicy timeoutPolicy;
@@ -393,7 +394,7 @@ class AIPerformanceOptimizer implements Disposable {
   void recordTokenUsage(String model, int inputTokens, int outputTokens) {
     _totalInputTokens += inputTokens;
     _totalOutputTokens += outputTokens;
-    _totalCostEstimate += modelSelection.estimateCost(model, inputTokens, outputTokens);
+    _totalCostEstimate += ModelSelectionStrategy.estimateCost(model, inputTokens, outputTokens);
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -456,7 +457,7 @@ final aiTimeoutPolicyProvider = Provider<AITimeoutPolicy>((ref) {
 });
 
 final aiFallbackStrategyProvider = Provider<ProviderFallbackStrategy>((ref) {
-  return const ProviderFallbackStrategy(
+  return ProviderFallbackStrategy(
     primaryProvider: 'openai',
     fallbackProviders: ['gemini'],
   );

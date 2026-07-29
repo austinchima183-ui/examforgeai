@@ -2,7 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../core/utils/logger.dart';
+import '../utils/logger.dart';
+import '../performance/performance_manager.dart' show Disposable;
 
 // ═══════════════════════════════════════════════════════════════════════
 // RIVERPOD PERFORMANCE OPTIMIZATION UTILITIES
@@ -19,22 +20,8 @@ import '../core/utils/logger.dart';
 //           proper disposal patterns
 // ═══════════════════════════════════════════════════════════════════════
 
-/// Disposable interface for resources that must be cleaned up
-/// when a provider is disposed.
-///
-/// Implement this on services that hold StreamControllers, Timers,
-/// or other resources that need explicit cleanup.
-///
-/// Usage in providers:
-///   final myProvider = Provider.autoDispose((ref) {
-///     final service = MyService();
-///     ref.onDispose(() => service.dispose());
-///     return service;
-///   });
-abstract interface class Disposable {
-  /// Release all held resources (streams, timers, controllers, etc).
-  void dispose();
-}
+// Disposable is imported from performance_manager.dart
+// to avoid duplicate definitions.
 
 /// Registry for tracking disposable resources within a provider scope.
 ///
@@ -137,25 +124,25 @@ class SelectiveWatch {
   /// Rebuilds only when loading → loaded or loading → error transitions.
   static AsyncValue<bool> isLoadingSelector(AsyncValue<dynamic> state) {
     return state.when(
-      data: (_) => const AsyncValue.data(false),
-      loading: () => const AsyncValue.loading(),
-      error: (e, st) => AsyncValue.error(e, st),
+      data: (_) => const AsyncData<bool>(false),
+      loading: () => const AsyncLoading<bool>(),
+      error: (e, st) => AsyncError<bool>(e, st),
     );
   }
 
   /// Watch only the error state of an async provider.
   /// Rebuilds only when error appears or is resolved.
-  static AsyncValue<String?>> errorSelector(AsyncValue<dynamic> state) {
+  static AsyncValue<String?> errorSelector(AsyncValue<dynamic> state) {
     return state.when(
-      data: (_) => const AsyncValue.data(null),
-      loading: () => const AsyncValue.data(null),
-      error: (e, _) => AsyncValue.data(e.toString()),
+      data: (_) => const AsyncData<String?>(null),
+      loading: () => const AsyncData<String?>(null),
+      error: (e, _) => AsyncData<String?>(e.toString()),
     );
   }
 
   /// Watch only the data presence (has data or not).
   static bool hasDataSelector(AsyncValue<dynamic> state) {
-    return state.hasData;
+    return state.hasValue;
   }
 
   /// Watch only a specific field from a state object.

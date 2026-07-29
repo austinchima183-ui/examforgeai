@@ -13,11 +13,11 @@
 library;
 
 import 'dart:convert';
-import 'dart:io';
 
 import 'package:connectivity_plus/connectivity_plus.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
 import 'package:equatable/equatable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -208,7 +208,7 @@ class DeviceService {
     _imagePicker = ImagePicker();
     _deviceInfo = DeviceInfoPlugin();
     _connectivity = Connectivity();
-    _isNativePlatform = !kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS);
+    _isNativePlatform = !kIsWeb && (defaultTargetPlatform == TargetPlatform.android || defaultTargetPlatform == TargetPlatform.iOS || defaultTargetPlatform == TargetPlatform.macOS);
     AppLogger.info('DeviceService initialized (native: $_isNativePlatform)');
   }
 
@@ -236,7 +236,7 @@ class DeviceService {
         };
       }
 
-      if (Platform.isAndroid) {
+      if (defaultTargetPlatform == TargetPlatform.android) {
         final info = await _deviceInfo.androidInfo;
         return {
           'platform': 'android',
@@ -248,7 +248,7 @@ class DeviceService {
         };
       }
 
-      if (Platform.isIOS) {
+      if (defaultTargetPlatform == TargetPlatform.iOS) {
         final info = await _deviceInfo.iosInfo;
         return {
           'platform': 'ios',
@@ -260,7 +260,7 @@ class DeviceService {
         };
       }
 
-      if (Platform.isMacOS) {
+      if (defaultTargetPlatform == TargetPlatform.macOS) {
         final info = await _deviceInfo.macOsInfo;
         return {
           'platform': 'macos',
@@ -274,9 +274,9 @@ class DeviceService {
 
       // Fallback for linux / windows / fuchsia
       return {
-        'platform': Platform.operatingSystem,
+        'platform': defaultTargetPlatform.name,
         'model': 'unknown',
-        'osVersion': Platform.operatingSystemVersion,
+        'osVersion': 'unknown',
         'appVersion': packageInfo.version,
         'deviceId': 'unknown',
         'screenResolution': _screenResolution(),
@@ -284,7 +284,7 @@ class DeviceService {
     } catch (e, st) {
       AppLogger.error('Failed to collect device info', error: e, stackTrace: st);
       return {
-        'platform': kIsWeb ? 'web' : Platform.operatingSystem,
+        'platform': kIsWeb ? 'web' : defaultTargetPlatform.name,
         'model': 'unknown',
         'osVersion': 'unknown',
         'appVersion': AppConstants.appVersion,
@@ -971,15 +971,19 @@ class SecureKeyStore {
 
       // Pack: [nonceLength as 4-byte big-endian][nonceBytes][encryptedBytes]
       final nonceLen = nonceBytes.length;
-      final output = BytesBuilder();
-      output.addByte((nonceLen >> 24) & 0xFF);
-      output.addByte((nonceLen >> 16) & 0xFF);
-      output.addByte((nonceLen >> 8) & 0xFF);
-      output.addByte(nonceLen & 0xFF);
-      output.add(nonceBytes);
-      output.add(encrypted);
+      final headerBytes = [
+        (nonceLen >> 24) & 0xFF,
+        (nonceLen >> 16) & 0xFF,
+        (nonceLen >> 8) & 0xFF,
+        nonceLen & 0xFF,
+      ];
+      final outputBytes = <int>[
+        ...headerBytes,
+        ...nonceBytes,
+        ...encrypted,
+      ];
 
-      return base64.encode(output.toBytes());
+      return base64.encode(outputBytes);
     } catch (e, st) {
       AppLogger.error('Encryption failed for keyId: $keyId', error: e, stackTrace: st);
       rethrow;

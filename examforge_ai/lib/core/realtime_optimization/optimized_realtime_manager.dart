@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
 import '../../core/utils/logger.dart';
+import '../performance/performance_manager.dart' show Disposable;
 
 // ═══════════════════════════════════════════════════════════════════════
 // REALTIME OPTIMIZATION

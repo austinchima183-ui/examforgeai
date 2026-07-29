@@ -6,6 +6,7 @@ import '../realtime_optimization/optimized_realtime_manager.dart';
 import '../startup_optimization/startup_optimizer.dart';
 import '../network_optimization/network_optimization_service.dart';
 import '../database/database_pool_manager.dart';
+import '../performance/performance_manager.dart' show Disposable;
 
 // ═══════════════════════════════════════════════════════════════════════
 // PERFORMANCE MONITORING SERVICE
@@ -75,7 +76,7 @@ class PerformanceMonitoringService implements Disposable {
       'memory_pressure': _memoryDetector?.stats ?? {},
       'network': _networkService?.performanceStats ?? {},
       'realtime': _realtimeManager?.performanceStats ?? {},
-      'database': _dbPoolManager?.stats ?? {},
+      'database': DatabasePoolManager.stats,
     };
   }
 

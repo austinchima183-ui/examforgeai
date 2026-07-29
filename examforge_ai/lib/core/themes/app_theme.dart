@@ -1,6 +1,5 @@
-import 'dart:io' show Platform;
-
 import 'package:flutter/cupertino.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -44,7 +43,7 @@ class AppTheme {
       textTheme: textTheme,
       brightness: colorScheme.brightness,
       scaffoldBackgroundColor: colorScheme.surface,
-      platform: Platform.isIOS ? TargetPlatform.iOS : TargetPlatform.android,
+      platform: defaultTargetPlatform == TargetPlatform.iOS ? TargetPlatform.iOS : TargetPlatform.android,
 
       // ── AppBar ──────────────────────────────────────────────────────────
       appBarTheme: AppBarTheme(
