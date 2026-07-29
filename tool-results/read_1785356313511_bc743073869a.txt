@@ -1,0 +1,1193 @@
+     1→/// Report Generator — pure computation service for structured report outputs.
+     2→///
+     3→/// Transforms domain entities (results, exam, and CBT data) into structured
+     4→/// [ReportData] objects ready for export to PDF, Excel, or CSV by the
+     5→/// datasource layer (Supabase Edge Functions or local generators).
+     6→///
+     7→/// ## Design Principles
+     8→///
+     9→/// - **Pure transformation**: Every public method accepts entities and returns
+    10→///   a [ReportData] with no I/O, no database access, no side effects.
+    11→/// - **Self-contained DTOs**: Output content types are defined in this file to
+    12→///   avoid coupling to persistence-layer models.
+    13→/// - **Null-safe**: All methods handle missing or partial data gracefully,
+    14→///   providing sensible defaults rather than throwing.
+    15→/// - **Format-agnostic**: This service produces structured data only; the
+    16→///   actual file generation is handled downstream.
+    17→///
+    18→/// ## Usage
+    19→///
+    20→/// ```dart
+    21→/// final generator = ReportGenerator();
+    22→/// final report = generator.generateStudentReport(
+    23→///   overallResult: studentOverall,
+    24→///   subjectResults: subjectList,
+    25→///   studentName: 'John Doe',
+    26→///   className: 'SS2A',
+    27→///   sessionName: '2025/2026',
+    28→///   trendData: trendPoints,
+    29→/// );
+    30→/// // Pass report to datasource layer for PDF/Excel/CSV generation
+    31→/// ```
+    32→library;
+    33→
+    34→import 'package:examforge_ai/features/cbt_engine/domain/entities/cbt_entities.dart' hide GradeScaleEntity;
+    35→import 'package:examforge_ai/features/results/domain/entities/results_entities.dart';
+    36→
+    37→
+    38→// ═══════════════════════════════════════════════════════════════════════
+    39→// OUTPUT DATA TYPES
+    40→// ═══════════════════════════════════════════════════════════════════════
+    41→
+    42→/// Top-level wrapper for all report outputs.
+    43→///
+    44→/// Contains the report [type], a human-readable [title], structured [content]
+    45→/// specific to the report type, and [metadata] about generation context.
+    46→class ReportData {
+    47→  const ReportData({
+    48→    required this.type,
+    49→    required this.title,
+    50→    required this.content,
+    51→    required this.metadata,
+    52→  });
+    53→
+    54→  final ReportType type;
+    55→  final String title;
+    56→  final Map<String, dynamic> content;
+    57→  final Map<String, dynamic> metadata;
+    58→
+    59→  /// Serializes the report data to a JSON-compatible map for transport.
+    60→  Map<String, dynamic> toJson() => {
+    61→        'type': type.value,
+    62→        'title': title,
+    63→        'content': content,
+    64→        'metadata': metadata,
+    65→      };
+    66→}
+    67→
+    68→/// A single data point in a performance trend chart.
+    69→class TrendDataPoint {
+    70→  const TrendDataPoint({
+    71→    required this.period,
+    72→    required this.score,
+    73→  });
+    74→
+    75→  final String period;
+    76→  final double score;
+    77→
+    78→  Map<String, dynamic> toJson() => {
+    79→        'period': period,
+    80→        'score': score,
+    81→      };
+    82→}
+    83→
+    84→/// A row in the subject-by-subject breakdown of a student report.
+    85→class SubjectResultRow {
+    86→  const SubjectResultRow({
+    87→    required this.subjectName,
+    88→    required this.score,
+    89→    required this.percentage,
+    90→    required this.grade,
+    91→    this.classAverage,
+    92→    this.position,
+    93→    this.trend,
+    94→  });
+    95→
+    96→  final String subjectName;
+    97→  final double score;
+    98→  final double percentage;
+    99→  final String grade;
+   100→  final double? classAverage;
+   101→  final int? position;
+   102→  final String? trend;
+   103→
+   104→  /// Deviation from class average (null if classAverage is null).
+   105→  double? get deviation =>
+   106→      classAverage != null ? percentage - classAverage! : null;
+   107→
+   108→  Map<String, dynamic> toJson() => {
+   109→        'subjectName': subjectName,
+   110→        'score': score,
+   111→        'percentage': percentage,
+   112→        'grade': grade,
+   113→        'classAverage': classAverage,
+   114→        'position': position,
+   115→        'trend': trend,
+   116→        'deviation': deviation,
+   117→      };
+   118→}
+   119→
+   120→/// Content for a comprehensive student report.
+   121→class StudentReportContent {
+   122→  const StudentReportContent({
+   123→    required this.studentName,
+   124→    required this.className,
+   125→    required this.sessionName,
+   126→    required this.overallScore,
+   127→    required this.overallGrade,
+   128→    this.overallGpa,
+   129→    this.classPosition,
+   130→    this.classSize,
+   131→    required this.subjectResults,
+   132→    required this.strengths,
+   133→    required this.weaknesses,
+   134→    required this.recommendations,
+   135→    this.teacherComment,
+   136→    required this.trendData,
+   137→  });
+   138→
+   139→  final String studentName;
+   140→  final String className;
+   141→  final String sessionName;
+   142→  final double overallScore;
+   143→  final String overallGrade;
+   144→  final double? overallGpa;
+   145→  final int? classPosition;
+   146→  final int? classSize;
+   147→  final List<SubjectResultRow> subjectResults;
+   148→  final List<String> strengths;
+   149→  final List<String> weaknesses;
+   150→  final List<String> recommendations;
+   151→  final String? teacherComment;
+   152→  final List<TrendDataPoint> trendData;
+   153→
+   154→  Map<String, dynamic> toJson() => {
+   155→        'studentName': studentName,
+   156→        'className': className,
+   157→        'sessionName': sessionName,
+   158→        'overallScore': overallScore,
+   159→        'overallGrade': overallGrade,
+   160→        'overallGpa': overallGpa,
+   161→        'classPosition': classPosition,
+   162→        'classSize': classSize,
+   163→        'subjectResults': subjectResults.map((r) => r.toJson()).toList(),
+   164→        'strengths': strengths,
+   165→        'weaknesses': weaknesses,
+   166→        'recommendations': recommendations,
+   167→        'teacherComment': teacherComment,
+   168→        'trendData': trendData.map((t) => t.toJson()).toList(),
+   169→      };
+   170→}
+   171→
+   172→/// A row in the student rankings table within a class report.
+   173→class StudentRankingRow {
+   174→  const StudentRankingRow({
+   175→    required this.position,
+   176→    required this.studentName,
+   177→    required this.totalScore,
+   178→    required this.percentage,
+   179→    required this.grade,
+   180→    required this.isPassed,
+   181→  });
+   182→
+   183→  final int position;
+   184→  final String studentName;
+   185→  final double totalScore;
+   186→  final double percentage;
+   187→  final String grade;
+   188→  final bool isPassed;
+   189→
+   190→  Map<String, dynamic> toJson() => {
+   191→        'position': position,
+   192→        'studentName': studentName,
+   193→        'totalScore': totalScore,
+   194→        'percentage': percentage,
+   195→        'grade': grade,
+   196→        'isPassed': isPassed,
+   197→      };
+   198→}
+   199→
+   200→/// Performance comparison entry for a single subject in a class report.
+   201→class SubjectComparisonEntry {
+   202→  const SubjectComparisonEntry({
+   203→    required this.subjectName,
+   204→    required this.classAverage,
+   205→    required this.highestScore,
+   206→    required this.lowestScore,
+   207→    required this.passRate,
+   208→  });
+   209→
+   210→  final String subjectName;
+   211→  final double classAverage;
+   212→  final double highestScore;
+   213→  final double lowestScore;
+   214→  final double passRate;
+   215→
+   216→  Map<String, dynamic> toJson() => {
+   217→        'subjectName': subjectName,
+   218→        'classAverage': classAverage,
+   219→        'highestScore': highestScore,
+   220→        'lowestScore': lowestScore,
+   221→        'passRate': passRate,
+   222→      };
+   223→}
+   224→
+   225→/// Content for a class-wide report.
+   226→class ClassReportContent {
+   227→  const ClassReportContent({
+   228→    required this.className,
+   229→    required this.sessionName,
+   230→    required this.totalStudents,
+   231→    required this.averageScore,
+   232→    required this.highestScore,
+   233→    required this.lowestScore,
+   234→    required this.passRate,
+   235→    required this.gradeDistribution,
+   236→    required this.studentRankings,
+   237→    required this.subjectComparisons,
+   238→    required this.difficultTopics,
+   239→  });
+   240→
+   241→  final String className;
+   242→  final String sessionName;
+   243→  final int totalStudents;
+   244→  final double averageScore;
+   245→  final double highestScore;
+   246→  final double lowestScore;
+   247→  final double passRate;
+   248→  final Map<String, int> gradeDistribution;
+   249→  final List<StudentRankingRow> studentRankings;
+   250→  final List<SubjectComparisonEntry> subjectComparisons;
+   251→  final List<String> difficultTopics;
+   252→
+   253→  Map<String, dynamic> toJson() => {
+   254→        'className': className,
+   255→        'sessionName': sessionName,
+   256→        'totalStudents': totalStudents,
+   257→        'averageScore': averageScore,
+   258→        'highestScore': highestScore,
+   259→        'lowestScore': lowestScore,
+   260→        'passRate': passRate,
+   261→        'gradeDistribution': gradeDistribution,
+   262→        'studentRankings': studentRankings.map((r) => r.toJson()).toList(),
+   263→        'subjectComparisons':
+   264→            subjectComparisons.map((s) => s.toJson()).toList(),
+   265→        'difficultTopics': difficultTopics,
+   266→      };
+   267→}
+   268→
+   269→/// A ranking entry for a class within a school report.
+   270→class ClassRankingEntry {
+   271→  const ClassRankingEntry({
+   272→    required this.className,
+   273→    required this.averageScore,
+   274→    required this.passRate,
+   275→    required this.totalStudents,
+   276→  });
+   277→
+   278→  final String className;
+   279→  final double averageScore;
+   280→  final double passRate;
+   281→  final int totalStudents;
+   282→
+   283→  Map<String, dynamic> toJson() => {
+   284→        'className': className,
+   285→        'averageScore': averageScore,
+   286→        'passRate': passRate,
+   287→        'totalStudents': totalStudents,
+   288→      };
+   289→}
+   290→
+   291→/// A ranking entry for a subject within a school report.
+   292→class SubjectRankingEntry {
+   293→  const SubjectRankingEntry({
+   294→    required this.subjectName,
+   295→    required this.averageScore,
+   296→    required this.passRate,
+   297→    required this.studentCount,
+   298→  });
+   299→
+   300→  final String subjectName;
+   301→  final double averageScore;
+   302→  final double passRate;
+   303→  final int studentCount;
+   304→
+   305→  Map<String, dynamic> toJson() => {
+   306→        'subjectName': subjectName,
+   307→        'averageScore': averageScore,
+   308→        'passRate': passRate,
+   309→        'studentCount': studentCount,
+   310→      };
+   311→}
+   312→
+   313→/// Content for a school-level report.
+   314→class SchoolReportContent {
+   315→  const SchoolReportContent({
+   316→    required this.schoolName,
+   317→    required this.sessionName,
+   318→    required this.totalStudents,
+   319→    required this.totalClasses,
+   320→    required this.averageScore,
+   321→    required this.passRate,
+   322→    required this.distinctionRate,
+   323→    required this.gradeDistribution,
+   324→    required this.classRankings,
+   325→    required this.subjectRankings,
+   326→    required this.trendData,
+   327→  });
+   328→
+   329→  final String schoolName;
+   330→  final String sessionName;
+   331→  final int totalStudents;
+   332→  final int totalClasses;
+   333→  final double averageScore;
+   334→  final double passRate;
+   335→  final double distinctionRate;
+   336→  final Map<String, int> gradeDistribution;
+   337→  final List<ClassRankingEntry> classRankings;
+   338→  final List<SubjectRankingEntry> subjectRankings;
+   339→  final List<TrendDataPoint> trendData;
+   340→
+   341→  Map<String, dynamic> toJson() => {
+   342→        'schoolName': schoolName,
+   343→        'sessionName': sessionName,
+   344→        'totalStudents': totalStudents,
+   345→        'totalClasses': totalClasses,
+   346→        'averageScore': averageScore,
+   347→        'passRate': passRate,
+   348→        'distinctionRate': distinctionRate,
+   349→        'gradeDistribution': gradeDistribution,
+   350→        'classRankings': classRankings.map((c) => c.toJson()).toList(),
+   351→        'subjectRankings': subjectRankings.map((s) => s.toJson()).toList(),
+   352→        'trendData': trendData.map((t) => t.toJson()).toList(),
+   353→      };
+   354→}
+   355→
+   356→/// A score range bucket for score distribution in a subject report.
+   357→class ScoreBucket {
+   358→  const ScoreBucket({
+   359→    required this.range,
+   360→    required this.count,
+   361→    required this.percentage,
+   362→  });
+   363→
+   364→  final String range;
+   365→  final int count;
+   366→  final double percentage;
+   367→
+   368→  Map<String, dynamic> toJson() => {
+   369→        'range': range,
+   370→        'count': count,
+   371→        'percentage': percentage,
+   372→      };
+   373→}
+   374→
+   375→/// Topic mastery overview entry for a subject report.
+   376→class TopicMasteryEntry {
+   377→  const TopicMasteryEntry({
+   378→    required this.topicName,
+   379→    required this.masteryLevel,
+   380→    required this.averageAccuracy,
+   381→    required this.studentsAttempted,
+   382→  });
+   383→
+   384→  final String topicName;
+   385→  final String masteryLevel;
+   386→  final double averageAccuracy;
+   387→  final int studentsAttempted;
+   388→
+   389→  Map<String, dynamic> toJson() => {
+   390→        'topicName': topicName,
+   391→        'masteryLevel': masteryLevel,
+   392→        'averageAccuracy': averageAccuracy,
+   393→        'studentsAttempted': studentsAttempted,
+   394→      };
+   395→}
+   396→
+   397→/// A row in the student performance table for a subject report.
+   398→class SubjectStudentRow {
+   399→  const SubjectStudentRow({
+   400→    required this.position,
+   401→    required this.studentName,
+   402→    required this.score,
+   403→    required this.percentage,
+   404→    required this.grade,
+   405→    required this.isPassed,
+   406→  });
+   407→
+   408→  final int position;
+   409→  final String studentName;
+   410→  final double score;
+   411→  final double percentage;
+   412→  final String grade;
+   413→  final bool isPassed;
+   414→
+   415→  Map<String, dynamic> toJson() => {
+   416→        'position': position,
+   417→        'studentName': studentName,
+   418→        'score': score,
+   419→        'percentage': percentage,
+   420→        'grade': grade,
+   421→        'isPassed': isPassed,
+   422→      };
+   423→}
+   424→
+   425→/// Content for a subject-level report.
+   426→class SubjectReportContent {
+   427→  const SubjectReportContent({
+   428→    required this.subjectName,
+   429→    required this.className,
+   430→    required this.sessionName,
+   431→    required this.totalStudents,
+   432→    required this.averageScore,
+   433→    required this.highestScore,
+   434→    required this.lowestScore,
+   435→    required this.passRate,
+   436→    required this.scoreDistribution,
+   437→    required this.topicMastery,
+   438→    required this.studentPerformance,
+   439→  });
+   440→
+   441→  final String subjectName;
+   442→  final String className;
+   443→  final String sessionName;
+   444→  final int totalStudents;
+   445→  final double averageScore;
+   446→  final double highestScore;
+   447→  final double lowestScore;
+   448→  final double passRate;
+   449→  final List<ScoreBucket> scoreDistribution;
+   450→  final List<TopicMasteryEntry> topicMastery;
+   451→  final List<SubjectStudentRow> studentPerformance;
+   452→
+   453→  Map<String, dynamic> toJson() => {
+   454→        'subjectName': subjectName,
+   455→        'className': className,
+   456→        'sessionName': sessionName,
+   457→        'totalStudents': totalStudents,
+   458→        'averageScore': averageScore,
+   459→        'highestScore': highestScore,
+   460→        'lowestScore': lowestScore,
+   461→        'passRate': passRate,
+   462→        'scoreDistribution':
+   463→            scoreDistribution.map((b) => b.toJson()).toList(),
+   464→        'topicMastery': topicMastery.map((t) => t.toJson()).toList(),
+   465→        'studentPerformance':
+   466→            studentPerformance.map((s) => s.toJson()).toList(),
+   467→      };
+   468→}
+   469→
+   470→/// Per-question analysis entry for an exam summary report.
+   471→class QuestionAnalysisEntry {
+   472→  const QuestionAnalysisEntry({
+   473→    required this.questionNumber,
+   474→    required this.questionId,
+   475→    required this.correctRate,
+   476→    required this.averageTimeSeconds,
+   477→    required this.skippedCount,
+   478→  });
+   479→
+   480→  final int questionNumber;
+   481→  final String questionId;
+   482→  final double correctRate;
+   483→  final int averageTimeSeconds;
+   484→  final int skippedCount;
+   485→
+   486→  Map<String, dynamic> toJson() => {
+   487→        'questionNumber': questionNumber,
+   488→        'questionId': questionId,
+   489→        'correctRate': correctRate,
+   490→        'averageTimeSeconds': averageTimeSeconds,
+   491→        'skippedCount': skippedCount,
+   492→      };
+   493→}
+   494→
+   495→/// A performer entry for the top/bottom sections of an exam summary.
+   496→class PerformerEntry {
+   497→  const PerformerEntry({
+   498→    required this.studentName,
+   499→    required this.score,
+   500→    required this.percentage,
+   501→    required this.grade,
+   502→  });
+   503→
+   504→  final String studentName;
+   505→  final double score;
+   506→  final double percentage;
+   507→  final String grade;
+   508→
+   509→  Map<String, dynamic> toJson() => {
+   510→        'studentName': studentName,
+   511→        'score': score,
+   512→        'percentage': percentage,
+   513→        'grade': grade,
+   514→      };
+   515→}
+   516→
+   517→/// Content for an exam summary report.
+   518→class ExamSummaryContent {
+   519→  const ExamSummaryContent({
+   520→    required this.examTitle,
+   521→    required this.examDate,
+   522→    required this.duration,
+   523→    required this.totalMarks,
+   524→    required this.passMark,
+   525→    required this.totalStudents,
+   526→    required this.completedStudents,
+   527→    required this.averageScore,
+   528→    required this.highestScore,
+   529→    required this.lowestScore,
+   530→    required this.passRate,
+   531→    required this.gradeDistribution,
+   532→    required this.questionAnalysis,
+   533→    required this.topPerformers,
+   534→    required this.bottomPerformers,
+   535→  });
+   536→
+   537→  final String examTitle;
+   538→  final String examDate;
+   539→  final String duration;
+   540→  final double totalMarks;
+   541→  final double passMark;
+   542→  final int totalStudents;
+   543→  final int completedStudents;
+   544→  final double averageScore;
+   545→  final double highestScore;
+   546→  final double lowestScore;
+   547→  final double passRate;
+   548→  final Map<String, int> gradeDistribution;
+   549→  final List<QuestionAnalysisEntry> questionAnalysis;
+   550→  final List<PerformerEntry> topPerformers;
+   551→  final List<PerformerEntry> bottomPerformers;
+   552→
+   553→  Map<String, dynamic> toJson() => {
+   554→        'examTitle': examTitle,
+   555→        'examDate': examDate,
+   556→        'duration': duration,
+   557→        'totalMarks': totalMarks,
+   558→        'passMark': passMark,
+   559→        'totalStudents': totalStudents,
+   560→        'completedStudents': completedStudents,
+   561→        'averageScore': averageScore,
+   562→        'highestScore': highestScore,
+   563→        'lowestScore': lowestScore,
+   564→        'passRate': passRate,
+   565→        'gradeDistribution': gradeDistribution,
+   566→        'questionAnalysis':
+   567→            questionAnalysis.map((q) => q.toJson()).toList(),
+   568→        'topPerformers': topPerformers.map((p) => p.toJson()).toList(),
+   569→        'bottomPerformers': bottomPerformers.map((p) => p.toJson()).toList(),
+   570→      };
+   571→}
+   572→
+   573→// ═══════════════════════════════════════════════════════════════════════
+   574→// REPORT GENERATOR SERVICE
+   575→// ═══════════════════════════════════════════════════════════════════════
+   576→
+   577→/// Generates structured report data from domain entities.
+   578→///
+   579→/// This service is a pure computation layer — it transforms raw entity data
+   580→/// into [ReportData] structures that the datasource layer can then render
+   581→/// into PDF, Excel, or CSV files. No file I/O is performed here.
+   582→class ReportGenerator {
+   583→  // ── Student Report ─────────────────────────────────────────────────
+   584→
+   585→  /// Creates a comprehensive report for a single student.
+   586→  ///
+   587→  /// Requires the student's [overallResult] entity, their [subjectResults],
+   588→  /// and contextual information like [studentName], [className], and
+   589→  /// [sessionName]. Optional [trendData] provides historical performance
+   590→  /// for chart rendering.
+   591→  ///
+   592→  /// The optional [gradeScale] is used to derive the overall grade from the
+   593→  /// overall percentage if [StudentOverallResultEntity.overallGrade] is null.
+   594→  ReportData generateStudentReport({
+   595→    required StudentOverallResultEntity overallResult,
+   596→    required List<StudentSubjectResultEntity> subjectResults,
+   597→    required String studentName,
+   598→    required String className,
+   599→    required String sessionName,
+   600→    List<TrendDataPoint>? trendData,
+   601→    GradeScaleEntity? gradeScale,
+   602→  }) {
+   603→    // Resolve the overall grade — use the entity's grade first, then
+   604→    // fall back to the grade scale if available.
+   605→    final overallGrade = overallResult.overallGrade ??
+   606→        gradeScale?.applyToPercentage(overallResult.overallPercentage)?.grade ??
+   607→        _defaultGrade(overallResult.overallPercentage);
+   608→
+   609→    // Build subject-by-subject breakdown rows.
+   610→    final subjectRows = subjectResults.map((sr) {
+   611→      final grade = sr.grade ??
+   612→          gradeScale?.applyToPercentage(sr.percentage)?.grade ??
+   613→          _defaultGrade(sr.percentage);
+   614→      return SubjectResultRow(
+   615→        subjectName: sr.subjectId, // Caller should map ID → name upstream
+   616→        score: sr.totalMarksObtained,
+   617→        percentage: sr.percentage,
+   618→        grade: grade,
+   619→        classAverage: sr.classAverage,
+   620→        position: sr.classPosition,
+   621→        trend: sr.performanceTrend.label,
+   622→      );
+   623→    }).toList();
+   624→
+   625→    // Collect strengths and weaknesses from subject results.
+   626→    final strengths = <String>[
+   627→      ...overallResult.metadata['strengths'] as List<dynamic>? ?? [],
+   628→      ...subjectResults
+   629→          .where((sr) => sr.performanceTrend == PerformanceTrend.improving)
+   630→          .map((sr) => 'Strong performance in ${sr.subjectId}'),
+   631→    ];
+   632→
+   633→    final weaknesses = <String>[
+   634→      ...overallResult.metadata['weaknesses'] as List<dynamic>? ?? [],
+   635→      ...subjectResults
+   636→          .where((sr) => sr.performanceTrend == PerformanceTrend.declining)
+   637→          .map((sr) => 'Needs improvement in ${sr.subjectId}'),
+   638→    ];
+   639→
+   640→    // AI study recommendations from the overall result entity.
+   641→    final recommendations = overallResult.aiStudyRecommendations;
+   642→
+   643→    // Build trend data from supplied points, or default to a single point.
+   644→    final trend = trendData ??
+   645→        [
+   646→          TrendDataPoint(
+   647→            period: sessionName,
+   648→            score: overallResult.overallPercentage,
+   649→          ),
+   650→        ];
+   651→
+   652→    final content = StudentReportContent(
+   653→      studentName: studentName,
+   654→      className: className,
+   655→      sessionName: sessionName,
+   656→      overallScore: overallResult.overallPercentage,
+   657→      overallGrade: overallGrade,
+   658→      overallGpa: overallResult.overallGpa,
+   659→      classPosition: overallResult.classPosition,
+   660→      classSize: overallResult.classSize,
+   661→      subjectResults: subjectRows,
+   662→      strengths: strengths,
+   663→      weaknesses: weaknesses,
+   664→      recommendations: recommendations,
+   665→      teacherComment: overallResult.teacherComment,
+   666→      trendData: trend,
+   667→    );
+   668→
+   669→    return ReportData(
+   670→      type: ReportType.student,
+   671→      title: 'Student Report — $studentName',
+   672→      content: content.toJson(),
+   673→      metadata: _buildMetadata(),
+   674→    );
+   675→  }
+   676→
+   677→  // ── Class Report ───────────────────────────────────────────────────
+   678→
+   679→  /// Creates a class-wide performance report.
+   680→  ///
+   681→  /// Accepts a [ClassPerformanceEntity] for the class statistics,
+   682→  /// [studentResults] for building the rankings table, and
+   683→  /// [subjectResults] for subject performance comparisons.
+   684→  ///
+   685→  /// Optional [gradeScale] is used to derive grades from percentages.
+   686→  ReportData generateClassReport({
+   687→    required ClassPerformanceEntity classPerformance,
+   688→    required List<StudentOverallResultEntity> studentResults,
+   689→    required String className,
+   690→    required String sessionName,
+   691→    List<StudentSubjectResultEntity>? subjectResults,
+   692→    GradeScaleEntity? gradeScale,
+   693→    Map<String, String>? subjectNameMap,
+   694→    Map<String, String>? studentNameMap,
+   695→  }) {
+   696→    // Build student rankings sorted by overall percentage descending.
+   697→    final sorted = List<StudentOverallResultEntity>.from(studentResults)
+   698→      ..sort((a, b) => b.overallPercentage.compareTo(a.overallPercentage));
+   699→
+   700→    final rankings = sorted.asMap().entries.map((entry) {
+   701→      final sr = entry.value;
+   702→      final grade = sr.overallGrade ??
+   703→          gradeScale?.applyToPercentage(sr.overallPercentage)?.grade ??
+   704→          _defaultGrade(sr.overallPercentage);
+   705→      return StudentRankingRow(
+   706→        position: entry.key + 1,
+   707→        studentName: studentNameMap?[sr.studentId] ?? sr.studentId,
+   708→        totalScore: sr.totalMarksObtained,
+   709→        percentage: sr.overallPercentage,
+   710→        grade: grade,
+   711→        isPassed: sr.subjectsFailed == 0,
+   712→      );
+   713→    }).toList();
+   714→
+   715→    // Build subject performance comparison entries.
+   716→    final subjectComparisons = <SubjectComparisonEntry>[];
+   717→    if (subjectResults != null) {
+   718→      // Group by subject and compute aggregated stats.
+   719→      final bySubject = <String, List<StudentSubjectResultEntity>>{};
+   720→      for (final sr in subjectResults) {
+   721→        bySubject.putIfAbsent(sr.subjectId, () => []).add(sr);
+   722→      }
+   723→      for (final entry in bySubject.entries) {
+   724→        final scores = entry.value.map((e) => e.percentage).toList();
+   725→        if (scores.isEmpty) continue;
+   726→        scores.sort();
+   727→        final avg = scores.reduce((a, b) => a + b) / scores.length;
+   728→        final passed = entry.value.where((e) => e.isPassed).length;
+   729→        subjectComparisons.add(SubjectComparisonEntry(
+   730→          subjectName: subjectNameMap?[entry.key] ?? entry.key,
+   731→          classAverage: avg,
+   732→          highestScore: scores.last,
+   733→          lowestScore: scores.first,
+   734→          passRate: scores.isNotEmpty
+   735→              ? (passed / scores.length) * 100
+   736→              : 0,
+   737→        ),);
+   738→      }
+   739→    }
+   740→
+   741→    // Identify difficult topics from class performance metadata.
+   742→    final difficultTopics = <String>[];
+   743→    final topicPerf = classPerformance.topicPerformance;
+   744→    for (final entry in topicPerf.entries) {
+   745→      final avgScore = entry.value is num ? (entry.value as num).toDouble() : 0.0;
+   746→      if (avgScore < 50) {
+   747→        difficultTopics.add(entry.key);
+   748→      }
+   749→    }
+   750→
+   751→    // Build grade distribution from class performance entity.
+   752→    final gradeDist = <String, int>{};
+   753→    for (final entry in classPerformance.gradeDistribution.entries) {
+   754→      gradeDist[entry.key] = (entry.value is num
+   755→          ? (entry.value as num).toInt()
+   756→          : int.tryParse(entry.value.toString()) ?? 0);
+   757→    }
+   758→
+   759→    final content = ClassReportContent(
+   760→      className: className,
+   761→      sessionName: sessionName,
+   762→      totalStudents: classPerformance.totalStudents,
+   763→      averageScore: classPerformance.averageScore,
+   764→      highestScore: classPerformance.highestScore,
+   765→      lowestScore: classPerformance.lowestScore,
+   766→      passRate: classPerformance.passRate,
+   767→      gradeDistribution: gradeDist,
+   768→      studentRankings: rankings,
+   769→      subjectComparisons: subjectComparisons,
+   770→      difficultTopics: difficultTopics,
+   771→    );
+   772→
+   773→    return ReportData(
+   774→      type: ReportType.classReport,
+   775→      title: 'Class Report — $className',
+   776→      content: content.toJson(),
+   777→      metadata: _buildMetadata(),
+   778→    );
+   779→  }
+   780→
+   781→  // ── School Report ──────────────────────────────────────────────────
+   782→
+   783→  /// Creates a school-level performance report.
+   784→  ///
+   785→  /// Uses [SchoolPerformanceEntity] for school-wide statistics and
+   786→  /// optional [classPerformances] and [subjectPerformances] for detailed
+   787→  /// rankings.
+   788→  ReportData generateSchoolReport({
+   789→    required SchoolPerformanceEntity schoolPerformance,
+   790→    required String schoolName,
+   791→    required String sessionName,
+   792→    List<ClassPerformanceEntity>? classPerformances,
+   793→    Map<String, String>? classNameMap,
+   794→    List<StudentSubjectResultEntity>? subjectResults,
+   795→    Map<String, String>? subjectNameMap,
+   796→    GradeScaleEntity? gradeScale,
+   797→  }) {
+   798→    // Build class rankings from supplied class performance data.
+   799→    final classRankings = <ClassRankingEntry>[];
+   800→    if (classPerformances != null) {
+   801→      final sorted = List<ClassPerformanceEntity>.from(classPerformances)
+   802→        ..sort((a, b) => b.averageScore.compareTo(a.averageScore));
+   803→      for (final cp in sorted) {
+   804→        classRankings.add(ClassRankingEntry(
+   805→          className: classNameMap?[cp.classId] ?? cp.classId,
+   806→          averageScore: cp.averageScore,
+   807→          passRate: cp.passRate,
+   808→          totalStudents: cp.totalStudents,
+   809→        ),);
+   810→      }
+   811→    }
+   812→
+   813→    // Build subject rankings from supplied subject results.
+   814→    final subjectRankings = <SubjectRankingEntry>[];
+   815→    if (subjectResults != null) {
+   816→      final bySubject = <String, List<StudentSubjectResultEntity>>{};
+   817→      for (final sr in subjectResults) {
+   818→        bySubject.putIfAbsent(sr.subjectId, () => []).add(sr);
+   819→      }
+   820→      final subjectStats = <String, ({double avg, double passRate, int count})>{};
+   821→      for (final entry in bySubject.entries) {
+   822→        final scores = entry.value.map((e) => e.percentage).toList();
+   823→        if (scores.isEmpty) continue;
+   824→        final avg = scores.reduce((a, b) => a + b) / scores.length;
+   825→        final passed = entry.value.where((e) => e.isPassed).length;
+   826→        subjectStats[entry.key] = (
+   827→          avg: avg,
+   828→          passRate: (passed / scores.length) * 100,
+   829→          count: scores.length,
+   830→        );
+   831→      }
+   832→      // Sort by average descending.
+   833→      final sortedSubjects = subjectStats.entries.toList()
+   834→        ..sort((a, b) => b.value.avg.compareTo(a.value.avg));
+   835→      for (final entry in sortedSubjects) {
+   836→        subjectRankings.add(SubjectRankingEntry(
+   837→          subjectName: subjectNameMap?[entry.key] ?? entry.key,
+   838→          averageScore: entry.value.avg,
+   839→          passRate: entry.value.passRate,
+   840→          studentCount: entry.value.count,
+   841→        ),);
+   842→      }
+   843→    }
+   844→
+   845→    // Build historical trend data from the entity.
+   846→    final trendData = <TrendDataPoint>[];
+   847→    for (final point in schoolPerformance.trendData) {
+   848→      if (point is Map<String, dynamic>) {
+   849→        trendData.add(TrendDataPoint(
+   850→          period: point['period'] as String? ?? '',
+   851→          score: (point['score'] as num?)?.toDouble() ?? 0,
+   852→        ),);
+   853→      }
+   854→    }
+   855→
+   856→    // Build grade distribution.
+   857→    final gradeDist = <String, int>{};
+   858→    for (final entry in schoolPerformance.gradeDistribution.entries) {
+   859→      gradeDist[entry.key] = (entry.value is num
+   860→          ? (entry.value as num).toInt()
+   861→          : int.tryParse(entry.value.toString()) ?? 0);
+   862→    }
+   863→
+   864→    final content = SchoolReportContent(
+   865→      schoolName: schoolName,
+   866→      sessionName: sessionName,
+   867→      totalStudents: schoolPerformance.totalStudents,
+   868→      totalClasses: schoolPerformance.totalClasses,
+   869→      averageScore: schoolPerformance.averageScore,
+   870→      passRate: schoolPerformance.passRate,
+   871→      distinctionRate: schoolPerformance.distinctionRate,
+   872→      gradeDistribution: gradeDist,
+   873→      classRankings: classRankings,
+   874→      subjectRankings: subjectRankings,
+   875→      trendData: trendData,
+   876→    );
+   877→
+   878→    return ReportData(
+   879→      type: ReportType.school,
+   880→      title: 'School Report — $schoolName',
+   881→      content: content.toJson(),
+   882→      metadata: _buildMetadata(),
+   883→    );
+   884→  }
+   885→
+   886→  // ── Subject Report ─────────────────────────────────────────────────
+   887→
+   888→  /// Creates a subject-level report with statistics, score distribution,
+   889→  /// topic mastery, and student performance table.
+   890→  ///
+   891→  /// Uses [ClassPerformanceEntity] scoped to a subject for statistics,
+   892→  /// and [studentSubjectResults] for the per-student breakdown.
+   893→  ReportData generateSubjectReport({
+   894→    required ClassPerformanceEntity subjectPerformance,
+   895→    required List<StudentSubjectResultEntity> studentSubjectResults,
+   896→    required String subjectName,
+   897→    required String className,
+   898→    required String sessionName,
+   899→    List<TopicMasteryEntity>? topicMasteryData,
+   900→    Map<String, String>? studentNameMap,
+   901→    Map<String, String>? topicNameMap,
+   902→    GradeScaleEntity? gradeScale,
+   903→  }) {
+   904→    // Build score distribution buckets.
+   905→    final buckets = _computeScoreBuckets(studentSubjectResults);
+   906→
+   907→    // Build topic mastery overview.
+   908→    final topicEntries = <TopicMasteryEntry>[];
+   909→    if (topicMasteryData != null) {
+   910→      // Group by topic and compute averages.
+   911→      final byTopic = <String, List<TopicMasteryEntity>>{};
+   912→      for (final tm in topicMasteryData) {
+   913→        byTopic.putIfAbsent(tm.topicId, () => []).add(tm);
+   914→      }
+   915→      for (final entry in byTopic.entries) {
+   916→        final items = entry.value;
+   917→        final avgAccuracy = items.isEmpty
+   918→            ? 0.0
+   919→            : items.map((t) => t.accuracyPercentage).reduce((a, b) => a + b) /
+   920→                items.length;
+   921→        topicEntries.add(TopicMasteryEntry(
+   922→          topicName: topicNameMap?[entry.key] ?? entry.key,
+   923→          masteryLevel: _dominantMasteryLevel(items),
+   924→          averageAccuracy: avgAccuracy,
+   925→          studentsAttempted: items
+   926→              .where((t) => t.questionsAttempted > 0)
+   927→              .length,
+   928→        ),);
+   929→      }
+   930→    }
+   931→
+   932→    // Build student performance table sorted by percentage descending.
+   933→    final sorted = List<StudentSubjectResultEntity>.from(studentSubjectResults)
+   934→      ..sort((a, b) => b.percentage.compareTo(a.percentage));
+   935→
+   936→    final studentRows = sorted.asMap().entries.map((entry) {
+   937→      final sr = entry.value;
+   938→      final grade = sr.grade ??
+   939→          gradeScale?.applyToPercentage(sr.percentage)?.grade ??
+   940→          _defaultGrade(sr.percentage);
+   941→      return SubjectStudentRow(
+   942→        position: entry.key + 1,
+   943→        studentName: studentNameMap?[sr.studentId] ?? sr.studentId,
+   944→        score: sr.totalMarksObtained,
+   945→        percentage: sr.percentage,
+   946→        grade: grade,
+   947→        isPassed: sr.isPassed,
+   948→      );
+   949→    }).toList();
+   950→
+   951→    final content = SubjectReportContent(
+   952→      subjectName: subjectName,
+   953→      className: className,
+   954→      sessionName: sessionName,
+   955→      totalStudents: subjectPerformance.totalStudents,
+   956→      averageScore: subjectPerformance.averageScore,
+   957→      highestScore: subjectPerformance.highestScore,
+   958→      lowestScore: subjectPerformance.lowestScore,
+   959→      passRate: subjectPerformance.passRate,
+   960→      scoreDistribution: buckets,
+   961→      topicMastery: topicEntries,
+   962→      studentPerformance: studentRows,
+   963→    );
+   964→
+   965→    return ReportData(
+   966→      type: ReportType.subject,
+   967→      title: 'Subject Report — $subjectName',
+   968→      content: content.toJson(),
+   969→      metadata: _buildMetadata(),
+   970→    );
+   971→  }
+   972→
+   973→  // ── Exam Summary ───────────────────────────────────────────────────
+   974→
+   975→  /// Creates an exam summary report with overview, statistics, question
+   976→  /// analysis, and top/bottom performers.
+   977→  ///
+   978→  /// Uses [ExamEntity] for exam metadata, [ExamStatistics] for computed
+   979→  /// statistics, and [ExamResultEntity] list for student-level data.
+   980→  ReportData generateExamSummary({
+   981→    required ExamEntity exam,
+   982→    required ExamStatistics statistics,
+   983→    required List<ExamResultEntity> results,
+   984→    Map<String, String>? studentNameMap,
+   985→    GradeScaleEntity? gradeScale,
+   986→  }) {
+   987→    // Build question analysis from statistics.
+   988→    final questionAnalysis = <QuestionAnalysisEntry>[];
+   989→    final sortedQuestions = statistics.questionsByCorrectRate.entries.toList()
+   990→      ..sort((a, b) => a.key.compareTo(b.key));
+   991→    for (var i = 0; i < sortedQuestions.length; i++) {
+   992→      final entry = sortedQuestions[i];
+   993→      questionAnalysis.add(QuestionAnalysisEntry(
+   994→        questionNumber: i + 1,
+   995→        questionId: entry.key,
+   996→        correctRate: entry.value,
+   997→        averageTimeSeconds: 0, // Derived from attempt data if available
+   998→        skippedCount: 0, // Derived from attempt data if available
+   999→      ),);
+  1000→    }
+  1001→
+  1002→    // Build grade distribution from results.
+  1003→    final gradeDist = <String, int>{};
+  1004→    for (final result in results) {
+  1005→      final grade = result.grade ??
+  1006→          gradeScale?.applyToPercentage(result.scorePercentage)?.grade ??
+  1007→          _defaultGrade(result.scorePercentage);
+  1008→      gradeDist[grade] = (gradeDist[grade] ?? 0) + 1;
+  1009→    }
+  1010→
+  1011→    // Sort results for top/bottom performers.
+  1012→    final sorted = List<ExamResultEntity>.from(results)
+  1013→      ..sort((a, b) => b.scorePercentage.compareTo(a.scorePercentage));
+  1014→
+  1015→    final topN = sorted.take(5).map((r) => PerformerEntry(
+  1016→          studentName: studentNameMap?[r.studentId] ?? r.studentId,
+  1017→          score: r.totalMarks,
+  1018→          percentage: r.scorePercentage,
+  1019→          grade: r.grade ??
+  1020→              gradeScale?.applyToPercentage(r.scorePercentage)?.grade ??
+  1021→              _defaultGrade(r.scorePercentage),
+  1022→        ),).toList();
+  1023→
+  1024→    final bottomN = sorted.reversed.take(5).map((r) => PerformerEntry(
+  1025→          studentName: studentNameMap?[r.studentId] ?? r.studentId,
+  1026→          score: r.totalMarks,
+  1027→          percentage: r.scorePercentage,
+  1028→          grade: r.grade ??
+  1029→              gradeScale?.applyToPercentage(r.scorePercentage)?.grade ??
+  1030→              _defaultGrade(r.scorePercentage),
+  1031→        ),).toList();
+  1032→
+  1033→    final content = ExamSummaryContent(
+  1034→      examTitle: exam.title,
+  1035→      examDate: formatDate(exam.startTime),
+  1036→      duration: formatDuration(exam.timeLimitMinutes * 60),
+  1037→      totalMarks: exam.totalMarks,
+  1038→      passMark: exam.passMark,
+  1039→      totalStudents: statistics.totalStudents,
+  1040→      completedStudents: statistics.completedStudents,
+  1041→      averageScore: statistics.averageScore,
+  1042→      highestScore: statistics.highestScore,
+  1043→      lowestScore: statistics.lowestScore,
+  1044→      passRate: statistics.passRate,
+  1045→      gradeDistribution: gradeDist,
+  1046→      questionAnalysis: questionAnalysis,
+  1047→      topPerformers: topN,
+  1048→      bottomPerformers: bottomN,
+  1049→    );
+  1050→
+  1051→    return ReportData(
+  1052→      type: ReportType.examSummary,
+  1053→      title: 'Exam Summary — ${exam.title}',
+  1054→      content: content.toJson(),
+  1055→      metadata: _buildMetadata(),
+  1056→    );
+  1057→  }
+  1058→
+  1059→  // ═══════════════════════════════════════════════════════════════════════
+  1060→  // FORMATTING HELPERS
+  1061→  // ═══════════════════════════════════════════════════════════════════════
+  1062→
+  1063→  /// Formats a score to 1 decimal place (e.g., `85.3`).
+  1064→  static String formatScore(double score) {
+  1065→    return score.toStringAsFixed(1);
+  1066→  }
+  1067→
+  1068→  /// Formats a percentage with 1 decimal place and % sign (e.g., `85.3%`).
+  1069→  static String formatPercentage(double percentage) {
+  1070→    return '${percentage.toStringAsFixed(1)}%';
+  1071→  }
+  1072→
+  1073→  /// Formats a position as an ordinal string (e.g., `1st`, `2nd`, `3rd`,
+  1074→  /// `4th`, `11th`, `21st`).
+  1075→  ///
+  1076→  /// Returns `N/A` if [position] is null.
+  1077→  static String formatPosition(int? position) {
+  1078→    if (position == null) return 'N/A';
+  1079→    if (position < 1) return position.toString();
+  1080→
+  1081→    final lastTwo = position % 100;
+  1082→    if (lastTwo >= 11 && lastTwo <= 13) return '${position}th';
+  1083→
+  1084→    switch (position % 10) {
+  1085→      case 1:
+  1086→        return '${position}st';
+  1087→      case 2:
+  1088→        return '${position}nd';
+  1089→      case 3:
+  1090→        return '${position}rd';
+  1091→      default:
+  1092→        return '${position}th';
+  1093→    }
+  1094→  }
+  1095→
+  1096→  /// Formats a duration in seconds to a human-readable string.
+  1097→  ///
+  1098→  /// Examples:
+  1099→  /// - `3612` → `"1h 0m"`
+  1100→  /// - `2712` → `"45m 12s"`
+  1101→  /// - `60` → `"1m 0s"`
+  1102→  /// - `30` → `"0m 30s"`
+  1103→  static String formatDuration(int seconds) {
+  1104→    if (seconds < 0) seconds = 0;
+  1105→    final hours = seconds ~/ 3600;
+  1106→    final remainingSeconds = seconds % 3600;
+  1107→    final minutes = remainingSeconds ~/ 60;
+  1108→    final secs = remainingSeconds % 60;
+  1109→
+  1110→    if (hours > 0) {
+  1111→      return '${hours}h ${minutes}m';
+  1112→    }
+  1113→    return '${minutes}m ${secs}s';
+  1114→  }
+  1115→
+  1116→  /// Formats a date as `"Jan 15, 2026"`.
+  1117→  static String formatDate(DateTime date) {
+  1118→    const months = [
+  1119→      '', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+  1120→      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  1121→    ];
+  1122→    return '${months[date.month]} ${date.day}, ${date.year}';
+  1123→  }
+  1124→
+  1125→  // ═══════════════════════════════════════════════════════════════════════
+  1126→  // PRIVATE HELPERS
+  1127→  // ═══════════════════════════════════════════════════════════════════════
+  1128→
+  1129→  /// Derives a default letter grade from a percentage when no grade scale
+  1130→  /// is available.
+  1131→  static String _defaultGrade(double percentage) {
+  1132→    if (percentage >= 70) return 'A';
+  1133→    if (percentage >= 60) return 'B';
+  1134→    if (percentage >= 50) return 'C';
+  1135→    if (percentage >= 45) return 'D';
+  1136→    if (percentage >= 40) return 'E';
+  1137→    return 'F';
+  1138→  }
+  1139→
+  1140→  /// Builds metadata common to all reports.
+  1141→  static Map<String, dynamic> _buildMetadata() {
+  1142→    return {
+  1143→      'generatedAt': DateTime.now().toUtc().toIso8601String(),
+  1144→      'generatorVersion': '1.0.0',
+  1145→    };
+  1146→  }
+  1147→
+  1148→  /// Computes score distribution buckets from a list of subject results.
+  1149→  ///
+  1150→  /// Standard ranges: 0–19, 20–39, 40–49, 50–59, 60–69, 70–79, 80–89,
+  1151→  /// 90–100.
+  1152→  static List<ScoreBucket> _computeScoreBuckets(
+  1153→    List<StudentSubjectResultEntity> results,
+  1154→  ) {
+  1155→    const ranges = [
+  1156→      (label: '0–19', min: 0.0, max: 19.99),
+  1157→      (label: '20–39', min: 20.0, max: 39.99),
+  1158→      (label: '40–49', min: 40.0, max: 49.99),
+  1159→      (label: '50–59', min: 50.0, max: 59.99),
+  1160→      (label: '60–69', min: 60.0, max: 69.99),
+  1161→      (label: '70–79', min: 70.0, max: 79.99),
+  1162→      (label: '80–89', min: 80.0, max: 89.99),
+  1163→      (label: '90–100', min: 90.0, max: 100.0),
+  1164→    ];
+  1165→
+  1166→    final total = results.length.toDouble();
+  1167→    return ranges.map((range) {
+  1168→      final count = results
+  1169→          .where((r) => r.percentage >= range.min && r.percentage <= range.max)
+  1170→          .length;
+  1171→      return ScoreBucket(
+  1172→        range: range.label,
+  1173→        count: count,
+  1174→        percentage: total > 0 ? (count / total) * 100 : 0,
+  1175→      );
+  1176→    }).toList();
+  1177→  }
+  1178→
+  1179→  /// Determines the most common mastery level among a list of topic
+  1180→  /// mastery entries.
+  1181→  static String _dominantMasteryLevel(List<TopicMasteryEntity> items) {
+  1182→    if (items.isEmpty) return MasteryLevel.notStarted.label;
+  1183→    final counts = <MasteryLevel, int>{};
+  1184→    for (final item in items) {
+  1185→      counts[item.masteryLevel] = (counts[item.masteryLevel] ?? 0) + 1;
+  1186→    }
+  1187→    final dominant = counts.entries.reduce(
+  1188→      (a, b) => a.value >= b.value ? a : b,
+  1189→    );
+  1190→    return dominant.key.label;
+  1191→  }
+  1192→}
+  1193→

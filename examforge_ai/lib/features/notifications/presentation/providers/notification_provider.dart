@@ -1,7 +1,12 @@
+import 'dart:async';
+
 import 'package:equatable/equatable.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/logger.dart';
+import '../../../../shared/providers/auth_state_provider.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // NOTIFICATION MODEL
@@ -20,10 +25,27 @@ enum NotificationType {
 
   static NotificationType? fromString(String? value) {
     if (value == null) return null;
-    return NotificationType.values.firstWhere(
-          (type) => type.value == value,
-          orElse: () => NotificationType.system,
-        );
+    // Try exact match first.
+    final exact = NotificationType.values.firstWhere(
+      (type) => type.value == value,
+      orElse: () => NotificationType.system,
+    );
+    if (exact.value == value) return exact;
+
+    // Map the granular exam-notification types from the backend
+    // (e.g. 'exam_published', 'exam_started', 'results_released')
+    // to the broader categories used in the UI.
+    final lower = value.toLowerCase();
+    if (lower.contains('exam') || lower.contains('cbt')) {
+      return NotificationType.exam;
+    }
+    if (lower.contains('result') || lower.contains('score') || lower.contains('grade')) {
+      return NotificationType.result;
+    }
+    if (lower.contains('remind') || lower.contains('warning') || lower.contains('time')) {
+      return NotificationType.reminder;
+    }
+    return NotificationType.system;
   }
 }
 
@@ -37,6 +59,8 @@ class NotificationItem extends Equatable {
     required this.createdAt,
     this.isRead = false,
     this.icon,
+    this.rawType,
+    this.extraData,
   });
 
   /// Unique identifier.
@@ -60,8 +84,14 @@ class NotificationItem extends Equatable {
   /// Optional custom icon code point.
   final int? icon;
 
+  /// The raw type string from the database (e.g. 'exam_published').
+  final String? rawType;
+
+  /// Extra data payload from the database (e.g. exam_id).
+  final Map<String, dynamic>? extraData;
+
   @override
-  List<Object?> get props => [id, title, message, type, createdAt, isRead, icon];
+  List<Object?> get props => [id, title, message, type, createdAt, isRead, icon, rawType, extraData];
 
   NotificationItem copyWith({
     String? id,
@@ -71,6 +101,8 @@ class NotificationItem extends Equatable {
     DateTime? createdAt,
     bool? isRead,
     int? icon,
+    String? rawType,
+    Map<String, dynamic>? extraData,
   }) {
     return NotificationItem(
       id: id ?? this.id,
@@ -80,6 +112,36 @@ class NotificationItem extends Equatable {
       createdAt: createdAt ?? this.createdAt,
       isRead: isRead ?? this.isRead,
       icon: icon ?? this.icon,
+      rawType: rawType ?? this.rawType,
+      extraData: extraData ?? this.extraData,
+    );
+  }
+
+  /// Creates a [NotificationItem] from a Supabase row map.
+  ///
+  /// Expected row schema:
+  /// ```
+  /// id          UUID
+  /// user_id     UUID
+  /// type        TEXT
+  /// title       TEXT
+  /// body        TEXT
+  /// data        JSONB
+  /// is_read     BOOLEAN
+  /// created_at  TIMESTAMPTZ
+  /// ```
+  factory NotificationItem.fromJson(Map<String, dynamic> json) {
+    return NotificationItem(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      message: json['body'] as String? ?? '',
+      type: NotificationType.fromString(json['type'] as String?) ?? NotificationType.system,
+      createdAt: json['created_at'] != null
+          ? DateTime.parse(json['created_at'] as String)
+          : DateTime.now(),
+      isRead: json['is_read'] as bool? ?? false,
+      rawType: json['type'] as String?,
+      extraData: json['data'] as Map<String, dynamic>?,
     );
   }
 }
@@ -121,6 +183,7 @@ class NotificationState {
     this.isLoading = false,
     this.error,
     this.filter = NotificationFilter.all,
+    this.hasMore = true,
   });
 
   /// The full list of notifications (before filtering).
@@ -134,6 +197,9 @@ class NotificationState {
 
   /// The currently selected filter.
   final NotificationFilter filter;
+
+  /// Whether more notifications can be loaded via pagination.
+  final bool hasMore;
 
   /// Notifications filtered by the current [filter].
   List<NotificationItem> get filteredNotifications =>
@@ -155,12 +221,14 @@ class NotificationState {
     bool? isLoading,
     String? error,
     NotificationFilter? filter,
+    bool? hasMore,
   }) {
     return NotificationState(
       notifications: notifications ?? this.notifications,
       isLoading: isLoading ?? this.isLoading,
       error: error,
       filter: filter ?? this.filter,
+      hasMore: hasMore ?? this.hasMore,
     );
   }
 }
@@ -171,96 +239,74 @@ class NotificationState {
 
 /// Riverpod [StateNotifier] that manages the notifications feature's state.
 ///
-/// In production, this would fetch notifications from the backend.
-/// For now, it uses mock data to demonstrate the full UI flow.
+/// Fetches notifications from the `notifications` table in Supabase,
+/// subscribes to real-time changes, and supports pagination, mark-as-read,
+/// and delete operations.
 class NotificationNotifier extends StateNotifier<NotificationState> {
-  NotificationNotifier() : super(const NotificationState()) {
+  NotificationNotifier({
+    required sb.SupabaseClient supabaseClient,
+    required String userId,
+  })  : _supabase = supabaseClient,
+        _userId = userId,
+        super(const NotificationState()) {
     _loadNotifications();
+    _subscribeToRealtimeChanges();
   }
 
-  // ─── Load Notifications ──────────────────────────────────────────
+  final sb.SupabaseClient _supabase;
+  final String _userId;
 
-  /// Loads notifications from the backend (mock data for now).
+  // ─── Constants ─────────────────────────────────────────────────────
+
+  static const _notificationsTable = 'notifications';
+  static const _defaultPageSize = 20;
+
+  // ─── Realtime subscription ─────────────────────────────────────────
+
+  sb.RealtimeChannel? _realtimeChannel;
+
+  // ─── Pagination tracking ───────────────────────────────────────────
+
+  int _currentOffset = 0;
+
+  // ─── Load Notifications ───────────────────────────────────────────
+
+  /// Loads the first page of notifications from Supabase.
   Future<void> _loadNotifications() async {
     state = state.copyWith(isLoading: true, error: null);
     try {
-      // Simulate network delay
-      await Future.delayed(const Duration(milliseconds: 800));
+      _currentOffset = 0;
 
-      final now = DateTime.now();
-      final mockNotifications = [
-        NotificationItem(
-          id: '1',
-          title: 'Exam Coming Up',
-          message:
-              'Your Mathematics Mid-Term exam is scheduled for tomorrow at 9:00 AM. Make sure to prepare!',
-          type: NotificationType.reminder,
-          createdAt: now.subtract(const Duration(minutes: 15)),
-          isRead: false,
-        ),
-        NotificationItem(
-          id: '2',
-          title: 'Exam Results Available',
-          message:
-              'Your Physics Final Exam results are now available. You scored 87/100.',
-          type: NotificationType.result,
-          createdAt: now.subtract(const Duration(hours: 2)),
-          isRead: false,
-        ),
-        NotificationItem(
-          id: '3',
-          title: 'New Question Bank Added',
-          message:
-              'A new question bank "Chemistry 101" has been added to your school\'s resources.',
-          type: NotificationType.exam,
-          createdAt: now.subtract(const Duration(hours: 5)),
-          isRead: true,
-        ),
-        NotificationItem(
-          id: '4',
-          title: 'System Maintenance',
-          message:
-              'Scheduled maintenance on March 15th from 2:00 AM to 4:00 AM UTC. Service may be briefly unavailable.',
-          type: NotificationType.system,
-          createdAt: now.subtract(const Duration(days: 1)),
-          isRead: true,
-        ),
-        NotificationItem(
-          id: '5',
-          title: 'Exam Created Successfully',
-          message:
-              'Your CBT exam "Biology Chapter 5 Quiz" has been created and is ready for students.',
-          type: NotificationType.exam,
-          createdAt: now.subtract(const Duration(days: 1, hours: 3)),
-          isRead: true,
-        ),
-        NotificationItem(
-          id: '6',
-          title: 'Password Changed',
-          message:
-              'Your account password was changed successfully. If this wasn\'t you, contact support immediately.',
-          type: NotificationType.system,
-          createdAt: now.subtract(const Duration(days: 2)),
-          isRead: true,
-        ),
-        NotificationItem(
-          id: '7',
-          title: 'Exam Reminder',
-          message:
-              'English Literature exam starts in 30 minutes. Please join the exam room on time.',
-          type: NotificationType.reminder,
-          createdAt: now.subtract(const Duration(days: 3)),
-          isRead: true,
-        ),
-      ];
+      final response = await _supabase
+          .from(_notificationsTable)
+          .select()
+          .eq('user_id', _userId)
+          .order('created_at', ascending: false)
+          .range(0, _defaultPageSize - 1);
+
+      final notifications = (response as List<dynamic>)
+          .map((row) => NotificationItem.fromJson(row as Map<String, dynamic>))
+          .toList();
+
+      _currentOffset = notifications.length;
+
+      // If we got fewer than the page size, there are no more pages.
+      final hasMore = notifications.length >= _defaultPageSize;
 
       state = state.copyWith(
-        notifications: mockNotifications,
+        notifications: notifications,
         isLoading: false,
         error: null,
+        hasMore: hasMore,
       );
 
-      AppLogger.info('Loaded ${mockNotifications.length} notifications');
+      AppLogger.info('Loaded ${notifications.length} notifications for user $_userId');
+    } on sb.PostgrestException catch (e) {
+      AppLogger.error('Failed to load notifications (PostgrestException)', error: e);
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load notifications. Please try again.',
+      );
     } catch (e) {
       AppLogger.error('Failed to load notifications', error: e);
       state = state.copyWith(
@@ -270,9 +316,129 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
     }
   }
 
+  /// Loads the next page of notifications and appends them to the list.
+  Future<void> loadMore() async {
+    if (state.isLoading || !state.hasMore) return;
+
+    try {
+      final response = await _supabase
+          .from(_notificationsTable)
+          .select()
+          .eq('user_id', _userId)
+          .order('created_at', ascending: false)
+          .range(_currentOffset, _currentOffset + _defaultPageSize - 1);
+
+      final newNotifications = (response as List<dynamic>)
+          .map((row) => NotificationItem.fromJson(row as Map<String, dynamic>))
+          .toList();
+
+      _currentOffset += newNotifications.length;
+
+      final hasMore = newNotifications.length >= _defaultPageSize;
+
+      state = state.copyWith(
+        notifications: [...state.notifications, ...newNotifications],
+        hasMore: hasMore,
+      );
+
+      AppLogger.info('Loaded ${newNotifications.length} more notifications (total: ${state.notifications.length})');
+    } on sb.PostgrestException catch (e) {
+      AppLogger.error('Failed to load more notifications (PostgrestException)', error: e);
+      state = state.copyWith(
+        error: 'Failed to load more notifications.',
+      );
+    } catch (e) {
+      AppLogger.error('Failed to load more notifications', error: e);
+      state = state.copyWith(
+        error: 'Failed to load more notifications.',
+      );
+    }
+  }
+
+  // ─── Realtime Subscription ────────────────────────────────────────
+
+  /// Subscribes to Supabase Realtime changes on the `notifications` table
+  /// filtered by the current user's ID.
+  void _subscribeToRealtimeChanges() {
+    try {
+      _realtimeChannel = _supabase.channel('notifications_realtime_$_userId');
+
+      _realtimeChannel!.onPostgresChanges(
+        event: sb.PostgresChangeEvent.insert,
+        schema: 'public',
+        table: _notificationsTable,
+        filter: sb.PostgresChangeFilter(
+          type: sb.PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: _userId,
+        ),
+        callback: (payload) {
+          final newRow = payload.newRecord;
+          final notification = NotificationItem.fromJson(newRow);
+          // Prepend the new notification (newest first).
+          state = state.copyWith(
+            notifications: [notification, ...state.notifications],
+          );
+          AppLogger.debug('Realtime: new notification received — ${notification.id}');
+        },
+      );
+
+      _realtimeChannel!.onPostgresChanges(
+        event: sb.PostgresChangeEvent.update,
+        schema: 'public',
+        table: _notificationsTable,
+        filter: sb.PostgresChangeFilter(
+          type: sb.PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: _userId,
+        ),
+        callback: (payload) {
+          final updatedRow = payload.newRecord;
+          final updatedNotification = NotificationItem.fromJson(updatedRow);
+          final updatedList = state.notifications.map((n) {
+            if (n.id == updatedNotification.id) {
+              return updatedNotification;
+            }
+            return n;
+          }).toList();
+          state = state.copyWith(notifications: updatedList);
+          AppLogger.debug('Realtime: notification updated — ${updatedNotification.id}');
+        },
+      );
+
+      _realtimeChannel!.onPostgresChanges(
+        event: sb.PostgresChangeEvent.delete,
+        schema: 'public',
+        table: _notificationsTable,
+        filter: sb.PostgresChangeFilter(
+          type: sb.PostgresChangeFilterType.eq,
+          column: 'user_id',
+          value: _userId,
+        ),
+        callback: (payload) {
+          final deletedId = payload.oldRecord['id'] as String?;
+          if (deletedId != null) {
+            final updatedList = state.notifications
+                .where((n) => n.id != deletedId)
+                .toList();
+            state = state.copyWith(notifications: updatedList);
+            AppLogger.debug('Realtime: notification deleted — $deletedId');
+          }
+        },
+      );
+
+      _realtimeChannel!.subscribe();
+
+      AppLogger.info('Subscribed to realtime notifications for user $_userId');
+    } catch (e) {
+      AppLogger.error('Failed to subscribe to realtime notifications', error: e);
+      // Non-fatal — the app can still function without realtime.
+    }
+  }
+
   // ─── Refresh ─────────────────────────────────────────────────────
 
-  /// Refreshes the notifications list from the backend.
+  /// Refreshes the notifications list from Supabase.
   Future<void> refresh() async {
     await _loadNotifications();
   }
@@ -280,7 +446,10 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
   // ─── Mark as Read ────────────────────────────────────────────────
 
   /// Marks a single notification as read by its [notificationId].
-  void markAsRead(String notificationId) {
+  ///
+  /// Optimistically updates local state, then persists to Supabase.
+  Future<void> markAsRead(String notificationId) async {
+    // Optimistic update.
     final updated = state.notifications.map((n) {
       if (n.id == notificationId) {
         return n.copyWith(isRead: true);
@@ -289,31 +458,118 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
     }).toList();
 
     state = state.copyWith(notifications: updated);
-    AppLogger.debug('Notification marked as read: $notificationId');
+
+    try {
+      await _supabase
+          .from(_notificationsTable)
+          .update({'is_read': true})
+          .eq('id', notificationId)
+          .eq('user_id', _userId);
+
+      AppLogger.debug('Notification marked as read: $notificationId');
+    } on sb.PostgrestException catch (e) {
+      AppLogger.error('Failed to mark notification as read (PostgrestException)', error: e);
+      _revertMarkAsRead(notificationId);
+    } catch (e) {
+      AppLogger.error('Failed to mark notification as read', error: e);
+      _revertMarkAsRead(notificationId);
+    }
+  }
+
+  /// Reverts an optimistic mark-as-read on failure.
+  void _revertMarkAsRead(String notificationId) {
+    final reverted = state.notifications.map((n) {
+      if (n.id == notificationId) {
+        return n.copyWith(isRead: false);
+      }
+      return n;
+    }).toList();
+    state = state.copyWith(
+      notifications: reverted,
+      error: 'Failed to mark notification as read.',
+    );
   }
 
   // ─── Mark All as Read ────────────────────────────────────────────
 
   /// Marks all notifications as read.
-  void markAllAsRead() {
+  ///
+  /// Optimistically updates local state, then persists to Supabase.
+  Future<void> markAllAsRead() async {
+    final unreadIds = state.notifications
+        .where((n) => !n.isRead)
+        .map((n) => n.id)
+        .toList();
+
+    if (unreadIds.isEmpty) return;
+
+    // Optimistic update.
     final updated = state.notifications.map((n) {
       return n.copyWith(isRead: true);
     }).toList();
 
     state = state.copyWith(notifications: updated);
-    AppLogger.info('All notifications marked as read');
+
+    try {
+      await _supabase
+          .from(_notificationsTable)
+          .update({'is_read': true})
+          .eq('user_id', _userId)
+          .inFilter('id', unreadIds);
+
+      AppLogger.info('All notifications marked as read');
+    } on sb.PostgrestException catch (e) {
+      AppLogger.error('Failed to mark all as read (PostgrestException)', error: e);
+      _loadNotifications(); // Re-fetch to get correct state
+    } catch (e) {
+      AppLogger.error('Failed to mark all as read', error: e);
+      _loadNotifications(); // Re-fetch to get correct state
+    }
   }
 
   // ─── Delete Notification ─────────────────────────────────────────
 
   /// Deletes a single notification by its [notificationId].
-  void deleteNotification(String notificationId) {
+  ///
+  /// Optimistically removes from local state, then deletes from Supabase.
+  Future<void> deleteNotification(String notificationId) async {
+    // Store the removed item for potential revert.
+    final removedItem = state.notifications.firstWhere(
+      (n) => n.id == notificationId,
+      orElse: () => throw StateError('Notification not found'),
+    );
+
+    // Optimistic update.
     final updated = state.notifications
         .where((n) => n.id != notificationId)
         .toList();
-
     state = state.copyWith(notifications: updated);
-    AppLogger.info('Notification deleted: $notificationId');
+
+    try {
+      await _supabase
+          .from(_notificationsTable)
+          .delete()
+          .eq('id', notificationId)
+          .eq('user_id', _userId);
+
+      AppLogger.info('Notification deleted: $notificationId');
+    } on sb.PostgrestException catch (e) {
+      AppLogger.error('Failed to delete notification (PostgrestException)', error: e);
+      _revertDelete(removedItem);
+    } catch (e) {
+      AppLogger.error('Failed to delete notification', error: e);
+      _revertDelete(removedItem);
+    }
+  }
+
+  /// Reverts an optimistic delete on failure.
+  void _revertDelete(NotificationItem removedItem) {
+    final reverted = [...state.notifications, removedItem]
+      ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+    state = state.copyWith(
+      notifications: reverted,
+      error: 'Failed to delete notification.',
+    );
   }
 
   // ─── Filter ──────────────────────────────────────────────────────
@@ -330,6 +586,27 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
   void clearError() {
     state = state.copyWith(error: null);
   }
+
+  // ─── Dispose ─────────────────────────────────────────────────────
+
+  @override
+  void dispose() {
+    _disposeRealtimeChannel();
+    super.dispose();
+  }
+
+  /// Unsubscribes from the Supabase Realtime channel.
+  Future<void> _disposeRealtimeChannel() async {
+    if (_realtimeChannel != null) {
+      try {
+        await _supabase.removeChannel(_realtimeChannel!);
+        AppLogger.info('Unsubscribed from realtime notifications channel');
+      } catch (e) {
+        AppLogger.error('Failed to unsubscribe from realtime channel', error: e);
+      }
+      _realtimeChannel = null;
+    }
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -337,9 +614,29 @@ class NotificationNotifier extends StateNotifier<NotificationState> {
 // ═══════════════════════════════════════════════════════════════════════
 
 /// Provider that holds the current [NotificationState].
+///
+/// Reads the [supabaseClientProvider] and [userIdProvider] to construct
+/// the [NotificationNotifier] with the correct dependencies.
 final notificationProvider =
     StateNotifierProvider<NotificationNotifier, NotificationState>(
-  (ref) => NotificationNotifier(),
+  (ref) {
+    final supabaseClient = ref.watch(supabaseClientProvider);
+    final userId = ref.watch(userIdProvider);
+
+    // If there is no authenticated user, return a notifier with an empty
+    // state that won't attempt to fetch or subscribe.
+    if (userId == null) {
+      return NotificationNotifier(
+        supabaseClient: supabaseClient,
+        userId: '__no_user__',
+      );
+    }
+
+    return NotificationNotifier(
+      supabaseClient: supabaseClient,
+      userId: userId,
+    );
+  },
 );
 
 /// Convenience provider that watches the unread count.

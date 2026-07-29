@@ -18,8 +18,10 @@
 //   - MFA-ready: Interface exists for future multi-factor authentication
 // ============================================================================
 
-import 'dart:async';
+import 'dart:math';
+import 'dart:typed_data';
 
+import 'package:crypto/crypto.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
@@ -131,23 +133,228 @@ class MFAEnrollmentData {
   });
 }
 
-/// Placeholder MFA provider that always returns false (MFA not yet implemented).
-/// When MFA is implemented, replace this with a real provider.
-class PlaceholderMFAProvider implements MFAProvider {
+/// TOTP-based MFA provider that uses the `mfa_configurations` Supabase table
+/// to persist per-user secrets and enrollment status.
+///
+/// Implements RFC 6238 (TOTP) with HMAC-SHA1, 30-second time steps, and
+/// 6-digit codes — compatible with Google Authenticator, Authy, etc.
+class TOTPMFAProvider implements MFAProvider {
+  TOTPMFAProvider({required sb.SupabaseClient supabaseClient})
+      : _supabaseClient = supabaseClient;
+
+  final sb.SupabaseClient _supabaseClient;
+
+  /// Supabase table name for MFA configurations.
+  static const _table = 'mfa_configurations';
+
+  /// TOTP time-step in seconds (30 s per RFC 6238).
+  static const _timeStepSeconds = 30;
+
+  /// Number of digits in the TOTP code.
+  static const _codeDigits = 6;
+
+  /// Window of time-steps to accept (±1 step = 90 s total tolerance).
+  static const _window = 1;
+
+  // ─── isMFAEnabled ─────────────────────────────────────────────────────
+
   @override
-  Future<bool> isMFAEnabled(String userId) async => false;
+  Future<bool> isMFAEnabled(String userId) async {
+    try {
+      final response = await _supabaseClient
+          .from(_table)
+          .select('is_enabled')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (response == null) return false;
+      return response['is_enabled'] as bool? ?? false;
+    } catch (e) {
+      AppLogger.error('TOTPMFAProvider: Failed to check MFA status', error: e);
+      return false;
+    }
+  }
+
+  // ─── enroll ──────────────────────────────────────────────────────────
 
   @override
   Future<MFAEnrollmentData> enroll(String userId) async {
-    throw UnimplementedError('MFA enrollment not yet implemented');
+    try {
+      // Generate a cryptographically random Base32 secret (20 bytes → 32 chars).
+      final secret = _generateBase32Secret();
+
+      // Build the otpauth:// URI for QR-code scanning.
+      final issuer = 'ExamForgeAI';
+      final qrCodeUrl =
+          'otpauth://totp/$issuer:$userId?secret=$secret&issuer=$issuer&algorithm=SHA1&digits=$_codeDigits&period=$_timeStepSeconds';
+
+      // Upsert the MFA configuration row.
+      await _supabaseClient.from(_table).upsert(
+        {
+          'user_id': userId,
+          'secret': secret,
+          'type': 'totp',
+          'is_enabled': true,
+          'enrolled_at': DateTime.now().toUtc().toIso8601String(),
+          'updated_at': DateTime.now().toUtc().toIso8601String(),
+        },
+        onConflict: 'user_id',
+      );
+
+      AppLogger.info('TOTPMFAProvider: MFA enrolled for user $userId');
+      return MFAEnrollmentData(
+        secret: secret,
+        qrCodeUrl: qrCodeUrl,
+        type: 'totp',
+      );
+    } catch (e) {
+      AppLogger.error('TOTPMFAProvider: Failed to enroll MFA', error: e);
+      rethrow;
+    }
   }
 
+  // ─── verify ──────────────────────────────────────────────────────────
+
   @override
-  Future<bool> verify(String userId, String code) async => false;
+  Future<bool> verify(String userId, String code) async {
+    try {
+      final response = await _supabaseClient
+          .from(_table)
+          .select('secret, is_enabled')
+          .eq('user_id', userId)
+          .maybeSingle();
+
+      if (response == null) return false;
+      if ((response['is_enabled'] as bool?) != true) return false;
+
+      final secret = response['secret'] as String;
+      final expectedCodes = _generateTOTPCodes(secret);
+      return expectedCodes.contains(code);
+    } catch (e) {
+      AppLogger.error('TOTPMFAProvider: Failed to verify MFA code', error: e);
+      return false;
+    }
+  }
+
+  // ─── removeEnrollment ────────────────────────────────────────────────
 
   @override
   Future<void> removeEnrollment(String userId) async {
-    throw UnimplementedError('MFA removal not yet implemented');
+    try {
+      await _supabaseClient
+          .from(_table)
+          .delete()
+          .eq('user_id', userId);
+
+      AppLogger.info('TOTPMFAProvider: MFA removed for user $userId');
+    } catch (e) {
+      AppLogger.error('TOTPMFAProvider: Failed to remove MFA', error: e);
+      rethrow;
+    }
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // TOTP ALGORITHM (RFC 6238 with HMAC-SHA1)
+  // ═════════════════════════════════════════════════════════════════════
+
+  /// Generates valid TOTP codes for the current time step plus the
+  /// configured [_window] on each side (typically 3 codes).
+  List<String> _generateTOTPCodes(String base32Secret) {
+    final currentTimeStep = _getCurrentTimeStep();
+    final codes = <String>[];
+
+    for (int offset = -_window; offset <= _window; offset++) {
+      final step = currentTimeStep + offset;
+      codes.add(_generateTOTPAtStep(base32Secret, step));
+    }
+
+    return codes;
+  }
+
+  /// Generates a single TOTP code for the given time-step counter.
+  String _generateTOTPAtStep(String base32Secret, int timeStep) {
+    final secretBytes = _decodeBase32(base32Secret);
+    final stepBytes = _intToBytes(timeStep);
+
+    // HMAC-SHA1
+    final hmac = Hmac(sha1, secretBytes);
+    final hash = hmac.convert(stepBytes).bytes;
+
+    // Dynamic truncation (RFC 4226 §5.3)
+    final offset = hash[hash.length - 1] & 0x0f;
+    final binary = ((hash[offset] & 0x7f) << 24) |
+        ((hash[offset + 1] & 0xff) << 16) |
+        ((hash[offset + 2] & 0xff) << 8) |
+        (hash[offset + 3] & 0xff);
+
+    final otp = binary % 1000000; // 6 digits
+    return otp.toString().padLeft(_codeDigits, '0');
+  }
+
+  /// Returns the current TOTP time-step counter.
+  int _getCurrentTimeStep() {
+    return DateTime.now().toUtc().millisecondsSinceEpoch ~/
+        (_timeStepSeconds * 1000);
+  }
+
+  // ═════════════════════════════════════════════════════════════════════
+  // BASE32 ENCODING / DECODING (RFC 4648)
+  // ═════════════════════════════════════════════════════════════════════
+
+  static const _base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+
+  /// Generates a cryptographically random Base32 secret (160 bits = 32 chars).
+  static String _generateBase32Secret() {
+    final random = Random.secure();
+    final bytes = List<int>.generate(20, (_) => random.nextInt(256));
+    return _encodeBase32(Uint8List.fromList(bytes));
+  }
+
+  /// Encodes raw bytes into a Base32 string (no padding).
+  static String _encodeBase32(Uint8List input) {
+    final buffer = StringBuffer();
+    var bits = 0;
+    var value = 0;
+
+    for (final byte in input) {
+      value = (value << 8) | byte;
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        buffer.write(_base32Alphabet[(value >> bits) & 0x1f]);
+      }
+    }
+    if (bits > 0) {
+      buffer.write(_base32Alphabet[(value << (5 - bits)) & 0x1f]);
+    }
+
+    return buffer.toString();
+  }
+
+  /// Decodes a Base32 string (no padding) into raw bytes.
+  static Uint8List _decodeBase32(String input) {
+    final output = <int>[];
+    var bits = 0;
+    var value = 0;
+
+    for (final char in input.toUpperCase().split('')) {
+      final index = _base32Alphabet.indexOf(char);
+      if (index < 0) continue; // skip padding / invalid chars
+      value = (value << 5) | index;
+      bits += 5;
+      if (bits >= 8) {
+        bits -= 8;
+        output.add((value >> bits) & 0xff);
+      }
+    }
+
+    return Uint8List.fromList(output);
+  }
+
+  /// Converts a 64-bit integer to an 8-byte big-endian list.
+  static Uint8List _intToBytes(int value) {
+    return Uint8List(8)
+      ..buffer.asByteData().setInt64(0, value, Endian.big);
   }
 }
 
@@ -462,7 +669,9 @@ class AdminSecurityService {
 
   // ─── MFA ────────────────────────────────────────────────────────────
 
-  static MFAProvider _mfaProvider = PlaceholderMFAProvider();
+  static MFAProvider _mfaProvider = TOTPMFAProvider(
+    supabaseClient: sb.Supabase.instance.client,
+  );
 
   /// Sets the MFA provider (call during app initialization).
   static void setMFAProvider(MFAProvider provider) {
@@ -489,7 +698,9 @@ class AdminSecurityService {
     _rateLimiters.clear();
     _auditLog.clear();
     _allowedIPs.clear();
-    _mfaProvider = PlaceholderMFAProvider();
+    _mfaProvider = TOTPMFAProvider(
+      supabaseClient: sb.Supabase.instance.client,
+    );
   }
 }
 

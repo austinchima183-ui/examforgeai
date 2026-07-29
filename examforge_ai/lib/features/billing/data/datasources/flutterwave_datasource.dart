@@ -415,12 +415,41 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
     required String currency,
     required String interval,
   }) async {
-    // Payment plan creation must go through a Supabase Edge Function
-    // because it requires the Flutterwave secret key (server-side only).
-    throw UnimplementedError(
-      'createPaymentPlan must be called through a Supabase Edge Function. '
-      'Use the flutterwave-create-plan Edge Function instead.',
-    );
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        'flutterwave-create-plan',
+        body: {
+          'name': name,
+          'amount': amount,
+          'currency': currency,
+          'interval': interval,
+        },
+      );
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map<String, dynamic>
+            ? data['error'] as String? ?? 'Payment plan creation failed.'
+            : 'Payment plan creation failed.';
+        throw ServerException(message: message, statusCode: response.status);
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      AppLogger.info('Payment plan created via Edge Function: ${data['planId']}');
+      return {
+        'plan_id': data['planId'],
+        'name': data['name'],
+        'amount': data['amount'],
+        'currency': data['currency'],
+        'interval': data['interval'],
+        'plan_code': data['planCode'],
+      };
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      AppLogger.error('Unexpected createPaymentPlan error', error: e);
+      throw const ServerException(message: 'Failed to create payment plan.', statusCode: 500);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -433,12 +462,36 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
     required String planCode,
     required double amount,
   }) async {
-    // Plan subscription must go through a Supabase Edge Function
-    // because it requires the Flutterwave secret key (server-side only).
-    throw UnimplementedError(
-      'subscribeToPlan must be called through a Supabase Edge Function. '
-      'Use the flutterwave-subscribe-plan Edge Function instead.',
-    );
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        'flutterwave-subscribe-plan',
+        body: {
+          'email': email,
+          'planCode': planCode,
+          'amount': amount,
+        },
+      );
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map<String, dynamic>
+            ? data['error'] as String? ?? 'Subscription failed.'
+            : 'Subscription failed.';
+        throw ServerException(message: message, statusCode: response.status);
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      AppLogger.info('Subscription initialized via Edge Function: $planCode');
+      return {
+        'checkout_url': data['checkoutUrl'],
+        'tx_ref': data['txRef'],
+      };
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      AppLogger.error('Unexpected subscribeToPlan error', error: e);
+      throw const ServerException(message: 'Failed to subscribe to plan.', statusCode: 500);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════
@@ -450,12 +503,35 @@ class FlutterwaveDataSourceImpl implements FlutterwaveDataSource {
     required double amount,
     required String currency,
   }) async {
-    // Transaction fee queries must go through a Supabase Edge Function
-    // because they require the Flutterwave secret key (server-side only).
-    throw UnimplementedError(
-      'getTransactionFee must be called through a Supabase Edge Function. '
-      'Use the flutterwave-transaction-fee Edge Function instead.',
-    );
+    try {
+      final response = await _supabaseClient.functions.invoke(
+        'flutterwave-transaction-fee',
+        body: {
+          'amount': amount,
+          'currency': currency,
+        },
+      );
+
+      if (response.status != 200) {
+        final data = response.data;
+        final message = data is Map<String, dynamic>
+            ? data['error'] as String? ?? 'Fee query failed.'
+            : 'Fee query failed.';
+        throw ServerException(message: message, statusCode: response.status);
+      }
+
+      final data = response.data as Map<String, dynamic>;
+      return {
+        'fee': data['fee'],
+        'currency': data['currency'],
+        'charge_amount': data['chargeAmount'] ?? data['charge_amount'],
+      };
+    } on ServerException {
+      rethrow;
+    } catch (e) {
+      AppLogger.error('Unexpected getTransactionFee error', error: e);
+      throw const ServerException(message: 'Failed to get transaction fee.', statusCode: 500);
+    }
   }
 
   // ═══════════════════════════════════════════════════════════════════

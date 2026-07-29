@@ -1,0 +1,794 @@
+     1→import '../../core/utils/logger.dart';
+     2→import '../../features/ai_generator/domain/entities/ai_entities.dart';
+     3→import '../../features/question_bank/domain/entities/question_entities.dart';
+     4→
+     5→// ═══════════════════════════════════════════════════════════════════════
+     6→// VALIDATION ENGINE
+     7→// ═══════════════════════════════════════════════════════════════════════
+     8→
+     9→/// Automated validation engine for generated questions.
+    10→///
+    11→/// Runs a comprehensive suite of checks on each question, covering
+    12→/// grammar, answer accuracy, ambiguity, clarity, reading level,
+    13→/// curriculum alignment, difficulty consistency, and duplicate detection.
+    14→///
+    15→/// Each check returns a [ValidationResultEntity] (or null if the check
+    16→/// passes). The main [validate] method runs all checks and returns
+    17→/// the aggregated list.
+    18→class ValidationEngine {
+    19→  // ─── Common grammatical error patterns ─────────────────────────────
+    20→
+    21→  static const List<_GrammarPattern> _grammarPatterns = [
+    22→    _GrammarPattern(
+    23→      pattern: r'\btheir\s+is\b',
+    24→      message: 'Possible grammar error: "their is" — did you mean "there is"?',
+    25→    ),
+    26→    _GrammarPattern(
+    27→      pattern: r'\byour\s+is\b',
+    28→      message: 'Possible grammar error: "your is" — did you mean "you\'re is" or "there is"?',
+    29→    ),
+    30→    _GrammarPattern(
+    31→      pattern: r'\bits\s+a\b',
+    32→      message: 'Check: "its a" — did you mean "it\'s a"?',
+    33→    ),
+    34→    _GrammarPattern(
+    35→      pattern: r'\bshould\s+of\b',
+    36→      message: 'Grammar error: "should of" — should be "should have"',
+    37→    ),
+    38→    _GrammarPattern(
+    39→      pattern: r'\bcould\s+of\b',
+    40→      message: 'Grammar error: "could of" — should be "could have"',
+    41→    ),
+    42→    _GrammarPattern(
+    43→      pattern: r'\bwould\s+of\b',
+    44→      message: 'Grammar error: "would of" — should be "would have"',
+    45→    ),
+    46→    _GrammarPattern(
+    47→      pattern: r'\beffect\s+on\b',
+    48→      message: 'Check: "effect on" — verify if "affect" is the intended word',
+    49→    ),
+    50→    _GrammarPattern(
+    51→      pattern: r'\bless\s+\w+s\b',
+    52→      message: 'Check: "less" with plural noun — consider "fewer"',
+    53→    ),
+    54→    _GrammarPattern(
+    55→      pattern: r'\bwhich\s+\w+\s+\w+\s+,\s*which\b',
+    56→      message: 'Possible ambiguous "which" reference',
+    57→    ),
+    58→  ];
+    59→
+    60→  // ─── Ambiguity indicators ──────────────────────────────────────────
+    61→
+    62→  static const List<String> _ambiguityIndicators = [
+    63→    'it refers to',
+    64→    'this could mean',
+    65→    'that is to say',
+    66→    'in other words',
+    67→    'some people say',
+    68→    'sometimes',
+    69→    'maybe',
+    70→    'perhaps',
+    71→    'might be considered',
+    72→  ];
+    73→
+    74→  // ─── Main validation entry point ──────────────────────────────────
+    75→
+    76→  /// Validate a generated question by running all automated checks.
+    77→  ///
+    78→  /// Returns a list of [ValidationResultEntity] instances. An empty list
+    79→  /// means the question passed all checks.
+    80→  Future<List<ValidationResultEntity>> validate(
+    81→    GeneratedQuestionEntity question,
+    82→  ) async {
+    83→    final results = <ValidationResultEntity>[];
+    84→
+    85→    // Run each check and collect non-null results
+    86→    final grammar = checkGrammar(question.content);
+    87→    if (grammar != null) results.add(grammar);
+    88→
+    89→    // Check answer options for grammar too
+    90→    for (final option in question.answerOptions) {
+    91→      final optionText = option['text'] as String? ?? option['content'] as String? ?? '';
+    92→      if (optionText.isNotEmpty) {
+    93→        final optionGrammar = checkGrammar(optionText);
+    94→        if (optionGrammar != null) {
+    95→          results.add(optionGrammar.copyWith(
+    96→            validationType: 'grammar_option',
+    97→            message: 'Option ${option['label'] ?? ""}: ${optionGrammar.message}',
+    98→          ),);
+    99→        }
+   100→      }
+   101→    }
+   102→
+   103→    final ambiguity = checkAmbiguity(question.content);
+   104→    if (ambiguity != null) results.add(ambiguity);
+   105→
+   106→    final clarity = checkClarity(question.content);
+   107→    if (clarity != null) results.add(clarity);
+   108→
+   109→    final answerAccuracy = checkAnswerAccuracy(question);
+   110→    if (answerAccuracy != null) results.add(answerAccuracy);
+   111→
+   112→    final difficultyConsistency = checkDifficultyConsistency(question);
+   113→    if (difficultyConsistency != null) results.add(difficultyConsistency);
+   114→
+   115→    final readingLevel = checkReadingLevel(
+   116→      question.content,
+   117→      question.curriculumAlignment?['class_level'] as String? ?? '',
+   118→    );
+   119→    if (readingLevel != null) results.add(readingLevel);
+   120→
+   121→    AppLogger.info('Validation complete for question ${question.id}: '
+   122→        '${results.length} issue(s) found');
+   123→
+   124→    return results;
+   125→  }
+   126→
+   127→  /// Validate with duplicate checking against existing questions.
+   128→  Future<List<ValidationResultEntity>> validateWithDuplicates(
+   129→    GeneratedQuestionEntity question,
+   130→    List<QuestionEntity> existingQuestions,
+   131→  ) async {
+   132→    final results = await validate(question);
+   133→
+   134→    final duplicate = await checkDuplicate(question, existingQuestions);
+   135→    if (duplicate != null) results.add(duplicate);
+   136→
+   137→    return results;
+   138→  }
+   139→
+   140→  /// Validate with curriculum alignment checking.
+   141→  Future<List<ValidationResultEntity>> validateWithCurriculum(
+   142→    GeneratedQuestionEntity question,
+   143→    CurriculumMappingEntity? mapping,
+   144→  ) async {
+   145→    final results = await validate(question);
+   146→
+   147→    if (mapping != null) {
+   148→      final alignment = checkCurriculumAlignment(question, mapping);
+   149→      if (alignment != null) results.add(alignment);
+   150→    }
+   151→
+   152→    return results;
+   153→  }
+   154→
+   155→  // ─── Individual Checks ────────────────────────────────────────────
+   156→
+   157→  /// Check grammar and spelling using rule-based patterns.
+   158→  ///
+   159→  /// This is a lightweight heuristic check. For production-grade
+   160→  /// grammar checking, consider integrating with a language tool API.
+   161→  ValidationResultEntity? checkGrammar(String content) {
+   162→    if (content.trim().isEmpty) {
+   163→      return ValidationResultEntity(
+   164→        id: '',
+   165→        generatedQuestionId: '',
+   166→        validationType: 'grammar',
+   167→        severity: ValidationSeverity.critical,
+   168→        message: 'Question content is empty',
+   169→        suggestion: 'Provide non-empty question content',
+   170→        isResolved: false,
+   171→        resolvedBy: null,
+   172→        resolvedAt: null,
+   173→        createdAt: DateTime.now(),
+   174→      );
+   175→    }
+   176→
+   177→    final issues = <String>[];
+   178→
+   179→    for (final pattern in _grammarPatterns) {
+   180→      if (RegExp(pattern.pattern, caseSensitive: false).hasMatch(content)) {
+   181→        issues.add(pattern.message);
+   182→      }
+   183→    }
+   184→
+   185→    // Check for double spaces
+   186→    if (RegExp(r'  +').hasMatch(content)) {
+   187→      issues.add('Text contains double spaces');
+   188→    }
+   189→
+   190→    // Check for missing question mark at end of direct questions
+   191→    final trimmedContent = content.trim();
+   192→    if (trimmedContent.contains('?') == false &&
+   193→        (trimmedContent.startsWithWh('Wh') ||
+   194→            trimmedContent.toLowerCase().startsWith('how') ||
+   195→            trimmedContent.toLowerCase().startsWith('what') ||
+   196→            trimmedContent.toLowerCase().startsWith('which') ||
+   197→            trimmedContent.toLowerCase().startsWith('who') ||
+   198→            trimmedContent.toLowerCase().startsWith('where') ||
+   199→            trimmedContent.toLowerCase().startsWith('when') ||
+   200→            trimmedContent.toLowerCase().startsWith('why'))) {
+   201→      issues.add('Question appears to be a direct question but is missing a question mark');
+   202→    }
+   203→
+   204→    // Check for very short content
+   205→    if (content.split(' ').length < 4) {
+   206→      issues.add('Question content is very short (less than 4 words)');
+   207→    }
+   208→
+   209→    if (issues.isEmpty) return null;
+   210→
+   211→    return ValidationResultEntity(
+   212→      id: '',
+   213→      generatedQuestionId: '',
+   214→      validationType: 'grammar',
+   215→      severity: issues.length > 2 ? ValidationSeverity.warning : ValidationSeverity.info,
+   216→      message: 'Grammar/spelling issues found: ${issues.join("; ")}',
+   217→      suggestion: 'Review and correct the identified grammar issues',
+   218→      isResolved: false,
+   219→      resolvedBy: null,
+   220→      resolvedAt: null,
+   221→      createdAt: DateTime.now(),
+   222→    );
+   223→  }
+   224→
+   225→  /// Check for duplicate questions by comparing content similarity.
+   226→  ///
+   227→  /// Uses a Jaccard similarity measure on word sets. Questions with
+   228→  /// >80% word overlap are flagged as potential duplicates.
+   229→  Future<ValidationResultEntity?> checkDuplicate(
+   230→    GeneratedQuestionEntity question,
+   231→    List<QuestionEntity> existingQuestions,
+   232→  ) async {
+   233→    final questionWords = _normalizeAndTokenize(question.content);
+   234→
+   235→    if (questionWords.isEmpty) return null;
+   236→
+   237→    for (final existing in existingQuestions) {
+   238→      final existingWords = _normalizeAndTokenize(existing.content);
+   239→
+   240→      if (existingWords.isEmpty) continue;
+   241→
+   242→      // Calculate Jaccard similarity
+   243→      final intersection = questionWords.intersection(existingWords).length;
+   244→      final union = questionWords.union(existingWords).length;
+   245→      final similarity = union > 0 ? intersection / union : 0.0;
+   246→
+   247→      if (similarity > 0.8) {
+   248→        return ValidationResultEntity(
+   249→          id: '',
+   250→          generatedQuestionId: question.id,
+   251→          validationType: 'duplicate',
+   252→          severity: ValidationSeverity.error,
+   253→          message: 'Potential duplicate detected (similarity: '
+   254→              '${(similarity * 100).toStringAsFixed(1)}%)',
+   255→          suggestion: 'Modify the question to make it distinct, or use the '
+   256→              'existing question',
+   257→          isResolved: false,
+   258→          resolvedBy: null,
+   259→          resolvedAt: null,
+   260→          createdAt: DateTime.now(),
+   261→        );
+   262→      }
+   263→    }
+   264→
+   265→    return null;
+   266→  }
+   267→
+   268→  /// Check answer accuracy: correct answer should be clearly correct,
+   269→  /// and distractors should be plausible but definitively wrong.
+   270→  ValidationResultEntity? checkAnswerAccuracy(
+   271→    GeneratedQuestionEntity question,
+   272→  ) {
+   273→    final options = question.answerOptions;
+   274→    if (options.isEmpty) return null; // Not a multiple-choice question
+   275→
+   276→    // Check that exactly one option is marked correct
+   277→    final correctOptions = options.where((o) {
+   278→      return (o['is_correct'] as bool?) ?? (o['isCorrect'] as bool?) ?? false;
+   279→    }).toList();
+   280→
+   281→    if (correctOptions.isEmpty) {
+   282→      return ValidationResultEntity(
+   283→        id: '',
+   284→        generatedQuestionId: question.id,
+   285→        validationType: 'answer_accuracy',
+   286→        severity: ValidationSeverity.critical,
+   287→        message: 'No correct answer is marked in the answer options',
+   288→        suggestion: 'Mark exactly one option as the correct answer',
+   289→        isResolved: false,
+   290→        resolvedBy: null,
+   291→        resolvedAt: null,
+   292→        createdAt: DateTime.now(),
+   293→      );
+   294→    }
+   295→
+   296→    // For single-answer MCQs, check that only one is correct
+   297→    if (question.questionType == QuestionType.multipleChoice &&
+   298→        correctOptions.length > 1) {
+   299→      return ValidationResultEntity(
+   300→        id: '',
+   301→        generatedQuestionId: question.id,
+   302→        validationType: 'answer_accuracy',
+   303→        severity: ValidationSeverity.error,
+   304→        message: 'Multiple-choice question has ${correctOptions.length} '
+   305→            'correct answers; expected exactly 1',
+   306→        suggestion: 'For MCQs, only one option should be correct. '
+   307→            'Use multiple_response type for multiple correct answers.',
+   308→        isResolved: false,
+   309→        resolvedBy: null,
+   310→        resolvedAt: null,
+   311→        createdAt: DateTime.now(),
+   312→      );
+   313→    }
+   314→
+   315→    // Check that option texts are not empty
+   316→    for (int i = 0; i < options.length; i++) {
+   317→      final text = options[i]['text'] as String? ??
+   318→          options[i]['content'] as String? ?? '';
+   319→      if (text.trim().isEmpty) {
+   320→        return ValidationResultEntity(
+   321→          id: '',
+   322→          generatedQuestionId: question.id,
+   323→          validationType: 'answer_accuracy',
+   324→          severity: ValidationSeverity.error,
+   325→          message: 'Answer option ${i + 1} has empty text',
+   326→          suggestion: 'Provide text for all answer options',
+   327→          isResolved: false,
+   328→          resolvedBy: null,
+   329→          resolvedAt: null,
+   330→          createdAt: DateTime.now(),
+   331→        );
+   332→      }
+   333→    }
+   334→
+   335→    // Check for duplicate option texts
+   336→    final optionTexts = options
+   337→        .map((o) => (o['text'] as String? ?? o['content'] as String? ?? '')
+   338→            .trim()
+   339→            .toLowerCase(),)
+   340→        .toList();
+   341→    if (optionTexts.toSet().length != optionTexts.length) {
+   342→      return ValidationResultEntity(
+   343→        id: '',
+   344→        generatedQuestionId: question.id,
+   345→        validationType: 'answer_accuracy',
+   346→        severity: ValidationSeverity.error,
+   347→        message: 'Two or more answer options have identical text',
+   348→        suggestion: 'Make each option distinct',
+   349→        isResolved: false,
+   350→        resolvedBy: null,
+   351→        resolvedAt: null,
+   352→        createdAt: DateTime.now(),
+   353→      );
+   354→    }
+   355→
+   356→    // Check for "All of the above" / "None of the above" patterns
+   357→    // These can sometimes indicate poor distractor quality
+   358→    for (final option in options) {
+   359→      final text = (option['text'] as String? ?? '').toLowerCase();
+   360→      final isCorrect = (option['is_correct'] as bool?) ??
+   361→          (option['isCorrect'] as bool?) ??
+   362→          false;
+   363→      if ((text.contains('all of the above') ||
+   364→              text.contains('none of the above')) &&
+   365→          isCorrect) {
+   366→        return ValidationResultEntity(
+   367→          id: '',
+   368→          generatedQuestionId: question.id,
+   369→          validationType: 'answer_accuracy',
+   370→          severity: ValidationSeverity.warning,
+   371→          message: '"All/None of the above" is marked as correct — '
+   372→              'this can be a poor testing strategy',
+   373→          suggestion:
+   374→              'Consider using specific correct answers instead of catch-all options',
+   375→          isResolved: false,
+   376→          resolvedBy: null,
+   377→          resolvedAt: null,
+   378→          createdAt: DateTime.now(),
+   379→        );
+   380→      }
+   381→    }
+   382→
+   383→    // Check that option lengths are not wildly different
+   384→    // (could give away the answer)
+   385→    if (options.length >= 3) {
+   386→      final lengths = options
+   387→          .map((o) =>
+   388→              (o['text'] as String? ?? o['content'] as String? ?? '').length,)
+   389→          .toList();
+   390→      final avgLength = lengths.reduce((a, b) => a + b) / lengths.length;
+   391→      for (int i = 0; i < lengths.length; i++) {
+   392→        if (avgLength > 0 && (lengths[i] / avgLength) > 2.0) {
+   393→          return ValidationResultEntity(
+   394→            id: '',
+   395→            generatedQuestionId: question.id,
+   396→            validationType: 'answer_accuracy',
+   397→            severity: ValidationSeverity.warning,
+   398→            message: 'Option ${i + 1} is significantly longer than other '
+   399→                'options, which may give away the answer',
+   400→            suggestion:
+   401→                'Make all options roughly the same length',
+   402→            isResolved: false,
+   403→            resolvedBy: null,
+   404→            resolvedAt: null,
+   405→            createdAt: DateTime.now(),
+   406→          );
+   407→        }
+   408→      }
+   409→    }
+   410→
+   411→    return null;
+   412→  }
+   413→
+   414→  /// Check for ambiguous wording in the question content.
+   415→  ValidationResultEntity? checkAmbiguity(String content) {
+   416→    final lowerContent = content.toLowerCase();
+   417→
+   418→    // Check for ambiguity indicators
+   419→    final foundIndicators = <String>[];
+   420→    for (final indicator in _ambiguityIndicators) {
+   421→      if (lowerContent.contains(indicator.toLowerCase())) {
+   422→        foundIndicators.add(indicator);
+   423→      }
+   424→    }
+   425→
+   426→    // Check for pronouns without clear antecedents
+   427→    final pronounPattern = RegExp(r'\b(it|they|this|that|these|those)\b',
+   428→        caseSensitive: false,);
+   429→    final pronounMatches = pronounPattern.allMatches(content);
+   430→    if (pronounMatches.length > 2) {
+   431→      foundIndicators.add(
+   432→          'Excessive use of pronouns (it/they/this/that) — '
+   433→          'antecedents may be unclear');
+   434→    }
+   435→
+   436→    // Check for "not" and "except" which can create confusion
+   437→    if (lowerContent.contains(' not ') && lowerContent.contains(' except ')) {
+   438→      foundIndicators.add(
+   439→          'Double negative pattern detected (both "not" and "except")',);
+   440→    }
+   441→
+   442→    // Check for "which of the following" without a specific criteria
+   443→    if (lowerContent.contains('which of the following') &&
+   444→        !lowerContent.contains('is true') &&
+   445→        !lowerContent.contains('is correct') &&
+   446→        !lowerContent.contains('is false') &&
+   447→        !lowerContent.contains('are true') &&
+   448→        !lowerContent.contains('are correct')) {
+   449→      foundIndicators.add(
+   450→          '"Which of the following" without clear selection criteria',);
+   451→    }
+   452→
+   453→    if (foundIndicators.isEmpty) return null;
+   454→
+   455→    return ValidationResultEntity(
+   456→      id: '',
+   457→      generatedQuestionId: '',
+   458→      validationType: 'ambiguity',
+   459→      severity: ValidationSeverity.warning,
+   460→      message: 'Potential ambiguity detected: ${foundIndicators.join("; ")}',
+   461→      suggestion: 'Rewrite the question to eliminate ambiguous wording',
+   462→      isResolved: false,
+   463→      resolvedBy: null,
+   464→      resolvedAt: null,
+   465→      createdAt: DateTime.now(),
+   466→    );
+   467→  }
+   468→
+   469→  /// Check clarity of the question content.
+   470→  ValidationResultEntity? checkClarity(String content) {
+   471→    final issues = <String>[];
+   472→
+   473→    // Check for overly long sentences
+   474→    final sentences = content.split(RegExp(r'[.!?]'));
+   475→    for (final sentence in sentences) {
+   476→      final wordCount = sentence.trim().split(RegExp(r'\s+')).length;
+   477→      if (wordCount > 40) {
+   478→        issues.add('Sentence with $wordCount words is too long '
+   479→            '(recommended max: 40 words)');
+   480→      }
+   481→    }
+   482→
+   483→    // Check for nested clauses (multiple commas might indicate complexity)
+   484→    final commaCount = ','.allMatches(content).length;
+   485→    if (commaCount > 4) {
+   486→      issues.add('High number of commas ($commaCount) suggests '
+   487→          'complex sentence structure');
+   488→    }
+   489→
+   490→    // Check for parenthetical expressions that might confuse
+   491→    final parenCount = '('.allMatches(content).length;
+   492→    if (parenCount > 2) {
+   493→      issues.add('Multiple parenthetical expressions may reduce clarity');
+   494→    }
+   495→
+   496→    // Check overall word count
+   497→    final totalWords = content.split(RegExp(r'\s+')).length;
+   498→    if (totalWords > 100) {
+   499→      issues.add('Question is very long ($totalWords words) — '
+   500→          'consider simplifying');
+   501→    }
+   502→
+   503→    // Check for double negatives
+   504→    if (RegExp(r'\bnot\s+\w+\s+not\b', caseSensitive: false)
+   505→        .hasMatch(content)) {
+   506→      issues.add('Double negative detected — can confuse students');
+   507→    }
+   508→
+   509→    if (issues.isEmpty) return null;
+   510→
+   511→    return ValidationResultEntity(
+   512→      id: '',
+   513→      generatedQuestionId: '',
+   514→      validationType: 'clarity',
+   515→      severity: ValidationSeverity.info,
+   516→      message: 'Clarity concerns: ${issues.join("; ")}',
+   517→      suggestion: 'Simplify the question wording for better student comprehension',
+   518→      isResolved: false,
+   519→      resolvedBy: null,
+   520→      resolvedAt: null,
+   521→      createdAt: DateTime.now(),
+   522→    );
+   523→  }
+   524→
+   525→  /// Estimate reading level using a simplified Flesch-Kincaid approach.
+   526→  ValidationResultEntity? checkReadingLevel(
+   527→    String content,
+   528→    String classLevel,
+   529→  ) {
+   530→    if (content.trim().isEmpty || classLevel.isEmpty) return null;
+   531→
+   532→    // Flesch-Kincaid Grade Level estimation
+   533→    final words = content.split(RegExp(r'\s+'));
+   534→    final wordCount = words.length;
+   535→    if (wordCount == 0) return null;
+   536→
+   537→    // Count syllables (simplified estimation)
+   538→    int totalSyllables = 0;
+   539→    for (final word in words) {
+   540→      totalSyllables += _countSyllables(word);
+   541→    }
+   542→
+   543→    // Count sentences
+   544→    final sentences = content.split(RegExp(r'[.!?]'));
+   545→    final sentenceCount = sentences.where((s) => s.trim().isNotEmpty).length;
+   546→    if (sentenceCount == 0) return null;
+   547→
+   548→    // Flesch-Kincaid Grade Level formula
+   549→    final gradeLevel = (0.39 * (wordCount / sentenceCount)) +
+   550→        (11.8 * (totalSyllables / wordCount)) -
+   551→        15.59;
+   552→
+   553→    // Map class level to expected reading level
+   554→    final expectedLevel = _classLevelToReadingLevel(classLevel);
+   555→
+   556→    if (gradeLevel > expectedLevel + 2) {
+   557→      return ValidationResultEntity(
+   558→        id: '',
+   559→        generatedQuestionId: '',
+   560→        validationType: 'reading_level',
+   561→        severity: ValidationSeverity.warning,
+   562→        message: 'Reading level (grade ${gradeLevel.toStringAsFixed(1)}) '
+   563→            'is significantly above expected level (grade $expectedLevel) '
+   564→            'for class $classLevel',
+   565→        suggestion: 'Simplify vocabulary and sentence structure to match '
+   566→            'the target reading level',
+   567→        isResolved: false,
+   568→        resolvedBy: null,
+   569→        resolvedAt: null,
+   570→        createdAt: DateTime.now(),
+   571→      );
+   572→    }
+   573→
+   574→    return null;
+   575→  }
+   576→
+   577→  /// Check curriculum alignment of the question.
+   578→  ValidationResultEntity? checkCurriculumAlignment(
+   579→    GeneratedQuestionEntity question,
+   580→    CurriculumMappingEntity? mapping,
+   581→  ) {
+   582→    if (mapping == null) return null;
+   583→
+   584→    final issues = <String>[];
+   585→
+   586→    // Check if question difficulty matches suggested difficulty
+   587→    if (mapping.suggestedDifficulty != null &&
+   588→        question.difficulty != mapping.suggestedDifficulty) {
+   589→      issues.add(
+   590→          'Question difficulty (${question.difficulty.label}) does not match '
+   591→              'curriculum suggestion (${mapping.suggestedDifficulty!.label})');
+   592→    }
+   593→
+   594→    // Check if Bloom's level is in the curriculum's suggested levels
+   595→    if (question.bloomLevel != null &&
+   596→        mapping.bloomLevels.isNotEmpty &&
+   597→        !mapping.bloomLevels.contains(question.bloomLevel)) {
+   598→      issues.add(
+   599→          "Question Bloom's level (${question.bloomLevel!.label}) is not "
+   600→              'in the curriculum\'s suggested levels '
+   601→              '(${mapping.bloomLevels.map((b) => b.label).join(", ")})');
+   602→    }
+   603→
+   604→    // Check if the topic matches
+   605→    if (mapping.learningObjectives.isEmpty) {
+   606→      issues.add(
+   607→          'No learning objectives defined in the curriculum mapping',);
+   608→    }
+   609→
+   610→    if (issues.isEmpty) return null;
+   611→
+   612→    return ValidationResultEntity(
+   613→      id: '',
+   614→      generatedQuestionId: question.id,
+   615→      validationType: 'curriculum_alignment',
+   616→      severity: ValidationSeverity.warning,
+   617→      message: 'Curriculum alignment issues: ${issues.join("; ")}',
+   618→      suggestion: 'Adjust the question to better align with curriculum standards',
+   619→      isResolved: false,
+   620→      resolvedBy: null,
+   621→      resolvedAt: null,
+   622→      createdAt: DateTime.now(),
+   623→    );
+   624→  }
+   625→
+   626→  /// Check difficulty consistency between stated difficulty and
+   627→  /// question characteristics.
+   628→  ValidationResultEntity? checkDifficultyConsistency(
+   629→    GeneratedQuestionEntity question,
+   630→  ) {
+   631→    final issues = <String>[];
+   632→
+   633→    // Check if Bloom's level and difficulty are consistent
+   634→    if (question.bloomLevel != null) {
+   635→      final expectedDifficulty = _bloomToExpectedDifficulty(question.bloomLevel!);
+   636→      if (question.difficulty != expectedDifficulty &&
+   637→          !_isCompatibleDifficulty(question.difficulty, expectedDifficulty)) {
+   638→        issues.add(
+   639→            "Bloom's level (${question.bloomLevel!.label}) typically "
+   640→                'corresponds to ${expectedDifficulty.label} difficulty, '
+   641→                'but question is marked as ${question.difficulty.label}');
+   642→      }
+   643→    }
+   644→
+   645→    // Check if answer options count is appropriate for difficulty
+   646→    if (question.answerOptions.isNotEmpty) {
+   647→      final optionCount = question.answerOptions.length;
+   648→      if (question.difficulty == DifficultyLevel.easy && optionCount > 4) {
+   649→        issues.add(
+   650→            'Easy questions typically have 3-4 options, but this has $optionCount',);
+   651→      }
+   652→      if (question.difficulty == DifficultyLevel.hard && optionCount < 4) {
+   653→        issues.add(
+   654→            'Hard questions typically have 4+ options for adequate '
+   655→                'discrimination, but this has only $optionCount');
+   656→      }
+   657→    }
+   658→
+   659→    // Check if marks are appropriate for difficulty
+   660→    if (question.difficulty == DifficultyLevel.expert && question.marks < 3) {
+   661→      issues.add(
+   662→          'Expert-level questions should typically carry more marks '
+   663→              '(currently ${question.marks})');
+   664→    }
+   665→
+   666→    if (issues.isEmpty) return null;
+   667→
+   668→    return ValidationResultEntity(
+   669→      id: '',
+   670→      generatedQuestionId: question.id,
+   671→      validationType: 'difficulty_consistency',
+   672→      severity: ValidationSeverity.info,
+   673→      message: 'Difficulty consistency issues: ${issues.join("; ")}',
+   674→      suggestion: 'Review the difficulty level and adjust question '
+   675→          'parameters accordingly',
+   676→      isResolved: false,
+   677→      resolvedBy: null,
+   678→      resolvedAt: null,
+   679→      createdAt: DateTime.now(),
+   680→    );
+   681→  }
+   682→
+   683→  // ─── Private Utility Methods ──────────────────────────────────────
+   684→
+   685→  /// Normalize text and split into a set of unique words for comparison.
+   686→  Set<String> _normalizeAndTokenize(String text) {
+   687→    return text
+   688→        .toLowerCase()
+   689→        .replaceAll(RegExp(r'[^\w\s]'), '')
+   690→        .split(RegExp(r'\s+'))
+   691→        .where((w) => w.length > 2) // Ignore very short words
+   692→        .toSet();
+   693→  }
+   694→
+   695→  /// Count syllables in a word using a simple heuristic.
+   696→  int _countSyllables(String word) {
+   697→    final w = word.toLowerCase().replaceAll(RegExp(r'[^a-z]'), '');
+   698→    if (w.isEmpty) return 0;
+   699→    if (w.length <= 3) return 1;
+   700→
+   701→    int count = 0;
+   702→    final vowels = RegExp(r'[aeiouy]');
+   703→    bool prevVowel = false;
+   704→
+   705→    for (int i = 0; i < w.length; i++) {
+   706→      final isVowel = vowels.hasMatch(w[i]);
+   707→      if (isVowel && !prevVowel) count++;
+   708→      prevVowel = isVowel;
+   709→    }
+   710→
+   711→    // Handle silent 'e' at end
+   712→    if (w.endsWith('e') && count > 1) count--;
+   713→
+   714→    // Handle 'le' at end
+   715→    if (w.endsWith('le') && w.length > 2 && !vowels.hasMatch(w[w.length - 3])) {
+   716→      count++;
+   717→    }
+   718→
+   719→    return count.clamp(1, 20);
+   720→  }
+   721→
+   722→  /// Map a class level string to an approximate reading grade level.
+   723→  int _classLevelToReadingLevel(String classLevel) {
+   724→    // Try to parse numeric class level
+   725→    final numericMatch = RegExp(r'(\d+)').firstMatch(classLevel);
+   726→    if (numericMatch != null) {
+   727→      final grade = int.tryParse(numericMatch.group(1)!) ?? 6;
+   728→      return grade + 5; // Class 6 ≈ grade 11 reading level, etc.
+   729→    }
+   730→
+   731→    // Map common class level names
+   732→    final lower = classLevel.toLowerCase();
+   733→    if (lower.contains('primary') || lower.contains('elementary')) return 5;
+   734→    if (lower.contains('junior') || lower.contains('middle')) return 8;
+   735→    if (lower.contains('senior') || lower.contains('secondary')) return 11;
+   736→    if (lower.contains('university') || lower.contains('college')) return 14;
+   737→
+   738→    return 10; // Default
+   739→  }
+   740→
+   741→  /// Map Bloom's taxonomy level to an expected difficulty level.
+   742→  DifficultyLevel _bloomToExpectedDifficulty(BloomTaxonomy bloom) {
+   743→    switch (bloom) {
+   744→      case BloomTaxonomy.remember:
+   745→      case BloomTaxonomy.understand:
+   746→        return DifficultyLevel.easy;
+   747→      case BloomTaxonomy.apply:
+   748→        return DifficultyLevel.medium;
+   749→      case BloomTaxonomy.analyze:
+   750→        return DifficultyLevel.medium;
+   751→      case BloomTaxonomy.evaluate:
+   752→        return DifficultyLevel.hard;
+   753→      case BloomTaxonomy.create:
+   754→        return DifficultyLevel.expert;
+   755→    }
+   756→  }
+   757→
+   758→  /// Check if two difficulty levels are compatible (adjacent).
+   759→  bool _isCompatibleDifficulty(DifficultyLevel actual, DifficultyLevel expected) {
+   760→    const order = [
+   761→      DifficultyLevel.easy,
+   762→      DifficultyLevel.medium,
+   763→      DifficultyLevel.hard,
+   764→      DifficultyLevel.expert,
+   765→    ];
+   766→    final actualIndex = order.indexOf(actual);
+   767→    final expectedIndex = order.indexOf(expected);
+   768→    return (actualIndex - expectedIndex).abs() <= 1;
+   769→  }
+   770→}
+   771→
+   772→// ═══════════════════════════════════════════════════════════════════════
+   773→// INTERNAL HELPER CLASSES
+   774→// ═══════════════════════════════════════════════════════════════════════
+   775→
+   776→class _GrammarPattern {
+   777→  const _GrammarPattern({
+   778→    required this.pattern,
+   779→    required this.message,
+   780→  });
+   781→
+   782→  final String pattern;
+   783→  final String message;
+   784→}
+   785→
+   786→/// Extension on [String] to check if it starts with common question words.
+   787→extension _StringQuestionExtension on String {
+   788→  bool startsWithWh(String prefix) {
+   789→    final lower = toLowerCase();
+   790→    return lower.startsWith('${prefix.toLowerCase()}wh') ||
+   791→        lower.startsWith('wh');
+   792→  }
+   793→}
+   794→

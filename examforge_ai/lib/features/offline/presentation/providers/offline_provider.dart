@@ -1,8 +1,16 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
+import '../../../../core/network/network_info.dart';
+import '../../../../core/storage/cache_manager.dart';
+import '../../../../core/sync/sync_engine.dart';
 import '../../../../core/utils/logger.dart';
+import '../../data/datasources/offline_local_datasource.dart';
+import '../../data/datasources/offline_remote_datasource.dart';
+import '../../data/repositories/offline_repository_impl.dart';
 import '../../domain/entities/offline_entities.dart';
+import '../../domain/repositories/offline_repository.dart';
 import '../../domain/usecases/delete_draft_usecase.dart';
 import '../../domain/usecases/download_resource_usecase.dart';
 import '../../domain/usecases/get_connectivity_info_usecase.dart';
@@ -572,55 +580,85 @@ final offlineProvider =
 );
 
 // ═══════════════════════════════════════════════════════════════════════
-// USE CASE PROVIDERS (stubs — wire up in dependency_injection.dart)
+// DATA LAYER PROVIDERS
 // ═══════════════════════════════════════════════════════════════════════
-// These placeholder providers must be overridden in the DI layer with
-// real implementations that inject the OfflineRepository.
+
+/// Provider for the [OfflineLocalDataSource].
+/// Uses the [cacheManagerProvider] from dependency_injection.dart.
+final _offlineLocalDataSourceProvider = Provider<OfflineLocalDataSource>((ref) {
+  return OfflineLocalDataSourceImpl(cacheManager: ref.watch(cacheManagerProvider));
+});
+
+/// Provider for the [OfflineRemoteDataSource].
+/// Uses the [supabaseClientProvider] from dependency_injection.dart.
+final _offlineRemoteDataSourceProvider = Provider<OfflineRemoteDataSource>((ref) {
+  return OfflineRemoteDataSourceImpl(
+    supabaseClient: ref.watch(supabaseClientProvider),
+  );
+});
+
+/// Provider for the [OfflineRepository] implementation.
+/// Wires up local data source, remote data source, network info,
+/// cache manager, and sync engine.
+final _offlineRepositoryProvider = Provider<OfflineRepository>((ref) {
+  return OfflineRepositoryImpl(
+    localDataSource: ref.watch(_offlineLocalDataSourceProvider),
+    remoteDataSource: ref.watch(_offlineRemoteDataSourceProvider),
+    networkInfo: ref.watch(coreNetworkInfoProvider),
+    cacheManager: ref.watch(cacheManagerProvider),
+    syncEngine: ref.watch(syncEngineProvider.notifier),
+  );
+});
+
+// ═══════════════════════════════════════════════════════════════════════
+// USE CASE PROVIDERS
+// ═══════════════════════════════════════════════════════════════════════
+// Each provider creates a use case instance backed by the offline repository.
 
 final getSyncStatusUseCaseProvider = Provider<GetSyncStatusUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => GetSyncStatusUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final triggerSyncUseCaseProvider = Provider<TriggerSyncUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => TriggerSyncUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final getOfflineResourcesUseCaseProvider = Provider<GetOfflineResourcesUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => GetOfflineResourcesUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final downloadResourceUseCaseProvider = Provider<DownloadResourceUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => DownloadResourceUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final removeOfflineResourceUseCaseProvider = Provider<RemoveOfflineResourceUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => RemoveOfflineResourceUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final saveDraftUseCaseProvider = Provider<SaveDraftUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => SaveDraftUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final getDraftsUseCaseProvider = Provider<GetDraftsUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => GetDraftsUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final deleteDraftUseCaseProvider = Provider<DeleteDraftUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => DeleteDraftUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final getConnectivityInfoUseCaseProvider = Provider<GetConnectivityInfoUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => GetConnectivityInfoUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final registerDeviceUseCaseProvider = Provider<RegisterDeviceUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => RegisterDeviceUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final startDownloadUseCaseProvider = Provider<StartDownloadUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => StartDownloadUseCase(ref.watch(_offlineRepositoryProvider)),
 );
 
 final getDownloadsUseCaseProvider = Provider<GetDownloadsUseCase>(
-  (ref) => throw UnimplementedError('Wire up in dependency_injection.dart'),
+  (ref) => GetDownloadsUseCase(ref.watch(_offlineRepositoryProvider)),
 );

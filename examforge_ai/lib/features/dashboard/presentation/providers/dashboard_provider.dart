@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/utils/logger.dart';
 import '../../../../routing/route_guards.dart';
 
@@ -176,24 +178,29 @@ class DashboardState {
 
 /// Riverpod [StateNotifier] that manages the dashboard feature's state.
 ///
-/// Loads role-specific dashboard data, supports pull-to-refresh, and
-/// provides mock data for development until the backend APIs are ready.
+/// Loads role-specific dashboard data from Supabase, supports
+/// pull-to-refresh, and handles errors gracefully.
+///
+/// All queries are RLS-protected — the user's JWT automatically filters
+/// rows according to their role and school membership.
 class DashboardNotifier extends StateNotifier<DashboardState> {
-  DashboardNotifier({required this.role}) : super(const DashboardState()) {
+  DashboardNotifier({
+    required this.role,
+    required sb.SupabaseClient supabaseClient,
+  })  : _supabaseClient = supabaseClient,
+        super(const DashboardState()) {
     loadDashboard();
   }
 
   final UserRole role;
+  final sb.SupabaseClient _supabaseClient;
 
   /// Loads dashboard data based on the user's role.
   Future<void> loadDashboard() async {
     state = state.copyWith(isLoading: true, error: null);
 
     try {
-      // Simulate network delay for realistic loading state.
-      await Future.delayed(const Duration(milliseconds: 600));
-
-      final stats = _loadStatsForRole(role);
+      final stats = await _loadStatsForRole(role);
       final activity = _loadActivityForRole(role);
       final notifications = _loadNotificationsForRole(role);
 
@@ -202,6 +209,12 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
         stats: stats,
         recentActivity: activity,
         notifications: notifications,
+      );
+    } on sb.PostgrestException catch (e) {
+      AppLogger.error('Dashboard Supabase query failed', error: e);
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to load dashboard data. Please try again.',
       );
     } catch (e) {
       AppLogger.error('Dashboard load failed', error: e);
@@ -217,189 +230,288 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
     await loadDashboard();
   }
 
-  // ─── Role-Specific Mock Data ──────────────────────────────────────
+  // ─── Role-Specific Stats from Supabase ───────────────────────────
 
-  DashboardStats _loadStatsForRole(UserRole role) {
+  /// Fetches real dashboard stats from Supabase for the given [role].
+  ///
+  /// Each role queries a different set of tables. RLS policies on the
+  /// Supabase side ensure that the user only sees data they are
+  /// authorised to access — the JWT is sent automatically with every
+  /// request.
+  Future<DashboardStats> _loadStatsForRole(UserRole role) async {
     return switch (role) {
-      UserRole.teacher => const DashboardStats(
-          totalStudents: 156,
-          totalClasses: 6,
-          totalSubjects: 4,
-          totalExams: 24,
-          pendingExams: 3,
-          averageScore: 74.5,
-        ),
-      UserRole.student => const DashboardStats(
-          upcomingExams: 2,
-          completedExams: 12,
-          averageScore: 82.3,
-          totalSubjects: 6,
-          bestScore: 98.0,
-        ),
-      UserRole.schoolAdmin => const DashboardStats(
-          totalTeachers: 28,
-          totalStudents: 842,
-          totalClasses: 36,
-          activeExams: 15,
-          questionBankCount: 1240,
-        ),
-      UserRole.superAdmin => const DashboardStats(
-          totalSchools: 14,
-          totalUsers: 3287,
-          totalExams: 892,
-          platformRevenue: 47850.0,
-        ),
+      UserRole.superAdmin => _loadSuperAdminStats(),
+      UserRole.schoolAdmin => _loadSchoolAdminStats(),
+      UserRole.teacher => _loadTeacherStats(),
+      UserRole.student => _loadStudentStats(),
     };
   }
 
+  // ─── Super Admin ──────────────────────────────────────────────────
+
+  Future<DashboardStats> _loadSuperAdminStats() async {
+    final results = await Future.wait([
+      _countRows('schools'),
+      _countRows('users'),
+      _countRows('subscriptions'),
+      _countRows('transactions'),
+    ]);
+
+    return DashboardStats(
+      totalSchools: results[0],
+      totalUsers: results[1],
+      activeExams: results[2],
+      platformRevenue: results[3].toDouble(),
+    );
+  }
+
+  // ─── School Admin ─────────────────────────────────────────────────
+
+  Future<DashboardStats> _loadSchoolAdminStats() async {
+    final results = await Future.wait([
+      _countRows('students'),
+      _countRows('teachers'),
+      _countRows('classes'),
+      _countRows('exams'),
+    ]);
+
+    return DashboardStats(
+      totalStudents: results[0],
+      totalTeachers: results[1],
+      totalClasses: results[2],
+      activeExams: results[3],
+    );
+  }
+
+  // ─── Teacher ──────────────────────────────────────────────────────
+
+  Future<DashboardStats> _loadTeacherStats() async {
+    final results = await Future.wait([
+      _countRows('exams'),
+      _countRows('questions'),
+      _countRows('students'),
+    ]);
+
+    // Compute average score from the teacher's exam attempts.
+    final avgScore = await _fetchAverageScore(
+      table: 'exam_attempts',
+      scoreColumn: 'score',
+    );
+
+    return DashboardStats(
+      totalExams: results[0],
+      questionBankCount: results[1],
+      totalStudents: results[2],
+      averageScore: avgScore,
+    );
+  }
+
+  // ─── Student ──────────────────────────────────────────────────────
+
+  Future<DashboardStats> _loadStudentStats() async {
+    final results = await Future.wait([
+      _countRows('exams'),
+      _countRows('exam_attempts'),
+    ]);
+
+    // Compute average score from the student's own attempts.
+    final avgScore = await _fetchAverageScore(
+      table: 'exam_attempts',
+      scoreColumn: 'score',
+    );
+
+    // Compute best score from the student's own attempts.
+    final bestScore = await _fetchBestScore(
+      table: 'exam_attempts',
+      scoreColumn: 'score',
+    );
+
+    // Count upcoming (not yet started) exams.
+    final upcomingCount = await _countRows(
+      'exams',
+      filter: 'status=eq.upcoming',
+    );
+
+    // Count completed attempts.
+    final completedCount = await _countRows(
+      'exam_attempts',
+      filter: 'status=eq.completed',
+    );
+
+    return DashboardStats(
+      totalExams: results[0],
+      completedExams: completedCount,
+      upcomingExams: upcomingCount,
+      averageScore: avgScore,
+      bestScore: bestScore,
+    );
+  }
+
+  // ─── Supabase Query Helpers ───────────────────────────────────────
+
+  /// Counts rows in [table], optionally applying a PostgREST [filter].
+  ///
+  /// Uses the Supabase `count: CountOption.exact` option so that the
+  /// total count is returned even when `select` is limited. RLS
+  /// automatically scopes the query to the current user.
+  Future<int> _countRows(String table, {String? filter}) async {
+    try {
+      var query = _supabaseClient
+          .from(table)
+          .select('*', const sb.FetchOptions(count: sb.CountOption.exact));
+
+      if (filter != null) {
+        // Apply filter by chaining the filter method.
+        // The filter string format is "column=eq.value".
+        final parts = filter.split('=');
+        if (parts.length == 2) {
+          final column = parts[0];
+          final value = parts[1];
+          query = query.eq(column, value);
+        }
+      }
+
+      final response = await query;
+      // The count is available via the PostgrestList count property.
+      return response.count ?? 0;
+    } on sb.PostgrestException catch (e) {
+      AppLogger.warning('Failed to count rows in "$table"', error: e);
+      return 0;
+    } catch (e) {
+      AppLogger.warning('Unexpected error counting rows in "$table"',
+          error: e);
+      return 0;
+    }
+  }
+
+  /// Fetches the average value of [scoreColumn] from [table].
+  ///
+  /// Uses an RPC call to a `get_avg` Postgres function if available,
+  /// otherwise falls back to fetching all rows and computing the average
+  /// in Dart. RLS ensures only the user's own rows are visible.
+  Future<double> _fetchAverageScore({
+    required String table,
+    required String scoreColumn,
+  }) async {
+    try {
+      // Try the RPC function first — it's more efficient.
+      final result = await _supabaseClient.rpc(
+        'get_dashboard_avg_score',
+        params: {
+          'table_name': table,
+          'score_column': scoreColumn,
+        },
+      );
+
+      if (result is num) return result.toDouble();
+      if (result is Map<String, dynamic> && result.containsKey('avg')) {
+        final avg = result['avg'];
+        if (avg is num) return avg.toDouble();
+      }
+    } on sb.PostgrestException {
+      // RPC function may not exist — fall back to client-side calculation.
+      AppLogger.info(
+        'RPC "get_dashboard_avg_score" not available, '
+        'falling back to client-side average for $table.$scoreColumn',
+      );
+    } catch (e) {
+      AppLogger.info(
+        'RPC fallback for average score failed, '
+        'using client-side calculation',
+      );
+    }
+
+    // Client-side fallback: fetch scores and compute average.
+    try {
+      final response = await _supabaseClient
+          .from(table)
+          .select(scoreColumn);
+
+      final scores = response
+          .map<double?>((row) {
+            final val = row[scoreColumn];
+            return val is num ? val.toDouble() : null;
+          })
+          .whereType<double>()
+          .toList();
+
+      if (scores.isEmpty) return 0.0;
+      return scores.reduce((a, b) => a + b) / scores.length;
+    } catch (e) {
+      AppLogger.warning('Client-side average score failed', error: e);
+      return 0.0;
+    }
+  }
+
+  /// Fetches the best (maximum) value of [scoreColumn] from [table].
+  ///
+  /// Uses an RPC call first, then falls back to client-side calculation.
+  Future<double> _fetchBestScore({
+    required String table,
+    required String scoreColumn,
+  }) async {
+    try {
+      final result = await _supabaseClient.rpc(
+        'get_dashboard_best_score',
+        params: {
+          'table_name': table,
+          'score_column': scoreColumn,
+        },
+      );
+
+      if (result is num) return result.toDouble();
+      if (result is Map<String, dynamic> && result.containsKey('max')) {
+        final max = result['max'];
+        if (max is num) return max.toDouble();
+      }
+    } on sb.PostgrestException {
+      AppLogger.info(
+        'RPC "get_dashboard_best_score" not available, '
+        'falling back to client-side max for $table.$scoreColumn',
+      );
+    } catch (e) {
+      AppLogger.info(
+        'RPC fallback for best score failed, '
+        'using client-side calculation',
+      );
+    }
+
+    // Client-side fallback.
+    try {
+      final response = await _supabaseClient
+          .from(table)
+          .select(scoreColumn);
+
+      final scores = response
+          .map<double?>((row) {
+            final val = row[scoreColumn];
+            return val is num ? val.toDouble() : null;
+          })
+          .whereType<double>()
+          .toList();
+
+      if (scores.isEmpty) return 0.0;
+      return scores.reduce((a, b) => a > b ? a : b);
+    } catch (e) {
+      AppLogger.warning('Client-side best score failed', error: e);
+      return 0.0;
+    }
+  }
+
+  // ─── Activity & Notifications (placeholder) ───────────────────────
+  //
+  // Activity and notifications will be migrated to real Supabase
+  // queries in a follow-up task. For now they return an empty list
+  // so the UI is not blocked by stale mock data.
+
   List<ActivityItem> _loadActivityForRole(UserRole role) {
-    final now = DateTime.now();
-    return switch (role) {
-      UserRole.teacher => [
-          ActivityItem(
-            title: 'New submission for Math Quiz 3',
-            subtitle: 'Alice Johnson scored 92%',
-            timestamp: now.subtract(const Duration(minutes: 12)),
-            icon: Icons.assignment_turned_in_outlined,
-          ),
-          ActivityItem(
-            title: 'Biology Mid-Term graded',
-            subtitle: '32 students evaluated',
-            timestamp: now.subtract(const Duration(hours: 2)),
-            icon: Icons.grading_outlined,
-          ),
-          ActivityItem(
-            title: 'Question bank updated',
-            subtitle: '15 new questions added to Chemistry',
-            timestamp: now.subtract(const Duration(hours: 5)),
-            icon: Icons.library_add_outlined,
-          ),
-          ActivityItem(
-            title: 'Class 10-A exam completed',
-            subtitle: 'Average score: 78.4%',
-            timestamp: now.subtract(const Duration(days: 1)),
-            icon: Icons.fact_check_outlined,
-          ),
-          ActivityItem(
-            title: 'New student enrolled',
-            subtitle: 'Mark Thompson joined Physics class',
-            timestamp: now.subtract(const Duration(days: 1, hours: 3)),
-            icon: Icons.person_add_outlined,
-          ),
-        ],
-      UserRole.student => [
-          ActivityItem(
-            title: 'Math Quiz 3 result published',
-            subtitle: 'You scored 92%',
-            timestamp: now.subtract(const Duration(minutes: 30)),
-            icon: Icons.emoji_events_outlined,
-          ),
-          ActivityItem(
-            title: 'Physics Mid-Term scheduled',
-            subtitle: 'March 15, 2025 at 10:00 AM',
-            timestamp: now.subtract(const Duration(hours: 4)),
-            icon: Icons.event_outlined,
-          ),
-          ActivityItem(
-            title: 'Chemistry assignment due',
-            subtitle: 'Due in 2 days',
-            timestamp: now.subtract(const Duration(hours: 8)),
-            icon: Icons.assignment_outlined,
-          ),
-          ActivityItem(
-            title: 'Biology practice test available',
-            subtitle: '25 questions, 30 minutes',
-            timestamp: now.subtract(const Duration(days: 1)),
-            icon: Icons.quiz_outlined,
-          ),
-        ],
-      UserRole.schoolAdmin => [
-          ActivityItem(
-            title: 'New teacher registered',
-            subtitle: 'Dr. Sarah Williams — Mathematics',
-            timestamp: now.subtract(const Duration(minutes: 45)),
-            icon: Icons.person_add_outlined,
-          ),
-          ActivityItem(
-            title: 'Term exam schedule published',
-            subtitle: 'March 10–20, 2025',
-            timestamp: now.subtract(const Duration(hours: 3)),
-            icon: Icons.calendar_month_outlined,
-          ),
-          ActivityItem(
-            title: 'Class 8-B performance report ready',
-            subtitle: 'Average improvement: +12%',
-            timestamp: now.subtract(const Duration(days: 1)),
-            icon: Icons.trending_up_outlined,
-          ),
-          ActivityItem(
-            title: 'Student enrollment updated',
-            subtitle: '5 new students this week',
-            timestamp: now.subtract(const Duration(days: 1, hours: 5)),
-            icon: Icons.group_add_outlined,
-          ),
-        ],
-      UserRole.superAdmin => [
-          ActivityItem(
-            title: 'New school registered',
-            subtitle: 'Greenfield Academy, London',
-            timestamp: now.subtract(const Duration(minutes: 20)),
-            icon: Icons.domain_add_outlined,
-          ),
-          ActivityItem(
-            title: 'Platform usage milestone',
-            subtitle: '3,000+ active users this month',
-            timestamp: now.subtract(const Duration(hours: 1)),
-            icon: Icons.insights_outlined,
-          ),
-          ActivityItem(
-            title: 'System maintenance scheduled',
-            subtitle: 'March 12, 2025 at 2:00 AM UTC',
-            timestamp: now.subtract(const Duration(hours: 6)),
-            icon: Icons.build_outlined,
-          ),
-          ActivityItem(
-            title: 'Monthly revenue report ready',
-            subtitle: '\$47,850 — up 18% from last month',
-            timestamp: now.subtract(const Duration(days: 1)),
-            icon: Icons.attach_money,
-          ),
-        ],
-    };
+    // TODO: Replace with real Supabase queries for activity feed.
+    return const [];
   }
 
   List<NotificationItem> _loadNotificationsForRole(UserRole role) {
-    final now = DateTime.now();
-    return [
-      NotificationItem(
-        title: 'System update completed',
-        subtitle: 'Version 2.4.1 deployed successfully',
-        timestamp: now.subtract(const Duration(minutes: 5)),
-        icon: Icons.system_update_outlined,
-        isRead: false,
-      ),
-      NotificationItem(
-        title: 'New features available',
-        subtitle: 'AI-powered question generation is now live',
-        timestamp: now.subtract(const Duration(hours: 2)),
-        icon: Icons.auto_awesome_outlined,
-        isRead: false,
-      ),
-      NotificationItem(
-        title: 'Security alert',
-        subtitle: 'Please update your password',
-        timestamp: now.subtract(const Duration(days: 1)),
-        icon: Icons.security_outlined,
-        isRead: true,
-      ),
-      NotificationItem(
-        title: 'Weekly report ready',
-        subtitle: 'Your activity summary for this week',
-        timestamp: now.subtract(const Duration(days: 2)),
-        icon: Icons.summarize_outlined,
-        isRead: true,
-      ),
-    ];
+    // TODO: Replace with real Supabase queries for notifications.
+    return const [];
   }
 }
 
@@ -414,10 +526,17 @@ final _dashboardRoleProvider = Provider<UserRole?>((ref) {
 
 /// Main dashboard provider — creates a [DashboardNotifier] scoped to
 /// the user's current role and exposes the [DashboardState].
+///
+/// The [SupabaseClient] is injected from [supabaseClientProvider] so
+/// that all queries are automatically RLS-protected by the user's JWT.
 final dashboardProvider =
     StateNotifierProvider.autoDispose<DashboardNotifier, DashboardState>(
   (ref) {
     final role = ref.watch(_dashboardRoleProvider);
-    return DashboardNotifier(role: role ?? UserRole.student);
+    final supabaseClient = ref.watch(supabaseClientProvider);
+    return DashboardNotifier(
+      role: role ?? UserRole.student,
+      supabaseClient: supabaseClient,
+    );
   },
 );
