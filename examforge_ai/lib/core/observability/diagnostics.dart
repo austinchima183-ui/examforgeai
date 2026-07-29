@@ -117,7 +117,7 @@ class DiagnosticsService {
   static final DiagnosticsService instance = DiagnosticsService._();
 
   String _appVersion = '1.0.0';
-  String _environment = kDebugMode ? 'development' : kReleaseMode ? 'production' : 'staging';
+  final String _environment = kDebugMode ? 'development' : kReleaseMode ? 'production' : 'staging';
   String? _buildNumber;
   String? _gitCommit;
   String? _currentUserId;

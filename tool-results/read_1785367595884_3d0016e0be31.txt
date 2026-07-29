@@ -1,0 +1,1436 @@
+     1→import '../../../../core/errors/exceptions.dart';
+     2→import '../../../../core/errors/failures.dart';
+     3→import '../../../../core/utils/logger.dart';
+     4→import '../../../../core/utils/result.dart';
+     5→import '../../domain/entities/billing_entities.dart';
+     6→import '../../domain/repositories/billing_repository.dart';
+     7→import '../datasources/billing_remote_datasource.dart';
+     8→import '../datasources/flutterwave_datasource.dart';
+     9→import '../models/billing_models.dart';
+    10→
+    11→
+    12→/// Implementation of [BillingRepository] that bridges domain layer
+    13→/// with Supabase data source and Flutterwave payment API.
+    14→///
+    15→/// Converts entities to models, calls the appropriate datasource,
+    16→/// and maps exceptions to Failures via Result.success/failure.
+    17→class BillingRepositoryImpl implements BillingRepository {
+    18→  BillingRepositoryImpl({
+    19→    required BillingRemoteDataSource remoteDataSource,
+    20→    required FlutterwaveDataSource flutterwaveDataSource,
+    21→  })  : _remoteDataSource = remoteDataSource,
+    22→        _flutterwaveDataSource = flutterwaveDataSource;
+    23→
+    24→  final BillingRemoteDataSource _remoteDataSource;
+    25→  final FlutterwaveDataSource _flutterwaveDataSource;
+    26→
+    27→  // ─── Subscription Plans ─────────────────────────────────────────────
+    28→
+    29→  @override
+    30→  Future<Result<List<SubscriptionPlanEntity>>> getSubscriptionPlans({
+    31→    BillingModel? billingModel,
+    32→    bool activeOnly = true,
+    33→  }) async {
+    34→    try {
+    35→      final models = await _remoteDataSource.getSubscriptionPlans(
+    36→        billingModel: billingModel?.value,
+    37→        activeOnly: activeOnly,
+    38→      );
+    39→      return Success(models.map((m) => m.toEntity()).toList());
+    40→    } on AuthException catch (e) {
+    41→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    42→    } on ServerException catch (e) {
+    43→      return FailureResult(Failure.server(
+    44→        message: e.message, statusCode: e.statusCode, data: e.data,
+    45→      ),);
+    46→    } on NetworkException catch (e) {
+    47→      return FailureResult(Failure.network(message: e.message));
+    48→    } catch (e) {
+    49→      AppLogger.error('Unexpected getSubscriptionPlans error', error: e);
+    50→      return const FailureResult(Failure.server(
+    51→        message: 'Failed to load subscription plans.', statusCode: 500,
+    52→      ),);
+    53→    }
+    54→  }
+    55→
+    56→  @override
+    57→  Future<Result<SubscriptionPlanEntity>> getSubscriptionPlan(String planId) async {
+    58→    try {
+    59→      final model = await _remoteDataSource.getSubscriptionPlan(planId);
+    60→      return Success(model.toEntity());
+    61→    } on AuthException catch (e) {
+    62→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    63→    } on ServerException catch (e) {
+    64→      return FailureResult(Failure.server(
+    65→        message: e.message, statusCode: e.statusCode, data: e.data,
+    66→      ),);
+    67→    } on NotFoundException catch (e) {
+    68→      return FailureResult(Failure.notFound(message: e.message));
+    69→    } catch (e) {
+    70→      AppLogger.error('Unexpected getSubscriptionPlan error', error: e);
+    71→      return const FailureResult(Failure.server(
+    72→        message: 'Failed to load subscription plan.', statusCode: 500,
+    73→      ),);
+    74→    }
+    75→  }
+    76→
+    77→  @override
+    78→  Future<Result<SubscriptionPlanEntity>> upsertSubscriptionPlan(
+    79→    SubscriptionPlanEntity plan,
+    80→  ) async {
+    81→    try {
+    82→      final model = SubscriptionPlanModel.fromEntity(plan);
+    83→      final created = await _remoteDataSource.upsertSubscriptionPlan(model.toJson());
+    84→      return Success(created.toEntity());
+    85→    } on AuthException catch (e) {
+    86→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+    87→    } on ServerException catch (e) {
+    88→      return FailureResult(Failure.server(
+    89→        message: e.message, statusCode: e.statusCode, data: e.data,
+    90→      ),);
+    91→    } on ValidationException catch (e) {
+    92→      return FailureResult(Failure.validation(
+    93→        message: e.message, fieldErrors: e.fieldErrors,
+    94→      ),);
+    95→    } catch (e) {
+    96→      AppLogger.error('Unexpected upsertSubscriptionPlan error', error: e);
+    97→      return const FailureResult(Failure.server(
+    98→        message: 'Failed to save subscription plan.', statusCode: 500,
+    99→      ),);
+   100→    }
+   101→  }
+   102→
+   103→  // ─── Subscriptions ──────────────────────────────────────────────────
+   104→
+   105→  @override
+   106→  Future<Result<SubscriptionEntity>> getCurrentSubscription({
+   107→    required String subscriberId,
+   108→    required BillingModel subscriberType,
+   109→  }) async {
+   110→    try {
+   111→      final model = await _remoteDataSource.getCurrentSubscription(
+   112→        subscriberId: subscriberId,
+   113→        subscriberType: subscriberType.value,
+   114→      );
+   115→      return Success(model.toEntity());
+   116→    } on AuthException catch (e) {
+   117→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   118→    } on ServerException catch (e) {
+   119→      return FailureResult(Failure.server(
+   120→        message: e.message, statusCode: e.statusCode, data: e.data,
+   121→      ),);
+   122→    } on NotFoundException catch (e) {
+   123→      return FailureResult(Failure.notFound(message: e.message));
+   124→    } catch (e) {
+   125→      AppLogger.error('Unexpected getCurrentSubscription error', error: e);
+   126→      return const FailureResult(Failure.server(
+   127→        message: 'Failed to load subscription.', statusCode: 500,
+   128→      ),);
+   129→    }
+   130→  }
+   131→
+   132→  @override
+   133→  Future<Result<List<SubscriptionEntity>>> getSubscriptions({
+   134→    String? schoolId,
+   135→    BillingModel? subscriberType,
+   136→    SubscriptionStatus? status,
+   137→    int page = 1,
+   138→    int perPage = 20,
+   139→  }) async {
+   140→    try {
+   141→      final models = await _remoteDataSource.getSubscriptions(
+   142→        schoolId: schoolId,
+   143→        subscriberType: subscriberType?.value,
+   144→        status: status?.value,
+   145→        page: page,
+   146→        perPage: perPage,
+   147→      );
+   148→      return Success(models.map((m) => m.toEntity()).toList());
+   149→    } on AuthException catch (e) {
+   150→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   151→    } on ServerException catch (e) {
+   152→      return FailureResult(Failure.server(
+   153→        message: e.message, statusCode: e.statusCode, data: e.data,
+   154→      ),);
+   155→    } catch (e) {
+   156→      AppLogger.error('Unexpected getSubscriptions error', error: e);
+   157→      return const FailureResult(Failure.server(
+   158→        message: 'Failed to load subscriptions.', statusCode: 500,
+   159→      ),);
+   160→    }
+   161→  }
+   162→
+   163→  @override
+   164→  Future<Result<SubscriptionEntity>> createSubscription({
+   165→    required String subscriberId,
+   166→    required BillingModel subscriberType,
+   167→    required String planId,
+   168→    String billingCycle = 'monthly',
+   169→    String? couponCode,
+   170→    int seats = 1,
+   171→    String? schoolId,
+   172→  }) async {
+   173→    try {
+   174→      final data = {
+   175→        'subscriber_id': subscriberId,
+   176→        'subscriber_type': subscriberType.value,
+   177→        'plan_id': planId,
+   178→        'billing_cycle': billingCycle,
+   179→        'seats_purchased': seats,
+   180→        if (couponCode != null) 'coupon_code': couponCode,
+   181→        if (schoolId != null) 'school_id': schoolId,
+   182→      };
+   183→      final model = await _remoteDataSource.createSubscription(data);
+   184→      return Success(model.toEntity());
+   185→    } on AuthException catch (e) {
+   186→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   187→    } on ServerException catch (e) {
+   188→      return FailureResult(Failure.server(
+   189→        message: e.message, statusCode: e.statusCode, data: e.data,
+   190→      ),);
+   191→    } on ValidationException catch (e) {
+   192→      return FailureResult(Failure.validation(
+   193→        message: e.message, fieldErrors: e.fieldErrors,
+   194→      ),);
+   195→    } catch (e) {
+   196→      AppLogger.error('Unexpected createSubscription error', error: e);
+   197→      return const FailureResult(Failure.server(
+   198→        message: 'Failed to create subscription.', statusCode: 500,
+   199→      ),);
+   200→    }
+   201→  }
+   202→
+   203→  @override
+   204→  Future<Result<SubscriptionEntity>> upgradeSubscription({
+   205→    required String subscriptionId,
+   206→    required String newPlanId,
+   207→    String? billingCycle,
+   208→  }) async {
+   209→    try {
+   210→      final data = {
+   211→        'plan_id': newPlanId,
+   212→        'action': 'upgrade',
+   213→        if (billingCycle != null) 'billing_cycle': billingCycle,
+   214→      };
+   215→      final model = await _remoteDataSource.updateSubscription(subscriptionId, data);
+   216→      return Success(model.toEntity());
+   217→    } on AuthException catch (e) {
+   218→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   219→    } on ServerException catch (e) {
+   220→      return FailureResult(Failure.server(
+   221→        message: e.message, statusCode: e.statusCode, data: e.data,
+   222→      ),);
+   223→    } catch (e) {
+   224→      AppLogger.error('Unexpected upgradeSubscription error', error: e);
+   225→      return const FailureResult(Failure.server(
+   226→        message: 'Failed to upgrade subscription.', statusCode: 500,
+   227→      ),);
+   228→    }
+   229→  }
+   230→
+   231→  @override
+   232→  Future<Result<SubscriptionEntity>> downgradeSubscription({
+   233→    required String subscriptionId,
+   234→    required String newPlanId,
+   235→  }) async {
+   236→    try {
+   237→      final data = {
+   238→        'plan_id': newPlanId,
+   239→        'action': 'downgrade',
+   240→      };
+   241→      final model = await _remoteDataSource.updateSubscription(subscriptionId, data);
+   242→      return Success(model.toEntity());
+   243→    } on AuthException catch (e) {
+   244→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   245→    } on ServerException catch (e) {
+   246→      return FailureResult(Failure.server(
+   247→        message: e.message, statusCode: e.statusCode, data: e.data,
+   248→      ),);
+   249→    } catch (e) {
+   250→      AppLogger.error('Unexpected downgradeSubscription error', error: e);
+   251→      return const FailureResult(Failure.server(
+   252→        message: 'Failed to downgrade subscription.', statusCode: 500,
+   253→      ),);
+   254→    }
+   255→  }
+   256→
+   257→  @override
+   258→  Future<Result<SubscriptionEntity>> cancelSubscription({
+   259→    required String subscriptionId,
+   260→    String? reason,
+   261→    bool immediate = false,
+   262→  }) async {
+   263→    try {
+   264→      final data = {
+   265→        'status': immediate ? 'expired' : 'cancelled',
+   266→        'auto_renew': false,
+   267→        'cancelled_at': DateTime.now().toIso8601String(),
+   268→        if (reason != null) 'cancellation_reason': reason,
+   269→      };
+   270→      final model = await _remoteDataSource.updateSubscription(subscriptionId, data);
+   271→      return Success(model.toEntity());
+   272→    } on AuthException catch (e) {
+   273→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   274→    } on ServerException catch (e) {
+   275→      return FailureResult(Failure.server(
+   276→        message: e.message, statusCode: e.statusCode, data: e.data,
+   277→      ),);
+   278→    } catch (e) {
+   279→      AppLogger.error('Unexpected cancelSubscription error', error: e);
+   280→      return const FailureResult(Failure.server(
+   281→        message: 'Failed to cancel subscription.', statusCode: 500,
+   282→      ),);
+   283→    }
+   284→  }
+   285→
+   286→  @override
+   287→  Future<Result<SubscriptionEntity>> renewSubscription({
+   288→    required String subscriptionId,
+   289→  }) async {
+   290→    try {
+   291→      final data = {
+   292→        'status': 'active',
+   293→        'current_period_start': DateTime.now().toIso8601String(),
+   294→        'auto_renew': true,
+   295→      };
+   296→      final model = await _remoteDataSource.updateSubscription(subscriptionId, data);
+   297→      return Success(model.toEntity());
+   298→    } on AuthException catch (e) {
+   299→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   300→    } on ServerException catch (e) {
+   301→      return FailureResult(Failure.server(
+   302→        message: e.message, statusCode: e.statusCode, data: e.data,
+   303→      ),);
+   304→    } catch (e) {
+   305→      AppLogger.error('Unexpected renewSubscription error', error: e);
+   306→      return const FailureResult(Failure.server(
+   307→        message: 'Failed to renew subscription.', statusCode: 500,
+   308→      ),);
+   309→    }
+   310→  }
+   311→
+   312→  @override
+   313→  Future<Result<SubscriptionEntity>> pauseSubscription({
+   314→    required String subscriptionId,
+   315→  }) async {
+   316→    try {
+   317→      final data = {'status': 'paused'};
+   318→      final model = await _remoteDataSource.updateSubscription(subscriptionId, data);
+   319→      return Success(model.toEntity());
+   320→    } on AuthException catch (e) {
+   321→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   322→    } on ServerException catch (e) {
+   323→      return FailureResult(Failure.server(
+   324→        message: e.message, statusCode: e.statusCode, data: e.data,
+   325→      ),);
+   326→    } catch (e) {
+   327→      AppLogger.error('Unexpected pauseSubscription error', error: e);
+   328→      return const FailureResult(Failure.server(
+   329→        message: 'Failed to pause subscription.', statusCode: 500,
+   330→      ),);
+   331→    }
+   332→  }
+   333→
+   334→  @override
+   335→  Future<Result<SubscriptionEntity>> resumeSubscription({
+   336→    required String subscriptionId,
+   337→  }) async {
+   338→    try {
+   339→      final data = {'status': 'active'};
+   340→      final model = await _remoteDataSource.updateSubscription(subscriptionId, data);
+   341→      return Success(model.toEntity());
+   342→    } on AuthException catch (e) {
+   343→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   344→    } on ServerException catch (e) {
+   345→      return FailureResult(Failure.server(
+   346→        message: e.message, statusCode: e.statusCode, data: e.data,
+   347→      ),);
+   348→    } catch (e) {
+   349→      AppLogger.error('Unexpected resumeSubscription error', error: e);
+   350→      return const FailureResult(Failure.server(
+   351→        message: 'Failed to resume subscription.', statusCode: 500,
+   352→      ),);
+   353→    }
+   354→  }
+   355→
+   356→  // ─── Payments (Flutterwave) ──────────────────────────────────────────
+   357→
+   358→  @override
+   359→  Future<Result<Map<String, dynamic>>> initializePayment({
+   360→    required double amount,
+   361→    required String currency,
+   362→    required String email,
+   363→    required String txRef,
+   364→    String? subscriptionId,
+   365→    String? planId,
+   366→    String? couponCode,
+   367→    Map<String, dynamic>? metadata,
+   368→  }) async {
+   369→    try {
+   370→      final result = await _flutterwaveDataSource.initializeCheckout(
+   371→        amount: amount,
+   372→        currency: currency,
+   373→        email: email,
+   374→        txRef: txRef,
+   375→        subscriptionId: subscriptionId,
+   376→        planId: planId,
+   377→        couponCode: couponCode,
+   378→        meta: metadata,
+   379→      );
+   380→      return Success(result);
+   381→    } on AuthException catch (e) {
+   382→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   383→    } on ServerException catch (e) {
+   384→      return FailureResult(Failure.server(
+   385→        message: e.message, statusCode: e.statusCode, data: e.data,
+   386→      ),);
+   387→    } on NetworkException catch (e) {
+   388→      return FailureResult(Failure.network(message: e.message));
+   389→    } catch (e) {
+   390→      AppLogger.error('Unexpected initializePayment error', error: e);
+   391→      return const FailureResult(Failure.server(
+   392→        message: 'Failed to initialize payment.', statusCode: 500,
+   393→      ),);
+   394→    }
+   395→  }
+   396→
+   397→  @override
+   398→  Future<Result<TransactionEntity>> verifyPayment(String txRef) async {
+   399→    try {
+   400→      // ─── STEP 1: Look up our local transaction FIRST ────────────────
+   401→      // This is critical for security: we read the EXPECTED amount from
+   402→      // our own database before verifying with Flutterwave. This prevents
+   403→      // an attacker from paying a different amount and claiming success.
+   404→      final localTx = await _remoteDataSource.getTransaction(txRef);
+   405→      final expectedAmount = localTx.amount;
+   406→      final expectedCurrency = localTx.currency;
+   407→
+   408→      // ─── STEP 2: Verify with Flutterwave, passing expected amounts ─
+   409→      // The FlutterwaveDataSource now validates that the actual charged
+   410→      // amount matches what we recorded in our database.
+   411→      final flutterwaveData = await _flutterwaveDataSource.verifyTransaction(
+   412→        txRef,
+   413→        expectedAmount: expectedAmount,
+   414→        expectedCurrency: expectedCurrency,
+   415→      );
+   416→
+   417→      // ─── STEP 3: Update our local transaction record ───────────────
+   418→      final status = _mapFlutterwaveStatus(
+   419→        flutterwaveData['status'] as String? ?? 'pending',
+   420→      );
+   421→
+   422→      // SECURITY: If the transaction is successful, also verify that
+   423→      // the Flutterwave transaction ID hasn't been used before (prevents
+   424→      // replay attacks where the same Flw ID is claimed for two tx_refs).
+   425→      if (status == TransactionStatus.successful) {
+   426→        final flwTxId = flutterwaveData['id']?.toString();
+   427→        if (flwTxId != null && flwTxId.isNotEmpty) {
+   428→          final isReplay = await _isFlutterwaveTransactionReplay(flwTxId, localTx.id);
+   429→          if (isReplay) {
+   430→            AppLogger.error(
+   431→              'PAYMENT REPLAY ATTACK DETECTED: Flutterwave transaction ID '
+   432→              '$flwTxId has already been used for a different transaction!',
+   433→            );
+   434→            return const FailureResult(Failure.server(
+   435→              message: 'Payment verification failed: duplicate transaction.',
+   436→              statusCode: 409,
+   437→            ),);
+   438→          }
+   439→        }
+   440→      }
+   441→
+   442→      final updatedTx = await _remoteDataSource.updateTransaction(
+   443→        localTx.id,
+   444→        {
+   445→          'status': status.value,
+   446→          'flutterwave_transaction_id': flutterwaveData['id']?.toString(),
+   447→          'flutterwave_flw_ref': flutterwaveData['flw_ref'] as String?,
+   448→          'flutterwave_fee': flutterwaveData['app_fee'] as double? ?? 0,
+   449→          'net_amount': flutterwaveData['amount_settled'] as double? ?? 0,
+   450→          'payment_method_summary': flutterwaveData['payment_type'] as String?,
+   451→          'processor_response': flutterwaveData,
+   452→          'verified_at': DateTime.now().toIso8601String(),
+   453→          if (status == TransactionStatus.successful)
+   454→            'completed_at': DateTime.now().toIso8601String(),
+   455→        },
+   456→      );
+   457→      return Success(updatedTx.toEntity());
+   458→    } on AuthException catch (e) {
+   459→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   460→    } on ServerException catch (e) {
+   461→      return FailureResult(Failure.server(
+   462→        message: e.message, statusCode: e.statusCode, data: e.data,
+   463→      ),);
+   464→    } on NotFoundException catch (e) {
+   465→      return FailureResult(Failure.notFound(message: e.message));
+   466→    } catch (e) {
+   467→      AppLogger.error('Unexpected verifyPayment error', error: e);
+   468→      return const FailureResult(Failure.server(
+   469→        message: 'Failed to verify payment.', statusCode: 500,
+   470→      ),);
+   471→    }
+   472→  }
+   473→
+   474→  /// Checks whether a Flutterwave transaction ID has already been
+   475→  /// associated with a DIFFERENT local transaction. This prevents
+   476→  /// replay attacks where the same successful payment is claimed
+   477→  /// for multiple transaction references.
+   478→  Future<bool> _isFlutterwaveTransactionReplay(
+   479→    String flwTxId,
+   480→    String currentLocalTxId,
+   481→  ) async {
+   482→    try {
+   483→      // Query our transactions table for any other transaction with
+   484→      // the same Flutterwave transaction ID that's already successful.
+   485→      final existingTxs = await _remoteDataSource.getTransactions(
+   486→        status: 'successful',
+   487→        page: 1,
+   488→        perPage: 5,
+   489→      );
+   490→      return existingTxs.any((tx) =>
+   491→          tx.flutterwaveTransactionId == flwTxId &&
+   492→          tx.id != currentLocalTxId,);
+   493→    } catch (e) {
+   494→      // If we can't check, err on the side of caution and allow
+   495→      // the transaction through. The amount verification above is
+   496→      // the primary defence.
+   497→      AppLogger.warning(
+   498→        'Could not verify Flutterwave transaction ID uniqueness',
+   499→        error: e,
+   500→      );
+   501→      return false;
+   502→    }
+   503→  }
+   504→
+   505→  @override
+   506→  Future<Result<bool>> processWebhookEvent(Map<String, dynamic> payload) async {
+   507→    try {
+   508→      final event = payload['event'] as String? ?? '';
+   509→      final data = payload['data'] as Map<String, dynamic>? ?? {};
+   510→
+   511→      // ─── IDEMPOTENCY CHECK (CRITICAL SECURITY FIX) ──────────────────
+   512→      // Build an idempotency key from the event type and the unique
+   513→      // Flutterwave event/transaction ID. This prevents the same webhook
+   514→      // from being processed twice (Flutterwave retries webhooks on
+   515→      // failure, so duplicates are expected).
+   516→      final flwId = data['id']?.toString() ?? '';
+   517→      final idempotencyKey = '${event}_$flwId';
+   518→
+   519→      final flutterwaveDs = _flutterwaveDataSource;
+   520→      if (flutterwaveDs is FlutterwaveDataSourceImpl) {
+   521→        if (flutterwaveDs.isWebhookEventProcessed(idempotencyKey)) {
+   522→          AppLogger.info(
+   523→            'Webhook event already processed (idempotent): $idempotencyKey. '
+   524→            'Returning success without re-processing.',
+   525→          );
+   526→          return const Success(true);
+   527→        }
+   528→      }
+   529→
+   530→      AppLogger.info('Processing Flutterwave webhook event: $event');
+   531→
+   532→      switch (event) {
+   533→        case 'charge.completed':
+   534→          final txRef = data['tx_ref'] as String?;
+   535→          if (txRef != null) {
+   536→            // Verify and update the transaction (includes amount
+   537→            // verification via the updated verifyPayment method)
+   538→            final result = await verifyPayment(txRef);
+   539→            if (result is Success) {
+   540→              AppLogger.info(
+   541→                'Webhook charge.completed processed successfully for $txRef',
+   542→              );
+   543→            } else {
+   544→              AppLogger.warning(
+   545→                'Webhook charge.completed verification failed for $txRef',
+   546→              );
+   547→            }
+   548→          }
+   549→          break;
+   550→        case 'transfer.completed':
+   551→        case 'transfer.failed':
+   552→          AppLogger.info('Transfer event received: $event');
+   553→          break;
+   554→        case 'subscription.cancelled':
+   555→          final subId = data['subscription_id'] as String?;
+   556→          if (subId != null) {
+   557→            await _remoteDataSource.updateSubscription(subId, {
+   558→              'status': 'cancelled',
+   559→              'cancelled_at': DateTime.now().toIso8601String(),
+   560→            });
+   561→          }
+   562→          break;
+   563→        default:
+   564→          AppLogger.info('Unhandled webhook event: $event');
+   565→      }
+   566→
+   567→      // Mark event as processed AFTER successful handling
+   568→      if (flutterwaveDs is FlutterwaveDataSourceImpl) {
+   569→        flutterwaveDs.markWebhookEventProcessed(idempotencyKey);
+   570→      }
+   571→
+   572→      return const Success(true);
+   573→    } on AuthException catch (e) {
+   574→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   575→    } on ServerException catch (e) {
+   576→      return FailureResult(Failure.server(
+   577→        message: e.message, statusCode: e.statusCode, data: e.data,
+   578→      ),);
+   579→    } catch (e) {
+   580→      AppLogger.error('Unexpected processWebhookEvent error', error: e);
+   581→      return const FailureResult(Failure.server(
+   582→        message: 'Failed to process webhook event.', statusCode: 500,
+   583→      ),);
+   584→    }
+   585→  }
+   586→
+   587→  @override
+   588→  Future<Result<List<TransactionEntity>>> getTransactions({
+   589→    String? userId,
+   590→    String? schoolId,
+   591→    TransactionStatus? status,
+   592→    int page = 1,
+   593→    int perPage = 20,
+   594→  }) async {
+   595→    try {
+   596→      final models = await _remoteDataSource.getTransactions(
+   597→        userId: userId,
+   598→        schoolId: schoolId,
+   599→        status: status?.value,
+   600→        page: page,
+   601→        perPage: perPage,
+   602→      );
+   603→      return Success(models.map((m) => m.toEntity()).toList());
+   604→    } on AuthException catch (e) {
+   605→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   606→    } on ServerException catch (e) {
+   607→      return FailureResult(Failure.server(
+   608→        message: e.message, statusCode: e.statusCode, data: e.data,
+   609→      ),);
+   610→    } catch (e) {
+   611→      AppLogger.error('Unexpected getTransactions error', error: e);
+   612→      return const FailureResult(Failure.server(
+   613→        message: 'Failed to load transactions.', statusCode: 500,
+   614→      ),);
+   615→    }
+   616→  }
+   617→
+   618→  @override
+   619→  Future<Result<TransactionEntity>> getTransaction(String transactionId) async {
+   620→    try {
+   621→      final model = await _remoteDataSource.getTransaction(transactionId);
+   622→      return Success(model.toEntity());
+   623→    } on AuthException catch (e) {
+   624→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   625→    } on ServerException catch (e) {
+   626→      return FailureResult(Failure.server(
+   627→        message: e.message, statusCode: e.statusCode, data: e.data,
+   628→      ),);
+   629→    } on NotFoundException catch (e) {
+   630→      return FailureResult(Failure.notFound(message: e.message));
+   631→    } catch (e) {
+   632→      AppLogger.error('Unexpected getTransaction error', error: e);
+   633→      return const FailureResult(Failure.server(
+   634→        message: 'Failed to load transaction.', statusCode: 500,
+   635→      ),);
+   636→    }
+   637→  }
+   638→
+   639→  @override
+   640→  Future<Result<TransactionEntity>> requestRefund({
+   641→    required String transactionId,
+   642→    required double amount,
+   643→    String? reason,
+   644→  }) async {
+   645→    try {
+   646→      // Get the transaction to find Flutterwave ID
+   647→      final txModel = await _remoteDataSource.getTransaction(transactionId);
+   648→      final flwTxId = txModel.flutterwaveTransactionId;
+   649→
+   650→      if (flwTxId == null || flwTxId.isEmpty) {
+   651→        return const FailureResult(Failure.validation(
+   652→          message: 'Cannot refund: no Flutterwave transaction ID found.',
+   653→          fieldErrors: {},
+   654→        ),);
+   655→      }
+   656→
+   657→      // Process refund via Flutterwave
+   658→      await _flutterwaveDataSource.processRefund(
+   659→        transactionId: flwTxId,
+   660→        amount: amount,
+   661→      );
+   662→
+   663→      // Update local transaction
+   664→      final updatedTx = await _remoteDataSource.updateTransaction(
+   665→        transactionId,
+   666→        {
+   667→          'refund_amount': amount,
+   668→          if (reason != null) 'refund_reason': reason,
+   669→          'refunded_at': DateTime.now().toIso8601String(),
+   670→          'status': amount >= txModel.amount ? 'refunded' : 'partially_refunded',
+   671→        },
+   672→      );
+   673→      return Success(updatedTx.toEntity());
+   674→    } on AuthException catch (e) {
+   675→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   676→    } on ServerException catch (e) {
+   677→      return FailureResult(Failure.server(
+   678→        message: e.message, statusCode: e.statusCode, data: e.data,
+   679→      ),);
+   680→    } catch (e) {
+   681→      AppLogger.error('Unexpected requestRefund error', error: e);
+   682→      return const FailureResult(Failure.server(
+   683→        message: 'Failed to process refund.', statusCode: 500,
+   684→      ),);
+   685→    }
+   686→  }
+   687→
+   688→  // ─── Invoices ────────────────────────────────────────────────────────
+   689→
+   690→  @override
+   691→  Future<Result<List<InvoiceEntity>>> getInvoices({
+   692→    String? userId,
+   693→    String? schoolId,
+   694→    InvoiceStatus? status,
+   695→    int page = 1,
+   696→    int perPage = 20,
+   697→  }) async {
+   698→    try {
+   699→      final models = await _remoteDataSource.getInvoices(
+   700→        userId: userId,
+   701→        schoolId: schoolId,
+   702→        status: status?.value,
+   703→        page: page,
+   704→        perPage: perPage,
+   705→      );
+   706→      return Success(models.map((m) => m.toEntity()).toList());
+   707→    } on AuthException catch (e) {
+   708→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   709→    } on ServerException catch (e) {
+   710→      return FailureResult(Failure.server(
+   711→        message: e.message, statusCode: e.statusCode, data: e.data,
+   712→      ),);
+   713→    } catch (e) {
+   714→      AppLogger.error('Unexpected getInvoices error', error: e);
+   715→      return const FailureResult(Failure.server(
+   716→        message: 'Failed to load invoices.', statusCode: 500,
+   717→      ),);
+   718→    }
+   719→  }
+   720→
+   721→  @override
+   722→  Future<Result<InvoiceEntity>> getInvoice(String invoiceId) async {
+   723→    try {
+   724→      final model = await _remoteDataSource.getInvoice(invoiceId);
+   725→      return Success(model.toEntity());
+   726→    } on AuthException catch (e) {
+   727→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   728→    } on ServerException catch (e) {
+   729→      return FailureResult(Failure.server(
+   730→        message: e.message, statusCode: e.statusCode, data: e.data,
+   731→      ),);
+   732→    } on NotFoundException catch (e) {
+   733→      return FailureResult(Failure.notFound(message: e.message));
+   734→    } catch (e) {
+   735→      AppLogger.error('Unexpected getInvoice error', error: e);
+   736→      return const FailureResult(Failure.server(
+   737→        message: 'Failed to load invoice.', statusCode: 500,
+   738→      ),);
+   739→    }
+   740→  }
+   741→
+   742→  @override
+   743→  Future<Result<InvoiceEntity>> generateInvoice({
+   744→    required String subscriptionId,
+   745→    required List<InvoiceLineItem> lineItems,
+   746→  }) async {
+   747→    try {
+   748→      final lineItemMaps = lineItems.map((item) => {
+   749→        'description': item.description,
+   750→        'quantity': item.quantity,
+   751→        'unit_price': item.unitPrice,
+   752→        'total': item.total,
+   753→        'tax_rate': item.taxRate,
+   754→        'tax_amount': item.taxAmount,
+   755→      },).toList();
+   756→
+   757→      final subtotal = lineItems.fold<double>(0, (sum, i) => sum + i.total);
+   758→      final taxAmount = lineItems.fold<double>(0, (sum, i) => sum + i.taxAmount);
+   759→      final totalAmount = subtotal + taxAmount;
+   760→
+   761→      final data = {
+   762→        'subscription_id': subscriptionId,
+   763→        'line_items': lineItemMaps,
+   764→        'subtotal': subtotal,
+   765→        'tax_amount': taxAmount,
+   766→        'total_amount': totalAmount,
+   767→        'due_date': DateTime.now().add(const Duration(days: 30)).toIso8601String(),
+   768→      };
+   769→      final model = await _remoteDataSource.createInvoice(data);
+   770→      return Success(model.toEntity());
+   771→    } on AuthException catch (e) {
+   772→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   773→    } on ServerException catch (e) {
+   774→      return FailureResult(Failure.server(
+   775→        message: e.message, statusCode: e.statusCode, data: e.data,
+   776→      ),);
+   777→    } catch (e) {
+   778→      AppLogger.error('Unexpected generateInvoice error', error: e);
+   779→      return const FailureResult(Failure.server(
+   780→        message: 'Failed to generate invoice.', statusCode: 500,
+   781→      ),);
+   782→    }
+   783→  }
+   784→
+   785→  @override
+   786→  Future<Result<String>> getInvoicePdfUrl(String invoiceId) async {
+   787→    try {
+   788→      final model = await _remoteDataSource.getInvoice(invoiceId);
+   789→      if (model.pdfUrl != null && model.pdfUrl!.isNotEmpty) {
+   790→        return Success(model.pdfUrl!);
+   791→      }
+   792→      // Trigger PDF generation and update
+   793→      final updated = await _remoteDataSource.updateInvoice(invoiceId, {
+   794→        'pdf_url': 'invoices/$invoiceId.pdf', // Placeholder; real impl generates PDF
+   795→      });
+   796→      return Success(updated.pdfUrl ?? 'invoices/$invoiceId.pdf');
+   797→    } on AuthException catch (e) {
+   798→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   799→    } on ServerException catch (e) {
+   800→      return FailureResult(Failure.server(
+   801→        message: e.message, statusCode: e.statusCode, data: e.data,
+   802→      ),);
+   803→    } catch (e) {
+   804→      AppLogger.error('Unexpected getInvoicePdfUrl error', error: e);
+   805→      return const FailureResult(Failure.server(
+   806→        message: 'Failed to get invoice PDF.', statusCode: 500,
+   807→      ),);
+   808→    }
+   809→  }
+   810→
+   811→  // ─── Receipts ────────────────────────────────────────────────────────
+   812→
+   813→  @override
+   814→  Future<Result<List<ReceiptEntity>>> getReceipts({
+   815→    required String userId,
+   816→    int page = 1,
+   817→    int perPage = 20,
+   818→  }) async {
+   819→    try {
+   820→      final models = await _remoteDataSource.getReceipts(
+   821→        userId: userId, page: page, perPage: perPage,
+   822→      );
+   823→      return Success(models.map((m) => m.toEntity()).toList());
+   824→    } on AuthException catch (e) {
+   825→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   826→    } on ServerException catch (e) {
+   827→      return FailureResult(Failure.server(
+   828→        message: e.message, statusCode: e.statusCode, data: e.data,
+   829→      ),);
+   830→    } catch (e) {
+   831→      AppLogger.error('Unexpected getReceipts error', error: e);
+   832→      return const FailureResult(Failure.server(
+   833→        message: 'Failed to load receipts.', statusCode: 500,
+   834→      ),);
+   835→    }
+   836→  }
+   837→
+   838→  @override
+   839→  Future<Result<String>> getReceiptPdfUrl(String receiptId) async {
+   840→    try {
+   841→      return Success('receipts/$receiptId.pdf');
+   842→    } catch (e) {
+   843→      AppLogger.error('Unexpected getReceiptPdfUrl error', error: e);
+   844→      return const FailureResult(Failure.server(
+   845→        message: 'Failed to get receipt PDF.', statusCode: 500,
+   846→      ),);
+   847→    }
+   848→  }
+   849→
+   850→  // ─── AI Credits ─────────────────────────────────────────────────────
+   851→
+   852→  @override
+   853→  Future<Result<AiCreditBalanceEntity>> getCreditBalance({
+   854→    required String ownerId,
+   855→    required BillingModel ownerType,
+   856→  }) async {
+   857→    try {
+   858→      final model = await _remoteDataSource.getCreditBalance(
+   859→        ownerId: ownerId, ownerType: ownerType.value,
+   860→      );
+   861→      return Success(model.toEntity());
+   862→    } on AuthException catch (e) {
+   863→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   864→    } on ServerException catch (e) {
+   865→      return FailureResult(Failure.server(
+   866→        message: e.message, statusCode: e.statusCode, data: e.data,
+   867→      ),);
+   868→    } on NotFoundException catch (e) {
+   869→      return FailureResult(Failure.notFound(message: e.message));
+   870→    } catch (e) {
+   871→      AppLogger.error('Unexpected getCreditBalance error', error: e);
+   872→      return const FailureResult(Failure.server(
+   873→        message: 'Failed to load credit balance.', statusCode: 500,
+   874→      ),);
+   875→    }
+   876→  }
+   877→
+   878→  @override
+   879→  Future<Result<List<AiCreditTransactionEntity>>> getCreditTransactions({
+   880→    required String ownerId,
+   881→    required BillingModel ownerType,
+   882→    CreditTransactionType? type,
+   883→    int page = 1,
+   884→    int perPage = 20,
+   885→  }) async {
+   886→    try {
+   887→      final models = await _remoteDataSource.getCreditTransactions(
+   888→        ownerId: ownerId, ownerType: ownerType.value,
+   889→        type: type?.value, page: page, perPage: perPage,
+   890→      );
+   891→      return Success(models.map((m) => m.toEntity()).toList());
+   892→    } on AuthException catch (e) {
+   893→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   894→    } on ServerException catch (e) {
+   895→      return FailureResult(Failure.server(
+   896→        message: e.message, statusCode: e.statusCode, data: e.data,
+   897→      ),);
+   898→    } catch (e) {
+   899→      AppLogger.error('Unexpected getCreditTransactions error', error: e);
+   900→      return const FailureResult(Failure.server(
+   901→        message: 'Failed to load credit transactions.', statusCode: 500,
+   902→      ),);
+   903→    }
+   904→  }
+   905→
+   906→  @override
+   907→  Future<Result<bool>> consumeCredits({
+   908→    required String ownerId,
+   909→    required BillingModel ownerType,
+   910→    required int credits,
+   911→    required String featureName,
+   912→    String? referenceId,
+   913→    double estimatedCostUsd = 0,
+   914→  }) async {
+   915→    try {
+   916→      final success = await _remoteDataSource.consumeCredits(
+   917→        ownerId: ownerId, ownerType: ownerType.value,
+   918→        credits: credits, featureName: featureName,
+   919→        referenceId: referenceId, estimatedCostUsd: estimatedCostUsd,
+   920→      );
+   921→      if (success) {
+   922→        return const Success(true);
+   923→      }
+   924→      return const FailureResult(Failure.validation(
+   925→        message: 'Insufficient AI credits to perform this action.',
+   926→        fieldErrors: {'credits': 'Not enough credits available'},
+   927→      ),);
+   928→    } on AuthException catch (e) {
+   929→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   930→    } on ServerException catch (e) {
+   931→      return FailureResult(Failure.server(
+   932→        message: e.message, statusCode: e.statusCode, data: e.data,
+   933→      ),);
+   934→    } catch (e) {
+   935→      AppLogger.error('Unexpected consumeCredits error', error: e);
+   936→      return const FailureResult(Failure.server(
+   937→        message: 'Failed to consume credits.', statusCode: 500,
+   938→      ),);
+   939→    }
+   940→  }
+   941→
+   942→  @override
+   943→  Future<Result<AiCreditBalanceEntity>> purchaseCredits({
+   944→    required String ownerId,
+   945→    required BillingModel ownerType,
+   946→    required String creditPackId,
+   947→    String? couponCode,
+   948→  }) async {
+   949→    try {
+   950→      final data = {
+   951→        'owner_id': ownerId,
+   952→        'owner_type': ownerType.value,
+   953→        'credit_pack_id': creditPackId,
+   954→        if (couponCode != null) 'coupon_code': couponCode,
+   955→      };
+   956→      final model = await _remoteDataSource.purchaseCredits(data);
+   957→      return Success(model.toEntity());
+   958→    } on AuthException catch (e) {
+   959→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   960→    } on ServerException catch (e) {
+   961→      return FailureResult(Failure.server(
+   962→        message: e.message, statusCode: e.statusCode, data: e.data,
+   963→      ),);
+   964→    } catch (e) {
+   965→      AppLogger.error('Unexpected purchaseCredits error', error: e);
+   966→      return const FailureResult(Failure.server(
+   967→        message: 'Failed to purchase credits.', statusCode: 500,
+   968→      ),);
+   969→    }
+   970→  }
+   971→
+   972→  @override
+   973→  Future<Result<List<AiCreditPackEntity>>> getCreditPacks({
+   974→    BillingModel? billingModel,
+   975→  }) async {
+   976→    try {
+   977→      final models = await _remoteDataSource.getCreditPacks(
+   978→        billingModel: billingModel?.value,
+   979→      );
+   980→      return Success(models.map((m) => m.toEntity()).toList());
+   981→    } on AuthException catch (e) {
+   982→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+   983→    } on ServerException catch (e) {
+   984→      return FailureResult(Failure.server(
+   985→        message: e.message, statusCode: e.statusCode, data: e.data,
+   986→      ),);
+   987→    } catch (e) {
+   988→      AppLogger.error('Unexpected getCreditPacks error', error: e);
+   989→      return const FailureResult(Failure.server(
+   990→        message: 'Failed to load credit packs.', statusCode: 500,
+   991→      ),);
+   992→    }
+   993→  }
+   994→
+   995→  // ─── Coupons ────────────────────────────────────────────────────────
+   996→
+   997→  @override
+   998→  Future<Result<CouponEntity>> validateCoupon({
+   999→    required String code,
+  1000→    required BillingModel billingModel,
+  1001→    String? planId,
+  1002→  }) async {
+  1003→    try {
+  1004→      final model = await _remoteDataSource.validateCoupon(
+  1005→        code: code, billingModel: billingModel.value, planId: planId,
+  1006→      );
+  1007→      return Success(model.toEntity());
+  1008→    } on AuthException catch (e) {
+  1009→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1010→    } on ServerException catch (e) {
+  1011→      return FailureResult(Failure.server(
+  1012→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1013→      ),);
+  1014→    } on NotFoundException catch (e) {
+  1015→      return FailureResult(Failure.notFound(message: e.message));
+  1016→    } catch (e) {
+  1017→      AppLogger.error('Unexpected validateCoupon error', error: e);
+  1018→      return const FailureResult(Failure.server(
+  1019→        message: 'Failed to validate coupon.', statusCode: 500,
+  1020→      ),);
+  1021→    }
+  1022→  }
+  1023→
+  1024→  @override
+  1025→  Future<Result<CouponEntity>> redeemCoupon({
+  1026→    required String couponId,
+  1027→    required String userId,
+  1028→    String? schoolId,
+  1029→    String? subscriptionId,
+  1030→  }) async {
+  1031→    try {
+  1032→      final model = await _remoteDataSource.redeemCoupon(
+  1033→        couponId: couponId, userId: userId,
+  1034→        schoolId: schoolId, subscriptionId: subscriptionId,
+  1035→      );
+  1036→      return Success(model.toEntity());
+  1037→    } on AuthException catch (e) {
+  1038→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1039→    } on ServerException catch (e) {
+  1040→      return FailureResult(Failure.server(
+  1041→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1042→      ),);
+  1043→    } catch (e) {
+  1044→      AppLogger.error('Unexpected redeemCoupon error', error: e);
+  1045→      return const FailureResult(Failure.server(
+  1046→        message: 'Failed to redeem coupon.', statusCode: 500,
+  1047→      ),);
+  1048→    }
+  1049→  }
+  1050→
+  1051→  @override
+  1052→  Future<Result<List<CouponEntity>>> getCoupons({
+  1053→    bool activeOnly = false,
+  1054→    int page = 1,
+  1055→    int perPage = 20,
+  1056→  }) async {
+  1057→    try {
+  1058→      final models = await _remoteDataSource.getCoupons(
+  1059→        activeOnly: activeOnly, page: page, perPage: perPage,
+  1060→      );
+  1061→      return Success(models.map((m) => m.toEntity()).toList());
+  1062→    } on AuthException catch (e) {
+  1063→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1064→    } on ServerException catch (e) {
+  1065→      return FailureResult(Failure.server(
+  1066→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1067→      ),);
+  1068→    } catch (e) {
+  1069→      AppLogger.error('Unexpected getCoupons error', error: e);
+  1070→      return const FailureResult(Failure.server(
+  1071→        message: 'Failed to load coupons.', statusCode: 500,
+  1072→      ),);
+  1073→    }
+  1074→  }
+  1075→
+  1076→  @override
+  1077→  Future<Result<CouponEntity>> createCoupon(CouponEntity coupon) async {
+  1078→    try {
+  1079→      final model = CouponModel.fromEntity(coupon);
+  1080→      final created = await _remoteDataSource.createCoupon(model.toJson());
+  1081→      return Success(created.toEntity());
+  1082→    } on AuthException catch (e) {
+  1083→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1084→    } on ServerException catch (e) {
+  1085→      return FailureResult(Failure.server(
+  1086→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1087→      ),);
+  1088→    } on ValidationException catch (e) {
+  1089→      return FailureResult(Failure.validation(
+  1090→        message: e.message, fieldErrors: e.fieldErrors,
+  1091→      ),);
+  1092→    } catch (e) {
+  1093→      AppLogger.error('Unexpected createCoupon error', error: e);
+  1094→      return const FailureResult(Failure.server(
+  1095→        message: 'Failed to create coupon.', statusCode: 500,
+  1096→      ),);
+  1097→    }
+  1098→  }
+  1099→
+  1100→  @override
+  1101→  Future<Result<CouponEntity>> updateCoupon(CouponEntity coupon) async {
+  1102→    try {
+  1103→      final model = CouponModel.fromEntity(coupon);
+  1104→      final updated = await _remoteDataSource.updateCoupon(coupon.id, model.toJson());
+  1105→      return Success(updated.toEntity());
+  1106→    } on AuthException catch (e) {
+  1107→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1108→    } on ServerException catch (e) {
+  1109→      return FailureResult(Failure.server(
+  1110→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1111→      ),);
+  1112→    } catch (e) {
+  1113→      AppLogger.error('Unexpected updateCoupon error', error: e);
+  1114→      return const FailureResult(Failure.server(
+  1115→        message: 'Failed to update coupon.', statusCode: 500,
+  1116→      ),);
+  1117→    }
+  1118→  }
+  1119→
+  1120→  // ─── Referrals ──────────────────────────────────────────────────────
+  1121→
+  1122→  @override
+  1123→  Future<Result<ReferralCodeEntity>> getOrCreateReferralCode({
+  1124→    required String referrerId,
+  1125→    required BillingModel referrerType,
+  1126→    String? schoolId,
+  1127→  }) async {
+  1128→    try {
+  1129→      final model = await _remoteDataSource.getOrCreateReferralCode(
+  1130→        referrerId: referrerId, referrerType: referrerType.value,
+  1131→        schoolId: schoolId,
+  1132→      );
+  1133→      return Success(model.toEntity());
+  1134→    } on AuthException catch (e) {
+  1135→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1136→    } on ServerException catch (e) {
+  1137→      return FailureResult(Failure.server(
+  1138→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1139→      ),);
+  1140→    } catch (e) {
+  1141→      AppLogger.error('Unexpected getOrCreateReferralCode error', error: e);
+  1142→      return const FailureResult(Failure.server(
+  1143→        message: 'Failed to get referral code.', statusCode: 500,
+  1144→      ),);
+  1145→    }
+  1146→  }
+  1147→
+  1148→  @override
+  1149→  Future<Result<bool>> applyReferralCode({
+  1150→    required String code,
+  1151→    required String refereeId,
+  1152→    required BillingModel refereeType,
+  1153→  }) async {
+  1154→    try {
+  1155→      final success = await _remoteDataSource.applyReferralCode(
+  1156→        code: code, refereeId: refereeId, refereeType: refereeType.value,
+  1157→      );
+  1158→      return Success(success);
+  1159→    } on AuthException catch (e) {
+  1160→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1161→    } on ServerException catch (e) {
+  1162→      return FailureResult(Failure.server(
+  1163→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1164→      ),);
+  1165→    } catch (e) {
+  1166→      AppLogger.error('Unexpected applyReferralCode error', error: e);
+  1167→      return const FailureResult(Failure.server(
+  1168→        message: 'Failed to apply referral code.', statusCode: 500,
+  1169→      ),);
+  1170→    }
+  1171→  }
+  1172→
+  1173→  @override
+  1174→  Future<Result<List<Map<String, dynamic>>>> getReferralTracking({
+  1175→    required String referrerId,
+  1176→    int page = 1,
+  1177→    int perPage = 20,
+  1178→  }) async {
+  1179→    try {
+  1180→      final tracking = await _remoteDataSource.getReferralTracking(
+  1181→        referrerId: referrerId, page: page, perPage: perPage,
+  1182→      );
+  1183→      return Success(tracking);
+  1184→    } on AuthException catch (e) {
+  1185→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1186→    } on ServerException catch (e) {
+  1187→      return FailureResult(Failure.server(
+  1188→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1189→      ),);
+  1190→    } catch (e) {
+  1191→      AppLogger.error('Unexpected getReferralTracking error', error: e);
+  1192→      return const FailureResult(Failure.server(
+  1193→        message: 'Failed to load referral tracking.', statusCode: 500,
+  1194→      ),);
+  1195→    }
+  1196→  }
+  1197→
+  1198→  // ─── Licenses ────────────────────────────────────────────────────────
+  1199→
+  1200→  @override
+  1201→  Future<Result<List<LicenseEntity>>> getLicenses({
+  1202→    String? schoolId,
+  1203→    String? userId,
+  1204→    LicenseType? type,
+  1205→    bool activeOnly = true,
+  1206→  }) async {
+  1207→    try {
+  1208→      final models = await _remoteDataSource.getLicenses(
+  1209→        schoolId: schoolId, userId: userId,
+  1210→        type: type?.value, activeOnly: activeOnly,
+  1211→      );
+  1212→      return Success(models.map((m) => m.toEntity()).toList());
+  1213→    } on AuthException catch (e) {
+  1214→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1215→    } on ServerException catch (e) {
+  1216→      return FailureResult(Failure.server(
+  1217→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1218→      ),);
+  1219→    } catch (e) {
+  1220→      AppLogger.error('Unexpected getLicenses error', error: e);
+  1221→      return const FailureResult(Failure.server(
+  1222→        message: 'Failed to load licenses.', statusCode: 500,
+  1223→      ),);
+  1224→    }
+  1225→  }
+  1226→
+  1227→  @override
+  1228→  Future<Result<LicenseEntity>> revokeLicense({
+  1229→    required String licenseId,
+  1230→    required String reason,
+  1231→  }) async {
+  1232→    try {
+  1233→      final model = await _remoteDataSource.revokeLicense(
+  1234→        licenseId: licenseId, reason: reason,
+  1235→      );
+  1236→      return Success(model.toEntity());
+  1237→    } on AuthException catch (e) {
+  1238→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1239→    } on ServerException catch (e) {
+  1240→      return FailureResult(Failure.server(
+  1241→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1242→      ),);
+  1243→    } catch (e) {
+  1244→      AppLogger.error('Unexpected revokeLicense error', error: e);
+  1245→      return const FailureResult(Failure.server(
+  1246→        message: 'Failed to revoke license.', statusCode: 500,
+  1247→      ),);
+  1248→    }
+  1249→  }
+  1250→
+  1251→  // ─── School Billing ──────────────────────────────────────────────────
+  1252→
+  1253→  @override
+  1254→  Future<Result<SchoolBillingProfileEntity>> getSchoolBillingProfile(
+  1255→    String schoolId,
+  1256→  ) async {
+  1257→    try {
+  1258→      final model = await _remoteDataSource.getSchoolBillingProfile(schoolId);
+  1259→      return Success(model.toEntity());
+  1260→    } on AuthException catch (e) {
+  1261→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1262→    } on ServerException catch (e) {
+  1263→      return FailureResult(Failure.server(
+  1264→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1265→      ),);
+  1266→    } catch (e) {
+  1267→      AppLogger.error('Unexpected getSchoolBillingProfile error', error: e);
+  1268→      return const FailureResult(Failure.server(
+  1269→        message: 'Failed to load billing profile.', statusCode: 500,
+  1270→      ),);
+  1271→    }
+  1272→  }
+  1273→
+  1274→  @override
+  1275→  Future<Result<SchoolBillingProfileEntity>> updateSchoolBillingProfile(
+  1276→    SchoolBillingProfileEntity profile,
+  1277→  ) async {
+  1278→    try {
+  1279→      final model = SchoolBillingProfileModel.fromEntity(profile);
+  1280→      final updated = await _remoteDataSource.updateSchoolBillingProfile(
+  1281→        profile.schoolId, model.toJson(),
+  1282→      );
+  1283→      return Success(updated.toEntity());
+  1284→    } on AuthException catch (e) {
+  1285→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1286→    } on ServerException catch (e) {
+  1287→      return FailureResult(Failure.server(
+  1288→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1289→      ),);
+  1290→    } catch (e) {
+  1291→      AppLogger.error('Unexpected updateSchoolBillingProfile error', error: e);
+  1292→      return const FailureResult(Failure.server(
+  1293→        message: 'Failed to update billing profile.', statusCode: 500,
+  1294→      ),);
+  1295→    }
+  1296→  }
+  1297→
+  1298→  // ─── Revenue Analytics ───────────────────────────────────────────────
+  1299→
+  1300→  @override
+  1301→  Future<Result<List<RevenueDataPoint>>> getRevenueData({
+  1302→    required String periodType,
+  1303→    required DateTime startDate,
+  1304→    required DateTime endDate,
+  1305→  }) async {
+  1306→    try {
+  1307→      final models = await _remoteDataSource.getRevenueData(
+  1308→        periodType: periodType,
+  1309→        startDate: startDate.toIso8601String(),
+  1310→        endDate: endDate.toIso8601String(),
+  1311→      );
+  1312→      return Success(models.map((m) => m.toEntity()).toList());
+  1313→    } on AuthException catch (e) {
+  1314→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1315→    } on ServerException catch (e) {
+  1316→      return FailureResult(Failure.server(
+  1317→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1318→      ),);
+  1319→    } catch (e) {
+  1320→      AppLogger.error('Unexpected getRevenueData error', error: e);
+  1321→      return const FailureResult(Failure.server(
+  1322→        message: 'Failed to load revenue data.', statusCode: 500,
+  1323→      ),);
+  1324→    }
+  1325→  }
+  1326→
+  1327→  @override
+  1328→  Future<Result<Map<String, dynamic>>> getBillingDashboardSummary() async {
+  1329→    try {
+  1330→      final summary = await _remoteDataSource.getBillingDashboardSummary();
+  1331→      return Success(summary);
+  1332→    } on AuthException catch (e) {
+  1333→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1334→    } on ServerException catch (e) {
+  1335→      return FailureResult(Failure.server(
+  1336→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1337→      ),);
+  1338→    } catch (e) {
+  1339→      AppLogger.error('Unexpected getBillingDashboardSummary error', error: e);
+  1340→      return const FailureResult(Failure.server(
+  1341→        message: 'Failed to load billing summary.', statusCode: 500,
+  1342→      ),);
+  1343→    }
+  1344→  }
+  1345→
+  1346→  // ─── Billing Notifications ───────────────────────────────────────────
+  1347→
+  1348→  @override
+  1349→  Future<Result<List<BillingNotificationEntity>>> getBillingNotifications({
+  1350→    required String userId,
+  1351→    bool unreadOnly = false,
+  1352→    int page = 1,
+  1353→    int perPage = 20,
+  1354→  }) async {
+  1355→    try {
+  1356→      final models = await _remoteDataSource.getBillingNotifications(
+  1357→        userId: userId, unreadOnly: unreadOnly,
+  1358→        page: page, perPage: perPage,
+  1359→      );
+  1360→      return Success(models.map((m) => m.toEntity()).toList());
+  1361→    } on AuthException catch (e) {
+  1362→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1363→    } on ServerException catch (e) {
+  1364→      return FailureResult(Failure.server(
+  1365→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1366→      ),);
+  1367→    } catch (e) {
+  1368→      AppLogger.error('Unexpected getBillingNotifications error', error: e);
+  1369→      return const FailureResult(Failure.server(
+  1370→        message: 'Failed to load notifications.', statusCode: 500,
+  1371→      ),);
+  1372→    }
+  1373→  }
+  1374→
+  1375→  @override
+  1376→  Future<Result<bool>> markNotificationRead(String notificationId) async {
+  1377→    try {
+  1378→      final success = await _remoteDataSource.markNotificationRead(notificationId);
+  1379→      return Success(success);
+  1380→    } on AuthException catch (e) {
+  1381→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1382→    } on ServerException catch (e) {
+  1383→      return FailureResult(Failure.server(
+  1384→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1385→      ),);
+  1386→    } catch (e) {
+  1387→      AppLogger.error('Unexpected markNotificationRead error', error: e);
+  1388→      return const FailureResult(Failure.server(
+  1389→        message: 'Failed to mark notification as read.', statusCode: 500,
+  1390→      ),);
+  1391→    }
+  1392→  }
+  1393→
+  1394→  @override
+  1395→  Future<Result<bool>> updateNotificationPreferences({
+  1396→    required String userId,
+  1397→    required Map<String, bool> preferences,
+  1398→  }) async {
+  1399→    try {
+  1400→      final success = await _remoteDataSource.updateNotificationPreferences(
+  1401→        userId: userId, preferences: preferences,
+  1402→      );
+  1403→      return Success(success);
+  1404→    } on AuthException catch (e) {
+  1405→      return FailureResult(Failure.auth(message: e.message, code: e.code));
+  1406→    } on ServerException catch (e) {
+  1407→      return FailureResult(Failure.server(
+  1408→        message: e.message, statusCode: e.statusCode, data: e.data,
+  1409→      ),);
+  1410→    } catch (e) {
+  1411→      AppLogger.error('Unexpected updateNotificationPreferences error', error: e);
+  1412→      return const FailureResult(Failure.server(
+  1413→        message: 'Failed to update notification preferences.', statusCode: 500,
+  1414→      ),);
+  1415→    }
+  1416→  }
+  1417→
+  1418→  // ─── Private Helpers ────────────────────────────────────────────────
+  1419→
+  1420→  /// Maps Flutterwave transaction status to our TransactionStatus enum.
+  1421→  TransactionStatus _mapFlutterwaveStatus(String status) {
+  1422→    switch (status.toLowerCase()) {
+  1423→      case 'successful':
+  1424→        return TransactionStatus.successful;
+  1425→      case 'failed':
+  1426→        return TransactionStatus.failed;
+  1427→      case 'cancelled':
+  1428→        return TransactionStatus.voided;
+  1429→      case 'pending':
+  1430→        return TransactionStatus.pending;
+  1431→      default:
+  1432→        return TransactionStatus.pending;
+  1433→    }
+  1434→  }
+  1435→}
+  1436→

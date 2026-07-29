@@ -34,11 +34,11 @@ import 'storage_service.dart';
 /// Callback type for when a notification is received while the app
 /// is in the foreground.
 typedef ForegroundNotificationCallback = void Function(
-    ExamForgeNotification notification);
+    ExamForgeNotification notification,);
 
 /// Callback type for when a notification is tapped by the user.
 typedef NotificationTapCallback = void Function(
-    ExamForgeNotification notification);
+    ExamForgeNotification notification,);
 
 /// A platform-agnostic notification model used across the app.
 ///

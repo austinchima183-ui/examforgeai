@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:collection';
 
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
@@ -319,7 +318,7 @@ class OptimizedRealtimeManager implements Disposable {
 
     AppLogger.info(
       'Scheduling realtime reconnect for $channelName '
-      'in ${delay}ms (attempt ${_reconnectAttempts}/${_config.reconnectMaxAttempts})',
+      'in ${delay}ms (attempt $_reconnectAttempts/${_config.reconnectMaxAttempts})',
     );
 
     Timer(Duration(milliseconds: delay), () {
@@ -400,9 +399,9 @@ class OptimizedRealtimeManager implements Disposable {
 
     AppLogger.info(
       'All realtime subscriptions closed. '
-      'Stats: ${_totalEventsReceived} received, '
-      '${_totalEventsBatched} batched, '
-      '${_totalEventsDropped} dropped',
+      'Stats: $_totalEventsReceived received, '
+      '$_totalEventsBatched batched, '
+      '$_totalEventsDropped dropped',
     );
   }
 

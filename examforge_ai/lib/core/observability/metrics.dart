@@ -182,7 +182,7 @@ class MetricsService {
       unit: 'ms',
       tags: {'endpoint': endpoint, ...?tags},
       correlationId: StructuredLogger.correlationId,
-    ));
+    ),);
   }
 
   /// Record AI request latency.
@@ -195,7 +195,7 @@ class MetricsService {
       value: latencyMs,
       unit: 'ms',
       tags: {'operation': operation, ...?tags},
-    ));
+    ),);
   }
 
   /// Record database query latency.
@@ -208,7 +208,7 @@ class MetricsService {
       value: latencyMs,
       unit: 'ms',
       tags: {'query_type': queryType, ...?tags},
-    ));
+    ),);
   }
 
   /// Record sync operation duration.
@@ -221,7 +221,7 @@ class MetricsService {
       value: durationMs,
       unit: 'ms',
       tags: {'operation': operation, 'success': success.toString()},
-    ));
+    ),);
   }
 
   /// Record exam submission time.
@@ -234,7 +234,7 @@ class MetricsService {
       value: durationMs,
       unit: 'ms',
       tags: {'exam_id': examId, ...?tags},
-    ));
+    ),);
   }
 
   /// Record realtime message latency.
@@ -246,7 +246,7 @@ class MetricsService {
       type: MetricType.histogram,
       value: latencyMs,
       unit: 'ms',
-    ));
+    ),);
   }
 
   // ─── Counter Tracking ────────────────────────────────────────────────
@@ -259,7 +259,7 @@ class MetricsService {
       type: MetricType.counter,
       value: _counters[name]!.toDouble(),
       tags: tags,
-    ));
+    ),);
   }
 
   // ─── Gauge Tracking ──────────────────────────────────────────────────
@@ -273,7 +273,7 @@ class MetricsService {
       value: value,
       unit: unit,
       tags: tags,
-    ));
+    ),);
   }
 
   /// Record memory usage.
@@ -307,7 +307,7 @@ class MetricsService {
       value: ratio,
       unit: 'percent',
       tags: {'cache': cacheName},
-    ));
+    ),);
   }
 
   // ─── Stats Access ────────────────────────────────────────────────────

@@ -184,7 +184,7 @@ class TOTPMFAProvider implements MFAProvider {
       final secret = _generateBase32Secret();
 
       // Build the otpauth:// URI for QR-code scanning.
-      final issuer = 'ExamForgeAI';
+      const issuer = 'ExamForgeAI';
       final qrCodeUrl =
           'otpauth://totp/$issuer:$userId?secret=$secret&issuer=$issuer&algorithm=SHA1&digits=$_codeDigits&period=$_timeStepSeconds';
 

@@ -166,7 +166,7 @@ class BackgroundWorkerMonitor {
     );
     StructuredLogger.info('Worker registered: $workerId', metadata: {
       'status': initialStatus.label,
-    });
+    },);
   }
 
   /// Update worker status.

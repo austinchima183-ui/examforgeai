@@ -450,7 +450,7 @@ class CircuitBreakerManager {
         successCount: circuit.successCount,
         openedAt: circuit.openedAt,
       ),
-    ));
+    ),);
   }
 }
 

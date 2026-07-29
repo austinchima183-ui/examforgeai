@@ -376,7 +376,7 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
       return 0;
     } catch (e) {
       AppLogger.warning('Unexpected error counting rows in "$table"',
-          error: e);
+          error: e,);
       return 0;
     }
   }

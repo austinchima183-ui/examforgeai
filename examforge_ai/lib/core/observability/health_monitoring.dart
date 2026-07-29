@@ -181,7 +181,7 @@ class HealthMonitoringService {
     StructuredLogger.info('HealthMonitoringService initialized', metadata: {
       'components': _components.keys.toList(),
       'interval_s': checkIntervalSeconds,
-    });
+    },);
   }
 
   /// Stop health monitoring.
@@ -464,7 +464,7 @@ class HealthMonitoringService {
       RegExp(r'(supabaseUrl|supabaseKey|anonKey|serviceKey)=([^\s]+)', caseSensitive: false),
       (match) => '${match.group(1)}=[REDACTED]',
     );
-    return result.length > 200 ? result.substring(0, 200) + '...' : result;
+    return result.length > 200 ? '${result.substring(0, 200)}...' : result;
   }
 }
 

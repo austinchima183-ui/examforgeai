@@ -243,7 +243,7 @@ class TracingService {
       'correlation_id': corrId,
       'span_id': rootSpan.spanId,
       'feature': feature,
-    });
+    },);
 
     return trace;
   }
@@ -291,7 +291,7 @@ class TracingService {
         'duration_ms': trace.totalDurationMs.round(),
         'status': trace.overallStatus.label,
         'span_count': trace.spans.length,
-      });
+      },);
     }
   }
 

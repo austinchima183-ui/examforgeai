@@ -22,11 +22,11 @@
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'alert_engine.dart';
 import 'crash_reporter.dart';
 import 'health_monitoring.dart';
 import 'log_shipping.dart';
 import 'metrics.dart';
-import 'alert_engine.dart';
 import 'tracing.dart';
 import 'workers.dart';
 

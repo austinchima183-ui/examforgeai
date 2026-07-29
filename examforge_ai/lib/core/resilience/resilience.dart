@@ -9,5 +9,5 @@
 // ============================================================================
 
 export 'circuit_breaker.dart';
-export 'request_timeout_policy.dart';
 export 'graceful_degradation.dart';
+export 'request_timeout_policy.dart';

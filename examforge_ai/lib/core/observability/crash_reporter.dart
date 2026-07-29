@@ -225,7 +225,7 @@ class CrashReporter {
     StructuredLogger.info('CrashReporter initialized', metadata: {
       'platform': _platform,
       'app_version': _appVersion ?? 'unknown',
-    });
+    },);
   }
 
   /// Set user/session context for crash enrichment.

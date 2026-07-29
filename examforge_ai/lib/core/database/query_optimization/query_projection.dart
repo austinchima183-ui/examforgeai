@@ -1,6 +1,5 @@
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // QUERY PROJECTION UTILITY

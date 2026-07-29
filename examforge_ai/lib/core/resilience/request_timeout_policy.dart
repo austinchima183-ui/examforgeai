@@ -25,7 +25,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../constants/app_constants.dart';
 import '../logging/structured_logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -2,9 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../utils/logger.dart';
-import '../performance/ai_cache_service.dart';
 import '../performance/performance_manager.dart' show Disposable;
+import '../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // AI PERFORMANCE OPTIMIZATION
@@ -125,7 +124,7 @@ class ProviderFallbackStrategy {
       _primaryCoolDownUntil = DateTime.now().add(Duration(milliseconds: coolDownMs));
       AppLogger.warning(
         'Primary AI provider $primaryProvider entering cooldown '
-        '(${_primaryFailureCount} failures, cool-down until $_primaryCoolDownUntil)',
+        '($_primaryFailureCount failures, cool-down until $_primaryCoolDownUntil)',
       );
     }
   }
@@ -300,7 +299,7 @@ class AIPerformanceOptimizer implements Disposable {
   int _failedCalls = 0;
   int _retriesAttempted = 0;
   int _fallbacksTriggered = 0;
-  int _cacheHits = 0;
+  final int _cacheHits = 0;
   double _totalCostEstimate = 0.0;
   int _totalInputTokens = 0;
   int _totalOutputTokens = 0;
@@ -319,7 +318,7 @@ class AIPerformanceOptimizer implements Disposable {
     Future<T> Function(String provider, String model) call,
     {String? operationType,
     String? preferredModel,
-    AIRequestPriority priority = AIRequestPriority.normal}
+    AIRequestPriority priority = AIRequestPriority.normal,}
   ) async {
     _totalCalls++;
 
@@ -378,7 +377,7 @@ class AIPerformanceOptimizer implements Disposable {
         }
 
         _failedCalls++;
-        throw e;
+        rethrow;
       }
     }
 

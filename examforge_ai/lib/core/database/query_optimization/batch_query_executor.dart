@@ -204,7 +204,7 @@ class BatchQueryExecutor {
     String table,
     Map<String, dynamic> data,
     {required List<String> conflictColumns,
-    bool returnData = true}
+    bool returnData = true,}
   ) async {
     final query = supabase.from(table).upsert(
       data,
@@ -231,7 +231,7 @@ class BatchQueryExecutor {
     sb.SupabaseClient supabase,
     String table,
     List<Map<String, dynamic>> rows,
-    {required List<String> conflictColumns}
+    {required List<String> conflictColumns,}
   ) async {
     if (rows.isEmpty) return [];
 

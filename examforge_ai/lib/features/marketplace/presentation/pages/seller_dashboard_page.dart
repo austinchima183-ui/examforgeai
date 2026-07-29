@@ -6,7 +6,6 @@ import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
 import '../../../../core/themes/spacings.dart';
-import '../../../../features/analytics_dashboard/domain/entities/analytics_dashboard_entities.dart';
 import '../../domain/entities/marketplace_entities.dart';
 import '../providers/marketplace_notification_provider.dart';
 import '../providers/seller_provider.dart';

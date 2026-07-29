@@ -224,7 +224,7 @@ class GracefulDegradationService {
 
     // Multiple minor degradations escalate to major
     final minorOutages = affected.where((s) =>
-      s != 'supabase_database' && s != 'supabase_auth'
+      s != 'supabase_database' && s != 'supabase_auth',
     ).length;
     if (minorOutages >= 3 && level.level < 2) {
       level = DegradationLevel.major;

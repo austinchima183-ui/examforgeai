@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart' as sb;
 
-import '../utils/logger.dart';
-import '../performance/performance_manager.dart';
 import '../../../config/dependency_injection.dart';
+import '../performance/performance_manager.dart';
+import '../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // NETWORK OPTIMIZATION SERVICE
@@ -88,8 +88,8 @@ class NetworkOptimizationService implements Disposable {
   int _deduplicatedRequests = 0;
   int _cacheHits = 0;
   int _cacheMisses = 0;
-  int _batchedRequests = 0;
-  int _compressedResponses = 0;
+  final int _batchedRequests = 0;
+  final int _compressedResponses = 0;
 
   // ═══════════════════════════════════════════════════════════════════
   // Optimized Query
@@ -107,7 +107,7 @@ class NetworkOptimizationService implements Disposable {
     String columns,
     Map<String, String> filters,
     {String? cacheKey,
-    int? ttlOverrideMs}
+    int? ttlOverrideMs,}
   ) async {
     _totalRequests++;
 
@@ -164,7 +164,7 @@ class NetworkOptimizationService implements Disposable {
       return result;
     } catch (e) {
       completer.completeError(e);
-      throw e;
+      rethrow;
     } finally {
       _inFlight.remove(key);
     }
@@ -212,7 +212,7 @@ class NetworkOptimizationService implements Disposable {
       q.filters,
       cacheKey: q.cacheKey,
       ttlOverrideMs: q.ttlOverrideMs,
-    ));
+    ),);
 
     final results = await Future.wait(futures);
     AppLogger.debug('Parallel queries: ${queries.length} executed concurrently');

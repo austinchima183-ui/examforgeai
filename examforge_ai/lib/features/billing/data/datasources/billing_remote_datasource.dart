@@ -392,7 +392,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
       // PERF: Fix duplicate filter application bug
       // Previous code applied filters TWICE: once inline (lines 394-402)
       // then again via _applyFilters (lines 404-408). Now uses only _applyFilters.
-      var query = _supabase.from(_subscriptionsTable).select(
+      final query = _supabase.from(_subscriptionsTable).select(
         'id, subscriber_id, subscriber_type, plan_id, '
         'status, current_period_start, current_period_end, created_at',
       );
@@ -525,7 +525,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
   }) async {
     try {
       // PERF: Fix duplicate filter application bug — use only _applyFilters
-      var query = _supabase.from(_transactionsTable).select(
+      final query = _supabase.from(_transactionsTable).select(
         'id, user_id, school_id, amount, currency, '
         'status, transaction_type, flutterwave_tx_ref, created_at',
       );
@@ -663,7 +663,7 @@ class BillingRemoteDataSourceImpl implements BillingRemoteDataSource {
   }) async {
     try {
       // PERF: Fix duplicate filter application bug — use only _applyFilters
-      var query = _supabase.from(_invoicesTable).select(
+      final query = _supabase.from(_invoicesTable).select(
         'id, user_id, school_id, invoice_number, '
         'amount_due, amount_paid, status, due_date, created_at',
       );

@@ -1,12 +1,14 @@
 import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../utils/logger.dart';
+
+import '../database/database_pool_manager.dart';
 import '../memory_optimization/memory_optimization_service.dart';
+import '../network_optimization/network_optimization_service.dart';
+import '../performance/performance_manager.dart' show Disposable;
 import '../realtime_optimization/optimized_realtime_manager.dart';
 import '../startup_optimization/startup_optimizer.dart';
-import '../network_optimization/network_optimization_service.dart';
-import '../database/database_pool_manager.dart';
-import '../performance/performance_manager.dart' show Disposable;
+import '../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // PERFORMANCE MONITORING SERVICE
@@ -97,12 +99,12 @@ class PerformanceMonitoringService implements Disposable {
 
     final resources = metrics['memory']?['total_resources'] as int?;
     if (resources != null && resources > alertThresholds.maxResources) {
-      AppLogger.warning('ALERT: ${resources} resources > threshold ${alertThresholds.maxResources}');
+      AppLogger.warning('ALERT: $resources resources > threshold ${alertThresholds.maxResources}');
     }
 
     final cacheHit = metrics['network']?['cache_hit_rate_percent'] as int?;
     if (cacheHit != null && cacheHit < alertThresholds.minCacheHitRate) {
-      AppLogger.warning('ALERT: Cache hit ${cacheHit}% < threshold ${alertThresholds.minCacheHitRate}%');
+      AppLogger.warning('ALERT: Cache hit $cacheHit% < threshold ${alertThresholds.minCacheHitRate}%');
     }
   }
 

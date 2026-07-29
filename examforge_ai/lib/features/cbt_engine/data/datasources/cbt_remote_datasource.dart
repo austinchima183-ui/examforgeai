@@ -472,7 +472,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         'sort_order': section.sortOrder,
         'time_limit_minutes': section.timeLimitMinutes,
         'randomize_questions': section.randomizeQuestions,
-      }).toList();
+      },).toList();
 
       if (sectionRows.isNotEmpty) {
         await _supabaseClient.from(_examSectionsTable).insert(sectionRows);
@@ -486,7 +486,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
         'marks': question.marks,
         'negative_marks': question.negativeMarks,
         'is_compulsory': question.isCompulsory,
-      }).toList();
+      },).toList();
 
       if (questionRows.isNotEmpty) {
         await _supabaseClient.from(_examQuestionsTable).insert(questionRows);
@@ -953,7 +953,7 @@ class CbtRemoteDataSourceImpl implements CbtRemoteDataSource {
             'answer_data': answerData,
             'answered_at': now.toIso8601String(),
             'updated_at': now.toIso8601String(),
-          }, onConflict: 'attempt_id,question_id')
+          }, onConflict: 'attempt_id,question_id',)
           .select()
           .single();
 

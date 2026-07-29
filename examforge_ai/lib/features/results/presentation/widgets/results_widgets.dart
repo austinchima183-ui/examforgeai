@@ -19,9 +19,6 @@ import 'package:gap/gap.dart';
 import 'package:intl/intl.dart';
 
 import '../../domain/entities/results_entities.dart';
-import '../../../../features/dashboard/presentation/providers/dashboard_provider.dart';
-import '../../../../features/results/domain/entities/results_entities.dart';
-import '../../../../features/student_portal/domain/entities/student_portal_entities.dart';
 
 
 

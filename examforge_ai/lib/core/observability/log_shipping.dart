@@ -193,7 +193,7 @@ class LogShippingService {
     StructuredLogger.info('LogShippingService initialized', metadata: {
       'batch_size': _config.batchSize,
       'interval_s': _config.shippingIntervalSeconds,
-    });
+    },);
   }
 
   /// Stop the shipping service.
@@ -360,7 +360,7 @@ class LogShippingService {
       }
       StructuredLogger.error('Offline queue shipping failed', metadata: {
         'dead_letter_count': _deadLetterQueue.length,
-      });
+      },);
     }
   }
 
@@ -420,7 +420,7 @@ void shipLog({
   StructuredLogger.info(message, metadata: {
     'shipping_level': level.name,
     ...?metadata,
-  });
+  },);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

@@ -2,8 +2,8 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../utils/logger.dart';
 import '../performance/performance_manager.dart' show Disposable;
+import '../utils/logger.dart';
 
 // ═══════════════════════════════════════════════════════════════════════
 // RIVERPOD PERFORMANCE OPTIMIZATION UTILITIES
@@ -262,7 +262,7 @@ class DebouncedRefresh {
   /// autoDispose lifecycle handles cancellation automatically.
   static Future<void> wait(
     Ref ref,
-    {Duration duration = const Duration(milliseconds: 300)}
+    {Duration duration = const Duration(milliseconds: 300),}
   ) async {
     // Create a timer that completes after the duration
     final completer = Completer<void>();
