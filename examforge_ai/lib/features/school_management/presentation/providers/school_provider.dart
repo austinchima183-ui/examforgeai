@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/errors/failures.dart';
 import '../../../../core/utils/logger.dart';
 import '../../domain/entities/school_management_entities.dart';
@@ -10,13 +11,8 @@ import '../../domain/repositories/school_management_repository.dart';
 // REPOSITORY PROVIDER
 // ═══════════════════════════════════════════════════════════════════════
 
-// Provider is registered in dependency_injection.dart
-final schoolManagementRepositoryProvider =
-    Provider<SchoolManagementRepository>((ref) {
-  throw UnimplementedError(
-    'schoolManagementRepositoryProvider must be overridden',
-  );
-});
+// Re-export the real provider from dependency_injection.dart
+final schoolManagementRepositoryProviderDI = schoolManagementRepositoryProvider;
 
 // ═══════════════════════════════════════════════════════════════════════
 // SCHOOL LIST STATE
@@ -513,7 +509,7 @@ class SchoolDetailNotifier extends StateNotifier<SchoolDetailState> {
 final schoolListProvider =
     StateNotifierProvider<SchoolListNotifier, SchoolListState>((ref) {
   return SchoolListNotifier(
-    schoolManagementRepository: ref.watch(schoolManagementRepositoryProvider),
+    schoolManagementRepository: ref.watch(schoolManagementRepositoryProviderDI),
   );
 });
 
@@ -521,6 +517,6 @@ final schoolListProvider =
 final schoolDetailProvider =
     StateNotifierProvider<SchoolDetailNotifier, SchoolDetailState>((ref) {
   return SchoolDetailNotifier(
-    schoolManagementRepository: ref.watch(schoolManagementRepositoryProvider),
+    schoolManagementRepository: ref.watch(schoolManagementRepositoryProviderDI),
   );
 });

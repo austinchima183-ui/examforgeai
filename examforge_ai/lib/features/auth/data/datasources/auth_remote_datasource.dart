@@ -46,6 +46,9 @@ abstract class AuthRemoteDataSource {
 
   /// Signs the user out from Supabase.
   Future<void> logout();
+
+  /// Signs in the user with an OAuth provider (e.g., Google, Apple).
+  Future<void> signInWithOAuth({required String provider});
 }
 
 /// Supabase-backed implementation of [AuthRemoteDataSource].
@@ -307,6 +310,35 @@ class AuthRemoteDataSourceImpl implements AuthRemoteDataSource {
           'Supabase sign-out failed, clearing local: ${e.message}',);
     } catch (e) {
       AppLogger.warning('Unexpected sign-out error, clearing local: $e');
+    }
+  }
+
+  // ─── OAuth Sign-In ──────────────────────────────────────────────────
+
+  @override
+  Future<void> signInWithOAuth({required String provider}) async {
+    try {
+      // Map provider string to Supabase OAuthProvider enum
+      final oauthProvider = sb.OAuthProvider.values.firstWhere(
+        (p) => p.name == provider,
+        orElse: () => sb.OAuthProvider.google,
+      );
+
+      await _supabase.auth.signInWithOAuth(
+        oauthProvider,
+      );
+      AppLogger.info('OAuth sign-in initiated with provider: $provider');
+    } on sb.AuthException catch (e) {
+      throw AuthException(
+        message: e.message,
+        code: e.code ?? 'oauth_failed',
+      );
+    } catch (e) {
+      AppLogger.error('Unexpected OAuth error', error: e);
+      throw const AuthException(
+        message: 'Failed to sign in with provider. Please try again.',
+        code: 'oauth_failed',
+      );
     }
   }
 

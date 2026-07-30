@@ -26,7 +26,7 @@
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
 // ─── CORS Configuration (Hardened) ────────────────────────────────────────
-const ALLOWED_ORIGNS = (() => {
+const ALLOWED_ORIGINS = (() => {
   const env = Deno.env.get('ENVIRONMENT') || 'development';
   switch (env) {
     case 'production':
@@ -53,7 +53,7 @@ const ALLOWED_ORIGNS = (() => {
 
 function getCorsHeaders(req: Request): Record<string, string> {
   const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGNS.includes(origin) ? origin : ALLOWED_ORIGNS[0];
+  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
   return {
     'Access-Control-Allow-Origin': allowedOrigin,
     'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',

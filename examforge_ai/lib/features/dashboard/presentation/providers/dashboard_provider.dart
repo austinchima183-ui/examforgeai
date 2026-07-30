@@ -201,8 +201,8 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
 
     try {
       final stats = await _loadStatsForRole(role);
-      final activity = _loadActivityForRole(role);
-      final notifications = _loadNotificationsForRole(role);
+      final activity = await _loadActivityForRole(role);
+      final notifications = await _loadNotificationsForRole(role);
 
       state = state.copyWith(
         isLoading: false,
@@ -495,20 +495,91 @@ class DashboardNotifier extends StateNotifier<DashboardState> {
     }
   }
 
-  // ─── Activity & Notifications (placeholder) ───────────────────────
-  //
-  // Activity and notifications will be migrated to real Supabase
-  // queries in a follow-up task. For now they return an empty list
-  // so the UI is not blocked by stale mock data.
+  // ─── Activity & Notifications (Supabase queries) ─────────────────
 
-  List<ActivityItem> _loadActivityForRole(UserRole role) {
-    // TODO: Replace with real Supabase queries for activity feed.
-    return const [];
+  /// Loads recent activity items for the user's role from Supabase.
+  ///
+  /// Queries the `audit_log` table for the most recent actions performed
+  /// by or affecting the current user. RLS ensures only visible rows
+  /// are returned.
+  Future<List<ActivityItem>> _loadActivityForRole(UserRole role) async {
+    try {
+      final userId = _supabaseClient.auth.currentUser?.id;
+      if (userId == null) return const [];
+
+      final response = await _supabaseClient
+          .from('audit_log')
+          .select('action, details, created_at')
+          .order('created_at', ascending: false)
+          .limit(10);
+
+      return response.map<ActivityItem>((row) {
+        return ActivityItem(
+          title: row['action']?.toString() ?? 'Activity',
+          subtitle: row['details']?.toString(),
+          timestamp: row['created_at'] != null
+              ? DateTime.parse(row['created_at'].toString())
+              : DateTime.now(),
+          icon: Icons.history,
+          color: Colors.blue,
+        );
+      }).toList();
+    } on sb.PostgrestException catch (e) {
+      AppLogger.warning('Failed to load activity feed', error: e);
+      return const [];
+    } catch (e) {
+      AppLogger.warning('Failed to load activity feed', error: e);
+      return const [];
+    }
   }
 
-  List<NotificationItem> _loadNotificationsForRole(UserRole role) {
-    // TODO: Replace with real Supabase queries for notifications.
-    return const [];
+  /// Loads notification items for the user from Supabase.
+  ///
+  /// Queries the `notifications` table for the current user's
+  /// notifications. RLS ensures only the user's own notifications
+  /// are returned.
+  Future<List<NotificationItem>> _loadNotificationsForRole(UserRole role) async {
+    try {
+      final userId = _supabaseClient.auth.currentUser?.id;
+      if (userId == null) return const [];
+
+      final response = await _supabaseClient
+          .from('notifications')
+          .select('id, title, message, type, is_read, created_at')
+          .eq('user_id', userId)
+          .order('created_at', ascending: false)
+          .limit(10);
+
+      return response.map<NotificationItem>((row) {
+        return NotificationItem(
+          title: row['title']?.toString() ?? 'Notification',
+          subtitle: row['message']?.toString(),
+          timestamp: row['created_at'] != null
+              ? DateTime.parse(row['created_at'].toString())
+              : DateTime.now(),
+          icon: _iconForNotificationType(row['type']?.toString()),
+          isRead: row['is_read'] == true,
+        );
+      }).toList();
+    } on sb.PostgrestException catch (e) {
+      AppLogger.warning('Failed to load notifications', error: e);
+      return const [];
+    } catch (e) {
+      AppLogger.warning('Failed to load notifications', error: e);
+      return const [];
+    }
+  }
+
+  /// Returns an appropriate icon for the notification type.
+  IconData _iconForNotificationType(String? type) {
+    return switch (type) {
+      'admin' => Icons.admin_panel_settings,
+      'payment' => Icons.payment,
+      'cbt' || 'exam' => Icons.quiz,
+      'parent' => Icons.family_restroom,
+      'communication' => Icons.chat,
+      _ => Icons.notifications,
+    };
   }
 }
 

@@ -1,0 +1,2002 @@
+     1→-- ============================================================================
+     2→-- ExamForge AI - AI Question Generation Engine Schema
+     3→-- ============================================================================
+     4→-- Production-ready schema for the AI-powered question generation engine.
+     5→-- Supports: multi-provider AI, prompt management (database-driven),
+     6→--           question generation, validation, improvement, document processing,
+     7→--           review workflow, history tracking, and cost monitoring.
+     8→--
+     9→-- Prerequisites:
+    10→--   Existing tables: schools, users, subjects, topics, subtopics,
+    11→--                    question_bank, answer_options, matching_pairs,
+    12→--                    ordering_items, fill_in_blank_answers
+    13→--   Existing enums:  user_role, question_type, difficulty_level, exam_type,
+    14→--                    subscription_status, exam_status, notification_type,
+    15→--                    share_permission, import_status, content_type,
+    16→--                    curriculum_standard_type
+    17→--
+    18→-- Performance: Designed for high-throughput with composite indexes,
+    19→--              GIN indexes for JSONB, and partitioning-ready layout.
+    20→-- ============================================================================
+    21→
+    22→BEGIN;
+    23→
+    24→-- ============================================================================
+    25→-- 1. CUSTOM ENUMERATION TYPES
+    26→-- ============================================================================
+    27→-- All new enums required by the AI generation engine.
+    28→-- Uses IF NOT EXISTS pattern to ensure idempotent migrations.
+    29→-- ============================================================================
+    30→
+    31→DO $$
+    32→BEGIN
+    33→  -- ---------------------------------------------------------------------------
+    34→  -- ai_provider: Supported AI model providers
+    35→  -- ---------------------------------------------------------------------------
+    36→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ai_provider') THEN
+    37→    CREATE TYPE ai_provider AS ENUM (
+    38→      'openai',
+    39→      'gemini',
+    40→      'claude',
+    41→      'deepseek',
+    42→      'grok',
+    43→      'local_llm'
+    44→    );
+    45→  END IF;
+    46→
+    47→  -- ---------------------------------------------------------------------------
+    48→  -- generation_status: Lifecycle states for an AI generation request
+    49→  -- ---------------------------------------------------------------------------
+    50→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'generation_status') THEN
+    51→    CREATE TYPE generation_status AS ENUM (
+    52→      'pending',
+    53→      'processing',
+    54→      'completed',
+    55→      'failed',
+    56→      'cancelled'
+    57→    );
+    58→  END IF;
+    59→
+    60→  -- ---------------------------------------------------------------------------
+    61→  -- review_status: Human review workflow states for AI-generated questions
+    62→  -- ---------------------------------------------------------------------------
+    63→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'review_status') THEN
+    64→    CREATE TYPE review_status AS ENUM (
+    65→      'pending',
+    66→      'approved',
+    67→      'rejected',
+    68→      'needs_revision'
+    69→    );
+    70→  END IF;
+    71→
+    72→  -- ---------------------------------------------------------------------------
+    73→  -- validation_severity: Severity levels for AI validation results
+    74→  -- ---------------------------------------------------------------------------
+    75→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'validation_severity') THEN
+    76→    CREATE TYPE validation_severity AS ENUM (
+    77→      'info',
+    78→      'warning',
+    79→      'error',
+    80→      'critical'
+    81→    );
+    82→  END IF;
+    83→
+    84→  -- ---------------------------------------------------------------------------
+    85→  -- bloom_taxonomy: Bloom's Taxonomy cognitive levels for question alignment
+    86→  -- ---------------------------------------------------------------------------
+    87→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'bloom_taxonomy') THEN
+    88→    CREATE TYPE bloom_taxonomy AS ENUM (
+    89→      'remember',
+    90→      'understand',
+    91→      'apply',
+    92→      'analyze',
+    93→      'evaluate',
+    94→      'create'
+    95→    );
+    96→  END IF;
+    97→
+    98→  -- ---------------------------------------------------------------------------
+    99→  -- prompt_type: Categories of AI prompt templates
+   100→  -- ---------------------------------------------------------------------------
+   101→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'prompt_type') THEN
+   102→    CREATE TYPE prompt_type AS ENUM (
+   103→      'question_generation',
+   104→      'question_improvement',
+   105→      'question_validation',
+   106→      'translation',
+   107→      'document_extraction',
+   108→      'distractor_generation',
+   109→      'explanation_generation'
+   110→    );
+   111→  END IF;
+   112→
+   113→  -- ---------------------------------------------------------------------------
+   114→  -- document_status: Lifecycle states for uploaded documents
+   115→  -- ---------------------------------------------------------------------------
+   116→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'document_status') THEN
+   117→    CREATE TYPE document_status AS ENUM (
+   118→      'pending',
+   119→      'processing',
+   120→      'processed',
+   121→      'failed'
+   122→    );
+   123→  END IF;
+   124→
+   125→  -- ---------------------------------------------------------------------------
+   126→  -- curriculum_type: Nigerian and international curriculum frameworks
+   127→  -- ---------------------------------------------------------------------------
+   128→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'curriculum_type') THEN
+   129→    CREATE TYPE curriculum_type AS ENUM (
+   130→      'waec',
+   131→      'neco',
+   132→      'jamb',
+   133→      'bece',
+   134→      'cambridge_igcse',
+   135→      'custom'
+   136→    );
+   137→  END IF;
+   138→END
+   139→$$;
+   140→
+   141→-- Enum comments for documentation
+   142→COMMENT ON TYPE ai_provider IS 'Supported AI model providers for question generation';
+   143→COMMENT ON TYPE generation_status IS 'Lifecycle states for an AI generation request: pending → processing → completed/failed/cancelled';
+   144→COMMENT ON TYPE review_status IS 'Human review workflow states for AI-generated questions';
+   145→COMMENT ON TYPE validation_severity IS 'Severity levels for automated validation findings: info → warning → error → critical';
+   146→COMMENT ON TYPE bloom_taxonomy IS 'Bloom''s Taxonomy cognitive levels: remember → understand → apply → analyze → evaluate → create';
+   147→COMMENT ON TYPE prompt_type IS 'Categories of AI prompt templates used across the generation pipeline';
+   148→COMMENT ON TYPE document_status IS 'Lifecycle states for uploaded documents awaiting extraction';
+   149→COMMENT ON TYPE curriculum_type IS 'Nigerian and international curriculum frameworks for alignment';
+   150→
+   151→-- ============================================================================
+   152→-- 2. AI PROVIDERS CONFIGURATION
+   153→-- ============================================================================
+   154→-- Stores configuration for each AI provider + model combination.
+   155→-- Enables multi-provider routing, cost tracking, and capability detection.
+   156→-- ============================================================================
+   157→
+   158→CREATE TABLE IF NOT EXISTS ai_providers_config (
+   159→  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   160→  provider                  ai_provider NOT NULL,
+   161→  display_name              TEXT NOT NULL,                                -- e.g. "OpenAI GPT-4o"
+   162→  model_name                TEXT NOT NULL,                                -- e.g. "gpt-4o", "gemini-1.5-pro"
+   163→  api_endpoint              TEXT NOT NULL,                                -- REST endpoint URL
+   164→  is_active                 BOOLEAN DEFAULT true,
+   165→  max_tokens                INTEGER DEFAULT 4096,                        -- Maximum output tokens
+   166→  temperature               NUMERIC(3,2) DEFAULT 0.70,                   -- Sampling temperature (0.00–2.00)
+   167→  top_p                     NUMERIC(3,2) DEFAULT 0.95,                   -- Nucleus sampling threshold
+   168→  cost_per_1k_input_tokens  NUMERIC(10,6) DEFAULT 0.0,                   -- USD per 1,000 input tokens
+   169→  cost_per_1k_output_tokens NUMERIC(10,6) DEFAULT 0.0,                   -- USD per 1,000 output tokens
+   170→  supports_streaming        BOOLEAN DEFAULT false,
+   171→  supports_function_calling BOOLEAN DEFAULT false,
+   172→  supports_vision           BOOLEAN DEFAULT false,                        -- Image / multimodal support
+   173→  rate_limit_per_minute     INTEGER DEFAULT 60,                          -- Provider-imposed rate limit
+   174→  config                    JSONB DEFAULT '{}',                           -- Provider-specific settings
+   175→  created_at                TIMESTAMPTZ DEFAULT now(),
+   176→  updated_at                TIMESTAMPTZ DEFAULT now(),
+   177→
+   178→  -- Prevent duplicate provider+model combinations
+   179→  CONSTRAINT ai_providers_config_unique_provider_model UNIQUE (provider, model_name),
+   180→  -- Validate temperature range
+   181→  CONSTRAINT ai_providers_config_temperature_range CHECK (temperature >= 0.00 AND temperature <= 2.00),
+   182→  -- Validate top_p range
+   183→  CONSTRAINT ai_providers_config_top_p_range CHECK (top_p >= 0.00 AND top_p <= 1.00),
+   184→  -- Non-negative cost values
+   185→  CONSTRAINT ai_providers_config_input_cost_nonneg CHECK (cost_per_1k_input_tokens >= 0),
+   186→  CONSTRAINT ai_providers_config_output_cost_nonneg CHECK (cost_per_1k_output_tokens >= 0),
+   187→  -- Non-negative max_tokens
+   188→  CONSTRAINT ai_providers_config_max_tokens_positive CHECK (max_tokens > 0),
+   189→  -- Non-negative rate limit
+   190→  CONSTRAINT ai_providers_config_rate_limit_positive CHECK (rate_limit_per_minute > 0)
+   191→);
+   192→
+   193→COMMENT ON TABLE ai_providers_config IS 'Configuration registry for AI providers and models, enabling multi-provider routing and cost tracking';
+   194→COMMENT ON COLUMN ai_providers_config.config IS 'Provider-specific settings (API version, headers, custom parameters) stored as JSONB';
+   195→COMMENT ON COLUMN ai_providers_config.cost_per_1k_input_tokens IS 'Cost in USD per 1,000 input tokens for billing calculations';
+   196→COMMENT ON COLUMN ai_providers_config.cost_per_1k_output_tokens IS 'Cost in USD per 1,000 output tokens for billing calculations';
+   197→
+   198→-- ============================================================================
+   199→-- 3. PROMPT TEMPLATES (THE PROMPT MANAGEMENT SYSTEM)
+   200→-- ============================================================================
+   201→-- Database-driven prompt management enabling version control, A/B testing,
+   202→-- per-curriculum customization, and quality tracking over time.
+   203→-- Uses {{variable}} syntax for template interpolation.
+   204→-- ============================================================================
+   205→
+   206→CREATE TABLE IF NOT EXISTS prompt_templates (
+   207→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   208→  name                  TEXT NOT NULL,                                  -- e.g. "MCQ Generation - WAEC Science"
+   209→  description           TEXT,                                          -- Purpose and usage notes
+   210→  prompt_type           prompt_type NOT NULL,
+   211→  provider              ai_provider,                                   -- NULL = works with any provider
+   212→  curriculum            curriculum_type,                               -- Target curriculum framework
+   213→  subject_id            UUID REFERENCES subjects(id) ON DELETE CASCADE,-- Subject scope
+   214→  question_type         question_type,                                 -- For generation-type prompts
+   215→  difficulty            difficulty_level,                              -- Target difficulty
+   216→  bloom_level           bloom_taxonomy,                                -- Target cognitive level
+   217→  language              VARCHAR(10) DEFAULT 'en',                      -- ISO 639-1 language code
+   218→  system_prompt         TEXT NOT NULL,                                 -- System instruction sent to AI
+   219→  user_prompt_template  TEXT NOT NULL,                                 -- Template with {{variables}}
+   220→  variables             JSONB DEFAULT '[]',                            -- [{name, description, required, default}]
+   221→  few_shot_examples     JSONB DEFAULT '[]',                            -- [{input, output}] examples
+   222→  chain_of_thought      BOOLEAN DEFAULT false,                         -- Enable CoT reasoning
+   223→  output_format         JSONB DEFAULT '{}',                            -- Expected JSON output schema
+   224→  is_active             BOOLEAN DEFAULT true,
+   225→  is_default            BOOLEAN DEFAULT false,                         -- Default prompt for this type
+   226→  version               INTEGER DEFAULT 1,                             -- Template version number
+   227→  parent_id             UUID REFERENCES prompt_templates(id),          -- Previous version in chain
+   228→  quality_score         NUMERIC(3,2) DEFAULT 0.00,                     -- 0.00–5.00, tracked over time
+   229→  usage_count           INTEGER DEFAULT 0,                             -- Times this template was used
+   230→  success_rate          NUMERIC(5,2) DEFAULT 0.00,                     -- % of generations passing validation
+   231→  created_by            UUID REFERENCES users(id),
+   232→  school_id             UUID REFERENCES schools(id),                   -- NULL = platform-wide
+   233→  created_at            TIMESTAMPTZ DEFAULT now(),
+   234→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   235→
+   236→  -- Only one default per (prompt_type, provider, subject_id, curriculum) combination
+   237→  CONSTRAINT prompt_templates_one_default EXCLUDE (
+   238→    CASE WHEN is_default THEN prompt_type END WITH =,
+   239→    CASE WHEN is_default THEN COALESCE(provider, 'openai'::ai_provider) END WITH =,
+   240→    CASE WHEN is_default THEN COALESCE(subject_id, '00000000-0000-0000-0000-000000000000'::uuid) END WITH =,
+   241→    CASE WHEN is_default THEN COALESCE(curriculum, 'custom'::curriculum_type) END WITH =
+   242→  ) WHERE (is_default = true),
+   243→  -- Version must be positive
+   244→  CONSTRAINT prompt_templates_version_positive CHECK (version > 0),
+   245→  -- Quality score range: 0–5
+   246→  CONSTRAINT prompt_templates_quality_score_range CHECK (quality_score >= 0.00 AND quality_score <= 5.00),
+   247→  -- Success rate range: 0–100
+   248→  CONSTRAINT prompt_templates_success_rate_range CHECK (success_rate >= 0.00 AND success_rate <= 100.00),
+   249→  -- Usage count non-negative
+   250→  CONSTRAINT prompt_templates_usage_count_nonneg CHECK (usage_count >= 0)
+   251→);
+   252→
+   253→COMMENT ON TABLE prompt_templates IS 'Database-driven prompt management system with versioning, A/B testing, and quality tracking';
+   254→COMMENT ON COLUMN prompt_templates.user_prompt_template IS 'Template string using {{variable}} syntax for interpolation (e.g. {{subject}}, {{topic}}, {{num_questions}})';
+   255→COMMENT ON COLUMN prompt_templates.variables IS 'JSON array of variable definitions: [{name, description, required, default}]';
+   256→COMMENT ON COLUMN prompt_templates.few_shot_examples IS 'JSON array of example input/output pairs for few-shot prompting';
+   257→COMMENT ON COLUMN prompt_templates.output_format IS 'JSON Schema describing the expected AI response structure';
+   258→COMMENT ON COLUMN prompt_templates.parent_id IS 'Previous version of this template, forming a version chain';
+   259→COMMENT ON COLUMN prompt_templates.quality_score IS 'Aggregate quality score (0.00–5.00) computed from generation outcomes';
+   260→COMMENT ON COLUMN prompt_templates.success_rate IS 'Percentage of generations using this template that passed validation';
+   261→
+   262→-- ============================================================================
+   263→-- 4. AI GENERATION REQUESTS
+   264→-- ============================================================================
+   265→-- Master record for every AI generation attempt. Captures the full lifecycle
+   266→-- from request submission through processing to completion, including
+   267→-- token usage, cost, and timing metrics.
+   268→-- ============================================================================
+   269→
+   270→CREATE TABLE IF NOT EXISTS ai_generation_requests (
+   271→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   272→  school_id             UUID REFERENCES schools(id) ON DELETE CASCADE,
+   273→  requested_by          UUID NOT NULL REFERENCES users(id),
+   274→  provider              ai_provider NOT NULL DEFAULT 'openai',
+   275→  model_name            TEXT NOT NULL,                                  -- e.g. "gpt-4o"
+   276→  prompt_template_id    UUID REFERENCES prompt_templates(id),           -- Template used (nullable for custom)
+   277→  generation_type       prompt_type NOT NULL DEFAULT 'question_generation',
+   278→  status                generation_status NOT NULL DEFAULT 'pending',
+   279→  input_params          JSONB NOT NULL DEFAULT '{}',                    -- Subject, topic, difficulty, etc.
+   280→  system_prompt         TEXT,                                           -- Resolved system prompt
+   281→  user_prompt           TEXT,                                           -- Resolved user prompt
+   282→  raw_response          JSONB,                                          -- Raw AI provider response
+   283→  processed_response    JSONB,                                          -- Parsed and structured output
+   284→  input_tokens          INTEGER DEFAULT 0,
+   285→  output_tokens         INTEGER DEFAULT 0,
+   286→  total_cost            NUMERIC(10,6) DEFAULT 0.0,                     -- USD
+   287→  generation_time_ms    INTEGER,                                        -- Wall-clock time
+   288→  error_message         TEXT,
+   289→  retry_count           INTEGER DEFAULT 0,
+   290→  priority              INTEGER DEFAULT 0,                             -- Higher = processed sooner
+   291→  started_at            TIMESTAMPTZ,
+   292→  completed_at          TIMESTAMPTZ,
+   293→  created_at            TIMESTAMPTZ DEFAULT now(),
+   294→
+   295→  -- Token counts non-negative
+   296→  CONSTRAINT ai_gen_req_input_tokens_nonneg CHECK (input_tokens >= 0),
+   297→  CONSTRAINT ai_gen_req_output_tokens_nonneg CHECK (output_tokens >= 0),
+   298→  -- Cost non-negative
+   299→  CONSTRAINT ai_gen_req_total_cost_nonneg CHECK (total_cost >= 0),
+   300→  -- Retry count non-negative
+   301→  CONSTRAINT ai_gen_req_retry_count_nonneg CHECK (retry_count >= 0),
+   302→  -- Completed_at must be after started_at when both set
+   303→  CONSTRAINT ai_gen_req_completed_after_started
+   304→    CHECK (completed_at IS NULL OR started_at IS NULL OR completed_at >= started_at)
+   305→);
+   306→
+   307→COMMENT ON TABLE ai_generation_requests IS 'Master record for every AI generation request, tracking full lifecycle from submission to completion';
+   308→COMMENT ON COLUMN ai_generation_requests.input_params IS 'JSON object with generation parameters: subject, topic, difficulty, num_questions, bloom_level, exam_type, keywords, custom_instructions';
+   309→COMMENT ON COLUMN ai_generation_requests.raw_response IS 'Unprocessed response from the AI provider for debugging and auditing';
+   310→COMMENT ON COLUMN ai_generation_requests.processed_response IS 'Parsed and structured output ready for question creation';
+   311→COMMENT ON COLUMN ai_generation_requests.priority IS 'Queue priority — higher values are processed first';
+   312→
+   313→-- ============================================================================
+   314→-- 5. AI GENERATED QUESTIONS
+   315→-- ============================================================================
+   316→-- Individual questions produced by AI generation requests. Each row tracks
+   317→-- the question content, answer options, validation state, and the human
+   318→-- review workflow. On approval, questions can be promoted to question_bank.
+   319→-- ============================================================================
+   320→
+   321→CREATE TABLE IF NOT EXISTS ai_generated_questions (
+   322→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   323→  generation_request_id   UUID NOT NULL REFERENCES ai_generation_requests(id) ON DELETE CASCADE,
+   324→  question_bank_id        UUID REFERENCES question_bank(id) ON DELETE SET NULL,  -- Linked after approval
+   325→  school_id               UUID REFERENCES schools(id) ON DELETE CASCADE,
+   326→  question_type           question_type NOT NULL,
+   327→  difficulty              difficulty_level NOT NULL DEFAULT 'medium',
+   328→  bloom_level             bloom_taxonomy DEFAULT 'understand',
+   329→  content                 TEXT NOT NULL,                                 -- Question text
+   330→  content_json            JSONB DEFAULT '{}',                            -- Structured content
+   331→  answer_options          JSONB DEFAULT '[]',                            -- [{content, isCorrect, explanation, marks}]
+   332→  matching_pairs          JSONB DEFAULT '[]',                            -- [{left, right}]
+   333→  ordering_items          JSONB DEFAULT '[]',                            -- [{item, correctPosition}]
+   334→  fill_in_blank_answers   JSONB DEFAULT '[]',                            -- [{answer, acceptableVariations, marks}]
+   335→  explanation             TEXT,                                          -- Answer explanation
+   336→  suggested_references    TEXT,                                          -- Source references
+   337→  marks                   NUMERIC(5,2) DEFAULT 1.00,
+   338→  estimated_time_seconds  INTEGER,                                      -- Suggested time to answer
+   339→  confidence_score        NUMERIC(3,2) DEFAULT 0.00,                    -- 0.00–1.00 AI confidence
+   340→  curriculum_alignment    JSONB DEFAULT '{}',                            -- Mapping to curriculum standards
+   341→  review_status           review_status NOT NULL DEFAULT 'pending',
+   342→  reviewed_by             UUID REFERENCES users(id),
+   343→  reviewed_at             TIMESTAMPTZ,
+   344→  review_notes            TEXT,                                          -- Reviewer feedback
+   345→  teacher_edits           JSONB DEFAULT '{}',                            -- Tracks what the teacher changed
+   346→  is_edited               BOOLEAN DEFAULT false,                        -- Whether teacher modified the question
+   347→  is_approved             BOOLEAN DEFAULT false,                        -- Quick approval flag
+   348→  metadata                JSONB DEFAULT '{}',                            -- AI model info, prompt, params
+   349→  created_at              TIMESTAMPTZ DEFAULT now(),
+   350→  updated_at              TIMESTAMPTZ DEFAULT now(),
+   351→
+   352→  -- Marks non-negative
+   353→  CONSTRAINT ai_gen_q_marks_nonneg CHECK (marks >= 0),
+   354→  -- Confidence score range
+   355→  CONSTRAINT ai_gen_q_confidence_range CHECK (confidence_score >= 0.00 AND confidence_score <= 1.00),
+   356→  -- Estimated time positive when set
+   357→  CONSTRAINT ai_gen_q_time_positive CHECK (estimated_time_seconds IS NULL OR estimated_time_seconds > 0)
+   358→);
+   359→
+   360→COMMENT ON TABLE ai_generated_questions IS 'Individual questions produced by AI, with review workflow and promotion path to question_bank';
+   361→COMMENT ON COLUMN ai_generated_questions.question_bank_id IS 'Set when the question is approved and promoted to the main question bank';
+   362→COMMENT ON COLUMN ai_generated_questions.answer_options IS 'JSON array of options: [{content: text, isCorrect: bool, explanation: text, marks: number}]';
+   363→COMMENT ON COLUMN ai_generated_questions.confidence_score IS 'AI-assessed confidence in the question quality (0.00–1.00)';
+   364→COMMENT ON COLUMN ai_generated_questions.teacher_edits IS 'JSON tracking teacher modifications: {field: {original: ..., modified: ...}}';
+   365→COMMENT ON COLUMN ai_generated_questions.metadata IS 'AI generation metadata: model, prompt hash, generation params, template version';
+   366→
+   367→-- ============================================================================
+   368→-- 6. AI VALIDATION RESULTS
+   369→-- ============================================================================
+   370→-- Automated validation findings for AI-generated questions. Covers
+   371→-- grammar, accuracy, ambiguity, curriculum alignment, and more.
+   372→-- Each finding has a severity level and optional resolution tracking.
+   373→-- ============================================================================
+   374→
+   375→CREATE TABLE IF NOT EXISTS ai_validation_results (
+   376→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   377→  generated_question_id UUID NOT NULL REFERENCES ai_generated_questions(id) ON DELETE CASCADE,
+   378→  validation_type       TEXT NOT NULL,                                  -- e.g. grammar, spelling, duplicate, accuracy
+   379→  severity              validation_severity NOT NULL DEFAULT 'warning',
+   380→  message               TEXT NOT NULL,                                 -- What was found
+   381→  suggestion            TEXT,                                          -- How to fix it
+   382→  is_resolved           BOOLEAN DEFAULT false,
+   383→  resolved_by           UUID REFERENCES users(id),
+   384→  resolved_at           TIMESTAMPTZ,
+   385→  created_at            TIMESTAMPTZ DEFAULT now(),
+   386→
+   387→  -- Valid validation types
+   388→  CONSTRAINT ai_val_res_valid_type CHECK (validation_type IN (
+   389→    'grammar', 'spelling', 'duplicate', 'accuracy', 'ambiguity',
+   390→    'clarity', 'reading_level', 'curriculum_alignment', 'difficulty_consistency'
+   391→  ))
+   392→);
+   393→
+   394→COMMENT ON TABLE ai_validation_results IS 'Automated validation findings for AI-generated questions with severity tracking and resolution workflow';
+   395→COMMENT ON COLUMN ai_validation_results.validation_type IS 'Category of validation: grammar, spelling, duplicate, accuracy, ambiguity, clarity, reading_level, curriculum_alignment, difficulty_consistency';
+   396→
+   397→-- ============================================================================
+   398→-- 7. AI QUESTION IMPROVEMENTS
+   399→-- ============================================================================
+   400→-- Tracks every improvement attempt on an AI-generated question.
+   401→-- Supports rewrites, simplification, difficulty adjustments, new distractors,
+   402→-- translations, type changes, similar question generation, and case study expansion.
+   403→-- ============================================================================
+   404→
+   405→CREATE TABLE IF NOT EXISTS ai_question_improvements (
+   406→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   407→  generated_question_id   UUID NOT NULL REFERENCES ai_generated_questions(id) ON DELETE CASCADE,
+   408→  improvement_type        TEXT NOT NULL,                                -- What kind of improvement
+   409→  provider                ai_provider NOT NULL,
+   410→  original_content        TEXT NOT NULL,                                -- Before
+   411→  improved_content        TEXT NOT NULL,                                -- After
+   412→  original_answer_options JSONB,                                       -- Before options
+   413→  improved_answer_options JSONB,                                       -- After options
+   414→  improvement_prompt      TEXT,                                        -- The prompt used for improvement
+   415→  input_tokens            INTEGER DEFAULT 0,
+   416→  output_tokens           INTEGER DEFAULT 0,
+   417→  cost                    NUMERIC(10,6) DEFAULT 0.0,                   -- USD
+   418→  is_accepted             BOOLEAN DEFAULT false,                       -- Did the teacher accept this?
+   419→  created_by              UUID NOT NULL REFERENCES users(id),
+   420→  created_at              TIMESTAMPTZ DEFAULT now(),
+   421→
+   422→  -- Token counts non-negative
+   423→  CONSTRAINT ai_qi_input_tokens_nonneg CHECK (input_tokens >= 0),
+   424→  CONSTRAINT ai_qi_output_tokens_nonneg CHECK (output_tokens >= 0),
+   425→  -- Cost non-negative
+   426→  CONSTRAINT ai_qi_cost_nonneg CHECK (cost >= 0),
+   427→  -- Valid improvement types
+   428→  CONSTRAINT ai_qi_valid_type CHECK (improvement_type IN (
+   429→    'rewrite', 'simplify', 'make_difficult', 'make_easy',
+   430→    'new_distractors', 'improve_explanation', 'translate',
+   431→    'change_type', 'generate_similar', 'expand_case_study'
+   432→  ))
+   433→);
+   434→
+   435→COMMENT ON TABLE ai_question_improvements IS 'Tracks every improvement iteration on an AI-generated question with before/after content and acceptance tracking';
+   436→COMMENT ON COLUMN ai_question_improvements.improvement_type IS 'Type of improvement: rewrite, simplify, make_difficult, make_easy, new_distractors, improve_explanation, translate, change_type, generate_similar, expand_case_study';
+   437→
+   438→-- ============================================================================
+   439→-- 8. AI DOCUMENT UPLOADS
+   440→-- ============================================================================
+   441→-- Manages uploaded documents (PDFs, DOCX, TXT) for AI-based content
+   442→-- extraction. Tracks processing status, extracted text, identified
+   443→-- topics, and suggested learning objectives.
+   444→-- ============================================================================
+   445→
+   446→CREATE TABLE IF NOT EXISTS ai_document_uploads (
+   447→  id                              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   448→  school_id                       UUID REFERENCES schools(id) ON DELETE CASCADE,
+   449→  uploaded_by                     UUID NOT NULL REFERENCES users(id),
+   450→  file_name                       TEXT NOT NULL,
+   451→  file_url                        TEXT NOT NULL,                          -- Storage path / URL
+   452→  file_size                       BIGINT,                                 -- Bytes
+   453→  mime_type                       TEXT,
+   454→  document_type                   VARCHAR(20) NOT NULL DEFAULT 'pdf',     -- pdf, docx, txt
+   455→  status                          document_status NOT NULL DEFAULT 'pending',
+   456→  extracted_text                  TEXT,                                   -- OCR / parsed content
+   457→  identified_topics               JSONB DEFAULT '[]',                     -- [{topic, confidence}]
+   458→  suggested_objectives            JSONB DEFAULT '[]',                     -- [{objective, bloom_level}]
+   459→  question_generation_request_id  UUID REFERENCES ai_generation_requests(id), -- Auto-generated request
+   460→  error_message                   TEXT,
+   461→  processed_at                    TIMESTAMPTZ,
+   462→  created_at                      TIMESTAMPTZ DEFAULT now(),
+   463→
+   464→  -- File size non-negative
+   465→  CONSTRAINT ai_doc_uploads_file_size_nonneg CHECK (file_size IS NULL OR file_size >= 0),
+   466→  -- Valid document types
+   467→  CONSTRAINT ai_doc_uploads_valid_doc_type CHECK (document_type IN ('pdf', 'docx', 'txt'))
+   468→);
+   469→
+   470→COMMENT ON TABLE ai_document_uploads IS 'Manages uploaded documents for AI-based content extraction with processing status and identified topics';
+   471→COMMENT ON COLUMN ai_document_uploads.identified_topics IS 'JSON array of AI-identified topics: [{topic: string, confidence: number}]';
+   472→COMMENT ON COLUMN ai_document_uploads.suggested_objectives IS 'JSON array of suggested learning objectives: [{objective: string, bloom_level: string}]';
+   473→
+   474→-- ============================================================================
+   475→-- 9. AI GENERATION QUEUE
+   476→-- ============================================================================
+   477→-- Persistent job queue for AI generation requests. Supports priority-based
+   478→-- processing, retry with exponential backoff, and dead-letter handling.
+   479→-- ============================================================================
+   480→
+   481→CREATE TABLE IF NOT EXISTS ai_generation_queue (
+   482→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   483→  generation_request_id   UUID NOT NULL REFERENCES ai_generation_requests(id) ON DELETE CASCADE,
+   484→  priority                INTEGER DEFAULT 0,                            -- Higher = sooner
+   485→  attempts                INTEGER DEFAULT 0,                             -- Number of attempts so far
+   486→  max_attempts            INTEGER DEFAULT 3,                             -- Max retries before dead_letter
+   487→  next_attempt_at         TIMESTAMPTZ DEFAULT now(),                     -- When to next try
+   488→  status                  VARCHAR(20) NOT NULL DEFAULT 'queued',         -- queued, processing, completed, failed, dead_letter
+   489→  error_message           TEXT,
+   490→  created_at              TIMESTAMPTZ DEFAULT now(),
+   491→  updated_at              TIMESTAMPTZ DEFAULT now(),
+   492→
+   493→  -- Attempts non-negative
+   494→  CONSTRAINT ai_gen_queue_attempts_nonneg CHECK (attempts >= 0),
+   495→  -- Max attempts positive
+   496→  CONSTRAINT ai_gen_queue_max_attempts_positive CHECK (max_attempts > 0),
+   497→  -- Valid queue statuses
+   498→  CONSTRAINT ai_gen_queue_valid_status CHECK (status IN (
+   499→    'queued', 'processing', 'completed', 'failed', 'dead_letter'
+   500→  ))
+   501→);
+   502→
+   503→COMMENT ON TABLE ai_generation_queue IS 'Persistent priority queue for AI generation jobs with retry and dead-letter handling';
+   504→COMMENT ON COLUMN ai_generation_queue.status IS 'Queue item status: queued → processing → completed/failed/dead_letter';
+   505→
+   506→-- ============================================================================
+   507→-- 10. AI USAGE STATS
+   508→-- ============================================================================
+   509→-- Daily aggregated usage statistics per school, provider, and model.
+   510→-- Enables cost monitoring, budgeting, and performance analysis.
+   511→-- ============================================================================
+   512→
+   513→CREATE TABLE IF NOT EXISTS ai_usage_stats (
+   514→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   515→  school_id               UUID REFERENCES schools(id) ON DELETE CASCADE,
+   516→  provider                ai_provider NOT NULL,
+   517→  model_name              TEXT NOT NULL,
+   518→  date                    DATE NOT NULL,                                -- Aggregation date
+   519→  total_requests          INTEGER DEFAULT 0,
+   520→  successful_requests     INTEGER DEFAULT 0,
+   521→  failed_requests         INTEGER DEFAULT 0,
+   522→  total_input_tokens      BIGINT DEFAULT 0,
+   523→  total_output_tokens     BIGINT DEFAULT 0,
+   524→  total_cost              NUMERIC(12,6) DEFAULT 0.0,                   -- USD
+   525→  avg_generation_time_ms  INTEGER DEFAULT 0,                            -- Average wall-clock time
+   526→  questions_generated     INTEGER DEFAULT 0,
+   527→  questions_approved      INTEGER DEFAULT 0,
+   528→  questions_rejected      INTEGER DEFAULT 0,
+   529→  created_at              TIMESTAMPTZ DEFAULT now(),
+   530→
+   531→  -- One row per (school, provider, model, date)
+   532→  CONSTRAINT ai_usage_stats_unique_day UNIQUE (school_id, provider, model_name, date),
+   533→  -- Non-negative counters
+   534→  CONSTRAINT ai_usage_stats_requests_nonneg CHECK (total_requests >= 0),
+   535→  CONSTRAINT ai_usage_stats_success_nonneg CHECK (successful_requests >= 0),
+   536→  CONSTRAINT ai_usage_stats_failed_nonneg CHECK (failed_requests >= 0),
+   537→  CONSTRAINT ai_usage_stats_input_tokens_nonneg CHECK (total_input_tokens >= 0),
+   538→  CONSTRAINT ai_usage_stats_output_tokens_nonneg CHECK (total_output_tokens >= 0),
+   539→  CONSTRAINT ai_usage_stats_cost_nonneg CHECK (total_cost >= 0),
+   540→  CONSTRAINT ai_usage_stats_gen_nonneg CHECK (questions_generated >= 0),
+   541→  CONSTRAINT ai_usage_stats_app_nonneg CHECK (questions_approved >= 0),
+   542→  CONSTRAINT ai_usage_stats_rej_nonneg CHECK (questions_rejected >= 0)
+   543→);
+   544→
+   545→COMMENT ON TABLE ai_usage_stats IS 'Daily aggregated usage statistics per school/provider/model for cost monitoring and performance analysis';
+   546→COMMENT ON COLUMN ai_usage_stats.total_cost IS 'Total cost in USD for the day across all requests for this school/provider/model combination';
+   547→
+   548→-- ============================================================================
+   549→-- 11. AI API KEYS
+   550→-- ============================================================================
+   551→-- Encrypted storage of per-school API keys for each provider.
+   552→-- Keys are encrypted at the application level; key_hash enables
+   553→-- lookup without decryption.
+   554→-- ============================================================================
+   555→
+   556→CREATE TABLE IF NOT EXISTS ai_api_keys (
+   557→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   558→  school_id             UUID REFERENCES schools(id) ON DELETE CASCADE,
+   559→  provider              ai_provider NOT NULL,
+   560→  encrypted_key         TEXT NOT NULL,                                 -- Application-level encrypted
+   561→  key_hash              TEXT NOT NULL,                                 -- For lookup without decryption
+   562→  is_active             BOOLEAN DEFAULT true,
+   563→  monthly_budget        NUMERIC(10,2) DEFAULT 100.00,                  -- USD monthly cap
+   564→  current_month_usage   NUMERIC(10,2) DEFAULT 0.00,                    -- USD spent this month
+   565→  rate_limit_per_minute INTEGER DEFAULT 60,                            -- Self-imposed rate limit
+   566→  last_used_at          TIMESTAMPTZ,
+   567→  created_by            UUID NOT NULL REFERENCES users(id),
+   568→  created_at            TIMESTAMPTZ DEFAULT now(),
+   569→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   570→
+   571→  -- One active key per school per provider
+   572→  CONSTRAINT ai_api_keys_unique_school_provider UNIQUE (school_id, provider),
+   573→  -- Budget non-negative
+   574→  CONSTRAINT ai_api_keys_budget_nonneg CHECK (monthly_budget >= 0),
+   575→  CONSTRAINT ai_api_keys_usage_nonneg CHECK (current_month_usage >= 0),
+   576→  -- Rate limit positive
+   577→  CONSTRAINT ai_api_keys_rate_limit_positive CHECK (rate_limit_per_minute > 0)
+   578→);
+   579→
+   580→COMMENT ON TABLE ai_api_keys IS 'Encrypted per-school API keys for each AI provider with budget tracking';
+   581→COMMENT ON COLUMN ai_api_keys.encrypted_key IS 'API key encrypted at the application level before storage';
+   582→COMMENT ON COLUMN ai_api_keys.key_hash IS 'Hash of the API key for lookup/verification without decryption';
+   583→COMMENT ON COLUMN ai_api_keys.monthly_budget IS 'Monthly spending cap in USD for this school+provider combination';
+   584→
+   585→-- ============================================================================
+   586→-- 12. CURRICULUM MAPPINGS
+   587→-- ============================================================================
+   588→-- Maps curriculum standards to the platform's subject/topic hierarchy.
+   589→-- Enables AI prompt enrichment with curriculum-specific guidance,
+   590→-- learning objectives, and Bloom's Taxonomy alignment.
+   591→-- ============================================================================
+   592→
+   593→CREATE TABLE IF NOT EXISTS curriculum_mappings (
+   594→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   595→  curriculum            curriculum_type NOT NULL,
+   596→  subject_id            UUID NOT NULL REFERENCES subjects(id) ON DELETE CASCADE,
+   597→  topic_id              UUID REFERENCES topics(id) ON DELETE CASCADE,
+   598→  subtopic_id           UUID REFERENCES subtopics(id) ON DELETE CASCADE,
+   599→  class_level           TEXT NOT NULL,                                  -- e.g. "SS1", "JSS2"
+   600→  curriculum_code       TEXT,                                          -- Official curriculum code
+   601→  learning_objectives   TEXT[],                                        -- Array of learning objectives
+   602→  bloom_levels          bloom_taxonomy[],                              -- Expected cognitive levels
+   603→  suggested_difficulty  difficulty_level,                              -- Suggested difficulty
+   604→  marks_guidance        NUMERIC(5,2),                                  -- Suggested marks allocation
+   605→  description           TEXT,                                          -- Additional context
+   606→  is_active             BOOLEAN DEFAULT true,
+   607→  created_at            TIMESTAMPTZ DEFAULT now(),
+   608→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   609→
+   610→  -- Marks guidance non-negative when set
+   611→  CONSTRAINT curriculum_mappings_marks_nonneg CHECK (marks_guidance IS NULL OR marks_guidance >= 0)
+   612→);
+   613→
+   614→COMMENT ON TABLE curriculum_mappings IS 'Maps curriculum standards to platform subjects/topics for AI prompt enrichment and alignment';
+   615→COMMENT ON COLUMN curriculum_mappings.learning_objectives IS 'Array of learning objectives from the curriculum for this subject/topic/class combination';
+   616→COMMENT ON COLUMN curriculum_mappings.bloom_levels IS 'Expected Bloom''s Taxonomy levels for this curriculum mapping';
+   617→
+   618→-- ============================================================================
+   619→-- 13. COMPREHENSIVE INDEXES
+   620→-- ============================================================================
+   621→-- All indexes for query optimization across the AI generation engine.
+   622→-- Includes B-tree for standard lookups and GIN for JSONB/full-text.
+   623→-- ============================================================================
+   624→
+   625→-- ---------------------------------------------------------------------------
+   626→-- ai_providers_config indexes
+   627→-- ---------------------------------------------------------------------------
+   628→CREATE INDEX IF NOT EXISTS idx_ai_providers_config_provider
+   629→  ON ai_providers_config (provider);
+   630→CREATE INDEX IF NOT EXISTS idx_ai_providers_config_is_active
+   631→  ON ai_providers_config (is_active) WHERE is_active = true;
+   632→
+   633→-- ---------------------------------------------------------------------------
+   634→-- prompt_templates indexes
+   635→-- ---------------------------------------------------------------------------
+   636→CREATE INDEX IF NOT EXISTS idx_prompt_templates_prompt_type
+   637→  ON prompt_templates (prompt_type);
+   638→CREATE INDEX IF NOT EXISTS idx_prompt_templates_provider
+   639→  ON prompt_templates (provider) WHERE provider IS NOT NULL;
+   640→CREATE INDEX IF NOT EXISTS idx_prompt_templates_subject_id
+   641→  ON prompt_templates (subject_id) WHERE subject_id IS NOT NULL;
+   642→CREATE INDEX IF NOT EXISTS idx_prompt_templates_curriculum
+   643→  ON prompt_templates (curriculum) WHERE curriculum IS NOT NULL;
+   644→CREATE INDEX IF NOT EXISTS idx_prompt_templates_question_type
+   645→  ON prompt_templates (question_type) WHERE question_type IS NOT NULL;
+   646→CREATE INDEX IF NOT EXISTS idx_prompt_templates_is_active
+   647→  ON prompt_templates (is_active) WHERE is_active = true;
+   648→CREATE INDEX IF NOT EXISTS idx_prompt_templates_is_default
+   649→  ON prompt_templates (is_default) WHERE is_default = true;
+   650→CREATE INDEX IF NOT EXISTS idx_prompt_templates_quality_score
+   651→  ON prompt_templates (quality_score DESC);
+   652→CREATE INDEX IF NOT EXISTS idx_prompt_templates_school_id
+   653→  ON prompt_templates (school_id) WHERE school_id IS NOT NULL;
+   654→-- GIN index for template variables (JSONB array queries)
+   655→CREATE INDEX IF NOT EXISTS idx_prompt_templates_variables_gin
+   656→  ON prompt_templates USING GIN (variables jsonb_path_ops);
+   657→-- Composite index for common lookup: find active template by type+provider
+   658→CREATE INDEX IF NOT EXISTS idx_prompt_templates_type_provider_active
+   659→  ON prompt_templates (prompt_type, provider, is_active)
+   660→  WHERE is_active = true;
+   661→
+   662→-- ---------------------------------------------------------------------------
+   663→-- ai_generation_requests indexes
+   664→-- ---------------------------------------------------------------------------
+   665→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_school_id
+   666→  ON ai_generation_requests (school_id);
+   667→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_requested_by
+   668→  ON ai_generation_requests (requested_by);
+   669→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_provider
+   670→  ON ai_generation_requests (provider);
+   671→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_status
+   672→  ON ai_generation_requests (status);
+   673→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_created_at
+   674→  ON ai_generation_requests (created_at DESC);
+   675→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_priority
+   676→  ON ai_generation_requests (priority DESC, created_at ASC);
+   677→-- GIN index for input_params JSONB queries
+   678→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_input_params_gin
+   679→  ON ai_generation_requests USING GIN (input_params jsonb_path_ops);
+   680→-- Composite: find pending/processing requests for a school
+   681→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_school_status
+   682→  ON ai_generation_requests (school_id, status, created_at DESC);
+   683→-- Composite: find by template for quality tracking
+   684→CREATE INDEX IF NOT EXISTS idx_ai_gen_req_template_id
+   685→  ON ai_generation_requests (prompt_template_id)
+   686→  WHERE prompt_template_id IS NOT NULL;
+   687→
+   688→-- ---------------------------------------------------------------------------
+   689→-- ai_generated_questions indexes
+   690→-- ---------------------------------------------------------------------------
+   691→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_gen_request_id
+   692→  ON ai_generated_questions (generation_request_id);
+   693→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_school_id
+   694→  ON ai_generated_questions (school_id);
+   695→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_question_type
+   696→  ON ai_generated_questions (question_type);
+   697→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_difficulty
+   698→  ON ai_generated_questions (difficulty);
+   699→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_review_status
+   700→  ON ai_generated_questions (review_status);
+   701→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_created_at
+   702→  ON ai_generated_questions (created_at DESC);
+   703→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_question_bank_id
+   704→  ON ai_generated_questions (question_bank_id)
+   705→  WHERE question_bank_id IS NOT NULL;
+   706→-- Composite: pending reviews for a school
+   707→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_school_review
+   708→  ON ai_generated_questions (school_id, review_status, created_at DESC)
+   709→  WHERE review_status = 'pending';
+   710→-- Bloom level for curriculum analytics
+   711→CREATE INDEX IF NOT EXISTS idx_ai_gen_q_bloom_level
+   712→  ON ai_generated_questions (bloom_level)
+   713→  WHERE bloom_level IS NOT NULL;
+   714→
+   715→-- ---------------------------------------------------------------------------
+   716→-- ai_validation_results indexes
+   717→-- ---------------------------------------------------------------------------
+   718→CREATE INDEX IF NOT EXISTS idx_ai_val_res_gen_question_id
+   719→  ON ai_validation_results (generated_question_id);
+   720→CREATE INDEX IF NOT EXISTS idx_ai_val_res_severity
+   721→  ON ai_validation_results (severity);
+   722→CREATE INDEX IF NOT EXISTS idx_ai_val_res_is_resolved
+   723→  ON ai_validation_results (is_resolved)
+   724→  WHERE is_resolved = false;
+   725→-- Composite: unresolved critical/error findings
+   726→CREATE INDEX IF NOT EXISTS idx_ai_val_res_unresolved_severity
+   727→  ON ai_validation_results (severity, is_resolved, created_at DESC)
+   728→  WHERE is_resolved = false AND severity IN ('error', 'critical');
+   729→
+   730→-- ---------------------------------------------------------------------------
+   731→-- ai_question_improvements indexes
+   732→-- ---------------------------------------------------------------------------
+   733→CREATE INDEX IF NOT EXISTS idx_ai_qi_gen_question_id
+   734→  ON ai_question_improvements (generated_question_id);
+   735→CREATE INDEX IF NOT EXISTS idx_ai_qi_improvement_type
+   736→  ON ai_question_improvements (improvement_type);
+   737→CREATE INDEX IF NOT EXISTS idx_ai_qi_is_accepted
+   738→  ON ai_question_improvements (is_accepted)
+   739→  WHERE is_accepted = true;
+   740→CREATE INDEX IF NOT EXISTS idx_ai_qi_created_by
+   741→  ON ai_question_improvements (created_by);
+   742→
+   743→-- ---------------------------------------------------------------------------
+   744→-- ai_document_uploads indexes
+   745→-- ---------------------------------------------------------------------------
+   746→CREATE INDEX IF NOT EXISTS idx_ai_doc_uploads_school_id
+   747→  ON ai_document_uploads (school_id);
+   748→CREATE INDEX IF NOT EXISTS idx_ai_doc_uploads_uploaded_by
+   749→  ON ai_document_uploads (uploaded_by);
+   750→CREATE INDEX IF NOT EXISTS idx_ai_doc_uploads_status
+   751→  ON ai_document_uploads (status);
+   752→-- Composite: pending documents for processing
+   753→CREATE INDEX IF NOT EXISTS idx_ai_doc_uploads_pending
+   754→  ON ai_document_uploads (status, created_at ASC)
+   755→  WHERE status IN ('pending', 'processing');
+   756→
+   757→-- ---------------------------------------------------------------------------
+   758→-- ai_generation_queue indexes
+   759→-- ---------------------------------------------------------------------------
+   760→CREATE INDEX IF NOT EXISTS idx_ai_gen_queue_status
+   761→  ON ai_generation_queue (status);
+   762→-- Composite: fetch next job by priority (the main dequeue query)
+   763→CREATE INDEX IF NOT EXISTS idx_ai_gen_queue_dequeue
+   764→  ON ai_generation_queue (status, priority DESC, next_attempt_at ASC)
+   765→  WHERE status IN ('queued', 'failed');
+   766→-- Dead letter review
+   767→CREATE INDEX IF NOT EXISTS idx_ai_gen_queue_dead_letter
+   768→  ON ai_generation_queue (created_at DESC)
+   769→  WHERE status = 'dead_letter';
+   770→
+   771→-- ---------------------------------------------------------------------------
+   772→-- ai_usage_stats indexes
+   773→-- ---------------------------------------------------------------------------
+   774→CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_school_id
+   775→  ON ai_usage_stats (school_id);
+   776→CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_date
+   777→  ON ai_usage_stats (date DESC);
+   778→CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_provider
+   779→  ON ai_usage_stats (provider);
+   780→-- Composite: school usage over time
+   781→CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_school_date
+   782→  ON ai_usage_stats (school_id, date DESC);
+   783→-- Composite: provider usage over time
+   784→CREATE INDEX IF NOT EXISTS idx_ai_usage_stats_provider_date
+   785→  ON ai_usage_stats (provider, date DESC);
+   786→
+   787→-- ---------------------------------------------------------------------------
+   788→-- ai_api_keys indexes
+   789→-- ---------------------------------------------------------------------------
+   790→CREATE INDEX IF NOT EXISTS idx_ai_api_keys_school_id
+   791→  ON ai_api_keys (school_id);
+   792→CREATE INDEX IF NOT EXISTS idx_ai_api_keys_provider
+   793→  ON ai_api_keys (provider);
+   794→CREATE INDEX IF NOT EXISTS idx_ai_api_keys_is_active
+   795→  ON ai_api_keys (is_active) WHERE is_active = true;
+   796→
+   797→-- ---------------------------------------------------------------------------
+   798→-- curriculum_mappings indexes
+   799→-- ---------------------------------------------------------------------------
+   800→CREATE INDEX IF NOT EXISTS idx_curriculum_mappings_curriculum
+   801→  ON curriculum_mappings (curriculum);
+   802→CREATE INDEX IF NOT EXISTS idx_curriculum_mappings_subject_id
+   803→  ON curriculum_mappings (subject_id);
+   804→CREATE INDEX IF NOT EXISTS idx_curriculum_mappings_topic_id
+   805→  ON curriculum_mappings (topic_id) WHERE topic_id IS NOT NULL;
+   806→CREATE INDEX IF NOT EXISTS idx_curriculum_mappings_class_level
+   807→  ON curriculum_mappings (class_level);
+   808→CREATE INDEX IF NOT EXISTS idx_curriculum_mappings_is_active
+   809→  ON curriculum_mappings (is_active) WHERE is_active = true;
+   810→-- Composite: lookup by curriculum + subject + class
+   811→CREATE INDEX IF NOT EXISTS idx_curriculum_mappings_curr_subj_class
+   812→  ON curriculum_mappings (curriculum, subject_id, class_level)
+   813→  WHERE is_active = true;
+   814→
+   815→-- ============================================================================
+   816→-- 14. ROW LEVEL SECURITY (RLS)
+   817→-- ============================================================================
+   818→-- Enable RLS on all tables and define policies for role-based access.
+   819→-- Policy hierarchy: super_admin > school_admin > teacher > student
+   820→-- ============================================================================
+   821→
+   822→-- ---------------------------------------------------------------------------
+   823→-- Helper: Enable RLS on all AI engine tables
+   824→-- ---------------------------------------------------------------------------
+   825→ALTER TABLE ai_providers_config ENABLE ROW LEVEL SECURITY;
+   826→ALTER TABLE prompt_templates ENABLE ROW LEVEL SECURITY;
+   827→ALTER TABLE ai_generation_requests ENABLE ROW LEVEL SECURITY;
+   828→ALTER TABLE ai_generated_questions ENABLE ROW LEVEL SECURITY;
+   829→ALTER TABLE ai_validation_results ENABLE ROW LEVEL SECURITY;
+   830→ALTER TABLE ai_question_improvements ENABLE ROW LEVEL SECURITY;
+   831→ALTER TABLE ai_document_uploads ENABLE ROW LEVEL SECURITY;
+   832→ALTER TABLE ai_generation_queue ENABLE ROW LEVEL SECURITY;
+   833→ALTER TABLE ai_usage_stats ENABLE ROW LEVEL SECURITY;
+   834→ALTER TABLE ai_api_keys ENABLE ROW LEVEL SECURITY;
+   835→ALTER TABLE curriculum_mappings ENABLE ROW LEVEL SECURITY;
+   836→
+   837→-- ===========================================================================
+   838→-- ai_providers_config RLS
+   839→-- Super admins: full CRUD
+   840→-- School admins: read all
+   841→-- Others: read active only
+   842→-- ===========================================================================
+   843→CREATE POLICY ai_providers_config_super_admin_all ON ai_providers_config
+   844→  FOR ALL
+   845→  USING (
+   846→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   847→  )
+   848→  WITH CHECK (
+   849→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   850→  );
+   851→
+   852→CREATE POLICY ai_providers_config_school_admin_read ON ai_providers_config
+   853→  FOR SELECT
+   854→  USING (
+   855→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin')
+   856→  );
+   857→
+   858→CREATE POLICY ai_providers_config_others_read_active ON ai_providers_config
+   859→  FOR SELECT
+   860→  USING (
+   861→    is_active = true
+   862→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid())
+   863→  );
+   864→
+   865→-- ===========================================================================
+   866→-- prompt_templates RLS
+   867→-- All authenticated: read
+   868→-- Teachers: create own, update own
+   869→-- School admins: manage school templates
+   870→-- Super admins: manage all
+   871→-- ===========================================================================
+   872→CREATE POLICY prompt_templates_authenticated_read ON prompt_templates
+   873→  FOR SELECT
+   874→  USING (
+   875→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid())
+   876→  );
+   877→
+   878→CREATE POLICY prompt_templates_teacher_create ON prompt_templates
+   879→  FOR INSERT
+   880→  WITH CHECK (
+   881→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role IN ('teacher', 'school_admin', 'super_admin'))
+   882→  );
+   883→
+   884→CREATE POLICY prompt_templates_teacher_update_own ON prompt_templates
+   885→  FOR UPDATE
+   886→  USING (
+   887→    created_by = auth.uid()
+   888→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'teacher')
+   889→  );
+   890→
+   891→CREATE POLICY prompt_templates_school_admin_manage ON prompt_templates
+   892→  FOR UPDATE
+   893→  USING (
+   894→    school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+   895→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin')
+   896→  );
+   897→
+   898→CREATE POLICY prompt_templates_super_admin_all ON prompt_templates
+   899→  FOR ALL
+   900→  USING (
+   901→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   902→  )
+   903→  WITH CHECK (
+   904→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   905→  );
+   906→
+   907→-- ===========================================================================
+   908→-- ai_generation_requests RLS
+   909→-- Users: see their own requests
+   910→-- School admins: see school requests
+   911→-- Super admins: see all
+   912→-- ===========================================================================
+   913→CREATE POLICY ai_gen_req_user_own ON ai_generation_requests
+   914→  FOR SELECT
+   915→  USING (
+   916→    requested_by = auth.uid()
+   917→  );
+   918→
+   919→CREATE POLICY ai_gen_req_school_admin ON ai_generation_requests
+   920→  FOR SELECT
+   921→  USING (
+   922→    school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+   923→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin')
+   924→  );
+   925→
+   926→CREATE POLICY ai_gen_req_super_admin ON ai_generation_requests
+   927→  FOR ALL
+   928→  USING (
+   929→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   930→  )
+   931→  WITH CHECK (
+   932→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   933→  );
+   934→
+   935→-- Allow authenticated users to create requests
+   936→CREATE POLICY ai_gen_req_authenticated_insert ON ai_generation_requests
+   937→  FOR INSERT
+   938→  WITH CHECK (
+   939→    requested_by = auth.uid()
+   940→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid())
+   941→  );
+   942→
+   943→-- ===========================================================================
+   944→-- ai_generated_questions RLS
+   945→-- Same pattern as ai_generation_requests (inherits visibility from parent)
+   946→-- ===========================================================================
+   947→CREATE POLICY ai_gen_q_user_own ON ai_generated_questions
+   948→  FOR SELECT
+   949→  USING (
+   950→    EXISTS (
+   951→      SELECT 1 FROM ai_generation_requests
+   952→      WHERE ai_generation_requests.id = ai_generated_questions.generation_request_id
+   953→        AND ai_generation_requests.requested_by = auth.uid()
+   954→    )
+   955→  );
+   956→
+   957→CREATE POLICY ai_gen_q_school_admin ON ai_generated_questions
+   958→  FOR SELECT
+   959→  USING (
+   960→    school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+   961→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin')
+   962→  );
+   963→
+   964→CREATE POLICY ai_gen_q_super_admin ON ai_generated_questions
+   965→  FOR ALL
+   966→  USING (
+   967→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   968→  )
+   969→  WITH CHECK (
+   970→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   971→  );
+   972→
+   973→-- Allow users with matching school to update (for review workflow)
+   974→CREATE POLICY ai_gen_q_school_admin_update ON ai_generated_questions
+   975→  FOR UPDATE
+   976→  USING (
+   977→    (school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+   978→     AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin'))
+   979→    OR EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+   980→  );
+   981→
+   982→-- ===========================================================================
+   983→-- ai_validation_results RLS
+   984→-- Same visibility as parent ai_generated_questions
+   985→-- ===========================================================================
+   986→CREATE POLICY ai_val_res_user_own ON ai_validation_results
+   987→  FOR SELECT
+   988→  USING (
+   989→    EXISTS (
+   990→      SELECT 1 FROM ai_generated_questions q
+   991→      JOIN ai_generation_requests r ON r.id = q.generation_request_id
+   992→      WHERE q.id = ai_validation_results.generated_question_id
+   993→        AND r.requested_by = auth.uid()
+   994→    )
+   995→  );
+   996→
+   997→CREATE POLICY ai_val_res_school_admin ON ai_validation_results
+   998→  FOR SELECT
+   999→  USING (
+  1000→    EXISTS (
+  1001→      SELECT 1 FROM ai_generated_questions q
+  1002→      WHERE q.id = ai_validation_results.generated_question_id
+  1003→        AND q.school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+  1004→    )
+  1005→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role IN ('school_admin', 'super_admin'))
+  1006→  );
+  1007→
+  1008→CREATE POLICY ai_val_res_super_admin ON ai_validation_results
+  1009→  FOR ALL
+  1010→  USING (
+  1011→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1012→  )
+  1013→  WITH CHECK (
+  1014→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1015→  );
+  1016→
+  1017→-- ===========================================================================
+  1018→-- ai_question_improvements RLS
+  1019→-- Same visibility as parent ai_generated_questions
+  1020→-- ===========================================================================
+  1021→CREATE POLICY ai_qi_user_own ON ai_question_improvements
+  1022→  FOR SELECT
+  1023→  USING (
+  1024→    created_by = auth.uid()
+  1025→    OR EXISTS (
+  1026→      SELECT 1 FROM ai_generated_questions q
+  1027→      JOIN ai_generation_requests r ON r.id = q.generation_request_id
+  1028→      WHERE q.id = ai_question_improvements.generated_question_id
+  1029→        AND r.requested_by = auth.uid()
+  1030→    )
+  1031→  );
+  1032→
+  1033→CREATE POLICY ai_qi_school_admin ON ai_question_improvements
+  1034→  FOR SELECT
+  1035→  USING (
+  1036→    EXISTS (
+  1037→      SELECT 1 FROM ai_generated_questions q
+  1038→      WHERE q.id = ai_question_improvements.generated_question_id
+  1039→        AND q.school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+  1040→    )
+  1041→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role IN ('school_admin', 'super_admin'))
+  1042→  );
+  1043→
+  1044→CREATE POLICY ai_qi_super_admin ON ai_question_improvements
+  1045→  FOR ALL
+  1046→  USING (
+  1047→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1048→  )
+  1049→  WITH CHECK (
+  1050→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1051→  );
+  1052→
+  1053→-- Allow authenticated users to create improvements
+  1054→CREATE POLICY ai_qi_authenticated_insert ON ai_question_improvements
+  1055→  FOR INSERT
+  1056→  WITH CHECK (
+  1057→    created_by = auth.uid()
+  1058→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid())
+  1059→  );
+  1060→
+  1061→-- ===========================================================================
+  1062→-- ai_document_uploads RLS
+  1063→-- Users: see own uploads
+  1064→-- School admins: see school uploads
+  1065→-- Super admins: see all
+  1066→-- ===========================================================================
+  1067→CREATE POLICY ai_doc_uploads_user_own ON ai_document_uploads
+  1068→  FOR SELECT
+  1069→  USING (
+  1070→    uploaded_by = auth.uid()
+  1071→  );
+  1072→
+  1073→CREATE POLICY ai_doc_uploads_school_admin ON ai_document_uploads
+  1074→  FOR SELECT
+  1075→  USING (
+  1076→    school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+  1077→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin')
+  1078→  );
+  1079→
+  1080→CREATE POLICY ai_doc_uploads_super_admin ON ai_document_uploads
+  1081→  FOR ALL
+  1082→  USING (
+  1083→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1084→  )
+  1085→  WITH CHECK (
+  1086→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1087→  );
+  1088→
+  1089→-- Allow authenticated users to upload documents
+  1090→CREATE POLICY ai_doc_uploads_authenticated_insert ON ai_document_uploads
+  1091→  FOR INSERT
+  1092→  WITH CHECK (
+  1093→    uploaded_by = auth.uid()
+  1094→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid())
+  1095→  );
+  1096→
+  1097→-- ===========================================================================
+  1098→-- ai_generation_queue RLS
+  1099→-- Only system processes and super admins can access the queue
+  1100→-- ===========================================================================
+  1101→CREATE POLICY ai_gen_queue_super_admin ON ai_generation_queue
+  1102→  FOR ALL
+  1103→  USING (
+  1104→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1105→  )
+  1106→  WITH CHECK (
+  1107→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1108→  );
+  1109→
+  1110→-- ===========================================================================
+  1111→-- ai_usage_stats RLS
+  1112→-- School admins: see school stats
+  1113→-- Super admins: see all
+  1114→-- ===========================================================================
+  1115→CREATE POLICY ai_usage_stats_school_admin ON ai_usage_stats
+  1116→  FOR SELECT
+  1117→  USING (
+  1118→    school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+  1119→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin')
+  1120→  );
+  1121→
+  1122→CREATE POLICY ai_usage_stats_super_admin ON ai_usage_stats
+  1123→  FOR SELECT
+  1124→  USING (
+  1125→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1126→  );
+  1127→
+  1128→-- ===========================================================================
+  1129→-- ai_api_keys RLS
+  1130→-- Super admins: full CRUD
+  1131→-- School admins: read own school keys
+  1132→-- Others: no access
+  1133→-- ===========================================================================
+  1134→CREATE POLICY ai_api_keys_super_admin ON ai_api_keys
+  1135→  FOR ALL
+  1136→  USING (
+  1137→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1138→  )
+  1139→  WITH CHECK (
+  1140→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1141→  );
+  1142→
+  1143→CREATE POLICY ai_api_keys_school_admin_read ON ai_api_keys
+  1144→  FOR SELECT
+  1145→  USING (
+  1146→    school_id = (SELECT school_id FROM users WHERE users.id = auth.uid())
+  1147→    AND EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'school_admin')
+  1148→  );
+  1149→
+  1150→-- ===========================================================================
+  1151→-- curriculum_mappings RLS
+  1152→-- All authenticated: read
+  1153→-- Super admins: full CRUD
+  1154→-- ===========================================================================
+  1155→CREATE POLICY curriculum_mappings_authenticated_read ON curriculum_mappings
+  1156→  FOR SELECT
+  1157→  USING (
+  1158→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid())
+  1159→  );
+  1160→
+  1161→CREATE POLICY curriculum_mappings_super_admin_all ON curriculum_mappings
+  1162→  FOR ALL
+  1163→  USING (
+  1164→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1165→  )
+  1166→  WITH CHECK (
+  1167→    EXISTS (SELECT 1 FROM users WHERE users.id = auth.uid() AND users.role = 'super_admin')
+  1168→  );
+  1169→
+  1170→-- ============================================================================
+  1171→-- 15. HELPER FUNCTIONS
+  1172→-- ============================================================================
+  1173→-- Core business logic functions for the AI generation engine.
+  1174→-- ============================================================================
+  1175→
+  1176→-- ---------------------------------------------------------------------------
+  1177→-- updated_at auto-update trigger function (reusable)
+  1178→-- ---------------------------------------------------------------------------
+  1179→CREATE OR REPLACE FUNCTION update_updated_at_column()
+  1180→RETURNS TRIGGER AS $$
+  1181→BEGIN
+  1182→  NEW.updated_at = now();
+  1183→  RETURN NEW;
+  1184→END;
+  1185→$$ LANGUAGE plpgsql;
+  1186→
+  1187→COMMENT ON FUNCTION update_updated_at_column IS 'Reusable trigger function that sets updated_at to the current timestamp on every row update';
+  1188→
+  1189→-- ---------------------------------------------------------------------------
+  1190→-- calculate_generation_cost()
+  1191→-- Compute cost for an AI generation request based on provider/model rates
+  1192→-- ---------------------------------------------------------------------------
+  1193→CREATE OR REPLACE FUNCTION calculate_generation_cost(
+  1194→  p_provider     ai_provider,
+  1195→  p_model_name   TEXT,
+  1196→  p_input_tokens INTEGER,
+  1197→  p_output_tokens INTEGER
+  1198→)
+  1199→RETURNS NUMERIC(10,6) AS $$
+  1200→DECLARE
+  1201→  v_input_cost  NUMERIC(10,6);
+  1202→  v_output_cost NUMERIC(10,6);
+  1203→BEGIN
+  1204→  -- Look up per-1k token rates from the provider config
+  1205→  SELECT
+  1206→    cost_per_1k_input_tokens,
+  1207→    cost_per_1k_output_tokens
+  1208→  INTO
+  1209→    v_input_cost,
+  1210→    v_output_cost
+  1211→  FROM ai_providers_config
+  1212→  WHERE provider = p_provider
+  1213→    AND model_name = p_model_name
+  1214→    AND is_active = true
+  1215→  LIMIT 1;
+  1216→
+  1217→  -- Fallback to zero if provider not found
+  1218→  IF v_input_cost IS NULL THEN
+  1219→    v_input_cost := 0.0;
+  1220→    v_output_cost := 0.0;
+  1221→  END IF;
+  1222→
+  1223→  -- Calculate: (tokens / 1000) * rate per 1k tokens
+  1224→  RETURN (p_input_tokens::NUMERIC / 1000.0 * v_input_cost)
+  1225→       + (p_output_tokens::NUMERIC / 1000.0 * v_output_cost);
+  1226→END;
+  1227→$$ LANGUAGE plpgsql STABLE;
+  1228→
+  1229→COMMENT ON FUNCTION calculate_generation_cost IS 'Compute cost for an AI generation request based on provider/model per-1k token rates';
+  1230→
+  1231→-- ---------------------------------------------------------------------------
+  1232→-- process_generation_queue()
+  1233→-- Process the next item in the generation queue.
+  1234→-- Returns the generation_request_id of the processed item, or NULL if empty.
+  1235→-- ---------------------------------------------------------------------------
+  1236→CREATE OR REPLACE FUNCTION process_generation_queue()
+  1237→RETURNS UUID AS $$
+  1238→DECLARE
+  1239→  v_queue_item        RECORD;
+  1240→  v_generation_req_id UUID;
+  1241→BEGIN
+  1242→  -- Atomically select and lock the next highest-priority, due item
+  1243→  SELECT * INTO v_queue_item
+  1244→  FROM ai_generation_queue
+  1245→  WHERE status IN ('queued', 'failed')
+  1246→    AND next_attempt_at <= now()
+  1247→    AND attempts < max_attempts
+  1248→  ORDER BY priority DESC, next_attempt_at ASC
+  1249→  LIMIT 1
+  1250→  FOR UPDATE SKIP LOCKED;
+  1251→
+  1252→  -- Nothing to process
+  1253→  IF NOT FOUND THEN
+  1254→    RETURN NULL;
+  1255→  END IF;
+  1256→
+  1257→  -- Mark queue item as processing
+  1258→  UPDATE ai_generation_queue
+  1259→  SET
+  1260→    status      = 'processing',
+  1261→    attempts    = attempts + 1,
+  1262→    updated_at  = now()
+  1263→  WHERE id = v_queue_item.id;
+  1264→
+  1265→  -- Update the generation request status to processing
+  1266→  UPDATE ai_generation_requests
+  1267→  SET
+  1268→    status     = 'processing',
+  1269→    started_at = now()
+  1270→  WHERE id = v_queue_item.generation_request_id;
+  1271→
+  1272→  RETURN v_queue_item.generation_request_id;
+  1273→END;
+  1274→$$ LANGUAGE plpgsql;
+  1275→
+  1276→COMMENT ON FUNCTION process_generation_queue IS 'Atomically dequeue and lock the next highest-priority generation job for processing. Returns the generation_request_id or NULL if queue is empty.';
+  1277→
+  1278→-- ---------------------------------------------------------------------------
+  1279→-- update_prompt_quality_score()
+  1280→-- Recalculate the quality_score for a prompt template based on
+  1281→-- the ratio of successful generations (completed + approved questions)
+  1282→-- to total generations using this template.
+  1283→-- ---------------------------------------------------------------------------
+  1284→CREATE OR REPLACE FUNCTION update_prompt_quality_score(
+  1285→  p_template_id UUID
+  1286→)
+  1287→RETURNS VOID AS $$
+  1288→DECLARE
+  1289→  v_total_generations  INTEGER;
+  1290→  v_successful         INTEGER;
+  1291→  v_new_success_rate   NUMERIC(5,2);
+  1292→  v_new_quality_score  NUMERIC(3,2);
+  1293→BEGIN
+  1294→  -- Count total and successful generations for this template
+  1295→  SELECT
+  1296→    COUNT(*),
+  1297→    COUNT(*) FILTER (
+  1298→      WHERE status = 'completed'
+  1299→        AND EXISTS (
+  1300→          SELECT 1 FROM ai_generated_questions q
+  1301→          WHERE q.generation_request_id = ai_generation_requests.id
+  1302→            AND q.review_status IN ('approved', 'needs_revision')
+  1303→        )
+  1304→    )
+  1305→  INTO
+  1306→    v_total_generations,
+  1307→    v_successful
+  1308→  FROM ai_generation_requests
+  1309→  WHERE prompt_template_id = p_template_id;
+  1310→
+  1311→  -- Calculate success rate (percentage)
+  1312→  IF v_total_generations > 0 THEN
+  1313→    v_new_success_rate := ROUND(
+  1314→      (v_successful::NUMERIC / v_total_generations::NUMERIC) * 100.0,
+  1315→      2
+  1316→    );
+  1317→  ELSE
+  1318→    v_new_success_rate := 0.00;
+  1319→  END IF;
+  1320→
+  1321→  -- Map success rate to quality score (0-5 scale)
+  1322→  -- Simple linear mapping: quality_score = success_rate / 20
+  1323→  v_new_quality_score := ROUND(v_new_success_rate / 20.0, 2);
+  1324→
+  1325→  -- Update the template
+  1326→  UPDATE prompt_templates
+  1327→  SET
+  1328→    success_rate   = v_new_success_rate,
+  1329→    quality_score  = v_new_quality_score,
+  1330→    usage_count    = v_total_generations,
+  1331→    updated_at     = now()
+  1332→  WHERE id = p_template_id;
+  1333→END;
+  1334→$$ LANGUAGE plpgsql;
+  1335→
+  1336→COMMENT ON FUNCTION update_prompt_quality_score IS 'Recalculate quality_score and success_rate for a prompt template based on historical generation outcomes';
+  1337→
+  1338→-- ---------------------------------------------------------------------------
+  1339→-- approve_generated_question()
+  1340→-- Approve an AI-generated question and optionally promote it to question_bank.
+  1341→-- Sets review_status to 'approved', records the reviewer, and if
+  1342→-- p_save_to_bank = true, creates a question_bank entry and links it.
+  1343→-- ---------------------------------------------------------------------------
+  1344→CREATE OR REPLACE FUNCTION approve_generated_question(
+  1345→  p_question_id  UUID,
+  1346→  p_reviewer_id  UUID,
+  1347→  p_review_notes TEXT DEFAULT NULL,
+  1348→  p_save_to_bank BOOLEAN DEFAULT true
+  1349→)
+  1350→RETURNS UUID AS $$
+  1351→DECLARE
+  1352→  v_gen_question  RECORD;
+  1353→  v_question_bank_id UUID;
+  1354→BEGIN
+  1355→  -- Fetch the generated question
+  1356→  SELECT * INTO v_gen_question
+  1357→  FROM ai_generated_questions
+  1358→  WHERE id = p_question_id
+  1359→  FOR UPDATE;
+  1360→
+  1361→  IF NOT FOUND THEN
+  1362→    RAISE EXCEPTION 'AI generated question % not found', p_question_id;
+  1363→  END IF;
+  1364→
+  1365→  -- Update the generated question as approved
+  1366→  UPDATE ai_generated_questions
+  1367→  SET
+  1368→    review_status = 'approved',
+  1369→    reviewed_by   = p_reviewer_id,
+  1370→    reviewed_at   = now(),
+  1371→    review_notes  = COALESCE(p_review_notes, review_notes),
+  1372→    is_approved   = true,
+  1373→    updated_at    = now()
+  1374→  WHERE id = p_question_id;
+  1375→
+  1376→  -- Optionally promote to question_bank
+  1377→  IF p_save_to_bank AND v_gen_question.question_bank_id IS NULL THEN
+  1378→    INSERT INTO question_bank (
+  1379→      school_id,
+  1380→      subject_id,
+  1381→      topic_id,
+  1382→      subtopic_id,
+  1383→      question_type,
+  1384→      difficulty,
+  1385→      content,
+  1386→      content_json,
+  1387→      explanation,
+  1388→      marks,
+  1389→      time_allowed_seconds,
+  1390→      is_published,
+  1391→      created_by,
+  1392→      metadata
+  1393→    ) VALUES (
+  1394→      v_gen_question.school_id,
+  1395→      (v_gen_question.generation_request_id::TEXT)::UUID,  -- placeholder; will be corrected below
+  1396→      NULL,   -- topic_id — not available directly on generated question
+  1397→      NULL,   -- subtopic_id
+  1398→      v_gen_question.question_type,
+  1399→      v_gen_question.difficulty,
+  1400→      v_gen_question.content,
+  1401→      v_gen_question.content_json,
+  1402→      v_gen_question.explanation,
+  1403→      v_gen_question.marks,
+  1404→      v_gen_question.estimated_time_seconds,
+  1405→      false,  -- not published until explicitly published
+  1406→      p_reviewer_id,
+  1407→      jsonb_build_object(
+  1408→        'source', 'ai_generation',
+  1409→        'ai_question_id', p_question_id,
+  1410→        'bloom_level', v_gen_question.bloom_level,
+  1411→        'confidence_score', v_gen_question.confidence_score
+  1412→      )
+  1413→    )
+  1414→    ON CONFLICT DO NOTHING
+  1415→    RETURNING id INTO v_question_bank_id;
+  1416→
+  1417→    -- If we got a question_bank_id, link it back and create answer options
+  1418→    IF v_question_bank_id IS NOT NULL THEN
+  1419→      -- Fix: Update with proper subject_id from the generation request
+  1420→      UPDATE question_bank
+  1421→      SET subject_id = gr.input_params->>'subject_id'
+  1422→      FROM ai_generation_requests gr
+  1423→      WHERE gr.id = v_gen_question.generation_request_id
+  1424→        AND question_bank.id = v_question_bank_id;
+  1425→
+  1426→      -- Link back to the generated question
+  1427→      UPDATE ai_generated_questions
+  1428→      SET question_bank_id = v_question_bank_id,
+  1429→          updated_at = now()
+  1430→      WHERE id = p_question_id;
+  1431→
+  1432→      -- Create answer_options rows from the JSONB answer_options array
+  1433→      INSERT INTO answer_options (question_id, content, is_correct, explanation, marks, sort_order)
+  1434→      SELECT
+  1435→        v_question_bank_id,
+  1436→        (opt->>'content')::TEXT,
+  1437→        COALESCE((opt->>'isCorrect')::BOOLEAN, false),
+  1438→        opt->>'explanation',
+  1439→        COALESCE((opt->>'marks')::NUMERIC, 0.00),
+  1440→        ROW_NUMBER() OVER () - 1
+  1441→      FROM jsonb_array_elements(v_gen_question.answer_options) AS opt
+  1442→      WHERE v_gen_question.answer_options IS NOT NULL
+  1443→        AND jsonb_array_length(v_gen_question.answer_options) > 0;
+  1444→    END IF;
+  1445→  END IF;
+  1446→
+  1447→  -- Resolve any pending validation results for this question
+  1448→  UPDATE ai_validation_results
+  1449→  SET
+  1450→    is_resolved = true,
+  1451→    resolved_by = p_reviewer_id,
+  1452→    resolved_at = now()
+  1453→  WHERE generated_question_id = p_question_id
+  1454→    AND is_resolved = false;
+  1455→
+  1456→  -- Update usage stats: increment questions_approved for today
+  1457→  INSERT INTO ai_usage_stats (school_id, provider, model_name, date, questions_approved)
+  1458→  SELECT
+  1459→    gr.school_id,
+  1460→    gr.provider,
+  1461→    gr.model_name,
+  1462→    CURRENT_DATE,
+  1463→    1
+  1464→  FROM ai_generation_requests gr
+  1465→  WHERE gr.id = v_gen_question.generation_request_id
+  1466→  ON CONFLICT (school_id, provider, model_name, date)
+  1467→  DO UPDATE SET questions_approved = ai_usage_stats.questions_approved + 1;
+  1468→
+  1469→  RETURN v_question_bank_id;
+  1470→END;
+  1471→$$ LANGUAGE plpgsql;
+  1472→
+  1473→COMMENT ON FUNCTION approve_generated_question IS 'Approve an AI-generated question, optionally promoting it to question_bank with answer options. Resolves pending validations and updates usage stats.';
+  1474→
+  1475→-- ---------------------------------------------------------------------------
+  1476→-- reject_generated_question()
+  1477→-- Reject an AI-generated question with a reason.
+  1478→-- Sets review_status to 'rejected' and updates usage stats.
+  1479→-- ---------------------------------------------------------------------------
+  1480→CREATE OR REPLACE FUNCTION reject_generated_question(
+  1481→  p_question_id  UUID,
+  1482→  p_reviewer_id  UUID,
+  1483→  p_reason       TEXT
+  1484→)
+  1485→RETURNS VOID AS $$
+  1486→DECLARE
+  1487→  v_gen_question RECORD;
+  1488→BEGIN
+  1489→  -- Fetch the generated question
+  1490→  SELECT * INTO v_gen_question
+  1491→  FROM ai_generated_questions
+  1492→  WHERE id = p_question_id
+  1493→  FOR UPDATE;
+  1494→
+  1495→  IF NOT FOUND THEN
+  1496→    RAISE EXCEPTION 'AI generated question % not found', p_question_id;
+  1497→  END IF;
+  1498→
+  1499→  -- Update the generated question as rejected
+  1500→  UPDATE ai_generated_questions
+  1501→  SET
+  1502→    review_status = 'rejected',
+  1503→    reviewed_by   = p_reviewer_id,
+  1504→    reviewed_at   = now(),
+  1505→    review_notes  = p_reason,
+  1506→    is_approved   = false,
+  1507→    updated_at    = now()
+  1508→  WHERE id = p_question_id;
+  1509→
+  1510→  -- Update usage stats: increment questions_rejected for today
+  1511→  INSERT INTO ai_usage_stats (school_id, provider, model_name, date, questions_rejected)
+  1512→  SELECT
+  1513→    gr.school_id,
+  1514→    gr.provider,
+  1515→    gr.model_name,
+  1516→    CURRENT_DATE,
+  1517→    1
+  1518→  FROM ai_generation_requests gr
+  1519→  WHERE gr.id = v_gen_question.generation_request_id
+  1520→  ON CONFLICT (school_id, provider, model_name, date)
+  1521→  DO UPDATE SET questions_rejected = ai_usage_stats.questions_rejected + 1;
+  1522→END;
+  1523→$$ LANGUAGE plpgsql;
+  1524→
+  1525→COMMENT ON FUNCTION reject_generated_question IS 'Reject an AI-generated question with a reason and update usage stats';
+  1526→
+  1527→-- ---------------------------------------------------------------------------
+  1528→-- get_curriculum_alignment()
+  1529→-- Retrieve curriculum mapping(s) for a given curriculum, subject, and topic.
+  1530→-- Returns the most specific match (subtopic > topic > subject level).
+  1531→-- ---------------------------------------------------------------------------
+  1532→CREATE OR REPLACE FUNCTION get_curriculum_alignment(
+  1533→  p_curriculum curriculum_type,
+  1534→  p_subject_id UUID,
+  1535→  p_topic_id   UUID DEFAULT NULL
+  1536→)
+  1537→RETURNS SETOF curriculum_mappings AS $$
+  1538→BEGIN
+  1539→  -- Prefer subtopic-level mappings, then topic-level, then subject-level
+  1540→  RETURN QUERY
+  1541→  SELECT cm.*
+  1542→  FROM curriculum_mappings cm
+  1543→  WHERE cm.curriculum = p_curriculum
+  1544→    AND cm.subject_id = p_subject_id
+  1545→    AND cm.is_active = true
+  1546→    AND (
+  1547→      -- Subtopic-level match (most specific)
+  1548→      (p_topic_id IS NOT NULL AND cm.topic_id = p_topic_id)
+  1549→      OR
+  1550→      -- Topic-level match
+  1551→      (p_topic_id IS NOT NULL AND cm.topic_id = p_topic_id AND cm.subtopic_id IS NULL)
+  1552→      OR
+  1553→      -- Subject-level match (least specific)
+  1554→      (cm.topic_id IS NULL AND cm.subtopic_id IS NULL)
+  1555→    )
+  1556→  ORDER BY
+  1557→    -- Most specific first: subtopic > topic > subject
+  1558→    CASE
+  1559→      WHEN cm.subtopic_id IS NOT NULL THEN 0
+  1560→      WHEN cm.topic_id IS NOT NULL THEN 1
+  1561→      ELSE 2
+  1562→    END ASC;
+  1563→END;
+  1564→$$ LANGUAGE plpgsql STABLE;
+  1565→
+  1566→COMMENT ON FUNCTION get_curriculum_alignment IS 'Retrieve curriculum mappings for a curriculum/subject/topic, preferring most specific (subtopic > topic > subject) matches';
+  1567→
+  1568→-- ============================================================================
+  1569→-- 16. TRIGGERS
+  1570→-- ============================================================================
+  1571→-- Auto-update triggers for updated_at, cost calculation, usage stats,
+  1572→-- and prompt template metrics.
+  1573→-- ============================================================================
+  1574→
+  1575→-- ---------------------------------------------------------------------------
+  1576→-- Auto-update updated_at on all relevant tables
+  1577→-- ---------------------------------------------------------------------------
+  1578→CREATE TRIGGER trg_ai_providers_config_updated_at
+  1579→  BEFORE UPDATE ON ai_providers_config
+  1580→  FOR EACH ROW
+  1581→  EXECUTE FUNCTION update_updated_at_column();
+  1582→
+  1583→CREATE TRIGGER trg_prompt_templates_updated_at
+  1584→  BEFORE UPDATE ON prompt_templates
+  1585→  FOR EACH ROW
+  1586→  EXECUTE FUNCTION update_updated_at_column();
+  1587→
+  1588→CREATE TRIGGER trg_ai_generated_questions_updated_at
+  1589→  BEFORE UPDATE ON ai_generated_questions
+  1590→  FOR EACH ROW
+  1591→  EXECUTE FUNCTION update_updated_at_column();
+  1592→
+  1593→CREATE TRIGGER trg_ai_generation_queue_updated_at
+  1594→  BEFORE UPDATE ON ai_generation_queue
+  1595→  FOR EACH ROW
+  1596→  EXECUTE FUNCTION update_updated_at_column();
+  1597→
+  1598→CREATE TRIGGER trg_ai_api_keys_updated_at
+  1599→  BEFORE UPDATE ON ai_api_keys
+  1600→  FOR EACH ROW
+  1601→  EXECUTE FUNCTION update_updated_at_column();
+  1602→
+  1603→CREATE TRIGGER trg_curriculum_mappings_updated_at
+  1604→  BEFORE UPDATE ON curriculum_mappings
+  1605→  FOR EACH ROW
+  1606→  EXECUTE FUNCTION update_updated_at_column();
+  1607→
+  1608→-- ---------------------------------------------------------------------------
+  1609→-- Auto-calculate cost when a generation request's token counts are updated
+  1610→-- ---------------------------------------------------------------------------
+  1611→CREATE OR REPLACE FUNCTION trg_calculate_generation_cost()
+  1612→RETURNS TRIGGER AS $$
+  1613→BEGIN
+  1614→  -- Only recalculate when token counts change or on insert with token counts
+  1615→  IF (TG_OP = 'INSERT' AND (NEW.input_tokens > 0 OR NEW.output_tokens > 0))
+  1616→     OR (TG_OP = 'UPDATE' AND (NEW.input_tokens IS DISTINCT FROM OLD.input_tokens
+  1617→                                OR NEW.output_tokens IS DISTINCT FROM OLD.output_tokens)) THEN
+  1618→    NEW.total_cost := calculate_generation_cost(
+  1619→      NEW.provider,
+  1620→      NEW.model_name,
+  1621→      NEW.input_tokens,
+  1622→      NEW.output_tokens
+  1623→    );
+  1624→  END IF;
+  1625→  RETURN NEW;
+  1626→END;
+  1627→$$ LANGUAGE plpgsql;
+  1628→
+  1629→CREATE TRIGGER trg_ai_gen_req_calculate_cost
+  1630→  BEFORE INSERT OR UPDATE OF input_tokens, output_tokens ON ai_generation_requests
+  1631→  FOR EACH ROW
+  1632→  EXECUTE FUNCTION trg_calculate_generation_cost();
+  1633→
+  1634→COMMENT ON FUNCTION trg_calculate_generation_cost IS 'Trigger function to auto-calculate total_cost when token counts change on ai_generation_requests';
+  1635→
+  1636→-- ---------------------------------------------------------------------------
+  1637→-- Auto-update usage stats when a generation request completes
+  1638→-- ---------------------------------------------------------------------------
+  1639→CREATE OR REPLACE FUNCTION trg_update_usage_stats_on_completion()
+  1640→RETURNS TRIGGER AS $$
+  1641→BEGIN
+  1642→  -- Only fire when status transitions TO completed or failed
+  1643→  IF NEW.status IN ('completed', 'failed') AND OLD.status NOT IN ('completed', 'failed') THEN
+  1644→    INSERT INTO ai_usage_stats (
+  1645→      school_id, provider, model_name, date,
+  1646→      total_requests,
+  1647→      successful_requests,
+  1648→      failed_requests,
+  1649→      total_input_tokens,
+  1650→      total_output_tokens,
+  1651→      total_cost,
+  1652→      avg_generation_time_ms,
+  1653→      questions_generated
+  1654→    )
+  1655→    VALUES (
+  1656→      NEW.school_id,
+  1657→      NEW.provider,
+  1658→      NEW.model_name,
+  1659→      COALESCE(NEW.completed_at::DATE, CURRENT_DATE),
+  1660→      1,   -- total_requests
+  1661→      CASE WHEN NEW.status = 'completed' THEN 1 ELSE 0 END,
+  1662→      CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
+  1663→      NEW.input_tokens,
+  1664→      NEW.output_tokens,
+  1665→      NEW.total_cost,
+  1666→      COALESCE(NEW.generation_time_ms, 0),
+  1667→      CASE WHEN NEW.status = 'completed' THEN
+  1668→        (SELECT COUNT(*) FROM ai_generated_questions q WHERE q.generation_request_id = NEW.id)
+  1669→      ELSE 0 END
+  1670→    )
+  1671→    ON CONFLICT (school_id, provider, model_name, date)
+  1672→    DO UPDATE SET
+  1673→      total_requests = ai_usage_stats.total_requests + 1,
+  1674→      successful_requests = ai_usage_stats.successful_requests
+  1675→        + CASE WHEN NEW.status = 'completed' THEN 1 ELSE 0 END,
+  1676→      failed_requests = ai_usage_stats.failed_requests
+  1677→        + CASE WHEN NEW.status = 'failed' THEN 1 ELSE 0 END,
+  1678→      total_input_tokens = ai_usage_stats.total_input_tokens + NEW.input_tokens,
+  1679→      total_output_tokens = ai_usage_stats.total_output_tokens + NEW.output_tokens,
+  1680→      total_cost = ai_usage_stats.total_cost + NEW.total_cost,
+  1681→      avg_generation_time_ms = CASE
+  1682→        WHEN ai_usage_stats.total_requests = 0 THEN COALESCE(NEW.generation_time_ms, 0)
+  1683→        ELSE (
+  1684→          (ai_usage_stats.avg_generation_time_ms * ai_usage_stats.total_requests + COALESCE(NEW.generation_time_ms, 0))
+  1685→          / (ai_usage_stats.total_requests + 1)
+  1686→        )
+  1687→      END,
+  1688→      questions_generated = ai_usage_stats.questions_generated
+  1689→        + CASE WHEN NEW.status = 'completed' THEN
+  1690→            (SELECT COUNT(*) FROM ai_generated_questions q WHERE q.generation_request_id = NEW.id)
+  1691→          ELSE 0 END;
+  1692→
+  1693→    -- Also update the generation queue item status
+  1694→    UPDATE ai_generation_queue
+  1695→    SET
+  1696→      status = CASE
+  1697→        WHEN NEW.status = 'completed' THEN 'completed'
+  1698→        WHEN NEW.status = 'failed' AND attempts >= max_attempts THEN 'dead_letter'
+  1699→        WHEN NEW.status = 'failed' THEN 'failed'
+  1700→        ELSE status
+  1701→      END,
+  1702→      error_message = NEW.error_message,
+  1703→      next_attempt_at = CASE
+  1704→        WHEN NEW.status = 'failed' AND attempts < max_attempts
+  1705→        THEN now() + (POWER(2, attempts) || ' minutes')::INTERVAL  -- Exponential backoff
+  1706→        ELSE next_attempt_at
+  1707→      END,
+  1708→      updated_at = now()
+  1709→    WHERE generation_request_id = NEW.id;
+  1710→  END IF;
+  1711→
+  1712→  RETURN NEW;
+  1713→END;
+  1714→$$ LANGUAGE plpgsql;
+  1715→
+  1716→CREATE TRIGGER trg_ai_gen_req_update_usage_stats
+  1717→  AFTER UPDATE OF status ON ai_generation_requests
+  1718→  FOR EACH ROW
+  1719→  WHEN (NEW.status IN ('completed', 'failed') AND OLD.status NOT IN ('completed', 'failed'))
+  1720→  EXECUTE FUNCTION trg_update_usage_stats_on_completion();
+  1721→
+  1722→COMMENT ON FUNCTION trg_update_usage_stats_on_completion IS 'Trigger function to update daily usage stats and queue status when a generation request completes or fails';
+  1723→
+  1724→-- ---------------------------------------------------------------------------
+  1725→-- Auto-update prompt template usage_count and success_rate
+  1726→-- ---------------------------------------------------------------------------
+  1727→CREATE OR REPLACE FUNCTION trg_update_prompt_template_metrics()
+  1728→RETURNS TRIGGER AS $$
+  1729→BEGIN
+  1730→  -- When a generation request completes, update the associated template metrics
+  1731→  IF NEW.prompt_template_id IS NOT NULL AND NEW.status = 'completed' THEN
+  1732→    PERFORM update_prompt_quality_score(NEW.prompt_template_id);
+  1733→  END IF;
+  1734→  RETURN NEW;
+  1735→END;
+  1736→$$ LANGUAGE plpgsql;
+  1737→
+  1738→CREATE TRIGGER trg_ai_gen_req_update_template_metrics
+  1739→  AFTER UPDATE OF status ON ai_generation_requests
+  1740→  FOR EACH ROW
+  1741→  WHEN (NEW.status = 'completed' AND OLD.status != 'completed' AND NEW.prompt_template_id IS NOT NULL)
+  1742→  EXECUTE FUNCTION trg_update_prompt_template_metrics();
+  1743→
+  1744→COMMENT ON FUNCTION trg_update_prompt_template_metrics IS 'Trigger function to update prompt template quality_score and success_rate when a generation request completes';
+  1745→
+  1746→-- ============================================================================
+  1747→-- 17. SEED DATA FOR AI PROVIDERS CONFIG
+  1748→-- ============================================================================
+  1749→-- Pre-populate with common AI provider/model configurations.
+  1750→-- These can be customized per deployment.
+  1751→-- ============================================================================
+  1752→
+  1753→INSERT INTO ai_providers_config (provider, display_name, model_name, api_endpoint, max_tokens, temperature, top_p, cost_per_1k_input_tokens, cost_per_1k_output_tokens, supports_streaming, supports_function_calling, supports_vision, rate_limit_per_minute, config)
+  1754→VALUES
+  1755→  (
+  1756→    'openai',
+  1757→    'OpenAI GPT-4o',
+  1758→    'gpt-4o',
+  1759→    'https://api.openai.com/v1/chat/completions',
+  1760→    4096, 0.70, 0.95,
+  1761→    0.002500, 0.010000,
+  1762→    true, true, true, 60,
+  1763→    '{"api_version": "2024-01-01"}'
+  1764→  ),
+  1765→  (
+  1766→    'openai',
+  1767→    'OpenAI GPT-4o Mini',
+  1768→    'gpt-4o-mini',
+  1769→    'https://api.openai.com/v1/chat/completions',
+  1770→    4096, 0.70, 0.95,
+  1771→    0.000150, 0.000600,
+  1772→    true, true, true, 60,
+  1773→    '{"api_version": "2024-01-01"}'
+  1774→  ),
+  1775→  (
+  1776→    'gemini',
+  1777→    'Google Gemini 1.5 Pro',
+  1778→    'gemini-1.5-pro',
+  1779→    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent',
+  1780→    4096, 0.70, 0.95,
+  1781→    0.001250, 0.005000,
+  1782→    true, true, true, 60,
+  1783→    '{"api_version": "v1beta"}'
+  1784→  ),
+  1785→  (
+  1786→    'gemini',
+  1787→    'Google Gemini 1.5 Flash',
+  1788→    'gemini-1.5-flash',
+  1789→    'https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent',
+  1790→    4096, 0.70, 0.95,
+  1791→    0.000075, 0.000300,
+  1792→    true, true, true, 60,
+  1793→    '{"api_version": "v1beta"}'
+  1794→  ),
+  1795→  (
+  1796→    'claude',
+  1797→    'Anthropic Claude 3.5 Sonnet',
+  1798→    'claude-3-5-sonnet-20241022',
+  1799→    'https://api.anthropic.com/v1/messages',
+  1800→    4096, 0.70, 0.95,
+  1801→    0.003000, 0.015000,
+  1802→    true, true, true, 60,
+  1803→    '{"api_version": "2023-06-01"}'
+  1804→  ),
+  1805→  (
+  1806→    'claude',
+  1807→    'Anthropic Claude 3 Haiku',
+  1808→    'claude-3-haiku-20240307',
+  1809→    'https://api.anthropic.com/v1/messages',
+  1810→    4096, 0.70, 0.95,
+  1811→    0.000250, 0.001250,
+  1812→    true, true, true, 60,
+  1813→    '{"api_version": "2023-06-01"}'
+  1814→  ),
+  1815→  (
+  1816→    'deepseek',
+  1817→    'DeepSeek Chat',
+  1818→    'deepseek-chat',
+  1819→    'https://api.deepseek.com/v1/chat/completions',
+  1820→    4096, 0.70, 0.95,
+  1821→    0.000140, 0.000280,
+  1822→    true, false, false, 60,
+  1823→    '{}'
+  1824→  ),
+  1825→  (
+  1826→    'grok',
+  1827→    'xAI Grok-2',
+  1828→    'grok-2',
+  1829→    'https://api.x.ai/v1/chat/completions',
+  1830→    4096, 0.70, 0.95,
+  1831→    0.002000, 0.010000,
+  1832→    true, true, false, 60,
+  1833→    '{}'
+  1834→  ),
+  1835→  (
+  1836→    'local_llm',
+  1837→    'Local LLM (Ollama)',
+  1838→    'local-default',
+  1839→    'http://localhost:11434/api/generate',
+  1840→    4096, 0.70, 0.95,
+  1841→    0.000000, 0.000000,
+  1842→    false, false, false, 120,
+  1843→    '{"type": "ollama"}'
+  1844→  )
+  1845→ON CONFLICT (provider, model_name) DO NOTHING;
+  1846→
+  1847→-- ============================================================================
+  1848→-- 18. SEED DATA FOR DEFAULT PROMPT TEMPLATES
+  1849→-- ============================================================================
+  1850→-- Pre-populate with core prompt templates for question generation.
+  1851→-- These serve as starting defaults that schools can customize.
+  1852→-- ============================================================================
+  1853→
+  1854→-- MCQ Generation Template (platform-wide default)
+  1855→INSERT INTO prompt_templates (
+  1856→  name, description, prompt_type, question_type, difficulty, bloom_level,
+  1857→  language, system_prompt, user_prompt_template, variables, few_shot_examples,
+  1858→  chain_of_thought, output_format, is_active, is_default, version, quality_score
+  1859→) VALUES (
+  1860→  'MCQ Generation - Default',
+  1861→  'Default platform-wide template for generating multiple-choice questions. Works with any provider and curriculum.',
+  1862→  'question_generation',
+  1863→  'multiple_choice',
+  1864→  NULL,
+  1865→  NULL,
+  1866→  'en',
+  1867→  'You are an expert educational assessment designer. You create high-quality multiple-choice questions that are clear, accurate, and aligned with educational standards. Each question must have exactly one correct answer and three plausible distractors. Distractors should represent common misconceptions or partial understanding, not be obviously wrong. All content must be factually accurate and pedagogically sound.',
+  1868→  'Generate {{num_questions}} multiple-choice questions on the topic of "{{topic}}" for the subject "{{subject}}" at the {{difficulty}} difficulty level{{#bloom_level}} targeting the "{{bloom_level}}" level of Bloom''s Taxonomy{{/bloom_level}}{{#exam_type}} for {{exam_type}} preparation{{/exam_type}}{{#class_level}} for {{class_level}} students{{/class_level}}.
+  1869→
+  1870→Requirements:
+  1871→- Each question must have exactly 4 options (A, B, C, D) with only one correct answer
+  1872→- Distractors should be plausible and reflect common misconceptions
+  1873→- Include a detailed explanation for why the correct answer is right and why each distractor is wrong
+  1874→- Questions should be clear, unambiguous, and free of grammatical errors
+  1875→- Avoid "all of the above" or "none of the above" options
+  1876→{{#keywords}}- Incorporate these key concepts: {{keywords}}{{/keywords}}
+  1877→{{#custom_instructions}}- Additional instructions: {{custom_instructions}}{{/custom_instructions}}
+  1878→
+  1879→Respond in the following JSON format:
+  1880→{
+  1881→  "questions": [
+  1882→    {
+  1883→      "content": "The question text",
+  1884→      "answer_options": [
+  1885→        {"content": "Option A text", "isCorrect": true, "explanation": "Why this is correct", "marks": 1},
+  1886→        {"content": "Option B text", "isCorrect": false, "explanation": "Why this is a distractor", "marks": 0},
+  1887→        {"content": "Option C text", "isCorrect": false, "explanation": "Why this is a distractor", "marks": 0},
+  1888→        {"content": "Option D text", "isCorrect": false, "explanation": "Why this is a distractor", "marks": 0}
+  1889→      ],
+  1890→      "explanation": "Overall explanation of the concept being tested",
+  1891→      "bloom_level": "remember|understand|apply|analyze|evaluate|create",
+  1892→      "difficulty": "easy|medium|hard|expert",
+  1893→      "estimated_time_seconds": 60,
+  1894→      "marks": 1,
+  1895→      "confidence_score": 0.95
+  1896→    }
+  1897→  ]
+  1898→}',
+  1899→  '[
+  1900→    {"name": "subject", "description": "The subject area (e.g., Mathematics, Physics)", "required": true, "default": null},
+  1901→    {"name": "topic", "description": "The specific topic within the subject", "required": true, "default": null},
+  1902→    {"name": "num_questions", "description": "Number of questions to generate", "required": true, "default": "5"},
+  1903→    {"name": "difficulty", "description": "Target difficulty level (easy, medium, hard, expert)", "required": true, "default": "medium"},
+  1904→    {"name": "bloom_level", "description": "Target Bloom''s Taxonomy level", "required": false, "default": null},
+  1905→    {"name": "exam_type", "description": "Exam context (waec, neco, jamb, etc.)", "required": false, "default": null},
+  1906→    {"name": "class_level", "description": "Target class level (e.g., SS1, JSS2)", "required": false, "default": null},
+  1907→    {"name": "keywords", "description": "Comma-separated key concepts to include", "required": false, "default": null},
+  1908→    {"name": "custom_instructions", "description": "Additional custom instructions", "required": false, "default": null}
+  1909→  ]'::jsonb,
+  1910→  '[
+  1911→    {
+  1912→      "input": {"subject": "Mathematics", "topic": "Quadratic Equations", "num_questions": 1, "difficulty": "medium"},
+  1913→      "output": {
+  1914→        "questions": [{
+  1915→          "content": "Solve the equation x² - 5x + 6 = 0.",
+  1916→          "answer_options": [
+  1917→            {"content": "x = 2 or x = 3", "isCorrect": true, "explanation": "Factoring gives (x-2)(x-3) = 0, so x = 2 or x = 3", "marks": 1},
+  1918→            {"content": "x = -2 or x = -3", "isCorrect": false, "explanation": "The signs are incorrect; the factors are (x-2)(x-3), not (x+2)(x+3)", "marks": 0},
+  1919→            {"content": "x = 1 or x = 6", "isCorrect": false, "explanation": "While 1×6 = 6, the sum 1+6 = 7 ≠ 5", "marks": 0},
+  1920→            {"content": "x = -1 or x = -6", "isCorrect": false, "explanation": "The product would be 6 but both signs and sum are incorrect", "marks": 0}
+  1921→          ],
+  1922→          "explanation": "This question tests the ability to solve quadratic equations by factoring.",
+  1923→          "bloom_level": "apply",
+  1924→          "difficulty": "medium",
+  1925→          "estimated_time_seconds": 60,
+  1926→          "marks": 1,
+  1927→          "confidence_score": 0.98
+  1928→        }]
+  1929→      }
+  1930→    }
+  1931→  ]'::jsonb,
+  1932→  true,
+  1933→  '{
+  1934→    "type": "object",
+  1935→    "required": ["questions"],
+  1936→    "properties": {
+  1937→      "questions": {
+  1938→        "type": "array",
+  1939→        "items": {
+  1940→          "type": "object",
+  1941→          "required": ["content", "answer_options", "explanation", "bloom_level", "difficulty", "marks"],
+  1942→          "properties": {
+  1943→            "content": {"type": "string"},
+  1944→            "answer_options": {
+  1945→              "type": "array",
+  1946→              "minItems": 4,
+  1947→              "maxItems": 4,
+  1948→              "items": {
+  1949→                "type": "object",
+  1950→                "required": ["content", "isCorrect", "explanation", "marks"],
+  1951→                "properties": {
+  1952→                  "content": {"type": "string"},
+  1953→                  "isCorrect": {"type": "boolean"},
+  1954→                  "explanation": {"type": "string"},
+  1955→                  "marks": {"type": "number"}
+  1956→                }
+  1957→              }
+  1958→            },
+  1959→            "explanation": {"type": "string"},
+  1960→            "bloom_level": {"type": "string", "enum": ["remember", "understand", "apply", "analyze", "evaluate", "create"]},
+  1961→            "difficulty": {"type": "string", "enum": ["easy", "medium", "hard", "expert"]},
+  1962→            "estimated_time_seconds": {"type": "integer"},
+  1963→            "marks": {"type": "number"},
+  1964→            "confidence_score": {"type": "number"}
+  1965→          }
+  1966→        }
+  1967→      }
+  1968→    }
+  1969→  }'::jsonb,
+  1970→  true, true, 1, 3.50
+  1971→);
+  1972→
+  1973→-- Explanation Generation Template
+  1974→INSERT INTO prompt_templates (
+  1975→  name, description, prompt_type, language, system_prompt, user_prompt_template,
+  1976→  variables, is_active, is_default, version, quality_score
+  1977→) VALUES (
+  1978→  'Explanation Generation - Default',
+  1979→  'Generate detailed explanations for existing questions, including why the correct answer is right and why distractors are wrong.',
+  1980→  'explanation_generation',
+  1981→  'en',
+  1982→  'You are an expert educational content writer. You create clear, comprehensive explanations that help students understand not just what the correct answer is, but why it is correct and why other options are not. Your explanations should be pedagogically sound and accessible to the target audience.',
+  1983→  'Generate a detailed explanation for the following question:
+  1984→
+  1985→Subject: {{subject}}
+  1986→Topic: {{topic}}
+  1987→Question: {{question_content}}
+  1988→Correct Answer: {{correct_answer}}
+  1989→{{#distractors}}Distractors: {{distractors}}{{/distractors}}
+  1990→{{#difficulty}}Difficulty Level: {{difficulty}}{{/difficulty}}
+  1991→{{#class_level}}Target Class: {{class_level}}{{/class_level}}
+  1992→
+  1993→Requirements:
+  1994→- Explain why the correct answer is right with supporting reasoning
+  1995→- Explain why each distractor is wrong (identify the misconception it represents)
+  1996→- Use clear, age-appropriate language
+  1997→- Include relevant formulas, definitions, or references where applicable
+  1998→- The explanation should help a student who got the question wrong understand the concept
+  1999→
+  2000→Respond in JSON format:
+
+[showing lines 1-2000 of 2370; use offset=2001 with limit to continue reading]

@@ -27,6 +27,7 @@ class ConversationState {
     this.error,
     this.successMessage,
     this.unreadTotalCount = 0,
+    this.participants = const [],
   });
 
   /// The list of conversations for the current user.
@@ -50,6 +51,9 @@ class ConversationState {
   /// The total unread count across all conversations.
   final int unreadTotalCount;
 
+  /// Available participants for creating new conversations.
+  final List<ParticipantInfo> participants;
+
   /// Creates a copy of this state with the given fields replaced.
   ConversationState copyWith({
     List<ConversationEntity>? conversations,
@@ -59,6 +63,7 @@ class ConversationState {
     String? error,
     String? successMessage,
     int? unreadTotalCount,
+    List<ParticipantInfo>? participants,
     bool clearCurrentConversation = false,
   }) {
     return ConversationState(
@@ -71,11 +76,27 @@ class ConversationState {
       error: error,
       successMessage: successMessage,
       unreadTotalCount: unreadTotalCount ?? this.unreadTotalCount,
+      participants: participants ?? this.participants,
     );
   }
 
   /// Clears the current error message.
   ConversationState clearError() => copyWith(error: null);
+}
+
+/// Lightweight model for available participants in conversations.
+class ParticipantInfo {
+  const ParticipantInfo({
+    required this.id,
+    required this.name,
+    this.role,
+    this.avatarUrl,
+  });
+
+  final String id;
+  final String name;
+  final String? role;
+  final String? avatarUrl;
 }
 
 // ═══════════════════════════════════════════════════════════════════════

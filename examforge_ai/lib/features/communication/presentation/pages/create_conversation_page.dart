@@ -46,17 +46,20 @@ class _State extends ConsumerState<CreateConversationPage> {
   String _searchQuery = '';
   final _formKey = GlobalKey<FormState>();
 
-  // ─── Mock available participants (in real app, loaded from provider)
-  static const _mockParticipants = [
-    _Participant(id: '1', name: 'Dr. Sarah Johnson', role: 'teacher', avatar: null),
-    _Participant(id: '2', name: 'Mr. James Wilson', role: 'teacher', avatar: null),
-    _Participant(id: '3', name: 'Mrs. Emily Davis', role: 'teacher', avatar: null),
-    _Participant(id: '4', name: 'Principal Robert Brown', role: 'admin', avatar: null),
-    _Participant(id: '5', name: 'Ms. Linda Martinez', role: 'teacher', avatar: null),
-    _Participant(id: '6', name: 'Mr. David Lee', role: 'teacher', avatar: null),
-    _Participant(id: '7', name: 'Mrs. Patricia Taylor', role: 'parent', avatar: null),
-    _Participant(id: '8', name: 'Mr. Michael Anderson', role: 'parent', avatar: null),
-  ];
+  // ─── Participants loaded from provider (real Supabase data)
+  List<_Participant> get _participants {
+    final state = ref.watch(conversationProvider);
+    // Use the available participants from the provider state.
+    // If the provider hasn't loaded yet, return an empty list.
+    return state.participants
+        .map((p) => _Participant(
+              id: p.id,
+              name: p.name,
+              role: p.role ?? 'member',
+              avatar: p.avatarUrl,
+            ),)
+        .toList();
+  }
 
   // ─── Lifecycle ──────────────────────────────────────────────────────
 
@@ -308,7 +311,7 @@ class _State extends ConsumerState<CreateConversationPage> {
       spacing: Spacings.sm,
       runSpacing: Spacings.sm,
       children: _selectedParticipantIds.map((id) {
-        final p = _mockParticipants.firstWhere((p) => p.id == id);
+        final p = _participants.firstWhere((p) => p.id == id);
         return Chip(
           avatar: CircleAvatar(
             backgroundColor: cs.primaryContainer,
@@ -338,7 +341,7 @@ class _State extends ConsumerState<CreateConversationPage> {
   Widget _buildParticipantList() {
     final cs = Theme.of(context).colorScheme;
     final tt = Theme.of(context).textTheme;
-    final filtered = _mockParticipants.where((p) {
+    final filtered = _participants.where((p) {
       if (_searchQuery.isEmpty) return true;
       return p.name.toLowerCase().contains(_searchQuery.toLowerCase());
     }).toList();

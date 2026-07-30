@@ -291,6 +291,18 @@ class AuthRepositoryImpl implements AuthRepository {
     }
   }
 
+  // ─── OAuth Sign-In ──────────────────────────────────────────────────
+
+  @override
+  Future<void> signInWithOAuth({required String provider}) async {
+    try {
+      await _remoteDataSource.signInWithOAuth(provider: provider);
+    } catch (e) {
+      AppLogger.error('OAuth sign-in failed in repository', error: e);
+      rethrow;
+    }
+  }
+
   // ═══════════════════════════════════════════════════════════════════════
   // PRIVATE HELPERS
   // ═══════════════════════════════════════════════════════════════════════

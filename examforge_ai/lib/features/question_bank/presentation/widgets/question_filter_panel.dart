@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../../../config/dependency_injection.dart';
 import '../../../../core/extensions/context_extensions.dart';
 import '../../../../core/themes/app_colors.dart';
 import '../../../../core/themes/app_typography.dart';
@@ -478,13 +479,6 @@ class _QuestionFilterPanelState extends ConsumerState<QuestionFilterPanel> {
 final questionFilterProvider =
     StateNotifierProvider<QuestionFilterNotifier, QuestionFilterState>(
   (ref) => QuestionFilterNotifier(
-    repository: _PlaceholderRepository(),
+    repository: ref.watch(questionBankRepositoryProvider),
   ),
 );
-
-/// Minimal placeholder repository so the provider can compile.
-/// Override [questionFilterProvider] in your app's provider scope.
-class _PlaceholderRepository implements QuestionBankRepository {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => null;
-}

@@ -366,11 +366,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () {
-              // Placeholder for Google Sign-In
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Google Sign-In coming soon'),),
-              );
+              // Google Sign-In — uses Supabase OAuth provider
+              ref.read(authProvider.notifier).signInWithProvider('google');
             },
             icon: const Icon(Icons.g_mobiledata, size: Spacings.lgIcon),
             label: const Text('Google'),
@@ -386,11 +383,8 @@ class _LoginPageState extends ConsumerState<LoginPage> {
         Expanded(
           child: OutlinedButton.icon(
             onPressed: () {
-              // Placeholder for Apple Sign-In
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                    content: Text('Apple Sign-In coming soon'),),
-              );
+              // Apple Sign-In — uses Supabase OAuth provider
+              ref.read(authProvider.notifier).signInWithProvider('apple');
             },
             icon: const Icon(Icons.apple, size: Spacings.lgIcon),
             label: const Text('Apple'),

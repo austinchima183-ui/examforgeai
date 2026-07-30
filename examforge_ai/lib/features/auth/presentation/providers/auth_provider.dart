@@ -189,6 +189,29 @@ class AuthNotifier extends StateNotifier<AuthState> {
     );
   }
 
+  // ─── OAuth Sign-In ──────────────────────────────────────────────
+
+  /// Signs in the user with an OAuth provider (e.g., Google, Apple).
+  ///
+  /// Uses Supabase's `signInWithOAuth()` to redirect the user to the
+  /// provider's login page. On web, this opens a popup window.
+  Future<void> signInWithProvider(String provider) async {
+    state = state.copyWith(isLoading: true, error: null);
+
+    try {
+      await _authRepository.signInWithOAuth(provider: provider);
+      // OAuth flow redirects the user — the auth state will be updated
+      // when the user returns via the callback URL.
+      AppLogger.info('OAuth sign-in initiated with provider: $provider');
+    } catch (e) {
+      state = state.copyWith(
+        isLoading: false,
+        error: 'Failed to sign in with $provider. Please try again.',
+      );
+      AppLogger.warning('OAuth sign-in failed: $e');
+    }
+  }
+
   // ─── Forgot Password ────────────────────────────────────────────
 
   /// Sends a password-reset email.

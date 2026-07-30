@@ -55,4 +55,10 @@ abstract class AuthRepository {
 
   /// Signs the user out and clears all locally stored sensitive data.
   Future<Result<void>> logout();
+
+  /// Signs in the user with an OAuth provider (e.g., Google, Apple).
+  ///
+  /// On web, this opens a popup window for the OAuth flow.
+  /// On native, this uses the device's browser for the OAuth redirect.
+  Future<void> signInWithOAuth({required String provider});
 }

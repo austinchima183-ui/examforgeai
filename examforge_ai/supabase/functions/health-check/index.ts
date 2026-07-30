@@ -155,8 +155,51 @@ Deno.serve(async (req: Request) => {
 
   if (req.method === 'OPTIONS') return new Response('ok', { headers: allHeaders });
 
+  // ─── Authentication ──────────────────────────────────────────────
+  // Health check requires authentication to prevent abuse.
+  // Only authenticated users or internal service requests can trigger
+  // health checks that write to the database.
+  const authHeader = req.headers.get('Authorization');
+  const apiKey = req.headers.get('apikey');
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+  // Allow service-role requests (e.g., cron jobs) without user auth
+  const isServiceRequest = apiKey === supabaseServiceKey;
+
+  let isAuthenticatedUser = false;
+  if (authHeader && !isServiceRequest) {
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    isAuthenticatedUser = !authError && !!user;
+  }
+
+  if (!isServiceRequest && !isAuthenticatedUser) {
+    // For unauthenticated requests, return a read-only health status
+    // without writing to the database
+    const supabase = createClient(supabaseUrl, supabaseAnonKey);
+    const dbStart = Date.now();
+    try {
+      await supabase.from('schools').select('id').limit(1);
+    } catch {}
+    const dbResponseTime = Date.now() - dbStart;
+
+    return new Response(JSON.stringify({
+      status: dbResponseTime < 1000 ? 'healthy' : 'degraded',
+      timestamp: new Date().toISOString(),
+      version: Deno.env.get('DEPLOY_VERSION') || 'unknown',
+      environment: Deno.env.get('ENVIRONMENT') || 'unknown',
+      services: { database: { status: dbResponseTime < 1000 ? 'healthy' : 'degraded', responseTimeMs: dbResponseTime } },
+    }), {
+      status: 200,
+      headers: { ...allHeaders, 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ─── Authenticated: Full health check with DB writes ────────────
   const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
   const healthResults = await Promise.all([
