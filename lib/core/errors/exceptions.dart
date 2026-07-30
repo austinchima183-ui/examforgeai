@@ -17,8 +17,14 @@ class ServerException implements Exception {
   });
 
   @override
-  String toString() =>
-      'ServerException(statusCode: $statusCode, message: $message, data: $data)';
+  String toString() {
+    // In release builds, omit data to prevent internal details leaking.
+    const bool isRelease = bool.fromEnvironment('dart.vm.product');
+    if (isRelease) {
+      return 'ServerException(statusCode: $statusCode, message: $message)';
+    }
+    return 'ServerException(statusCode: $statusCode, message: $message, data: $data)';
+  }
 }
 
 /// Thrown when a local cache read / write fails.

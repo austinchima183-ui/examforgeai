@@ -151,7 +151,7 @@ class StorageService {
         key: AppConstants.userRole,
         value: role,
       );
-      AppLogger.debug('User role saved: $role');
+      AppLogger.debug('User role saved');
     } catch (e) {
       AppLogger.error('Failed to save user role', error: e);
       throw CacheException(message: 'Failed to save user role: $e');
