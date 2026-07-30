@@ -13,51 +13,20 @@
 //     4. Only authenticated users can initiate payments
 //
 // SECURITY MODEL:
-//   1. Requires authenticated user (JWT validation)
-//   2. Amount and currency are validated server-side
-//   3. Transaction is recorded with an integrity hash
-//   4. Flutterwave secret key is never exposed to the client
+//   1. Requires authenticated user (JWT validation via shared auth)
+//   2. Rate limiting: 20 requests per minute per user
+//   3. Security headers on all responses
+//   4. Amount and currency are validated server-side
+//   5. Transaction is recorded with an integrity hash
+//   6. All operations are audit-logged
+//   7. 30-second timeout on external API calls
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration (Hardened) ────────────────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return [
-        'https://examforge.ai',
-        'https://www.examforge.ai',
-        'https://app.examforge.ai',
-        'https://admin.examforge.ai',
-      ];
-    case 'staging':
-      return [
-        'https://staging.examforge.ai',
-        'https://staging-app.examforge.ai',
-      ];
-    default:
-      return [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5173',
-      ];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
+import { validateAuth, isSuperAdmin, isAdmin } from '../_shared/auth.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
 
 // ─── Constant-time string comparison ──────────────────────────────────────
 // Prevents timing attacks when comparing sensitive values.
@@ -74,10 +43,6 @@ function constantTimeEquals(a: string, b: string): boolean {
 }
 
 // ─── Generate amount integrity hash ──────────────────────────────────────
-// Uses the Web Crypto API to produce an HMAC-SHA256 hash binding the
-// amount, currency, and txRef together. This hash is stored alongside
-// the transaction so the webhook can verify the amount wasn't tampered
-// with between checkout initiation and payment completion.
 async function generateIntegrityHash(
   amount: string,
   currency: string,
@@ -99,74 +64,83 @@ async function generateIntegrityHash(
     .join('');
 }
 
+const SUPPORTED_CURRENCIES = ['NGN', 'USD', 'GBP', 'EUR', 'KES', 'GHS', 'ZAR'];
+const MAX_AMOUNT = 10_000_000;
+
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
+  const securityHeaders = getSecurityHeaders();
 
   // ─── CORS preflight ──────────────────────────────────────────────────
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: { ...corsHeaders, ...securityHeaders } });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
   // ─── Step 1: Authenticate ────────────────────────────────────────────
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized — missing auth token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  const authResult = await validateAuth(req);
+  if (!authResult.user) {
+    return new Response(JSON.stringify({ error: authResult.error }), {
+      status: authResult.status,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const flutterwaveSecretKey = Deno.env.get('FLUTTERWAVE_SECRET_KEY');
+  const user = authResult.user;
 
+  // ─── Step 2: Rate limit check ────────────────────────────────────────
+  const rateLimit = checkRateLimit(`checkout:${user.id}`);
+  if (!rateLimit.allowed) {
+    return new Response(
+      JSON.stringify({ error: 'Rate limit exceeded', retryAfter: Math.ceil((rateLimit.resetAt - Date.now()) / 1000) }),
+      {
+        status: 429,
+        headers: combineHeaders(corsHeaders, {
+          'Content-Type': 'application/json',
+          'Retry-After': Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
+          ...getRateLimitHeaders(rateLimit),
+        }),
+      }
+    );
+  }
+
+  // ─── Step 3: Verify Flutterwave secret key ──────────────────────────
+  const flutterwaveSecretKey = Deno.env.get('FLUTTERWAVE_SECRET_KEY');
   if (!flutterwaveSecretKey) {
     console.error('FLUTTERWAVE_SECRET_KEY not configured');
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // ─── Step 2: Parse and validate request ──────────────────────────────
+  // ─── Step 4: Parse and validate request ──────────────────────────────
   let body: Record<string, any>;
   try {
     body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
   const { amount, currency, email, txRef, meta } = body;
 
-  // Required fields
   if (!amount || !currency || !email || !txRef) {
     return new Response(
       JSON.stringify({ error: 'Missing required fields: amount, currency, email, txRef' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 
@@ -174,38 +148,34 @@ Deno.serve(async (req: Request) => {
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
     return new Response(JSON.stringify({ error: 'Amount must be a positive number' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // Prevent unreasonably large amounts
-  if (parsedAmount > 10000000) {
-    return new Response(JSON.stringify({ error: 'Amount exceeds maximum allowed (10,000,000)' }), {
+  if (parsedAmount > MAX_AMOUNT) {
+    return new Response(JSON.stringify({ error: `Amount exceeds maximum allowed (${MAX_AMOUNT.toLocaleString()})` }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // Validate currency (supported currencies)
-  const supportedCurrencies = ['NGN', 'USD', 'GBP', 'EUR', 'KES', 'GHS', 'ZAR'];
   const normalizedCurrency = currency.toUpperCase();
-  if (!supportedCurrencies.includes(normalizedCurrency)) {
+  if (!SUPPORTED_CURRENCIES.includes(normalizedCurrency)) {
     return new Response(
-      JSON.stringify({ error: `Unsupported currency: ${currency}. Supported: ${supportedCurrencies.join(', ')}` }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: `Unsupported currency: ${currency}. Supported: ${SUPPORTED_CURRENCIES.join(', ')}` }),
+      { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 
-  // Validate email format (basic check)
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return new Response(JSON.stringify({ error: 'Invalid email format' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // ─── Step 3: Generate amount integrity hash ──────────────────────────
+  // ─── Step 5: Generate amount integrity hash ──────────────────────────
   const integrityHashSecret = Deno.env.get('FLUTTERWAVE_WEBHOOK_SECRET_HASH') || flutterwaveSecretKey;
   const amountIntegrityHash = await generateIntegrityHash(
     parsedAmount.toString(),
@@ -214,7 +184,7 @@ Deno.serve(async (req: Request) => {
     integrityHashSecret
   );
 
-  // ─── Step 4: Record transaction in database BEFORE calling Flutterwave ─
+  // ─── Step 6: Record transaction in database BEFORE calling Flutterwave ─
   const { data: transaction, error: txError } = await adminClient
     .from('transactions')
     .insert({
@@ -234,11 +204,11 @@ Deno.serve(async (req: Request) => {
     console.error('Failed to record transaction:', txError);
     return new Response(JSON.stringify({ error: 'Failed to initialize transaction' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // ─── Step 5: Call Flutterwave API to initialize checkout ─────────────
+  // ─── Step 7: Call Flutterwave API to initialize checkout ─────────────
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
@@ -254,9 +224,7 @@ Deno.serve(async (req: Request) => {
         amount: parsedAmount,
         currency: normalizedCurrency,
         redirect_url: `${Deno.env.get('APP_URL') || 'https://app.examforge.ai'}/payment/callback`,
-        customer: {
-          email: email,
-        },
+        customer: { email },
         customizations: {
           title: 'ExamForge AI',
           logo: 'https://examforge.ai/logo.png',
@@ -271,50 +239,64 @@ Deno.serve(async (req: Request) => {
     });
 
     const flwData = await flwResponse.json();
+    clearTimeout(timeoutId);
 
     if (flwData.status !== 'success' || !flwData.data?.link) {
-      // Update transaction status to failed
       await adminClient
         .from('transactions')
         .update({ status: 'failed', processor_response: flwData })
         .eq('id', transaction.id);
 
+      // Audit log
+      await adminClient.from('audit_log').insert({
+        user_id: user.id,
+        action: 'CHECKOUT_FAILED',
+        resource_type: 'transaction',
+        resource_id: transaction.id,
+        details: { tx_ref: txRef, flutterwave_message: flwData.message },
+      });
+
       return new Response(
-        JSON.stringify({
-          error: 'Failed to initialize checkout session',
-          details: flwData.message || 'Unknown error from Flutterwave',
-        }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to initialize checkout session', details: flwData.message || 'Unknown error from Flutterwave' }),
+        { status: 502, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
       );
     }
 
-    // ─── Step 6: Return checkout URL ────────────────────────────────────
+    // Audit log — success
+    await adminClient.from('audit_log').insert({
+      user_id: user.id,
+      action: 'CHECKOUT_INITIALIZED',
+      resource_type: 'transaction',
+      resource_id: transaction.id,
+      details: { tx_ref: txRef, amount: parsedAmount, currency: normalizedCurrency },
+    });
+
     return new Response(
-      JSON.stringify({
-        checkoutUrl: flwData.data.link,
-        txRef: txRef,
-        transactionId: transaction.id,
-      }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ checkoutUrl: flwData.data.link, txRef, transactionId: transaction.id }),
+      { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   } catch (err) {
     clearTimeout(timeoutId);
     const errorMessage = err instanceof Error ? err.message : String(err);
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
 
-    // Update transaction status to failed
     await adminClient
       .from('transactions')
       .update({ status: 'failed', processor_response: { error: errorMessage } })
       .eq('id', transaction.id);
 
+    // Audit log — failure
+    await adminClient.from('audit_log').insert({
+      user_id: user.id,
+      action: 'CHECKOUT_ERROR',
+      resource_type: 'transaction',
+      resource_id: transaction.id,
+      details: { tx_ref: txRef, error: errorMessage, is_timeout: isTimeout },
+    });
+
     return new Response(
-      JSON.stringify({
-        error: isTimeout
-          ? 'Checkout initialization timed out. Please retry.'
-          : 'Checkout initialization failed due to network error',
-      }),
-      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      JSON.stringify({ error: isTimeout ? 'Checkout initialization timed out. Please retry.' : 'Checkout initialization failed due to network error' }),
+      { status: 502, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 });

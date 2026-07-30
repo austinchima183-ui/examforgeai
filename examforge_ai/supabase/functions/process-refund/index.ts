@@ -24,71 +24,10 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration (Hardened) ────────────────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return [
-        'https://examforge.ai',
-        'https://www.examforge.ai',
-        'https://app.examforge.ai',
-        'https://admin.examforge.ai',
-      ];
-    case 'staging':
-      return [
-        'https://staging.examforge.ai',
-        'https://staging-app.examforge.ai',
-      ];
-    default:
-      return [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5173',
-      ];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
-
-// ─── Authorization check ──────────────────────────────────────────────────
-async function isAuthorized(
-  userClient: any,
-  userId: string
-): Promise<{ authorized: boolean; role?: string; schoolId?: string }> {
-  const { data: userProfile, error } = await userClient
-    .from('users')
-    .select('role, school_id')
-    .eq('id', userId)
-    .maybeSingle();
-
-  if (error || !userProfile) {
-    return { authorized: false };
-  }
-
-  const allowedRoles = ['super_admin', 'school_admin'];
-  if (!allowedRoles.includes(userProfile.role)) {
-    return { authorized: false, role: userProfile.role };
-  }
-
-  return {
-    authorized: true,
-    role: userProfile.role,
-    schoolId: userProfile.school_id,
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
+import { validateAuth, hasRole, isSuperAdmin, isAdmin } from '../_shared/auth.ts';
 
 // ─── Audit logging ────────────────────────────────────────────────────────
 async function logRefundAudit(
@@ -116,66 +55,70 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: combineHeaders(corsHeaders) });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
   // ─── Step 1: Authenticate ──────────────────────────────────────────
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized — missing auth token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  const authResult = await validateAuth(req);
+  if (authResult.error || !authResult.user) {
+    return new Response(JSON.stringify({ error: authResult.error }), {
+      status: authResult.status,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
-  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+  const user = authResult.user;
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
+  // Create admin client for business logic
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+  const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
   // ─── Step 2: Authorize ─────────────────────────────────────────────
-  const auth = await isAuthorized(userClient, user.id);
-  if (!auth.authorized) {
+  if (!isAdmin(authResult)) {
     await logRefundAudit(adminClient, {
       transactionId: 'unknown',
       refundAmount: 0,
       requestedBy: user.id,
       status: 'rejected',
-      reason: `Unauthorized role: ${auth.role || 'unknown'}`,
+      reason: `Unauthorized role: ${user.role || 'unknown'}`,
     });
     return new Response(JSON.stringify({ error: 'Forbidden — insufficient permissions' }), {
       status: 403,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // ─── Step 3: Parse and validate request ─────────────────────────────
+  // ─── Step 3: Rate limiting ─────────────────────────────────────────
+  const rateLimitResult = checkRateLimit(user.id);
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
+      status: 429,
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
+    });
+  }
+
+  // ─── Step 4: Parse and validate request ─────────────────────────────
   let body: Record<string, any>;
   try {
     body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
@@ -185,7 +128,10 @@ Deno.serve(async (req: Request) => {
   if (!transactionId || !amount) {
     return new Response(JSON.stringify({ error: 'Missing required fields: transactionId, amount' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
@@ -202,7 +148,10 @@ Deno.serve(async (req: Request) => {
     });
     return new Response(JSON.stringify({ error: 'Refund amount must be a positive number' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
@@ -217,11 +166,14 @@ Deno.serve(async (req: Request) => {
     });
     return new Response(JSON.stringify({ error: 'Refund amount exceeds maximum allowed' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
-  // ─── Step 4: Verify original transaction exists ─────────────────────
+  // ─── Step 5: Verify original transaction exists ─────────────────────
   const { data: transaction, error: txError } = await adminClient
     .from('transactions')
     .select('id, amount, currency, status, flutterwave_transaction_id, school_id, user_id, refunded_amount')
@@ -238,11 +190,14 @@ Deno.serve(async (req: Request) => {
     });
     return new Response(JSON.stringify({ error: 'Original transaction not found' }), {
       status: 404,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
-  // ─── Step 5: Verify transaction is refundable ───────────────────────
+  // ─── Step 6: Verify transaction is refundable ───────────────────────
   if (transaction.status !== 'successful') {
     await logRefundAudit(adminClient, {
       transactionId,
@@ -254,27 +209,33 @@ Deno.serve(async (req: Request) => {
     });
     return new Response(JSON.stringify({ error: `Cannot refund a transaction with status '${transaction.status}'` }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
   // School admin can only refund transactions from their own school
-  if (auth.role === 'school_admin' && auth.schoolId && transaction.school_id !== auth.schoolId) {
+  if (!isSuperAdmin(authResult) && user.school_id && transaction.school_id !== user.school_id) {
     await logRefundAudit(adminClient, {
       transactionId,
       refundAmount,
       requestedBy: user.id,
       status: 'rejected',
       reason: 'School admin attempted cross-school refund',
-      metadata: { adminSchool: auth.schoolId, transactionSchool: transaction.school_id },
+      metadata: { adminSchool: user.school_id, transactionSchool: transaction.school_id },
     });
     return new Response(JSON.stringify({ error: 'Cannot refund transactions from another school' }), {
       status: 403,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
-  // ─── Step 6: Verify refund amount does not exceed original ──────────
+  // ─── Step 7: Verify refund amount does not exceed original ──────────
   // PERFORMANCE FIX: Use atomic RPC to prevent race condition on refund amount.
   // Two concurrent refund requests could both read the same alreadyRefunded
   // value and both pass validation, resulting in over-refunding.
@@ -308,11 +269,14 @@ Deno.serve(async (req: Request) => {
         error: `Refund amount exceeds remaining refundable amount. Original: ${originalAmount}, Already refunded: ${alreadyRefunded}, Remaining: ${remainingRefundable}`,
       }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, {
+          'Content-Type': 'application/json',
+          ...getRateLimitHeaders(rateLimitResult),
+        }),
       });
     }
 
-    // ─── Step 7: Check for duplicate refund requests ────────────────────
+    // ─── Step 8: Check for duplicate refund requests ────────────────────
     const { data: pendingRefunds } = await adminClient
     .from('refund_audit_log')
     .select('id, refund_amount, status, created_at')
@@ -336,7 +300,10 @@ Deno.serve(async (req: Request) => {
         error: `Duplicate refund detected. There are already pending refunds totaling ${totalPending} for this transaction.`,
       }), {
         status: 409,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, {
+          'Content-Type': 'application/json',
+          ...getRateLimitHeaders(rateLimitResult),
+        }),
       });
     }
   }
@@ -347,11 +314,14 @@ Deno.serve(async (req: Request) => {
   if (atomicResult) {
     return new Response(JSON.stringify(atomicResult), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
-  // ─── Step 8: Process refund via Flutterwave ─────────────────────────
+  // ─── Step 9: Process refund via Flutterwave ─────────────────────────
   // (Only reached in fallback mode)
   const flwTxId = transaction.flutterwave_transaction_id;
   if (!flwTxId) {
@@ -364,7 +334,10 @@ Deno.serve(async (req: Request) => {
     });
     return new Response(JSON.stringify({ error: 'Cannot process refund: missing payment gateway reference' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 
@@ -412,11 +385,14 @@ Deno.serve(async (req: Request) => {
         details: flwData.message,
       }), {
         status: 502,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, {
+          'Content-Type': 'application/json',
+          ...getRateLimitHeaders(rateLimitResult),
+        }),
       });
     }
 
-    // ─── Step 9: Update transaction refunded amount ─────────────────
+    // ─── Step 10: Update transaction refunded amount ─────────────────
     const newRefundedAmount = alreadyRefunded + refundAmount;
     const updatePayload: Record<string, any> = {
       refunded_amount: newRefundedAmount,
@@ -457,7 +433,10 @@ Deno.serve(async (req: Request) => {
       transactionStatus: updatePayload.status || transaction.status,
     }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
 
   } catch (err) {
@@ -479,7 +458,10 @@ Deno.serve(async (req: Request) => {
         : 'Refund processing failed due to network error',
     }), {
       status: 502,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, {
+        'Content-Type': 'application/json',
+        ...getRateLimitHeaders(rateLimitResult),
+      }),
     });
   }
 });

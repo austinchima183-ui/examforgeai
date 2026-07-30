@@ -69,7 +69,17 @@ class _ExamForgeAppState extends ConsumerState<ExamForgeApp>
           AppLogger.info(
             'Notification tap: ${notification.id} — ${notification.title}',
           );
-          // TODO: Navigate to the relevant screen based on notification.data.
+          // Navigate to the relevant screen based on notification data.
+          // The router handles deep-link navigation from notification payloads.
+          try {
+            final router = ref.read(appRouterProvider);
+            final data = notification.data;
+            if (data != null && data.containsKey('route')) {
+              router.go(data['route'] as String);
+            }
+          } catch (e) {
+            AppLogger.warning('Failed to navigate from notification tap: $e');
+          }
         },
       );
       AppLogger.info('NotificationService initialized from App widget');

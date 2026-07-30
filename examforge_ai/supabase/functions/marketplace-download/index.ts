@@ -5,94 +5,57 @@
 // All downloads MUST go through this function — never expose Storage
 // URLs directly to the client.
 //
-// CORS FIX: Replaced wildcard (*) with environment-specific allow-list.
-// The original implementation allowed any origin to make requests, which
-// enables cross-origin attacks and credential theft.
+// Uses shared utilities for CORS, security headers, rate limiting, and auth.
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration (Hardened) ────────────────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return [
-        'https://examforge.ai',
-        'https://www.examforge.ai',
-        'https://app.examforge.ai',
-      ];
-    case 'staging':
-      return [
-        'https://staging.examforge.ai',
-        'https://staging-app.examforge.ai',
-      ];
-    default: // development
-      return [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5173',
-      ];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Access-Control-Allow-Credentials': 'true',
-    'Vary': 'Origin',
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
+import { validateAuth, hasRole, isSuperAdmin, isAdmin } from '../_shared/auth.ts';
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
+  // ─── Handle CORS preflight ────────────────────────────────────────────────
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: combineHeaders(corsHeaders, getSecurityHeaders()) });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  // ─── Validate authentication via shared utility ───────────────────────────
+  const authResult = await validateAuth(req);
+  if (authResult.error || !authResult.user) {
+    return new Response(JSON.stringify({ error: authResult.error }), {
+      status: authResult.status,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
+    });
+  }
+
+  const user = authResult.user;
+
+  // ─── Rate limiting ────────────────────────────────────────────────────────
+  const rateLimitResult = checkRateLimit(user.id);
+  const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
+
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
     });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-  // Create client with user's auth token for RLS
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
 
   // Create admin client for privileged operations
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-  // Verify the user
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
 
   try {
     const body = await req.json();
@@ -101,7 +64,7 @@ Deno.serve(async (req: Request) => {
     if (!purchaseId || !productId) {
       return new Response(JSON.stringify({ error: 'Missing purchaseId or productId' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
       });
     }
 
@@ -115,16 +78,28 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (purchaseError || !purchase) {
+      console.warn('[AUDIT] Download denied — purchase not found or not completed', {
+        userId: user.id,
+        purchaseId,
+        productId,
+        reason: purchaseError ? 'db_error' : 'not_found_or_not_completed',
+      });
       return new Response(JSON.stringify({ error: 'Purchase not found or not completed' }), {
         status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
       });
     }
 
     if (purchase.product_id !== productId) {
+      console.warn('[AUDIT] Download denied — product does not match purchase', {
+        userId: user.id,
+        purchaseId,
+        productId,
+        actualProductId: purchase.product_id,
+      });
       return new Response(JSON.stringify({ error: 'Product does not match purchase' }), {
         status: 403,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
       });
     }
 
@@ -137,9 +112,15 @@ Deno.serve(async (req: Request) => {
       .maybeSingle();
 
     if (productError || !product || !product.file_storage_path) {
+      console.warn('[AUDIT] Download denied — product not available', {
+        userId: user.id,
+        purchaseId,
+        productId,
+        reason: productError ? 'db_error' : 'not_found_or_no_file',
+      });
       return new Response(JSON.stringify({ error: 'Product not available' }), {
         status: 404,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
       });
     }
 
@@ -159,10 +140,15 @@ Deno.serve(async (req: Request) => {
     );
 
     if (tokenError || !tokenResult) {
-      console.error('Token generation failed:', tokenError);
+      console.error('[AUDIT] Download token generation failed', {
+        userId: user.id,
+        purchaseId,
+        productId,
+        error: tokenError?.message,
+      });
       return new Response(JSON.stringify({ error: 'Failed to generate download token' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
       });
     }
 
@@ -175,12 +161,30 @@ Deno.serve(async (req: Request) => {
       });
 
     if (signedUrlError || !signedUrlData) {
-      console.error('Signed URL creation failed:', signedUrlError);
+      console.error('[AUDIT] Signed URL creation failed', {
+        userId: user.id,
+        purchaseId,
+        productId,
+        filePath: product.file_storage_path,
+        error: signedUrlError?.message,
+      });
       return new Response(JSON.stringify({ error: 'Failed to create download URL' }), {
         status: 500,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
       });
     }
+
+    // ─── Audit log for successful download ───────────────────────────────
+    console.info('[AUDIT] Download URL generated successfully', {
+      userId: user.id,
+      userEmail: user.email,
+      userRole: user.role,
+      purchaseId,
+      productId,
+      sellerId: purchase.seller_id || product.seller_id,
+      fileName: product.file_name || 'download',
+      tokenGenerated: true,
+    });
 
     // ─── Return download info ────────────────────────────────────────────
     return new Response(JSON.stringify({
@@ -190,14 +194,17 @@ Deno.serve(async (req: Request) => {
       expiresIn: 3600, // 1 hour for signed URL
     }), {
       status: 200,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
     });
 
   } catch (err) {
-    console.error('Download function error:', err);
+    console.error('[AUDIT] Download function error', {
+      userId: user.id,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return new Response(JSON.stringify({ error: 'Internal server error' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
     });
   }
 });

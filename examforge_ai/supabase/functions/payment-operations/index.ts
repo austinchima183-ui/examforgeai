@@ -13,74 +13,56 @@
 //   - The FLUTTERWAVE_SECRET_KEY is loaded from environment variables
 //     and never exposed to the client
 //   - All operations are audit-logged
-//   - Rate limiting via Supabase Edge Function limits
+//   - Rate limiting via shared rate_limiter module
+//   - Security headers applied via shared security_headers module
+//   - 30s timeout on all external API calls
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration ─────────────────────────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return [
-        'https://examforge.ai',
-        'https://www.examforge.ai',
-        'https://app.examforge.ai',
-      ];
-    case 'staging':
-      return [
-        'https://staging.examforge.ai',
-        'https://staging-app.examforge.ai',
-      ];
-    default:
-      return [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-      ];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
+import { validateAuth, hasRole, isSuperAdmin, isAdmin } from '../_shared/auth.ts';
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  // Handle CORS preflight
+  // Handle CORS preflight — include security headers
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: combineHeaders(corsHeaders) });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
   // ─── Verify authentication ────────────────────────────────────────────
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  const authResult = await validateAuth(req);
+  if (authResult.error || !authResult.user) {
+    return new Response(JSON.stringify({ error: authResult.error }), {
+      status: authResult.status,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
+  const user = authResult.user;
+
+  // ─── Rate limiting ────────────────────────────────────────────────────
+  const rateLimitResult = checkRateLimit(user.id);
+  const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
+
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
+    });
+  }
+
+  // ─── Environment & secrets ────────────────────────────────────────────
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const flutterwaveSecretKey = Deno.env.get('FLUTTERWAVE_SECRET_KEY')!;
 
@@ -88,22 +70,7 @@ Deno.serve(async (req: Request) => {
     console.error('FLUTTERWAVE_SECRET_KEY not configured');
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // Create user client to verify the JWT
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: {
-      headers: { Authorization: authHeader },
-    },
-  });
-
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
     });
   }
 
@@ -117,7 +84,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
     });
   }
 
@@ -132,7 +99,7 @@ Deno.serve(async (req: Request) => {
         if (!transaction_id && !tx_ref) {
           return new Response(
             JSON.stringify({ error: 'transaction_id or tx_ref required' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+            { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
           );
         }
 
@@ -141,12 +108,18 @@ Deno.serve(async (req: Request) => {
           ? `https://api.flutterwave.com/v3/transactions/${transaction_id}/verify`
           : `https://api.flutterwave.com/v3/transactions/verify_by_reference?tx_ref=${tx_ref}`;
 
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30_000);
+
         const flwResponse = await fetch(flwUrl, {
           headers: {
             'Authorization': `Bearer ${flutterwaveSecretKey}`,
             'Content-Type': 'application/json',
           },
+          signal: controller.signal,
         });
+
+        clearTimeout(timeoutId);
 
         const flwData = await flwResponse.json();
 
@@ -182,7 +155,7 @@ Deno.serve(async (req: Request) => {
                   error: 'Amount mismatch',
                   status: flwData.data.status,
                 }),
-                { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+                { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
               );
             }
 
@@ -221,7 +194,7 @@ Deno.serve(async (req: Request) => {
             amount: flwData.data?.amount,
             currency: flwData.data?.currency,
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
         );
       }
 
@@ -232,7 +205,7 @@ Deno.serve(async (req: Request) => {
         if (!transaction_id) {
           return new Response(
             JSON.stringify({ error: 'transaction_id required' }),
-            { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+            { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
           );
         }
 
@@ -246,24 +219,18 @@ Deno.serve(async (req: Request) => {
         if (!localTx) {
           return new Response(
             JSON.stringify({ error: 'Transaction not found' }),
-            { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+            { status: 404, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
           );
         }
 
         // Check authorization: user must own the transaction or be an admin
-        const { data: userRole } = await adminClient
-          .from('users')
-          .select('role')
-          .eq('id', user.id)
-          .maybeSingle();
-
-        const isAdmin = ['super_admin', 'school_admin'].includes(userRole?.role);
+        const userIsAdmin = isAdmin(authResult);
         const isOwner = localTx.user_id === user.id;
 
-        if (!isAdmin && !isOwner) {
+        if (!userIsAdmin && !isOwner) {
           return new Response(
             JSON.stringify({ error: 'Not authorized to refund this transaction' }),
-            { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+            { status: 403, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
           );
         }
 
@@ -272,6 +239,9 @@ Deno.serve(async (req: Request) => {
           amount: amount ? parseFloat(amount) : undefined,
           reason: reason || 'Customer requested refund',
         };
+
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30_000);
 
         const flwResponse = await fetch(
           `https://api.flutterwave.com/v3/transactions/${transaction_id}/refund`,
@@ -282,8 +252,11 @@ Deno.serve(async (req: Request) => {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(refundPayload),
+            signal: controller.signal,
           },
         );
+
+        clearTimeout(timeoutId);
 
         const flwData = await flwResponse.json();
 
@@ -307,21 +280,21 @@ Deno.serve(async (req: Request) => {
             refund_id: flwData.data?.id,
             status: flwData.data?.status,
           }),
-          { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
         );
       }
 
       default:
         return new Response(
           JSON.stringify({ error: `Unknown operation: ${operation}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
         );
     }
   } catch (err) {
     console.error(`Payment operation error: ${err}`);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 500, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
     );
   }
 });

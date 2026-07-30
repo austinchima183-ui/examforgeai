@@ -11,53 +11,23 @@
 //     3. Transaction status updates were client-initiated
 //
 // SECURITY MODEL:
-//   1. Requires authenticated user (JWT validation)
-//   2. Amount and currency are validated server-side against expected values
-//   3. Transaction ownership is verified (user can only verify their own tx)
-//   4. Integrity hash is checked to detect amount tampering
-//   5. Constant-time comparison for sensitive values
-//   6. Only updates status if Flutterwave confirms success
+//   1. Requires authenticated user (JWT validation via shared auth)
+//   2. Rate limiting per user to prevent abuse
+//   3. Security headers on all responses
+//   4. Amount and currency are validated server-side against expected values
+//   5. Transaction ownership is verified (user can only verify their own tx)
+//   6. Integrity hash is checked to detect amount tampering
+//   7. Constant-time comparison for sensitive values
+//   8. Only updates status if Flutterwave confirms success
+//   9. 30s timeout on Flutterwave API calls
+//  10. Audit logging for all verification outcomes
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration (Hardened) ────────────────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return [
-        'https://examforge.ai',
-        'https://www.examforge.ai',
-        'https://app.examforge.ai',
-        'https://admin.examforge.ai',
-      ];
-    case 'staging':
-      return [
-        'https://staging.examforge.ai',
-        'https://staging-app.examforge.ai',
-      ];
-    default:
-      return [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5173',
-      ];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
+import { validateAuth, hasRole, isSuperAdmin, isAdmin } from '../_shared/auth.ts';
 
 // ─── Constant-time string comparison ──────────────────────────────────────
 function constantTimeEquals(a: string, b: string): boolean {
@@ -77,27 +47,40 @@ Deno.serve(async (req: Request) => {
 
   // ─── CORS preflight ──────────────────────────────────────────────────
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: combineHeaders(corsHeaders) });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // ─── Step 1: Authenticate ────────────────────────────────────────────
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized — missing auth token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  // ─── Step 1: Authenticate via shared auth ────────────────────────────
+  const authResult = await validateAuth(req);
+  if (authResult.error || !authResult.user) {
+    return new Response(JSON.stringify({ error: authResult.error }), {
+      status: authResult.status,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
+  const user = authResult.user;
+
+  // ─── Step 2: Rate limiting ──────────────────────────────────────────
+  const rateLimit = checkRateLimit(user.id);
+  if (!rateLimit.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
+      status: 429,
+      headers: combineHeaders(corsHeaders, getRateLimitHeaders(rateLimit), { 'Content-Type': 'application/json' }),
+    });
+  }
+
+  const rateLimitHeaders = getRateLimitHeaders(rateLimit);
+
+  // ─── Step 3: Validate environment & create admin client ──────────────
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const flutterwaveSecretKey = Deno.env.get('FLUTTERWAVE_SECRET_KEY');
 
@@ -105,31 +88,20 @@ Deno.serve(async (req: Request) => {
     console.error('FLUTTERWAVE_SECRET_KEY not configured');
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
-
-  // ─── Step 2: Parse and validate request ──────────────────────────────
+  // ─── Step 4: Parse and validate request ──────────────────────────────
   let body: Record<string, any>;
   try {
     body = await req.json();
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
@@ -138,11 +110,11 @@ Deno.serve(async (req: Request) => {
   if (!txRef) {
     return new Response(JSON.stringify({ error: 'Missing required field: txRef' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // ─── Step 3: Look up local transaction ───────────────────────────────
+  // ─── Step 5: Look up local transaction ───────────────────────────────
   const { data: localTx, error: txError } = await adminClient
     .from('transactions')
     .select('id, user_id, amount, currency, status, amount_integrity_hash, flutterwave_transaction_id')
@@ -152,17 +124,26 @@ Deno.serve(async (req: Request) => {
   if (txError || !localTx) {
     return new Response(JSON.stringify({ error: 'Transaction not found' }), {
       status: 404,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
-  // ─── Step 4: Verify ownership ────────────────────────────────────────
+  // ─── Step 6: Verify ownership ────────────────────────────────────────
   // The authenticated user must own this transaction.
   if (!constantTimeEquals(localTx.user_id, user.id)) {
     console.error(`Ownership mismatch: user ${user.id} tried to verify tx owned by ${localTx.user_id}`);
+    // Audit log: ownership violation
+    await adminClient.from('audit_log').insert({
+      user_id: user.id,
+      action: 'flutterwave_verify_ownership_mismatch',
+      resource_type: 'transaction',
+      resource_id: localTx.id,
+      details: { tx_ref: txRef, tx_owner: localTx.user_id },
+    }).catch(() => {}); // Non-blocking
+
     return new Response(JSON.stringify({ error: 'Forbidden — transaction does not belong to you' }), {
       status: 403,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
@@ -176,11 +157,11 @@ Deno.serve(async (req: Request) => {
         amount: localTx.amount,
         currency: localTx.currency,
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 
-  // ─── Step 5: Call Flutterwave verify API ─────────────────────────────
+  // ─── Step 7: Call Flutterwave verify API with 30s timeout ───────────
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), 30000);
 
@@ -200,18 +181,27 @@ Deno.serve(async (req: Request) => {
     const flwData = await flwResponse.json();
 
     if (flwData.status !== 'success') {
+      // Audit log: Flutterwave verification failure
+      await adminClient.from('audit_log').insert({
+        user_id: user.id,
+        action: 'flutterwave_verify_gateway_failure',
+        resource_type: 'transaction',
+        resource_id: localTx.id,
+        details: { tx_ref: txRef, flw_message: flwData.message },
+      }).catch(() => {}); // Non-blocking
+
       return new Response(
         JSON.stringify({
           error: 'Verification failed at payment gateway',
           details: flwData.message || 'Unknown error from Flutterwave',
         }),
-        { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 502, headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }) }
       );
     }
 
     const txData = flwData.data || {};
 
-    // ─── Step 6: Validate amount server-side ───────────────────────────
+    // ─── Step 8: Validate amount server-side ───────────────────────────
     // Use the expected amount from the request body OR the DB record
     const serverExpectedAmount = expectedAmount
       ? parseFloat(expectedAmount)
@@ -223,7 +213,7 @@ Deno.serve(async (req: Request) => {
     if (isNaN(serverExpectedAmount) || serverExpectedAmount <= 0) {
       return new Response(JSON.stringify({ error: 'Invalid expected amount' }), {
         status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }),
       });
     }
 
@@ -242,17 +232,26 @@ Deno.serve(async (req: Request) => {
         })
         .eq('id', localTx.id);
 
+      // Audit log: amount mismatch fraud
+      await adminClient.from('audit_log').insert({
+        user_id: user.id,
+        action: 'flutterwave_verify_amount_mismatch',
+        resource_type: 'transaction',
+        resource_id: localTx.id,
+        details: { tx_ref: txRef, expected_amount: serverExpectedAmount, charged_amount: chargedAmount },
+      }).catch(() => {}); // Non-blocking
+
       return new Response(
         JSON.stringify({
           error: 'Amount mismatch — possible tampering detected',
           expectedAmount: serverExpectedAmount,
           chargedAmount,
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }) }
       );
     }
 
-    // ─── Step 7: Validate currency server-side ─────────────────────────
+    // ─── Step 9: Validate currency server-side ─────────────────────────
     const serverExpectedCurrency = (expectedCurrency || localTx.currency || 'NGN').toUpperCase();
     const actualCurrency = (txData.currency || '').toUpperCase();
 
@@ -270,17 +269,26 @@ Deno.serve(async (req: Request) => {
         })
         .eq('id', localTx.id);
 
+      // Audit log: currency mismatch fraud
+      await adminClient.from('audit_log').insert({
+        user_id: user.id,
+        action: 'flutterwave_verify_currency_mismatch',
+        resource_type: 'transaction',
+        resource_id: localTx.id,
+        details: { tx_ref: txRef, expected_currency: serverExpectedCurrency, actual_currency: actualCurrency },
+      }).catch(() => {}); // Non-blocking
+
       return new Response(
         JSON.stringify({
           error: 'Currency mismatch — possible tampering detected',
           expectedCurrency: serverExpectedCurrency,
           actualCurrency,
         }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        { status: 400, headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }) }
       );
     }
 
-    // ─── Step 8: Verify integrity hash ─────────────────────────────────
+    // ─── Step 10: Verify integrity hash ─────────────────────────────────
     if (localTx.amount_integrity_hash) {
       const { data: hashValid } = await adminClient.rpc('verify_transaction_integrity', {
         p_tx_ref: txRef,
@@ -300,14 +308,23 @@ Deno.serve(async (req: Request) => {
           })
           .eq('id', localTx.id);
 
+        // Audit log: integrity hash failure
+        await adminClient.from('audit_log').insert({
+          user_id: user.id,
+          action: 'flutterwave_verify_integrity_hash_mismatch',
+          resource_type: 'transaction',
+          resource_id: localTx.id,
+          details: { tx_ref: txRef },
+        }).catch(() => {}); // Non-blocking
+
         return new Response(
           JSON.stringify({ error: 'Integrity check failed — possible tampering detected' }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+          { status: 400, headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }) }
         );
       }
     }
 
-    // ─── Step 9: Update transaction status ─────────────────────────────
+    // ─── Step 11: Update transaction status ─────────────────────────────
     const flwStatus = (txData.status || '').toLowerCase();
     const mappedStatus =
       flwStatus === 'successful'
@@ -335,7 +352,25 @@ Deno.serve(async (req: Request) => {
 
     await adminClient.from('transactions').update(updateData).eq('id', localTx.id);
 
-    // ─── Step 10: Return verification result ───────────────────────────
+    // Audit log: successful verification
+    await adminClient.from('audit_log').insert({
+      user_id: user.id,
+      action: 'flutterwave_verify_success',
+      resource_type: 'transaction',
+      resource_id: localTx.id,
+      details: {
+        tx_ref: txRef,
+        flw_transaction_id: flwTxId,
+        status: mappedStatus,
+        amount: chargedAmount,
+        currency: actualCurrency,
+        payment_method: txData.payment_type,
+      },
+    }).catch(() => {}); // Non-blocking
+
+    clearTimeout(timeoutId);
+
+    // ─── Step 12: Return verification result ───────────────────────────
     return new Response(
       JSON.stringify({
         status: mappedStatus,
@@ -346,12 +381,21 @@ Deno.serve(async (req: Request) => {
         flwTransactionId: flwTxId,
         paymentMethod: txData.payment_type,
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }) }
     );
   } catch (err) {
     clearTimeout(timeoutId);
     const errorMessage = err instanceof Error ? err.message : String(err);
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
+
+    // Audit log: verification failure (timeout or network error)
+    await adminClient.from('audit_log').insert({
+      user_id: user.id,
+      action: isTimeout ? 'flutterwave_verify_timeout' : 'flutterwave_verify_network_error',
+      resource_type: 'transaction',
+      resource_id: localTx.id,
+      details: { tx_ref: txRef, error: errorMessage },
+    }).catch(() => {}); // Non-blocking
 
     return new Response(
       JSON.stringify({
@@ -359,7 +403,7 @@ Deno.serve(async (req: Request) => {
           ? 'Verification timed out. Please retry.'
           : 'Verification failed due to network error',
       }),
-      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 502, headers: combineHeaders(corsHeaders, rateLimitHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 });

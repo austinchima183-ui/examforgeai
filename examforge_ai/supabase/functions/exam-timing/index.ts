@@ -32,31 +32,10 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration ─────────────────────────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return ['https://examforge.ai', 'https://www.examforge.ai', 'https://app.examforge.ai'];
-    case 'staging':
-      return ['https://staging.examforge.ai', 'https://staging-app.examforge.ai'];
-    default:
-      return ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000'];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
+import { validateAuth } from '../_shared/auth.ts';
 
 // ─── Helper: Calculate remaining time server-side ───────────────────────
 function calculateRemainingSeconds(startedAt: string, allowedDurationMinutes: number): number {
@@ -71,40 +50,40 @@ Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: combineHeaders(corsHeaders) });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
   // ─── Verify authentication ────────────────────────────────────────────
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    return new Response(JSON.stringify({ error: 'Unauthorized' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+  const authResult = await validateAuth(req);
+  if (authResult.error || !authResult.user) {
+    return new Response(JSON.stringify({ error: authResult.error }), {
+      status: authResult.status,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
+    });
+  }
+
+  const user = authResult.user;
+
+  // ─── Rate limiting ────────────────────────────────────────────────────
+  const rateLimitResult = checkRateLimit(user.id);
+  const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
+
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
     });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    global: { headers: { Authorization: authHeader } },
-  });
-
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid authentication' }), {
-      status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-    });
-  }
 
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -115,7 +94,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
     });
   }
 
@@ -130,7 +109,7 @@ Deno.serve(async (req: Request) => {
         const { exam_id } = body;
         if (!exam_id) {
           return new Response(JSON.stringify({ error: 'exam_id required' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -143,13 +122,13 @@ Deno.serve(async (req: Request) => {
 
         if (examError || !exam) {
           return new Response(JSON.stringify({ error: 'Exam not found' }), {
-            status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
         if (exam.status !== 'published' && exam.status !== 'active') {
           return new Response(JSON.stringify({ error: 'Exam not available' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -179,7 +158,7 @@ Deno.serve(async (req: Request) => {
             expires_at: expiresAt,
             remaining_seconds: remaining,
             server_time: new Date().toISOString(),
-          }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }), { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
         }
 
         // Create new attempt with server-authoritative start time
@@ -205,7 +184,7 @@ Deno.serve(async (req: Request) => {
         if (createError) {
           console.error('Failed to create attempt:', createError);
           return new Response(JSON.stringify({ error: 'Failed to start attempt' }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -230,7 +209,7 @@ Deno.serve(async (req: Request) => {
           expires_at: expiresAt,
           remaining_seconds: exam.time_limit_minutes * 60,
           server_time: serverNow,
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }), { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
       }
 
       // ═══════════════════════════════════════════════════════════════════
@@ -240,7 +219,7 @@ Deno.serve(async (req: Request) => {
         const { attempt_id } = body;
         if (!attempt_id) {
           return new Response(JSON.stringify({ error: 'attempt_id required' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -252,14 +231,14 @@ Deno.serve(async (req: Request) => {
 
         if (!attempt) {
           return new Response(JSON.stringify({ error: 'Attempt not found' }), {
-            status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
         // Verify the user owns this attempt
         if (attempt.student_id !== user.id) {
           return new Response(JSON.stringify({ error: 'Not your attempt' }), {
-            status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -287,7 +266,7 @@ Deno.serve(async (req: Request) => {
           expires_at: attempt.server_expires_at,
           server_time: new Date().toISOString(),
           attempt_status: remaining <= 0 ? 'auto_submitted' : attempt.status,
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }), { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
       }
 
       // ═══════════════════════════════════════════════════════════════════
@@ -297,7 +276,7 @@ Deno.serve(async (req: Request) => {
         const { attempt_id, submission_type } = body;
         if (!attempt_id) {
           return new Response(JSON.stringify({ error: 'attempt_id required' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -309,14 +288,14 @@ Deno.serve(async (req: Request) => {
 
         if (!attempt) {
           return new Response(JSON.stringify({ error: 'Attempt not found' }), {
-            status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
         // Verify ownership
         if (attempt.student_id !== user.id) {
           return new Response(JSON.stringify({ error: 'Not your attempt' }), {
-            status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -325,7 +304,7 @@ Deno.serve(async (req: Request) => {
           return new Response(JSON.stringify({
             error: 'Attempt already submitted',
             status: attempt.status,
-          }), { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+          }), { status: 409, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
         }
 
         const remaining = calculateRemainingSeconds(
@@ -352,7 +331,7 @@ Deno.serve(async (req: Request) => {
         if (updateError) {
           console.error('Failed to update attempt:', updateError);
           return new Response(JSON.stringify({ error: 'Failed to submit' }), {
-            status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 500, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -376,7 +355,7 @@ Deno.serve(async (req: Request) => {
           remaining_seconds: remaining,
           submission_type: effectiveSubmissionType,
           server_time: new Date().toISOString(),
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }), { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
       }
 
       // ═══════════════════════════════════════════════════════════════════
@@ -386,7 +365,7 @@ Deno.serve(async (req: Request) => {
         const { attempt_id } = body;
         if (!attempt_id) {
           return new Response(JSON.stringify({ error: 'attempt_id required' }), {
-            status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -398,13 +377,13 @@ Deno.serve(async (req: Request) => {
 
         if (!attempt) {
           return new Response(JSON.stringify({ error: 'Attempt not found' }), {
-            status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 404, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
         if (attempt.student_id !== user.id) {
           return new Response(JSON.stringify({ error: 'Not your attempt' }), {
-            status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 403, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }),
           });
         }
 
@@ -425,20 +404,20 @@ Deno.serve(async (req: Request) => {
           server_time: new Date().toISOString(),
           // Tell the client whether to resume or show results
           action: remaining > 0 && attempt.status === 'in_progress' ? 'resume' : 'results',
-        }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+        }), { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
       }
 
       default:
         return new Response(
           JSON.stringify({ error: `Unknown operation: ${operation}` }),
-          { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+          { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
         );
     }
   } catch (err) {
     console.error(`Exam timing error: ${err}`);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
-      { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } },
+      { status: 500, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) },
     );
   }
 });

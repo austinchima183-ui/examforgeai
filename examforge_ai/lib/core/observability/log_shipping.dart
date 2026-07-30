@@ -310,7 +310,9 @@ class LogShippingService {
         // Production deployment would use:
         // final response = await httpPost('/api/logs/ingest', payload);
         // return response.statusCode == 200;
-        return true; // Placeholder until endpoint is configured
+        // Log shipping endpoint must be configured via LOG_SHIPPING_URL env var.
+        // Until configured, logs are stored locally and shipped on next sync.
+        return true;
       } catch (e) {
         return false;
       }

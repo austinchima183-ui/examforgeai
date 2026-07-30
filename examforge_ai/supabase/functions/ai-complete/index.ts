@@ -21,74 +21,9 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration (Hardened) ────────────────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return [
-        'https://examforge.ai',
-        'https://www.examforge.ai',
-        'https://app.examforge.ai',
-        'https://admin.examforge.ai',
-      ];
-    case 'staging':
-      return [
-        'https://staging.examforge.ai',
-        'https://staging-app.examforge.ai',
-      ];
-    default:
-      return [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5173',
-      ];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
-
-// ─── Rate Limiter (in-memory, per-isolate) ───────────────────────────────
-// Tracks request counts per user. Since Edge Functions are short-lived,
-// this provides basic burst protection. For production-grade rate limiting,
-// use a Redis-backed or DB-backed rate limiter.
-const rateLimitMap = new Map<string, { count: number; windowStart: number }>();
-const RATE_LIMIT_MAX = 20; // Max requests per window
-const RATE_LIMIT_WINDOW_MS = 60_000; // 1 minute window
-
-function checkRateLimit(userId: string): { allowed: boolean; remaining: number; resetAt: number } {
-  const now = Date.now();
-  const entry = rateLimitMap.get(userId);
-
-  if (!entry || now - entry.windowStart > RATE_LIMIT_WINDOW_MS) {
-    // New window
-    rateLimitMap.set(userId, { count: 1, windowStart: now });
-    return { allowed: true, remaining: RATE_LIMIT_MAX - 1, resetAt: now + RATE_LIMIT_WINDOW_MS };
-  }
-
-  if (entry.count >= RATE_LIMIT_MAX) {
-    return { allowed: false, remaining: 0, resetAt: entry.windowStart + RATE_LIMIT_WINDOW_MS };
-  }
-
-  entry.count++;
-  return {
-    allowed: true,
-    remaining: RATE_LIMIT_MAX - entry.count,
-    resetAt: entry.windowStart + RATE_LIMIT_WINDOW_MS,
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
 
 // ─── Allowed models per provider ─────────────────────────────────────────
 const ALLOWED_MODELS: Record<string, string[]> = {
@@ -211,13 +146,13 @@ Deno.serve(async (req: Request) => {
 
   // ─── CORS preflight ──────────────────────────────────────────────────
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: combineHeaders(corsHeaders) });
   }
 
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
@@ -226,7 +161,7 @@ Deno.serve(async (req: Request) => {
   if (!authHeader) {
     return new Response(JSON.stringify({ error: 'Unauthorized — missing auth token' }), {
       status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
@@ -243,12 +178,14 @@ Deno.serve(async (req: Request) => {
   if (authError || !user) {
     return new Response(JSON.stringify({ error: 'Invalid authentication token' }), {
       status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
   // ─── Step 2: Rate limit check ────────────────────────────────────────
   const rateLimit = checkRateLimit(user.id);
+  const rateLimitHeaders = getRateLimitHeaders(rateLimit);
+
   if (!rateLimit.allowed) {
     return new Response(
       JSON.stringify({
@@ -257,14 +194,11 @@ Deno.serve(async (req: Request) => {
       }),
       {
         status: 429,
-        headers: {
-          ...corsHeaders,
+        headers: combineHeaders(corsHeaders, {
           'Content-Type': 'application/json',
           'Retry-After': Math.ceil((rateLimit.resetAt - Date.now()) / 1000).toString(),
-          'X-RateLimit-Limit': RATE_LIMIT_MAX.toString(),
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': rateLimit.resetAt.toString(),
-        },
+          ...rateLimitHeaders,
+        }),
       }
     );
   }
@@ -276,7 +210,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON body' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
@@ -286,7 +220,7 @@ Deno.serve(async (req: Request) => {
   if (!provider || !prompt) {
     return new Response(
       JSON.stringify({ error: 'Missing required fields: provider, prompt' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 
@@ -295,7 +229,7 @@ Deno.serve(async (req: Request) => {
   if (!['openai', 'gemini'].includes(normalizedProvider)) {
     return new Response(
       JSON.stringify({ error: 'Invalid provider. Must be "openai" or "gemini"' }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 
@@ -308,7 +242,7 @@ Deno.serve(async (req: Request) => {
     console.error(`${normalizedProvider.toUpperCase()}_API_KEY not configured`);
     return new Response(JSON.stringify({ error: 'AI provider not configured' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
     });
   }
 
@@ -321,7 +255,7 @@ Deno.serve(async (req: Request) => {
         error: `Model "${resolvedModel}" is not allowed for provider "${normalizedProvider}"`,
         allowedModels,
       }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 
@@ -329,7 +263,7 @@ Deno.serve(async (req: Request) => {
   if (prompt.length > MAX_PROMPT_LENGTH) {
     return new Response(
       JSON.stringify({ error: `Prompt exceeds maximum length of ${MAX_PROMPT_LENGTH} characters` }),
-      { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 
@@ -365,6 +299,20 @@ Deno.serve(async (req: Request) => {
       if (error) console.error('Failed to log AI request:', error);
     });
 
+    // ─── Audit log (success) ───────────────────────────────────────────
+    console.info(JSON.stringify({
+      audit: true,
+      event: 'ai_request_success',
+      user_id: user.id,
+      provider: normalizedProvider,
+      model: resolvedModel,
+      prompt_length: prompt.length,
+      max_tokens: resolvedMaxTokens,
+      temperature: resolvedTemperature,
+      usage: result.usage,
+      timestamp: new Date().toISOString(),
+    }));
+
     // ─── Step 6: Return result ─────────────────────────────────────────
     return new Response(
       JSON.stringify({
@@ -374,7 +322,7 @@ Deno.serve(async (req: Request) => {
         usage: result.usage,
         remaining: rateLimit.remaining,
       }),
-      { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) }
     );
   } catch (err) {
     const errorMessage = err instanceof Error ? err.message : String(err);
@@ -382,13 +330,26 @@ Deno.serve(async (req: Request) => {
 
     console.error(`AI completion error (${normalizedProvider}/${resolvedModel}):`, errorMessage);
 
+    // ─── Audit log (failure) ───────────────────────────────────────────
+    console.error(JSON.stringify({
+      audit: true,
+      event: 'ai_request_failure',
+      user_id: user.id,
+      provider: normalizedProvider,
+      model: resolvedModel,
+      prompt_length: prompt.length,
+      error: errorMessage,
+      is_timeout: isTimeout,
+      timestamp: new Date().toISOString(),
+    }));
+
     return new Response(
       JSON.stringify({
         error: isTimeout
           ? 'AI provider request timed out. Please retry.'
           : `AI provider error: ${errorMessage}`,
       }),
-      { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      { status: 502, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) }
     );
   }
 });

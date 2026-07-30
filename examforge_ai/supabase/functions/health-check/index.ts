@@ -6,41 +6,9 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return ['https://examforge.ai', 'https://www.examforge.ai', 'https://app.examforge.ai', 'https://admin.examforge.ai'];
-    case 'staging':
-      return ['https://staging.examforge.ai', 'https://staging-app.examforge.ai'];
-    default:
-      return ['http://localhost:3000', 'http://localhost:5173'];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'GET, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
-
-function getSecurityHeaders(): Record<string, string> {
-  return {
-    'Strict-Transport-Security': 'max-age=63072000; includeSubDomains; preload',
-    'X-Content-Type-Options': 'nosniff',
-    'X-Frame-Options': 'DENY',
-    'X-XSS-Protection': '1; mode=block',
-    'Referrer-Policy': 'no-referrer',
-    'Cache-Control': 'no-store, no-cache, must-revalidate',
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
 
 interface HealthCheckResult {
   service: string;
@@ -150,10 +118,8 @@ async function evaluateAlerts(supabase: any, healthResults: HealthCheckResult[])
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
-  const securityHeaders = getSecurityHeaders();
-  const allHeaders = { ...corsHeaders, ...securityHeaders };
 
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: allHeaders });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: combineHeaders(corsHeaders) });
 
   // ─── Authentication ──────────────────────────────────────────────
   // Health check requires authentication to prevent abuse.
@@ -178,6 +144,23 @@ Deno.serve(async (req: Request) => {
   }
 
   if (!isServiceRequest && !isAuthenticatedUser) {
+    // ─── Rate limiting for unauthenticated requests ──────────────
+    const clientIp = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
+      || req.headers.get('x-real-ip')
+      || 'unknown';
+    const rateLimitResult = checkRateLimit(`health:${clientIp}`, 60, 60000);
+
+    if (!rateLimitResult.allowed) {
+      return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+        status: 429,
+        headers: combineHeaders(corsHeaders, {
+          'Content-Type': 'application/json',
+          'Retry-After': Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000).toString(),
+          ...getRateLimitHeaders(rateLimitResult),
+        }),
+      });
+    }
+
     // For unauthenticated requests, return a read-only health status
     // without writing to the database
     const supabase = createClient(supabaseUrl, supabaseAnonKey);
@@ -195,7 +178,7 @@ Deno.serve(async (req: Request) => {
       services: { database: { status: dbResponseTime < 1000 ? 'healthy' : 'degraded', responseTimeMs: dbResponseTime } },
     }), {
       status: 200,
-      headers: { ...allHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...getRateLimitHeaders(rateLimitResult) }),
     });
   }
 
@@ -227,6 +210,6 @@ Deno.serve(async (req: Request) => {
 
   return new Response(JSON.stringify(response), {
     status: anyDown ? 503 : 200,
-    headers: { ...allHeaders, 'Content-Type': 'application/json' },
+    headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
   });
 });

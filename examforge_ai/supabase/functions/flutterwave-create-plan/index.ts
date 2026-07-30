@@ -6,92 +6,72 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return ['https://examforge.ai', 'https://www.examforge.ai', 'https://app.examforge.ai', 'https://admin.examforge.ai'];
-    case 'staging':
-      return ['https://staging.examforge.ai', 'https://staging-app.examforge.ai'];
-    default:
-      return ['http://localhost:3000', 'http://localhost:5173', 'http://127.0.0.1:3000', 'http://127.0.0.1:5173'];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGINS.includes(origin) ? origin : ALLOWED_ORIGINS[0];
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
+import { validateAuth, hasRole, isSuperAdmin, isAdmin } from '../_shared/auth.ts';
 
 Deno.serve(async (req: Request) => {
   const corsHeaders = getCorsHeaders(req);
 
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: combineHeaders(corsHeaders, getSecurityHeaders()) });
   if (req.method !== 'POST') {
-    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Method not allowed' }), { status: 405, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) });
   }
 
   // Authenticate
-  const authHeader = req.headers.get('Authorization');
-  if (!authHeader) {
-    return new Response(JSON.stringify({ error: 'Unauthorized — missing auth token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+  const authResult = await validateAuth(req);
+  if (authResult.error || !authResult.user) {
+    return new Response(JSON.stringify({ error: authResult.error }), { status: authResult.status, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }) });
+  }
+  const user = authResult.user;
+
+  // Rate limiting
+  const rateLimitResult = checkRateLimit(user.id);
+  const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), { status: 429, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
+  }
+
+  // Authorize: only super_admin or school_admin can create plans
+  if (!isAdmin(authResult)) {
+    return new Response(JSON.stringify({ error: 'Forbidden — insufficient permissions' }), { status: 403, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   }
 
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-  const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
   const flutterwaveSecretKey = Deno.env.get('FLUTTERWAVE_SECRET_KEY');
 
   if (!flutterwaveSecretKey) {
     console.error('FLUTTERWAVE_SECRET_KEY not configured');
-    return new Response(JSON.stringify({ error: 'Server misconfigured' }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Server misconfigured' }), { status: 500, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   }
 
-  const userClient = createClient(supabaseUrl, supabaseAnonKey, { global: { headers: { Authorization: authHeader } } });
   const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-  const { data: { user }, error: authError } = await userClient.auth.getUser();
-  if (authError || !user) {
-    return new Response(JSON.stringify({ error: 'Invalid authentication token' }), { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
-
-  // Authorize: only super_admin or school_admin can create plans
-  const { data: userProfile } = await userClient.from('users').select('role').eq('id', user.id).maybeSingle();
-  if (!userProfile || !['super_admin', 'school_admin'].includes(userProfile.role)) {
-    return new Response(JSON.stringify({ error: 'Forbidden — insufficient permissions' }), { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
-  }
 
   // Parse and validate request
   let body: Record<string, any>;
-  try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }); }
+  try { body = await req.json(); } catch { return new Response(JSON.stringify({ error: 'Invalid JSON body' }), { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) }); }
 
   const { name, amount, currency, interval } = body;
   if (!name || !amount || !currency || !interval) {
-    return new Response(JSON.stringify({ error: 'Missing required fields: name, amount, currency, interval' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Missing required fields: name, amount, currency, interval' }), { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   }
 
   const parsedAmount = parseFloat(amount);
   if (isNaN(parsedAmount) || parsedAmount <= 0) {
-    return new Response(JSON.stringify({ error: 'Amount must be a positive number' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: 'Amount must be a positive number' }), { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   }
 
   const validIntervals = ['daily', 'weekly', 'monthly', 'quarterly', 'biannually', 'annually'];
   if (!validIntervals.includes(interval.toLowerCase())) {
-    return new Response(JSON.stringify({ error: `Invalid interval. Must be one of: ${validIntervals.join(', ')}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: `Invalid interval. Must be one of: ${validIntervals.join(', ')}` }), { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   }
 
   const supportedCurrencies = ['NGN', 'USD', 'GBP', 'EUR', 'KES', 'GHS', 'ZAR'];
   const normalizedCurrency = currency.toUpperCase();
   if (!supportedCurrencies.includes(normalizedCurrency)) {
-    return new Response(JSON.stringify({ error: `Unsupported currency: ${currency}` }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: `Unsupported currency: ${currency}` }), { status: 400, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   }
 
   // Call Flutterwave API
@@ -110,7 +90,7 @@ Deno.serve(async (req: Request) => {
     clearTimeout(timeoutId);
 
     if (flwData.status !== 'success') {
-      return new Response(JSON.stringify({ error: 'Failed to create payment plan', details: flwData.message || 'Unknown error' }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+      return new Response(JSON.stringify({ error: 'Failed to create payment plan', details: flwData.message || 'Unknown error' }), { status: 502, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
     }
 
     // Audit log
@@ -128,10 +108,10 @@ Deno.serve(async (req: Request) => {
       currency: flwData.data?.currency,
       interval: flwData.data?.interval,
       planCode: flwData.data?.plan_code,
-    }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    }), { status: 200, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   } catch (err) {
     clearTimeout(timeoutId);
     const isTimeout = err instanceof DOMException && err.name === 'AbortError';
-    return new Response(JSON.stringify({ error: isTimeout ? 'Plan creation timed out' : 'Plan creation failed' }), { status: 502, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
+    return new Response(JSON.stringify({ error: isTimeout ? 'Plan creation timed out' : 'Plan creation failed' }), { status: 502, headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json', ...rateLimitHeaders }) });
   }
 });

@@ -27,45 +27,9 @@
 // ============================================================================
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
-
-// ─── CORS Configuration (Hardened — see Phase 6) ────────────────────────────
-const ALLOWED_ORIGINS = (() => {
-  const env = Deno.env.get('ENVIRONMENT') || 'development';
-  switch (env) {
-    case 'production':
-      return [
-        'https://examforge.ai',
-        'https://www.examforge.ai',
-        'https://app.examforge.ai',
-        'https://admin.examforge.ai',
-      ];
-    case 'staging':
-      return [
-        'https://staging.examforge.ai',
-        'https://staging-app.examforge.ai',
-      ];
-    default: // development
-      return [
-        'http://localhost:3000',
-        'http://localhost:5173',
-        'http://127.0.0.1:3000',
-        'http://127.0.0.1:5173',
-      ];
-  }
-})();
-
-function getCorsHeaders(req: Request): Record<string, string> {
-  const origin = req.headers.get('Origin') || '';
-  const allowedOrigin = ALLOWED_ORIGNS.includes(origin) ? origin : ALLOWED_ORIGNS[0];
-
-  return {
-    'Access-Control-Allow-Origin': allowedOrigin,
-    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-    'Access-Control-Allow-Methods': 'POST, OPTIONS',
-    'Access-Control-Max-Age': '86400',
-    'Vary': 'Origin',
-  };
-}
+import { getCorsHeaders } from '../_shared/cors.ts';
+import { getSecurityHeaders, combineHeaders } from '../_shared/security_headers.ts';
+import { checkRateLimit, getRateLimitHeaders } from '../_shared/rate_limiter.ts';
 
 // ─── Constant-time string comparison (FIXED) ─────────────────────────────────
 //
@@ -108,14 +72,29 @@ Deno.serve(async (req: Request) => {
 
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders });
+    return new Response('ok', { headers: combineHeaders(corsHeaders, getSecurityHeaders()) });
   }
 
   // Only accept POST requests
   if (req.method !== 'POST') {
     return new Response(JSON.stringify({ error: 'Method not allowed' }), {
       status: 405,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { 'Content-Type': 'application/json' }),
+    });
+  }
+
+  // ─── Rate limiting (based on client IP — webhooks come from Flutterwave) ──
+  const reqHeaders: Record<string, string> = {};
+  req.headers.forEach((value, key) => { reqHeaders[key] = value; });
+  const clientIp = reqHeaders['x-forwarded-for'] || reqHeaders['x-real-ip'] || 'unknown';
+
+  const rateLimitResult = checkRateLimit(`webhook:${clientIp}`, 100, 60000);
+  const rateLimitHeaders = getRateLimitHeaders(rateLimitResult);
+
+  if (!rateLimitResult.allowed) {
+    return new Response(JSON.stringify({ error: 'Rate limit exceeded' }), {
+      status: 429,
+      headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
     });
   }
 
@@ -124,20 +103,17 @@ Deno.serve(async (req: Request) => {
     console.error('FLUTTERWAVE_WEBHOOK_SECRET_HASH not configured');
     return new Response(JSON.stringify({ error: 'Server misconfigured' }), {
       status: 500,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
     });
   }
 
   // ─── Step 1: Verify signature ──────────────────────────────────────────
-  const headers: Record<string, string> = {};
-  req.headers.forEach((value, key) => { headers[key] = value; });
-
   const body = await req.text();
-  if (!verifyWebhookSignature(headers, webhookSecret)) {
+  if (!verifyWebhookSignature(reqHeaders, webhookSecret)) {
     console.error('Webhook signature verification FAILED');
     return new Response(JSON.stringify({ error: 'Invalid signature' }), {
       status: 401,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
     });
   }
 
@@ -148,7 +124,7 @@ Deno.serve(async (req: Request) => {
   } catch {
     return new Response(JSON.stringify({ error: 'Invalid JSON' }), {
       status: 400,
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
     });
   }
 
@@ -157,10 +133,15 @@ Deno.serve(async (req: Request) => {
   const flwId = data.id?.toString() || '';
   const idempotencyKey = `${event}_${flwId}`;
 
-  // ─── Step 3: Initialize Supabase client ────────────────────────────────
+  // ─── Step 3: Initialize Supabase client with 30s timeout ───────────────
+  const abortController = new AbortController();
+  const timeoutId = setTimeout(() => abortController.abort(), 30_000);
+
   const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
   const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-  const supabase = createClient(supabaseUrl, supabaseServiceKey);
+  const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+    global: { headers: { 'X-Client-Timeout': '30000' } },
+  });
 
   // ─── Step 4: Idempotency check ─────────────────────────────────────────
   const { data: existingEvent } = await supabase
@@ -172,22 +153,23 @@ Deno.serve(async (req: Request) => {
   if (existingEvent) {
     if (existingEvent.processing_status === 'processed') {
       console.log(`Webhook already processed: ${idempotencyKey}`);
+      clearTimeout(timeoutId);
       return new Response(JSON.stringify({ status: 'already_processed' }), {
         status: 200,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
       });
     }
     if (existingEvent.processing_status === 'processing') {
       console.log(`Webhook currently being processed: ${idempotencyKey}`);
+      clearTimeout(timeoutId);
       return new Response(JSON.stringify({ status: 'processing' }), {
         status: 202,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
       });
     }
   }
 
   // ─── Step 5: Log webhook event ─────────────────────────────────────────
-  const clientIp = headers['x-forwarded-for'] || headers['x-real-ip'] || 'unknown';
   await supabase.from('webhook_events').upsert({
     event_type: event,
     flutterwave_event_id: flwId,
@@ -348,8 +330,15 @@ Deno.serve(async (req: Request) => {
         console.log(`Unhandled webhook event: ${event}`);
     }
   } catch (err) {
-    processingError = err instanceof Error ? err.message : String(err);
-    console.error(`Webhook processing error: ${processingError}`);
+    if (err instanceof DOMException && err.name === 'AbortError') {
+      processingError = 'Request timed out after 30 seconds';
+      console.error(`Webhook processing timeout: ${processingError}`);
+    } else {
+      processingError = err instanceof Error ? err.message : String(err);
+      console.error(`Webhook processing error: ${processingError}`);
+    }
+  } finally {
+    clearTimeout(timeoutId);
   }
 
   // ─── Step 7: Update webhook event status ───────────────────────────────
@@ -369,6 +358,6 @@ Deno.serve(async (req: Request) => {
     error: processingError,
   }), {
     status: 200,
-    headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+    headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
   });
 });
