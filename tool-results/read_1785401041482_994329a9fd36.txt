@@ -1,0 +1,764 @@
+     1→// ============================================================================
+     2→// ExamForge AI — Admin Security Service
+     3→// ============================================================================
+     4→// Provides security controls for administrative access:
+     5→//   1. Restricted administrator access (role-based + route-based)
+     6→//   2. Least-privilege role enforcement
+     7→//   3. Session expiration and timeout
+     8→//   4. MFA-ready architecture (interface for future TOTP/SMS)
+     9→//   5. Audit logging for all admin actions
+    10→//   6. Failed login monitoring and rate limiting
+    11→//   7. IP allowlist validation (configurable per environment)
+    12→//
+    13→// SECURITY MODEL:
+    14→//   - Default-deny: Admin access is restricted unless explicitly granted
+    15→//   - Defense in depth: Client-side guards + server-side RLS must both pass
+    16→//   - Audit trail: Every admin action is logged with who/what/when/where
+    17→//   - Session timeout: Admin sessions expire after configurable period
+    18→//   - MFA-ready: Interface exists for future multi-factor authentication
+    19→// ============================================================================
+    20→
+    21→import 'dart:math';
+    22→import 'dart:typed_data';
+    23→
+    24→import 'package:crypto/crypto.dart';
+    25→import 'package:flutter_riverpod/flutter_riverpod.dart';
+    26→import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+    27→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+    28→
+    29→import '../../core/utils/logger.dart';
+    30→
+    31→// ═══════════════════════════════════════════════════════════════════════
+    32→// CONSTANTS
+    33→// ═══════════════════════════════════════════════════════════════════════
+    34→
+    35→/// Admin session timeout duration (30 minutes of inactivity).
+    36→const Duration kAdminSessionTimeout = Duration(minutes: 30);
+    37→
+    38→/// Maximum failed login attempts before lockout.
+    39→const int kMaxFailedLoginAttempts = 5;
+    40→
+    41→/// Lockout duration after exceeding max failed attempts.
+    42→const Duration kLockoutDuration = Duration(minutes: 15);
+    43→
+    44→/// Maximum admin actions per minute (rate limiting).
+    45→const int kMaxAdminActionsPerMinute = 60;
+    46→
+    47→// ═══════════════════════════════════════════════════════════════════════
+    48→// ADMIN ROLES (Least-Privilege)
+    49→// ═══════════════════════════════════════════════════════════════════════
+    50→
+    51→/// Fine-grained admin permission levels beyond the basic UserRole.
+    52→/// These provide least-privilege access within the admin portal.
+    53→enum AdminPermission {
+    54→  viewDashboard('admin.dashboard.view'),
+    55→  manageUsers('admin.users.manage'),
+    56→  viewUsers('admin.users.view'),
+    57→  manageSchools('admin.schools.manage'),
+    58→  viewBilling('admin.billing.view'),
+    59→  manageBilling('admin.billing.manage'),
+    60→  viewSecurity('admin.security.view'),
+    61→  manageSecurity('admin.security.manage'),
+    62→  viewAI('admin.ai.view'),
+    63→  manageAI('admin.ai.manage'),
+    64→  viewInfrastructure('admin.infrastructure.view'),
+    65→  manageSettings('admin.settings.manage'),
+    66→  viewAuditLog('admin.audit.view'),
+    67→  marketplaceModerate('admin.marketplace.moderate'),
+    68→  ;
+    69→
+    70→  final String value;
+    71→  const AdminPermission(this.value);
+    72→}
+    73→
+    74→/// Maps roles to their allowed admin permissions (least-privilege).
+    75→const Map<String, Set<AdminPermission>> _rolePermissions = {
+    76→  'super-admin': {
+    77→    AdminPermission.viewDashboard,
+    78→    AdminPermission.manageUsers,
+    79→    AdminPermission.viewUsers,
+    80→    AdminPermission.manageSchools,
+    81→    AdminPermission.viewBilling,
+    82→    AdminPermission.manageBilling,
+    83→    AdminPermission.viewSecurity,
+    84→    AdminPermission.manageSecurity,
+    85→    AdminPermission.viewAI,
+    86→    AdminPermission.manageAI,
+    87→    AdminPermission.viewInfrastructure,
+    88→    AdminPermission.manageSettings,
+    89→    AdminPermission.viewAuditLog,
+    90→    AdminPermission.marketplaceModerate,
+    91→  },
+    92→  'school-admin': {
+    93→    AdminPermission.viewDashboard,
+    94→    AdminPermission.viewUsers,
+    95→    AdminPermission.manageSchools,
+    96→    AdminPermission.viewBilling,
+    97→    AdminPermission.viewAI,
+    98→  },
+    99→};
+   100→
+   101→// ═══════════════════════════════════════════════════════════════════════
+   102→// MFA INTERFACE (Ready for future implementation)
+   103→// ═══════════════════════════════════════════════════════════════════════
+   104→
+   105→/// Interface for MFA providers.
+   106→/// Implement this interface to add TOTP, SMS, or hardware key support.
+   107→abstract class MFAProvider {
+   108→  /// Returns whether MFA is enabled for the given user.
+   109→  Future<bool> isMFAEnabled(String userId);
+   110→
+   111→  /// Initiates MFA enrollment for the given user.
+   112→  /// Returns enrollment data (e.g., QR code URL for TOTP).
+   113→  Future<MFAEnrollmentData> enroll(String userId);
+   114→
+   115→  /// Verifies an MFA challenge code.
+   116→  /// Returns true if the code is valid.
+   117→  Future<bool> verify(String userId, String code);
+   118→
+   119→  /// Removes MFA enrollment for the given user.
+   120→  Future<void> removeEnrollment(String userId);
+   121→}
+   122→
+   123→/// Data returned during MFA enrollment.
+   124→class MFAEnrollmentData {
+   125→  final String secret;
+   126→  final String qrCodeUrl;
+   127→  final String type; // 'totp', 'sms', etc.
+   128→
+   129→  const MFAEnrollmentData({
+   130→    required this.secret,
+   131→    required this.qrCodeUrl,
+   132→    required this.type,
+   133→  });
+   134→}
+   135→
+   136→/// TOTP-based MFA provider that uses the `mfa_configurations` Supabase table
+   137→/// to persist per-user secrets and enrollment status.
+   138→///
+   139→/// Implements RFC 6238 (TOTP) with HMAC-SHA1, 30-second time steps, and
+   140→/// 6-digit codes — compatible with Google Authenticator, Authy, etc.
+   141→class TOTPMFAProvider implements MFAProvider {
+   142→  TOTPMFAProvider({required sb.SupabaseClient supabaseClient})
+   143→      : _supabaseClient = supabaseClient;
+   144→
+   145→  final sb.SupabaseClient _supabaseClient;
+   146→
+   147→  /// Supabase table name for MFA configurations.
+   148→  static const _table = 'mfa_configurations';
+   149→
+   150→  /// TOTP time-step in seconds (30 s per RFC 6238).
+   151→  static const _timeStepSeconds = 30;
+   152→
+   153→  /// Number of digits in the TOTP code.
+   154→  static const _codeDigits = 6;
+   155→
+   156→  /// Window of time-steps to accept (±1 step = 90 s total tolerance).
+   157→  static const _window = 1;
+   158→
+   159→  // ─── isMFAEnabled ─────────────────────────────────────────────────────
+   160→
+   161→  @override
+   162→  Future<bool> isMFAEnabled(String userId) async {
+   163→    try {
+   164→      final response = await _supabaseClient
+   165→          .from(_table)
+   166→          .select('is_enabled')
+   167→          .eq('user_id', userId)
+   168→          .maybeSingle();
+   169→
+   170→      if (response == null) return false;
+   171→      return response['is_enabled'] as bool? ?? false;
+   172→    } catch (e) {
+   173→      AppLogger.error('TOTPMFAProvider: Failed to check MFA status', error: e);
+   174→      return false;
+   175→    }
+   176→  }
+   177→
+   178→  // ─── enroll ──────────────────────────────────────────────────────────
+   179→
+   180→  @override
+   181→  Future<MFAEnrollmentData> enroll(String userId) async {
+   182→    try {
+   183→      // Generate a cryptographically random Base32 secret (20 bytes → 32 chars).
+   184→      final secret = _generateBase32Secret();
+   185→
+   186→      // Build the otpauth:// URI for QR-code scanning.
+   187→      const issuer = 'ExamForgeAI';
+   188→      final qrCodeUrl =
+   189→          'otpauth://totp/$issuer:$userId?secret=$secret&issuer=$issuer&algorithm=SHA1&digits=$_codeDigits&period=$_timeStepSeconds';
+   190→
+   191→      // Upsert the MFA configuration row.
+   192→      await _supabaseClient.from(_table).upsert(
+   193→        {
+   194→          'user_id': userId,
+   195→          'secret': secret,
+   196→          'type': 'totp',
+   197→          'is_enabled': true,
+   198→          'enrolled_at': DateTime.now().toUtc().toIso8601String(),
+   199→          'updated_at': DateTime.now().toUtc().toIso8601String(),
+   200→        },
+   201→        onConflict: 'user_id',
+   202→      );
+   203→
+   204→      AppLogger.info('TOTPMFAProvider: MFA enrolled for user $userId');
+   205→      return MFAEnrollmentData(
+   206→        secret: secret,
+   207→        qrCodeUrl: qrCodeUrl,
+   208→        type: 'totp',
+   209→      );
+   210→    } catch (e) {
+   211→      AppLogger.error('TOTPMFAProvider: Failed to enroll MFA', error: e);
+   212→      rethrow;
+   213→    }
+   214→  }
+   215→
+   216→  // ─── verify ──────────────────────────────────────────────────────────
+   217→
+   218→  @override
+   219→  Future<bool> verify(String userId, String code) async {
+   220→    try {
+   221→      final response = await _supabaseClient
+   222→          .from(_table)
+   223→          .select('secret, is_enabled')
+   224→          .eq('user_id', userId)
+   225→          .maybeSingle();
+   226→
+   227→      if (response == null) return false;
+   228→      if ((response['is_enabled'] as bool?) != true) return false;
+   229→
+   230→      final secret = response['secret'] as String;
+   231→      final expectedCodes = _generateTOTPCodes(secret);
+   232→      return expectedCodes.contains(code);
+   233→    } catch (e) {
+   234→      AppLogger.error('TOTPMFAProvider: Failed to verify MFA code', error: e);
+   235→      return false;
+   236→    }
+   237→  }
+   238→
+   239→  // ─── removeEnrollment ────────────────────────────────────────────────
+   240→
+   241→  @override
+   242→  Future<void> removeEnrollment(String userId) async {
+   243→    try {
+   244→      await _supabaseClient
+   245→          .from(_table)
+   246→          .delete()
+   247→          .eq('user_id', userId);
+   248→
+   249→      AppLogger.info('TOTPMFAProvider: MFA removed for user $userId');
+   250→    } catch (e) {
+   251→      AppLogger.error('TOTPMFAProvider: Failed to remove MFA', error: e);
+   252→      rethrow;
+   253→    }
+   254→  }
+   255→
+   256→  // ═════════════════════════════════════════════════════════════════════
+   257→  // TOTP ALGORITHM (RFC 6238 with HMAC-SHA1)
+   258→  // ═════════════════════════════════════════════════════════════════════
+   259→
+   260→  /// Generates valid TOTP codes for the current time step plus the
+   261→  /// configured [_window] on each side (typically 3 codes).
+   262→  List<String> _generateTOTPCodes(String base32Secret) {
+   263→    final currentTimeStep = _getCurrentTimeStep();
+   264→    final codes = <String>[];
+   265→
+   266→    for (int offset = -_window; offset <= _window; offset++) {
+   267→      final step = currentTimeStep + offset;
+   268→      codes.add(_generateTOTPAtStep(base32Secret, step));
+   269→    }
+   270→
+   271→    return codes;
+   272→  }
+   273→
+   274→  /// Generates a single TOTP code for the given time-step counter.
+   275→  String _generateTOTPAtStep(String base32Secret, int timeStep) {
+   276→    final secretBytes = _decodeBase32(base32Secret);
+   277→    final stepBytes = _intToBytes(timeStep);
+   278→
+   279→    // HMAC-SHA1
+   280→    final hmac = Hmac(sha1, secretBytes);
+   281→    final hash = hmac.convert(stepBytes).bytes;
+   282→
+   283→    // Dynamic truncation (RFC 4226 §5.3)
+   284→    final offset = hash[hash.length - 1] & 0x0f;
+   285→    final binary = ((hash[offset] & 0x7f) << 24) |
+   286→        ((hash[offset + 1] & 0xff) << 16) |
+   287→        ((hash[offset + 2] & 0xff) << 8) |
+   288→        (hash[offset + 3] & 0xff);
+   289→
+   290→    final otp = binary % 1000000; // 6 digits
+   291→    return otp.toString().padLeft(_codeDigits, '0');
+   292→  }
+   293→
+   294→  /// Returns the current TOTP time-step counter.
+   295→  int _getCurrentTimeStep() {
+   296→    return DateTime.now().toUtc().millisecondsSinceEpoch ~/
+   297→        (_timeStepSeconds * 1000);
+   298→  }
+   299→
+   300→  // ═════════════════════════════════════════════════════════════════════
+   301→  // BASE32 ENCODING / DECODING (RFC 4648)
+   302→  // ═════════════════════════════════════════════════════════════════════
+   303→
+   304→  static const _base32Alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+   305→
+   306→  /// Generates a cryptographically random Base32 secret (160 bits = 32 chars).
+   307→  static String _generateBase32Secret() {
+   308→    final random = Random.secure();
+   309→    final bytes = List<int>.generate(20, (_) => random.nextInt(256));
+   310→    return _encodeBase32(Uint8List.fromList(bytes));
+   311→  }
+   312→
+   313→  /// Encodes raw bytes into a Base32 string (no padding).
+   314→  static String _encodeBase32(Uint8List input) {
+   315→    final buffer = StringBuffer();
+   316→    var bits = 0;
+   317→    var value = 0;
+   318→
+   319→    for (final byte in input) {
+   320→      value = (value << 8) | byte;
+   321→      bits += 8;
+   322→      while (bits >= 5) {
+   323→        bits -= 5;
+   324→        buffer.write(_base32Alphabet[(value >> bits) & 0x1f]);
+   325→      }
+   326→    }
+   327→    if (bits > 0) {
+   328→      buffer.write(_base32Alphabet[(value << (5 - bits)) & 0x1f]);
+   329→    }
+   330→
+   331→    return buffer.toString();
+   332→  }
+   333→
+   334→  /// Decodes a Base32 string (no padding) into raw bytes.
+   335→  static Uint8List _decodeBase32(String input) {
+   336→    final output = <int>[];
+   337→    var bits = 0;
+   338→    var value = 0;
+   339→
+   340→    for (final char in input.toUpperCase().split('')) {
+   341→      final index = _base32Alphabet.indexOf(char);
+   342→      if (index < 0) continue; // skip padding / invalid chars
+   343→      value = (value << 5) | index;
+   344→      bits += 5;
+   345→      if (bits >= 8) {
+   346→        bits -= 8;
+   347→        output.add((value >> bits) & 0xff);
+   348→      }
+   349→    }
+   350→
+   351→    return Uint8List.fromList(output);
+   352→  }
+   353→
+   354→  /// Converts a 64-bit integer to an 8-byte big-endian list.
+   355→  static Uint8List _intToBytes(int value) {
+   356→    return Uint8List(8)
+   357→      ..buffer.asByteData().setInt64(0, value, Endian.big);
+   358→  }
+   359→}
+   360→
+   361→// ═══════════════════════════════════════════════════════════════════════
+   362→// AUDIT LOG ENTRY
+   363→// ═══════════════════════════════════════════════════════════════════════
+   364→
+   365→/// An immutable audit log entry for admin actions.
+   366→class AdminAuditEntry {
+   367→  final String id;
+   368→  final String userId;
+   369→  final String action;
+   370→  final String resource;
+   371→  final String? resourceId;
+   372→  final DateTime timestamp;
+   373→  final String? ipAddress;
+   374→  final Map<String, dynamic> details;
+   375→  final bool success;
+   376→
+   377→  const AdminAuditEntry({
+   378→    required this.id,
+   379→    required this.userId,
+   380→    required this.action,
+   381→    required this.resource,
+   382→    this.resourceId,
+   383→    required this.timestamp,
+   384→    this.ipAddress,
+   385→    this.details = const {},
+   386→    this.success = true,
+   387→  });
+   388→
+   389→  Map<String, dynamic> toJson() => {
+   390→        'id': id,
+   391→        'user_id': userId,
+   392→        'action': action,
+   393→        'resource': resource,
+   394→        'resource_id': resourceId,
+   395→        'timestamp': timestamp.toIso8601String(),
+   396→        'ip_address': ipAddress,
+   397→        'details': details,
+   398→        'success': success,
+   399→      };
+   400→}
+   401→
+   402→// ═══════════════════════════════════════════════════════════════════════
+   403→// ADMIN SECURITY SERVICE
+   404→// ═══════════════════════════════════════════════════════════════════════
+   405→
+   406→/// Centralized admin security service providing:
+   407→/// - Session management with timeout
+   408→/// - Permission checks (least-privilege)
+   409→/// - Failed login monitoring
+   410→/// - Rate limiting
+   411→/// - Audit logging
+   412→/// - MFA readiness
+   413→class AdminSecurityService {
+   414→  AdminSecurityService._();
+   415→
+   416→  /// Supabase client for audit log persistence. Set via [initialize] from DI.
+   417→  static sb.SupabaseClient? _supabaseClient;
+   418→
+   419→  static const _secureStorage = FlutterSecureStorage(
+   420→    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+   421→  );
+   422→
+   423→  /// Initializes the service with a Supabase client for audit log persistence.
+   424→  static void initialize(sb.SupabaseClient client) {
+   425→    _supabaseClient = client;
+   426→  }
+   427→
+   428→  // ─── SESSION MANAGEMENT ─────────────────────────────────────────────
+   429→
+   430→  static const _sessionKey = 'admin_session_start';
+   431→  static const _lastActivityKey = 'admin_last_activity';
+   432→
+   433→  /// Records the start of an admin session.
+   434→  static Future<void> startSession(String userId) async {
+   435→    final now = DateTime.now().toIso8601String();
+   436→    await _secureStorage.write(key: _sessionKey, value: now);
+   437→    await _secureStorage.write(key: _lastActivityKey, value: now);
+   438→
+   439→    await logAudit(AdminAuditEntry(
+   440→      id: 'session-${DateTime.now().millisecondsSinceEpoch}',
+   441→      userId: userId,
+   442→      action: 'session.start',
+   443→      resource: 'admin_session',
+   444→      timestamp: DateTime.now(),
+   445→      success: true,
+   446→    ),);
+   447→
+   448→    AppLogger.info('AdminSecurityService: Session started for user $userId');
+   449→  }
+   450→
+   451→  /// Records admin activity (extends the session).
+   452→  static Future<void> recordActivity() async {
+   453→    final now = DateTime.now().toIso8601String();
+   454→    await _secureStorage.write(key: _lastActivityKey, value: now);
+   455→  }
+   456→
+   457→  /// Checks if the admin session is still valid (not expired).
+   458→  static Future<bool> isSessionValid() async {
+   459→    final lastActivity = await _secureStorage.read(key: _lastActivityKey);
+   460→    if (lastActivity == null) return false;
+   461→
+   462→    try {
+   463→      final lastActive = DateTime.parse(lastActivity);
+   464→      final elapsed = DateTime.now().difference(lastActive);
+   465→      return elapsed < kAdminSessionTimeout;
+   466→    } catch (_) {
+   467→      return false;
+   468→    }
+   469→  }
+   470→
+   471→  /// Ends the current admin session.
+   472→  static Future<void> endSession(String userId) async {
+   473→    await _secureStorage.delete(key: _sessionKey);
+   474→    await _secureStorage.delete(key: _lastActivityKey);
+   475→
+   476→    await logAudit(AdminAuditEntry(
+   477→      id: 'session-end-${DateTime.now().millisecondsSinceEpoch}',
+   478→      userId: userId,
+   479→      action: 'session.end',
+   480→      resource: 'admin_session',
+   481→      timestamp: DateTime.now(),
+   482→      success: true,
+   483→    ),);
+   484→
+   485→    AppLogger.info('AdminSecurityService: Session ended for user $userId');
+   486→  }
+   487→
+   488→  // ─── PERMISSION CHECKS ──────────────────────────────────────────────
+   489→
+   490→  /// Checks if a user with the given role has a specific admin permission.
+   491→  static bool hasPermission(String role, AdminPermission permission) {
+   492→    final permissions = _rolePermissions[role];
+   493→    if (permissions == null) return false;
+   494→    return permissions.contains(permission);
+   495→  }
+   496→
+   497→  /// Returns all permissions for a given role.
+   498→  static Set<AdminPermission> getPermissions(String role) {
+   499→    return _rolePermissions[role] ?? {};
+   500→  }
+   501→
+   502→  /// Validates that a user can perform an action on a resource.
+   503→  /// Returns true if authorized, throws if not.
+   504→  static bool authorizeAction({
+   505→    required String userId,
+   506→    required String role,
+   507→    required AdminPermission permission,
+   508→    String? resourceId,
+   509→  }) {
+   510→    if (!hasPermission(role, permission)) {
+   511→      AppLogger.critical(
+   512→        'AdminSecurityService: UNAUTHORIZED action attempt. '
+   513→        'User=$userId, Role=$role, Permission=${permission.value}',
+   514→      );
+   515→
+   516→      logAudit(AdminAuditEntry(
+   517→        id: 'auth-${DateTime.now().millisecondsSinceEpoch}',
+   518→        userId: userId,
+   519→        action: 'unauthorized.${permission.value}',
+   520→        resource: 'permission_check',
+   521→        resourceId: resourceId,
+   522→        timestamp: DateTime.now(),
+   523→        success: false,
+   524→        details: {'role': role, 'required_permission': permission.value},
+   525→      ),);
+   526→
+   527→      return false;
+   528→    }
+   529→    return true;
+   530→  }
+   531→
+   532→  // ─── FAILED LOGIN MONITORING ────────────────────────────────────────
+   533→
+   534→  static final Map<String, _LoginAttemptTracker> _failedAttempts = {};
+   535→
+   536→  /// Records a failed login attempt for the given identifier (email/IP).
+   537→  static Future<void> recordFailedLogin(String identifier) async {
+   538→    final tracker = _failedAttempts.putIfAbsent(
+   539→      identifier,
+   540→      () => _LoginAttemptTracker(),
+   541→    );
+   542→    tracker.recordAttempt();
+   543→
+   544→    AppLogger.warning(
+   545→      'AdminSecurityService: Failed login attempt #${tracker.attemptCount} '
+   546→      'for $identifier',
+   547→    );
+   548→
+   549→    if (tracker.isLockedOut) {
+   550→      AppLogger.critical(
+   551→        'AdminSecurityService: LOCKOUT triggered for $identifier '
+   552→        'after ${tracker.attemptCount} failed attempts',
+   553→      );
+   554→
+   555→      await logAudit(AdminAuditEntry(
+   556→        id: 'lockout-${DateTime.now().millisecondsSinceEpoch}',
+   557→        userId: identifier,
+   558→        action: 'login.lockout',
+   559→        resource: 'auth',
+   560→        timestamp: DateTime.now(),
+   561→        success: false,
+   562→        details: {
+   563→          'attempt_count': tracker.attemptCount,
+   564→          'lockout_duration_minutes': kLockoutDuration.inMinutes,
+   565→        },
+   566→      ),);
+   567→    }
+   568→  }
+   569→
+   570→  /// Checks if an identifier is currently locked out.
+   571→  static bool isLockedOut(String identifier) {
+   572→    final tracker = _failedAttempts[identifier];
+   573→    if (tracker == null) return false;
+   574→    return tracker.isLockedOut;
+   575→  }
+   576→
+   577→  /// Clears the failed login counter for an identifier (after successful login).
+   578→  static void clearFailedLogins(String identifier) {
+   579→    _failedAttempts.remove(identifier);
+   580→  }
+   581→
+   582→  /// Returns the number of failed login attempts for an identifier.
+   583→  static int getFailedAttemptCount(String identifier) {
+   584→    return _failedAttempts[identifier]?.attemptCount ?? 0;
+   585→  }
+   586→
+   587→  // ─── RATE LIMITING ──────────────────────────────────────────────────
+   588→
+   589→  static final Map<String, _RateLimitTracker> _rateLimiters = {};
+   590→
+   591→  /// Checks if an action is within rate limits.
+   592→  /// Returns true if the action is allowed.
+   593→  static bool checkRateLimit(String userId) {
+   594→    final tracker = _rateLimiters.putIfAbsent(
+   595→      userId,
+   596→      () => _RateLimitTracker(kMaxAdminActionsPerMinute),
+   597→    );
+   598→    return tracker.allowAction();
+   599→  }
+   600→
+   601→  // ─── IP ALLOWLIST ───────────────────────────────────────────────────
+   602→
+   603→  static Set<String> _allowedIPs = {};
+   604→
+   605→  /// Configures the IP allowlist for admin access.
+   606→  /// In production, this should be loaded from secure server-side config.
+   607→  static void configureIPAllowlist(Set<String> allowedIPs) {
+   608→    _allowedIPs = allowedIPs;
+   609→    AppLogger.info('AdminSecurityService: IP allowlist configured with ${allowedIPs.length} entries');
+   610→  }
+   611→
+   612→  /// Checks if an IP address is in the admin allowlist.
+   613→  /// If the allowlist is empty, all IPs are allowed (development mode).
+   614→  /// In production, the allowlist must be explicitly configured.
+   615→  static bool isIPAllowed(String ipAddress) {
+   616→    if (_allowedIPs.isEmpty) {
+   617→      // Development mode: no allowlist configured
+   618→      AppLogger.warning('AdminSecurityService: No IP allowlist configured — '
+   619→          'all IPs allowed (development only!)');
+   620→      return true;
+   621→    }
+   622→    return _allowedIPs.contains(ipAddress);
+   623→  }
+   624→
+   625→  // ─── AUDIT LOGGING ──────────────────────────────────────────────────
+   626→
+   627→  /// In-memory audit log (for demo/testing).
+   628→  /// In production, this should write to the `admin_audit_log` Supabase table.
+   629→  static final List<AdminAuditEntry> _auditLog = [];
+   630→
+   631→  /// Logs an admin audit entry.
+   632→  static Future<void> logAudit(AdminAuditEntry entry) async {
+   633→    _auditLog.add(entry);
+   634→
+   635→    // Write to Supabase admin_audit_log table for persistent audit trail.
+   636→    // Fallback to in-memory only if DB write fails (logged as CRITICAL).
+   637→    try {
+   638→      final client = _supabaseClient;
+   639→      if (client != null) {
+   640→        await client.from('admin_audit_log').insert(entry.toJson());
+   641→      } else {
+   642→        AppLogger.critical(
+   643→          'AdminSecurityService: Supabase client not available — '
+   644→          'audit entry persisted in-memory only (loss risk on crash)',
+   645→        );
+   646→      }
+   647→    } catch (e) {
+   648→      AppLogger.critical(
+   649→        'AdminSecurityService: Failed to write audit to Supabase — '
+   650→        'entry persisted in-memory only. Error: $e',
+   651→      );
+   652→    }
+   653→
+   654→    AppLogger.info(
+   655→      'AdminSecurityService: Audit log — ${entry.action} on ${entry.resource}'
+   656→      '${entry.resourceId != null ? '/${entry.resourceId}' : ''} '
+   657→      'by ${entry.userId} (${entry.success ? "SUCCESS" : "DENIED"})',
+   658→    );
+   659→  }
+   660→
+   661→  /// Returns recent audit entries.
+   662→  static List<AdminAuditEntry> getRecentAuditEntries({int limit = 100}) {
+   663→    final entries = List<AdminAuditEntry>.from(_auditLog);
+   664→    if (entries.length > limit) {
+   665→      return entries.sublist(entries.length - limit);
+   666→    }
+   667→    return entries;
+   668→  }
+   669→
+   670→  // ─── MFA ────────────────────────────────────────────────────────────
+   671→
+   672→  static MFAProvider _mfaProvider = TOTPMFAProvider(
+   673→    supabaseClient: sb.Supabase.instance.client,
+   674→  );
+   675→
+   676→  /// Sets the MFA provider (call during app initialization).
+   677→  static void setMFAProvider(MFAProvider provider) {
+   678→    _mfaProvider = provider;
+   679→    AppLogger.info('AdminSecurityService: MFA provider configured');
+   680→  }
+   681→
+   682→  /// Returns the current MFA provider.
+   683→  static MFAProvider get mfaProvider => _mfaProvider;
+   684→
+   685→  /// Checks if MFA is required for a user.
+   686→  /// In the current implementation, MFA is recommended but not required.
+   687→  /// When MFA is fully implemented, this should return true for admin roles.
+   688→  static Future<bool> isMFARequired(String userId) async {
+   689→    final isEnrolled = await _mfaProvider.isMFAEnabled(userId);
+   690→    // For now, MFA is optional but we check enrollment status
+   691→    return isEnrolled;
+   692→  }
+   693→
+   694→  // ─── RESET (for testing) ────────────────────────────────────────────
+   695→
+   696→  static void reset() {
+   697→    _failedAttempts.clear();
+   698→    _rateLimiters.clear();
+   699→    _auditLog.clear();
+   700→    _allowedIPs.clear();
+   701→    _mfaProvider = TOTPMFAProvider(
+   702→      supabaseClient: sb.Supabase.instance.client,
+   703→    );
+   704→  }
+   705→}
+   706→
+   707→// ═══════════════════════════════════════════════════════════════════════
+   708→// HELPER CLASSES
+   709→// ═══════════════════════════════════════════════════════════════════════
+   710→
+   711→class _LoginAttemptTracker {
+   712→  final List<DateTime> _attempts = [];
+   713→
+   714→  int get attemptCount => _attempts.length;
+   715→
+   716→  void recordAttempt() {
+   717→    _attempts.add(DateTime.now());
+   718→    // Clean up attempts older than lockout duration
+   719→    final cutoff = DateTime.now().subtract(kLockoutDuration);
+   720→    _attempts.removeWhere((a) => a.isBefore(cutoff));
+   721→  }
+   722→
+   723→  bool get isLockedOut {
+   724→    final cutoff = DateTime.now().subtract(kLockoutDuration);
+   725→    final recentAttempts = _attempts.where((a) => a.isAfter(cutoff)).length;
+   726→    return recentAttempts >= kMaxFailedLoginAttempts;
+   727→  }
+   728→}
+   729→
+   730→class _RateLimitTracker {
+   731→  final int maxActionsPerMinute;
+   732→  final List<DateTime> _actions = [];
+   733→
+   734→  _RateLimitTracker(this.maxActionsPerMinute);
+   735→
+   736→  bool allowAction() {
+   737→    final now = DateTime.now();
+   738→    final oneMinuteAgo = now.subtract(const Duration(minutes: 1));
+   739→    _actions.removeWhere((a) => a.isBefore(oneMinuteAgo));
+   740→
+   741→    if (_actions.length >= maxActionsPerMinute) {
+   742→      return false;
+   743→    }
+   744→
+   745→    _actions.add(now);
+   746→    return true;
+   747→  }
+   748→}
+   749→
+   750→// ═══════════════════════════════════════════════════════════════════════
+   751→// RIVERPOD PROVIDERS
+   752→// ═══════════════════════════════════════════════════════════════════════
+   753→
+   754→/// Provider for checking admin session validity.
+   755→final adminSessionValidProvider = FutureProvider<bool>((ref) async {
+   756→  return AdminSecurityService.isSessionValid();
+   757→});
+   758→
+   759→/// Provider for admin permissions based on current role.
+   760→final adminPermissionsProvider = Provider<Set<AdminPermission>>((ref) {
+   761→  // This should read from the auth state
+   762→  return {}; // Will be populated when integrated with auth provider
+   763→});
+   764→

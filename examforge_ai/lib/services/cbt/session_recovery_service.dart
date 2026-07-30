@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../../core/security/local_encryption_service.dart';
@@ -107,18 +108,14 @@ class SessionRecoveryService {
 
     // Initialize encryption if not already done
     if (!LocalEncryptionService.isInitialized) {
-      // Use a stable device-specific seed. We use the SharedPreferences
-      // instance's toString hash as a proxy since we don't have direct
-      // device ID access here. In production, pass the device ID from
-      // the main app initialization.
-      final deviceSeed = _prefs!.getString('_device_seed') ?? 
-          DateTime.now().microsecondsSinceEpoch.toString();
-      await LocalEncryptionService.initialize(deviceSeed: deviceSeed);
-
-      // Persist the device seed for consistent encryption across sessions
-      if (!_prefs!.containsKey('_device_seed')) {
-        await _prefs!.setString('_device_seed', deviceSeed);
+      // Use a stable device-specific seed stored in secure storage.
+      const secureStorage = FlutterSecureStorage();
+      String? deviceSeed = await secureStorage.read(key: '_device_seed');
+      if (deviceSeed == null) {
+        deviceSeed = DateTime.now().microsecondsSinceEpoch.toString();
+        await secureStorage.write(key: '_device_seed', value: deviceSeed);
       }
+      await LocalEncryptionService.initialize(deviceSeed: deviceSeed);
     }
   }
 

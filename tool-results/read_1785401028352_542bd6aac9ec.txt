@@ -1,0 +1,2002 @@
+     1→-- ============================================================================
+     2→-- ExamForge AI Marketplace & Digital Resource Store
+     3→-- Comprehensive Supabase SQL Schema
+     4→-- ============================================================================
+     5→-- This migration creates the full marketplace infrastructure including:
+     6→--   - Custom ENUM types
+     7→--   - Core marketplace tables (categories, products, orders, purchases, etc.)
+     8→--   - Analytics & AI recommendation tables
+     9→--   - Quality check & dispute management
+    10→--   - Search, notifications, and saved searches
+    11→--   - Indexes (GIN, B-tree, full-text)
+    12→--   - Triggers for timestamps, rating aggregation, and sales counts
+    13→--   - Row-Level Security (RLS) policies
+    14→--   - Functions for search, recommendation scoring, quality checks
+    15→--   - Materialized view for trending products
+    16→--   - Table and column comments
+    17→-- ============================================================================
+    18→
+    19→-- ============================================================================
+    20→-- SECTION 1: CUSTOM ENUM TYPES
+    21→-- ============================================================================
+    22→
+    23→DO $$
+    24→BEGIN
+    25→  -- Product type classification for the marketplace
+    26→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'marketplace_product_type') THEN
+    27→    CREATE TYPE marketplace_product_type AS ENUM (
+    28→      'question_bank',
+    29→      'exam_template',
+    30→      'lesson_note',
+    31→      'scheme_of_work',
+    32→      'worksheet',
+    33→      'powerpoint',
+    34→      'teaching_slides',
+    35→      'flashcards',
+    36→      'study_guide',
+    37→      'practical_manual',
+    38→      'laboratory_guide',
+    39→      'curriculum_pack',
+    40→      'assessment_rubric',
+    41→      'homework_pack',
+    42→      'classroom_activity',
+    43→      'educational_image',
+    44→      'educational_video',
+    45→      'educational_audio',
+    46→      'printable_resource',
+    47→      'other'
+    48→    );
+    49→  END IF;
+    50→
+    51→  -- Product lifecycle status
+    52→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'marketplace_product_status') THEN
+    53→    CREATE TYPE marketplace_product_status AS ENUM (
+    54→      'draft',
+    55→      'pending_review',
+    56→      'approved',
+    57→      'rejected',
+    58→      'suspended',
+    59→      'archived'
+    60→    );
+    61→  END IF;
+    62→
+    63→  -- License type for product usage
+    64→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'marketplace_license_type') THEN
+    65→    CREATE TYPE marketplace_license_type AS ENUM (
+    66→      'personal',
+    67→      'teacher',
+    68→      'school',
+    69→      'department',
+    70→      'enterprise'
+    71→    );
+    72→  END IF;
+    73→
+    74→  -- Order processing status
+    75→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'marketplace_order_status') THEN
+    76→    CREATE TYPE marketplace_order_status AS ENUM (
+    77→      'pending',
+    78→      'completed',
+    79→      'failed',
+    80→      'refunded',
+    81→      'partially_refunded'
+    82→    );
+    83→  END IF;
+    84→
+    85→  -- Review moderation status
+    86→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'marketplace_review_status') THEN
+    87→    CREATE TYPE marketplace_review_status AS ENUM (
+    88→      'published',
+    89→      'hidden',
+    90→      'under_review',
+    91→      'reported'
+    92→    );
+    93→  END IF;
+    94→
+    95→  -- Seller account status
+    96→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'marketplace_seller_status') THEN
+    97→    CREATE TYPE marketplace_seller_status AS ENUM (
+    98→      'active',
+    99→      'suspended',
+   100→      'pending_verification',
+   101→      'deactivated'
+   102→    );
+   103→  END IF;
+   104→
+   105→  -- Commission classification types
+   106→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'commission_type') THEN
+   107→    CREATE TYPE commission_type AS ENUM (
+   108→      'platform',
+   109→      'promotional',
+   110→      'referral',
+   111→      'tax'
+   112→    );
+   113→  END IF;
+   114→
+   115→  -- AI quality check status
+   116→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'quality_check_status') THEN
+   117→    CREATE TYPE quality_check_status AS ENUM (
+   118→      'pending',
+   119→      'passed',
+   120→      'failed',
+   121→      'needs_improvement'
+   122→    );
+   123→  END IF;
+   124→END
+   125→$$;
+   126→
+   127→-- ============================================================================
+   128→-- SECTION 2: HELPER FUNCTIONS (must exist before table creation)
+   129→-- ============================================================================
+   130→
+   131→-- Generic updated_at trigger function
+   132→CREATE OR REPLACE FUNCTION update_updated_at_column()
+   133→RETURNS TRIGGER AS $$
+   134→BEGIN
+   135→  NEW.updated_at = NOW();
+   136→  RETURN NEW;
+   137→END;
+   138→$$ LANGUAGE plpgsql;
+   139→
+   140→-- Generate unique order numbers
+   141→CREATE OR REPLACE FUNCTION generate_order_number()
+   142→RETURNS TEXT AS $$
+   143→BEGIN
+   144→  RETURN 'EF-' || TO_CHAR(NOW(), 'YYYYMMDD') || '-' || UPPER(SUBSTRING(MD5(RANDOM()::TEXT) FROM 1 FOR 8));
+   145→END;
+   146→$$ LANGUAGE plpgsql VOLATILE;
+   147→
+   148→-- Generate unique license keys
+   149→CREATE OR REPLACE FUNCTION generate_license_key()
+   150→RETURNS TEXT AS $$
+   151→BEGIN
+   152→  RETURN 'EFL-' || UPPER(SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT) FROM 1 FOR 4))
+   153→       || '-' || UPPER(SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT) FROM 1 FOR 4))
+   154→       || '-' || UPPER(SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT) FROM 1 FOR 4))
+   155→       || '-' || UPPER(SUBSTRING(MD5(RANDOM()::TEXT || CLOCK_TIMESTAMP()::TEXT) FROM 1 FOR 4));
+   156→END;
+   157→$$ LANGUAGE plpgsql VOLATILE;
+   158→
+   159→-- ============================================================================
+   160→-- SECTION 3: TABLE DEFINITIONS
+   161→-- ============================================================================
+   162→
+   163→-- ----------------------------------------------------------------------------
+   164→-- 3.1 marketplace_categories - Hierarchical product categories
+   165→-- ----------------------------------------------------------------------------
+   166→CREATE TABLE IF NOT EXISTS marketplace_categories (
+   167→  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   168→  parent_id   UUID REFERENCES marketplace_categories(id) ON DELETE SET NULL,
+   169→  name        TEXT NOT NULL,
+   170→  slug        TEXT NOT NULL UNIQUE,
+   171→  description TEXT,
+   172→  icon        TEXT,
+   173→  sort_order  INTEGER NOT NULL DEFAULT 0,
+   174→  is_active   BOOLEAN NOT NULL DEFAULT TRUE,
+   175→  created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   176→  updated_at  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   177→
+   178→  CONSTRAINT chk_category_name_length CHECK (char_length(name) >= 2),
+   179→  CONSTRAINT chk_category_slug_format CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$')
+   180→);
+   181→
+   182→COMMENT ON TABLE marketplace_categories IS 'Hierarchical categories for organizing marketplace products';
+   183→COMMENT ON COLUMN marketplace_categories.parent_id IS 'Self-referencing FK for nested sub-categories. NULL = top-level category';
+   184→COMMENT ON COLUMN marketplace_categories.slug IS 'URL-friendly identifier, must be unique across all categories';
+   185→COMMENT ON COLUMN marketplace_categories.sort_order IS 'Lower values appear first in listings';
+   186→
+   187→-- ----------------------------------------------------------------------------
+   188→-- 3.2 seller_profiles - Seller identity and business information
+   189→-- ----------------------------------------------------------------------------
+   190→CREATE TABLE IF NOT EXISTS seller_profiles (
+   191→  id                       UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   192→  user_id                  UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+   193→  display_name             TEXT NOT NULL,
+   194→  bio                      TEXT,
+   195→  avatar_url               TEXT,
+   196→  status                   marketplace_seller_status NOT NULL DEFAULT 'pending_verification',
+   197→  verification_level       INTEGER NOT NULL DEFAULT 0 CHECK (verification_level BETWEEN 0 AND 5),
+   198→  total_sales              INTEGER NOT NULL DEFAULT 0,
+   199→  total_revenue            DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+   200→  average_rating           DECIMAL(3,2) NOT NULL DEFAULT 0.00 CHECK (average_rating BETWEEN 0.00 AND 5.00),
+   201→  total_reviews            INTEGER NOT NULL DEFAULT 0,
+   202→  total_products           INTEGER NOT NULL DEFAULT 0,
+   203→  bank_account_encrypted   TEXT,
+   204→  payout_method            TEXT,
+   205→  payout_details_encrypted TEXT,
+   206→  is_verified              BOOLEAN NOT NULL DEFAULT FALSE,
+   207→  verified_at              TIMESTAMPTZ,
+   208→  created_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   209→  updated_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   210→
+   211→  CONSTRAINT chk_seller_display_name CHECK (char_length(display_name) >= 2),
+   212→  CONSTRAINT chk_seller_revenue_non_negative CHECK (total_revenue >= 0),
+   213→  CONSTRAINT chk_seller_total_sales_non_negative CHECK (total_sales >= 0)
+   214→);
+   215→
+   216→COMMENT ON TABLE seller_profiles IS 'Seller identity, verification, and aggregate metrics for marketplace vendors';
+   217→COMMENT ON COLUMN seller_profiles.verification_level IS '0=unverified, 1=email, 2=ID, 3=bank, 4=tax, 5=premium verified';
+   218→COMMENT ON COLUMN seller_profiles.bank_account_encrypted IS 'Encrypted bank account details for payouts';
+   219→COMMENT ON COLUMN seller_profiles.payout_details_encrypted IS 'Encrypted payout method-specific details';
+   220→
+   221→-- ----------------------------------------------------------------------------
+   222→-- 3.3 marketplace_products - Core product listing table
+   223→-- ----------------------------------------------------------------------------
+   224→CREATE TABLE IF NOT EXISTS marketplace_products (
+   225→  id                     UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   226→  seller_id              UUID NOT NULL REFERENCES seller_profiles(id) ON DELETE CASCADE,
+   227→  category_id            UUID REFERENCES marketplace_categories(id) ON DELETE SET NULL,
+   228→  title                  TEXT NOT NULL,
+   229→  slug                   TEXT NOT NULL UNIQUE,
+   230→  description            TEXT NOT NULL,
+   231→  product_type           marketplace_product_type NOT NULL,
+   232→  subject                TEXT,
+   233→  class_level            TEXT,
+   234→  curriculum             TEXT,
+   235→  language               TEXT NOT NULL DEFAULT 'en',
+   236→  preview_images         JSONB DEFAULT '[]',
+   237→  preview_documents      JSONB DEFAULT '[]',
+   238→  full_document_urls     JSONB DEFAULT '[]',
+   239→  price                  DECIMAL(10,2) NOT NULL CHECK (price >= 0),
+   240→  original_price         DECIMAL(10,2) CHECK (original_price IS NULL OR original_price > price),
+   241→  currency               TEXT NOT NULL DEFAULT 'NGN',
+   242→  license_type           marketplace_license_type NOT NULL DEFAULT 'personal',
+   243→  license_config         JSONB DEFAULT '{}',
+   244→  version                TEXT NOT NULL DEFAULT '1.0.0',
+   245→  tags                   TEXT[] DEFAULT '{}',
+   246→  ai_generated_summary   TEXT,
+   247→  is_ai_generated        BOOLEAN NOT NULL DEFAULT FALSE,
+   248→  is_featured            BOOLEAN NOT NULL DEFAULT FALSE,
+   249→  is_free                BOOLEAN NOT NULL DEFAULT FALSE,
+   250→  status                 marketplace_product_status NOT NULL DEFAULT 'draft',
+   251→  quality_score          DECIMAL(5,2) CHECK (quality_score IS NULL OR quality_score BETWEEN 0.00 AND 100.00),
+   252→  quality_check_status   quality_check_status,
+   253→  quality_check_details  JSONB,
+   254→  total_sales            INTEGER NOT NULL DEFAULT 0,
+   255→  total_revenue          DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+   256→  average_rating         DECIMAL(3,2) NOT NULL DEFAULT 0.00 CHECK (average_rating BETWEEN 0.00 AND 5.00),
+   257→  total_reviews          INTEGER NOT NULL DEFAULT 0,
+   258→  download_count         INTEGER NOT NULL DEFAULT 0,
+   259→  view_count             INTEGER NOT NULL DEFAULT 0,
+   260→  published_at           TIMESTAMPTZ,
+   261→  created_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   262→  updated_at             TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   263→  deleted_at             TIMESTAMPTZ,
+   264→
+   265→  CONSTRAINT chk_product_title_length CHECK (char_length(title) >= 3),
+   266→  CONSTRAINT chk_product_description_length CHECK (char_length(description) >= 10),
+   267→  CONSTRAINT chk_product_price_non_negative CHECK (price >= 0),
+   268→  CONSTRAINT chk_product_slug_format CHECK (slug ~ '^[a-z0-9]+(?:-[a-z0-9]+)*$')
+   269→);
+   270→
+   271→COMMENT ON TABLE marketplace_products IS 'Core product listings for the ExamForge AI digital marketplace';
+   272→COMMENT ON COLUMN marketplace_products.preview_images IS 'JSONB array of {url, alt, sort_order} for product preview images';
+   273→COMMENT ON COLUMN marketplace_products.preview_documents IS 'JSONB array of {url, name, pages} for sample document previews';
+   274→COMMENT ON COLUMN marketplace_products.full_document_urls IS 'JSONB array of {url, name, size_bytes, mime_type} for full deliverables';
+   275→COMMENT ON COLUMN marketplace_products.license_config IS 'JSONB for extended license terms: seats, expiry, redistribution rights, etc.';
+   276→COMMENT ON COLUMN marketplace_products.quality_score IS 'AI-computed quality score 0-100';
+   277→COMMENT ON COLUMN marketplace_products.quality_check_details IS 'JSONB: {checked_by, check_version, criteria_scores, notes}';
+   278→COMMENT ON COLUMN marketplace_products.deleted_at IS 'Soft delete timestamp. NULL = active product';
+   279→
+   280→-- Full-text search computed column
+   281→ALTER TABLE marketplace_products
+   282→  ADD COLUMN IF NOT EXISTS fts_document tsvector
+   283→  GENERATED ALWAYS AS (
+   284→    setweight(to_tsvector('english', COALESCE(title, '')), 'A') ||
+   285→    setweight(to_tsvector('english', COALESCE(description, '')), 'B') ||
+   286→    setweight(to_tsvector('english', COALESCE(ai_generated_summary, '')), 'C') ||
+   287→    setweight(to_tsvector('english', COALESCE(array_to_string(tags, ' '), '')), 'D')
+   288→  ) STORED;
+   289→
+   290→COMMENT ON COLUMN marketplace_products.fts_document IS 'Auto-computed tsvector for full-text search with weighted ranking (A=title, B=description, C=summary, D=tags)';
+   291→
+   292→-- ----------------------------------------------------------------------------
+   293→-- 3.4 marketplace_product_versions - Version history for products
+   294→-- ----------------------------------------------------------------------------
+   295→CREATE TABLE IF NOT EXISTS marketplace_product_versions (
+   296→  id             UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   297→  product_id     UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   298→  version        TEXT NOT NULL,
+   299→  changelog      TEXT,
+   300→  document_urls  JSONB DEFAULT '[]',
+   301→  created_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   302→
+   303→  CONSTRAINT chk_version_format CHECK (version ~ '^\d+\.\d+\.\d+$'),
+   304→  CONSTRAINT uq_product_version UNIQUE (product_id, version)
+   305→);
+   306→
+   307→COMMENT ON TABLE marketplace_product_versions IS 'Version history for products, enabling rollback and changelog tracking';
+   308→COMMENT ON COLUMN marketplace_product_versions.document_urls IS 'JSONB array of {url, name, size_bytes, mime_type} for this specific version';
+   309→
+   310→-- ----------------------------------------------------------------------------
+   311→-- 3.5 marketplace_carts - Shopping cart headers
+   312→-- ----------------------------------------------------------------------------
+   313→CREATE TABLE IF NOT EXISTS marketplace_carts (
+   314→  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   315→  user_id    UUID NOT NULL UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+   316→  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   317→  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   318→);
+   319→
+   320→COMMENT ON TABLE marketplace_carts IS 'Shopping cart header. One active cart per user.';
+   321→
+   322→-- ----------------------------------------------------------------------------
+   323→-- 3.6 marketplace_cart_items - Items within a shopping cart
+   324→-- ----------------------------------------------------------------------------
+   325→CREATE TABLE IF NOT EXISTS marketplace_cart_items (
+   326→  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   327→  cart_id      UUID NOT NULL REFERENCES marketplace_carts(id) ON DELETE CASCADE,
+   328→  product_id   UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   329→  license_type marketplace_license_type NOT NULL DEFAULT 'personal',
+   330→  quantity     INTEGER NOT NULL DEFAULT 1 CHECK (quantity > 0),
+   331→  added_at     TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   332→
+   333→  CONSTRAINT uq_cart_product UNIQUE (cart_id, product_id, license_type)
+   334→);
+   335→
+   336→COMMENT ON TABLE marketplace_cart_items IS 'Individual items in a shopping cart. Unique per cart+product+license combination.';
+   337→
+   338→-- ----------------------------------------------------------------------------
+   339→-- 3.7 marketplace_orders - Order headers
+   340→-- ----------------------------------------------------------------------------
+   341→CREATE TABLE IF NOT EXISTS marketplace_orders (
+   342→  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   343→  buyer_id           UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   344→  seller_id          UUID REFERENCES seller_profiles(id) ON DELETE SET NULL,
+   345→  order_number       TEXT NOT NULL UNIQUE DEFAULT generate_order_number(),
+   346→  status             marketplace_order_status NOT NULL DEFAULT 'pending',
+   347→  subtotal           DECIMAL(12,2) NOT NULL CHECK (subtotal >= 0),
+   348→  platform_fee       DECIMAL(12,2) NOT NULL DEFAULT 0.00 CHECK (platform_fee >= 0),
+   349→  tax_amount         DECIMAL(12,2) NOT NULL DEFAULT 0.00 CHECK (tax_amount >= 0),
+   350→  discount_amount    DECIMAL(12,2) NOT NULL DEFAULT 0.00 CHECK (discount_amount >= 0),
+   351→  total_amount       DECIMAL(12,2) NOT NULL CHECK (total_amount >= 0),
+   352→  currency           TEXT NOT NULL DEFAULT 'NGN',
+   353→  promo_code_id      UUID,
+   354→  flutterwave_tx_ref TEXT,
+   355→  flutterwave_flw_ref TEXT,
+   356→  payment_method     TEXT,
+   357→  paid_at            TIMESTAMPTZ,
+   358→  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   359→  updated_at         TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   360→
+   361→  CONSTRAINT chk_order_total_consistency CHECK (total_amount = subtotal + platform_fee + tax_amount - discount_amount)
+   362→);
+   363→
+   364→COMMENT ON TABLE marketplace_orders IS 'Order headers with payment tracking via Flutterwave integration';
+   365→COMMENT ON COLUMN marketplace_orders.flutterwave_tx_ref IS 'Flutterwave transaction reference (merchant-generated)';
+   366→COMMENT ON COLUMN marketplace_orders.flutterwave_flw_ref IS 'Flutterwave internal transaction reference';
+   367→COMMENT ON COLUMN marketplace_orders.seller_id IS 'Primary seller for the order (for single-seller orders). NULL for multi-seller orders.';
+   368→
+   369→-- ----------------------------------------------------------------------------
+   370→-- 3.8 marketplace_order_items - Line items within an order
+   371→-- ----------------------------------------------------------------------------
+   372→CREATE TABLE IF NOT EXISTS marketplace_order_items (
+   373→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   374→  order_id          UUID NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
+   375→  product_id        UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE RESTRICT,
+   376→  seller_id         UUID NOT NULL REFERENCES seller_profiles(id) ON DELETE RESTRICT,
+   377→  license_type      marketplace_license_type NOT NULL DEFAULT 'personal',
+   378→  price_at_purchase DECIMAL(10,2) NOT NULL CHECK (price_at_purchase >= 0),
+   379→  platform_fee      DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (platform_fee >= 0),
+   380→  seller_revenue    DECIMAL(10,2) NOT NULL DEFAULT 0.00 CHECK (seller_revenue >= 0),
+   381→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   382→  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   383→);
+   384→
+   385→COMMENT ON TABLE marketplace_order_items IS 'Individual line items within an order, each with seller revenue breakdown';
+   386→
+   387→-- ----------------------------------------------------------------------------
+   388→-- 3.9 marketplace_purchases - Purchase records for access control
+   389→-- ----------------------------------------------------------------------------
+   390→CREATE TABLE IF NOT EXISTS marketplace_purchases (
+   391→  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   392→  buyer_id            UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   393→  product_id          UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   394→  order_item_id       UUID NOT NULL REFERENCES marketplace_order_items(id) ON DELETE CASCADE,
+   395→  license_type        marketplace_license_type NOT NULL DEFAULT 'personal',
+   396→  license_key         TEXT NOT NULL UNIQUE DEFAULT generate_license_key(),
+   397→  is_active           BOOLEAN NOT NULL DEFAULT TRUE,
+   398→  expires_at          TIMESTAMPTZ,
+   399→  download_count      INTEGER NOT NULL DEFAULT 0,
+   400→  last_downloaded_at  TIMESTAMPTZ,
+   401→  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   402→
+   403→  CONSTRAINT uq_buyer_product_license UNIQUE (buyer_id, product_id, license_type)
+   404→);
+   405→
+   406→COMMENT ON TABLE marketplace_purchases IS 'Purchase records controlling access to digital products. Each record grants a license.';
+   407→COMMENT ON COLUMN marketplace_purchases.license_key IS 'Unique license key for the purchase, auto-generated';
+   408→COMMENT ON COLUMN marketplace_purchases.expires_at IS 'NULL = perpetual license. Otherwise, the license expiry timestamp.';
+   409→
+   410→-- ----------------------------------------------------------------------------
+   411→-- 3.10 marketplace_reviews - Product reviews and ratings
+   412→-- ----------------------------------------------------------------------------
+   413→CREATE TABLE IF NOT EXISTS marketplace_reviews (
+   414→  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   415→  product_id           UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   416→  buyer_id             UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   417→  seller_id            UUID NOT NULL REFERENCES seller_profiles(id) ON DELETE CASCADE,
+   418→  rating               INTEGER NOT NULL CHECK (rating BETWEEN 1 AND 5),
+   419→  title                TEXT,
+   420→  content              TEXT,
+   421→  is_verified_purchase BOOLEAN NOT NULL DEFAULT FALSE,
+   422→  status               marketplace_review_status NOT NULL DEFAULT 'published',
+   423→  seller_response      TEXT,
+   424→  seller_responded_at  TIMESTAMPTZ,
+   425→  helpful_count        INTEGER NOT NULL DEFAULT 0,
+   426→  report_count         INTEGER NOT NULL DEFAULT 0,
+   427→  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   428→  updated_at           TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   429→
+   430→  CONSTRAINT uq_review_buyer_product UNIQUE (buyer_id, product_id)
+   431→);
+   432→
+   433→COMMENT ON TABLE marketplace_reviews IS 'Product reviews and ratings. One review per buyer per product.';
+   434→COMMENT ON COLUMN marketplace_reviews.is_verified_purchase IS 'TRUE if the reviewer has purchased the product';
+   435→COMMENT ON COLUMN marketplace_reviews.seller_response IS 'Optional seller response to the review';
+   436→
+   437→-- ----------------------------------------------------------------------------
+   438→-- 3.11 marketplace_review_helpful - Helpful votes on reviews
+   439→-- ----------------------------------------------------------------------------
+   440→CREATE TABLE IF NOT EXISTS marketplace_review_helpful (
+   441→  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   442→  review_id  UUID NOT NULL REFERENCES marketplace_reviews(id) ON DELETE CASCADE,
+   443→  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   444→  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   445→
+   446→  CONSTRAINT uq_review_helpful UNIQUE (review_id, user_id)
+   447→);
+   448→
+   449→COMMENT ON TABLE marketplace_review_helpful IS 'Helpful/unhelpful votes on reviews. One vote per user per review.';
+   450→
+   451→-- ----------------------------------------------------------------------------
+   452→-- 3.12 marketplace_wishlists - User wishlist (favorites)
+   453→-- ----------------------------------------------------------------------------
+   454→CREATE TABLE IF NOT EXISTS marketplace_wishlists (
+   455→  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   456→  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   457→  product_id UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   458→  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   459→
+   460→  CONSTRAINT uq_wishlist_user_product UNIQUE (user_id, product_id)
+   461→);
+   462→
+   463→COMMENT ON TABLE marketplace_wishlists IS 'User wishlist / favorites. Unique constraint prevents duplicate entries.';
+   464→
+   465→-- ----------------------------------------------------------------------------
+   466→-- 3.13 marketplace_promo_codes - Promotional discount codes
+   467→-- ----------------------------------------------------------------------------
+   468→CREATE TABLE IF NOT EXISTS marketplace_promo_codes (
+   469→  id                      UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   470→  code                    TEXT NOT NULL UNIQUE,
+   471→  description             TEXT,
+   472→  discount_type           TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+   473→  discount_value          DECIMAL(10,2) NOT NULL CHECK (discount_value > 0),
+   474→  max_uses                INTEGER CHECK (max_uses IS NULL OR max_uses > 0),
+   475→  current_uses            INTEGER NOT NULL DEFAULT 0,
+   476→  min_order_amount        DECIMAL(10,2) CHECK (min_order_amount IS NULL OR min_order_amount >= 0),
+   477→  max_discount_amount     DECIMAL(10,2) CHECK (max_discount_amount IS NULL OR max_discount_amount >= 0),
+   478→  applicable_product_types TEXT[] DEFAULT '{}',
+   479→  applicable_seller_ids   UUID[] DEFAULT '{}',
+   480→  starts_at               TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   481→  expires_at              TIMESTAMPTZ,
+   482→  is_active               BOOLEAN NOT NULL DEFAULT TRUE,
+   483→  created_by              UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+   484→  created_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   485→  updated_at              TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   486→
+   487→  CONSTRAINT chk_promo_current_uses CHECK (current_uses >= 0),
+   488→  CONSTRAINT chk_promo_dates CHECK (expires_at IS NULL OR starts_at < expires_at)
+   489→);
+   490→
+   491→COMMENT ON TABLE marketplace_promo_codes IS 'Promotional discount codes for marketplace orders';
+   492→COMMENT ON COLUMN marketplace_promo_codes.discount_type IS 'percentage = % off, fixed = flat amount off';
+   493→COMMENT ON COLUMN marketplace_promo_codes.applicable_product_types IS 'Empty array = applies to all product types';
+   494→COMMENT ON COLUMN marketplace_promo_codes.applicable_seller_ids IS 'Empty array = applies to all sellers';
+   495→
+   496→-- ----------------------------------------------------------------------------
+   497→-- 3.14 marketplace_commission_rates - Commission configuration
+   498→-- ----------------------------------------------------------------------------
+   499→CREATE TABLE IF NOT EXISTS marketplace_commission_rates (
+   500→  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   501→  product_type    marketplace_product_type,
+   502→  license_type    marketplace_license_type,
+   503→  commission_rate DECIMAL(5,4) NOT NULL CHECK (commission_rate BETWEEN 0.0000 AND 1.0000),
+   504→  is_active       BOOLEAN NOT NULL DEFAULT TRUE,
+   505→  effective_from  TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   506→  effective_to    TIMESTAMPTZ,
+   507→  created_by      UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+   508→  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   509→  updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   510→
+   511→  CONSTRAINT chk_commission_dates CHECK (effective_to IS NULL OR effective_from < effective_to)
+   512→);
+   513→
+   514→COMMENT ON TABLE marketplace_commission_rates IS 'Configurable commission rates by product type and license type. Rate stored as decimal (e.g., 0.1500 = 15%)';
+   515→
+   516→-- ----------------------------------------------------------------------------
+   517→-- 3.15 marketplace_commission_records - Commission tracking per order item
+   518→-- ----------------------------------------------------------------------------
+   519→CREATE TABLE IF NOT EXISTS marketplace_commission_records (
+   520→  id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   521→  order_item_id    UUID NOT NULL REFERENCES marketplace_order_items(id) ON DELETE CASCADE,
+   522→  seller_id        UUID NOT NULL REFERENCES seller_profiles(id) ON DELETE CASCADE,
+   523→  commission_type  commission_type NOT NULL DEFAULT 'platform',
+   524→  commission_rate  DECIMAL(5,4) NOT NULL CHECK (commission_rate BETWEEN 0.0000 AND 1.0000),
+   525→  commission_amount DECIMAL(12,2) NOT NULL CHECK (commission_amount >= 0),
+   526→  seller_revenue   DECIMAL(12,2) NOT NULL CHECK (seller_revenue >= 0),
+   527→  currency         TEXT NOT NULL DEFAULT 'NGN',
+   528→  created_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   529→);
+   530→
+   531→COMMENT ON TABLE marketplace_commission_records IS 'Detailed commission records for each order item, enabling payout calculations';
+   532→
+   533→-- ----------------------------------------------------------------------------
+   534→-- 3.16 marketplace_seller_analytics - Daily seller analytics aggregates
+   535→-- ----------------------------------------------------------------------------
+   536→CREATE TABLE IF NOT EXISTS marketplace_seller_analytics (
+   537→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   538→  seller_id         UUID NOT NULL REFERENCES seller_profiles(id) ON DELETE CASCADE,
+   539→  date              DATE NOT NULL,
+   540→  views             INTEGER NOT NULL DEFAULT 0,
+   541→  sales             INTEGER NOT NULL DEFAULT 0,
+   542→  revenue           DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+   543→  unique_visitors   INTEGER NOT NULL DEFAULT 0,
+   544→  conversion_rate   DECIMAL(5,4) NOT NULL DEFAULT 0.0000 CHECK (conversion_rate BETWEEN 0.0000 AND 1.0000),
+   545→  average_rating    DECIMAL(3,2) DEFAULT 0.00 CHECK (average_rating IS NULL OR average_rating BETWEEN 0.00 AND 5.00),
+   546→  new_reviews       INTEGER NOT NULL DEFAULT 0,
+   547→  created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   548→
+   549→  CONSTRAINT uq_seller_analytics_date UNIQUE (seller_id, date)
+   550→);
+   551→
+   552→COMMENT ON TABLE marketplace_seller_analytics IS 'Daily aggregated analytics for seller dashboards and reporting';
+   553→
+   554→-- ----------------------------------------------------------------------------
+   555→-- 3.17 marketplace_product_analytics - Daily product analytics aggregates
+   556→-- ----------------------------------------------------------------------------
+   557→CREATE TABLE IF NOT EXISTS marketplace_product_analytics (
+   558→  id                  UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   559→  product_id          UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   560→  date                DATE NOT NULL,
+   561→  views               INTEGER NOT NULL DEFAULT 0,
+   562→  downloads           INTEGER NOT NULL DEFAULT 0,
+   563→  sales               INTEGER NOT NULL DEFAULT 0,
+   564→  revenue             DECIMAL(12,2) NOT NULL DEFAULT 0.00,
+   565→  search_impressions  INTEGER NOT NULL DEFAULT 0,
+   566→  click_through_rate  DECIMAL(5,4) NOT NULL DEFAULT 0.0000 CHECK (click_through_rate BETWEEN 0.0000 AND 1.0000),
+   567→  created_at          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   568→
+   569→  CONSTRAINT uq_product_analytics_date UNIQUE (product_id, date)
+   570→);
+   571→
+   572→COMMENT ON TABLE marketplace_product_analytics IS 'Daily aggregated analytics for product performance and search visibility';
+   573→
+   574→-- ----------------------------------------------------------------------------
+   575→-- 3.18 marketplace_search_logs - Search tracking for AI recommendations
+   576→-- ----------------------------------------------------------------------------
+   577→CREATE TABLE IF NOT EXISTS marketplace_search_logs (
+   578→  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   579→  user_id            UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+   580→  query              TEXT NOT NULL,
+   581→  filters            JSONB DEFAULT '{}',
+   582→  results_count      INTEGER NOT NULL DEFAULT 0,
+   583→  clicked_product_id UUID REFERENCES marketplace_products(id) ON DELETE SET NULL,
+   584→  created_at         TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   585→);
+   586→
+   587→COMMENT ON TABLE marketplace_search_logs IS 'Search query logs used for AI recommendation engine training and search analytics';
+   588→COMMENT ON COLUMN marketplace_search_logs.filters IS 'JSONB: {subject, class_level, product_type, price_min, price_max, curriculum, sort_by}';
+   589→
+   590→-- ----------------------------------------------------------------------------
+   591→-- 3.19 marketplace_ai_recommendations - AI recommendation tracking
+   592→-- ----------------------------------------------------------------------------
+   593→CREATE TABLE IF NOT EXISTS marketplace_ai_recommendations (
+   594→  id                   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   595→  user_id              UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   596→  product_id           UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   597→  recommendation_type  TEXT NOT NULL,
+   598→  recommendation_reason TEXT,
+   599→  score                DECIMAL(5,4) NOT NULL DEFAULT 0.0000 CHECK (score BETWEEN 0.0000 AND 1.0000),
+   600→  was_clicked          BOOLEAN NOT NULL DEFAULT FALSE,
+   601→  was_purchased        BOOLEAN NOT NULL DEFAULT FALSE,
+   602→  created_at           TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   603→);
+   604→
+   605→COMMENT ON TABLE marketplace_ai_recommendations IS 'AI-generated product recommendations with click and conversion tracking';
+   606→COMMENT ON COLUMN marketplace_ai_recommendations.recommendation_type IS 'Type: similar_products, also_bought, trending, personalized, curriculum_based, subject_related';
+   607→
+   608→-- ----------------------------------------------------------------------------
+   609→-- 3.20 marketplace_quality_checks - AI Quality Review records
+   610→-- ----------------------------------------------------------------------------
+   611→CREATE TABLE IF NOT EXISTS marketplace_quality_checks (
+   612→  id                         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   613→  product_id                 UUID NOT NULL REFERENCES marketplace_products(id) ON DELETE CASCADE,
+   614→  overall_score              DECIMAL(5,2) NOT NULL CHECK (overall_score BETWEEN 0.00 AND 100.00),
+   615→  grammar_score              DECIMAL(5,2) CHECK (grammar_score BETWEEN 0.00 AND 100.00),
+   616→  spelling_score             DECIMAL(5,2) CHECK (spelling_score BETWEEN 0.00 AND 100.00),
+   617→  formatting_score           DECIMAL(5,2) CHECK (formatting_score BETWEEN 0.00 AND 100.00),
+   618→  curriculum_alignment_score DECIMAL(5,2) CHECK (curriculum_alignment_score BETWEEN 0.00 AND 100.00),
+   619→  reading_level              DECIMAL(5,2),
+   620→  reading_level_label        TEXT,
+   621→  duplicate_check_result     JSONB DEFAULT '{}',
+   622→  accuracy_flag              BOOLEAN NOT NULL DEFAULT FALSE,
+   623→  accuracy_details           JSONB DEFAULT '{}',
+   624→  suggestions                TEXT[] DEFAULT '{}',
+   625→  flagged_issues             TEXT[] DEFAULT '{}',
+   626→  checked_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   627→  created_at                 TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   628→);
+   629→
+   630→COMMENT ON TABLE marketplace_quality_checks IS 'AI-powered quality review records for product content validation';
+   631→COMMENT ON COLUMN marketplace_quality_checks.duplicate_check_result IS 'JSONB: {is_duplicate: bool, similarity_score: float, matching_product_ids: []}';
+   632→COMMENT ON COLUMN marketplace_quality_checks.accuracy_details IS 'JSONB: {factual_errors: [], source_conflicts: [], confidence_score: float}';
+   633→COMMENT ON COLUMN marketplace_quality_checks.reading_level_label IS 'Human-readable label like "Grade 5" or "Intermediate"';
+   634→
+   635→-- ----------------------------------------------------------------------------
+   636→-- 3.21 marketplace_disputes - Dispute management
+   637→-- ----------------------------------------------------------------------------
+   638→CREATE TABLE IF NOT EXISTS marketplace_disputes (
+   639→  id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   640→  order_id     UUID NOT NULL REFERENCES marketplace_orders(id) ON DELETE CASCADE,
+   641→  buyer_id     UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   642→  seller_id    UUID NOT NULL REFERENCES seller_profiles(id) ON DELETE CASCADE,
+   643→  reason       TEXT NOT NULL,
+   644→  description  TEXT NOT NULL,
+   645→  status       TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'under_review', 'resolved', 'closed')),
+   646→  resolution   TEXT,
+   647→  resolved_by  UUID REFERENCES auth.users(id) ON DELETE SET NULL,
+   648→  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+   649→  updated_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   650→);
+   651→
+   652→COMMENT ON TABLE marketplace_disputes IS 'Dispute management for order conflicts between buyers and sellers';
+   653→
+   654→-- ----------------------------------------------------------------------------
+   655→-- 3.22 marketplace_notifications - Marketplace-specific notifications
+   656→-- ----------------------------------------------------------------------------
+   657→CREATE TABLE IF NOT EXISTS marketplace_notifications (
+   658→  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   659→  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   660→  type       TEXT NOT NULL,
+   661→  title      TEXT NOT NULL,
+   662→  message    TEXT NOT NULL,
+   663→  data       JSONB DEFAULT '{}',
+   664→  is_read    BOOLEAN NOT NULL DEFAULT FALSE,
+   665→  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   666→);
+   667→
+   668→COMMENT ON TABLE marketplace_notifications IS 'In-app marketplace notifications for users (sellers and buyers)';
+   669→COMMENT ON COLUMN marketplace_notifications.type IS 'Notification type: sale, review, dispute, payout, product_approved, product_rejected, etc.';
+   670→COMMENT ON COLUMN marketplace_notifications.data IS 'JSONB payload with type-specific data (e.g., {order_id, product_id, amount})';
+   671→
+   672→-- ----------------------------------------------------------------------------
+   673→-- 3.23 marketplace_saved_searches - Saved search filters
+   674→-- ----------------------------------------------------------------------------
+   675→CREATE TABLE IF NOT EXISTS marketplace_saved_searches (
+   676→  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   677→  user_id    UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   678→  name       TEXT NOT NULL,
+   679→  filters    JSONB NOT NULL DEFAULT '{}',
+   680→  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+   681→);
+   682→
+   683→COMMENT ON TABLE marketplace_saved_searches IS 'Saved search filter configurations for quick marketplace browsing';
+   684→COMMENT ON COLUMN marketplace_saved_searches.filters IS 'JSONB: {query, subject, class_level, product_type, price_min, price_max, curriculum, sort_by}';
+   685→
+   686→-- ============================================================================
+   687→-- SECTION 4: INDEXES
+   688→-- ============================================================================
+   689→
+   690→-- ---- marketplace_categories indexes ----
+   691→CREATE INDEX IF NOT EXISTS idx_categories_parent_id ON marketplace_categories(parent_id);
+   692→CREATE INDEX IF NOT EXISTS idx_categories_slug ON marketplace_categories(slug);
+   693→CREATE INDEX IF NOT EXISTS idx_categories_active_sort ON marketplace_categories(is_active, sort_order);
+   694→
+   695→-- ---- seller_profiles indexes ----
+   696→CREATE INDEX IF NOT EXISTS idx_seller_profiles_user_id ON seller_profiles(user_id);
+   697→CREATE INDEX IF NOT EXISTS idx_seller_profiles_status ON seller_profiles(status);
+   698→CREATE INDEX IF NOT EXISTS idx_seller_profiles_verified ON seller_profiles(is_verified);
+   699→CREATE INDEX IF NOT EXISTS idx_seller_profiles_rating ON seller_profiles(average_rating DESC NULLS LAST);
+   700→CREATE INDEX IF NOT EXISTS idx_seller_profiles_total_sales ON seller_profiles(total_sales DESC);
+   701→
+   702→-- ---- marketplace_products indexes ----
+   703→-- B-tree indexes for common filter/sort columns
+   704→CREATE INDEX IF NOT EXISTS idx_products_seller_id ON marketplace_products(seller_id);
+   705→CREATE INDEX IF NOT EXISTS idx_products_category_id ON marketplace_products(category_id);
+   706→CREATE INDEX IF NOT EXISTS idx_products_status ON marketplace_products(status);
+   707→CREATE INDEX IF NOT EXISTS idx_products_product_type ON marketplace_products(product_type);
+   708→CREATE INDEX IF NOT EXISTS idx_products_created_at ON marketplace_products(created_at DESC);
+   709→CREATE INDEX IF NOT EXISTS idx_products_published_at ON marketplace_products(published_at DESC);
+   710→CREATE INDEX IF NOT EXISTS idx_products_price ON marketplace_products(price);
+   711→CREATE INDEX IF NOT EXISTS idx_products_rating ON marketplace_products(average_rating DESC NULLS LAST);
+   712→CREATE INDEX IF NOT EXISTS idx_products_total_sales ON marketplace_products(total_sales DESC);
+   713→CREATE INDEX IF NOT EXISTS idx_products_quality_score ON marketplace_products(quality_score DESC NULLS LAST);
+   714→CREATE INDEX IF NOT EXISTS idx_products_featured ON marketplace_products(is_featured) WHERE is_featured = TRUE;
+   715→CREATE INDEX IF NOT EXISTS idx_products_free ON marketplace_products(is_free) WHERE is_free = TRUE;
+   716→CREATE INDEX IF NOT EXISTS idx_products_deleted_at ON marketplace_products(deleted_at) WHERE deleted_at IS NOT NULL;
+   717→
+   718→-- Composite indexes for common query patterns
+   719→CREATE INDEX IF NOT EXISTS idx_products_status_type ON marketplace_products(status, product_type);
+   720→CREATE INDEX IF NOT EXISTS idx_products_status_created ON marketplace_products(status, created_at DESC);
+   721→CREATE INDEX IF NOT EXISTS idx_products_category_status ON marketplace_products(category_id, status);
+   722→CREATE INDEX IF NOT EXISTS idx_products_seller_status ON marketplace_products(seller_id, status);
+   723→
+   724→-- GIN index for tag array searches
+   725→CREATE INDEX IF NOT EXISTS idx_products_tags_gin ON marketplace_products USING GIN(tags);
+   726→
+   727→-- GIN index for full-text search
+   728→CREATE INDEX IF NOT EXISTS idx_products_fts_gin ON marketplace_products USING GIN(fts_document);
+   729→
+   730→-- GIN index on JSONB columns
+   731→CREATE INDEX IF NOT EXISTS idx_products_preview_images_gin ON marketplace_products USING GIN(preview_images);
+   732→CREATE INDEX IF NOT EXISTS idx_products_license_config_gin ON marketplace_products USING GIN(license_config);
+   733→
+   734→-- Trigram index for ILIKE/similarity searches on title
+   735→CREATE INDEX IF NOT EXISTS idx_products_title_trgm ON marketplace_products USING GIN(title gin_trgm_ops);
+   736→
+   737→-- Partial index for active published products
+   738→CREATE INDEX IF NOT EXISTS idx_products_active_published ON marketplace_products(status, published_at DESC)
+   739→  WHERE status = 'approved' AND deleted_at IS NULL;
+   740→
+   741→-- ---- marketplace_product_versions indexes ----
+   742→CREATE INDEX IF NOT EXISTS idx_product_versions_product_id ON marketplace_product_versions(product_id);
+   743→CREATE INDEX IF NOT EXISTS idx_product_versions_created_at ON marketplace_product_versions(created_at DESC);
+   744→
+   745→-- ---- marketplace_carts indexes ----
+   746→CREATE INDEX IF NOT EXISTS idx_carts_user_id ON marketplace_carts(user_id);
+   747→
+   748→-- ---- marketplace_cart_items indexes ----
+   749→CREATE INDEX IF NOT EXISTS idx_cart_items_cart_id ON marketplace_cart_items(cart_id);
+   750→CREATE INDEX IF NOT EXISTS idx_cart_items_product_id ON marketplace_cart_items(product_id);
+   751→
+   752→-- ---- marketplace_orders indexes ----
+   753→CREATE INDEX IF NOT EXISTS idx_orders_buyer_id ON marketplace_orders(buyer_id);
+   754→CREATE INDEX IF NOT EXISTS idx_orders_seller_id ON marketplace_orders(seller_id);
+   755→CREATE INDEX IF NOT EXISTS idx_orders_status ON marketplace_orders(status);
+   756→CREATE INDEX IF NOT EXISTS idx_orders_created_at ON marketplace_orders(created_at DESC);
+   757→CREATE INDEX IF NOT EXISTS idx_orders_order_number ON marketplace_orders(order_number);
+   758→CREATE INDEX IF NOT EXISTS idx_orders_paid_at ON marketplace_orders(paid_at DESC);
+   759→CREATE INDEX IF NOT EXISTS idx_orders_flutterwave_tx_ref ON marketplace_orders(flutterwave_tx_ref) WHERE flutterwave_tx_ref IS NOT NULL;
+   760→CREATE INDEX IF NOT EXISTS idx_orders_buyer_status ON marketplace_orders(buyer_id, status);
+   761→CREATE INDEX IF NOT EXISTS idx_orders_seller_status ON marketplace_orders(seller_id, status);
+   762→
+   763→-- ---- marketplace_order_items indexes ----
+   764→CREATE INDEX IF NOT EXISTS idx_order_items_order_id ON marketplace_order_items(order_id);
+   765→CREATE INDEX IF NOT EXISTS idx_order_items_product_id ON marketplace_order_items(product_id);
+   766→CREATE INDEX IF NOT EXISTS idx_order_items_seller_id ON marketplace_order_items(seller_id);
+   767→
+   768→-- ---- marketplace_purchases indexes ----
+   769→CREATE INDEX IF NOT EXISTS idx_purchases_buyer_id ON marketplace_purchases(buyer_id);
+   770→CREATE INDEX IF NOT EXISTS idx_purchases_product_id ON marketplace_purchases(product_id);
+   771→CREATE INDEX IF NOT EXISTS idx_purchases_license_key ON marketplace_purchases(license_key);
+   772→CREATE INDEX IF NOT EXISTS idx_purchases_active ON marketplace_purchases(is_active) WHERE is_active = TRUE;
+   773→CREATE INDEX IF NOT EXISTS idx_purchases_buyer_active ON marketplace_purchases(buyer_id, is_active);
+   774→CREATE INDEX IF NOT EXISTS idx_purchases_expires_at ON marketplace_purchases(expires_at) WHERE expires_at IS NOT NULL;
+   775→
+   776→-- ---- marketplace_reviews indexes ----
+   777→CREATE INDEX IF NOT EXISTS idx_reviews_product_id ON marketplace_reviews(product_id);
+   778→CREATE INDEX IF NOT EXISTS idx_reviews_buyer_id ON marketplace_reviews(buyer_id);
+   779→CREATE INDEX IF NOT EXISTS idx_reviews_seller_id ON marketplace_reviews(seller_id);
+   780→CREATE INDEX IF NOT EXISTS idx_reviews_status ON marketplace_reviews(status);
+   781→CREATE INDEX IF NOT EXISTS idx_reviews_rating ON marketplace_reviews(rating DESC);
+   782→CREATE INDEX IF NOT EXISTS idx_reviews_product_status ON marketplace_reviews(product_id, status);
+   783→CREATE INDEX IF NOT EXISTS idx_reviews_created_at ON marketplace_reviews(created_at DESC);
+   784→
+   785→-- ---- marketplace_review_helpful indexes ----
+   786→CREATE INDEX IF NOT EXISTS idx_review_helpful_review_id ON marketplace_review_helpful(review_id);
+   787→CREATE INDEX IF NOT EXISTS idx_review_helpful_user_id ON marketplace_review_helpful(user_id);
+   788→
+   789→-- ---- marketplace_wishlists indexes ----
+   790→CREATE INDEX IF NOT EXISTS idx_wishlists_user_id ON marketplace_wishlists(user_id);
+   791→CREATE INDEX IF NOT EXISTS idx_wishlists_product_id ON marketplace_wishlists(product_id);
+   792→
+   793→-- ---- marketplace_promo_codes indexes ----
+   794→CREATE INDEX IF NOT EXISTS idx_promo_codes_code ON marketplace_promo_codes(code);
+   795→CREATE INDEX IF NOT EXISTS idx_promo_codes_active ON marketplace_promo_codes(is_active) WHERE is_active = TRUE;
+   796→CREATE INDEX IF NOT EXISTS idx_promo_codes_dates ON marketplace_promo_codes(starts_at, expires_at);
+   797→
+   798→-- ---- marketplace_commission_rates indexes ----
+   799→CREATE INDEX IF NOT EXISTS idx_commission_rates_product_type ON marketplace_commission_rates(product_type);
+   800→CREATE INDEX IF NOT EXISTS idx_commission_rates_active ON marketplace_commission_rates(is_active) WHERE is_active = TRUE;
+   801→
+   802→-- ---- marketplace_commission_records indexes ----
+   803→CREATE INDEX IF NOT EXISTS idx_commission_records_order_item_id ON marketplace_commission_records(order_item_id);
+   804→CREATE INDEX IF NOT EXISTS idx_commission_records_seller_id ON marketplace_commission_records(seller_id);
+   805→CREATE INDEX IF NOT EXISTS idx_commission_records_type ON marketplace_commission_records(commission_type);
+   806→CREATE INDEX IF NOT EXISTS idx_commission_records_created_at ON marketplace_commission_records(created_at DESC);
+   807→
+   808→-- ---- marketplace_seller_analytics indexes ----
+   809→CREATE INDEX IF NOT EXISTS idx_seller_analytics_seller_id ON marketplace_seller_analytics(seller_id);
+   810→CREATE INDEX IF NOT EXISTS idx_seller_analytics_date ON marketplace_seller_analytics(date DESC);
+   811→CREATE INDEX IF NOT EXISTS idx_seller_analytics_seller_date ON marketplace_seller_analytics(seller_id, date DESC);
+   812→
+   813→-- ---- marketplace_product_analytics indexes ----
+   814→CREATE INDEX IF NOT EXISTS idx_product_analytics_product_id ON marketplace_product_analytics(product_id);
+   815→CREATE INDEX IF NOT EXISTS idx_product_analytics_date ON marketplace_product_analytics(date DESC);
+   816→CREATE INDEX IF NOT EXISTS idx_product_analytics_product_date ON marketplace_product_analytics(product_id, date DESC);
+   817→
+   818→-- ---- marketplace_search_logs indexes ----
+   819→CREATE INDEX IF NOT EXISTS idx_search_logs_user_id ON marketplace_search_logs(user_id);
+   820→CREATE INDEX IF NOT EXISTS idx_search_logs_created_at ON marketplace_search_logs(created_at DESC);
+   821→CREATE INDEX IF NOT EXISTS idx_search_logs_query ON marketplace_search_logs(query);
+   822→CREATE INDEX IF NOT EXISTS idx_search_logs_clicked_product ON marketplace_search_logs(clicked_product_id) WHERE clicked_product_id IS NOT NULL;
+   823→
+   824→-- ---- marketplace_ai_recommendations indexes ----
+   825→CREATE INDEX IF NOT EXISTS idx_ai_recs_user_id ON marketplace_ai_recommendations(user_id);
+   826→CREATE INDEX IF NOT EXISTS idx_ai_recs_product_id ON marketplace_ai_recommendations(product_id);
+   827→CREATE INDEX IF NOT EXISTS idx_ai_recs_type ON marketplace_ai_recommendations(recommendation_type);
+   828→CREATE INDEX IF NOT EXISTS idx_ai_recs_score ON marketplace_ai_recommendations(score DESC);
+   829→CREATE INDEX IF NOT EXISTS idx_ai_recs_user_type ON marketplace_ai_recommendations(user_id, recommendation_type);
+   830→CREATE INDEX IF NOT EXISTS idx_ai_recs_clicked ON marketplace_ai_recommendations(was_clicked) WHERE was_clicked = TRUE;
+   831→CREATE INDEX IF NOT EXISTS idx_ai_recs_purchased ON marketplace_ai_recommendations(was_purchased) WHERE was_purchased = TRUE;
+   832→
+   833→-- ---- marketplace_quality_checks indexes ----
+   834→CREATE INDEX IF NOT EXISTS idx_quality_checks_product_id ON marketplace_quality_checks(product_id);
+   835→CREATE INDEX IF NOT EXISTS idx_quality_checks_overall_score ON marketplace_quality_checks(overall_score DESC);
+   836→CREATE INDEX IF NOT EXISTS idx_quality_checks_checked_at ON marketplace_quality_checks(checked_at DESC);
+   837→
+   838→-- ---- marketplace_disputes indexes ----
+   839→CREATE INDEX IF NOT EXISTS idx_disputes_order_id ON marketplace_disputes(order_id);
+   840→CREATE INDEX IF NOT EXISTS idx_disputes_buyer_id ON marketplace_disputes(buyer_id);
+   841→CREATE INDEX IF NOT EXISTS idx_disputes_seller_id ON marketplace_disputes(seller_id);
+   842→CREATE INDEX IF NOT EXISTS idx_disputes_status ON marketplace_disputes(status);
+   843→CREATE INDEX IF NOT EXISTS idx_disputes_created_at ON marketplace_disputes(created_at DESC);
+   844→
+   845→-- ---- marketplace_notifications indexes ----
+   846→CREATE INDEX IF NOT EXISTS idx_notifications_user_id ON marketplace_notifications(user_id);
+   847→CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON marketplace_notifications(user_id, is_read) WHERE is_read = FALSE;
+   848→CREATE INDEX IF NOT EXISTS idx_notifications_type ON marketplace_notifications(type);
+   849→CREATE INDEX IF NOT EXISTS idx_notifications_created_at ON marketplace_notifications(created_at DESC);
+   850→
+   851→-- ---- marketplace_saved_searches indexes ----
+   852→CREATE INDEX IF NOT EXISTS idx_saved_searches_user_id ON marketplace_saved_searches(user_id);
+   853→
+   854→-- ============================================================================
+   855→-- SECTION 5: TRIGGERS
+   856→-- ============================================================================
+   857→
+   858→-- ---- Auto-update updated_at on all tables with that column ----
+   859→DO $$
+   860→DECLARE
+   861→  t TEXT;
+   862→BEGIN
+   863→  FOR t IN
+   864→    SELECT table_name FROM information_schema.columns
+   865→    WHERE table_schema = 'public'
+   866→      AND column_name = 'updated_at'
+   867→      AND table_name IN (
+   868→        'marketplace_categories',
+   869→        'seller_profiles',
+   870→        'marketplace_products',
+   871→        'marketplace_carts',
+   872→        'marketplace_orders',
+   873→        'marketplace_reviews',
+   874→        'marketplace_promo_codes',
+   875→        'marketplace_commission_rates',
+   876→        'marketplace_disputes'
+   877→      )
+   878→    GROUP BY table_name
+   879→  LOOP
+   880→    EXECUTE format(
+   881→      'CREATE OR REPLACE TRIGGER trg_%s_updated_at
+   882→         BEFORE UPDATE ON %I
+   883→         FOR EACH ROW
+   884→         EXECUTE FUNCTION update_updated_at_column()',
+   885→      t, t
+   886→    );
+   887→  END LOOP;
+   888→END;
+   889→$$;
+   890→
+   891→-- ---- Auto-update product average_rating and total_reviews ----
+   892→CREATE OR REPLACE FUNCTION update_product_rating()
+   893→RETURNS TRIGGER AS $$
+   894→BEGIN
+   895→  IF TG_OP = 'INSERT' THEN
+   896→    UPDATE marketplace_products
+   897→    SET
+   898→      average_rating = (
+   899→        SELECT COALESCE(AVG(rating), 0.00)
+   900→        FROM marketplace_reviews
+   901→        WHERE product_id = NEW.product_id AND status = 'published'
+   902→      ),
+   903→      total_reviews = (
+   904→        SELECT COUNT(*)
+   905→        FROM marketplace_reviews
+   906→        WHERE product_id = NEW.product_id AND status = 'published'
+   907→      )
+   908→    WHERE id = NEW.product_id;
+   909→  ELSIF TG_OP = 'UPDATE' THEN
+   910→    UPDATE marketplace_products
+   911→    SET
+   912→      average_rating = (
+   913→        SELECT COALESCE(AVG(rating), 0.00)
+   914→        FROM marketplace_reviews
+   915→        WHERE product_id = NEW.product_id AND status = 'published'
+   916→      ),
+   917→      total_reviews = (
+   918→        SELECT COUNT(*)
+   919→        FROM marketplace_reviews
+   920→        WHERE product_id = NEW.product_id AND status = 'published'
+   921→      )
+   922→    WHERE id = NEW.product_id;
+   923→  ELSIF TG_OP = 'DELETE' THEN
+   924→    UPDATE marketplace_products
+   925→    SET
+   926→      average_rating = (
+   927→        SELECT COALESCE(AVG(rating), 0.00)
+   928→        FROM marketplace_reviews
+   929→        WHERE product_id = OLD.product_id AND status = 'published'
+   930→      ),
+   931→      total_reviews = (
+   932→        SELECT COUNT(*)
+   933→        FROM marketplace_reviews
+   934→        WHERE product_id = OLD.product_id AND status = 'published'
+   935→      )
+   936→    WHERE id = OLD.product_id;
+   937→  END IF;
+   938→  RETURN COALESCE(NEW, OLD);
+   939→END;
+   940→$$ LANGUAGE plpgsql;
+   941→
+   942→DROP TRIGGER IF EXISTS trg_product_rating ON marketplace_reviews;
+   943→CREATE TRIGGER trg_product_rating
+   944→  AFTER INSERT OR UPDATE OF rating, status OR DELETE ON marketplace_reviews
+   945→  FOR EACH ROW
+   946→  EXECUTE FUNCTION update_product_rating();
+   947→
+   948→-- ---- Auto-update product total_sales and total_revenue on purchase ----
+   949→CREATE OR REPLACE FUNCTION update_product_sales()
+   950→RETURNS TRIGGER AS $$
+   951→BEGIN
+   952→  UPDATE marketplace_products
+   953→  SET
+   954→    total_sales = (
+   955→      SELECT COUNT(*)
+   956→      FROM marketplace_purchases
+   957→      WHERE product_id = NEW.product_id AND is_active = TRUE
+   958→    ),
+   959→    total_revenue = (
+   960→      SELECT COALESCE(SUM(oi.price_at_purchase), 0.00)
+   961→      FROM marketplace_order_items oi
+   962→      WHERE oi.product_id = NEW.product_id
+   963→    )
+   964→  WHERE id = NEW.product_id;
+   965→  RETURN NEW;
+   966→END;
+   967→$$ LANGUAGE plpgsql;
+   968→
+   969→DROP TRIGGER IF EXISTS trg_product_sales ON marketplace_purchases;
+   970→CREATE TRIGGER trg_product_sales
+   971→  AFTER INSERT OR UPDATE OF is_active ON marketplace_purchases
+   972→  FOR EACH ROW
+   973→  EXECUTE FUNCTION update_product_sales();
+   974→
+   975→-- ---- Auto-update seller aggregate stats ----
+   976→CREATE OR REPLACE FUNCTION update_seller_stats()
+   977→RETURNS TRIGGER AS $$
+   978→BEGIN
+   979→  UPDATE seller_profiles
+   980→  SET
+   981→    total_products = (
+   982→      SELECT COUNT(*)
+   983→      FROM marketplace_products
+   984→      WHERE seller_id = NEW.seller_id AND deleted_at IS NULL AND status != 'archived'
+   985→    ),
+   986→    average_rating = (
+   987→      SELECT COALESCE(AVG(average_rating), 0.00)
+   988→      FROM marketplace_products
+   989→      WHERE seller_id = NEW.seller_id AND deleted_at IS NULL AND status = 'approved'
+   990→    ),
+   991→    total_reviews = (
+   992→      SELECT COALESCE(SUM(total_reviews), 0)
+   993→      FROM marketplace_products
+   994→      WHERE seller_id = NEW.seller_id AND deleted_at IS NULL AND status = 'approved'
+   995→    )
+   996→  WHERE id = NEW.seller_id;
+   997→  RETURN NEW;
+   998→END;
+   999→$$ LANGUAGE plpgsql;
+  1000→
+  1001→DROP TRIGGER IF EXISTS trg_seller_stats ON marketplace_products;
+  1002→CREATE TRIGGER trg_seller_stats
+  1003→  AFTER INSERT OR UPDATE OF status, average_rating, total_reviews OR DELETE ON marketplace_products
+  1004→  FOR EACH ROW
+  1005→  EXECUTE FUNCTION update_seller_stats();
+  1006→
+  1007→-- ---- Auto-increment review helpful_count ----
+  1008→CREATE OR REPLACE FUNCTION update_review_helpful_count()
+  1009→RETURNS TRIGGER AS $$
+  1010→BEGIN
+  1011→  IF TG_OP = 'INSERT' THEN
+  1012→    UPDATE marketplace_reviews
+  1013→    SET helpful_count = helpful_count + 1
+  1014→    WHERE id = NEW.review_id;
+  1015→    RETURN NEW;
+  1016→  ELSIF TG_OP = 'DELETE' THEN
+  1017→    UPDATE marketplace_reviews
+  1018→    SET helpful_count = GREATEST(helpful_count - 1, 0)
+  1019→    WHERE id = OLD.review_id;
+  1020→    RETURN OLD;
+  1021→  END IF;
+  1022→  RETURN COALESCE(NEW, OLD);
+  1023→END;
+  1024→$$ LANGUAGE plpgsql;
+  1025→
+  1026→DROP TRIGGER IF EXISTS trg_review_helpful_count ON marketplace_review_helpful;
+  1027→CREATE TRIGGER trg_review_helpful_count
+  1028→  AFTER INSERT OR DELETE ON marketplace_review_helpful
+  1029→  FOR EACH ROW
+  1030→  EXECUTE FUNCTION update_review_helpful_count();
+  1031→
+  1032→-- ---- Auto-set published_at when product is approved ----
+  1033→CREATE OR REPLACE FUNCTION set_product_published_at()
+  1034→RETURNS TRIGGER AS $$
+  1035→BEGIN
+  1036→  IF NEW.status = 'approved' AND (OLD.status IS NULL OR OLD.status != 'approved') THEN
+  1037→    NEW.published_at = COALESCE(NEW.published_at, NOW());
+  1038→  END IF;
+  1039→  RETURN NEW;
+  1040→END;
+  1041→$$ LANGUAGE plpgsql;
+  1042→
+  1043→DROP TRIGGER IF EXISTS trg_product_published_at ON marketplace_products;
+  1044→CREATE TRIGGER trg_product_published_at
+  1045→  BEFORE UPDATE OF status ON marketplace_products
+  1046→  FOR EACH ROW
+  1047→  EXECUTE FUNCTION set_product_published_at();
+  1048→
+  1049→-- ---- Auto-set verified purchase flag on reviews ----
+  1050→CREATE OR REPLACE FUNCTION set_review_verified_purchase()
+  1051→RETURNS TRIGGER AS $$
+  1052→BEGIN
+  1053→  NEW.is_verified_purchase = EXISTS (
+  1054→    SELECT 1
+  1055→    FROM marketplace_purchases p
+  1056→    WHERE p.buyer_id = NEW.buyer_id
+  1057→      AND p.product_id = NEW.product_id
+  1058→      AND p.is_active = TRUE
+  1059→  );
+  1060→  RETURN NEW;
+  1061→END;
+  1062→$$ LANGUAGE plpgsql;
+  1063→
+  1064→DROP TRIGGER IF EXISTS trg_review_verified ON marketplace_reviews;
+  1065→CREATE TRIGGER trg_review_verified
+  1066→  BEFORE INSERT ON marketplace_reviews
+  1067→  FOR EACH ROW
+  1068→  EXECUTE FUNCTION set_review_verified_purchase();
+  1069→
+  1070→-- ---- Auto-increment promo code current_uses ----
+  1071→CREATE OR REPLACE FUNCTION increment_promo_uses()
+  1072→RETURNS TRIGGER AS $$
+  1073→BEGIN
+  1074→  IF NEW.promo_code_id IS NOT NULL AND (OLD.promo_code_id IS NULL OR OLD.promo_code_id != NEW.promo_code_id) THEN
+  1075→    UPDATE marketplace_promo_codes
+  1076→    SET current_uses = current_uses + 1
+  1077→    WHERE id = NEW.promo_code_id;
+  1078→  END IF;
+  1079→  RETURN NEW;
+  1080→END;
+  1081→$$ LANGUAGE plpgsql;
+  1082→
+  1083→DROP TRIGGER IF EXISTS trg_promo_uses ON marketplace_orders;
+  1084→CREATE TRIGGER trg_promo_uses
+  1085→  AFTER INSERT OR UPDATE OF promo_code_id ON marketplace_orders
+  1086→  FOR EACH ROW
+  1087→  EXECUTE FUNCTION increment_promo_uses();
+  1088→
+  1089→-- ============================================================================
+  1090→-- SECTION 6: ROW-LEVEL SECURITY (RLS) POLICIES
+  1091→-- ============================================================================
+  1092→
+  1093→-- Enable RLS on all marketplace tables
+  1094→ALTER TABLE marketplace_categories ENABLE ROW LEVEL SECURITY;
+  1095→ALTER TABLE seller_profiles ENABLE ROW LEVEL SECURITY;
+  1096→ALTER TABLE marketplace_products ENABLE ROW LEVEL SECURITY;
+  1097→ALTER TABLE marketplace_product_versions ENABLE ROW LEVEL SECURITY;
+  1098→ALTER TABLE marketplace_carts ENABLE ROW LEVEL SECURITY;
+  1099→ALTER TABLE marketplace_cart_items ENABLE ROW LEVEL SECURITY;
+  1100→ALTER TABLE marketplace_orders ENABLE ROW LEVEL SECURITY;
+  1101→ALTER TABLE marketplace_order_items ENABLE ROW LEVEL SECURITY;
+  1102→ALTER TABLE marketplace_purchases ENABLE ROW LEVEL SECURITY;
+  1103→ALTER TABLE marketplace_reviews ENABLE ROW LEVEL SECURITY;
+  1104→ALTER TABLE marketplace_review_helpful ENABLE ROW LEVEL SECURITY;
+  1105→ALTER TABLE marketplace_wishlists ENABLE ROW LEVEL SECURITY;
+  1106→ALTER TABLE marketplace_promo_codes ENABLE ROW LEVEL SECURITY;
+  1107→ALTER TABLE marketplace_commission_rates ENABLE ROW LEVEL SECURITY;
+  1108→ALTER TABLE marketplace_commission_records ENABLE ROW LEVEL SECURITY;
+  1109→ALTER TABLE marketplace_seller_analytics ENABLE ROW LEVEL SECURITY;
+  1110→ALTER TABLE marketplace_product_analytics ENABLE ROW LEVEL SECURITY;
+  1111→ALTER TABLE marketplace_search_logs ENABLE ROW LEVEL SECURITY;
+  1112→ALTER TABLE marketplace_ai_recommendations ENABLE ROW LEVEL SECURITY;
+  1113→ALTER TABLE marketplace_quality_checks ENABLE ROW LEVEL SECURITY;
+  1114→ALTER TABLE marketplace_disputes ENABLE ROW LEVEL SECURITY;
+  1115→ALTER TABLE marketplace_notifications ENABLE ROW LEVEL SECURITY;
+  1116→ALTER TABLE marketplace_saved_searches ENABLE ROW LEVEL SECURITY;
+  1117→
+  1118→-- Helper: check if user is a super admin
+  1119→CREATE OR REPLACE FUNCTION is_super_admin()
+  1120→RETURNS BOOLEAN AS $$
+  1121→  SELECT EXISTS (
+  1122→    SELECT 1 FROM auth.users
+  1123→    WHERE id = auth.uid()
+  1124→      AND raw_user_meta_data->>'role' = 'super_admin'
+  1125→  );
+  1126→$$ LANGUAGE sql SECURITY DEFINER STABLE;
+  1127→
+  1128→-- Helper: check if user is a marketplace admin
+  1129→CREATE OR REPLACE FUNCTION is_marketplace_admin()
+  1130→RETURNS BOOLEAN AS $$
+  1131→  SELECT EXISTS (
+  1132→    SELECT 1 FROM auth.users
+  1133→    WHERE id = auth.uid()
+  1134→      AND raw_user_meta_data->>'role' IN ('super_admin', 'marketplace_admin')
+  1135→  );
+  1136→$$ LANGUAGE sql SECURITY DEFINER STABLE;
+  1137→
+  1138→-- Helper: get seller profile id for current user
+  1139→CREATE OR REPLACE FUNCTION current_seller_id()
+  1140→RETURNS UUID AS $$
+  1141→  SELECT id FROM seller_profiles WHERE user_id = auth.uid() LIMIT 1;
+  1142→$$ LANGUAGE sql SECURITY DEFINER STABLE;
+  1143→
+  1144→-- ============================================================================
+  1145→-- RLS: marketplace_categories (public read, admin write)
+  1146→-- ============================================================================
+  1147→CREATE POLICY "Categories are publicly readable"
+  1148→  ON marketplace_categories FOR SELECT
+  1149→  USING (is_active = TRUE OR is_marketplace_admin());
+  1150→
+  1151→CREATE POLICY "Admins can manage categories"
+  1152→  ON marketplace_categories FOR ALL
+  1153→  USING (is_marketplace_admin())
+  1154→  WITH CHECK (is_marketplace_admin());
+  1155→
+  1156→-- ============================================================================
+  1157→-- RLS: seller_profiles (public read limited, self write, admin full)
+  1158→-- ============================================================================
+  1159→CREATE POLICY "Seller profiles are publicly readable"
+  1160→  ON seller_profiles FOR SELECT
+  1161→  USING (TRUE);  -- Public can view seller profiles for trust/transparency
+  1162→
+  1163→CREATE POLICY "Sellers can update own profile"
+  1164→  ON seller_profiles FOR UPDATE
+  1165→  USING (user_id = auth.uid())
+  1166→  WITH CHECK (user_id = auth.uid());
+  1167→
+  1168→CREATE POLICY "Sellers can insert own profile"
+  1169→  ON seller_profiles FOR INSERT
+  1170→  WITH CHECK (user_id = auth.uid());
+  1171→
+  1172→CREATE POLICY "Admins can manage all seller profiles"
+  1173→  ON seller_profiles FOR ALL
+  1174→  USING (is_marketplace_admin())
+  1175→  WITH CHECK (is_marketplace_admin());
+  1176→
+  1177→-- ============================================================================
+  1178→-- RLS: marketplace_products (public read approved, seller CRUD own, admin full)
+  1179→-- ============================================================================
+  1180→CREATE POLICY "Approved products are publicly readable"
+  1181→  ON marketplace_products FOR SELECT
+  1182→  USING (
+  1183→    (status = 'approved' AND deleted_at IS NULL)
+  1184→    OR seller_id = current_seller_id()
+  1185→    OR is_marketplace_admin()
+  1186→  );
+  1187→
+  1188→CREATE POLICY "Sellers can insert own products"
+  1189→  ON marketplace_products FOR INSERT
+  1190→  WITH CHECK (seller_id = current_seller_id() OR is_marketplace_admin());
+  1191→
+  1192→CREATE POLICY "Sellers can update own products"
+  1193→  ON marketplace_products FOR UPDATE
+  1194→  USING (seller_id = current_seller_id() OR is_marketplace_admin())
+  1195→  WITH CHECK (seller_id = current_seller_id() OR is_marketplace_admin());
+  1196→
+  1197→CREATE POLICY "Sellers can soft-delete own products"
+  1198→  ON marketplace_products FOR DELETE
+  1199→  USING (seller_id = current_seller_id() OR is_marketplace_admin());
+  1200→
+  1201→-- ============================================================================
+  1202→-- RLS: marketplace_product_versions (seller see own, admin full)
+  1203→-- ============================================================================
+  1204→CREATE POLICY "Product versions visible to seller and admin"
+  1205→  ON marketplace_product_versions FOR SELECT
+  1206→  USING (
+  1207→    product_id IN (SELECT id FROM marketplace_products WHERE seller_id = current_seller_id())
+  1208→    OR is_marketplace_admin()
+  1209→  );
+  1210→
+  1211→CREATE POLICY "Sellers can manage own product versions"
+  1212→  ON marketplace_product_versions FOR INSERT
+  1213→  WITH CHECK (
+  1214→    product_id IN (SELECT id FROM marketplace_products WHERE seller_id = current_seller_id())
+  1215→    OR is_marketplace_admin()
+  1216→  );
+  1217→
+  1218→CREATE POLICY "Sellers can update own product versions"
+  1219→  ON marketplace_product_versions FOR UPDATE
+  1220→  USING (
+  1221→    product_id IN (SELECT id FROM marketplace_products WHERE seller_id = current_seller_id())
+  1222→    OR is_marketplace_admin()
+  1223→  );
+  1224→
+  1225→-- ============================================================================
+  1226→-- RLS: marketplace_carts (users see own cart only)
+  1227→-- ============================================================================
+  1228→CREATE POLICY "Users can see own cart"
+  1229→  ON marketplace_carts FOR SELECT
+  1230→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1231→
+  1232→CREATE POLICY "Users can insert own cart"
+  1233→  ON marketplace_carts FOR INSERT
+  1234→  WITH CHECK (user_id = auth.uid());
+  1235→
+  1236→CREATE POLICY "Users can update own cart"
+  1237→  ON marketplace_carts FOR UPDATE
+  1238→  USING (user_id = auth.uid());
+  1239→
+  1240→CREATE POLICY "Users can delete own cart"
+  1241→  ON marketplace_carts FOR DELETE
+  1242→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1243→
+  1244→-- ============================================================================
+  1245→-- RLS: marketplace_cart_items (users manage own cart items)
+  1246→-- ============================================================================
+  1247→CREATE POLICY "Users can see own cart items"
+  1248→  ON marketplace_cart_items FOR SELECT
+  1249→  USING (cart_id IN (SELECT id FROM marketplace_carts WHERE user_id = auth.uid()) OR is_marketplace_admin());
+  1250→
+  1251→CREATE POLICY "Users can insert own cart items"
+  1252→  ON marketplace_cart_items FOR INSERT
+  1253→  WITH CHECK (cart_id IN (SELECT id FROM marketplace_carts WHERE user_id = auth.uid()));
+  1254→
+  1255→CREATE POLICY "Users can update own cart items"
+  1256→  ON marketplace_cart_items FOR UPDATE
+  1257→  USING (cart_id IN (SELECT id FROM marketplace_carts WHERE user_id = auth.uid()));
+  1258→
+  1259→CREATE POLICY "Users can delete own cart items"
+  1260→  ON marketplace_cart_items FOR DELETE
+  1261→  USING (cart_id IN (SELECT id FROM marketplace_carts WHERE user_id = auth.uid()) OR is_marketplace_admin());
+  1262→
+  1263→-- ============================================================================
+  1264→-- RLS: marketplace_orders (buyer/seller see own, admin full)
+  1265→-- ============================================================================
+  1266→CREATE POLICY "Users can see own orders"
+  1267→  ON marketplace_orders FOR SELECT
+  1268→  USING (
+  1269→    buyer_id = auth.uid()
+  1270→    OR seller_id = current_seller_id()
+  1271→    OR is_marketplace_admin()
+  1272→  );
+  1273→
+  1274→CREATE POLICY "Buyers can create orders"
+  1275→  ON marketplace_orders FOR INSERT
+  1276→  WITH CHECK (buyer_id = auth.uid());
+  1277→
+  1278→CREATE POLICY "Buyers and sellers can update relevant orders"
+  1279→  ON marketplace_orders FOR UPDATE
+  1280→  USING (
+  1281→    buyer_id = auth.uid()
+  1282→    OR seller_id = current_seller_id()
+  1283→    OR is_marketplace_admin()
+  1284→  );
+  1285→
+  1286→-- ============================================================================
+  1287→-- RLS: marketplace_order_items (buyer/seller see own, admin full)
+  1288→-- ============================================================================
+  1289→CREATE POLICY "Users can see own order items"
+  1290→  ON marketplace_order_items FOR SELECT
+  1291→  USING (
+  1292→    order_id IN (SELECT id FROM marketplace_orders WHERE buyer_id = auth.uid())
+  1293→    OR seller_id = current_seller_id()
+  1294→    OR is_marketplace_admin()
+  1295→  );
+  1296→
+  1297→CREATE POLICY "System creates order items"
+  1298→  ON marketplace_order_items FOR INSERT
+  1299→  WITH CHECK (is_marketplace_admin() OR auth.uid() IS NOT NULL);
+  1300→
+  1301→-- ============================================================================
+  1302→-- RLS: marketplace_purchases (buyers see own purchases)
+  1303→-- ============================================================================
+  1304→CREATE POLICY "Buyers can see own purchases"
+  1305→  ON marketplace_purchases FOR SELECT
+  1306→  USING (buyer_id = auth.uid() OR is_marketplace_admin());
+  1307→
+  1308→CREATE POLICY "System creates purchases"
+  1309→  ON marketplace_purchases FOR INSERT
+  1310→  WITH CHECK (is_marketplace_admin() OR buyer_id = auth.uid());
+  1311→
+  1312→CREATE POLICY "Buyers can update own purchase download count"
+  1313→  ON marketplace_purchases FOR UPDATE
+  1314→  USING (buyer_id = auth.uid() OR is_marketplace_admin());
+  1315→
+  1316→-- ============================================================================
+  1317→-- RLS: marketplace_reviews (public read published, buyer write own, admin full)
+  1318→-- ============================================================================
+  1319→CREATE POLICY "Published reviews are publicly readable"
+  1320→  ON marketplace_reviews FOR SELECT
+  1321→  USING (
+  1322→    status = 'published'
+  1323→    OR buyer_id = auth.uid()
+  1324→    OR seller_id = current_seller_id()
+  1325→    OR is_marketplace_admin()
+  1326→  );
+  1327→
+  1328→CREATE POLICY "Buyers can insert own reviews"
+  1329→  ON marketplace_reviews FOR INSERT
+  1330→  WITH CHECK (buyer_id = auth.uid());
+  1331→
+  1332→CREATE POLICY "Buyers can update own reviews, sellers can respond"
+  1333→  ON marketplace_reviews FOR UPDATE
+  1334→  USING (
+  1335→    buyer_id = auth.uid()
+  1336→    OR seller_id = current_seller_id()
+  1337→    OR is_marketplace_admin()
+  1338→  );
+  1339→
+  1340→CREATE POLICY "Buyers can delete own reviews"
+  1341→  ON marketplace_reviews FOR DELETE
+  1342→  USING (buyer_id = auth.uid() OR is_marketplace_admin());
+  1343→
+  1344→-- ============================================================================
+  1345→-- RLS: marketplace_review_helpful (authenticated users can vote)
+  1346→-- ============================================================================
+  1347→CREATE POLICY "Anyone can see helpful votes"
+  1348→  ON marketplace_review_helpful FOR SELECT
+  1349→  USING (TRUE);
+  1350→
+  1351→CREATE POLICY "Authenticated users can vote helpful"
+  1352→  ON marketplace_review_helpful FOR INSERT
+  1353→  WITH CHECK (user_id = auth.uid());
+  1354→
+  1355→CREATE POLICY "Users can remove own helpful vote"
+  1356→  ON marketplace_review_helpful FOR DELETE
+  1357→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1358→
+  1359→-- ============================================================================
+  1360→-- RLS: marketplace_wishlists (users manage own wishlist)
+  1361→-- ============================================================================
+  1362→CREATE POLICY "Users can see own wishlist"
+  1363→  ON marketplace_wishlists FOR SELECT
+  1364→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1365→
+  1366→CREATE POLICY "Users can add to own wishlist"
+  1367→  ON marketplace_wishlists FOR INSERT
+  1368→  WITH CHECK (user_id = auth.uid());
+  1369→
+  1370→CREATE POLICY "Users can remove from own wishlist"
+  1371→  ON marketplace_wishlists FOR DELETE
+  1372→  USING (user_id = auth.uid());
+  1373→
+  1374→-- ============================================================================
+  1375→-- RLS: marketplace_promo_codes (admin only management, limited public read)
+  1376→-- ============================================================================
+  1377→CREATE POLICY "Active promo codes are readable for validation"
+  1378→  ON marketplace_promo_codes FOR SELECT
+  1379→  USING (is_active = TRUE OR is_marketplace_admin());
+  1380→
+  1381→CREATE POLICY "Only admins can manage promo codes"
+  1382→  ON marketplace_promo_codes FOR ALL
+  1383→  USING (is_marketplace_admin())
+  1384→  WITH CHECK (is_marketplace_admin());
+  1385→
+  1386→-- ============================================================================
+  1387→-- RLS: marketplace_commission_rates (admin only)
+  1388→-- ============================================================================
+  1389→CREATE POLICY "Commission rates readable by admins"
+  1390→  ON marketplace_commission_rates FOR SELECT
+  1391→  USING (is_marketplace_admin());
+  1392→
+  1393→CREATE POLICY "Only admins can manage commission rates"
+  1394→  ON marketplace_commission_rates FOR ALL
+  1395→  USING (is_marketplace_admin())
+  1396→  WITH CHECK (is_marketplace_admin());
+  1397→
+  1398→-- ============================================================================
+  1399→-- RLS: marketplace_commission_records (admin and relevant seller)
+  1400→-- ============================================================================
+  1401→CREATE POLICY "Sellers can see own commission records"
+  1402→  ON marketplace_commission_records FOR SELECT
+  1403→  USING (seller_id = current_seller_id() OR is_marketplace_admin());
+  1404→
+  1405→CREATE POLICY "Only admins can manage commission records"
+  1406→  ON marketplace_commission_records FOR ALL
+  1407→  USING (is_marketplace_admin())
+  1408→  WITH CHECK (is_marketplace_admin());
+  1409→
+  1410→-- ============================================================================
+  1411→-- RLS: marketplace_seller_analytics (sellers see own, admin full)
+  1412→-- ============================================================================
+  1413→CREATE POLICY "Sellers can see own analytics"
+  1414→  ON marketplace_seller_analytics FOR SELECT
+  1415→  USING (seller_id = current_seller_id() OR is_marketplace_admin());
+  1416→
+  1417→CREATE POLICY "Only admins can manage seller analytics"
+  1418→  ON marketplace_seller_analytics FOR ALL
+  1419→  USING (is_marketplace_admin())
+  1420→  WITH CHECK (is_marketplace_admin());
+  1421→
+  1422→-- ============================================================================
+  1423→-- RLS: marketplace_product_analytics (sellers see own products, admin full)
+  1424→-- ============================================================================
+  1425→CREATE POLICY "Sellers can see own product analytics"
+  1426→  ON marketplace_product_analytics FOR SELECT
+  1427→  USING (
+  1428→    product_id IN (SELECT id FROM marketplace_products WHERE seller_id = current_seller_id())
+  1429→    OR is_marketplace_admin()
+  1430→  );
+  1431→
+  1432→CREATE POLICY "Only admins can manage product analytics"
+  1433→  ON marketplace_product_analytics FOR ALL
+  1434→  USING (is_marketplace_admin())
+  1435→  WITH CHECK (is_marketplace_admin());
+  1436→
+  1437→-- ============================================================================
+  1438→-- RLS: marketplace_search_logs (admin only read/write)
+  1439→-- ============================================================================
+  1440→CREATE POLICY "System can log searches"
+  1441→  ON marketplace_search_logs FOR INSERT
+  1442→  WITH CHECK (auth.uid() IS NOT NULL);
+  1443→
+  1444→CREATE POLICY "Admins can view search logs"
+  1445→  ON marketplace_search_logs FOR SELECT
+  1446→  USING (is_marketplace_admin());
+  1447→
+  1448→-- ============================================================================
+  1449→-- RLS: marketplace_ai_recommendations (users see own, admin full)
+  1450→-- ============================================================================
+  1451→CREATE POLICY "Users can see own recommendations"
+  1452→  ON marketplace_ai_recommendations FOR SELECT
+  1453→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1454→
+  1455→CREATE POLICY "System can create recommendations"
+  1456→  ON marketplace_ai_recommendations FOR INSERT
+  1457→  WITH CHECK (TRUE);  -- System-generated
+  1458→
+  1459→CREATE POLICY "System can update recommendation tracking"
+  1460→  ON marketplace_ai_recommendations FOR UPDATE
+  1461→  USING (is_marketplace_admin() OR user_id = auth.uid());
+  1462→
+  1463→-- ============================================================================
+  1464→-- RLS: marketplace_quality_checks (sellers see own, admin full)
+  1465→-- ============================================================================
+  1466→CREATE POLICY "Sellers can see quality checks for own products"
+  1467→  ON marketplace_quality_checks FOR SELECT
+  1468→  USING (
+  1469→    product_id IN (SELECT id FROM marketplace_products WHERE seller_id = current_seller_id())
+  1470→    OR is_marketplace_admin()
+  1471→  );
+  1472→
+  1473→CREATE POLICY "Only admins can manage quality checks"
+  1474→  ON marketplace_quality_checks FOR ALL
+  1475→  USING (is_marketplace_admin())
+  1476→  WITH CHECK (is_marketplace_admin());
+  1477→
+  1478→-- ============================================================================
+  1479→-- RLS: marketplace_disputes (buyer/seller see own, admin full)
+  1480→-- ============================================================================
+  1481→CREATE POLICY "Parties can see own disputes"
+  1482→  ON marketplace_disputes FOR SELECT
+  1483→  USING (
+  1484→    buyer_id = auth.uid()
+  1485→    OR seller_id = current_seller_id()
+  1486→    OR is_marketplace_admin()
+  1487→  );
+  1488→
+  1489→CREATE POLICY "Buyers can create disputes"
+  1490→  ON marketplace_disputes FOR INSERT
+  1491→  WITH CHECK (buyer_id = auth.uid());
+  1492→
+  1493→CREATE POLICY "Parties and admins can update disputes"
+  1494→  ON marketplace_disputes FOR UPDATE
+  1495→  USING (
+  1496→    buyer_id = auth.uid()
+  1497→    OR seller_id = current_seller_id()
+  1498→    OR is_marketplace_admin()
+  1499→  );
+  1500→
+  1501→-- ============================================================================
+  1502→-- RLS: marketplace_notifications (users see own)
+  1503→-- ============================================================================
+  1504→CREATE POLICY "Users can see own notifications"
+  1505→  ON marketplace_notifications FOR SELECT
+  1506→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1507→
+  1508→CREATE POLICY "System can create notifications"
+  1509→  ON marketplace_notifications FOR INSERT
+  1510→  WITH CHECK (TRUE);  -- System-generated
+  1511→
+  1512→CREATE POLICY "Users can update own notifications (mark read)"
+  1513→  ON marketplace_notifications FOR UPDATE
+  1514→  USING (user_id = auth.uid());
+  1515→
+  1516→CREATE POLICY "Users can delete own notifications"
+  1517→  ON marketplace_notifications FOR DELETE
+  1518→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1519→
+  1520→-- ============================================================================
+  1521→-- RLS: marketplace_saved_searches (users manage own)
+  1522→-- ============================================================================
+  1523→CREATE POLICY "Users can see own saved searches"
+  1524→  ON marketplace_saved_searches FOR SELECT
+  1525→  USING (user_id = auth.uid() OR is_marketplace_admin());
+  1526→
+  1527→CREATE POLICY "Users can create own saved searches"
+  1528→  ON marketplace_saved_searches FOR INSERT
+  1529→  WITH CHECK (user_id = auth.uid());
+  1530→
+  1531→CREATE POLICY "Users can delete own saved searches"
+  1532→  ON marketplace_saved_searches FOR DELETE
+  1533→  USING (user_id = auth.uid());
+  1534→
+  1535→-- ============================================================================
+  1536→-- SECTION 7: FUNCTIONS - Search, Recommendations, Quality Checks
+  1537→-- ============================================================================
+  1538→
+  1539→-- ---- Full-text search function for marketplace products ----
+  1540→CREATE OR REPLACE FUNCTION marketplace_search(
+  1541→  search_query   TEXT,
+  1542→  p_product_type marketplace_product_type DEFAULT NULL,
+  1543→  p_category_id  UUID DEFAULT NULL,
+  1544→  p_subject      TEXT DEFAULT NULL,
+  1545→  p_class_level  TEXT DEFAULT NULL,
+  1546→  p_curriculum   TEXT DEFAULT NULL,
+  1547→  p_price_min    DECIMAL DEFAULT NULL,
+  1548→  p_price_max    DECIMAL DEFAULT NULL,
+  1549→  p_license_type marketplace_license_type DEFAULT NULL,
+  1550→  p_tags         TEXT[] DEFAULT NULL,
+  1551→  p_is_free      BOOLEAN DEFAULT NULL,
+  1552→  p_sort_by      TEXT DEFAULT 'relevance',
+  1553→  p_limit        INTEGER DEFAULT 20,
+  1554→  p_offset       INTEGER DEFAULT 0
+  1555→)
+  1556→RETURNS TABLE (
+  1557→  id                UUID,
+  1558→  title             TEXT,
+  1559→  slug              TEXT,
+  1560→  description       TEXT,
+  1561→  product_type      marketplace_product_type,
+  1562→  subject           TEXT,
+  1563→  class_level       TEXT,
+  1564→  curriculum        TEXT,
+  1565→  price             DECIMAL,
+  1566→  original_price    DECIMAL,
+  1567→  currency          TEXT,
+  1568→  license_type      marketplace_license_type,
+  1569→  tags              TEXT[],
+  1570→  preview_images    JSONB,
+  1571→  average_rating    DECIMAL,
+  1572→  total_reviews     INTEGER,
+  1573→  total_sales       INTEGER,
+  1574→  quality_score     DECIMAL,
+  1575→  is_free           BOOLEAN,
+  1576→  is_featured       BOOLEAN,
+  1577→  seller_id         UUID,
+  1578→  seller_name       TEXT,
+  1579→  published_at      TIMESTAMPTZ,
+  1580→  search_rank       REAL
+  1581→) AS $$
+  1582→BEGIN
+  1583→  RETURN QUERY
+  1584→  SELECT
+  1585→    p.id,
+  1586→    p.title,
+  1587→    p.slug,
+  1588→    p.description,
+  1589→    p.product_type,
+  1590→    p.subject,
+  1591→    p.class_level,
+  1592→    p.curriculum,
+  1593→    p.price,
+  1594→    p.original_price,
+  1595→    p.currency,
+  1596→    p.license_type,
+  1597→    p.tags,
+  1598→    p.preview_images,
+  1599→    p.average_rating,
+  1600→    p.total_reviews,
+  1601→    p.total_sales,
+  1602→    p.quality_score,
+  1603→    p.is_free,
+  1604→    p.is_featured,
+  1605→    p.seller_id,
+  1606→    sp.display_name AS seller_name,
+  1607→    p.published_at,
+  1608→    ts_rank(p.fts_document, websearch_to_tsquery('english', search_query)) AS search_rank
+  1609→  FROM marketplace_products p
+  1610→  INNER JOIN seller_profiles sp ON p.seller_id = sp.id
+  1611→  WHERE p.status = 'approved'
+  1612→    AND p.deleted_at IS NULL
+  1613→    -- Full-text search
+  1614→    AND p.fts_document @@ websearch_to_tsquery('english', search_query)
+  1615→    -- Optional filters
+  1616→    AND (p_product_type IS NULL OR p.product_type = p_product_type)
+  1617→    AND (p_category_id IS NULL OR p.category_id = p_category_id)
+  1618→    AND (p_subject IS NULL OR p.subject ILIKE '%' || p_subject || '%')
+  1619→    AND (p_class_level IS NULL OR p.class_level = p_class_level)
+  1620→    AND (p_curriculum IS NULL OR p.curriculum ILIKE '%' || p_curriculum || '%')
+  1621→    AND (p_price_min IS NULL OR p.price >= p_price_min)
+  1622→    AND (p_price_max IS NULL OR p.price <= p_price_max)
+  1623→    AND (p_license_type IS NULL OR p.license_type = p_license_type)
+  1624→    AND (p_is_free IS NULL OR p.is_free = p_is_free)
+  1625→    AND (p_tags IS NULL OR p.tags && p_tags)
+  1626→  ORDER BY
+  1627→    CASE p_sort_by
+  1628→      WHEN 'relevance' THEN ts_rank(p.fts_document, websearch_to_tsquery('english', search_query))
+  1629→      ELSE 0
+  1630→    END DESC,
+  1631→    CASE p_sort_by
+  1632→      WHEN 'newest' THEN EXTRACT(EPOCH FROM p.published_at)
+  1633→      WHEN 'price_low' THEN -p.price
+  1634→      WHEN 'price_high' THEN p.price
+  1635→      WHEN 'rating' THEN p.average_rating
+  1636→      WHEN 'popular' THEN p.total_sales
+  1637→      ELSE 0
+  1638→    END DESC,
+  1639→    p.is_featured DESC,
+  1640→    p.published_at DESC
+  1641→  LIMIT p_limit
+  1642→  OFFSET p_offset;
+  1643→END;
+  1644→$$ LANGUAGE plpgsql STABLE;
+  1645→
+  1646→COMMENT ON FUNCTION marketplace_search IS 'Full-text search with weighted ranking and multi-faceted filtering for marketplace products';
+  1647→
+  1648→-- ---- AI Recommendation scoring function ----
+  1649→CREATE OR REPLACE FUNCTION calculate_recommendation_score(
+  1650→  p_user_id    UUID,
+  1651→  p_product_id UUID
+  1652→)
+  1653→RETURNS DECIMAL AS $$
+  1654→DECLARE
+  1655→  v_score            DECIMAL := 0.0;
+  1656→  v_user_purchases   UUID[];
+  1657→  v_user_tags        TEXT[];
+  1658→  v_product_tags     TEXT[];
+  1659→  v_tag_overlap      INTEGER;
+  1660→  v_purchase_count   INTEGER;
+  1661→  v_product_rating   DECIMAL;
+  1662→  v_product_sales    INTEGER;
+  1663→  v_quality_score    DECIMAL;
+  1664→BEGIN
+  1665→  -- Get user's purchase history product categories
+  1666→  SELECT array_agg(DISTINCT product_id) INTO v_user_purchases
+  1667→  FROM marketplace_purchases
+  1668→  WHERE buyer_id = p_user_id AND is_active = TRUE;
+  1669→
+  1670→  -- Get tags from user's purchased products
+  1671→  SELECT array_agg(DISTINCT unnest_tags) INTO v_user_tags
+  1672→  FROM (
+  1673→    SELECT unnest(tags) AS unnest_tags
+  1674→    FROM marketplace_products
+  1675→    WHERE id = ANY(v_user_purchases) AND tags IS NOT NULL
+  1676→  ) sub;
+  1677→
+  1678→  -- Get product tags
+  1679→  SELECT tags INTO v_product_tags
+  1680→  FROM marketplace_products
+  1681→  WHERE id = p_product_id;
+  1682→
+  1683→  -- 1. Tag overlap score (0-0.30): How many tags overlap with user's interests
+  1684→  IF v_user_tags IS NOT NULL AND v_product_tags IS NOT NULL THEN
+  1685→    SELECT COUNT(*) INTO v_tag_overlap
+  1686→    FROM (SELECT unnest(v_user_tags) INTERSECT SELECT unnest(v_product_tags)) overlap;
+  1687→    v_score := v_score + LEAST(v_tag_overlap::DECIMAL / 10.0, 0.30);
+  1688→  END IF;
+  1689→
+  1690→  -- 2. Quality score component (0-0.25)
+  1691→  SELECT COALESCE(quality_score, 0) INTO v_quality_score
+  1692→  FROM marketplace_products WHERE id = p_product_id;
+  1693→  v_score := v_score + (v_quality_score / 100.0) * 0.25;
+  1694→
+  1695→  -- 3. Rating component (0-0.20)
+  1696→  SELECT COALESCE(average_rating, 0) INTO v_product_rating
+  1697→  FROM marketplace_products WHERE id = p_product_id;
+  1698→  v_score := v_score + (v_product_rating / 5.0) * 0.20;
+  1699→
+  1700→  -- 4. Popularity component (0-0.15): Normalized sales
+  1701→  SELECT COALESCE(total_sales, 0) INTO v_product_sales
+  1702→  FROM marketplace_products WHERE id = p_product_id;
+  1703→  v_score := v_score + LEAST(v_product_sales::DECIMAL / 1000.0, 0.15);
+  1704→
+  1705→  -- 5. Same-subject bonus (0-0.10)
+  1706→  IF v_user_purchases IS NOT NULL THEN
+  1707→    SELECT COUNT(*) INTO v_purchase_count
+  1708→    FROM marketplace_products
+  1709→    WHERE id = ANY(v_user_purchases)
+  1710→      AND subject = (SELECT subject FROM marketplace_products WHERE id = p_product_id)
+  1711→      AND subject IS NOT NULL;
+  1712→    v_score := v_score + LEAST(v_purchase_count::DECIMAL * 0.05, 0.10);
+  1713→  END IF;
+  1714→
+  1715→  RETURN LEAST(v_score, 1.0000);
+  1716→END;
+  1717→$$ LANGUAGE plpgsql STABLE;
+  1718→
+  1719→COMMENT ON FUNCTION calculate_recommendation_score IS 'Calculates a 0-1 recommendation score for a user-product pair based on tag overlap, quality, rating, popularity, and subject affinity';
+  1720→
+  1721→-- ---- Quality check function ----
+  1722→CREATE OR REPLACE FUNCTION run_product_quality_check(
+  1723→  p_product_id UUID
+  1724→)
+  1725→RETURNS UUID AS $$
+  1726→DECLARE
+  1727→  v_overall_score    DECIMAL(5,2);
+  1728→  v_grammar_score    DECIMAL(5,2) := 0.00;
+  1729→  v_spelling_score   DECIMAL(5,2) := 0.00;
+  1730→  v_formatting_score DECIMAL(5,2) := 0.00;
+  1731→  v_curriculum_score DECIMAL(5,2) := 0.00;
+  1732→  v_reading_level    DECIMAL(5,2);
+  1733→  v_reading_label    TEXT;
+  1734→  v_accuracy_flag    BOOLEAN := FALSE;
+  1735→  v_suggestions      TEXT[] := '{}';
+  1736→  v_flagged_issues   TEXT[] := '{}';
+  1737→  v_quality_status   quality_check_status;
+  1738→  v_check_id         UUID;
+  1739→  v_description      TEXT;
+  1740→  v_title            TEXT;
+  1741→BEGIN
+  1742→  -- Fetch product content
+  1743→  SELECT title, description INTO v_title, v_description
+  1744→  FROM marketplace_products WHERE id = p_product_id;
+  1745→
+  1746→  IF NOT FOUND THEN
+  1747→    RAISE EXCEPTION 'Product % not found', p_product_id;
+  1748→  END IF;
+  1749→
+  1750→  -- ---- Grammar heuristic scoring ----
+  1751→  -- This is a simplified heuristic; in production, integrate with AI/NLP service
+  1752→  v_grammar_score := CASE
+  1753→    WHEN char_length(v_description) < 50 THEN 40.00
+  1754→    WHEN char_length(v_description) < 200 THEN 60.00
+  1755→    WHEN char_length(v_description) >= 200 THEN 75.00
+  1756→    ELSE 50.00
+  1757→  END;
+  1758→
+  1759→  -- Add bonus for structured content (headings, lists, etc.)
+  1760→  IF v_description ~ '(^|\n)#{1,6}\s' THEN  -- Markdown headings
+  1761→    v_grammar_score := LEAST(v_grammar_score + 10, 100);
+  1762→  END IF;
+  1763→
+  1764→  -- ---- Spelling heuristic ----
+  1765→  v_spelling_score := 85.00;  -- Placeholder; integrate spell-check API in production
+  1766→
+  1767→  -- ---- Formatting heuristic ----
+  1768→  v_formatting_score := CASE
+  1769→    WHEN v_description ~ '\n{2,}' THEN 80.00   -- Has paragraph breaks
+  1770→    WHEN v_description ~ '\n' THEN 65.00        -- Has line breaks
+  1771→    ELSE 50.00                                    -- No line breaks
+  1772→  END;
+  1773→
+  1774→  IF v_description ~ '\*\*|__|\*|_' THEN  -- Markdown formatting
+  1775→    v_formatting_score := LEAST(v_formatting_score + 10, 100);
+  1776→  END IF;
+  1777→
+  1778→  -- ---- Curriculum alignment ----
+  1779→  v_curriculum_score := 70.00;  -- Placeholder; integrate with curriculum DB in production
+  1780→
+  1781→  -- ---- Reading level (Flesch-Kincaid approximation) ----
+  1782→  v_reading_level := 8.0;  -- Default grade level; calculate from content in production
+  1783→  v_reading_label := CASE
+  1784→    WHEN v_reading_level <= 4 THEN 'Elementary'
+  1785→    WHEN v_reading_level <= 6 THEN 'Middle School'
+  1786→    WHEN v_reading_level <= 8 THEN 'Junior Secondary'
+  1787→    WHEN v_reading_level <= 10 THEN 'Senior Secondary'
+  1788→    WHEN v_reading_level <= 12 THEN 'Advanced Secondary'
+  1789→    ELSE 'University Level'
+  1790→  END;
+  1791→
+  1792→  -- ---- Calculate overall score (weighted) ----
+  1793→  v_overall_score := (
+  1794→    v_grammar_score * 0.20 +
+  1795→    v_spelling_score * 0.15 +
+  1796→    v_formatting_score * 0.20 +
+  1797→    v_curriculum_score * 0.45
+  1798→  );
+  1799→
+  1800→  -- ---- Generate suggestions ----
+  1801→  IF v_grammar_score < 70 THEN
+  1802→    v_suggestions := array_append(v_suggestions, 'Consider improving grammar and sentence structure');
+  1803→  END IF;
+  1804→  IF v_formatting_score < 70 THEN
+  1805→    v_suggestions := array_append(v_suggestions, 'Add formatting: headings, bullet points, or numbered lists');
+  1806→  END IF;
+  1807→  IF char_length(v_description) < 200 THEN
+  1808→    v_suggestions := array_append(v_suggestions, 'Description is too short; add more detail for better discoverability');
+  1809→  END IF;
+  1810→
+  1811→  -- ---- Flag issues ----
+  1812→  IF v_grammar_score < 50 THEN
+  1813→    v_flagged_issues := array_append(v_flagged_issues, 'Poor grammar quality detected');
+  1814→  END IF;
+  1815→  IF v_spelling_score < 50 THEN
+  1816→    v_flagged_issues := array_append(v_flagged_issues, 'Potential spelling issues detected');
+  1817→  END IF;
+  1818→
+  1819→  -- ---- Determine quality status ----
+  1820→  v_quality_status := CASE
+  1821→    WHEN v_overall_score >= 80 THEN 'passed'
+  1822→    WHEN v_overall_score >= 60 THEN 'needs_improvement'
+  1823→    ELSE 'failed'
+  1824→  END;
+  1825→
+  1826→  -- ---- Insert quality check record ----
+  1827→  INSERT INTO marketplace_quality_checks (
+  1828→    product_id, overall_score, grammar_score, spelling_score,
+  1829→    formatting_score, curriculum_alignment_score, reading_level,
+  1830→    reading_level_label, accuracy_flag, accuracy_details,
+  1831→    suggestions, flagged_issues
+  1832→  ) VALUES (
+  1833→    p_product_id, v_overall_score, v_grammar_score, v_spelling_score,
+  1834→    v_formatting_score, v_curriculum_score, v_reading_level,
+  1835→    v_reading_label, v_accuracy_flag,
+  1836→    jsonb_build_object('factual_errors', '[]', 'source_conflicts', '[]', 'confidence_score', 0.85),
+  1837→    v_suggestions, v_flagged_issues
+  1838→  ) RETURNING id INTO v_check_id;
+  1839→
+  1840→  -- ---- Update product quality fields ----
+  1841→  UPDATE marketplace_products
+  1842→  SET
+  1843→    quality_score = v_overall_score,
+  1844→    quality_check_status = v_quality_status,
+  1845→    quality_check_details = jsonb_build_object(
+  1846→      'check_id', v_check_id,
+  1847→      'checked_at', NOW(),
+  1848→      'overall_score', v_overall_score
+  1849→    )
+  1850→  WHERE id = p_product_id;
+  1851→
+  1852→  RETURN v_check_id;
+  1853→END;
+  1854→$$ LANGUAGE plpgsql;
+  1855→
+  1856→COMMENT ON FUNCTION run_product_quality_check IS 'Runs an automated quality check on a marketplace product, computing grammar, spelling, formatting, and curriculum alignment scores. Returns the quality check record ID.';
+  1857→
+  1858→-- ---- Get applicable commission rate ----
+  1859→CREATE OR REPLACE FUNCTION get_commission_rate(
+  1860→  p_product_type marketplace_product_type,
+  1861→  p_license_type marketplace_license_type
+  1862→)
+  1863→RETURNS DECIMAL AS $$
+  1864→DECLARE
+  1865→  v_rate DECIMAL;
+  1866→BEGIN
+  1867→  -- Try specific product_type + license_type match first
+  1868→  SELECT commission_rate INTO v_rate
+  1869→  FROM marketplace_commission_rates
+  1870→  WHERE (product_type = p_product_type OR product_type IS NULL)
+  1871→    AND (license_type = p_license_type OR license_type IS NULL)
+  1872→    AND is_active = TRUE
+  1873→    AND effective_from <= NOW()
+  1874→    AND (effective_to IS NULL OR effective_to > NOW())
+  1875→  ORDER BY
+  1876→    -- Most specific match first
+  1877→    CASE WHEN product_type IS NOT NULL AND license_type IS NOT NULL THEN 0
+  1878→         WHEN product_type IS NOT NULL AND license_type IS NULL THEN 1
+  1879→         WHEN product_type IS NULL AND license_type IS NOT NULL THEN 2
+  1880→         ELSE 3
+  1881→    END,
+  1882→    effective_from DESC
+  1883→  LIMIT 1;
+  1884→
+  1885→  RETURN COALESCE(v_rate, 0.1500);  -- Default 15% commission
+  1886→END;
+  1887→$$ LANGUAGE plpgsql STABLE;
+  1888→
+  1889→COMMENT ON FUNCTION get_commission_rate IS 'Returns the applicable commission rate for a product type and license type. Falls back to 15% if no rate is configured.';
+  1890→
+  1891→-- ---- Calculate promo code discount ----
+  1892→CREATE OR REPLACE FUNCTION calculate_promo_discount(
+  1893→  p_code        TEXT,
+  1894→  p_subtotal    DECIMAL,
+  1895→  p_product_ids UUID[] DEFAULT NULL
+  1896→)
+  1897→RETURNS TABLE (
+  1898→  discount_amount   DECIMAL,
+  1899→  promo_code_id     UUID,
+  1900→  is_valid          BOOLEAN,
+  1901→  validation_message TEXT
+  1902→) AS $$
+  1903→DECLARE
+  1904→  v_promo            RECORD;
+  1905→  v_valid            BOOLEAN := TRUE;
+  1906→  v_message          TEXT := 'Valid';
+  1907→  v_discount         DECIMAL := 0.00;
+  1908→  v_applicable_total DECIMAL;
+  1909→BEGIN
+  1910→  -- Fetch promo code
+  1911→  SELECT * INTO v_promo
+  1912→  FROM marketplace_promo_codes
+  1913→  WHERE code = p_code AND is_active = TRUE
+  1914→    AND starts_at <= NOW()
+  1915→    AND (expires_at IS NULL OR expires_at > NOW());
+  1916→
+  1917→  IF NOT FOUND THEN
+  1918→    RETURN QUERY SELECT 0.00::DECIMAL, NULL::UUID, FALSE, 'Promo code not found or expired';
+  1919→    RETURN;
+  1920→  END IF;
+  1921→
+  1922→  -- Check usage limit
+  1923→  IF v_promo.max_uses IS NOT NULL AND v_promo.current_uses >= v_promo.max_uses THEN
+  1924→    RETURN QUERY SELECT 0.00::DECIMAL, v_promo.id, FALSE, 'Promo code usage limit reached';
+  1925→    RETURN;
+  1926→  END IF;
+  1927→
+  1928→  -- Check minimum order amount
+  1929→  IF v_promo.min_order_amount IS NOT NULL AND p_subtotal < v_promo.min_order_amount THEN
+  1930→    RETURN QUERY SELECT 0.00::DECIMAL, v_promo.id, FALSE,
+  1931→      'Minimum order amount is ' || v_promo.min_order_amount || ' ' || v_promo.currency;
+  1932→    RETURN;
+  1933→  END IF;
+  1934→
+  1935→  -- Check product type applicability
+  1936→  IF v_promo.applicable_product_types IS NOT NULL AND array_length(v_promo.applicable_product_types, 1) > 0 THEN
+  1937→    IF p_product_ids IS NOT NULL THEN
+  1938→      SELECT COALESCE(SUM(p.price), 0.00) INTO v_applicable_total
+  1939→      FROM marketplace_products p
+  1940→      WHERE p.id = ANY(p_product_ids)
+  1941→        AND p.product_type = ANY(v_promo.applicable_product_types);
+  1942→    ELSE
+  1943→      v_applicable_total := p_subtotal;
+  1944→    END IF;
+  1945→  ELSE
+  1946→    v_applicable_total := p_subtotal;
+  1947→  END IF;
+  1948→
+  1949→  -- Calculate discount
+  1950→  IF v_promo.discount_type = 'percentage' THEN
+  1951→    v_discount := v_applicable_total * v_promo.discount_value / 100.0;
+  1952→    -- Cap at max discount
+  1953→    IF v_promo.max_discount_amount IS NOT NULL THEN
+  1954→      v_discount := LEAST(v_discount, v_promo.max_discount_amount);
+  1955→    END IF;
+  1956→  ELSE  -- fixed
+  1957→    v_discount := LEAST(v_promo.discount_value, v_applicable_total);
+  1958→  END IF;
+  1959→
+  1960→  RETURN QUERY SELECT v_discount, v_promo.id, TRUE, 'Valid';
+  1961→END;
+  1962→$$ LANGUAGE plpgsql;
+  1963→
+  1964→COMMENT ON FUNCTION calculate_promo_discount IS 'Validates a promo code and calculates the discount amount for a given subtotal and optional product list';
+  1965→
+  1966→-- ---- Record marketplace analytics event ----
+  1967→CREATE OR REPLACE FUNCTION record_product_view(
+  1968→  p_product_id UUID,
+  1969→  p_user_id    UUID DEFAULT NULL
+  1970→)
+  1971→RETURNS VOID AS $$
+  1972→BEGIN
+  1973→  -- Increment product view count
+  1974→  UPDATE marketplace_products
+  1975→  SET view_count = view_count + 1
+  1976→  WHERE id = p_product_id;
+  1977→
+  1978→  -- Upsert daily analytics
+  1979→  INSERT INTO marketplace_product_analytics (product_id, date, views)
+  1980→  VALUES (p_product_id, CURRENT_DATE, 1)
+  1981→  ON CONFLICT (product_id, date)
+  1982→  DO UPDATE SET views = marketplace_product_analytics.views + 1;
+  1983→
+  1984→  -- Upsert seller analytics if user is authenticated
+  1985→  IF p_user_id IS NOT NULL THEN
+  1986→    INSERT INTO marketplace_seller_analytics (seller_id, date, views, unique_visitors)
+  1987→    SELECT sp.id, CURRENT_DATE, 1, 0
+  1988→    FROM seller_profiles sp
+  1989→    INNER JOIN marketplace_products mp ON mp.seller_id = sp.id
+  1990→    WHERE mp.id = p_product_id
+  1991→    ON CONFLICT (seller_id, date)
+  1992→    DO UPDATE SET views = marketplace_seller_analytics.views + 1;
+  1993→  END IF;
+  1994→END;
+  1995→$$ LANGUAGE plpgsql;
+  1996→
+  1997→COMMENT ON FUNCTION record_product_view IS 'Records a product view event, incrementing the product view count and daily analytics';
+  1998→
+  1999→-- ---- Record search event ----
+  2000→CREATE OR REPLACE FUNCTION record_search_event(
+
+[showing lines 1-2000 of 2157; use offset=2001 with limit to continue reading]

@@ -1,0 +1,2002 @@
+     1→-- ============================================================================
+     2→-- EXAMFORGE AI — Curriculum Content Management System (CCMS) + Enterprise Schema
+     3→-- ============================================================================
+     4→-- Supports: Nursery, Kindergarten, Primary 1-6, JSS1-3, SS1-3,
+     5→--           Technical Schools, Colleges of Education, Universities
+     6→-- Features: Multi-curriculum, content versioning, answer repository,
+     7→--           AI curriculum engine, enterprise security, monitoring, audit trails
+     8→-- ============================================================================
+     9→
+    10→-- ============================================================================
+    11→-- ENUMS
+    12→-- ============================================================================
+    13→
+    14→CREATE OR REPLACE FUNCTION public.create_enum_if_not_exists(
+    15→  enum_name TEXT,
+    16→  enum_values TEXT[]
+    17→) RETURNS VOID AS $$
+    18→BEGIN
+    19→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = enum_name) THEN
+    20→    EXECUTE format('CREATE TYPE public.%I AS ENUM (%s)',
+    21→      enum_name,
+    22→      string_agg(quote_literal(v), ',' ) )
+    23→    FROM unnest(enum_values) AS v;
+    24→  END IF;
+    25→END;
+    26→$$ LANGUAGE plpgsql;
+    27→
+    28→-- Educational Levels
+    29→SELECT public.create_enum_if_not_exists('educational_level_type', ARRAY[
+    30→  'nursery', 'kindergarten',
+    31→  'primary_1', 'primary_2', 'primary_3', 'primary_4', 'primary_5', 'primary_6',
+    32→  'jss_1', 'jss_2', 'jss_3',
+    33→  'ss_1', 'ss_2', 'ss_3',
+    34→  'technical_1', 'technical_2', 'technical_3',
+    35→  'college_of_education_1', 'college_of_education_2', 'college_of_education_3',
+    36→  'university_100', 'university_200', 'university_300', 'university_400',
+    37→  'university_500', 'university_600'
+    38→]);
+    39→
+    40→-- Level Category
+    41→SELECT public.create_enum_if_not_exists('level_category_type', ARRAY[
+    42→  'early_childhood', 'primary', 'junior_secondary', 'senior_secondary',
+    43→  'technical', 'tertiary_college', 'tertiary_university'
+    44→]);
+    45→
+    46→-- Curriculum Type
+    47→SELECT public.create_enum_if_not_exists('curriculum_type', ARRAY[
+    48→  'nerdc', 'waec', 'neco', 'nabteb', 'custom', 'international'
+    49→]);
+    50→
+    51→-- Content Status
+    52→SELECT public.create_enum_if_not_exists('content_status_type', ARRAY[
+    53→  'draft', 'review', 'published', 'archived', 'deprecated'
+    54→]);
+    55→
+    56→-- Content Type
+    57→SELECT public.create_enum_if_not_exists('content_type_enum', ARRAY[
+    58→  'question', 'explanation', 'marking_scheme', 'teacher_note',
+    59→  'lesson_note', 'worksheet', 'practical_guide', 'reading_material',
+    60→  'video_script', 'assessment_rubric'
+    61→]);
+    62→
+    63→-- Question Category
+    64→SELECT public.create_enum_if_not_exists('question_category_type', ARRAY[
+    65→  'objective', 'theory', 'practical', 'oral', 'project', 'essay',
+    66→  'fill_in_blank', 'true_false', 'matching', 'ordering', 'multiple_choice'
+    67→]);
+    68→
+    69→-- Difficulty Level
+    70→SELECT public.create_enum_if_not_exists('difficulty_level_type', ARRAY[
+    71→  'beginner', 'elementary', 'intermediate', 'advanced', 'expert'
+    72→]);
+    73→
+    74→-- Bloom's Taxonomy
+    75→SELECT public.create_enum_if_not_exists('bloom_taxonomy_type', ARRAY[
+    76→  'remember', 'understand', 'apply', 'analyze', 'evaluate', 'create'
+    77→]);
+    78→
+    79→-- Sync Status
+    80→SELECT public.create_enum_if_not_exists('sync_status_type', ARRAY[
+    81→  'pending', 'in_progress', 'completed', 'failed', 'conflict'
+    82→]);
+    83→
+    84→-- Audit Action
+    85→SELECT public.create_enum_if_not_exists('audit_action_type', ARRAY[
+    86→  'create', 'read', 'update', 'delete', 'login', 'logout',
+    87→  'export', 'import', 'approve', 'reject', 'archive', 'restore',
+    88→  'permission_change', 'role_change', 'password_change', 'mfa_enable',
+    89→  'mfa_disable', 'session_invalidate', 'api_key_create', 'api_key_revoke'
+    90→]);
+    91→
+    92→-- Alert Severity
+    93→SELECT public.create_enum_if_not_exists('alert_severity_type', ARRAY[
+    94→  'info', 'warning', 'critical', 'emergency'
+    95→]);
+    96→
+    97→-- Deployment Status
+    98→SELECT public.create_enum_if_not_exists('deployment_status_type', ARRAY[
+    99→  'pending', 'running', 'success', 'failed', 'rolled_back'
+   100→]);
+   101→
+   102→-- Test Type
+   103→SELECT public.create_enum_if_not_exists('test_type_enum', ARRAY[
+   104→  'unit', 'widget', 'integration', 'e2e', 'load', 'security', 'performance'
+   105→]);
+   106→
+   107→-- Conflict Resolution Strategy
+   108→SELECT public.create_enum_if_not_exists('conflict_strategy_type', ARRAY[
+   109→  'server_wins', 'client_wins', 'merge', 'manual'
+   110→]);
+   111→
+   112→-- MFA Method
+   113→SELECT public.create_enum_if_not_exists('mfa_method_type', ARRAY[
+   114→  'sms', 'email', 'authenticator_app', 'hardware_key'
+   115→]);
+   116→
+   117→-- Rate Limit Scope
+   118→SELECT public.create_enum_if_not_exists('rate_limit_scope_type', ARRAY[
+   119→  'global', 'per_user', 'per_ip', 'per_api_key', 'per_endpoint'
+   120→]);
+   121→
+   122→-- Monitoring Metric Type
+   123→SELECT public.create_enum_if_not_exists('metric_type_enum', ARRAY[
+   124→  'counter', 'gauge', 'histogram', 'summary'
+   125→]);
+   126→
+   127→-- Import Status
+   128→SELECT public.create_enum_if_not_exists('import_status_type', ARRAY[
+   129→  'pending', 'processing', 'completed', 'failed', 'partially_completed'
+   130→]);
+   131→
+   132→-- ============================================================================
+   133→-- EDUCATIONAL LEVELS
+   134→-- ============================================================================
+   135→
+   136→CREATE TABLE IF NOT EXISTS public.educational_levels (
+   137→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   138→  code TEXT NOT NULL UNIQUE,
+   139→  name TEXT NOT NULL,
+   140→  level_category level_category_type NOT NULL,
+   141→  level_order INT NOT NULL,
+   142→  min_age INT,
+   143→  max_age INT,
+   144→  description TEXT,
+   145→  is_active BOOLEAN NOT NULL DEFAULT true,
+   146→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   147→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   148→);
+   149→
+   150→-- Seed default educational levels
+   151→INSERT INTO public.educational_levels (code, name, level_category, level_order, min_age, max_age, description) VALUES
+   152→  ('nursery', 'Nursery', 'early_childhood', 1, 2, 4, 'Pre-primary nursery education'),
+   153→  ('kindergarten', 'Kindergarten', 'early_childhood', 2, 4, 6, 'Pre-primary kindergarten education'),
+   154→  ('primary_1', 'Primary 1', 'primary', 3, 5, 7, 'First year of primary education'),
+   155→  ('primary_2', 'Primary 2', 'primary', 4, 6, 8, 'Second year of primary education'),
+   156→  ('primary_3', 'Primary 3', 'primary', 5, 7, 9, 'Third year of primary education'),
+   157→  ('primary_4', 'Primary 4', 'primary', 6, 8, 10, 'Fourth year of primary education'),
+   158→  ('primary_5', 'Primary 5', 'primary', 7, 9, 11, 'Fifth year of primary education'),
+   159→  ('primary_6', 'Primary 6', 'primary', 8, 10, 12, 'Sixth year of primary education'),
+   160→  ('jss_1', 'JSS 1', 'junior_secondary', 9, 10, 13, 'First year of junior secondary'),
+   161→  ('jss_2', 'JSS 2', 'junior_secondary', 10, 11, 14, 'Second year of junior secondary'),
+   162→  ('jss_3', 'JSS 3', 'junior_secondary', 11, 12, 15, 'Third year of junior secondary'),
+   163→  ('ss_1', 'SS 1', 'senior_secondary', 12, 13, 16, 'First year of senior secondary'),
+   164→  ('ss_2', 'SS 2', 'senior_secondary', 13, 14, 17, 'Second year of senior secondary'),
+   165→  ('ss_3', 'SS 3', 'senior_secondary', 14, 15, 18, 'Third year of senior secondary'),
+   166→  ('technical_1', 'Technical Year 1', 'technical', 15, 13, 16, 'First year technical/vocational'),
+   167→  ('technical_2', 'Technical Year 2', 'technical', 16, 14, 17, 'Second year technical/vocational'),
+   168→  ('technical_3', 'Technical Year 3', 'technical', 17, 15, 18, 'Third year technical/vocational'),
+   169→  ('coe_1', 'CoE Year 1', 'tertiary_college', 18, 16, 20, 'First year college of education'),
+   170→  ('coe_2', 'CoE Year 2', 'tertiary_college', 19, 17, 21, 'Second year college of education'),
+   171→  ('coe_3', 'CoE Year 3', 'tertiary_college', 20, 18, 22, 'Third year college of education'),
+   172→  ('uni_100', 'University 100 Level', 'tertiary_university', 21, 16, 20, 'First year university'),
+   173→  ('uni_200', 'University 200 Level', 'tertiary_university', 22, 17, 21, 'Second year university'),
+   174→  ('uni_300', 'University 300 Level', 'tertiary_university', 23, 18, 22, 'Third year university'),
+   175→  ('uni_400', 'University 400 Level', 'tertiary_university', 24, 19, 23, 'Fourth year university'),
+   176→  ('uni_500', 'University 500 Level', 'tertiary_university', 25, 20, 24, 'Fifth year university'),
+   177→  ('uni_600', 'University 600 Level', 'tertiary_university', 26, 21, 25, 'Sixth year university')
+   178→ON CONFLICT (code) DO NOTHING;
+   179→
+   180→-- School-level configuration (enable/disable levels per school)
+   181→CREATE TABLE IF NOT EXISTS public.school_level_configurations (
+   182→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   183→  school_id UUID NOT NULL REFERENCES public.schools(id) ON DELETE CASCADE,
+   184→  educational_level_id UUID NOT NULL REFERENCES public.educational_levels(id) ON DELETE CASCADE,
+   185→  is_enabled BOOLEAN NOT NULL DEFAULT false,
+   186→  custom_name TEXT,
+   187→  academic_year_start DATE,
+   188→  academic_year_end DATE,
+   189→  max_students_per_class INT DEFAULT 40,
+   190→  grading_system JSONB DEFAULT '{}',
+   191→  configuration JSONB DEFAULT '{}',
+   192→  created_by UUID REFERENCES auth.users(id),
+   193→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   194→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   195→  UNIQUE(school_id, educational_level_id)
+   196→);
+   197→
+   198→-- ============================================================================
+   199→-- CURRICULUM MANAGEMENT
+   200→-- ============================================================================
+   201→
+   202→CREATE TABLE IF NOT EXISTS public.curricula (
+   203→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   204→  name TEXT NOT NULL,
+   205→  code TEXT NOT NULL UNIQUE,
+   206→  curriculum_type curriculum_type NOT NULL DEFAULT 'nerdc',
+   207→  country_code TEXT NOT NULL DEFAULT 'NG',
+   208→  description TEXT,
+   209→  publisher TEXT,
+   210→  edition TEXT,
+   211→  effective_date DATE,
+   212→  expiry_date DATE,
+   213→  is_active BOOLEAN NOT NULL DEFAULT true,
+   214→  parent_curriculum_id UUID REFERENCES public.curricula(id) ON DELETE SET NULL,
+   215→  metadata JSONB DEFAULT '{}',
+   216→  created_by UUID REFERENCES auth.users(id),
+   217→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   218→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   219→);
+   220→
+   221→-- Curriculum versions
+   222→CREATE TABLE IF NOT EXISTS public.curriculum_versions (
+   223→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   224→  curriculum_id UUID NOT NULL REFERENCES public.curricula(id) ON DELETE CASCADE,
+   225→  version_number TEXT NOT NULL,
+   226→  change_summary TEXT,
+   227→  changelog TEXT,
+   228→  is_current BOOLEAN NOT NULL DEFAULT false,
+   229→  published_at TIMESTAMPTZ,
+   230→  published_by UUID REFERENCES auth.users(id),
+   231→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   232→  UNIQUE(curriculum_id, version_number)
+   233→);
+   234→
+   235→-- Curriculum-educational level mapping
+   236→CREATE TABLE IF NOT EXISTS public.curriculum_level_mappings (
+   237→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   238→  curriculum_id UUID NOT NULL REFERENCES public.curricula(id) ON DELETE CASCADE,
+   239→  educational_level_id UUID NOT NULL REFERENCES public.educational_levels(id) ON DELETE CASCADE,
+   240→  is_applicable BOOLEAN NOT NULL DEFAULT true,
+   241→  notes TEXT,
+   242→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   243→  UNIQUE(curriculum_id, educational_level_id)
+   244→);
+   245→
+   246→-- ============================================================================
+   247→-- SUBJECT MANAGEMENT
+   248→-- ============================================================================
+   249→
+   250→CREATE TABLE IF NOT EXISTS public.subjects (
+   251→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   252→  name TEXT NOT NULL,
+   253→  code TEXT NOT NULL,
+   254→  curriculum_id UUID REFERENCES public.curricula(id) ON DELETE SET NULL,
+   255→  educational_level_id UUID REFERENCES public.educational_levels(id) ON DELETE SET NULL,
+   256→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   257→  subject_group TEXT,
+   258→  is_core BOOLEAN NOT NULL DEFAULT false,
+   259→  is_elective BOOLEAN NOT NULL DEFAULT false,
+   260→  is_vocational BOOLEAN NOT NULL DEFAULT false,
+   261→  language_of_instruction TEXT DEFAULT 'English',
+   262→  description TEXT,
+   263→  icon_url TEXT,
+   264→  color_code TEXT,
+   265→  sort_order INT DEFAULT 0,
+   266→  is_active BOOLEAN NOT NULL DEFAULT true,
+   267→  is_custom BOOLEAN NOT NULL DEFAULT false,
+   268→  metadata JSONB DEFAULT '{}',
+   269→  created_by UUID REFERENCES auth.users(id),
+   270→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   271→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   272→);
+   273→
+   274→-- Seed default Nigerian subjects by level category
+   275→-- Primary subjects
+   276→INSERT INTO public.subjects (name, code, subject_group, is_core, is_elective, is_vocational, sort_order, is_custom, description) VALUES
+   277→  ('English Studies', 'PRI-ENG', 'language', true, false, false, 1, false, 'English language studies for primary level'),
+   278→  ('Mathematics', 'PRI-MATH', 'mathematics', true, false, false, 2, false, 'Mathematics for primary level'),
+   279→  ('Basic Science', 'PRI-BS', 'science', true, false, false, 3, false, 'Basic science and technology for primary'),
+   280→  ('Basic Technology', 'PRI-BT', 'technology', true, false, false, 4, false, 'Basic technology education'),
+   281→  ('Civic Education', 'PRI-CIVIC', 'social_studies', true, false, false, 5, false, 'Civic education and citizenship'),
+   282→  ('Social Studies', 'PRI-SOCIAL', 'social_studies', true, false, false, 6, false, 'Social studies for primary level'),
+   283→  ('Cultural & Creative Arts', 'PRI-CCA', 'arts', false, true, false, 7, false, 'Cultural and creative arts'),
+   284→  ('Computer Studies', 'PRI-COMP', 'technology', true, false, false, 8, false, 'Computer studies and ICT'),
+   285→  ('Agricultural Science', 'PRI-AGRI', 'vocational', false, true, false, 9, false, 'Agricultural science basics'),
+   286→  ('Home Economics', 'PRI-HOME', 'vocational', false, true, false, 10, false, 'Home economics for primary'),
+   287→  ('Physical & Health Education', 'PRI-PHE', 'physical', false, true, false, 11, false, 'Physical and health education'),
+   288→  ('Security Education', 'PRI-SEC', 'social_studies', false, true, false, 12, false, 'Security awareness education'),
+   289→  ('French', 'PRI-FRENCH', 'language', false, true, false, 13, false, 'French language basics'),
+   290→  ('Yoruba', 'PRI-YORUBA', 'language', false, true, false, 14, false, 'Yoruba language studies'),
+   291→  ('Hausa', 'PRI-HAUSA', 'language', false, true, false, 15, false, 'Hausa language studies'),
+   292→  ('Igbo', 'PRI-IGBO', 'language', false, true, false, 16, false, 'Igbo language studies')
+   293→ON CONFLICT DO NOTHING;
+   294→
+   295→-- Junior Secondary subjects
+   296→INSERT INTO public.subjects (name, code, subject_group, is_core, is_elective, is_vocational, sort_order, is_custom, description) VALUES
+   297→  ('English Studies', 'JSS-ENG', 'language', true, false, false, 1, false, 'English language for junior secondary'),
+   298→  ('Mathematics', 'JSS-MATH', 'mathematics', true, false, false, 2, false, 'Mathematics for junior secondary'),
+   299→  ('Basic Science', 'JSS-BS', 'science', true, false, false, 3, false, 'Basic science for junior secondary'),
+   300→  ('Basic Technology', 'JSS-BT', 'technology', true, false, false, 4, false, 'Basic technology for junior secondary'),
+   301→  ('Civic Education', 'JSS-CIVIC', 'social_studies', true, false, false, 5, false, 'Civic education for JSS'),
+   302→  ('Social Studies', 'JSS-SOCIAL', 'social_studies', true, false, false, 6, false, 'Social studies for junior secondary'),
+   303→  ('Business Studies', 'JSS-BUS', 'commercial', true, false, false, 7, false, 'Business studies for JSS'),
+   304→  ('Computer Studies', 'JSS-COMP', 'technology', true, false, false, 8, false, 'Computer studies for JSS'),
+   305→  ('Agricultural Science', 'JSS-AGRI', 'vocational', false, true, false, 9, false, 'Agricultural science for JSS'),
+   306→  ('Home Economics', 'JSS-HOME', 'vocational', false, true, false, 10, false, 'Home economics for JSS'),
+   307→  ('Christian Religious Studies', 'JSS-CRS', 'religious', false, true, false, 11, false, 'Christian religious studies'),
+   308→  ('Islamic Religious Studies', 'JSS-IRS', 'religious', false, true, false, 12, false, 'Islamic religious studies'),
+   309→  ('French', 'JSS-FRENCH', 'language', false, true, false, 13, false, 'French language for JSS'),
+   310→  ('Yoruba', 'JSS-YORUBA', 'language', false, true, false, 14, false, 'Yoruba language for JSS'),
+   311→  ('Hausa', 'JSS-HAUSA', 'language', false, true, false, 15, false, 'Hausa language for JSS'),
+   312→  ('Igbo', 'JSS-IGBO', 'language', false, true, false, 16, false, 'Igbo language for JSS'),
+   313→  ('Cultural & Creative Arts', 'JSS-CCA', 'arts', false, true, false, 17, false, 'Cultural and creative arts for JSS'),
+   314→  ('Physical & Health Education', 'JSS-PHE', 'physical', false, true, false, 18, false, 'Physical and health education for JSS'),
+   315→  ('Security Education', 'JSS-SEC', 'social_studies', false, true, false, 19, false, 'Security education for JSS')
+   316→ON CONFLICT DO NOTHING;
+   317→
+   318→-- Senior Secondary subjects (Science, Arts, Commercial, Vocational)
+   319→INSERT INTO public.subjects (name, code, subject_group, is_core, is_elective, is_vocational, sort_order, is_custom, description) VALUES
+   320→  ('English Language', 'SS-ENG', 'language', true, false, false, 1, false, 'English language for senior secondary'),
+   321→  ('General Mathematics', 'SS-MATH', 'mathematics', true, false, false, 2, false, 'Mathematics for senior secondary'),
+   322→  ('Physics', 'SS-PHY', 'science', false, true, false, 3, false, 'Physics for senior secondary'),
+   323→  ('Chemistry', 'SS-CHEM', 'science', false, true, false, 4, false, 'Chemistry for senior secondary'),
+   324→  ('Biology', 'SS-BIO', 'science', false, true, false, 5, false, 'Biology for senior secondary'),
+   325→  ('Agricultural Science', 'SS-AGRI', 'science', false, true, false, 6, false, 'Agricultural science for SS'),
+   326→  ('Further Mathematics', 'SS-FMATH', 'mathematics', false, true, false, 7, false, 'Further mathematics for SS'),
+   327→  ('Technical Drawing', 'SS-TDRAW', 'technology', false, true, false, 8, false, 'Technical drawing for SS'),
+   328→  ('Computer Studies', 'SS-COMP', 'technology', false, true, false, 9, false, 'Computer studies for SS'),
+   329→  ('Literature in English', 'SS-LIT', 'arts', false, true, false, 10, false, 'Literature in English for SS'),
+   330→  ('Government', 'SS-GOVT', 'arts', false, true, false, 11, false, 'Government for senior secondary'),
+   331→  ('History', 'SS-HIST', 'arts', false, true, false, 12, false, 'History for senior secondary'),
+   332→  ('Economics', 'SS-ECON', 'commercial', false, true, false, 13, false, 'Economics for senior secondary'),
+   333→  ('Commerce', 'SS-COMM', 'commercial', false, true, false, 14, false, 'Commerce for senior secondary'),
+   334→  ('Accounting', 'SS-ACCT', 'commercial', false, true, false, 15, false, 'Financial accounting for SS'),
+   335→  ('Geography', 'SS-GEO', 'arts', false, true, false, 16, false, 'Geography for senior secondary'),
+   336→  ('Civic Education', 'SS-CIVIC', 'social_studies', true, false, false, 17, false, 'Civic education for SS'),
+   337→  ('Christian Religious Studies', 'SS-CRS', 'religious', false, true, false, 18, false, 'Christian religious studies for SS'),
+   338→  ('Islamic Religious Studies', 'SS-IRS', 'religious', false, true, false, 19, false, 'Islamic religious studies for SS'),
+   339→  ('French', 'SS-FRENCH', 'language', false, true, false, 20, false, 'French language for SS'),
+   340→  ('Yoruba', 'SS-YORUBA', 'language', false, true, false, 21, false, 'Yoruba language for SS'),
+   341→  ('Hausa', 'SS-HAUSA', 'language', false, true, false, 22, false, 'Hausa language for SS'),
+   342→  ('Igbo', 'SS-IGBO', 'language', false, true, false, 23, false, 'Igbo language for SS'),
+   343→  ('Visual Arts', 'SS-VART', 'arts', false, true, false, 24, false, 'Visual arts for senior secondary'),
+   344→  ('Music', 'SS-MUSIC', 'arts', false, true, false, 25, false, 'Music for senior secondary'),
+   345→  ('Physical Education', 'SS-PHE', 'physical', false, true, false, 26, false, 'Physical education for SS'),
+   346→  ('Food & Nutrition', 'SS-FNUTR', 'vocational', false, true, true, 27, false, 'Food and nutrition for SS'),
+   347→  ('Clothing & Textile', 'SS-CTEXT', 'vocational', false, true, true, 28, false, 'Clothing and textile for SS'),
+   348→  ('Data Processing', 'SS-DPROC', 'technology', false, true, false, 29, false, 'Data processing for SS'),
+   349→  ('Animal Husbandry', 'SS-ANIMAL', 'vocational', false, true, true, 30, false, 'Animal husbandry for SS'),
+   350→  ('Fisheries', 'SS-FISH', 'vocational', false, true, true, 31, false, 'Fisheries for senior secondary'),
+   351→  ('Tourism', 'SS-TOUR', 'vocational', false, true, true, 32, false, 'Tourism studies for SS'),
+   352→  ('Marketing', 'SS-MKTG', 'commercial', false, true, false, 33, false, 'Marketing for senior secondary'),
+   353→  ('Insurance', 'SS-INS', 'commercial', false, true, false, 34, false, 'Insurance for senior secondary')
+   354→ON CONFLICT DO NOTHING;
+   355→
+   356→-- ============================================================================
+   357→-- TOPIC & SUBTOPIC MANAGEMENT
+   358→-- ============================================================================
+   359→
+   360→CREATE TABLE IF NOT EXISTS public.topics (
+   361→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   362→  subject_id UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+   363→  educational_level_id UUID REFERENCES public.educational_levels(id) ON DELETE SET NULL,
+   364→  curriculum_id UUID REFERENCES public.curricula(id) ON DELETE SET NULL,
+   365→  title TEXT NOT NULL,
+   366→  code TEXT,
+   367→  description TEXT,
+   368→  sort_order INT NOT NULL DEFAULT 0,
+   369→  estimated_duration_minutes INT,
+   370→  icon_url TEXT,
+   371→  parent_topic_id UUID REFERENCES public.topics(id) ON DELETE CASCADE,
+   372→  depth_level INT NOT NULL DEFAULT 0,
+   373→  is_active BOOLEAN NOT NULL DEFAULT true,
+   374→  metadata JSONB DEFAULT '{}',
+   375→  created_by UUID REFERENCES auth.users(id),
+   376→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   377→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   378→);
+   379→
+   380→CREATE TABLE IF NOT EXISTS public.subtopics (
+   381→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   382→  topic_id UUID NOT NULL REFERENCES public.topics(id) ON DELETE CASCADE,
+   383→  title TEXT NOT NULL,
+   384→  code TEXT,
+   385→  description TEXT,
+   386→  sort_order INT NOT NULL DEFAULT 0,
+   387→  estimated_duration_minutes INT,
+   388→  is_active BOOLEAN NOT NULL DEFAULT true,
+   389→  metadata JSONB DEFAULT '{}',
+   390→  created_by UUID REFERENCES auth.users(id),
+   391→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   392→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   393→);
+   394→
+   395→-- Learning Objectives
+   396→CREATE TABLE IF NOT EXISTS public.learning_objectives (
+   397→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   398→  topic_id UUID REFERENCES public.topics(id) ON DELETE CASCADE,
+   399→  subtopic_id UUID REFERENCES public.subtopics(id) ON DELETE SET NULL,
+   400→  subject_id UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+   401→  educational_level_id UUID NOT NULL REFERENCES public.educational_levels(id) ON DELETE CASCADE,
+   402→  code TEXT NOT NULL,
+   403→  description TEXT NOT NULL,
+   404→  bloom_level bloom_taxonomy_type NOT NULL DEFAULT 'remember',
+   405→  is_assessable BOOLEAN NOT NULL DEFAULT true,
+   406→  sort_order INT NOT NULL DEFAULT 0,
+   407→  is_active BOOLEAN NOT NULL DEFAULT true,
+   408→  metadata JSONB DEFAULT '{}',
+   409→  created_by UUID REFERENCES auth.users(id),
+   410→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   411→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   412→  UNIQUE(code)
+   413→);
+   414→
+   415→-- ============================================================================
+   416→-- CONTENT MANAGEMENT (CCMS CORE)
+   417→-- ============================================================================
+   418→
+   419→-- Content Items — the central table for all educational content
+   420→CREATE TABLE IF NOT EXISTS public.content_items (
+   421→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   422→  title TEXT NOT NULL,
+   423→  content_type content_type_enum NOT NULL,
+   424→  subject_id UUID NOT NULL REFERENCES public.subjects(id) ON DELETE CASCADE,
+   425→  educational_level_id UUID NOT NULL REFERENCES public.educational_levels(id) ON DELETE CASCADE,
+   426→  topic_id UUID REFERENCES public.topics(id) ON DELETE SET NULL,
+   427→  subtopic_id UUID REFERENCES public.subtopics(id) ON DELETE SET NULL,
+   428→  curriculum_id UUID REFERENCES public.curricula(id) ON DELETE SET NULL,
+   429→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   430→  question_category question_category_type,
+   431→  difficulty_level difficulty_level_type NOT NULL DEFAULT 'intermediate',
+   432→  bloom_level bloom_taxonomy_type NOT NULL DEFAULT 'remember',
+   433→  body TEXT NOT NULL,
+   434→  body_rich JSONB DEFAULT '{}',
+   435→  options JSONB DEFAULT '[]',
+   436→  correct_answer JSONB NOT NULL DEFAULT '{}',
+   437→  step_by_step_explanation TEXT,
+   438→  marking_scheme JSONB DEFAULT '{}',
+   439→  teacher_notes TEXT,
+   440→  learning_objective_ids UUID[] DEFAULT '{}',
+   441→  curriculum_references JSONB DEFAULT '[]',
+   442→  marks_allocated INT DEFAULT 1,
+   443→  time_allocated_seconds INT,
+   444→  source_type TEXT NOT NULL DEFAULT 'school_created',
+   445→  source_reference TEXT,
+   446→  is_past_question BOOLEAN NOT NULL DEFAULT false,
+   447→  past_exam_year INT,
+   448→  past_exam_body TEXT,
+   449→  has_licensing_rights BOOLEAN NOT NULL DEFAULT false,
+   450→  license_details JSONB DEFAULT '{}',
+   451→  tags TEXT[] DEFAULT '{}',
+   452→  media_urls JSONB DEFAULT '[]',
+   453→  status content_status_type NOT NULL DEFAULT 'draft',
+   454→  version INT NOT NULL DEFAULT 1,
+   455→  parent_content_id UUID REFERENCES public.content_items(id) ON DELETE SET NULL,
+   456→  review_count INT NOT NULL DEFAULT 0,
+   457→  average_quality_score DECIMAL(3,2) DEFAULT 0.00,
+   458→  usage_count INT NOT NULL DEFAULT 0,
+   459→  is_ai_generated BOOLEAN NOT NULL DEFAULT false,
+   460→  ai_generation_metadata JSONB DEFAULT '{}',
+   461→  metadata JSONB DEFAULT '{}',
+   462→  created_by UUID REFERENCES auth.users(id),
+   463→  reviewed_by UUID REFERENCES auth.users(id),
+   464→  published_at TIMESTAMPTZ,
+   465→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   466→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   467→);
+   468→
+   469→-- Content Versions — full version history
+   470→CREATE TABLE IF NOT EXISTS public.content_versions (
+   471→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   472→  content_item_id UUID NOT NULL REFERENCES public.content_items(id) ON DELETE CASCADE,
+   473→  version_number INT NOT NULL,
+   474→  title TEXT NOT NULL,
+   475→  body TEXT NOT NULL,
+   476→  body_rich JSONB DEFAULT '{}',
+   477→  options JSONB DEFAULT '[]',
+   478→  correct_answer JSONB NOT NULL DEFAULT '{}',
+   479→  step_by_step_explanation TEXT,
+   480→  marking_scheme JSONB DEFAULT '{}',
+   481→  teacher_notes TEXT,
+   482→  difficulty_level difficulty_level_type NOT NULL DEFAULT 'intermediate',
+   483→  bloom_level bloom_taxonomy_type NOT NULL DEFAULT 'remember',
+   484→  change_summary TEXT,
+   485→  changed_fields TEXT[] DEFAULT '{}',
+   486→  created_by UUID REFERENCES auth.users(id),
+   487→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   488→  UNIQUE(content_item_id, version_number)
+   489→);
+   490→
+   491→-- Content Reviews
+   492→CREATE TABLE IF NOT EXISTS public.content_reviews (
+   493→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   494→  content_item_id UUID NOT NULL REFERENCES public.content_items(id) ON DELETE CASCADE,
+   495→  reviewer_id UUID NOT NULL REFERENCES auth.users(id),
+   496→  quality_score INT NOT NULL CHECK (quality_score >= 1 AND quality_score <= 5),
+   497→  accuracy_score INT NOT NULL CHECK (accuracy_score >= 1 AND accuracy_score <= 5),
+   498→  relevance_score INT NOT NULL CHECK (relevance_score >= 1 AND relevance_score <= 5),
+   499→  curriculum_alignment_score INT NOT NULL CHECK (curriculum_alignment_score >= 1 AND curriculum_alignment_score <= 5),
+   500→  comment TEXT,
+   501→  status TEXT NOT NULL DEFAULT 'pending',
+   502→  reviewed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   503→);
+   504→
+   505→-- Bulk Import Tracking
+   506→CREATE TABLE IF NOT EXISTS public.content_imports (
+   507→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   508→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   509→  subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
+   510→  educational_level_id UUID REFERENCES public.educational_levels(id) ON DELETE SET NULL,
+   511→  file_name TEXT NOT NULL,
+   512→  file_url TEXT,
+   513→  file_size_bytes BIGINT,
+   514→  total_items INT NOT NULL DEFAULT 0,
+   515→  processed_items INT NOT NULL DEFAULT 0,
+   516→  successful_items INT NOT NULL DEFAULT 0,
+   517→  failed_items INT NOT NULL DEFAULT 0,
+   518→  status import_status_type NOT NULL DEFAULT 'pending',
+   519→  error_log JSONB DEFAULT '[]',
+   520→  mapping_config JSONB DEFAULT '{}',
+   521→  has_licensing_declaration BOOLEAN NOT NULL DEFAULT false,
+   522→  license_details JSONB DEFAULT '{}',
+   523→  started_at TIMESTAMPTZ,
+   524→  completed_at TIMESTAMPTZ,
+   525→  created_by UUID NOT NULL REFERENCES auth.users(id),
+   526→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   527→);
+   528→
+   529→-- Content Collections (curated groups of content items)
+   530→CREATE TABLE IF NOT EXISTS public.content_collections (
+   531→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   532→  name TEXT NOT NULL,
+   533→  description TEXT,
+   534→  subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
+   535→  educational_level_id UUID REFERENCES public.educational_levels(id) ON DELETE SET NULL,
+   536→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   537→  collection_type TEXT NOT NULL DEFAULT 'custom',
+   538→  is_public BOOLEAN NOT NULL DEFAULT false,
+   539→  sort_order INT NOT NULL DEFAULT 0,
+   540→  content_count INT NOT NULL DEFAULT 0,
+   541→  metadata JSONB DEFAULT '{}',
+   542→  created_by UUID REFERENCES auth.users(id),
+   543→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   544→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   545→);
+   546→
+   547→CREATE TABLE IF NOT EXISTS public.content_collection_items (
+   548→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   549→  collection_id UUID NOT NULL REFERENCES public.content_collections(id) ON DELETE CASCADE,
+   550→  content_item_id UUID NOT NULL REFERENCES public.content_items(id) ON DELETE CASCADE,
+   551→  sort_order INT NOT NULL DEFAULT 0,
+   552→  added_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   553→  UNIQUE(collection_id, content_item_id)
+   554→);
+   555→
+   556→-- ============================================================================
+   557→-- AI CURRICULUM ENGINE
+   558→-- ============================================================================
+   559→
+   560→CREATE TABLE IF NOT EXISTS public.ai_curriculum_configs (
+   561→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   562→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   563→  subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
+   564→  educational_level_id UUID REFERENCES public.educational_levels(id) ON DELETE SET NULL,
+   565→  curriculum_id UUID REFERENCES public.curricula(id) ON DELETE SET NULL,
+   566→  preferred_difficulty difficulty_level_type DEFAULT 'intermediate',
+   567→  preferred_bloom_levels bloom_taxonomy_type[] DEFAULT '{remember,understand,apply}',
+   568→  question_type_distribution JSONB DEFAULT '{}',
+   569→  language_style TEXT DEFAULT 'age_appropriate',
+   570→  include_explanations BOOLEAN NOT NULL DEFAULT true,
+   571→  include_marking_schemes BOOLEAN NOT NULL DEFAULT true,
+   572→  include_teacher_notes BOOLEAN NOT NULL DEFAULT false,
+   573→  content_tone TEXT DEFAULT 'academic',
+   574→  cultural_context TEXT DEFAULT 'nigerian',
+   575→  max_questions_per_generation INT DEFAULT 10,
+   576→  quality_threshold DECIMAL(3,2) DEFAULT 3.50,
+   577→  auto_approve_threshold DECIMAL(3,2) DEFAULT 4.50,
+   578→  topic_coverage_preference TEXT DEFAULT 'balanced',
+   579→  metadata JSONB DEFAULT '{}',
+   580→  created_by UUID REFERENCES auth.users(id),
+   581→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   582→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   583→  UNIQUE(school_id, subject_id, educational_level_id, curriculum_id)
+   584→);
+   585→
+   586→-- AI Generation Rules per level
+   587→CREATE TABLE IF NOT EXISTS public.ai_generation_rules (
+   588→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   589→  educational_level_id UUID NOT NULL REFERENCES public.educational_levels(id) ON DELETE CASCADE,
+   590→  subject_id UUID REFERENCES public.subjects(id) ON DELETE SET NULL,
+   591→  rule_name TEXT NOT NULL,
+   592→  rule_type TEXT NOT NULL,
+   593→  conditions JSONB NOT NULL DEFAULT '{}',
+   594→  actions JSONB NOT NULL DEFAULT '{}',
+   595→  priority INT NOT NULL DEFAULT 0,
+   596→  is_active BOOLEAN NOT NULL DEFAULT true,
+   597→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   598→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   599→);
+   600→
+   601→-- ============================================================================
+   602→-- ANSWER REPOSITORY (Enhanced)
+   603→-- ============================================================================
+   604→
+   605→CREATE TABLE IF NOT EXISTS public.answer_repository (
+   606→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   607→  content_item_id UUID NOT NULL REFERENCES public.content_items(id) ON DELETE CASCADE,
+   608→  correct_answers JSONB NOT NULL DEFAULT '[]',
+   609→  step_by_step_explanation TEXT NOT NULL,
+   610→  explanation_rich JSONB DEFAULT '{}',
+   611→  marking_scheme JSONB NOT NULL DEFAULT '{}',
+   612→  alternative_answers JSONB DEFAULT '[]',
+   613→  common_mistakes JSONB DEFAULT '[]',
+   614→  teacher_notes TEXT,
+   615→  curriculum_references JSONB DEFAULT '[]',
+   616→  learning_objective_ids UUID[] DEFAULT '{}',
+   617→  difficulty_justification TEXT,
+   618→  version INT NOT NULL DEFAULT 1,
+   619→  is_verified BOOLEAN NOT NULL DEFAULT false,
+   620→  verified_by UUID REFERENCES auth.users(id),
+   621→  verified_at TIMESTAMPTZ,
+   622→  created_by UUID NOT NULL REFERENCES auth.users(id),
+   623→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   624→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   625→  UNIQUE(content_item_id, version)
+   626→);
+   627→
+   628→-- ============================================================================
+   629→-- ENTERPRISE SECURITY
+   630→-- ============================================================================
+   631→
+   632→-- Audit Trail
+   633→CREATE TABLE IF NOT EXISTS public.audit_trail (
+   634→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   635→  user_id UUID REFERENCES auth.users(id),
+   636→  school_id UUID REFERENCES public.schools(id),
+   637→  action audit_action_type NOT NULL,
+   638→  resource_type TEXT NOT NULL,
+   639→  resource_id UUID,
+   640→  old_values JSONB,
+   641→  new_values JSONB,
+   642→  ip_address INET,
+   643→  user_agent TEXT,
+   644→  device_id TEXT,
+   645→  session_id TEXT,
+   646→  api_endpoint TEXT,
+   647→  http_method TEXT,
+   648→  response_status INT,
+   649→  duration_ms INT,
+   650→  metadata JSONB DEFAULT '{}',
+   651→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   652→);
+   653→
+   654→-- MFA Configuration
+   655→CREATE TABLE IF NOT EXISTS public.mfa_configurations (
+   656→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   657→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   658→  mfa_method mfa_method_type NOT NULL,
+   659→  is_enabled BOOLEAN NOT NULL DEFAULT false,
+   660→  is_verified BOOLEAN NOT NULL DEFAULT false,
+   661→  secret_encrypted TEXT,
+   662→  backup_codes_encrypted TEXT,
+   663→  phone_number_encrypted TEXT,
+   664→  verification_attempts INT NOT NULL DEFAULT 0,
+   665→  last_used_at TIMESTAMPTZ,
+   666→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   667→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   668→  UNIQUE(user_id, mfa_method)
+   669→);
+   670→
+   671→-- API Keys
+   672→CREATE TABLE IF NOT EXISTS public.api_keys (
+   673→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   674→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   675→  school_id UUID REFERENCES public.schools(id) ON DELETE CASCADE,
+   676→  key_hash TEXT NOT NULL UNIQUE,
+   677→  key_prefix TEXT NOT NULL,
+   678→  name TEXT NOT NULL,
+   679→  scopes TEXT[] NOT NULL DEFAULT '{}',
+   680→  is_active BOOLEAN NOT NULL DEFAULT true,
+   681→  rate_limit_override INT,
+   682→  expires_at TIMESTAMPTZ,
+   683→  last_used_at TIMESTAMPTZ,
+   684→  usage_count INT NOT NULL DEFAULT 0,
+   685→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   686→);
+   687→
+   688→-- Rate Limiting
+   689→CREATE TABLE IF NOT EXISTS public.rate_limit_configs (
+   690→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   691→  scope rate_limit_scope_type NOT NULL,
+   692→  identifier TEXT NOT NULL,
+   693→  endpoint_pattern TEXT DEFAULT '*',
+   694→  max_requests INT NOT NULL,
+   695→  window_seconds INT NOT NULL DEFAULT 60,
+   696→  action_on_limit TEXT NOT NULL DEFAULT 'reject',
+   697→  is_active BOOLEAN NOT NULL DEFAULT true,
+   698→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   699→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   700→  UNIQUE(scope, identifier, endpoint_pattern)
+   701→);
+   702→
+   703→CREATE TABLE IF NOT EXISTS public.rate_limit_counters (
+   704→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   705→  scope rate_limit_scope_type NOT NULL,
+   706→  identifier TEXT NOT NULL,
+   707→  endpoint TEXT NOT NULL,
+   708→  request_count INT NOT NULL DEFAULT 0,
+   709→  window_start TIMESTAMPTZ NOT NULL DEFAULT now(),
+   710→  blocked_at TIMESTAMPTZ,
+   711→  UNIQUE(scope, identifier, endpoint, window_start)
+   712→);
+   713→
+   714→-- Security Events
+   715→CREATE TABLE IF NOT EXISTS public.security_events (
+   716→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   717→  event_type TEXT NOT NULL,
+   718→  severity TEXT NOT NULL DEFAULT 'medium',
+   719→  user_id UUID REFERENCES auth.users(id),
+   720→  school_id UUID REFERENCES public.schools(id),
+   721→  ip_address INET,
+   722→  user_agent TEXT,
+   723→  details JSONB DEFAULT '{}',
+   724→  is_resolved BOOLEAN NOT NULL DEFAULT false,
+   725→  resolved_by UUID REFERENCES auth.users(id),
+   726→  resolved_at TIMESTAMPTZ,
+   727→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   728→);
+   729→
+   730→-- Session Management
+   731→CREATE TABLE IF NOT EXISTS public.user_sessions (
+   732→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   733→  user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
+   734→  session_token_hash TEXT NOT NULL,
+   735→  device_id TEXT,
+   736→  device_name TEXT,
+   737→  device_type TEXT,
+   738→  ip_address INET,
+   739→  user_agent TEXT,
+   740→  is_active BOOLEAN NOT NULL DEFAULT true,
+   741→  last_activity_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   742→  expires_at TIMESTAMPTZ NOT NULL,
+   743→  invalidated_by UUID REFERENCES auth.users(id),
+   744→  invalidated_at TIMESTAMPTZ,
+   745→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   746→);
+   747→
+   748→-- Data Encryption Keys (metadata only, keys stored in vault)
+   749→CREATE TABLE IF NOT EXISTS public.encryption_key_metadata (
+   750→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   751→  key_identifier TEXT NOT NULL UNIQUE,
+   752→  algorithm TEXT NOT NULL DEFAULT 'AES-256-GCM',
+   753→  purpose TEXT NOT NULL,
+   754→  is_active BOOLEAN NOT NULL DEFAULT true,
+   755→  rotated_from UUID REFERENCES public.encryption_key_metadata(id),
+   756→  rotated_at TIMESTAMPTZ,
+   757→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   758→);
+   759→
+   760→-- ============================================================================
+   761→-- MONITORING & OBSERVABILITY
+   762→-- ============================================================================
+   763→
+   764→-- System Metrics
+   765→CREATE TABLE IF NOT EXISTS public.system_metrics (
+   766→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   767→  metric_name TEXT NOT NULL,
+   768→  metric_type metric_type_enum NOT NULL,
+   769→  value DOUBLE PRECISION NOT NULL,
+   770→  unit TEXT,
+   771→  tags JSONB DEFAULT '{}',
+   772→  school_id UUID REFERENCES public.schools(id),
+   773→  recorded_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   774→);
+   775→
+   776→-- Alert Rules
+   777→CREATE TABLE IF NOT EXISTS public.alert_rules (
+   778→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   779→  name TEXT NOT NULL,
+   780→  description TEXT,
+   781→  metric_name TEXT NOT NULL,
+   782→  condition_operator TEXT NOT NULL,
+   783→  threshold_value DOUBLE PRECISION NOT NULL,
+   784→  duration_seconds INT,
+   785→  severity alert_severity_type NOT NULL DEFAULT 'warning',
+   786→  notification_channels TEXT[] NOT NULL DEFAULT '{}',
+   787→  is_active BOOLEAN NOT NULL DEFAULT true,
+   788→  last_triggered_at TIMESTAMPTZ,
+   789→  created_by UUID REFERENCES auth.users(id),
+   790→  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   791→  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   792→);
+   793→
+   794→-- Alert Incidents
+   795→CREATE TABLE IF NOT EXISTS public.alert_incidents (
+   796→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   797→  alert_rule_id UUID NOT NULL REFERENCES public.alert_rules(id) ON DELETE CASCADE,
+   798→  current_value DOUBLE PRECISION NOT NULL,
+   799→  threshold_value DOUBLE PRECISION NOT NULL,
+   800→  severity alert_severity_type NOT NULL,
+   801→  status TEXT NOT NULL DEFAULT 'firing',
+   802→  acknowledged_by UUID REFERENCES auth.users(id),
+   803→  acknowledged_at TIMESTAMPTZ,
+   804→  resolved_at TIMESTAMPTZ,
+   805→  resolution_notes TEXT,
+   806→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   807→);
+   808→
+   809→-- Performance Logs
+   810→CREATE TABLE IF NOT EXISTS public.performance_logs (
+   811→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   812→  operation_type TEXT NOT NULL,
+   813→  operation_name TEXT NOT NULL,
+   814→  duration_ms INT NOT NULL,
+   815→  is_slow BOOLEAN NOT NULL DEFAULT false,
+   816→  user_id UUID REFERENCES auth.users(id),
+   817→  school_id UUID REFERENCES public.schools(id),
+   818→  endpoint TEXT,
+   819→  query_hash TEXT,
+   820→  request_payload_size_bytes INT,
+   821→  response_payload_size_bytes INT,
+   822→  error_message TEXT,
+   823→  metadata JSONB DEFAULT '{}',
+   824→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   825→);
+   826→
+   827→-- Error Tracking
+   828→CREATE TABLE IF NOT EXISTS public.error_reports (
+   829→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   830→  error_type TEXT NOT NULL,
+   831→  error_message TEXT NOT NULL,
+   832→  stack_trace TEXT,
+   833→  error_hash TEXT,
+   834→  occurrence_count INT NOT NULL DEFAULT 1,
+   835→  first_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   836→  last_seen_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   837→  user_id UUID REFERENCES auth.users(id),
+   838→  school_id UUID REFERENCES public.schools(id),
+   839→  device_info JSONB DEFAULT '{}',
+   840→  app_version TEXT,
+   841→  platform TEXT,
+   842→  is_resolved BOOLEAN NOT NULL DEFAULT false,
+   843→  resolved_by UUID REFERENCES auth.users(id),
+   844→  resolved_at TIMESTAMPTZ,
+   845→  metadata JSONB DEFAULT '{}'
+   846→);
+   847→
+   848→-- ============================================================================
+   849→-- CI/CD & DEPLOYMENT
+   850→-- ============================================================================
+   851→
+   852→CREATE TABLE IF NOT EXISTS public.deployments (
+   853→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   854→  environment TEXT NOT NULL,
+   855→  version TEXT NOT NULL,
+   856→  commit_hash TEXT,
+   857→  branch TEXT,
+   858→  deployer_id UUID REFERENCES auth.users(id),
+   859→  status deployment_status_type NOT NULL DEFAULT 'pending',
+   860→  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   861→  completed_at TIMESTAMPTZ,
+   862→  rollback_from TEXT,
+   863→  notes TEXT,
+   864→  metadata JSONB DEFAULT '{}'
+   865→);
+   866→
+   867→CREATE TABLE IF NOT EXISTS public.deployment_steps (
+   868→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   869→  deployment_id UUID NOT NULL REFERENCES public.deployments(id) ON DELETE CASCADE,
+   870→  step_name TEXT NOT NULL,
+   871→  step_order INT NOT NULL,
+   872→  status deployment_status_type NOT NULL DEFAULT 'pending',
+   873→  started_at TIMESTAMPTZ,
+   874→  completed_at TIMESTAMPTZ,
+   875→  error_message TEXT,
+   876→  logs TEXT,
+   877→  duration_ms INT
+   878→);
+   879→
+   880→-- Test Results
+   881→CREATE TABLE IF NOT EXISTS public.test_results (
+   882→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   883→  test_type test_type_enum NOT NULL,
+   884→  test_suite TEXT NOT NULL,
+   885→  test_name TEXT NOT NULL,
+   886→  status TEXT NOT NULL DEFAULT 'pending',
+   887→  duration_ms INT,
+   888→  error_message TEXT,
+   889→  stack_trace TEXT,
+   890→  coverage_percentage DECIMAL(5,2),
+   891→  metadata JSONB DEFAULT '{}',
+   892→  deployment_id UUID REFERENCES public.deployments(id) ON DELETE SET NULL,
+   893→  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+   894→);
+   895→
+   896→CREATE TABLE IF NOT EXISTS public.test_suites (
+   897→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   898→  name TEXT NOT NULL,
+   899→  test_type test_type_enum NOT NULL,
+   900→  total_tests INT NOT NULL DEFAULT 0,
+   901→  passed_tests INT NOT NULL DEFAULT 0,
+   902→  failed_tests INT NOT NULL DEFAULT 0,
+   903→  skipped_tests INT NOT NULL DEFAULT 0,
+   904→  coverage_percentage DECIMAL(5,2) DEFAULT 0.00,
+   905→  duration_ms INT,
+   906→  deployment_id UUID REFERENCES public.deployments(id) ON DELETE SET NULL,
+   907→  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   908→  completed_at TIMESTAMPTZ
+   909→);
+   910→
+   911→-- Database Migration Tracking
+   912→CREATE TABLE IF NOT EXISTS public.database_migrations (
+   913→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   914→  migration_name TEXT NOT NULL UNIQUE,
+   915→  version TEXT NOT NULL,
+   916→  applied_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   917→  applied_by UUID REFERENCES auth.users(id),
+   918→  execution_time_ms INT,
+   919→  checksum TEXT,
+   920→  rollback_sql TEXT,
+   921→  is_rolled_back BOOLEAN NOT NULL DEFAULT false
+   922→);
+   923→
+   924→-- ============================================================================
+   925→-- BACKUP & DISASTER RECOVERY
+   926→-- ============================================================================
+   927→
+   928→CREATE TABLE IF NOT EXISTS public.backup_records (
+   929→  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   930→  backup_type TEXT NOT NULL,
+   931→  storage_location TEXT NOT NULL,
+   932→  file_size_bytes BIGINT,
+   933→  is_encrypted BOOLEAN NOT NULL DEFAULT true,
+   934→  checksum TEXT,
+   935→  started_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+   936→  completed_at TIMESTAMPTZ,
+   937→  status TEXT NOT NULL DEFAULT 'in_progress',
+   938→  error_message TEXT,
+   939→  retention_until TIMESTAMPTZ,
+   940→  metadata JSONB DEFAULT '{}'
+   941→);
+   942→
+   943→-- ============================================================================
+   944→-- INDEXES
+   945→-- ============================================================================
+   946→
+   947→-- Educational Levels
+   948→CREATE INDEX idx_educational_levels_category ON public.educational_levels(level_category);
+   949→CREATE INDEX idx_educational_levels_order ON public.educational_levels(level_order);
+   950→CREATE INDEX idx_educational_levels_active ON public.educational_levels(is_active);
+   951→
+   952→-- School Level Configurations
+   953→CREATE INDEX idx_school_level_config_school ON public.school_level_configurations(school_id);
+   954→CREATE INDEX idx_school_level_config_level ON public.school_level_configurations(educational_level_id);
+   955→CREATE INDEX idx_school_level_config_enabled ON public.school_level_configurations(school_id, is_enabled);
+   956→
+   957→-- Curricula
+   958→CREATE INDEX idx_curricula_type ON public.curricula(curriculum_type);
+   959→CREATE INDEX idx_curricula_country ON public.curricula(country_code);
+   960→CREATE INDEX idx_curricula_active ON public.curricula(is_active);
+   961→CREATE INDEX idx_curricula_parent ON public.curricula(parent_curriculum_id);
+   962→
+   963→-- Curriculum Versions
+   964→CREATE INDEX idx_curriculum_versions_curriculum ON public.curriculum_versions(curriculum_id);
+   965→CREATE INDEX idx_curriculum_versions_current ON public.curriculum_versions(curriculum_id, is_current);
+   966→
+   967→-- Curriculum Level Mappings
+   968→CREATE INDEX idx_curriculum_level_mappings_curriculum ON public.curriculum_level_mappings(curriculum_id);
+   969→CREATE INDEX idx_curriculum_level_mappings_level ON public.curriculum_level_mappings(educational_level_id);
+   970→
+   971→-- Subjects
+   972→CREATE INDEX idx_subjects_curriculum ON public.subjects(curriculum_id);
+   973→CREATE INDEX idx_subjects_level ON public.subjects(educational_level_id);
+   974→CREATE INDEX idx_subjects_school ON public.subjects(school_id);
+   975→CREATE INDEX idx_subjects_group ON public.subjects(subject_group);
+   976→CREATE INDEX idx_subjects_core ON public.subjects(is_core);
+   977→CREATE INDEX idx_subjects_active ON public.subjects(is_active);
+   978→CREATE INDEX idx_subjects_custom ON public.subjects(is_custom);
+   979→CREATE INDEX idx_subjects_search ON public.subjects USING gin(to_tsvector('english', name || ' ' || COALESCE(code, '') || ' ' || COALESCE(description, '')));
+   980→
+   981→-- Topics
+   982→CREATE INDEX idx_topics_subject ON public.topics(subject_id);
+   983→CREATE INDEX idx_topics_level ON public.topics(educational_level_id);
+   984→CREATE INDEX idx_topics_curriculum ON public.topics(curriculum_id);
+   985→CREATE INDEX idx_topics_parent ON public.topics(parent_topic_id);
+   986→CREATE INDEX idx_topics_active ON public.topics(is_active);
+   987→CREATE INDEX idx_topics_sort ON public.topics(subject_id, sort_order);
+   988→CREATE INDEX idx_topics_search ON public.topics USING gin(to_tsvector('english', title || ' ' || COALESCE(description, '')));
+   989→
+   990→-- Subtopics
+   991→CREATE INDEX idx_subtopics_topic ON public.subtopics(topic_id);
+   992→CREATE INDEX idx_subtopics_active ON public.subtopics(is_active);
+   993→CREATE INDEX idx_subtopics_sort ON public.subtopics(topic_id, sort_order);
+   994→
+   995→-- Learning Objectives
+   996→CREATE INDEX idx_learning_objectives_topic ON public.learning_objectives(topic_id);
+   997→CREATE INDEX idx_learning_objectives_subtopic ON public.learning_objectives(subtopic_id);
+   998→CREATE INDEX idx_learning_objectives_subject ON public.learning_objectives(subject_id);
+   999→CREATE INDEX idx_learning_objectives_level ON public.learning_objectives(educational_level_id);
+  1000→CREATE INDEX idx_learning_objectives_bloom ON public.learning_objectives(bloom_level);
+  1001→CREATE INDEX idx_learning_objectives_code ON public.learning_objectives(code);
+  1002→
+  1003→-- Content Items (heavily queried)
+  1004→CREATE INDEX idx_content_items_subject ON public.content_items(subject_id);
+  1005→CREATE INDEX idx_content_items_level ON public.content_items(educational_level_id);
+  1006→CREATE INDEX idx_content_items_topic ON public.content_items(topic_id);
+  1007→CREATE INDEX idx_content_items_subtopic ON public.content_items(subtopic_id);
+  1008→CREATE INDEX idx_content_items_curriculum ON public.content_items(curriculum_id);
+  1009→CREATE INDEX idx_content_items_school ON public.content_items(school_id);
+  1010→CREATE INDEX idx_content_items_type ON public.content_items(content_type);
+  1011→CREATE INDEX idx_content_items_status ON public.content_items(status);
+  1012→CREATE INDEX idx_content_items_difficulty ON public.content_items(difficulty_level);
+  1013→CREATE INDEX idx_content_items_category ON public.content_items(question_category);
+  1014→CREATE INDEX idx_content_items_bloom ON public.content_items(bloom_level);
+  1015→CREATE INDEX idx_content_items_source ON public.content_items(source_type);
+  1016→CREATE INDEX idx_content_items_past ON public.content_items(is_past_question);
+  1017→CREATE INDEX idx_content_items_ai ON public.content_items(is_ai_generated);
+  1018→CREATE INDEX idx_content_items_created_by ON public.content_items(created_by);
+  1019→CREATE INDEX idx_content_items_published ON public.content_items(published_at) WHERE status = 'published';
+  1020→CREATE INDEX idx_content_items_quality ON public.content_items(average_quality_score) WHERE status = 'published';
+  1021→CREATE INDEX idx_content_items_usage ON public.content_items(usage_count DESC) WHERE status = 'published';
+  1022→CREATE INDEX idx_content_items_version ON public.content_items(parent_content_id);
+  1023→CREATE INDEX idx_content_items_tags ON public.content_items USING gin(tags);
+  1024→CREATE INDEX idx_content_items_search ON public.content_items USING gin(to_tsvector('english', title || ' ' || body || ' ' || COALESCE(step_by_step_explanation, '')));
+  1025→CREATE INDEX idx_content_items_composite ON public.content_items(subject_id, educational_level_id, difficulty_level, status);
+  1026→
+  1027→-- Content Versions
+  1028→CREATE INDEX idx_content_versions_item ON public.content_versions(content_item_id);
+  1029→CREATE INDEX idx_content_versions_number ON public.content_versions(content_item_id, version_number DESC);
+  1030→
+  1031→-- Content Reviews
+  1032→CREATE INDEX idx_content_reviews_item ON public.content_reviews(content_item_id);
+  1033→CREATE INDEX idx_content_reviews_reviewer ON public.content_reviews(reviewer_id);
+  1034→CREATE INDEX idx_content_reviews_status ON public.content_reviews(status);
+  1035→
+  1036→-- Content Imports
+  1037→CREATE INDEX idx_content_imports_school ON public.content_imports(school_id);
+  1038→CREATE INDEX idx_content_imports_status ON public.content_imports(status);
+  1039→CREATE INDEX idx_content_imports_created_by ON public.content_imports(created_by);
+  1040→
+  1041→-- Content Collections
+  1042→CREATE INDEX idx_content_collections_school ON public.content_collections(school_id);
+  1043→CREATE INDEX idx_content_collections_subject ON public.content_collections(subject_id);
+  1044→CREATE INDEX idx_content_collections_type ON public.content_collections(collection_type);
+  1045→CREATE INDEX idx_content_collections_public ON public.content_collections(is_public);
+  1046→
+  1047→-- Content Collection Items
+  1048→CREATE INDEX idx_content_collection_items_collection ON public.content_collection_items(collection_id);
+  1049→CREATE INDEX idx_content_collection_items_content ON public.content_collection_items(content_item_id);
+  1050→
+  1051→-- AI Curriculum Configs
+  1052→CREATE INDEX idx_ai_curriculum_configs_school ON public.ai_curriculum_configs(school_id);
+  1053→CREATE INDEX idx_ai_curriculum_configs_subject ON public.ai_curriculum_configs(subject_id);
+  1054→CREATE INDEX idx_ai_curriculum_configs_level ON public.ai_curriculum_configs(educational_level_id);
+  1055→
+  1056→-- AI Generation Rules
+  1057→CREATE INDEX idx_ai_generation_rules_level ON public.ai_generation_rules(educational_level_id);
+  1058→CREATE INDEX idx_ai_generation_rules_subject ON public.ai_generation_rules(subject_id);
+  1059→CREATE INDEX idx_ai_generation_rules_active ON public.ai_generation_rules(is_active);
+  1060→
+  1061→-- Answer Repository
+  1062→CREATE INDEX idx_answer_repository_content ON public.answer_repository(content_item_id);
+  1063→CREATE INDEX idx_answer_repository_verified ON public.answer_repository(is_verified);
+  1064→CREATE INDEX idx_answer_repository_version ON public.answer_repository(content_item_id, version);
+  1065→
+  1066→-- Audit Trail (very high volume)
+  1067→CREATE INDEX idx_audit_trail_user ON public.audit_trail(user_id);
+  1068→CREATE INDEX idx_audit_trail_school ON public.audit_trail(school_id);
+  1069→CREATE INDEX idx_audit_trail_action ON public.audit_trail(action);
+  1070→CREATE INDEX idx_audit_trail_resource ON public.audit_trail(resource_type, resource_id);
+  1071→CREATE INDEX idx_audit_trail_created ON public.audit_trail(created_at DESC);
+  1072→CREATE INDEX idx_audit_trail_ip ON public.audit_trail(ip_address);
+  1073→CREATE INDEX idx_audit_trail_session ON public.audit_trail(session_id);
+  1074→
+  1075→-- MFA Configurations
+  1076→CREATE INDEX idx_mfa_configs_user ON public.mfa_configurations(user_id);
+  1077→CREATE INDEX idx_mfa_configs_enabled ON public.mfa_configurations(user_id, is_enabled);
+  1078→
+  1079→-- API Keys
+  1080→CREATE INDEX idx_api_keys_user ON public.api_keys(user_id);
+  1081→CREATE INDEX idx_api_keys_school ON public.api_keys(school_id);
+  1082→CREATE INDEX idx_api_keys_prefix ON public.api_keys(key_prefix);
+  1083→CREATE INDEX idx_api_keys_active ON public.api_keys(is_active);
+  1084→CREATE INDEX idx_api_keys_hash ON public.api_keys(key_hash);
+  1085→
+  1086→-- Rate Limiting
+  1087→CREATE INDEX idx_rate_limit_configs_scope ON public.rate_limit_configs(scope, identifier);
+  1088→CREATE INDEX idx_rate_limit_counters_scope ON public.rate_limit_counters(scope, identifier);
+  1089→CREATE INDEX idx_rate_limit_counters_window ON public.rate_limit_counters(window_start);
+  1090→
+  1091→-- Security Events
+  1092→CREATE INDEX idx_security_events_type ON public.security_events(event_type);
+  1093→CREATE INDEX idx_security_events_user ON public.security_events(user_id);
+  1094→CREATE INDEX idx_security_events_school ON public.security_events(school_id);
+  1095→CREATE INDEX idx_security_events_severity ON public.security_events(severity);
+  1096→CREATE INDEX idx_security_events_resolved ON public.security_events(is_resolved);
+  1097→CREATE INDEX idx_security_events_created ON public.security_events(created_at DESC);
+  1098→
+  1099→-- User Sessions
+  1100→CREATE INDEX idx_user_sessions_user ON public.user_sessions(user_id);
+  1101→CREATE INDEX idx_user_sessions_token ON public.user_sessions(session_token_hash);
+  1102→CREATE INDEX idx_user_sessions_active ON public.user_sessions(user_id, is_active);
+  1103→CREATE INDEX idx_user_sessions_device ON public.user_sessions(device_id);
+  1104→CREATE INDEX idx_user_sessions_expiry ON public.user_sessions(expires_at);
+  1105→
+  1106→-- Encryption Keys
+  1107→CREATE INDEX idx_encryption_keys_identifier ON public.encryption_key_metadata(key_identifier);
+  1108→CREATE INDEX idx_encryption_keys_active ON public.encryption_key_metadata(is_active);
+  1109→
+  1110→-- System Metrics
+  1111→CREATE INDEX idx_system_metrics_name ON public.system_metrics(metric_name);
+  1112→CREATE INDEX idx_system_metrics_recorded ON public.system_metrics(recorded_at DESC);
+  1113→CREATE INDEX idx_system_metrics_school ON public.system_metrics(school_id);
+  1114→CREATE INDEX idx_system_metrics_name_time ON public.system_metrics(metric_name, recorded_at DESC);
+  1115→
+  1116→-- Alert Rules
+  1117→CREATE INDEX idx_alert_rules_metric ON public.alert_rules(metric_name);
+  1118→CREATE INDEX idx_alert_rules_active ON public.alert_rules(is_active);
+  1119→
+  1120→-- Alert Incidents
+  1121→CREATE INDEX idx_alert_incidents_rule ON public.alert_incidents(alert_rule_id);
+  1122→CREATE INDEX idx_alert_incidents_status ON public.alert_incidents(status);
+  1123→CREATE INDEX idx_alert_incidents_created ON public.alert_incidents(created_at DESC);
+  1124→
+  1125→-- Performance Logs
+  1126→CREATE INDEX idx_performance_logs_type ON public.performance_logs(operation_type);
+  1127→CREATE INDEX idx_performance_logs_slow ON public.performance_logs(is_slow) WHERE is_slow = true;
+  1128→CREATE INDEX idx_performance_logs_created ON public.performance_logs(created_at DESC);
+  1129→CREATE INDEX idx_performance_logs_endpoint ON public.performance_logs(endpoint);
+  1130→CREATE INDEX idx_performance_logs_school ON public.performance_logs(school_id);
+  1131→
+  1132→-- Error Reports
+  1133→CREATE INDEX idx_error_reports_type ON public.error_reports(error_type);
+  1134→CREATE INDEX idx_error_reports_hash ON public.error_reports(error_hash);
+  1135→CREATE INDEX idx_error_reports_resolved ON public.error_reports(is_resolved);
+  1136→CREATE INDEX idx_error_reports_last_seen ON public.error_reports(last_seen_at DESC);
+  1137→CREATE INDEX idx_error_reports_school ON public.error_reports(school_id);
+  1138→
+  1139→-- Deployments
+  1140→CREATE INDEX idx_deployments_env ON public.deployments(environment);
+  1141→CREATE INDEX idx_deployments_status ON public.deployments(status);
+  1142→CREATE INDEX idx_deployments_started ON public.deployments(started_at DESC);
+  1143→
+  1144→-- Deployment Steps
+  1145→CREATE INDEX idx_deployment_steps_deployment ON public.deployment_steps(deployment_id);
+  1146→
+  1147→-- Test Results
+  1148→CREATE INDEX idx_test_results_type ON public.test_results(test_type);
+  1149→CREATE INDEX idx_test_results_suite ON public.test_results(test_suite);
+  1150→CREATE INDEX idx_test_results_status ON public.test_results(status);
+  1151→CREATE INDEX idx_test_results_deployment ON public.test_results(deployment_id);
+  1152→
+  1153→-- Test Suites
+  1154→CREATE INDEX idx_test_suites_deployment ON public.test_suites(deployment_id);
+  1155→CREATE INDEX idx_test_suites_type ON public.test_suites(test_type);
+  1156→
+  1157→-- Database Migrations
+  1158→CREATE INDEX idx_db_migrations_name ON public.database_migrations(migration_name);
+  1159→CREATE INDEX idx_db_migrations_version ON public.database_migrations(version);
+  1160→
+  1161→-- Backup Records
+  1162→CREATE INDEX idx_backup_records_type ON public.backup_records(backup_type);
+  1163→CREATE INDEX idx_backup_records_status ON public.backup_records(status);
+  1164→CREATE INDEX idx_backup_records_created ON public.backup_records(started_at DESC);
+  1165→
+  1166→-- ============================================================================
+  1167→-- ROW LEVEL SECURITY
+  1168→-- ============================================================================
+  1169→
+  1170→ALTER TABLE public.educational_levels ENABLE ROW LEVEL SECURITY;
+  1171→ALTER TABLE public.school_level_configurations ENABLE ROW LEVEL SECURITY;
+  1172→ALTER TABLE public.curricula ENABLE ROW LEVEL SECURITY;
+  1173→ALTER TABLE public.curriculum_versions ENABLE ROW LEVEL SECURITY;
+  1174→ALTER TABLE public.curriculum_level_mappings ENABLE ROW LEVEL SECURITY;
+  1175→ALTER TABLE public.subjects ENABLE ROW LEVEL SECURITY;
+  1176→ALTER TABLE public.topics ENABLE ROW LEVEL SECURITY;
+  1177→ALTER TABLE public.subtopics ENABLE ROW LEVEL SECURITY;
+  1178→ALTER TABLE public.learning_objectives ENABLE ROW LEVEL SECURITY;
+  1179→ALTER TABLE public.content_items ENABLE ROW LEVEL SECURITY;
+  1180→ALTER TABLE public.content_versions ENABLE ROW LEVEL SECURITY;
+  1181→ALTER TABLE public.content_reviews ENABLE ROW LEVEL SECURITY;
+  1182→ALTER TABLE public.content_imports ENABLE ROW LEVEL SECURITY;
+  1183→ALTER TABLE public.content_collections ENABLE ROW LEVEL SECURITY;
+  1184→ALTER TABLE public.content_collection_items ENABLE ROW LEVEL SECURITY;
+  1185→ALTER TABLE public.ai_curriculum_configs ENABLE ROW LEVEL SECURITY;
+  1186→ALTER TABLE public.ai_generation_rules ENABLE ROW LEVEL SECURITY;
+  1187→ALTER TABLE public.answer_repository ENABLE ROW LEVEL SECURITY;
+  1188→ALTER TABLE public.audit_trail ENABLE ROW LEVEL SECURITY;
+  1189→ALTER TABLE public.mfa_configurations ENABLE ROW LEVEL SECURITY;
+  1190→ALTER TABLE public.api_keys ENABLE ROW LEVEL SECURITY;
+  1191→ALTER TABLE public.rate_limit_configs ENABLE ROW LEVEL SECURITY;
+  1192→ALTER TABLE public.rate_limit_counters ENABLE ROW LEVEL SECURITY;
+  1193→ALTER TABLE public.security_events ENABLE ROW LEVEL SECURITY;
+  1194→ALTER TABLE public.user_sessions ENABLE ROW LEVEL SECURITY;
+  1195→ALTER TABLE public.encryption_key_metadata ENABLE ROW LEVEL SECURITY;
+  1196→ALTER TABLE public.system_metrics ENABLE ROW LEVEL SECURITY;
+  1197→ALTER TABLE public.alert_rules ENABLE ROW LEVEL SECURITY;
+  1198→ALTER TABLE public.alert_incidents ENABLE ROW LEVEL SECURITY;
+  1199→ALTER TABLE public.performance_logs ENABLE ROW LEVEL SECURITY;
+  1200→ALTER TABLE public.error_reports ENABLE ROW LEVEL SECURITY;
+  1201→ALTER TABLE public.deployments ENABLE ROW LEVEL SECURITY;
+  1202→ALTER TABLE public.deployment_steps ENABLE ROW LEVEL SECURITY;
+  1203→ALTER TABLE public.test_results ENABLE ROW LEVEL SECURITY;
+  1204→ALTER TABLE public.test_suites ENABLE ROW LEVEL SECURITY;
+  1205→ALTER TABLE public.database_migrations ENABLE ROW LEVEL SECURITY;
+  1206→ALTER TABLE public.backup_records ENABLE ROW LEVEL SECURITY;
+  1207→
+  1208→-- Educational Levels: read-only for all authenticated users
+  1209→CREATE POLICY "Educational levels readable by all authenticated users"
+  1210→  ON public.educational_levels FOR SELECT
+  1211→  TO authenticated USING (true);
+  1212→
+  1213→CREATE POLICY "Educational levels managed by super admins"
+  1214→  ON public.educational_levels FOR ALL
+  1215→  TO authenticated USING (
+  1216→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1217→  );
+  1218→
+  1219→-- School Level Configurations: school-scoped access
+  1220→CREATE POLICY "School level configs readable by school members"
+  1221→  ON public.school_level_configurations FOR SELECT
+  1222→  TO authenticated USING (
+  1223→    school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1224→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1225→  );
+  1226→
+  1227→CREATE POLICY "School level configs managed by school admins"
+  1228→  ON public.school_level_configurations FOR ALL
+  1229→  TO authenticated USING (
+  1230→    (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1231→     AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin')))
+  1232→  );
+  1233→
+  1234→-- Curricula: read for all, write for admins
+  1235→CREATE POLICY "Curricula readable by authenticated users"
+  1236→  ON public.curricula FOR SELECT TO authenticated USING (true);
+  1237→
+  1238→CREATE POLICY "Curricula managed by admins"
+  1239→  ON public.curricula FOR ALL
+  1240→  TO authenticated USING (
+  1241→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' IN ('superAdmin', 'schoolAdmin'))
+  1242→  );
+  1243→
+  1244→-- Curriculum Versions: read for all, write for admins
+  1245→CREATE POLICY "Curriculum versions readable by authenticated users"
+  1246→  ON public.curriculum_versions FOR SELECT TO authenticated USING (true);
+  1247→
+  1248→CREATE POLICY "Curriculum versions managed by admins"
+  1249→  ON public.curriculum_versions FOR ALL
+  1250→  TO authenticated USING (
+  1251→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' IN ('superAdmin', 'schoolAdmin'))
+  1252→  );
+  1253→
+  1254→-- Curriculum Level Mappings: read for all, write for admins
+  1255→CREATE POLICY "Curriculum level mappings readable by authenticated users"
+  1256→  ON public.curriculum_level_mappings FOR SELECT TO authenticated USING (true);
+  1257→
+  1258→CREATE POLICY "Curriculum level mappings managed by admins"
+  1259→  ON public.curriculum_level_mappings FOR ALL
+  1260→  TO authenticated USING (
+  1261→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' IN ('superAdmin', 'schoolAdmin'))
+  1262→  );
+  1263→
+  1264→-- Subjects: read for school members, write for admins
+  1265→CREATE POLICY "Subjects readable by school members"
+  1266→  ON public.subjects FOR SELECT
+  1267→  TO authenticated USING (
+  1268→    school_id IS NULL
+  1269→    OR school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1270→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1271→  );
+  1272→
+  1273→CREATE POLICY "Subjects managed by admins"
+  1274→  ON public.subjects FOR ALL
+  1275→  TO authenticated USING (
+  1276→    (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1277→     AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin')))
+  1278→    OR (school_id IS NULL AND EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin'))
+  1279→  );
+  1280→
+  1281→-- Topics: read for school members, write for teachers+
+  1282→CREATE POLICY "Topics readable by school members"
+  1283→  ON public.topics FOR SELECT
+  1284→  TO authenticated USING (
+  1285→    EXISTS (SELECT 1 FROM public.subjects WHERE subjects.id = topics.subject_id AND (subjects.school_id IS NULL OR subjects.school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())))
+  1286→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1287→  );
+  1288→
+  1289→CREATE POLICY "Topics managed by teachers and admins"
+  1290→  ON public.topics FOR ALL
+  1291→  TO authenticated USING (
+  1292→    auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('teacher', 'schoolAdmin', 'superAdmin'))
+  1293→  );
+  1294→
+  1295→-- Subtopics: same as topics
+  1296→CREATE POLICY "Subtopics readable by school members"
+  1297→  ON public.subtopics FOR SELECT TO authenticated USING (
+  1298→    EXISTS (SELECT 1 FROM public.topics WHERE topics.id = subtopics.topic_id)
+  1299→  );
+  1300→
+  1301→CREATE POLICY "Subtopics managed by teachers and admins"
+  1302→  ON public.subtopics FOR ALL
+  1303→  TO authenticated USING (
+  1304→    auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('teacher', 'schoolAdmin', 'superAdmin'))
+  1305→  );
+  1306→
+  1307→-- Learning Objectives: read for all, write for teachers+
+  1308→CREATE POLICY "Learning objectives readable by authenticated users"
+  1309→  ON public.learning_objectives FOR SELECT TO authenticated USING (true);
+  1310→
+  1311→CREATE POLICY "Learning objectives managed by teachers and admins"
+  1312→  ON public.learning_objectives FOR ALL
+  1313→  TO authenticated USING (
+  1314→    auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('teacher', 'schoolAdmin', 'superAdmin'))
+  1315→  );
+  1316→
+  1317→-- Content Items: school-scoped with role-based access
+  1318→CREATE POLICY "Content items readable by school members"
+  1319→  ON public.content_items FOR SELECT
+  1320→  TO authenticated USING (
+  1321→    status = 'published'
+  1322→    OR (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid()))
+  1323→    OR created_by = auth.uid()
+  1324→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1325→  );
+  1326→
+  1327→CREATE POLICY "Content items created by teachers and admins"
+  1328→  ON public.content_items FOR INSERT
+  1329→  TO authenticated WITH CHECK (
+  1330→    auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('teacher', 'schoolAdmin', 'superAdmin'))
+  1331→  );
+  1332→
+  1333→CREATE POLICY "Content items updated by creators and admins"
+  1334→  ON public.content_items FOR UPDATE
+  1335→  TO authenticated USING (
+  1336→    created_by = auth.uid()
+  1337→    OR (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1338→        AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin')))
+  1339→  );
+  1340→
+  1341→CREATE POLICY "Content items deleted by admins only"
+  1342→  ON public.content_items FOR DELETE
+  1343→  TO authenticated USING (
+  1344→    auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin'))
+  1345→  );
+  1346→
+  1347→-- Content Versions: follow content item access
+  1348→CREATE POLICY "Content versions readable by content item access"
+  1349→  ON public.content_versions FOR SELECT TO authenticated USING (
+  1350→    EXISTS (SELECT 1 FROM public.content_items WHERE content_items.id = content_versions.content_item_id AND (
+  1351→      content_items.status = 'published' OR content_items.created_by = auth.uid() OR
+  1352→      EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1353→    ))
+  1354→  );
+  1355→
+  1356→CREATE POLICY "Content versions managed by content creators"
+  1357→  ON public.content_versions FOR ALL
+  1358→  TO authenticated USING (
+  1359→    EXISTS (SELECT 1 FROM public.content_items WHERE content_items.id = content_versions.content_item_id AND content_items.created_by = auth.uid())
+  1360→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin'))
+  1361→  );
+  1362→
+  1363→-- Content Reviews: reviewers and admins
+  1364→CREATE POLICY "Content reviews readable by content access"
+  1365→  ON public.content_reviews FOR SELECT TO authenticated USING (
+  1366→    EXISTS (SELECT 1 FROM public.content_items WHERE content_items.id = content_reviews.content_item_id)
+  1367→  );
+  1368→
+  1369→CREATE POLICY "Content reviews created by reviewers"
+  1370→  ON public.content_reviews FOR INSERT
+  1371→  TO authenticated WITH CHECK (
+  1372→    reviewer_id = auth.uid() AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('teacher', 'schoolAdmin', 'superAdmin'))
+  1373→  );
+  1374→
+  1375→-- Content Imports: school-scoped
+  1376→CREATE POLICY "Content imports readable by school members"
+  1377→  ON public.content_imports FOR SELECT
+  1378→  TO authenticated USING (
+  1379→    school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1380→    OR created_by = auth.uid()
+  1381→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1382→  );
+  1383→
+  1384→CREATE POLICY "Content imports managed by school admins and teachers"
+  1385→  ON public.content_imports FOR ALL
+  1386→  TO authenticated USING (
+  1387→    created_by = auth.uid()
+  1388→    OR (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1389→        AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin')))
+  1390→  );
+  1391→
+  1392→-- Content Collections: school-scoped
+  1393→CREATE POLICY "Content collections readable by school members"
+  1394→  ON public.content_collections FOR SELECT
+  1395→  TO authenticated USING (
+  1396→    is_public = true
+  1397→    OR school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1398→    OR created_by = auth.uid()
+  1399→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1400→  );
+  1401→
+  1402→CREATE POLICY "Content collections managed by creators and admins"
+  1403→  ON public.content_collections FOR ALL
+  1404→  TO authenticated USING (
+  1405→    created_by = auth.uid()
+  1406→    OR (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1407→        AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin')))
+  1408→  );
+  1409→
+  1410→-- Content Collection Items
+  1411→CREATE POLICY "Collection items readable via collection access"
+  1412→  ON public.content_collection_items FOR SELECT TO authenticated USING (
+  1413→    EXISTS (SELECT 1 FROM public.content_collections WHERE content_collections.id = content_collection_items.collection_id)
+  1414→  );
+  1415→
+  1416→CREATE POLICY "Collection items managed via collection access"
+  1417→  ON public.content_collection_items FOR ALL
+  1418→  TO authenticated USING (
+  1419→    EXISTS (SELECT 1 FROM public.content_collections WHERE content_collections.id = content_collection_items.collection_id AND (content_collections.created_by = auth.uid() OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin'))))
+  1420→  );
+  1421→
+  1422→-- AI Curriculum Configs: school-scoped
+  1423→CREATE POLICY "AI curriculum configs readable by school members"
+  1424→  ON public.ai_curriculum_configs FOR SELECT
+  1425→  TO authenticated USING (
+  1426→    school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1427→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1428→  );
+  1429→
+  1430→CREATE POLICY "AI curriculum configs managed by admins"
+  1431→  ON public.ai_curriculum_configs FOR ALL
+  1432→  TO authenticated USING (
+  1433→    (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1434→     AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin')))
+  1435→  );
+  1436→
+  1437→-- AI Generation Rules: admin-only
+  1438→CREATE POLICY "AI generation rules readable by authenticated users"
+  1439→  ON public.ai_generation_rules FOR SELECT TO authenticated USING (true);
+  1440→
+  1441→CREATE POLICY "AI generation rules managed by super admins"
+  1442→  ON public.ai_generation_rules FOR ALL
+  1443→  TO authenticated USING (
+  1444→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1445→  );
+  1446→
+  1447→-- Answer Repository: follows content item access
+  1448→CREATE POLICY "Answer repository readable by content access"
+  1449→  ON public.answer_repository FOR SELECT TO authenticated USING (
+  1450→    EXISTS (SELECT 1 FROM public.content_items WHERE content_items.id = answer_repository.content_item_id AND (
+  1451→      content_items.status = 'published' OR content_items.created_by = auth.uid() OR
+  1452→      EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' IN ('teacher', 'schoolAdmin', 'superAdmin'))
+  1453→    ))
+  1454→  );
+  1455→
+  1456→CREATE POLICY "Answer repository managed by teachers and admins"
+  1457→  ON public.answer_repository FOR ALL
+  1458→  TO authenticated USING (
+  1459→    auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('teacher', 'schoolAdmin', 'superAdmin'))
+  1460→  );
+  1461→
+  1462→-- Audit Trail: super admin read-only
+  1463→CREATE POLICY "Audit trail readable by super admins"
+  1464→  ON public.audit_trail FOR SELECT
+  1465→  TO authenticated USING (
+  1466→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1467→  );
+  1468→
+  1469→CREATE POLICY "Audit trail insert by system"
+  1470→  ON public.audit_trail FOR INSERT
+  1471→  TO authenticated WITH CHECK (true);
+  1472→
+  1473→-- MFA Configurations: user-scoped
+  1474→CREATE POLICY "MFA configs readable by owner"
+  1475→  ON public.mfa_configurations FOR SELECT
+  1476→  TO authenticated USING (user_id = auth.uid());
+  1477→
+  1478→CREATE POLICY "MFA configs managed by owner"
+  1479→  ON public.mfa_configurations FOR ALL
+  1480→  TO authenticated USING (user_id = auth.uid());
+  1481→
+  1482→-- API Keys: user-scoped
+  1483→CREATE POLICY "API keys readable by owner"
+  1484→  ON public.api_keys FOR SELECT
+  1485→  TO authenticated USING (
+  1486→    user_id = auth.uid()
+  1487→    OR (school_id::text = (SELECT raw_user_meta_data->>'school_id' FROM auth.users WHERE id = auth.uid())
+  1488→        AND auth.uid() IN (SELECT id FROM auth.users WHERE raw_user_meta_data->>'role' IN ('schoolAdmin', 'superAdmin')))
+  1489→  );
+  1490→
+  1491→CREATE POLICY "API keys managed by owner"
+  1492→  ON public.api_keys FOR ALL
+  1493→  TO authenticated USING (user_id = auth.uid());
+  1494→
+  1495→-- Rate Limit Configs: super admin only
+  1496→CREATE POLICY "Rate limit configs readable by super admins"
+  1497→  ON public.rate_limit_configs FOR SELECT
+  1498→  TO authenticated USING (
+  1499→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1500→  );
+  1501→
+  1502→CREATE POLICY "Rate limit configs managed by super admins"
+  1503→  ON public.rate_limit_configs FOR ALL
+  1504→  TO authenticated USING (
+  1505→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1506→  );
+  1507→
+  1508→-- Security Events: super admin
+  1509→CREATE POLICY "Security events readable by super admins"
+  1510→  ON public.security_events FOR SELECT
+  1511→  TO authenticated USING (
+  1512→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1513→  );
+  1514→
+  1515→CREATE POLICY "Security events insert by system"
+  1516→  ON public.security_events FOR INSERT
+  1517→  TO authenticated WITH CHECK (true);
+  1518→
+  1519→-- User Sessions: own sessions
+  1520→CREATE POLICY "User sessions readable by owner"
+  1521→  ON public.user_sessions FOR SELECT
+  1522→  TO authenticated USING (user_id = auth.uid());
+  1523→
+  1524→CREATE POLICY "User sessions managed by owner or super admin"
+  1525→  ON public.user_sessions FOR ALL
+  1526→  TO authenticated USING (
+  1527→    user_id = auth.uid()
+  1528→    OR EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1529→  );
+  1530→
+  1531→-- Encryption Key Metadata: super admin only
+  1532→CREATE POLICY "Encryption key metadata readable by super admins"
+  1533→  ON public.encryption_key_metadata FOR SELECT
+  1534→  TO authenticated USING (
+  1535→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1536→  );
+  1537→
+  1538→-- System Metrics: admin access
+  1539→CREATE POLICY "System metrics readable by admins"
+  1540→  ON public.system_metrics FOR SELECT
+  1541→  TO authenticated USING (
+  1542→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' IN ('superAdmin', 'schoolAdmin'))
+  1543→  );
+  1544→
+  1545→-- Alert Rules: super admin
+  1546→CREATE POLICY "Alert rules readable by super admins"
+  1547→  ON public.alert_rules FOR SELECT
+  1548→  TO authenticated USING (
+  1549→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1550→  );
+  1551→
+  1552→CREATE POLICY "Alert rules managed by super admins"
+  1553→  ON public.alert_rules FOR ALL
+  1554→  TO authenticated USING (
+  1555→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1556→  );
+  1557→
+  1558→-- Alert Incidents: super admin
+  1559→CREATE POLICY "Alert incidents readable by super admins"
+  1560→  ON public.alert_incidents FOR SELECT
+  1561→  TO authenticated USING (
+  1562→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1563→  );
+  1564→
+  1565→CREATE POLICY "Alert incidents managed by super admins"
+  1566→  ON public.alert_incidents FOR ALL
+  1567→  TO authenticated USING (
+  1568→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1569→  );
+  1570→
+  1571→-- Performance Logs: super admin
+  1572→CREATE POLICY "Performance logs readable by super admins"
+  1573→  ON public.performance_logs FOR SELECT
+  1574→  TO authenticated USING (
+  1575→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1576→  );
+  1577→
+  1578→-- Error Reports: super admin
+  1579→CREATE POLICY "Error reports readable by super admins"
+  1580→  ON public.error_reports FOR SELECT
+  1581→  TO authenticated USING (
+  1582→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1583→  );
+  1584→
+  1585→-- Deployments: super admin
+  1586→CREATE POLICY "Deployments managed by super admins"
+  1587→  ON public.deployments FOR ALL
+  1588→  TO authenticated USING (
+  1589→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1590→  );
+  1591→
+  1592→-- Test Results: super admin
+  1593→CREATE POLICY "Test results readable by super admins"
+  1594→  ON public.test_results FOR SELECT
+  1595→  TO authenticated USING (
+  1596→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1597→  );
+  1598→
+  1599→-- Backup Records: super admin
+  1600→CREATE POLICY "Backup records managed by super admins"
+  1601→  ON public.backup_records FOR ALL
+  1602→  TO authenticated USING (
+  1603→    EXISTS (SELECT 1 FROM auth.users WHERE auth.users.id = auth.uid() AND auth.users.raw_user_meta_data->>'role' = 'superAdmin')
+  1604→  );
+  1605→
+  1606→-- ============================================================================
+  1607→-- FUNCTIONS
+  1608→-- ============================================================================
+  1609→
+  1610→-- Get educational levels for a school
+  1611→CREATE OR REPLACE FUNCTION public.get_school_levels(p_school_id UUID)
+  1612→RETURNS TABLE (
+  1613→  id UUID, code TEXT, name TEXT, level_category level_category_type,
+  1614→  level_order INT, min_age INT, max_age INT, description TEXT,
+  1615→  is_enabled BOOLEAN, custom_name TEXT
+  1616→) AS $$
+  1617→SELECT el.id, el.code, el.name, el.level_category, el.level_order,
+  1618→       el.min_age, el.max_age, el.description,
+  1619→       COALESCE(slc.is_enabled, false) AS is_enabled,
+  1620→       slc.custom_name
+  1621→FROM public.educational_levels el
+  1622→LEFT JOIN public.school_level_configurations slc
+  1623→  ON slc.educational_level_id = el.id AND slc.school_id = p_school_id
+  1624→WHERE el.is_active = true
+  1625→ORDER BY el.level_order;
+  1626→$$ LANGUAGE sql STABLE;
+  1627→
+  1628→-- Get subjects for a school and educational level
+  1629→CREATE OR REPLACE FUNCTION public.get_level_subjects(
+  1630→  p_school_id UUID,
+  1631→  p_educational_level_id UUID
+  1632→)
+  1633→RETURNS TABLE (
+  1634→  id UUID, name TEXT, code TEXT, subject_group TEXT,
+  1635→  is_core BOOLEAN, is_elective BOOLEAN, is_vocational BOOLEAN,
+  1636→  description TEXT, icon_url TEXT, color_code TEXT, is_custom BOOLEAN
+  1637→) AS $$
+  1638→SELECT s.id, s.name, s.code, s.subject_group,
+  1639→       s.is_core, s.is_elective, s.is_vocational,
+  1640→       s.description, s.icon_url, s.color_code, s.is_custom
+  1641→FROM public.subjects s
+  1642→WHERE (s.school_id = p_school_id OR s.school_id IS NULL)
+  1643→  AND (s.educational_level_id = p_educational_level_id OR s.educational_level_id IS NULL)
+  1644→  AND s.is_active = true
+  1645→ORDER BY s.sort_order, s.name;
+  1646→$$ LANGUAGE sql STABLE;
+  1647→
+  1648→-- Get content items with full details
+  1649→CREATE OR REPLACE FUNCTION public.get_content_with_details(
+  1650→  p_subject_id UUID DEFAULT NULL,
+  1651→  p_educational_level_id UUID DEFAULT NULL,
+  1652→  p_topic_id UUID DEFAULT NULL,
+  1653→  p_content_type content_type_enum DEFAULT NULL,
+  1654→  p_difficulty_level difficulty_level_type DEFAULT NULL,
+  1655→  p_status content_status_type DEFAULT NULL,
+  1656→  p_limit INT DEFAULT 50,
+  1657→  p_offset INT DEFAULT 0
+  1658→)
+  1659→RETURNS TABLE (
+  1660→  id UUID, title TEXT, content_type content_type_enum,
+  1661→  subject_name TEXT, level_name TEXT, topic_title TEXT,
+  1662→  difficulty_level difficulty_level_type, bloom_level bloom_taxonomy_type,
+  1663→  status content_status_type, version INT, usage_count INT,
+  1664→  average_quality_score DECIMAL, created_at TIMESTAMPTZ
+  1665→) AS $$
+  1666→SELECT ci.id, ci.title, ci.content_type,
+  1667→       s.name AS subject_name,
+  1668→       el.name AS level_name,
+  1669→       t.title AS topic_title,
+  1670→       ci.difficulty_level, ci.bloom_level,
+  1671→       ci.status, ci.version, ci.usage_count,
+  1672→       ci.average_quality_score, ci.created_at
+  1673→FROM public.content_items ci
+  1674→LEFT JOIN public.subjects s ON s.id = ci.subject_id
+  1675→LEFT JOIN public.educational_levels el ON el.id = ci.educational_level_id
+  1676→LEFT JOIN public.topics t ON t.id = ci.topic_id
+  1677→WHERE (p_subject_id IS NULL OR ci.subject_id = p_subject_id)
+  1678→  AND (p_educational_level_id IS NULL OR ci.educational_level_id = p_educational_level_id)
+  1679→  AND (p_topic_id IS NULL OR ci.topic_id = p_topic_id)
+  1680→  AND (p_content_type IS NULL OR ci.content_type = p_content_type)
+  1681→  AND (p_difficulty_level IS NULL OR ci.difficulty_level = p_difficulty_level)
+  1682→  AND (p_status IS NULL OR ci.status = p_status)
+  1683→ORDER BY ci.created_at DESC
+  1684→LIMIT p_limit OFFSET p_offset;
+  1685→$$ LANGUAGE sql STABLE;
+  1686→
+  1687→-- Create content version automatically
+  1688→CREATE OR REPLACE FUNCTION public.auto_version_content()
+  1689→RETURNS TRIGGER AS $$
+  1690→BEGIN
+  1691→  IF TG_OP = 'UPDATE' AND OLD.version IS DISTINCT FROM NEW.version THEN
+  1692→    INSERT INTO public.content_versions (
+  1693→      content_item_id, version_number, title, body, body_rich,
+  1694→      options, correct_answer, step_by_step_explanation,
+  1695→      marking_scheme, teacher_notes, difficulty_level, bloom_level,
+  1696→      change_summary, created_by
+  1697→    ) VALUES (
+  1698→      OLD.id, OLD.version, OLD.title, OLD.body, OLD.body_rich,
+  1699→      OLD.options, OLD.correct_answer, OLD.step_by_step_explanation,
+  1700→      OLD.marking_scheme, OLD.teacher_notes, OLD.difficulty_level, OLD.bloom_level,
+  1701→      'Auto-versioned before update', OLD.created_by
+  1702→    );
+  1703→  END IF;
+  1704→  RETURN NEW;
+  1705→END;
+  1706→$$ LANGUAGE plpgsql;
+  1707→
+  1708→DROP TRIGGER IF EXISTS trigger_auto_version_content ON public.content_items;
+  1709→CREATE TRIGGER trigger_auto_version_content
+  1710→  BEFORE UPDATE ON public.content_items
+  1711→  FOR EACH ROW EXECUTE FUNCTION public.auto_version_content();
+  1712→
+  1713→-- Update content quality score
+  1714→CREATE OR REPLACE FUNCTION public.update_content_quality_score()
+  1715→RETURNS TRIGGER AS $$
+  1716→BEGIN
+  1717→  UPDATE public.content_items
+  1718→  SET average_quality_score = (
+  1719→    SELECT ROUND(AVG((quality_score + accuracy_score + relevance_score + curriculum_alignment_score) / 4.0), 2)
+  1720→    FROM public.content_reviews
+  1721→    WHERE content_item_id = NEW.content_item_id
+  1722→  ),
+  1723→  review_count = (SELECT COUNT(*) FROM public.content_reviews WHERE content_item_id = NEW.content_item_id),
+  1724→  updated_at = now()
+  1725→  WHERE id = NEW.content_item_id;
+  1726→  RETURN NEW;
+  1727→END;
+  1728→$$ LANGUAGE plpgsql;
+  1729→
+  1730→DROP TRIGGER IF EXISTS trigger_update_quality_score ON public.content_reviews;
+  1731→CREATE TRIGGER trigger_update_quality_score
+  1732→  AFTER INSERT OR UPDATE ON public.content_reviews
+  1733→  FOR EACH ROW EXECUTE FUNCTION public.update_content_quality_score();
+  1734→
+  1735→-- Update content collection count
+  1736→CREATE OR REPLACE FUNCTION public.update_collection_count()
+  1737→RETURNS TRIGGER AS $$
+  1738→BEGIN
+  1739→  IF TG_OP = 'INSERT' THEN
+  1740→    UPDATE public.content_collections SET content_count = content_count + 1, updated_at = now() WHERE id = NEW.collection_id;
+  1741→  ELSIF TG_OP = 'DELETE' THEN
+  1742→    UPDATE public.content_collections SET content_count = GREATEST(content_count - 1, 0), updated_at = now() WHERE id = OLD.collection_id;
+  1743→  END IF;
+  1744→  RETURN NULL;
+  1745→END;
+  1746→$$ LANGUAGE plpgsql;
+  1747→
+  1748→DROP TRIGGER IF EXISTS trigger_update_collection_count_insert ON public.content_collection_items;
+  1749→CREATE TRIGGER trigger_update_collection_count_insert
+  1750→  AFTER INSERT ON public.content_collection_items
+  1751→  FOR EACH ROW EXECUTE FUNCTION public.update_collection_count();
+  1752→
+  1753→DROP TRIGGER IF EXISTS trigger_update_collection_count_delete ON public.content_collection_items;
+  1754→CREATE TRIGGER trigger_update_collection_count_delete
+  1755→  AFTER DELETE ON public.content_collection_items
+  1756→  FOR EACH ROW EXECUTE FUNCTION public.update_collection_count();
+  1757→
+  1758→-- Increment content usage count
+  1759→CREATE OR REPLACE FUNCTION public.increment_content_usage(p_content_id UUID)
+  1760→RETURNS VOID AS $$
+  1761→BEGIN
+  1762→  UPDATE public.content_items SET usage_count = usage_count + 1, updated_at = now() WHERE id = p_content_id;
+  1763→END;
+  1764→$$ LANGUAGE sql;
+  1765→
+  1766→-- Record audit event
+  1767→CREATE OR REPLACE FUNCTION public.record_audit_event(
+  1768→  p_user_id UUID DEFAULT NULL,
+  1769→  p_school_id UUID DEFAULT NULL,
+  1770→  p_action audit_action_type,
+  1771→  p_resource_type TEXT,
+  1772→  p_resource_id UUID DEFAULT NULL,
+  1773→  p_old_values JSONB DEFAULT NULL,
+  1774→  p_new_values JSONB DEFAULT NULL,
+  1775→  p_ip_address INET DEFAULT NULL,
+  1776→  p_user_agent TEXT DEFAULT NULL,
+  1777→  p_device_id TEXT DEFAULT NULL,
+  1778→  p_session_id TEXT DEFAULT NULL,
+  1779→  p_metadata JSONB DEFAULT '{}'
+  1780→)
+  1781→RETURNS UUID AS $$
+  1782→DECLARE
+  1783→  v_id UUID;
+  1784→BEGIN
+  1785→  INSERT INTO public.audit_trail (
+  1786→    user_id, school_id, action, resource_type, resource_id,
+  1787→    old_values, new_values, ip_address, user_agent,
+  1788→    device_id, session_id, metadata
+  1789→  ) VALUES (
+  1790→    p_user_id, p_school_id, p_action, p_resource_type, p_resource_id,
+  1791→    p_old_values, p_new_values, p_ip_address, p_user_agent,
+  1792→    p_device_id, p_session_id, p_metadata
+  1793→  ) RETURNING id INTO v_id;
+  1794→  RETURN v_id;
+  1795→END;
+  1796→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1797→
+  1798→-- Record security event
+  1799→CREATE OR REPLACE FUNCTION public.record_security_event(
+  1800→  p_event_type TEXT,
+  1801→  p_severity TEXT DEFAULT 'medium',
+  1802→  p_user_id UUID DEFAULT NULL,
+  1803→  p_school_id UUID DEFAULT NULL,
+  1804→  p_ip_address INET DEFAULT NULL,
+  1805→  p_user_agent TEXT DEFAULT NULL,
+  1806→  p_details JSONB DEFAULT '{}'
+  1807→)
+  1808→RETURNS UUID AS $$
+  1809→DECLARE
+  1810→  v_id UUID;
+  1811→BEGIN
+  1812→  INSERT INTO public.security_events (
+  1813→    event_type, severity, user_id, school_id, ip_address,
+  1814→    user_agent, details
+  1815→  ) VALUES (
+  1816→    p_event_type, p_severity, p_user_id, p_school_id,
+  1817→    p_ip_address, p_user_agent, p_details
+  1818→  ) RETURNING id INTO v_id;
+  1819→  RETURN v_id;
+  1820→END;
+  1821→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1822→
+  1823→-- Check rate limit
+  1824→CREATE OR REPLACE FUNCTION public.check_rate_limit(
+  1825→  p_scope rate_limit_scope_type,
+  1826→  p_identifier TEXT,
+  1827→  p_endpoint TEXT DEFAULT '*'
+  1828→)
+  1829→RETURNS TABLE (allowed BOOLEAN, remaining INT, reset_at TIMESTAMPTZ) AS $$
+  1830→DECLARE
+  1831→  v_config RECORD;
+  1832→  v_count INT;
+  1833→  v_window_start TIMESTAMPTZ;
+  1834→BEGIN
+  1835→  SELECT * INTO v_config FROM public.rate_limit_configs
+  1836→  WHERE scope = p_scope AND identifier = p_identifier
+  1837→    AND (endpoint_pattern = '*' OR endpoint_pattern = p_endpoint OR p_endpoint LIKE endpoint_pattern)
+  1838→    AND is_active = true
+  1839→  ORDER BY endpoint_pattern DESC LIMIT 1;
+  1840→
+  1841→  IF NOT FOUND THEN
+  1842→    RETURN QUERY SELECT true AS allowed, 999999 AS remaining, now() + interval '1 minute' AS reset_at;
+  1843→    RETURN;
+  1844→  END IF;
+  1845→
+  1846→  v_window_start := date_trunc('second', now() - (v_config.window_seconds || ' seconds')::interval);
+  1847→
+  1848→  SELECT COALESCE(SUM(request_count), 0) INTO v_count
+  1849→  FROM public.rate_limit_counters
+  1850→  WHERE scope = p_scope AND identifier = p_identifier
+  1851→    AND endpoint = p_endpoint
+  1852→    AND window_start >= v_window_start;
+  1853→
+  1854→  IF v_count >= v_config.max_requests THEN
+  1855→    RETURN QUERY SELECT false AS allowed, 0 AS remaining, v_window_start + (v_config.window_seconds || ' seconds')::interval AS reset_at;
+  1856→  ELSE
+  1857→    INSERT INTO public.rate_limit_counters (scope, identifier, endpoint, request_count, window_start)
+  1858→    VALUES (p_scope, p_identifier, p_endpoint, 1, date_trunc('minute', now()))
+  1859→    ON CONFLICT (scope, identifier, endpoint, window_start)
+  1860→    DO UPDATE SET request_count = rate_limit_counters.request_count + 1;
+  1861→
+  1862→    RETURN QUERY SELECT true AS allowed, v_config.max_requests - v_count - 1 AS remaining, v_window_start + (v_config.window_seconds || ' seconds')::interval AS reset_at;
+  1863→  END IF;
+  1864→END;
+  1865→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1866→
+  1867→-- Invalidate all user sessions (for remote session invalidation)
+  1868→CREATE OR REPLACE FUNCTION public.invalidate_user_sessions(
+  1869→  p_user_id UUID,
+  1870→  p_except_session_id UUID DEFAULT NULL,
+  1871→  p_invalidated_by UUID DEFAULT NULL
+  1872→)
+  1873→RETURNS INT AS $$
+  1874→DECLARE
+  1875→  v_count INT;
+  1876→BEGIN
+  1877→  UPDATE public.user_sessions
+  1878→  SET is_active = false, invalidated_by = p_invalidated_by, invalidated_at = now()
+  1879→  WHERE user_id = p_user_id AND is_active = true
+  1880→    AND (p_except_session_id IS NULL OR id != p_except_session_id);
+  1881→  GET DIAGNOSTICS v_count = ROW_COUNT;
+  1882→  RETURN v_count;
+  1883→END;
+  1884→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1885→
+  1886→-- Get CCMS statistics
+  1887→CREATE OR REPLACE FUNCTION public.get_ccms_stats(p_school_id UUID DEFAULT NULL)
+  1888→RETURNS JSONB AS $$
+  1889→DECLARE
+  1890→  v_result JSONB;
+  1891→BEGIN
+  1892→  SELECT jsonb_build_object(
+  1893→    'total_subjects', (SELECT COUNT(*) FROM public.subjects WHERE (school_id = p_school_id OR school_id IS NULL) AND is_active = true),
+  1894→    'total_topics', (SELECT COUNT(*) FROM public.topics t JOIN public.subjects s ON s.id = t.subject_id WHERE (s.school_id = p_school_id OR s.school_id IS NULL) AND t.is_active = true),
+  1895→    'total_content', (SELECT COUNT(*) FROM public.content_items WHERE (school_id = p_school_id OR school_id IS NULL)),
+  1896→    'published_content', (SELECT COUNT(*) FROM public.content_items WHERE status = 'published' AND (school_id = p_school_id OR school_id IS NULL)),
+  1897→    'draft_content', (SELECT COUNT(*) FROM public.content_items WHERE status = 'draft' AND (school_id = p_school_id OR school_id IS NULL)),
+  1898→    'ai_generated_content', (SELECT COUNT(*) FROM public.content_items WHERE is_ai_generated = true AND (school_id = p_school_id OR school_id IS NULL)),
+  1899→    'past_questions', (SELECT COUNT(*) FROM public.content_items WHERE is_past_question = true AND (school_id = p_school_id OR school_id IS NULL)),
+  1900→    'avg_quality_score', (SELECT ROUND(AVG(average_quality_score), 2) FROM public.content_items WHERE status = 'published' AND (school_id = p_school_id OR school_id IS NULL)),
+  1901→    'total_imports', (SELECT COUNT(*) FROM public.content_imports WHERE school_id = p_school_id),
+  1902→    'total_collections', (SELECT COUNT(*) FROM public.content_collections WHERE school_id = p_school_id),
+  1903→    'pending_reviews', (SELECT COUNT(*) FROM public.content_reviews cr JOIN public.content_items ci ON ci.id = cr.content_item_id WHERE cr.status = 'pending' AND (ci.school_id = p_school_id OR ci.school_id IS NULL)),
+  1904→    'content_by_type', (SELECT jsonb_object_agg(content_type, cnt) FROM (SELECT content_type, COUNT(*) as cnt FROM public.content_items WHERE (school_id = p_school_id OR school_id IS NULL) GROUP BY content_type) t),
+  1905→    'content_by_difficulty', (SELECT jsonb_object_agg(difficulty_level, cnt) FROM (SELECT difficulty_level, COUNT(*) as cnt FROM public.content_items WHERE (school_id = p_school_id OR school_id IS NULL) GROUP BY difficulty_level) t)
+  1906→  ) INTO v_result;
+  1907→  RETURN v_result;
+  1908→END;
+  1909→$$ LANGUAGE plpgsql STABLE SECURITY DEFINER;
+  1910→
+  1911→-- Get curriculum tree (topics → subtopics → learning objectives)
+  1912→CREATE OR REPLACE FUNCTION public.get_curriculum_tree(
+  1913→  p_subject_id UUID,
+  1914→  p_educational_level_id UUID DEFAULT NULL
+  1915→)
+  1916→RETURNS JSONB AS $$
+  1917→DECLARE
+  1918→  v_result JSONB;
+  1919→BEGIN
+  1920→  SELECT jsonb_agg(
+  1921→    jsonb_build_object(
+  1922→      'topic', row_to_json(t.*),
+  1923→      'subtopics', (
+  1924→        SELECT COALESCE(jsonb_agg(
+  1925→          jsonb_build_object(
+  1926→            'subtopic', row_to_json(st.*),
+  1927→            'learning_objectives', (
+  1928→              SELECT COALESCE(jsonb_agg(row_to_json(lo.*)), '[]'::jsonb)
+  1929→              FROM public.learning_objectives lo
+  1930→              WHERE lo.subtopic_id = st.id AND lo.is_active = true
+  1931→              ORDER BY lo.sort_order
+  1932→            )
+  1933→          )
+  1934→        ), '[]'::jsonb)
+  1935→        FROM public.subtopics st
+  1936→        WHERE st.topic_id = t.id AND st.is_active = true
+  1937→        ORDER BY st.sort_order
+  1938→      ),
+  1939→      'learning_objectives', (
+  1940→        SELECT COALESCE(jsonb_agg(row_to_json(lo.*)), '[]'::jsonb)
+  1941→        FROM public.learning_objectives lo
+  1942→        WHERE lo.topic_id = t.id AND lo.subtopic_id IS NULL AND lo.is_active = true
+  1943→        ORDER BY lo.sort_order
+  1944→      )
+  1945→    )
+  1946→  ) INTO v_result
+  1947→  FROM public.topics t
+  1948→  WHERE t.subject_id = p_subject_id
+  1949→    AND (p_educational_level_id IS NULL OR t.educational_level_id = p_educational_level_id)
+  1950→    AND t.is_active = true AND t.parent_topic_id IS NULL
+  1951→  ORDER BY t.sort_order;
+  1952→
+  1953→  RETURN COALESCE(v_result, '[]'::jsonb);
+  1954→END;
+  1955→$$ LANGUAGE plpgsql STABLE;
+  1956→
+  1957→-- Record performance metric
+  1958→CREATE OR REPLACE FUNCTION public.record_metric(
+  1959→  p_metric_name TEXT,
+  1960→  p_metric_type metric_type_enum,
+  1961→  p_value DOUBLE PRECISION,
+  1962→  p_unit TEXT DEFAULT NULL,
+  1963→  p_tags JSONB DEFAULT '{}',
+  1964→  p_school_id UUID DEFAULT NULL
+  1965→)
+  1966→RETURNS UUID AS $$
+  1967→DECLARE
+  1968→  v_id UUID;
+  1969→BEGIN
+  1970→  INSERT INTO public.system_metrics (metric_name, metric_type, value, unit, tags, school_id)
+  1971→  VALUES (p_metric_name, p_metric_type, p_value, p_unit, p_tags, p_school_id)
+  1972→  RETURNING id INTO v_id;
+  1973→  RETURN v_id;
+  1974→END;
+  1975→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1976→
+  1977→-- Clean old metrics (retention policy)
+  1978→CREATE OR REPLACE FUNCTION public.clean_old_metrics(p_days_to_retain INT DEFAULT 90)
+  1979→RETURNS INT AS $$
+  1980→DECLARE
+  1981→  v_count INT;
+  1982→BEGIN
+  1983→  DELETE FROM public.system_metrics WHERE recorded_at < now() - (p_days_to_retain || ' days')::interval;
+  1984→  GET DIAGNOSTICS v_count = ROW_COUNT;
+  1985→  RETURN v_count;
+  1986→END;
+  1987→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1988→
+  1989→-- Clean old audit trail (retention policy)
+  1990→CREATE OR REPLACE FUNCTION public.clean_old_audit_trail(p_days_to_retain INT DEFAULT 365)
+  1991→RETURNS INT AS $$
+  1992→DECLARE
+  1993→  v_count INT;
+  1994→BEGIN
+  1995→  DELETE FROM public.audit_trail WHERE created_at < now() - (p_days_to_retain || ' days')::interval;
+  1996→  GET DIAGNOSTICS v_count = ROW_COUNT;
+  1997→  RETURN v_count;
+  1998→END;
+  1999→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  2000→
+
+[showing lines 1-2000 of 2116; use offset=2001 with limit to continue reading]

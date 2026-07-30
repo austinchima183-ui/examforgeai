@@ -170,7 +170,7 @@ class AuthService {
         email,
         redirectTo: 'io.examforge.ai://reset-password',
       );
-      AppLogger.info('Password reset email sent to: $email');
+      AppLogger.info('Password reset email sent');
     } on sb.AuthException catch (e) {
       throw _mapSupabaseAuthException(e);
     } on AuthException {
@@ -276,7 +276,7 @@ class AuthService {
         type: sb.OtpType.signup,
         email: email,
       );
-      AppLogger.info('Verification email resent to: $email');
+      AppLogger.info('Verification email resent');
     } on sb.AuthException catch (e) {
       throw _mapSupabaseAuthException(e);
     } on AuthException {
@@ -434,7 +434,7 @@ class AuthService {
         email: email,
         emailRedirectTo: 'io.examforge.ai://login-callback',
       );
-      AppLogger.info('Magic link sent to: $email');
+      AppLogger.info('Magic link sent');
     } on sb.AuthException catch (e) {
       throw _mapSupabaseAuthException(e);
     } on AuthException {
@@ -534,9 +534,7 @@ class AuthService {
         'The new password must be different from the current one.',
       'password_strength' =>
         'Password does not meet the required strength.',
-      _ => original.isNotEmpty
-          ? original
-          : 'An authentication error occurred. Please try again.',
+      _ => 'An authentication error occurred. Please try again.',
     };
   }
 }

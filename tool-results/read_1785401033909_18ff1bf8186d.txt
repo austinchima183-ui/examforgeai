@@ -1,0 +1,2002 @@
+     1→-- ============================================================================
+     2→-- ExamForge AI - Mobile Experience, PWA & Offline-First Architecture
+     3→-- ============================================================================
+     4→-- Production-ready schema extension for mobile offline-first support,
+     5→-- synchronization, push notifications, device management, and monitoring.
+     6→--
+     7→-- Prerequisites:
+     8→--   Existing tables: schools, users (with user_role enum)
+     9→--   Existing enums:  user_role (super_admin, school_admin, teacher, student)
+    10→--
+    11→-- This migration EXTENDS the existing database with:
+    12→--   - Device registration & push notification management
+    13→--   - Offline-first sync engine (metadata, queue, conflicts, logs)
+    14→--   - Offline cache tracking
+    15→--   - Offline exam configuration & attempts
+    16→--   - Connectivity analytics
+    17→--   - File download management for offline access
+    18→--   - App analytics & crash reporting
+    19→--   - PWA install tracking
+    20→--
+    21→-- Performance: Composite indexes for common query patterns,
+    22→--              GIN indexes for JSONB/array columns,
+    23→--              partial indexes for status-filtered queries,
+    24→--              partitioning-ready layout for high-volume tables.
+    25→-- ============================================================================
+    26→
+    27→BEGIN;
+    28→
+    29→-- ============================================================================
+    30→-- 1. NEW ENUMERATION TYPES
+    31→-- ============================================================================
+    32→-- All new enums required by the mobile/offline architecture.
+    33→-- Uses IF NOT EXISTS pattern to ensure idempotent migrations.
+    34→-- ============================================================================
+    35→
+    36→DO $$
+    37→BEGIN
+    38→  -- -------------------------------------------------------------------------
+    39→  -- mobile_platform: Target mobile platforms
+    40→  -- -------------------------------------------------------------------------
+    41→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'mobile_platform') THEN
+    42→    CREATE TYPE mobile_platform AS ENUM (
+    43→      'android',
+    44→      'ios',
+    45→      'web'
+    46→    );
+    47→  END IF;
+    48→
+    49→  -- -------------------------------------------------------------------------
+    50→  -- sync_operation_type: Types of sync operations queued for processing
+    51→  -- -------------------------------------------------------------------------
+    52→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sync_operation_type') THEN
+    53→    CREATE TYPE sync_operation_type AS ENUM (
+    54→      'insert',
+    55→      'update',
+    56→      'delete'
+    57→    );
+    58→  END IF;
+    59→
+    60→  -- -------------------------------------------------------------------------
+    61→  -- sync_queue_status: Lifecycle states for a sync queue item
+    62→  -- -------------------------------------------------------------------------
+    63→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sync_queue_status') THEN
+    64→    CREATE TYPE sync_queue_status AS ENUM (
+    65→      'pending',
+    66→      'in_progress',
+    67→      'completed',
+    68→      'failed',
+    69→      'dead'
+    70→    );
+    71→  END IF;
+    72→
+    73→  -- -------------------------------------------------------------------------
+    74→  -- sync_log_type: Categories of sync operations
+    75→  -- -------------------------------------------------------------------------
+    76→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sync_log_type') THEN
+    77→    CREATE TYPE sync_log_type AS ENUM (
+    78→      'full',
+    79→      'incremental',
+    80→      'push',
+    81→      'pull'
+    82→    );
+    83→  END IF;
+    84→
+    85→  -- -------------------------------------------------------------------------
+    86→  -- connection_quality: Network connection quality tiers
+    87→  -- -------------------------------------------------------------------------
+    88→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'connection_quality') THEN
+    89→    CREATE TYPE connection_quality AS ENUM (
+    90→      'excellent',
+    91→      'good',
+    92→      'limited',
+    93→      'offline'
+    94→    );
+    95→  END IF;
+    96→
+    97→  -- -------------------------------------------------------------------------
+    98→  -- connection_type: Physical connection medium
+    99→  -- -------------------------------------------------------------------------
+   100→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'connection_type') THEN
+   101→    CREATE TYPE connection_type AS ENUM (
+   102→      'wifi',
+   103→      'mobile',
+   104→      'ethernet',
+   105→      'none'
+   106→    );
+   107→  END IF;
+   108→
+   109→  -- -------------------------------------------------------------------------
+   110→  -- conflict_resolution: How a sync conflict was resolved
+   111→  -- -------------------------------------------------------------------------
+   112→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'conflict_resolution') THEN
+   113→    CREATE TYPE conflict_resolution AS ENUM (
+   114→      'pending',
+   115→      'local_wins',
+   116→      'server_wins',
+   117→      'merge',
+   118→      'manual'
+   119→    );
+   120→  END IF;
+   121→
+   122→  -- -------------------------------------------------------------------------
+   123→  -- offline_type: Types of offline exam modes
+   124→  -- -------------------------------------------------------------------------
+   125→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'offline_type') THEN
+   126→    CREATE TYPE offline_type AS ENUM (
+   127→      'practice',
+   128→      'mock',
+   129→      'none'
+   130→    );
+   131→  END IF;
+   132→
+   133→  -- -------------------------------------------------------------------------
+   134→  -- offline_attempt_sync_status: Sync states for offline exam attempts
+   135→  -- -------------------------------------------------------------------------
+   136→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'offline_attempt_sync_status') THEN
+   137→    CREATE TYPE offline_attempt_sync_status AS ENUM (
+   138→      'pending',
+   139→      'synced',
+   140→      'validated',
+   141→      'rejected'
+   142→    );
+   143→  END IF;
+   144→
+   145→  -- -------------------------------------------------------------------------
+   146→  -- download_status: File download lifecycle states
+   147→  -- -------------------------------------------------------------------------
+   148→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'download_status') THEN
+   149→    CREATE TYPE download_status AS ENUM (
+   150→      'pending',
+   151→      'downloading',
+   152→      'completed',
+   153→      'failed',
+   154→      'expired'
+   155→    );
+   156→  END IF;
+   157→
+   158→  -- -------------------------------------------------------------------------
+   159→  -- sync_log_status: Outcome of a sync operation
+   160→  -- -------------------------------------------------------------------------
+   161→  IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'sync_log_status') THEN
+   162→    CREATE TYPE sync_log_status AS ENUM (
+   163→      'success',
+   164→      'partial',
+   165→      'failed'
+   166→    );
+   167→  END IF;
+   168→END
+   169→$$;
+   170→
+   171→-- ============================================================================
+   172→-- 2. HELPER FUNCTION: set_updated_at
+   173→-- ============================================================================
+   174→-- Reusable trigger function that sets updated_at = now() on any row update.
+   175→-- Applied to every table with an updated_at column.
+   176→-- ============================================================================
+   177→
+   178→CREATE OR REPLACE FUNCTION set_updated_at()
+   179→RETURNS TRIGGER AS $$
+   180→BEGIN
+   181→  NEW.updated_at = now();
+   182→  RETURN NEW;
+   183→END;
+   184→$$ LANGUAGE plpgsql;
+   185→
+   186→COMMENT ON FUNCTION set_updated_at() IS
+   187→  'Generic trigger function: sets updated_at = now() on row update';
+   188→
+   189→-- ============================================================================
+   190→-- 3. HELPER FUNCTION: is_super_admin
+   191→-- ============================================================================
+   192→-- Checks whether the currently authenticated user has the super_admin role.
+   193→-- Used throughout RLS policies to grant full access.
+   194→-- ============================================================================
+   195→
+   196→CREATE OR REPLACE FUNCTION is_super_admin()
+   197→RETURNS BOOLEAN AS $$
+   198→  SELECT EXISTS (
+   199→    SELECT 1 FROM users
+   200→    WHERE id = auth.uid()
+   201→      AND role = 'super_admin'
+   202→      AND is_active = true
+   203→  );
+   204→$$ LANGUAGE sql STABLE SECURITY DEFINER;
+   205→
+   206→COMMENT ON FUNCTION is_super_admin() IS
+   207→  'Returns true if the current authenticated user is an active super_admin';
+   208→
+   209→-- ============================================================================
+   210→-- 4. HELPER FUNCTION: is_school_admin
+   211→-- ============================================================================
+   212→-- Checks whether the current user is a school_admin, optionally for a
+   213→-- specific school_id.
+   214→-- ============================================================================
+   215→
+   216→CREATE OR REPLACE FUNCTION is_school_admin(check_school_id UUID DEFAULT NULL)
+   217→RETURNS BOOLEAN AS $$
+   218→  SELECT EXISTS (
+   219→    SELECT 1 FROM users
+   220→    WHERE id = auth.uid()
+   221→      AND role = 'school_admin'
+   222→      AND is_active = true
+   223→      AND (check_school_id IS NULL OR school_id = check_school_id)
+   224→  );
+   225→$$ LANGUAGE sql STABLE SECURITY DEFINER;
+   226→
+   227→COMMENT ON FUNCTION is_school_admin(UUID) IS
+   228→  'Returns true if the current user is a school_admin (optionally for a specific school)';
+   229→
+   230→-- ============================================================================
+   231→-- 5. HELPER FUNCTION: user_school_id
+   232→-- ============================================================================
+   233→-- Returns the school_id of the currently authenticated user.
+   234→-- ============================================================================
+   235→
+   236→CREATE OR REPLACE FUNCTION user_school_id()
+   237→RETURNS UUID AS $$
+   238→  SELECT school_id FROM users WHERE id = auth.uid();
+   239→$$ LANGUAGE sql STABLE SECURITY DEFINER;
+   240→
+   241→COMMENT ON FUNCTION user_school_id() IS
+   242→  'Returns the school_id of the currently authenticated user';
+   243→
+   244→-- ============================================================================
+   245→-- 6. TABLE: device_registrations
+   246→-- ============================================================================
+   247→-- Track user devices for push notifications and session management.
+   248→-- Supports multi-device scenarios (a user may have phone + tablet + PWA).
+   249→-- ============================================================================
+   250→
+   251→CREATE TABLE IF NOT EXISTS device_registrations (
+   252→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   253→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   254→  device_token          TEXT NOT NULL,                        -- Platform-specific device identifier
+   255→  platform              mobile_platform NOT NULL DEFAULT 'web',
+   256→  device_name           TEXT,                                 -- e.g. "Galaxy S24 Ultra"
+   257→  device_model          TEXT,                                 -- e.g. "SM-S928B"
+   258→  os_version            TEXT,                                 -- e.g. "Android 14", "iOS 17.2"
+   259→  app_version           TEXT,                                 -- e.g. "2.4.1"
+   260→  is_active             BOOLEAN DEFAULT true,
+   261→  last_active_at        TIMESTAMPTZ DEFAULT now(),
+   262→  push_enabled          BOOLEAN DEFAULT true,
+   263→  push_notification_topics TEXT[] DEFAULT '{}',               -- FCM topic subscriptions
+   264→  created_at            TIMESTAMPTZ DEFAULT now(),
+   265→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   266→
+   267→  -- A user cannot register the same device token twice
+   268→  CONSTRAINT uq_device_registrations_user_token UNIQUE (user_id, device_token)
+   269→);
+   270→
+   271→COMMENT ON TABLE device_registrations IS
+   272→  'Registered user devices for push notifications, session tracking, and multi-device support';
+   273→COMMENT ON COLUMN device_registrations.device_token IS 'Platform-specific device identifier (FCM registration token, APNs device token, or web push subscription endpoint)';
+   274→COMMENT ON COLUMN device_registrations.push_notification_topics IS 'Array of FCM/APNs topic subscriptions for targeted notification delivery';
+   275→
+   276→-- Indexes for device_registrations
+   277→CREATE INDEX IF NOT EXISTS idx_device_registrations_user_id
+   278→  ON device_registrations (user_id);
+   279→CREATE INDEX IF NOT EXISTS idx_device_registrations_platform
+   280→  ON device_registrations (platform);
+   281→CREATE INDEX IF NOT EXISTS idx_device_registrations_active
+   282→  ON device_registrations (user_id, is_active) WHERE is_active = true;
+   283→CREATE INDEX IF NOT EXISTS idx_device_registrations_last_active
+   284→  ON device_registrations (last_active_at DESC);
+   285→
+   286→-- Trigger: auto-update updated_at
+   287→DROP TRIGGER IF EXISTS trg_device_registrations_updated_at ON device_registrations;
+   288→CREATE TRIGGER trg_device_registrations_updated_at
+   289→  BEFORE UPDATE ON device_registrations
+   290→  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+   291→
+   292→-- ============================================================================
+   293→-- 7. TABLE: push_notification_tokens
+   294→-- ============================================================================
+   295→-- Dedicated table for FCM/APNs push tokens, separate from device
+   296→-- registrations to allow token rotation without losing device context.
+   297→-- ============================================================================
+   298→
+   299→CREATE TABLE IF NOT EXISTS push_notification_tokens (
+   300→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   301→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   302→  token                 TEXT NOT NULL,                        -- FCM registration token or APNs device token
+   303→  platform              mobile_platform NOT NULL,
+   304→  is_active             BOOLEAN DEFAULT true,
+   305→  created_at            TIMESTAMPTZ DEFAULT now(),
+   306→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   307→
+   308→  -- Each push token must be unique across the entire system
+   309→  CONSTRAINT uq_push_notification_tokens_token UNIQUE (token)
+   310→);
+   311→
+   312→COMMENT ON TABLE push_notification_tokens IS
+   313→  'FCM/APNs push notification tokens, supporting token rotation and platform-specific routing';
+   314→COMMENT ON COLUMN push_notification_tokens.token IS 'The raw push notification token; unique globally to prevent duplicate deliveries';
+   315→
+   316→-- Indexes for push_notification_tokens
+   317→CREATE INDEX IF NOT EXISTS idx_push_notification_tokens_user_id
+   318→  ON push_notification_tokens (user_id);
+   319→CREATE INDEX IF NOT EXISTS idx_push_notification_tokens_active
+   320→  ON push_notification_tokens (user_id, is_active) WHERE is_active = true;
+   321→CREATE INDEX IF NOT EXISTS idx_push_notification_tokens_platform
+   322→  ON push_notification_tokens (platform);
+   323→
+   324→-- Trigger: auto-update updated_at
+   325→DROP TRIGGER IF EXISTS trg_push_notification_tokens_updated_at ON push_notification_tokens;
+   326→CREATE TRIGGER trg_push_notification_tokens_updated_at
+   327→  BEFORE UPDATE ON push_notification_tokens
+   328→  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+   329→
+   330→-- ============================================================================
+   331→-- 8. TABLE: sync_metadata
+   332→-- ============================================================================
+   333→-- Track synchronization state per user per table.
+   334→-- Each row represents the last known sync state for a specific user + table
+   335→-- combination, enabling incremental sync cursors and checksum verification.
+   336→-- ============================================================================
+   337→
+   338→CREATE TABLE IF NOT EXISTS sync_metadata (
+   339→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   340→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   341→  table_name            TEXT NOT NULL,                        -- e.g. "exams", "question_bank"
+   342→  last_synced_at        TIMESTAMPTZ,                          -- Timestamp of last successful sync
+   343→  sync_cursor           TEXT,                                 -- Opaque cursor for incremental sync
+   344→  record_count          INTEGER DEFAULT 0,                    -- Number of records synced
+   345→  checksum              TEXT,                                 -- MD5/SHA256 of synced data for integrity
+   346→  is_full_sync          BOOLEAN DEFAULT false,                -- Whether a full sync has been completed
+   347→  created_at            TIMESTAMPTZ DEFAULT now(),
+   348→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   349→
+   350→  -- A user can only have one sync state per table
+   351→  CONSTRAINT uq_sync_metadata_user_table UNIQUE (user_id, table_name)
+   352→);
+   353→
+   354→COMMENT ON TABLE sync_metadata IS
+   355→  'Per-user, per-table synchronization state, enabling incremental sync and integrity verification';
+   356→COMMENT ON COLUMN sync_metadata.sync_cursor IS 'Opaque cursor value returned by the server for incremental sync pagination';
+   357→COMMENT ON COLUMN sync_metadata.checksum IS 'Hash of synced data for client-server integrity verification';
+   358→
+   359→-- Indexes for sync_metadata
+   360→CREATE INDEX IF NOT EXISTS idx_sync_metadata_user_id
+   361→  ON sync_metadata (user_id);
+   362→CREATE INDEX IF NOT EXISTS idx_sync_metadata_table_name
+   363→  ON sync_metadata (table_name);
+   364→
+   365→-- Trigger: auto-update updated_at
+   366→DROP TRIGGER IF EXISTS trg_sync_metadata_updated_at ON sync_metadata;
+   367→CREATE TRIGGER trg_sync_metadata_updated_at
+   368→  BEFORE UPDATE ON sync_metadata
+   369→  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+   370→
+   371→-- ============================================================================
+   372→-- 9. TABLE: sync_queue
+   373→-- ============================================================================
+   374→-- Queue of pending mutations created while offline.
+   375→-- The client enqueues operations when offline; the sync engine processes
+   376→-- them when connectivity is restored, respecting priority ordering.
+   377→-- ============================================================================
+   378→
+   379→CREATE TABLE IF NOT EXISTS sync_queue (
+   380→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   381→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   382→  table_name            TEXT NOT NULL,                        -- Target table for the mutation
+   383→  record_id             TEXT,                                 -- Primary key of the affected record
+   384→  operation             sync_operation_type NOT NULL,         -- insert / update / delete
+   385→  payload               JSONB NOT NULL,                       -- The mutation data (full row or diff)
+   386→  priority              INTEGER DEFAULT 5,                    -- 1 = critical, 5 = normal, 10 = low
+   387→  attempts              INTEGER DEFAULT 0,                    -- Number of processing attempts
+   388→  max_attempts          INTEGER DEFAULT 5,                    -- Max retries before marking dead
+   389→  last_attempt_at       TIMESTAMPTZ,                          -- Timestamp of most recent attempt
+   390→  next_retry_at         TIMESTAMPTZ DEFAULT now(),            -- When to retry next (exponential backoff)
+   391→  status                sync_queue_status DEFAULT 'pending',
+   392→  error_message         TEXT,                                 -- Last error encountered during processing
+   393→  created_at            TIMESTAMPTZ DEFAULT now(),
+   394→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   395→
+   396→  -- Validate priority range
+   397→  CONSTRAINT chk_sync_queue_priority CHECK (priority >= 1 AND priority <= 10),
+   398→  -- Validate attempts are non-negative
+   399→  CONSTRAINT chk_sync_queue_attempts CHECK (attempts >= 0),
+   400→  -- Prevent excessive retry configurations
+   401→  CONSTRAINT chk_sync_queue_max_attempts CHECK (max_attempts >= 1 AND max_attempts <= 20)
+   402→);
+   403→
+   404→COMMENT ON TABLE sync_queue IS
+   405→  'Pending mutation queue for offline-first sync; processed in priority order when online';
+   406→COMMENT ON COLUMN sync_queue.priority IS 'Processing priority: 1 = critical (exam submissions), 5 = normal, 10 = low (analytics)';
+   407→COMMENT ON COLUMN sync_queue.payload IS 'Full row data for inserts, diff for updates, or empty for deletes';
+   408→COMMENT ON COLUMN sync_queue.next_retry_at IS 'Earliest time to retry; supports exponential backoff strategies';
+   409→
+   410→-- Indexes for sync_queue (optimized for the processing query pattern)
+   411→CREATE INDEX IF NOT EXISTS idx_sync_queue_user_id
+   412→  ON sync_queue (user_id);
+   413→CREATE INDEX IF NOT EXISTS idx_sync_queue_status
+   414→  ON sync_queue (status);
+   415→CREATE INDEX IF NOT EXISTS idx_sync_queue_priority
+   416→  ON sync_queue (priority ASC);
+   417→CREATE INDEX IF NOT EXISTS idx_sync_queue_next_retry
+   418→  ON sync_queue (next_retry_at);
+   419→-- Composite index for the primary processing query: find pending items for a user
+   420→CREATE INDEX IF NOT EXISTS idx_sync_queue_process
+   421→  ON sync_queue (user_id, status, priority ASC, next_retry_at)
+   422→  WHERE status IN ('pending', 'failed');
+   423→-- GIN index for JSONB payload queries
+   424→CREATE INDEX IF NOT EXISTS idx_sync_queue_payload
+   425→  ON sync_queue USING GIN (payload jsonb_path_ops);
+   426→
+   427→-- Trigger: auto-update updated_at
+   428→DROP TRIGGER IF EXISTS trg_sync_queue_updated_at ON sync_queue;
+   429→CREATE TRIGGER trg_sync_queue_updated_at
+   430→  BEFORE UPDATE ON sync_queue
+   431→  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+   432→
+   433→-- ============================================================================
+   434→-- 10. TABLE: sync_conflicts
+   435→-- ============================================================================
+   436→-- Detected sync conflicts requiring resolution.
+   437→-- When both client and server modify the same record, a conflict is logged
+   438→-- here for manual or automated resolution.
+   439→-- ============================================================================
+   440→
+   441→CREATE TABLE IF NOT EXISTS sync_conflicts (
+   442→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   443→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   444→  table_name            TEXT NOT NULL,
+   445→  record_id             TEXT NOT NULL,
+   446→  local_data            JSONB NOT NULL,                       -- Client-side version of the record
+   447→  server_data           JSONB NOT NULL,                       -- Server-side version of the record
+   448→  resolution            conflict_resolution DEFAULT 'pending',
+   449→  resolved_data         JSONB,                                -- Merged/selected data after resolution
+   450→  resolved_by           UUID REFERENCES users(id) ON DELETE SET NULL,
+   451→  resolved_at           TIMESTAMPTZ,
+   452→  created_at            TIMESTAMPTZ DEFAULT now(),
+   453→
+   454→  -- Ensure resolution is set when resolved_data is provided
+   455→  CONSTRAINT chk_sync_conflicts_resolution CHECK (
+   456→    resolution = 'pending' OR resolved_at IS NOT NULL
+   457→  )
+   458→);
+   459→
+   460→COMMENT ON TABLE sync_conflicts IS
+   461→  'Detected sync conflicts between local and server data, requiring resolution';
+   462→COMMENT ON COLUMN sync_conflicts.local_data IS 'The client-side version of the conflicting record';
+   463→COMMENT ON COLUMN sync_conflicts.server_data IS 'The server-side version of the conflicting record';
+   464→COMMENT ON COLUMN sync_conflicts.resolution IS 'How the conflict was resolved: pending, local_wins, server_wins, merge, or manual';
+   465→COMMENT ON COLUMN sync_conflicts.resolved_data IS 'The final merged/selected data after resolution';
+   466→
+   467→-- Indexes for sync_conflicts
+   468→CREATE INDEX IF NOT EXISTS idx_sync_conflicts_user_id
+   469→  ON sync_conflicts (user_id);
+   470→CREATE INDEX IF NOT EXISTS idx_sync_conflicts_resolution
+   471→  ON sync_conflicts (resolution);
+   472→CREATE INDEX IF NOT EXISTS idx_sync_conflicts_pending
+   473→  ON sync_conflicts (user_id, created_at DESC)
+   474→  WHERE resolution = 'pending';
+   475→-- GIN indexes for JSONB conflict data
+   476→CREATE INDEX IF NOT EXISTS idx_sync_conflicts_local_data
+   477→  ON sync_conflicts USING GIN (local_data jsonb_path_ops);
+   478→CREATE INDEX IF NOT EXISTS idx_sync_conflicts_server_data
+   479→  ON sync_conflicts USING GIN (server_data jsonb_path_ops);
+   480→
+   481→-- ============================================================================
+   482→-- 11. TABLE: sync_logs
+   483→-- ============================================================================
+   484→-- Sync operation logs for monitoring, debugging, and analytics.
+   485→-- Each row represents a single sync session (full/incremental/push/pull).
+   486→-- ============================================================================
+   487→
+   488→CREATE TABLE IF NOT EXISTS sync_logs (
+   489→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   490→  user_id               UUID REFERENCES users(id) ON DELETE SET NULL,
+   491→  device_id             TEXT,                                 -- Device identifier from device_registrations
+   492→  sync_type             sync_log_type NOT NULL,               -- full / incremental / push / pull
+   493→  tables_synced         TEXT[] DEFAULT '{}',                  -- List of tables involved in this sync
+   494→  records_pushed        INTEGER DEFAULT 0,
+   495→  records_pulled        INTEGER DEFAULT 0,
+   496→  conflicts_count       INTEGER DEFAULT 0,
+   497→  errors_count          INTEGER DEFAULT 0,
+   498→  duration_ms           INTEGER,                              -- Total sync duration in milliseconds
+   499→  connection_quality    connection_quality,                   -- Network quality during sync
+   500→  status                sync_log_status NOT NULL,             -- success / partial / failed
+   501→  error_details         JSONB,                                -- Structured error information
+   502→  started_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+   503→  completed_at          TIMESTAMPTZ,
+   504→  created_at            TIMESTAMPTZ DEFAULT now(),
+   505→
+   506→  -- Validate non-negative counters
+   507→  CONSTRAINT chk_sync_logs_records_pushed CHECK (records_pushed >= 0),
+   508→  CONSTRAINT chk_sync_logs_records_pulled CHECK (records_pulled >= 0),
+   509→  CONSTRAINT chk_sync_logs_conflicts CHECK (conflicts_count >= 0),
+   510→  CONSTRAINT chk_sync_logs_errors CHECK (errors_count >= 0),
+   511→  CONSTRAINT chk_sync_logs_duration CHECK (duration_ms IS NULL OR duration_ms >= 0)
+   512→);
+   513→
+   514→COMMENT ON TABLE sync_logs IS
+   515→  'Sync operation logs for monitoring, debugging, and performance analytics';
+   516→COMMENT ON COLUMN sync_logs.sync_type IS 'Type of sync: full (complete re-sync), incremental (cursor-based), push (upload only), pull (download only)';
+   517→COMMENT ON COLUMN sync_logs.connection_quality IS 'Network quality at the time of sync, used for adaptive sync strategies';
+   518→
+   519→-- Indexes for sync_logs
+   520→CREATE INDEX IF NOT EXISTS idx_sync_logs_user_id
+   521→  ON sync_logs (user_id);
+   522→CREATE INDEX IF NOT EXISTS idx_sync_logs_status
+   523→  ON sync_logs (status);
+   524→CREATE INDEX IF NOT EXISTS idx_sync_logs_started_at
+   525→  ON sync_logs (started_at DESC);
+   526→CREATE INDEX IF NOT EXISTS idx_sync_logs_user_started
+   527→  ON sync_logs (user_id, started_at DESC);
+   528→CREATE INDEX IF NOT EXISTS idx_sync_logs_sync_type
+   529→  ON sync_logs (sync_type);
+   530→-- GIN index for error_details queries
+   531→CREATE INDEX IF NOT EXISTS idx_sync_logs_error_details
+   532→  ON sync_logs USING GIN (error_details jsonb_path_ops);
+   533→
+   534→-- ============================================================================
+   535→-- 12. TABLE: offline_cache_metadata
+   536→-- ============================================================================
+   537→-- Track locally cached resources and their validity.
+   538→-- Enables the client to determine which cached resources are stale and
+   539→-- need refreshing, and supports cache eviction based on expiry and size.
+   540→-- ============================================================================
+   541→
+   542→CREATE TABLE IF NOT EXISTS offline_cache_metadata (
+   543→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   544→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   545→  resource_type         TEXT NOT NULL,                        -- e.g. "exam", "question_bank", "media"
+   546→  resource_id           TEXT NOT NULL,                        -- PK of the cached resource
+   547→  cache_key             TEXT NOT NULL,                        -- Unique cache identifier (for lookup)
+   548→  version               INTEGER DEFAULT 1,                   -- Cache version for invalidation
+   549→  expires_at            TIMESTAMPTZ,                          -- When this cache entry becomes stale
+   550→  file_size_bytes       INTEGER,                              -- Size of the cached resource
+   551→  checksum              TEXT,                                 -- Integrity hash of the cached content
+   552→  is_encrypted          BOOLEAN DEFAULT false,                -- Whether the cached data is encrypted
+   553→  access_count          INTEGER DEFAULT 0,                    -- Number of times accessed (for LRU eviction)
+   554→  last_accessed_at      TIMESTAMPTZ DEFAULT now(),
+   555→  created_at            TIMESTAMPTZ DEFAULT now(),
+   556→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   557→
+   558→  -- Each user can only have one cache entry per key
+   559→  CONSTRAINT uq_offline_cache_user_key UNIQUE (user_id, cache_key),
+   560→  -- Validate non-negative values
+   561→  CONSTRAINT chk_offline_cache_version CHECK (version >= 1),
+   562→  CONSTRAINT chk_offline_cache_access_count CHECK (access_count >= 0),
+   563→  CONSTRAINT chk_offline_cache_file_size CHECK (file_size_bytes IS NULL OR file_size_bytes >= 0)
+   564→);
+   565→
+   566→COMMENT ON TABLE offline_cache_metadata IS
+   567→  'Locally cached resource metadata for offline access, with expiry and integrity tracking';
+   568→COMMENT ON COLUMN offline_cache_metadata.cache_key IS 'Unique cache key combining resource type and ID for client-side lookup';
+   569→COMMENT ON COLUMN offline_cache_metadata.expires_at IS 'When this cache entry becomes stale and should be refreshed';
+   570→COMMENT ON COLUMN offline_cache_metadata.is_encrypted IS 'Whether the cached content is encrypted at rest on the device';
+   571→
+   572→-- Indexes for offline_cache_metadata
+   573→CREATE INDEX IF NOT EXISTS idx_offline_cache_user_id
+   574→  ON offline_cache_metadata (user_id);
+   575→CREATE INDEX IF NOT EXISTS idx_offline_cache_resource_type
+   576→  ON offline_cache_metadata (resource_type);
+   577→CREATE INDEX IF NOT EXISTS idx_offline_cache_expires_at
+   578→  ON offline_cache_metadata (expires_at) WHERE expires_at IS NOT NULL;
+   579→CREATE INDEX IF NOT EXISTS idx_offline_cache_last_accessed
+   580→  ON offline_cache_metadata (user_id, last_accessed_at DESC);
+   581→
+   582→-- Trigger: auto-update updated_at
+   583→DROP TRIGGER IF EXISTS trg_offline_cache_metadata_updated_at ON offline_cache_metadata;
+   584→CREATE TRIGGER trg_offline_cache_metadata_updated_at
+   585→  BEFORE UPDATE ON offline_cache_metadata
+   586→  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+   587→
+   588→-- ============================================================================
+   589→-- 13. TABLE: offline_exam_config
+   590→-- ============================================================================
+   591→-- Schools can configure which exams support offline mode.
+   592→-- This is per-exam configuration that controls offline behavior, integrity
+   593→-- requirements, and submission policies.
+   594→-- ============================================================================
+   595→
+   596→CREATE TABLE IF NOT EXISTS offline_exam_config (
+   597→  id                              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   598→  school_id                       UUID NOT NULL REFERENCES schools(id) ON DELETE CASCADE,
+   599→  exam_id                         UUID,                                 -- FK to exams table (soft reference)
+   600→  allows_offline                  BOOLEAN DEFAULT false,
+   601→  offline_type                    offline_type DEFAULT 'none',
+   602→  max_offline_attempts            INTEGER DEFAULT 3,
+   603→  requires_online_submission      BOOLEAN DEFAULT true,                -- Must verify online before accepting
+   604→  integrity_hash                  TEXT,                                 -- Hash of exam config for tamper detection
+   605→  auto_submit_on_reconnect        BOOLEAN DEFAULT true,                -- Auto-submit when connectivity restored
+   606→  created_at                      TIMESTAMPTZ DEFAULT now(),
+   607→  updated_at                      TIMESTAMPTZ DEFAULT now(),
+   608→
+   609→  -- Validate offline attempts
+   610→  CONSTRAINT chk_offline_exam_max_attempts CHECK (max_offline_attempts >= 1 AND max_offline_attempts <= 10)
+   611→);
+   612→
+   613→COMMENT ON TABLE offline_exam_config IS
+   614→  'Per-exam offline mode configuration set by school administrators';
+   615→COMMENT ON COLUMN offline_exam_config.offline_type IS 'Type of offline exam: practice (low stakes), mock (medium stakes), none (online only)';
+   616→COMMENT ON COLUMN offline_exam_config.integrity_hash IS 'SHA256 hash of exam configuration to detect client-side tampering';
+   617→COMMENT ON COLUMN offline_exam_config.auto_submit_on_reconnect IS 'Whether to automatically submit the exam when the device reconnects to the internet';
+   618→
+   619→-- Indexes for offline_exam_config
+   620→CREATE INDEX IF NOT EXISTS idx_offline_exam_config_school_id
+   621→  ON offline_exam_config (school_id);
+   622→CREATE INDEX IF NOT EXISTS idx_offline_exam_config_exam_id
+   623→  ON offline_exam_config (exam_id);
+   624→CREATE INDEX IF NOT EXISTS idx_offline_exam_config_allows_offline
+   625→  ON offline_exam_config (school_id, allows_offline) WHERE allows_offline = true;
+   626→
+   627→-- Trigger: auto-update updated_at
+   628→DROP TRIGGER IF EXISTS trg_offline_exam_config_updated_at ON offline_exam_config;
+   629→CREATE TRIGGER trg_offline_exam_config_updated_at
+   630→  BEFORE UPDATE ON offline_exam_config
+   631→  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+   632→
+   633→-- ============================================================================
+   634→-- 14. TABLE: offline_exam_attempts
+   635→-- ============================================================================
+   636→-- Offline exam attempts pending sync with the server.
+   637→-- Created when a student completes an exam while offline; synced and
+   638→-- validated when connectivity is restored.
+   639→-- ============================================================================
+   640→
+   641→CREATE TABLE IF NOT EXISTS offline_exam_attempts (
+   642→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   643→  exam_id               UUID NOT NULL,                         -- FK to exams table (soft reference)
+   644→  student_id            UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   645→  school_id             UUID REFERENCES schools(id) ON DELETE SET NULL,
+   646→  attempt_data          JSONB NOT NULL,                        -- Full attempt metadata (timing, navigation, etc.)
+   647→  answers               JSONB NOT NULL,                        -- Student's answers keyed by question ID
+   648→  started_at            TIMESTAMPTZ NOT NULL,
+   649→  completed_at          TIMESTAMPTZ,
+   650→  time_taken_seconds    INTEGER,                               -- Total time spent on the exam
+   651→  integrity_hash        TEXT,                                  -- Hash of answers for tamper detection
+   652→  device_info           JSONB,                                 -- Device snapshot at attempt time
+   653→  sync_status           offline_attempt_sync_status DEFAULT 'pending',
+   654→  sync_attempts         INTEGER DEFAULT 0,
+   655→  synced_at             TIMESTAMPTZ,
+   656→  validation_errors     JSONB,                                 -- Server-side validation issues
+   657→  created_at            TIMESTAMPTZ DEFAULT now(),
+   658→
+   659→  -- Validate sync attempts
+   660→  CONSTRAINT chk_offline_exam_sync_attempts CHECK (sync_attempts >= 0),
+   661→  -- Validate time_taken
+   662→  CONSTRAINT chk_offline_exam_time_taken CHECK (time_taken_seconds IS NULL OR time_taken_seconds >= 0)
+   663→);
+   664→
+   665→COMMENT ON TABLE offline_exam_attempts IS
+   666→  'Offline exam attempts pending synchronization, with integrity verification';
+   667→COMMENT ON COLUMN offline_exam_attempts.attempt_data IS 'Full attempt context: timing per question, navigation events, tab switches, etc.';
+   668→COMMENT ON COLUMN offline_exam_attempts.answers IS 'Student answers keyed by question ID; format depends on question type';
+   669→COMMENT ON COLUMN offline_exam_attempts.integrity_hash IS 'SHA256 hash of answers submitted at completion time for tamper detection';
+   670→COMMENT ON COLUMN offline_exam_attempts.sync_status IS 'pending = awaiting sync, synced = uploaded, validated = server-verified, rejected = failed validation';
+   671→
+   672→-- Indexes for offline_exam_attempts
+   673→CREATE INDEX IF NOT EXISTS idx_offline_exam_attempts_student_id
+   674→  ON offline_exam_attempts (student_id);
+   675→CREATE INDEX IF NOT EXISTS idx_offline_exam_attempts_sync_status
+   676→  ON offline_exam_attempts (sync_status);
+   677→CREATE INDEX IF NOT EXISTS idx_offline_exam_attempts_exam_id
+   678→  ON offline_exam_attempts (exam_id);
+   679→CREATE INDEX IF NOT EXISTS idx_offline_exam_attempts_pending
+   680→  ON offline_exam_attempts (student_id, sync_status, created_at DESC)
+   681→  WHERE sync_status = 'pending';
+   682→CREATE INDEX IF NOT EXISTS idx_offline_exam_attempts_school_id
+   683→  ON offline_exam_attempts (school_id);
+   684→-- GIN indexes for JSONB columns
+   685→CREATE INDEX IF NOT EXISTS idx_offline_exam_attempts_answers
+   686→  ON offline_exam_attempts USING GIN (answers jsonb_path_ops);
+   687→CREATE INDEX IF NOT EXISTS idx_offline_exam_attempts_attempt_data
+   688→  ON offline_exam_attempts USING GIN (attempt_data jsonb_path_ops);
+   689→
+   690→-- ============================================================================
+   691→-- 15. TABLE: connectivity_analytics
+   692→-- ============================================================================
+   693→-- Track connection quality per user/device over time.
+   694→-- Used for adaptive sync strategies, UX decisions (e.g., pre-caching
+   695→-- when connection is good), and analytics dashboards.
+   696→-- ============================================================================
+   697→
+   698→CREATE TABLE IF NOT EXISTS connectivity_analytics (
+   699→  id                        UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   700→  user_id                   UUID REFERENCES users(id) ON DELETE SET NULL,
+   701→  device_id                 TEXT,                              -- Device identifier
+   702→  connection_type           connection_type,                   -- wifi / mobile / ethernet / none
+   703→  connection_quality        connection_quality,                -- excellent / good / limited / offline
+   704→  avg_latency_ms            INTEGER,                           -- Average round-trip latency
+   705→  bandwidth_estimate_kbps   INTEGER,                           -- Estimated downstream bandwidth
+   706→  was_offline               BOOLEAN,                           -- Whether the user went offline
+   707→  offline_duration_seconds  INTEGER,                           -- Duration of offline period
+   708→  recorded_at               TIMESTAMPTZ NOT NULL DEFAULT now(),
+   709→  created_at                TIMESTAMPTZ DEFAULT now(),
+   710→
+   711→  -- Validate non-negative values
+   712→  CONSTRAINT chk_connectivity_latency CHECK (avg_latency_ms IS NULL OR avg_latency_ms >= 0),
+   713→  CONSTRAINT chk_connectivity_bandwidth CHECK (bandwidth_estimate_kbps IS NULL OR bandwidth_estimate_kbps >= 0),
+   714→  CONSTRAINT chk_connectivity_offline_duration CHECK (offline_duration_seconds IS NULL OR offline_duration_seconds >= 0)
+   715→);
+   716→
+   717→COMMENT ON TABLE connectivity_analytics IS
+   718→  'Network connectivity quality metrics per user/device for adaptive sync and analytics';
+   719→COMMENT ON COLUMN connectivity_analytics.was_offline IS 'Whether this event represents a transition to offline state';
+   720→COMMENT ON COLUMN connectivity_analytics.offline_duration_seconds IS 'Duration of the offline period (set when transitioning back online)';
+   721→
+   722→-- Indexes for connectivity_analytics
+   723→CREATE INDEX IF NOT EXISTS idx_connectivity_analytics_user_id
+   724→  ON connectivity_analytics (user_id);
+   725→CREATE INDEX IF NOT EXISTS idx_connectivity_analytics_recorded_at
+   726→  ON connectivity_analytics (recorded_at DESC);
+   727→CREATE INDEX IF NOT EXISTS idx_connectivity_analytics_quality
+   728→  ON connectivity_analytics (connection_quality);
+   729→CREATE INDEX IF NOT EXISTS idx_connectivity_analytics_offline
+   730→  ON connectivity_analytics (user_id, was_offline, recorded_at DESC)
+   731→  WHERE was_offline = true;
+   732→
+   733→-- ============================================================================
+   734→-- 16. TABLE: file_downloads
+   735→-- ============================================================================
+   736→-- Track user file downloads for offline access.
+   737→-- Manages the lifecycle of downloaded resources including licensing,
+   738→-- expiry, and access tracking.
+   739→-- ============================================================================
+   740→
+   741→CREATE TABLE IF NOT EXISTS file_downloads (
+   742→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   743→  user_id               UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+   744→  resource_type         TEXT NOT NULL,                        -- e.g. "exam_material", "question_image", "study_guide"
+   745→  resource_id           TEXT NOT NULL,                        -- PK of the source resource
+   746→  file_url              TEXT NOT NULL,                        -- Remote URL of the file
+   747→  file_name             TEXT NOT NULL,                        -- Original filename
+   748→  file_size_bytes       INTEGER,                              -- Size in bytes
+   749→  mime_type             TEXT,                                 -- e.g. "application/pdf", "image/png"
+   750→  local_path            TEXT,                                 -- Client-side local storage path
+   751→  download_status       download_status DEFAULT 'pending',
+   752→  license_expires_at    TIMESTAMPTZ,                          -- When the download license expires
+   753→  access_count          INTEGER DEFAULT 0,
+   754→  last_accessed_at      TIMESTAMPTZ,
+   755→  created_at            TIMESTAMPTZ DEFAULT now(),
+   756→  updated_at            TIMESTAMPTZ DEFAULT now(),
+   757→
+   758→  -- Validate non-negative values
+   759→  CONSTRAINT chk_file_downloads_access_count CHECK (access_count >= 0),
+   760→  CONSTRAINT chk_file_downloads_file_size CHECK (file_size_bytes IS NULL OR file_size_bytes >= 0)
+   761→);
+   762→
+   763→COMMENT ON TABLE file_downloads IS
+   764→  'User file downloads for offline access, with licensing, expiry, and access tracking';
+   765→COMMENT ON COLUMN file_downloads.license_expires_at IS 'When the download license expires; the client must re-download or renew';
+   766→COMMENT ON COLUMN file_downloads.local_path IS 'Client-side local storage path where the file is saved';
+   767→
+   768→-- Indexes for file_downloads
+   769→CREATE INDEX IF NOT EXISTS idx_file_downloads_user_id
+   770→  ON file_downloads (user_id);
+   771→CREATE INDEX IF NOT EXISTS idx_file_downloads_status
+   772→  ON file_downloads (download_status);
+   773→CREATE INDEX IF NOT EXISTS idx_file_downloads_license_expires
+   774→  ON file_downloads (license_expires_at) WHERE license_expires_at IS NOT NULL;
+   775→CREATE INDEX IF NOT EXISTS idx_file_downloads_pending
+   776→  ON file_downloads (user_id, download_status, created_at DESC)
+   777→  WHERE download_status IN ('pending', 'downloading');
+   778→
+   779→-- Trigger: auto-update updated_at
+   780→DROP TRIGGER IF EXISTS trg_file_downloads_updated_at ON file_downloads;
+   781→CREATE TRIGGER trg_file_downloads_updated_at
+   782→  BEFORE UPDATE ON file_downloads
+   783→  FOR EACH ROW EXECUTE FUNCTION set_updated_at();
+   784→
+   785→-- ============================================================================
+   786→-- 17. TABLE: app_analytics
+   787→-- ============================================================================
+   788→-- General app usage analytics for understanding user behavior,
+   789→-- feature adoption, and performance metrics.
+   790→-- ============================================================================
+   791→
+   792→CREATE TABLE IF NOT EXISTS app_analytics (
+   793→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   794→  user_id               UUID REFERENCES users(id) ON DELETE SET NULL,
+   795→  device_id             TEXT,
+   796→  event_type            TEXT NOT NULL,                        -- e.g. "screen_view", "button_click", "exam_start"
+   797→  event_data            JSONB,                                -- Event-specific data payload
+   798→  session_id            TEXT,                                 -- Client-side session identifier
+   799→  app_version           TEXT,                                 -- App version at event time
+   800→  platform              mobile_platform,                      -- Platform at event time
+   801→  screen_name           TEXT,                                 -- Current screen/view name
+   802→  duration_ms           INTEGER,                              -- Duration of the event (e.g., screen view time)
+   803→  created_at            TIMESTAMPTZ DEFAULT now(),
+   804→
+   805→  -- Validate duration
+   806→  CONSTRAINT chk_app_analytics_duration CHECK (duration_ms IS NULL OR duration_ms >= 0)
+   807→);
+   808→
+   809→COMMENT ON TABLE app_analytics IS
+   810→  'App usage analytics for user behavior, feature adoption, and performance monitoring';
+   811→COMMENT ON COLUMN app_analytics.event_type IS 'Event category: screen_view, button_click, exam_start, exam_complete, feature_used, etc.';
+   812→COMMENT ON COLUMN app_analytics.session_id IS 'Client-side session identifier for grouping related events';
+   813→
+   814→-- Indexes for app_analytics
+   815→CREATE INDEX IF NOT EXISTS idx_app_analytics_user_id
+   816→  ON app_analytics (user_id);
+   817→CREATE INDEX IF NOT EXISTS idx_app_analytics_event_type
+   818→  ON app_analytics (event_type);
+   819→CREATE INDEX IF NOT EXISTS idx_app_analytics_created_at
+   820→  ON app_analytics (created_at DESC);
+   821→CREATE INDEX IF NOT EXISTS idx_app_analytics_user_event
+   822→  ON app_analytics (user_id, event_type, created_at DESC);
+   823→CREATE INDEX IF NOT EXISTS idx_app_analytics_session
+   824→  ON app_analytics (session_id);
+   825→-- GIN index for event_data queries
+   826→CREATE INDEX IF NOT EXISTS idx_app_analytics_event_data
+   827→  ON app_analytics USING GIN (event_data jsonb_path_ops);
+   828→
+   829→-- ============================================================================
+   830→-- 18. TABLE: crash_reports
+   831→-- ============================================================================
+   832→-- Crash and error reporting for stability monitoring.
+   833→-- Supports stack trace capture, device context, and resolution tracking.
+   834→-- ============================================================================
+   835→
+   836→CREATE TABLE IF NOT EXISTS crash_reports (
+   837→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   838→  user_id               UUID REFERENCES users(id) ON DELETE SET NULL,
+   839→  device_id             TEXT,
+   840→  error_type            TEXT NOT NULL,                        -- e.g. "NullPointerException", "NetworkError"
+   841→  error_message         TEXT NOT NULL,
+   842→  stack_trace           TEXT,                                 -- Full stack trace or error log
+   843→  device_info           JSONB,                                -- Device state at crash time
+   844→  app_version           TEXT,
+   845→  platform              mobile_platform,
+   846→  is_resolved           BOOLEAN DEFAULT false,
+   847→  occurred_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+   848→  created_at            TIMESTAMPTZ DEFAULT now()
+   849→);
+   850→
+   851→COMMENT ON TABLE crash_reports IS
+   852→  'Crash and error reports for stability monitoring and resolution tracking';
+   853→COMMENT ON COLUMN crash_reports.error_type IS 'Exception or error class name, e.g. NullPointerException, NetworkError, TimeoutException';
+   854→COMMENT ON COLUMN crash_reports.is_resolved IS 'Whether a fix has been deployed that addresses this crash type';
+   855→
+   856→-- Indexes for crash_reports
+   857→CREATE INDEX IF NOT EXISTS idx_crash_reports_is_resolved
+   858→  ON crash_reports (is_resolved) WHERE is_resolved = false;
+   859→CREATE INDEX IF NOT EXISTS idx_crash_reports_occurred_at
+   860→  ON crash_reports (occurred_at DESC);
+   861→CREATE INDEX IF NOT EXISTS idx_crash_reports_error_type
+   862→  ON crash_reports (error_type);
+   863→CREATE INDEX IF NOT EXISTS idx_crash_reports_unresolved
+   864→  ON crash_reports (is_resolved, occurred_at DESC) WHERE is_resolved = false;
+   865→CREATE INDEX IF NOT EXISTS idx_crash_reports_app_version
+   866→  ON crash_reports (app_version);
+   867→-- GIN index for device_info queries
+   868→CREATE INDEX IF NOT EXISTS idx_crash_reports_device_info
+   869→  ON crash_reports USING GIN (device_info jsonb_path_ops);
+   870→
+   871→-- ============================================================================
+   872→-- 19. TABLE: pwa_install_events
+   873→-- ============================================================================
+   874→-- Track PWA installations for adoption metrics and re-engagement.
+   875→-- ============================================================================
+   876→
+   877→CREATE TABLE IF NOT EXISTS pwa_install_events (
+   878→  id                    UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   879→  user_id               UUID REFERENCES users(id) ON DELETE SET NULL,
+   880→  platform              mobile_platform,                      -- Detected platform at install time
+   881→  browser               TEXT,                                 -- e.g. "Chrome 120", "Safari 17.2"
+   882→  installed_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+   883→  is_active             BOOLEAN DEFAULT true,                 -- Whether the PWA is still installed
+   884→  last_opened_at        TIMESTAMPTZ,                          -- Last time the PWA was launched
+   885→  created_at            TIMESTAMPTZ DEFAULT now()
+   886→);
+   887→
+   888→COMMENT ON TABLE pwa_install_events IS
+   889→  'PWA installation events for adoption tracking and re-engagement campaigns';
+   890→COMMENT ON COLUMN pwa_install_events.is_active IS 'Whether the PWA is still installed; set to false if uninstalled or stale';
+   891→
+   892→-- Indexes for pwa_install_events
+   893→CREATE INDEX IF NOT EXISTS idx_pwa_install_events_user_id
+   894→  ON pwa_install_events (user_id);
+   895→CREATE INDEX IF NOT EXISTS idx_pwa_install_events_active
+   896→  ON pwa_install_events (is_active) WHERE is_active = true;
+   897→CREATE INDEX IF NOT EXISTS idx_pwa_install_events_installed_at
+   898→  ON pwa_install_events (installed_at DESC);
+   899→
+   900→-- ============================================================================
+   901→-- 20. ROW LEVEL SECURITY
+   902→-- ============================================================================
+   903→-- RLS policies for all tables. General rules:
+   904→--   - Users can only see/modify their own data
+   905→--   - School admins can see data for users in their school
+   906→--   - Super admins can see all data
+   907→-- ============================================================================
+   908→
+   909→-- ---------------------------------------------------------------------------
+   910→-- device_registrations
+   911→-- ---------------------------------------------------------------------------
+   912→ALTER TABLE device_registrations ENABLE ROW LEVEL SECURITY;
+   913→
+   914→CREATE POLICY "Users can read own devices"
+   915→  ON device_registrations FOR SELECT
+   916→  USING (user_id = auth.uid());
+   917→
+   918→CREATE POLICY "Users can insert own devices"
+   919→  ON device_registrations FOR INSERT
+   920→  WITH CHECK (user_id = auth.uid());
+   921→
+   922→CREATE POLICY "Users can update own devices"
+   923→  ON device_registrations FOR UPDATE
+   924→  USING (user_id = auth.uid())
+   925→  WITH CHECK (user_id = auth.uid());
+   926→
+   927→CREATE POLICY "Users can delete own devices"
+   928→  ON device_registrations FOR DELETE
+   929→  USING (user_id = auth.uid());
+   930→
+   931→CREATE POLICY "School admins can read school devices"
+   932→  ON device_registrations FOR SELECT
+   933→  USING (
+   934→    is_school_admin() AND
+   935→    user_id IN (SELECT id FROM users WHERE school_id = user_school_id())
+   936→  );
+   937→
+   938→CREATE POLICY "Super admins can read all devices"
+   939→  ON device_registrations FOR SELECT
+   940→  USING (is_super_admin());
+   941→
+   942→CREATE POLICY "Super admins can manage all devices"
+   943→  ON device_registrations FOR ALL
+   944→  USING (is_super_admin())
+   945→  WITH CHECK (is_super_admin());
+   946→
+   947→-- ---------------------------------------------------------------------------
+   948→-- push_notification_tokens
+   949→-- ---------------------------------------------------------------------------
+   950→ALTER TABLE push_notification_tokens ENABLE ROW LEVEL SECURITY;
+   951→
+   952→CREATE POLICY "Users can read own push tokens"
+   953→  ON push_notification_tokens FOR SELECT
+   954→  USING (user_id = auth.uid());
+   955→
+   956→CREATE POLICY "Users can insert own push tokens"
+   957→  ON push_notification_tokens FOR INSERT
+   958→  WITH CHECK (user_id = auth.uid());
+   959→
+   960→CREATE POLICY "Users can update own push tokens"
+   961→  ON push_notification_tokens FOR UPDATE
+   962→  USING (user_id = auth.uid())
+   963→  WITH CHECK (user_id = auth.uid());
+   964→
+   965→CREATE POLICY "Users can delete own push tokens"
+   966→  ON push_notification_tokens FOR DELETE
+   967→  USING (user_id = auth.uid());
+   968→
+   969→CREATE POLICY "School admins can read school push tokens"
+   970→  ON push_notification_tokens FOR SELECT
+   971→  USING (
+   972→    is_school_admin() AND
+   973→    user_id IN (SELECT id FROM users WHERE school_id = user_school_id())
+   974→  );
+   975→
+   976→CREATE POLICY "Super admins can manage all push tokens"
+   977→  ON push_notification_tokens FOR ALL
+   978→  USING (is_super_admin())
+   979→  WITH CHECK (is_super_admin());
+   980→
+   981→-- ---------------------------------------------------------------------------
+   982→-- sync_metadata
+   983→-- ---------------------------------------------------------------------------
+   984→ALTER TABLE sync_metadata ENABLE ROW LEVEL SECURITY;
+   985→
+   986→CREATE POLICY "Users can read own sync metadata"
+   987→  ON sync_metadata FOR SELECT
+   988→  USING (user_id = auth.uid());
+   989→
+   990→CREATE POLICY "Users can insert own sync metadata"
+   991→  ON sync_metadata FOR INSERT
+   992→  WITH CHECK (user_id = auth.uid());
+   993→
+   994→CREATE POLICY "Users can update own sync metadata"
+   995→  ON sync_metadata FOR UPDATE
+   996→  USING (user_id = auth.uid())
+   997→  WITH CHECK (user_id = auth.uid());
+   998→
+   999→CREATE POLICY "Users can delete own sync metadata"
+  1000→  ON sync_metadata FOR DELETE
+  1001→  USING (user_id = auth.uid());
+  1002→
+  1003→CREATE POLICY "School admins can read school sync metadata"
+  1004→  ON sync_metadata FOR SELECT
+  1005→  USING (
+  1006→    is_school_admin() AND
+  1007→    user_id IN (SELECT id FROM users WHERE school_id = user_school_id())
+  1008→  );
+  1009→
+  1010→CREATE POLICY "Super admins can manage all sync metadata"
+  1011→  ON sync_metadata FOR ALL
+  1012→  USING (is_super_admin())
+  1013→  WITH CHECK (is_super_admin());
+  1014→
+  1015→-- ---------------------------------------------------------------------------
+  1016→-- sync_queue
+  1017→-- ---------------------------------------------------------------------------
+  1018→ALTER TABLE sync_queue ENABLE ROW LEVEL SECURITY;
+  1019→
+  1020→CREATE POLICY "Users can read own sync queue"
+  1021→  ON sync_queue FOR SELECT
+  1022→  USING (user_id = auth.uid());
+  1023→
+  1024→CREATE POLICY "Users can insert own sync queue items"
+  1025→  ON sync_queue FOR INSERT
+  1026→  WITH CHECK (user_id = auth.uid());
+  1027→
+  1028→CREATE POLICY "Users can update own sync queue items"
+  1029→  ON sync_queue FOR UPDATE
+  1030→  USING (user_id = auth.uid())
+  1031→  WITH CHECK (user_id = auth.uid());
+  1032→
+  1033→CREATE POLICY "Users can delete own sync queue items"
+  1034→  ON sync_queue FOR DELETE
+  1035→  USING (user_id = auth.uid());
+  1036→
+  1037→CREATE POLICY "Super admins can manage all sync queue items"
+  1038→  ON sync_queue FOR ALL
+  1039→  USING (is_super_admin())
+  1040→  WITH CHECK (is_super_admin());
+  1041→
+  1042→-- ---------------------------------------------------------------------------
+  1043→-- sync_conflicts
+  1044→-- ---------------------------------------------------------------------------
+  1045→ALTER TABLE sync_conflicts ENABLE ROW LEVEL SECURITY;
+  1046→
+  1047→CREATE POLICY "Users can read own sync conflicts"
+  1048→  ON sync_conflicts FOR SELECT
+  1049→  USING (user_id = auth.uid());
+  1050→
+  1051→CREATE POLICY "Users can insert own sync conflicts"
+  1052→  ON sync_conflicts FOR INSERT
+  1053→  WITH CHECK (user_id = auth.uid());
+  1054→
+  1055→CREATE POLICY "Users can update own sync conflicts"
+  1056→  ON sync_conflicts FOR UPDATE
+  1057→  USING (user_id = auth.uid() OR is_super_admin())
+  1058→  WITH CHECK (user_id = auth.uid() OR is_super_admin());
+  1059→
+  1060→CREATE POLICY "School admins can read school sync conflicts"
+  1061→  ON sync_conflicts FOR SELECT
+  1062→  USING (
+  1063→    is_school_admin() AND
+  1064→    user_id IN (SELECT id FROM users WHERE school_id = user_school_id())
+  1065→  );
+  1066→
+  1067→CREATE POLICY "Super admins can manage all sync conflicts"
+  1068→  ON sync_conflicts FOR ALL
+  1069→  USING (is_super_admin())
+  1070→  WITH CHECK (is_super_admin());
+  1071→
+  1072→-- ---------------------------------------------------------------------------
+  1073→-- sync_logs
+  1074→-- ---------------------------------------------------------------------------
+  1075→ALTER TABLE sync_logs ENABLE ROW LEVEL SECURITY;
+  1076→
+  1077→CREATE POLICY "Users can read own sync logs"
+  1078→  ON sync_logs FOR SELECT
+  1079→  USING (user_id = auth.uid());
+  1080→
+  1081→CREATE POLICY "Users can insert own sync logs"
+  1082→  ON sync_logs FOR INSERT
+  1083→  WITH CHECK (user_id = auth.uid());
+  1084→
+  1085→CREATE POLICY "School admins can read school sync logs"
+  1086→  ON sync_logs FOR SELECT
+  1087→  USING (
+  1088→    is_school_admin() AND
+  1089→    user_id IN (SELECT id FROM users WHERE school_id = user_school_id())
+  1090→  );
+  1091→
+  1092→CREATE POLICY "Super admins can manage all sync logs"
+  1093→  ON sync_logs FOR ALL
+  1094→  USING (is_super_admin())
+  1095→  WITH CHECK (is_super_admin());
+  1096→
+  1097→-- ---------------------------------------------------------------------------
+  1098→-- offline_cache_metadata
+  1099→-- ---------------------------------------------------------------------------
+  1100→ALTER TABLE offline_cache_metadata ENABLE ROW LEVEL SECURITY;
+  1101→
+  1102→CREATE POLICY "Users can read own cache metadata"
+  1103→  ON offline_cache_metadata FOR SELECT
+  1104→  USING (user_id = auth.uid());
+  1105→
+  1106→CREATE POLICY "Users can insert own cache metadata"
+  1107→  ON offline_cache_metadata FOR INSERT
+  1108→  WITH CHECK (user_id = auth.uid());
+  1109→
+  1110→CREATE POLICY "Users can update own cache metadata"
+  1111→  ON offline_cache_metadata FOR UPDATE
+  1112→  USING (user_id = auth.uid())
+  1113→  WITH CHECK (user_id = auth.uid());
+  1114→
+  1115→CREATE POLICY "Users can delete own cache metadata"
+  1116→  ON offline_cache_metadata FOR DELETE
+  1117→  USING (user_id = auth.uid());
+  1118→
+  1119→CREATE POLICY "Super admins can manage all cache metadata"
+  1120→  ON offline_cache_metadata FOR ALL
+  1121→  USING (is_super_admin())
+  1122→  WITH CHECK (is_super_admin());
+  1123→
+  1124→-- ---------------------------------------------------------------------------
+  1125→-- offline_exam_config
+  1126→-- ---------------------------------------------------------------------------
+  1127→ALTER TABLE offline_exam_config ENABLE ROW LEVEL SECURITY;
+  1128→
+  1129→CREATE POLICY "School members can read own school offline config"
+  1130→  ON offline_exam_config FOR SELECT
+  1131→  USING (school_id = user_school_id() OR is_super_admin());
+  1132→
+  1133→CREATE POLICY "School admins can insert own school offline config"
+  1134→  ON offline_exam_config FOR INSERT
+  1135→  WITH CHECK (is_school_admin(school_id) OR is_super_admin());
+  1136→
+  1137→CREATE POLICY "School admins can update own school offline config"
+  1138→  ON offline_exam_config FOR UPDATE
+  1139→  USING (is_school_admin(school_id) OR is_super_admin())
+  1140→  WITH CHECK (is_school_admin(school_id) OR is_super_admin());
+  1141→
+  1142→CREATE POLICY "School admins can delete own school offline config"
+  1143→  ON offline_exam_config FOR DELETE
+  1144→  USING (is_school_admin(school_id) OR is_super_admin());
+  1145→
+  1146→-- ---------------------------------------------------------------------------
+  1147→-- offline_exam_attempts
+  1148→-- ---------------------------------------------------------------------------
+  1149→ALTER TABLE offline_exam_attempts ENABLE ROW LEVEL SECURITY;
+  1150→
+  1151→CREATE POLICY "Students can read own offline attempts"
+  1152→  ON offline_exam_attempts FOR SELECT
+  1153→  USING (student_id = auth.uid());
+  1154→
+  1155→CREATE POLICY "Students can insert own offline attempts"
+  1156→  ON offline_exam_attempts FOR INSERT
+  1157→  WITH CHECK (student_id = auth.uid());
+  1158→
+  1159→CREATE POLICY "Students can update own offline attempts"
+  1160→  ON offline_exam_attempts FOR UPDATE
+  1161→  USING (student_id = auth.uid())
+  1162→  WITH CHECK (student_id = auth.uid());
+  1163→
+  1164→CREATE POLICY "School admins can read school offline attempts"
+  1165→  ON offline_exam_attempts FOR SELECT
+  1166→  USING (
+  1167→    is_school_admin() AND
+  1168→    school_id = user_school_id()
+  1169→  );
+  1170→
+  1171→CREATE POLICY "Super admins can manage all offline attempts"
+  1172→  ON offline_exam_attempts FOR ALL
+  1173→  USING (is_super_admin())
+  1174→  WITH CHECK (is_super_admin());
+  1175→
+  1176→-- ---------------------------------------------------------------------------
+  1177→-- connectivity_analytics
+  1178→-- ---------------------------------------------------------------------------
+  1179→ALTER TABLE connectivity_analytics ENABLE ROW LEVEL SECURITY;
+  1180→
+  1181→CREATE POLICY "Users can read own connectivity analytics"
+  1182→  ON connectivity_analytics FOR SELECT
+  1183→  USING (user_id = auth.uid());
+  1184→
+  1185→CREATE POLICY "Users can insert own connectivity analytics"
+  1186→  ON connectivity_analytics FOR INSERT
+  1187→  WITH CHECK (user_id = auth.uid());
+  1188→
+  1189→CREATE POLICY "School admins can read school connectivity analytics"
+  1190→  ON connectivity_analytics FOR SELECT
+  1191→  USING (
+  1192→    is_school_admin() AND
+  1193→    user_id IN (SELECT id FROM users WHERE school_id = user_school_id())
+  1194→  );
+  1195→
+  1196→CREATE POLICY "Super admins can manage all connectivity analytics"
+  1197→  ON connectivity_analytics FOR ALL
+  1198→  USING (is_super_admin())
+  1199→  WITH CHECK (is_super_admin());
+  1200→
+  1201→-- ---------------------------------------------------------------------------
+  1202→-- file_downloads
+  1203→-- ---------------------------------------------------------------------------
+  1204→ALTER TABLE file_downloads ENABLE ROW LEVEL SECURITY;
+  1205→
+  1206→CREATE POLICY "Users can read own file downloads"
+  1207→  ON file_downloads FOR SELECT
+  1208→  USING (user_id = auth.uid());
+  1209→
+  1210→CREATE POLICY "Users can insert own file downloads"
+  1211→  ON file_downloads FOR INSERT
+  1212→  WITH CHECK (user_id = auth.uid());
+  1213→
+  1214→CREATE POLICY "Users can update own file downloads"
+  1215→  ON file_downloads FOR UPDATE
+  1216→  USING (user_id = auth.uid())
+  1217→  WITH CHECK (user_id = auth.uid());
+  1218→
+  1219→CREATE POLICY "Users can delete own file downloads"
+  1220→  ON file_downloads FOR DELETE
+  1221→  USING (user_id = auth.uid());
+  1222→
+  1223→CREATE POLICY "Super admins can manage all file downloads"
+  1224→  ON file_downloads FOR ALL
+  1225→  USING (is_super_admin())
+  1226→  WITH CHECK (is_super_admin());
+  1227→
+  1228→-- ---------------------------------------------------------------------------
+  1229→-- app_analytics
+  1230→-- ---------------------------------------------------------------------------
+  1231→ALTER TABLE app_analytics ENABLE ROW LEVEL SECURITY;
+  1232→
+  1233→CREATE POLICY "Users can insert own app analytics"
+  1234→  ON app_analytics FOR INSERT
+  1235→  WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
+  1236→
+  1237→CREATE POLICY "School admins can read school app analytics"
+  1238→  ON app_analytics FOR SELECT
+  1239→  USING (
+  1240→    is_school_admin() AND
+  1241→    (user_id IN (SELECT id FROM users WHERE school_id = user_school_id()) OR user_id IS NULL)
+  1242→  );
+  1243→
+  1244→CREATE POLICY "Super admins can manage all app analytics"
+  1245→  ON app_analytics FOR ALL
+  1246→  USING (is_super_admin())
+  1247→  WITH CHECK (is_super_admin());
+  1248→
+  1249→-- ---------------------------------------------------------------------------
+  1250→-- crash_reports
+  1251→-- ---------------------------------------------------------------------------
+  1252→ALTER TABLE crash_reports ENABLE ROW LEVEL SECURITY;
+  1253→
+  1254→CREATE POLICY "Users can insert own crash reports"
+  1255→  ON crash_reports FOR INSERT
+  1256→  WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
+  1257→
+  1258→CREATE POLICY "School admins can read school crash reports"
+  1259→  ON crash_reports FOR SELECT
+  1260→  USING (
+  1261→    is_school_admin() AND
+  1262→    (user_id IN (SELECT id FROM users WHERE school_id = user_school_id()) OR user_id IS NULL)
+  1263→  );
+  1264→
+  1265→CREATE POLICY "Super admins can manage all crash reports"
+  1266→  ON crash_reports FOR ALL
+  1267→  USING (is_super_admin())
+  1268→  WITH CHECK (is_super_admin());
+  1269→
+  1270→-- ---------------------------------------------------------------------------
+  1271→-- pwa_install_events
+  1272→-- ---------------------------------------------------------------------------
+  1273→ALTER TABLE pwa_install_events ENABLE ROW LEVEL SECURITY;
+  1274→
+  1275→CREATE POLICY "Users can read own PWA install events"
+  1276→  ON pwa_install_events FOR SELECT
+  1277→  USING (user_id = auth.uid());
+  1278→
+  1279→CREATE POLICY "Users can insert own PWA install events"
+  1280→  ON pwa_install_events FOR INSERT
+  1281→  WITH CHECK (user_id = auth.uid() OR user_id IS NULL);
+  1282→
+  1283→CREATE POLICY "Users can update own PWA install events"
+  1284→  ON pwa_install_events FOR UPDATE
+  1285→  USING (user_id = auth.uid());
+  1286→
+  1287→CREATE POLICY "Super admins can manage all PWA install events"
+  1288→  ON pwa_install_events FOR ALL
+  1289→  USING (is_super_admin())
+  1290→  WITH CHECK (is_super_admin());
+  1291→
+  1292→-- ============================================================================
+  1293→-- 21. FUNCTIONS
+  1294→-- ============================================================================
+  1295→-- Business logic functions for common mobile/offline operations.
+  1296→-- All functions use SECURITY DEFINER where elevated privileges are needed.
+  1297→-- ============================================================================
+  1298→
+  1299→-- ---------------------------------------------------------------------------
+  1300→-- register_device(): Upsert a device registration for push notifications
+  1301→-- ---------------------------------------------------------------------------
+  1302→-- Called when a user opens the app on a device. If the device_token already
+  1303→-- exists for this user, it updates the existing record; otherwise it inserts.
+  1304→-- Also deactivates stale devices (not seen in 90 days).
+  1305→-- ---------------------------------------------------------------------------
+  1306→
+  1307→CREATE OR REPLACE FUNCTION register_device(
+  1308→  p_user_id       UUID,
+  1309→  p_device_token  TEXT,
+  1310→  p_platform      mobile_platform,
+  1311→  p_device_name   TEXT DEFAULT NULL,
+  1312→  p_device_model  TEXT DEFAULT NULL,
+  1313→  p_os_version    TEXT DEFAULT NULL,
+  1314→  p_app_version   TEXT DEFAULT NULL,
+  1315→  p_push_enabled  BOOLEAN DEFAULT true,
+  1316→  p_topics        TEXT[] DEFAULT '{}'
+  1317→)
+  1318→RETURNS UUID AS $$
+  1319→DECLARE
+  1320→  v_device_id UUID;
+  1321→BEGIN
+  1322→  -- Upsert the device registration
+  1323→  INSERT INTO device_registrations (
+  1324→    user_id, device_token, platform, device_name, device_model,
+  1325→    os_version, app_version, push_enabled, push_notification_topics,
+  1326→    last_active_at
+  1327→  ) VALUES (
+  1328→    p_user_id, p_device_token, p_platform, p_device_name, p_device_model,
+  1329→    p_os_version, p_app_version, p_push_enabled, p_topics, now()
+  1330→  )
+  1331→  ON CONFLICT (user_id, device_token) DO UPDATE SET
+  1332→    platform              = EXCLUDED.platform,
+  1333→    device_name           = COALESCE(EXCLUDED.device_name, device_registrations.device_name),
+  1334→    device_model          = COALESCE(EXCLUDED.device_model, device_registrations.device_model),
+  1335→    os_version            = COALESCE(EXCLUDED.os_version, device_registrations.os_version),
+  1336→    app_version           = COALESCE(EXCLUDED.app_version, device_registrations.app_version),
+  1337→    push_enabled          = EXCLUDED.push_enabled,
+  1338→    push_notification_topics = EXCLUDED.push_notification_topics,
+  1339→    is_active             = true,
+  1340→    last_active_at        = now()
+  1341→  RETURNING id INTO v_device_id;
+  1342→
+  1343→  -- Also upsert the push notification token
+  1344→  INSERT INTO push_notification_tokens (user_id, token, platform, is_active)
+  1345→  VALUES (p_user_id, p_device_token, p_platform, true)
+  1346→  ON CONFLICT (token) DO UPDATE SET
+  1347→    user_id   = EXCLUDED.user_id,
+  1348→    platform  = EXCLUDED.platform,
+  1349→    is_active = true;
+  1350→
+  1351→  -- Deactivate devices that haven't been seen in 90 days (for this user)
+  1352→  UPDATE device_registrations
+  1353→  SET is_active = false
+  1354→  WHERE user_id = p_user_id
+  1355→    AND is_active = true
+  1356→    AND last_active_at < now() - INTERVAL '90 days'
+  1357→    AND id != v_device_id;
+  1358→
+  1359→  RETURN v_device_id;
+  1360→END;
+  1361→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1362→
+  1363→COMMENT ON FUNCTION register_device(UUID, TEXT, mobile_platform, TEXT, TEXT, TEXT, TEXT, BOOLEAN, TEXT[]) IS
+  1364→  'Upsert a device registration for a user, sync the push token, and deactivate stale devices (90+ days)';
+  1365→
+  1366→-- ---------------------------------------------------------------------------
+  1367→-- record_sync_event(): Log a sync operation for monitoring
+  1368→-- ---------------------------------------------------------------------------
+  1369→-- Creates a sync_logs entry and updates the corresponding sync_metadata
+  1370→-- for each table that was synced.
+  1371→-- ---------------------------------------------------------------------------
+  1372→
+  1373→CREATE OR REPLACE FUNCTION record_sync_event(
+  1374→  p_user_id             UUID,
+  1375→  p_device_id           TEXT DEFAULT NULL,
+  1376→  p_sync_type           sync_log_type,
+  1377→  p_tables_synced       TEXT[] DEFAULT '{}',
+  1378→  p_records_pushed      INTEGER DEFAULT 0,
+  1379→  p_records_pulled      INTEGER DEFAULT 0,
+  1380→  p_conflicts_count     INTEGER DEFAULT 0,
+  1381→  p_errors_count        INTEGER DEFAULT 0,
+  1382→  p_duration_ms         INTEGER DEFAULT NULL,
+  1383→  p_connection_quality  connection_quality DEFAULT NULL,
+  1384→  p_status              sync_log_status,
+  1385→  p_error_details       JSONB DEFAULT NULL,
+  1386→  p_started_at          TIMESTAMPTZ DEFAULT now(),
+  1387→  p_completed_at        TIMESTAMPTZ DEFAULT NULL
+  1388→)
+  1389→RETURNS UUID AS $$
+  1390→DECLARE
+  1391→  v_log_id UUID;
+  1392→  v_table_name TEXT;
+  1393→BEGIN
+  1394→  -- Insert the sync log entry
+  1395→  INSERT INTO sync_logs (
+  1396→    user_id, device_id, sync_type, tables_synced, records_pushed,
+  1397→    records_pulled, conflicts_count, errors_count, duration_ms,
+  1398→    connection_quality, status, error_details, started_at, completed_at
+  1399→  ) VALUES (
+  1400→    p_user_id, p_device_id, p_sync_type, p_tables_synced, p_records_pushed,
+  1401→    p_records_pulled, p_conflicts_count, p_errors_count, p_duration_ms,
+  1402→    p_connection_quality, p_status, p_error_details, p_started_at,
+  1403→    COALESCE(p_completed_at, now())
+  1404→  ) RETURNING id INTO v_log_id;
+  1405→
+  1406→  -- Update sync_metadata for each synced table
+  1407→  FOREACH v_table_name IN ARRAY p_tables_synced LOOP
+  1408→    INSERT INTO sync_metadata (user_id, table_name, last_synced_at, is_full_sync)
+  1409→    VALUES (p_user_id, v_table_name, now(), p_sync_type = 'full')
+  1410→    ON CONFLICT (user_id, table_name) DO UPDATE SET
+  1411→      last_synced_at = now(),
+  1412→      is_full_sync   = CASE WHEN p_sync_type = 'full' THEN true ELSE sync_metadata.is_full_sync END;
+  1413→  END LOOP;
+  1414→
+  1415→  RETURN v_log_id;
+  1416→END;
+  1417→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1418→
+  1419→COMMENT ON FUNCTION record_sync_event IS
+  1420→  'Log a sync operation and update per-table sync metadata for the user';
+  1421→
+  1422→-- ---------------------------------------------------------------------------
+  1423→-- queue_sync_operation(): Add an operation to the sync queue
+  1424→-- ---------------------------------------------------------------------------
+  1425→-- Called by the client when a mutation is made while offline.
+  1426→-- Returns the queue item ID for tracking.
+  1427→-- ---------------------------------------------------------------------------
+  1428→
+  1429→CREATE OR REPLACE FUNCTION queue_sync_operation(
+  1430→  p_user_id     UUID,
+  1431→  p_table_name  TEXT,
+  1432→  p_record_id   TEXT DEFAULT NULL,
+  1433→  p_operation   sync_operation_type,
+  1434→  p_payload     JSONB,
+  1435→  p_priority    INTEGER DEFAULT 5
+  1436→)
+  1437→RETURNS UUID AS $$
+  1438→DECLARE
+  1439→  v_queue_id UUID;
+  1440→BEGIN
+  1441→  -- Validate priority range
+  1442→  IF p_priority < 1 OR p_priority > 10 THEN
+  1443→    RAISE EXCEPTION 'Invalid priority value %. Must be between 1 and 10.', p_priority;
+  1444→  END IF;
+  1445→
+  1446→  INSERT INTO sync_queue (
+  1447→    user_id, table_name, record_id, operation, payload, priority, next_retry_at
+  1448→  ) VALUES (
+  1449→    p_user_id, p_table_name, p_record_id, p_operation, p_payload,
+  1450→    p_priority, now()
+  1451→  ) RETURNING id INTO v_queue_id;
+  1452→
+  1453→  RETURN v_queue_id;
+  1454→END;
+  1455→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1456→
+  1457→COMMENT ON FUNCTION queue_sync_operation(UUID, TEXT, TEXT, sync_operation_type, JSONB, INTEGER) IS
+  1458→  'Add a mutation to the offline sync queue; priority 1 = critical, 10 = low';
+  1459→
+  1460→-- ---------------------------------------------------------------------------
+  1461→-- process_sync_queue(): Process pending sync items for a user
+  1462→-- ---------------------------------------------------------------------------
+  1463→-- Marks the next batch of pending items as in_progress for processing.
+  1464→-- Items are selected by priority (ASC) then next_retry_at (ASC).
+  1465→-- Returns the selected item IDs for the caller to process.
+  1466→-- ---------------------------------------------------------------------------
+  1467→
+  1468→CREATE OR REPLACE FUNCTION process_sync_queue(
+  1469→  p_user_id  UUID,
+  1470→  p_batch_size INTEGER DEFAULT 50
+  1471→)
+  1472→RETURNS TABLE (
+  1473→  id          UUID,
+  1474→  table_name  TEXT,
+  1475→  record_id   TEXT,
+  1476→  operation   sync_operation_type,
+  1477→  payload     JSONB,
+  1478→  priority    INTEGER,
+  1479→  attempts    INTEGER
+  1480→) AS $$
+  1481→BEGIN
+  1482→  -- Atomically select and lock the next batch of pending items
+  1483→  RETURN QUERY
+  1484→  UPDATE sync_queue
+  1485→  SET status         = 'in_progress',
+  1486→      last_attempt_at = now(),
+  1487→      attempts        = attempts + 1,
+  1488→      updated_at      = now()
+  1489→  WHERE id IN (
+  1490→    SELECT sq.id
+  1491→    FROM sync_queue sq
+  1492→    WHERE sq.user_id = p_user_id
+  1493→      AND sq.status IN ('pending', 'failed')
+  1494→      AND sq.next_retry_at <= now()
+  1495→      AND sq.attempts < sq.max_attempts
+  1496→    ORDER BY sq.priority ASC, sq.next_retry_at ASC
+  1497→    LIMIT p_batch_size
+  1498→    FOR UPDATE SKIP LOCKED
+  1499→  )
+  1500→  RETURNING sync_queue.id, sync_queue.table_name, sync_queue.record_id,
+  1501→            sync_queue.operation, sync_queue.payload, sync_queue.priority,
+  1502→            sync_queue.attempts;
+  1503→
+  1504→  -- Mark items that exceeded max_attempts as dead
+  1505→  UPDATE sync_queue
+  1506→  SET status = 'dead',
+  1507→      updated_at = now()
+  1508→  WHERE user_id = p_user_id
+  1509→    AND status IN ('pending', 'failed')
+  1510→    AND attempts >= max_attempts
+  1511→    AND next_retry_at <= now();
+  1512→END;
+  1513→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1514→
+  1515→COMMENT ON FUNCTION process_sync_queue(UUID, INTEGER) IS
+  1516→  'Claim the next batch of pending sync items for processing, ordered by priority and retry time';
+  1517→
+  1518→-- ---------------------------------------------------------------------------
+  1519→-- complete_sync_queue_item(): Mark a sync queue item as completed or failed
+  1520→-- ---------------------------------------------------------------------------
+  1521→-- Helper to finalize processing of an item claimed by process_sync_queue.
+  1522→-- ---------------------------------------------------------------------------
+  1523→
+  1524→CREATE OR REPLACE FUNCTION complete_sync_queue_item(
+  1525→  p_id            UUID,
+  1526→  p_success       BOOLEAN DEFAULT true,
+  1527→  p_error_message TEXT DEFAULT NULL,
+  1528→  p_retry_delay   INTERVAL DEFAULT INTERVAL '30 seconds'
+  1529→)
+  1530→RETURNS VOID AS $$
+  1531→BEGIN
+  1532→  IF p_success THEN
+  1533→    UPDATE sync_queue
+  1534→    SET status     = 'completed',
+  1535→        updated_at = now()
+  1536→    WHERE id = p_id;
+  1537→  ELSE
+  1538→    UPDATE sync_queue
+  1539→    SET status         = CASE
+  1540→                           WHEN attempts >= max_attempts THEN 'dead'
+  1541→                           ELSE 'failed'
+  1542→                         END,
+  1543→        error_message  = p_error_message,
+  1544→        next_retry_at  = CASE
+  1545→                           WHEN attempts < max_attempts
+  1546→                           THEN now() + p_retry_delay * POWER(2, LEAST(attempts - 1, 5))
+  1547→                           ELSE next_retry_at
+  1548→                         END,
+  1549→        updated_at     = now()
+  1550→    WHERE id = p_id;
+  1551→  END IF;
+  1552→END;
+  1553→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1554→
+  1555→COMMENT ON FUNCTION complete_sync_queue_item(UUID, BOOLEAN, TEXT, INTERVAL) IS
+  1556→  'Mark a sync queue item as completed or failed with exponential backoff retry';
+  1557→
+  1558→-- ---------------------------------------------------------------------------
+  1559→-- record_connectivity_event(): Log a connectivity state change
+  1560→-- ---------------------------------------------------------------------------
+  1561→-- Records a connectivity analytics entry. If the user was offline and is
+  1562→-- now online, it can calculate the offline duration from the last offline event.
+  1563→-- ---------------------------------------------------------------------------
+  1564→
+  1565→CREATE OR REPLACE FUNCTION record_connectivity_event(
+  1566→  p_user_id                   UUID,
+  1567→  p_device_id                 TEXT DEFAULT NULL,
+  1568→  p_connection_type           connection_type,
+  1569→  p_connection_quality        connection_quality,
+  1570→  p_avg_latency_ms            INTEGER DEFAULT NULL,
+  1571→  p_bandwidth_estimate_kbps   INTEGER DEFAULT NULL,
+  1572→  p_was_offline               BOOLEAN DEFAULT false,
+  1573→  p_offline_duration_seconds  INTEGER DEFAULT NULL
+  1574→)
+  1575→RETURNS UUID AS $$
+  1576→DECLARE
+  1577→  v_id UUID;
+  1578→  v_offline_duration INTEGER;
+  1579→BEGIN
+  1580→  -- If user is coming back online, calculate offline duration from last event
+  1581→  IF NOT p_was_offline AND p_connection_type != 'none' THEN
+  1582→    SELECT offline_duration_seconds INTO v_offline_duration
+  1583→    FROM connectivity_analytics
+  1584→    WHERE user_id = p_user_id
+  1585→      AND was_offline = true
+  1586→      AND offline_duration_seconds IS NULL
+  1587→    ORDER BY recorded_at DESC
+  1588→    LIMIT 1;
+  1589→
+  1590→    -- If we found an open offline event, update it with the duration
+  1591→    IF FOUND THEN
+  1592→      UPDATE connectivity_analytics
+  1593→      SET offline_duration_seconds = EXTRACT(EPOCH FROM (now() - recorded_at))::INTEGER
+  1594→      WHERE user_id = p_user_id
+  1595→        AND was_offline = true
+  1596→        AND offline_duration_seconds IS NULL;
+  1597→    END IF;
+  1598→  END IF;
+  1599→
+  1600→  INSERT INTO connectivity_analytics (
+  1601→    user_id, device_id, connection_type, connection_quality,
+  1602→    avg_latency_ms, bandwidth_estimate_kbps, was_offline,
+  1603→    offline_duration_seconds
+  1604→  ) VALUES (
+  1605→    p_user_id, p_device_id, p_connection_type, p_connection_quality,
+  1606→    p_avg_latency_ms, p_bandwidth_estimate_kbps, p_was_offline,
+  1607→    COALESCE(p_offline_duration_seconds, v_offline_duration)
+  1608→  ) RETURNING id INTO v_id;
+  1609→
+  1610→  RETURN v_id;
+  1611→END;
+  1612→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1613→
+  1614→COMMENT ON FUNCTION record_connectivity_event IS
+  1615→  'Log a connectivity state change; automatically calculates offline duration for reconnection events';
+  1616→
+  1617→-- ---------------------------------------------------------------------------
+  1618→-- cleanup_expired_cache(): Remove expired cache entries
+  1619→-- ---------------------------------------------------------------------------
+  1620→-- Should be called periodically (e.g., via pg_cron or Supabase Edge Function)
+  1621→-- to remove stale cache entries and free up tracking metadata.
+  1622→-- Returns the number of rows deleted.
+  1623→-- ---------------------------------------------------------------------------
+  1624→
+  1625→CREATE OR REPLACE FUNCTION cleanup_expired_cache(
+  1626→  p_user_id  UUID DEFAULT NULL,
+  1627→  p_dry_run  BOOLEAN DEFAULT false
+  1628→)
+  1629→RETURNS INTEGER AS $$
+  1630→DECLARE
+  1631→  v_deleted_count INTEGER;
+  1632→BEGIN
+  1633→  IF p_dry_run THEN
+  1634→    -- Count only, don't delete
+  1635→    SELECT COUNT(*) INTO v_deleted_count
+  1636→    FROM offline_cache_metadata
+  1637→    WHERE expires_at IS NOT NULL
+  1638→      AND expires_at < now()
+  1639→      AND (p_user_id IS NULL OR user_id = p_user_id);
+  1640→    RETURN v_deleted_count;
+  1641→  END IF;
+  1642→
+  1643→  -- Delete expired entries
+  1644→  DELETE FROM offline_cache_metadata
+  1645→  WHERE expires_at IS NOT NULL
+  1646→    AND expires_at < now()
+  1647→    AND (p_user_id IS NULL OR user_id = p_user_id);
+  1648→
+  1649→  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+  1650→  RETURN v_deleted_count;
+  1651→END;
+  1652→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1653→
+  1654→COMMENT ON FUNCTION cleanup_expired_cache(UUID, BOOLEAN) IS
+  1655→  'Remove expired cache entries; optionally filter by user_id. dry_run=true returns count without deleting';
+  1656→
+  1657→-- ---------------------------------------------------------------------------
+  1658→-- get_user_sync_status(): Get a user's current sync state summary
+  1659→-- ---------------------------------------------------------------------------
+  1660→-- Returns a JSON object summarizing the user's sync status across all tables,
+  1661→-- including pending queue items, unresolved conflicts, and last sync times.
+  1662→-- ---------------------------------------------------------------------------
+  1663→
+  1664→CREATE OR REPLACE FUNCTION get_user_sync_status(
+  1665→  p_user_id UUID
+  1666→)
+  1667→RETURNS JSONB AS $$
+  1668→DECLARE
+  1669→  v_result JSONB;
+  1670→BEGIN
+  1671→  SELECT jsonb_build_object(
+  1672→    'user_id', p_user_id,
+  1673→    'pending_queue_count', (
+  1674→      SELECT COUNT(*) FROM sync_queue
+  1675→      WHERE user_id = p_user_id AND status IN ('pending', 'in_progress', 'failed')
+  1676→    ),
+  1677→    'dead_queue_count', (
+  1678→      SELECT COUNT(*) FROM sync_queue
+  1679→      WHERE user_id = p_user_id AND status = 'dead'
+  1680→    ),
+  1681→    'unresolved_conflicts', (
+  1682→      SELECT COUNT(*) FROM sync_conflicts
+  1683→      WHERE user_id = p_user_id AND resolution = 'pending'
+  1684→    ),
+  1685→    'pending_offline_attempts', (
+  1686→      SELECT COUNT(*) FROM offline_exam_attempts
+  1687→      WHERE student_id = p_user_id AND sync_status = 'pending'
+  1688→    ),
+  1689→    'cache_entries', (
+  1690→      SELECT COUNT(*) FROM offline_cache_metadata
+  1691→      WHERE user_id = p_user_id
+  1692→    ),
+  1693→    'expired_cache_entries', (
+  1694→      SELECT COUNT(*) FROM offline_cache_metadata
+  1695→      WHERE user_id = p_user_id AND expires_at IS NOT NULL AND expires_at < now()
+  1696→    ),
+  1697→    'active_devices', (
+  1698→      SELECT COUNT(*) FROM device_registrations
+  1699→      WHERE user_id = p_user_id AND is_active = true
+  1700→    ),
+  1701→    'last_sync_at', (
+  1702→      SELECT MAX(last_synced_at) FROM sync_metadata
+  1703→      WHERE user_id = p_user_id
+  1704→    ),
+  1705→    'sync_metadata', (
+  1706→      SELECT COALESCE(jsonb_object_agg(
+  1707→        table_name,
+  1708→        jsonb_build_object(
+  1709→          'last_synced_at', last_synced_at,
+  1710→          'is_full_sync', is_full_sync,
+  1711→          'record_count', record_count,
+  1712→          'checksum', checksum
+  1713→        )
+  1714→      ), '{}')
+  1715→      FROM sync_metadata WHERE user_id = p_user_id
+  1716→    ),
+  1717→    'recent_sync_errors', (
+  1718→      SELECT COALESCE(jsonb_agg(
+  1719→        jsonb_build_object(
+  1720→          'id', id,
+  1721→          'sync_type', sync_type,
+  1722→          'errors_count', errors_count,
+  1723→          'error_details', error_details,
+  1724→          'started_at', started_at
+  1725→        )
+  1726→        ORDER BY started_at DESC
+  1727→      ), '[]')
+  1728→      FROM (
+  1729→        SELECT * FROM sync_logs
+  1730→        WHERE user_id = p_user_id AND status = 'failed'
+  1731→        ORDER BY started_at DESC LIMIT 5
+  1732→      ) sub
+  1733→    ),
+  1734→    'generated_at', now()
+  1735→  ) INTO v_result;
+  1736→
+  1737→  RETURN v_result;
+  1738→END;
+  1739→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1740→
+  1741→COMMENT ON FUNCTION get_user_sync_status(UUID) IS
+  1742→  'Returns a comprehensive JSON summary of a user''s sync state, including queue counts, conflicts, and cache status';
+  1743→
+  1744→-- ---------------------------------------------------------------------------
+  1745→-- validate_offline_attempt(): Validate an offline exam attempt
+  1746→-- ---------------------------------------------------------------------------
+  1747→-- Validates an offline exam attempt before accepting it into the main
+  1748→-- system. Checks:
+  1749→--   1. The exam allows offline mode
+  1750→--   2. The student hasn't exceeded max offline attempts
+  1751→--   3. The integrity hash is valid
+  1752→--   4. The time taken is reasonable (not negative, not exceeding exam duration)
+  1753→--   5. The attempt data and answers are present and well-formed
+  1754→-- Returns a JSONB with validation results.
+  1755→-- ---------------------------------------------------------------------------
+  1756→
+  1757→CREATE OR REPLACE FUNCTION validate_offline_attempt(
+  1758→  p_attempt_id UUID
+  1759→)
+  1760→RETURNS JSONB AS $$
+  1761→DECLARE
+  1762→  v_attempt         offline_exam_attempts%ROWTYPE;
+  1763→  v_config          offline_exam_config%ROWTYPE;
+  1764→  v_existing_count  INTEGER;
+  1765→  v_errors          JSONB := '[]';
+  1766→  v_is_valid        BOOLEAN := true;
+  1767→  v_result          JSONB;
+  1768→BEGIN
+  1769→  -- Fetch the attempt
+  1770→  SELECT * INTO v_attempt FROM offline_exam_attempts WHERE id = p_attempt_id;
+  1771→  IF NOT FOUND THEN
+  1772→    RETURN jsonb_build_object(
+  1773→      'valid', false,
+  1774→      'errors', jsonb_build_array('Attempt not found')
+  1775→    );
+  1776→  END IF;
+  1777→
+  1778→  -- Fetch the offline config for this exam
+  1779→  SELECT * INTO v_config
+  1780→  FROM offline_exam_config
+  1781→  WHERE exam_id = v_attempt.exam_id
+  1782→    AND school_id = v_attempt.school_id;
+  1783→
+  1784→  -- Validation 1: Exam allows offline mode
+  1785→  IF NOT FOUND OR NOT v_config.allows_offline THEN
+  1786→    v_errors := v_errors || jsonb_build_array(jsonb_build_object(
+  1787→      'field', 'allows_offline',
+  1788→      'message', 'This exam does not allow offline attempts'
+  1789→    ));
+  1790→    v_is_valid := false;
+  1791→  END IF;
+  1792→
+  1793→  -- Validation 2: Max offline attempts not exceeded
+  1794→  IF FOUND THEN
+  1795→    SELECT COUNT(*) INTO v_existing_count
+  1796→    FROM offline_exam_attempts
+  1797→    WHERE exam_id = v_attempt.exam_id
+  1798→      AND student_id = v_attempt.student_id
+  1799→      AND sync_status IN ('synced', 'validated', 'pending')
+  1800→      AND id != p_attempt_id;
+  1801→
+  1802→    IF v_existing_count >= v_config.max_offline_attempts THEN
+  1803→      v_errors := v_errors || jsonb_build_array(jsonb_build_object(
+  1804→        'field', 'max_offline_attempts',
+  1805→        'message', format('Maximum offline attempts (%s) exceeded', v_config.max_offline_attempts)
+  1806→      ));
+  1807→      v_is_valid := false;
+  1808→    END IF;
+  1809→  END IF;
+  1810→
+  1811→  -- Validation 3: Answers are present
+  1812→  IF v_attempt.answers IS NULL OR jsonb_typeof(v_attempt.answers) = 'null' THEN
+  1813→    v_errors := v_errors || jsonb_build_array(jsonb_build_object(
+  1814→      'field', 'answers',
+  1815→      'message', 'Answers data is missing'
+  1816→    ));
+  1817→    v_is_valid := false;
+  1818→  END IF;
+  1819→
+  1820→  -- Validation 4: Attempt data is present
+  1821→  IF v_attempt.attempt_data IS NULL OR jsonb_typeof(v_attempt.attempt_data) = 'null' THEN
+  1822→    v_errors := v_errors || jsonb_build_array(jsonb_build_object(
+  1823→      'field', 'attempt_data',
+  1824→      'message', 'Attempt metadata is missing'
+  1825→    ));
+  1826→    v_is_valid := false;
+  1827→  END IF;
+  1828→
+  1829→  -- Validation 5: Time taken is reasonable
+  1830→  IF v_attempt.time_taken_seconds IS NOT NULL AND v_attempt.time_taken_seconds < 0 THEN
+  1831→    v_errors := v_errors || jsonb_build_array(jsonb_build_object(
+  1832→      'field', 'time_taken_seconds',
+  1833→      'message', 'Time taken cannot be negative'
+  1834→    ));
+  1835→    v_is_valid := false;
+  1836→  END IF;
+  1837→
+  1838→  -- Validation 6: Completed at is after started at
+  1839→  IF v_attempt.completed_at IS NOT NULL AND v_attempt.completed_at < v_attempt.started_at THEN
+  1840→    v_errors := v_errors || jsonb_build_array(jsonb_build_object(
+  1841→      'field', 'completed_at',
+  1842→      'message', 'Completion time cannot be before start time'
+  1843→    ));
+  1844→    v_is_valid := false;
+  1845→  END IF;
+  1846→
+  1847→  -- Update the attempt status
+  1848→  IF v_is_valid THEN
+  1849→    UPDATE offline_exam_attempts
+  1850→    SET sync_status = 'validated',
+  1851→        validation_errors = NULL
+  1852→    WHERE id = p_attempt_id;
+  1853→  ELSE
+  1854→    UPDATE offline_exam_attempts
+  1855→    SET sync_status = 'rejected',
+  1856→        validation_errors = v_errors
+  1857→    WHERE id = p_attempt_id;
+  1858→  END IF;
+  1859→
+  1860→  -- Build result
+  1861→  v_result := jsonb_build_object(
+  1862→    'valid', v_is_valid,
+  1863→    'attempt_id', p_attempt_id,
+  1864→    'exam_id', v_attempt.exam_id,
+  1865→    'student_id', v_attempt.student_id,
+  1866→    'errors', v_errors,
+  1867→    'validated_at', now()
+  1868→  );
+  1869→
+  1870→  RETURN v_result;
+  1871→END;
+  1872→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1873→
+  1874→COMMENT ON FUNCTION validate_offline_attempt(UUID) IS
+  1875→  'Validate an offline exam attempt for integrity, attempt limits, and data completeness; updates sync_status accordingly';
+  1876→
+  1877→-- ============================================================================
+  1878→-- 22. MAINTENANCE: Dead letter queue cleanup
+  1879→-- ============================================================================
+  1880→-- Periodically purge dead sync queue items older than 30 days to prevent
+  1881→-- unbounded growth. Should be called via pg_cron or scheduled Edge Function.
+  1882→-- ============================================================================
+  1883→
+  1884→CREATE OR REPLACE FUNCTION cleanup_dead_sync_queue(
+  1885→  p_days_old INTEGER DEFAULT 30
+  1886→)
+  1887→RETURNS INTEGER AS $$
+  1888→DECLARE
+  1889→  v_deleted_count INTEGER;
+  1890→BEGIN
+  1891→  DELETE FROM sync_queue
+  1892→  WHERE status = 'dead'
+  1893→    AND updated_at < now() - (p_days_old || ' days')::INTERVAL;
+  1894→
+  1895→  GET DIAGNOSTICS v_deleted_count = ROW_COUNT;
+  1896→  RETURN v_deleted_count;
+  1897→END;
+  1898→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1899→
+  1900→COMMENT ON FUNCTION cleanup_dead_sync_queue(INTEGER) IS
+  1901→  'Purge dead-letter sync queue items older than N days (default 30)';
+  1902→
+  1903→-- ============================================================================
+  1904→-- 23. MAINTENANCE: Old analytics cleanup
+  1905→-- ============================================================================
+  1906→-- Remove old analytics data beyond the retention window.
+  1907→-- ============================================================================
+  1908→
+  1909→CREATE OR REPLACE FUNCTION cleanup_old_analytics(
+  1910→  p_retention_days INTEGER DEFAULT 90
+  1911→)
+  1912→RETURNS INTEGER AS $$
+  1913→DECLARE
+  1914→  v_total_deleted INTEGER := 0;
+  1915→  v_deleted INTEGER;
+  1916→BEGIN
+  1917→  -- Clean up old connectivity analytics
+  1918→  DELETE FROM connectivity_analytics
+  1919→  WHERE created_at < now() - (p_retention_days || ' days')::INTERVAL;
+  1920→  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  1921→  v_total_deleted := v_total_deleted + v_deleted;
+  1922→
+  1923→  -- Clean up old sync logs
+  1924→  DELETE FROM sync_logs
+  1925→  WHERE created_at < now() - (p_retention_days || ' days')::INTERVAL;
+  1926→  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  1927→  v_total_deleted := v_total_deleted + v_deleted;
+  1928→
+  1929→  -- Clean up old app analytics
+  1930→  DELETE FROM app_analytics
+  1931→  WHERE created_at < now() - (p_retention_days || ' days')::INTERVAL;
+  1932→  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  1933→  v_total_deleted := v_total_deleted + v_deleted;
+  1934→
+  1935→  -- Clean up resolved crash reports older than retention window
+  1936→  DELETE FROM crash_reports
+  1937→  WHERE is_resolved = true
+  1938→    AND created_at < now() - (p_retention_days || ' days')::INTERVAL;
+  1939→  GET DIAGNOSTICS v_deleted = ROW_COUNT;
+  1940→  v_total_deleted := v_total_deleted + v_deleted;
+  1941→
+  1942→  RETURN v_total_deleted;
+  1943→END;
+  1944→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1945→
+  1946→COMMENT ON FUNCTION cleanup_old_analytics(INTEGER) IS
+  1947→  'Purge analytics data older than N days (default 90) across connectivity, sync logs, app events, and resolved crash reports';
+  1948→
+  1949→-- ============================================================================
+  1950→-- 24. GRANTS
+  1951→-- ============================================================================
+  1952→-- Grant appropriate permissions to the authenticated role.
+  1953→-- In Supabase, the `authenticated` role is used for all logged-in users.
+  1954→-- ============================================================================
+  1955→
+  1956→GRANT USAGE ON SCHEMA public TO authenticated;
+  1957→
+  1958→-- Device registrations
+  1959→GRANT SELECT, INSERT, UPDATE, DELETE ON device_registrations TO authenticated;
+  1960→GRANT USAGE, SELECT ON SEQUENCE device_registrations_id_seq TO authenticated;
+  1961→
+  1962→-- Push notification tokens
+  1963→GRANT SELECT, INSERT, UPDATE, DELETE ON push_notification_tokens TO authenticated;
+  1964→GRANT USAGE, SELECT ON SEQUENCE push_notification_tokens_id_seq TO authenticated;
+  1965→
+  1966→-- Sync metadata
+  1967→GRANT SELECT, INSERT, UPDATE, DELETE ON sync_metadata TO authenticated;
+  1968→GRANT USAGE, SELECT ON SEQUENCE sync_metadata_id_seq TO authenticated;
+  1969→
+  1970→-- Sync queue
+  1971→GRANT SELECT, INSERT, UPDATE, DELETE ON sync_queue TO authenticated;
+  1972→GRANT USAGE, SELECT ON SEQUENCE sync_queue_id_seq TO authenticated;
+  1973→
+  1974→-- Sync conflicts
+  1975→GRANT SELECT, INSERT, UPDATE, DELETE ON sync_conflicts TO authenticated;
+  1976→GRANT USAGE, SELECT ON SEQUENCE sync_conflicts_id_seq TO authenticated;
+  1977→
+  1978→-- Sync logs
+  1979→GRANT SELECT, INSERT ON sync_logs TO authenticated;
+  1980→GRANT USAGE, SELECT ON SEQUENCE sync_logs_id_seq TO authenticated;
+  1981→
+  1982→-- Offline cache metadata
+  1983→GRANT SELECT, INSERT, UPDATE, DELETE ON offline_cache_metadata TO authenticated;
+  1984→GRANT USAGE, SELECT ON SEQUENCE offline_cache_metadata_id_seq TO authenticated;
+  1985→
+  1986→-- Offline exam config
+  1987→GRANT SELECT ON offline_exam_config TO authenticated;
+  1988→GRANT INSERT, UPDATE, DELETE ON offline_exam_config TO authenticated;
+  1989→GRANT USAGE, SELECT ON SEQUENCE offline_exam_config_id_seq TO authenticated;
+  1990→
+  1991→-- Offline exam attempts
+  1992→GRANT SELECT, INSERT, UPDATE ON offline_exam_attempts TO authenticated;
+  1993→GRANT USAGE, SELECT ON SEQUENCE offline_exam_attempts_id_seq TO authenticated;
+  1994→
+  1995→-- Connectivity analytics
+  1996→GRANT SELECT, INSERT ON connectivity_analytics TO authenticated;
+  1997→GRANT USAGE, SELECT ON SEQUENCE connectivity_analytics_id_seq TO authenticated;
+  1998→
+  1999→-- File downloads
+  2000→GRANT SELECT, INSERT, UPDATE, DELETE ON file_downloads TO authenticated;
+
+[showing lines 1-2000 of 2052; use offset=2001 with limit to continue reading]
