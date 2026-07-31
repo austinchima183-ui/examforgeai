@@ -146,12 +146,12 @@ Deno.serve(async (req: Request) => {
   // ─── Step 4: Idempotency check ─────────────────────────────────────────
   const { data: existingEvent } = await supabase
     .from('webhook_events')
-    .select('id, processing_status')
+    .select('id, status')
     .eq('idempotency_key', idempotencyKey)
     .maybeSingle();
 
   if (existingEvent) {
-    if (existingEvent.processing_status === 'processed') {
+    if (existingEvent.status === 'processed') {
       console.log(`Webhook already processed: ${idempotencyKey}`);
       clearTimeout(timeoutId);
       return new Response(JSON.stringify({ status: 'already_processed' }), {
@@ -159,7 +159,7 @@ Deno.serve(async (req: Request) => {
         headers: combineHeaders(corsHeaders, { ...rateLimitHeaders, 'Content-Type': 'application/json' }),
       });
     }
-    if (existingEvent.processing_status === 'processing') {
+    if (existingEvent.status === 'processing') {
       console.log(`Webhook currently being processed: ${idempotencyKey}`);
       clearTimeout(timeoutId);
       return new Response(JSON.stringify({ status: 'processing' }), {
@@ -172,12 +172,12 @@ Deno.serve(async (req: Request) => {
   // ─── Step 5: Log webhook event ─────────────────────────────────────────
   await supabase.from('webhook_events').upsert({
     event_type: event,
-    flutterwave_event_id: flwId,
+    event_id: flwId,
     idempotency_key: idempotencyKey,
     payload: payload,
-    processing_status: 'processing',
-    source_ip: clientIp,
-    verified: true,
+    status: 'processing',
+    signature_valid: true,
+    raw_body: body,
   }, { onConflict: 'idempotency_key' });
 
   // ─── Step 6: Process the event ─────────────────────────────────────────
@@ -298,10 +298,13 @@ Deno.serve(async (req: Request) => {
           .update(updateData)
           .eq('id', localTx.id);
 
-        // Link webhook event to transaction
+        // Link webhook event to transaction via payload update
         await supabase
           .from('webhook_events')
-          .update({ transaction_id: localTx.id })
+          .update({
+            last_error: null,
+            processing_attempts: 1,
+          })
           .eq('idempotency_key', idempotencyKey);
 
         break;
@@ -346,9 +349,9 @@ Deno.serve(async (req: Request) => {
   await supabase
     .from('webhook_events')
     .update({
-      processing_status: finalStatus,
+      status: finalStatus,
       processed_at: new Date().toISOString(),
-      error_message: processingError,
+      last_error: processingError,
     })
     .eq('idempotency_key', idempotencyKey);
 
