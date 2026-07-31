@@ -10,8 +10,8 @@ import subprocess
 import time
 from datetime import datetime, timezone
 
-ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6Zm5wdHJybnhrZ29kY2x5aGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzg1NDksImV4cCI6MjEwMDc1NDU0OX0.lNvu4mywQIZUIutggf8fDf0a4JPc8fZTAZvxru9adKg"
-SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6Zm5wdHJybnhrZ29kY2x5aGZ0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTE3ODU0OSwiZXhwIjoyMTAwNzU0NTQ5fQ.hgImsMuKlqTocSkjGgWalqdKgJZHDGSx2CG0E8-n83A"
+ANON_KEY = "REDACTED_SUPABASE_ANON_KEY"
+SERVICE_KEY = "REDACTED_SUPABASE_SERVICE_KEY"
 BASE_URL = "https://pzfnptrrnxkgodclyhft.supabase.co"
 PROJECT_REF = "pzfnptrrnxkgodclyhft"
 
@@ -389,7 +389,7 @@ perf["rest_api_latency_ms"] = rest_latency
 # Flutterwave API latency
 start = time.time()
 fw_resp = run_curl("https://api.flutterwave.com/v3/transactions", "GET",
-    {"Authorization": "Bearer FLWSECK-0725813e27cb7dae3faf8ce00ee35e4c-19fae2b082avt-X"})
+    {"Authorization": "Bearer REDACTED_FLUTTERWAVE_SECRET_KEY"})
 fw_latency = round((time.time() - start) * 1000)
 perf["flutterwave_api_latency_ms"] = fw_latency
 

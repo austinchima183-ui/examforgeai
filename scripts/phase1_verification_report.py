@@ -420,7 +420,7 @@ story.append(heading2('5.1 Configuration Status'))
 payment_data = [
     ['Configuration Item', 'Status', 'Details'],
     ['FLUTTERWAVE_PUBLIC_KEY', 'NEEDS .env', 'Must be set in .env file for client-side checkout'],
-    ['FLUTTERWAVE_SECRET_KEY', 'RECEIVED', 'FLWSECK-0725813e27cb7dae3faf8ce00ee35e4c-19fae2b082avt-X - must be set as Supabase Edge Function env var'],
+    ['FLUTTERWAVE_SECRET_KEY', 'RECEIVED', 'REDACTED_FLUTTERWAVE_SECRET_KEY - must be set as Supabase Edge Function env var'],
     ['FLUTTERWAVE_WEBHOOK_SECRET_HASH', 'MISSING', 'Required for webhook signature verification - NOT provided'],
     ['flutterwave-checkout Edge Function', 'EXISTS', 'Initializes Standard Checkout with server-side secret key'],
     ['flutterwave-verify Edge Function', 'EXISTS', 'Verifies payments with amount mismatch detection'],
@@ -767,7 +767,7 @@ story.append(body(
 
 story.append(heading3('Step 1: Set Edge Function Environment Variable'))
 story.append(Paragraph(
-    'supabase secrets set FLUTTERWAVE_SECRET_KEY=FLWSECK-0725813e27cb7dae3faf8ce00ee35e4c-19fae2b082avt-X',
+    'supabase secrets set FLUTTERWAVE_SECRET_KEY=REDACTED_FLUTTERWAVE_SECRET_KEY',
     code_style
 ))
 

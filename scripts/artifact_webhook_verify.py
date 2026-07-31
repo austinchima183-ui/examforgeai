@@ -3,7 +3,7 @@
 import json, time, requests, sys
 
 WEBHOOK_URL = "https://pzfnptrrnxkgodclyhft.supabase.co/functions/v1/flutterwave-webhook"
-SECRET_HASH = "9f4d8c2a7b61e3f58a0d9c41b7e2f6a8d3c5e7f1a9b2d4c6e8f0a1b3c5d7e9f2"
+SECRET_HASH = "REDACTED_WEBHOOK_SECRET_HASH"
 
 print("=" * 80)
 print("WEBHOOK VERIFICATION LOGS")

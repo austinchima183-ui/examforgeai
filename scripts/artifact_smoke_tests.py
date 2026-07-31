@@ -6,9 +6,9 @@ Raw output for ARTIFACTS.md
 import requests, json, time, sys, hashlib, uuid
 
 BASE = "https://pzfnptrrnxkgodclyhft.supabase.co"
-ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6Zm5wdHJybnhrZ29kY2x5aGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzg1NDksImV4cCI6MjEwMDc1NDU0OX0.lNvu4mywQIZUIutggf8fDf0a4JPc8fZTAZvxru9adKg"
-SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6Zm5wdHJybnhrZ29kY2x5aGZ0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTE3ODU0OSwiZXhwIjoyMTAwNzU0NTQ5fQ.hgImsMuKlqTocSkjGgWalqdKgJZHDGSx2CG0E8-n83A"
-WEBHOOK_SECRET = "9f4d8c2a7b61e3f58a0d9c41b7e2f6a8d3c5e7f1a9b2d4c6e8f0a1b3c5d7e9f2"
+ANON_KEY = "REDACTED_SUPABASE_ANON_KEY"
+SERVICE_KEY = "REDACTED_SUPABASE_SERVICE_KEY"
+WEBHOOK_SECRET = "REDACTED_WEBHOOK_SECRET_HASH"
 
 def headers_anon():
     return {"apikey": ANON_KEY, "Content-Type": "application/json"}

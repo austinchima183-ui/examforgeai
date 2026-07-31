@@ -5,8 +5,8 @@ ExamForge AI — Full Smoke Test Suite (17 Workflows) — ARTIFACTS EDITION
 import requests, json, time, sys
 
 BASE = "https://pzfnptrrnxkgodclyhft.supabase.co"
-ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6Zm5wdHJybnhrZ29kY2x5aGZ0Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODUxNzg1NDksImV4cCI6MjEwMDc1NDU0OX0.lNvu4mywQIZUIutggf8fDf0a4JPc8fZTAZvxru9adKg"
-SERVICE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InB6Zm5wdHJybnhrZ29kY2x5aGZ0Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc4NTE3ODU0OSwiZXhwIjoyMTAwNzU0NTQ5fQ.hgImsMuKlqTocSkjGgWalqdKgJZHDGSx2CG0E8-n83A"
+ANON_KEY = "REDACTED_SUPABASE_ANON_KEY"
+SERVICE_KEY = "REDACTED_SUPABASE_SERVICE_KEY"
 
 def h_anon(): return {"apikey": ANON_KEY, "Content-Type": "application/json"}
 def h_auth(t): return {"apikey": ANON_KEY, "Authorization": f"Bearer {t}", "Content-Type": "application/json"}
