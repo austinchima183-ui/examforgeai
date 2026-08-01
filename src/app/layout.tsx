@@ -1,53 +1,117 @@
-import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
-import "./globals.css";
-import { Toaster } from "@/components/ui/toaster";
+import type { Metadata, Viewport } from 'next'
+import { Inter } from 'next/font/google'
+import { ThemeProvider } from 'next-themes'
+import { Toaster } from '@/components/ui/sonner'
+import { SupabaseProvider } from '@/lib/hooks/use-supabase'
+import { QueryProvider } from '@/lib/hooks/use-query-provider'
+import './globals.css'
 
-const geistSans = Geist({
-  variable: "--font-geist-sans",
-  subsets: ["latin"],
-});
+// ============================================================================
+// ExamForge AI — Root Layout
+// ============================================================================
+// Wraps the entire application with required providers:
+//   - ThemeProvider (next-themes for light/dark mode)
+//   - SupabaseProvider (browser Supabase client)
+//   - QueryProvider (TanStack React Query)
+//   - Toaster (sonner for toast notifications)
+// ============================================================================
 
-const geistMono = Geist_Mono({
-  variable: "--font-geist-mono",
-  subsets: ["latin"],
-});
+const inter = Inter({
+  subsets: ['latin'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+// ──────────────────────────────────────────────────────────────
+// Metadata
+// ──────────────────────────────────────────────────────────────
 
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
+  title: {
+    default: 'ExamForge AI',
+    template: '%s | ExamForge AI',
+  },
+  description:
+    'AI-powered exam creation, CBT engine, and educational platform for teachers, students, and school administrators.',
+  keywords: [
+    'ExamForge',
+    'AI',
+    'exam',
+    'CBT',
+    'education',
+    'teacher',
+    'student',
+    'school',
+    'assessment',
+    'question bank',
+  ],
+  authors: [{ name: 'ExamForge AI Team' }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: '/favicon.ico',
   },
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
-    type: "website",
+    title: 'ExamForge AI',
+    description:
+      'AI-powered exam creation, CBT engine, and educational platform.',
+    siteName: 'ExamForge AI',
+    type: 'website',
   },
   twitter: {
-    card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    card: 'summary_large_image',
+    title: 'ExamForge AI',
+    description:
+      'AI-powered exam creation, CBT engine, and educational platform.',
   },
-};
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 5,
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#ffffff' },
+    { media: '(prefers-color-scheme: dark)', color: '#0a0a0a' },
+  ],
+}
+
+// ──────────────────────────────────────────────────────────────
+// Root Layout Component
+// ──────────────────────────────────────────────────────────────
 
 export default function RootLayout({
   children,
 }: Readonly<{
-  children: React.ReactNode;
+  children: React.ReactNode
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
-      >
-        {children}
-        <Toaster />
+    <html
+      lang="en"
+      suppressHydrationWarning
+      className={inter.variable}
+    >
+      <body className="font-sans antialiased bg-background text-foreground">
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <SupabaseProvider>
+            <QueryProvider>
+              {children}
+              <Toaster
+                position="bottom-right"
+                toastOptions={{
+                  duration: 4000,
+                  classNames: {
+                    toast: 'bg-background text-foreground border-border',
+                  },
+                }}
+              />
+            </QueryProvider>
+          </SupabaseProvider>
+        </ThemeProvider>
       </body>
     </html>
-  );
+  )
 }
