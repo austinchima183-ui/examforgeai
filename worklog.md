@@ -391,3 +391,37 @@ Stage Summary:
 - Blueprint contains sufficient information to rebuild entire Flutter frontend in Next.js
 - Zero-risk migration plan with 6 phases over 15-21 weeks
 - Key risks: Offline/Sync engine (Very Hard), State management migration (High), Realtime subscriptions (High)
+---
+Task ID: architecture-spec
+Agent: Main Agent
+Task: Generate Enterprise Migration Architecture Specification for ExamForge AI Flutter-to-Next.js migration
+
+Work Log:
+- Explored complete Flutter project structure (lib/ directory, all .dart files)
+- Analyzed all 20+ feature modules, 80+ screens, 130+ routes, 100+ providers
+- Mapped Flutter architecture patterns to Next.js 16 equivalents
+- Designed 30-section Enterprise Architecture Specification covering:
+  - Folder structure, App Router, route mapping, layout hierarchy
+  - Authentication architecture (cookie-based vs Flutter SecureStorage)
+  - Middleware & RBAC (replacing GoRouter guards)
+  - Zustand store architecture (6 stores replacing 100+ Riverpod providers)
+  - TanStack Query architecture (replacing FutureProvider/StreamProvider)
+  - API layer & Supabase client (server/client/middleware clients)
+  - Server Actions & Server/Client Component boundaries
+  - Realtime architecture (useRealtime hook replacing RealtimeService)
+  - Offline & IndexedDB (Dexie.js replacing Drift SQLite)
+  - Theme system (CSS custom properties + next-themes replacing Material 3)
+  - shadcn/ui component mapping (13 shared widgets + 23 additional components)
+  - Form & validation (React Hook Form + Zod replacing Formz)
+  - Error boundary, loading & Suspense strategy
+  - Feature module organization (20+ modules)
+  - Environment variables & CI/CD pipeline
+  - Testing architecture (Vitest + Playwright)
+- Generated 7-phase migration checklist (12-week timeline)
+- Produced PDF via ReportLab with cascade palette, page numbers, quality checks
+
+Stage Summary:
+- Generated: /home/z/my-project/download/ExamForge_AI_Enterprise_Architecture_Specification.pdf
+- 34 pages, 30 architecture sections, 7 migration phases
+- PDF passes quality checks (no errors, only warnings for cover full-bleed and margin symmetry)
+- All content is specification-only, no implementation code generated
