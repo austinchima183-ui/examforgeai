@@ -1,0 +1,825 @@
+     1→import 'package:flutter_riverpod/flutter_riverpod.dart';
+     2→import 'package:supabase_flutter/supabase_flutter.dart' as sb;
+     3→
+     4→import '../../../../core/errors/failures.dart';
+     5→import '../../../../core/utils/logger.dart';
+     6→import '../../../../core/utils/result.dart';
+     7→import '../../data/datasources/exam_ecosystem_remote_datasource.dart';
+     8→import '../../data/repositories/exam_ecosystem_repository_impl.dart';
+     9→import '../../domain/entities/exam_ecosystem_entities.dart';
+    10→import '../../domain/repositories/exam_ecosystem_repository.dart';
+    11→import '../../domain/usecases/exam_ecosystem_usecases.dart';
+    12→
+    13→// ═══════════════════════════════════════════════════════════════════════
+    14→// INFRASTRUCTURE PROVIDERS
+    15→// ═══════════════════════════════════════════════════════════════════════
+    16→
+    17→final _examEcosystemRemoteDataSourceProvider =
+    18→    Provider<ExamEcosystemRemoteDataSource>((ref) {
+    19→  return ExamEcosystemRemoteDataSourceImpl();
+    20→});
+    21→
+    22→final examEcosystemRepositoryProvider = Provider<ExamEcosystemRepository>((ref) {
+    23→  return ExamEcosystemRepositoryImpl(
+    24→    remoteDataSource: ref.watch(_examEcosystemRemoteDataSourceProvider),
+    25→  );
+    26→});
+    27→
+    28→// ─── Current User ID Provider ───────────────────────────────────────
+    29→
+    30→/// Provides the current user ID from Supabase auth.
+    31→final currentUserIdProvider = Provider<String?>((ref) {
+    32→  try {
+    33→    final client = _supabaseClient;
+    34→    return client.auth.currentUser?.id;
+    35→  } catch (_) {
+    36→    return null;
+    37→  }
+    38→});
+    39→
+    40→/// Helper to get Supabase client without importing config directly.
+    41→sb.SupabaseClient get _supabaseClient => sb.Supabase.instance.client;
+    42→
+    43→// ─── Use Case Providers ─────────────────────────────────────────────
+    44→
+    45→final _getExaminationBodiesUseCaseProvider =
+    46→    Provider<GetExaminationBodiesUseCase>((ref) {
+    47→  return GetExaminationBodiesUseCase(ref.watch(examEcosystemRepositoryProvider));
+    48→});
+    49→
+    50→final _getExaminationProductsUseCaseProvider =
+    51→    Provider<GetExaminationProductsUseCase>((ref) {
+    52→  return GetExaminationProductsUseCase(ref.watch(examEcosystemRepositoryProvider));
+    53→});
+    54→
+    55→final _createExaminationProductUseCaseProvider =
+    56→    Provider<CreateExaminationProductUseCase>((ref) {
+    57→  return CreateExaminationProductUseCase(ref.watch(examEcosystemRepositoryProvider));
+    58→});
+    59→
+    60→final _getMockExamsUseCaseProvider = Provider<GetMockExamsUseCase>((ref) {
+    61→  return GetMockExamsUseCase(ref.watch(examEcosystemRepositoryProvider));
+    62→});
+    63→
+    64→final _createMockExamUseCaseProvider = Provider<CreateMockExamUseCase>((ref) {
+    65→  return CreateMockExamUseCase(ref.watch(examEcosystemRepositoryProvider));
+    66→});
+    67→
+    68→final _publishMockExamUseCaseProvider = Provider<PublishMockExamUseCase>((ref) {
+    69→  return PublishMockExamUseCase(ref.watch(examEcosystemRepositoryProvider));
+    70→});
+    71→
+    72→final _startMockExamAttemptUseCaseProvider =
+    73→    Provider<StartMockExamAttemptUseCase>((ref) {
+    74→  return StartMockExamAttemptUseCase(ref.watch(examEcosystemRepositoryProvider));
+    75→});
+    76→
+    77→final _submitMockExamAttemptUseCaseProvider =
+    78→    Provider<SubmitMockExamAttemptUseCase>((ref) {
+    79→  return SubmitMockExamAttemptUseCase(ref.watch(examEcosystemRepositoryProvider));
+    80→});
+    81→
+    82→final _getMockExamResultsUseCaseProvider =
+    83→    Provider<GetMockExamResultsUseCase>((ref) {
+    84→  return GetMockExamResultsUseCase(ref.watch(examEcosystemRepositoryProvider));
+    85→});
+    86→
+    87→final _getReadinessAssessmentUseCaseProvider =
+    88→    Provider<GetReadinessAssessmentUseCase>((ref) {
+    89→  return GetReadinessAssessmentUseCase(ref.watch(examEcosystemRepositoryProvider));
+    90→});
+    91→
+    92→final _calculateReadinessUseCaseProvider =
+    93→    Provider<CalculateReadinessUseCase>((ref) {
+    94→  return CalculateReadinessUseCase(ref.watch(examEcosystemRepositoryProvider));
+    95→});
+    96→
+    97→final _getExamReadinessUseCaseProvider =
+    98→    Provider<GetExamReadinessUseCase>((ref) {
+    99→  return GetExamReadinessUseCase(ref.watch(examEcosystemRepositoryProvider));
+   100→});
+   101→
+   102→final _getStudyPlansUseCaseProvider = Provider<GetStudyPlansUseCase>((ref) {
+   103→  return GetStudyPlansUseCase(ref.watch(examEcosystemRepositoryProvider));
+   104→});
+   105→
+   106→final _createStudyPlanUseCaseProvider =
+   107→    Provider<CreateStudyPlanUseCase>((ref) {
+   108→  return CreateStudyPlanUseCase(ref.watch(examEcosystemRepositoryProvider));
+   109→});
+   110→
+   111→final _generateAiStudyPlanUseCaseProvider =
+   112→    Provider<GenerateAiStudyPlanUseCase>((ref) {
+   113→  return GenerateAiStudyPlanUseCase(ref.watch(examEcosystemRepositoryProvider));
+   114→});
+   115→
+   116→final _getStudyPlanActivitiesUseCaseProvider =
+   117→    Provider<GetStudyPlanActivitiesUseCase>((ref) {
+   118→  return GetStudyPlanActivitiesUseCase(ref.watch(examEcosystemRepositoryProvider));
+   119→});
+   120→
+   121→final _completeStudyPlanActivityUseCaseProvider =
+   122→    Provider<CompleteStudyPlanActivityUseCase>((ref) {
+   123→  return CompleteStudyPlanActivityUseCase(ref.watch(examEcosystemRepositoryProvider));
+   124→});
+   125→
+   126→// ═══════════════════════════════════════════════════════════════════════
+   127→// EXAM ECOSYSTEM STATE & NOTIFIER
+   128→// ═══════════════════════════════════════════════════════════════════════
+   129→
+   130→/// Immutable state for the main Exam Ecosystem feature.
+   131→class ExamEcosystemState {
+   132→  const ExamEcosystemState({
+   133→    this.bodies = const [],
+   134→    this.products = const [],
+   135→    this.mockExams = const [],
+   136→    this.isLoading = false,
+   137→    this.error,
+   138→    this.selectedBodyId,
+   139→    this.selectedProductId,
+   140→  });
+   141→
+   142→  final List<ExaminationBody> bodies;
+   143→  final List<ExaminationProduct> products;
+   144→  final List<MockExam> mockExams;
+   145→  final bool isLoading;
+   146→  final String? error;
+   147→  final String? selectedBodyId;
+   148→  final String? selectedProductId;
+   149→
+   150→  /// Get the currently selected body.
+   151→  ExaminationBody? get selectedBody => selectedBodyId != null
+   152→      ? bodies.where((b) => b.id == selectedBodyId).firstOrNull
+   153→      : null;
+   154→
+   155→  /// Get products filtered by selected body.
+   156→  List<ExaminationProduct> get filteredProducts => selectedBodyId != null
+   157→      ? products.where((p) => p.examBodyId == selectedBodyId).toList()
+   158→      : products;
+   159→
+   160→  /// Get mock exams filtered by selected product.
+   161→  List<MockExam> get filteredMockExams => selectedProductId != null
+   162→      ? mockExams
+   163→          .where((m) => m.examinationProductId == selectedProductId)
+   164→          .toList()
+   165→      : selectedBodyId != null
+   166→          ? mockExams
+   167→              .where((m) => m.examBodyType == selectedBody?.examBodyType)
+   168→              .toList()
+   169→          : mockExams;
+   170→
+   171→  ExamEcosystemState copyWith({
+   172→    List<ExaminationBody>? bodies,
+   173→    List<ExaminationProduct>? products,
+   174→    List<MockExam>? mockExams,
+   175→    bool? isLoading,
+   176→    String? error,
+   177→    String? selectedBodyId,
+   178→    String? selectedProductId,
+   179→    bool clearSelectedBodyId = false,
+   180→    bool clearSelectedProductId = false,
+   181→    bool clearError = false,
+   182→  }) {
+   183→    return ExamEcosystemState(
+   184→      bodies: bodies ?? this.bodies,
+   185→      products: products ?? this.products,
+   186→      mockExams: mockExams ?? this.mockExams,
+   187→      isLoading: isLoading ?? this.isLoading,
+   188→      error: clearError ? null : (error ?? this.error),
+   189→      selectedBodyId: clearSelectedBodyId
+   190→          ? null
+   191→          : (selectedBodyId ?? this.selectedBodyId),
+   192→      selectedProductId: clearSelectedProductId
+   193→          ? null
+   194→          : (selectedProductId ?? this.selectedProductId),
+   195→    );
+   196→  }
+   197→}
+   198→
+   199→/// Notifier for the Exam Ecosystem feature.
+   200→class ExamEcosystemNotifier extends StateNotifier<ExamEcosystemState> {
+   201→  ExamEcosystemNotifier({
+   202→    required GetExaminationBodiesUseCase getExaminationBodies,
+   203→    required GetExaminationProductsUseCase getExaminationProducts,
+   204→    required GetMockExamsUseCase getMockExams,
+   205→    required ExamEcosystemRepository repository,
+   206→  })  : _getExaminationBodies = getExaminationBodies,
+   207→        _getExaminationProducts = getExaminationProducts,
+   208→        _getMockExams = getMockExams,
+   209→        _repository = repository,
+   210→        super(const ExamEcosystemState());
+   211→
+   212→  final GetExaminationBodiesUseCase _getExaminationBodies;
+   213→  final GetExaminationProductsUseCase _getExaminationProducts;
+   214→  final GetMockExamsUseCase _getMockExams;
+   215→  final ExamEcosystemRepository _repository;
+   216→
+   217→  /// Loads all initial data (bodies, products, mock exams).
+   218→  Future<void> loadAll() async {
+   219→    state = state.copyWith(isLoading: true, clearError: true);
+   220→
+   221→    final results = await Future.wait([
+   222→      _getExaminationBodies(const GetExaminationBodiesParams()),
+   223→      _getExaminationProducts(const GetExaminationProductsParams()),
+   224→      _getMockExams(const GetMockExamsParams()),
+   225→    ]);
+   226→
+   227→    final bodiesResult = results[0] as Result<List<ExaminationBody>>;
+   228→    final productsResult = results[1] as Result<List<ExaminationProduct>>;
+   229→    final mockExamsResult = results[2] as Result<List<MockExam>>;
+   230→
+   231→    bodiesResult.fold(
+   232→      onSuccess: (bodies) {
+   233→        state = state.copyWith(bodies: bodies);
+   234→      },
+   235→      onFailure: (failure) {
+   236→        state = state.copyWith(error: _mapFailure(failure));
+   237→      },
+   238→    );
+   239→
+   240→    productsResult.fold(
+   241→      onSuccess: (products) {
+   242→        state = state.copyWith(products: products);
+   243→      },
+   244→      onFailure: (failure) {
+   245→        AppLogger.warning('Failed to load products: $failure');
+   246→      },
+   247→    );
+   248→
+   249→    mockExamsResult.fold(
+   250→      onSuccess: (mockExams) {
+   251→        state = state.copyWith(mockExams: mockExams);
+   252→      },
+   253→      onFailure: (failure) {
+   254→        AppLogger.warning('Failed to load mock exams: $failure');
+   255→      },
+   256→    );
+   257→
+   258→    state = state.copyWith(isLoading: false);
+   259→  }
+   260→
+   261→  /// Select an exam body to filter products.
+   262→  Future<void> selectBody(String? bodyId) async {
+   263→    state = state.copyWith(
+   264→      selectedBodyId: bodyId,
+   265→      clearSelectedProductId: bodyId == null,
+   266→    );
+   267→  }
+   268→
+   269→  /// Select a product to filter mock exams.
+   270→  void selectProduct(String? productId) {
+   271→    state = state.copyWith(selectedProductId: productId);
+   272→  }
+   273→
+   274→  /// Refresh all data.
+   275→  Future<void> refresh() async {
+   276→    await loadAll();
+   277→  }
+   278→
+   279→  /// Clear any error.
+   280→  void clearError() {
+   281→    state = state.copyWith(clearError: true);
+   282→  }
+   283→
+   284→  String _mapFailure(Failure failure) {
+   285→    return failure.when(
+   286→      server: (message, _, __) => message,
+   287→      cache: (message) => message,
+   288→      auth: (message, _) => message,
+   289→      network: (message) => message,
+   290→      validation: (message, _) => message,
+   291→      notFound: (message) => message,
+   292→      unauthorized: (message) => message,
+   293→      forbidden: (message) => message,
+   294→    );
+   295→  }
+   296→}
+   297→
+   298→/// Provider for the main Exam Ecosystem notifier.
+   299→final examEcosystemProvider =
+   300→    StateNotifierProvider<ExamEcosystemNotifier, ExamEcosystemState>((ref) {
+   301→  return ExamEcosystemNotifier(
+   302→    getExaminationBodies: ref.watch(_getExaminationBodiesUseCaseProvider),
+   303→    getExaminationProducts: ref.watch(_getExaminationProductsUseCaseProvider),
+   304→    getMockExams: ref.watch(_getMockExamsUseCaseProvider),
+   305→    repository: ref.watch(examEcosystemRepositoryProvider),
+   306→  );
+   307→});
+   308→
+   309→// ═══════════════════════════════════════════════════════════════════════
+   310→// READINESS STATE & NOTIFIER
+   311→// ═══════════════════════════════════════════════════════════════════════
+   312→
+   313→/// Immutable state for the Readiness feature.
+   314→class ReadinessState {
+   315→  const ReadinessState({
+   316→    this.assessments = const [],
+   317→    this.currentAssessment,
+   318→    this.isLoading = false,
+   319→    this.error,
+   320→  });
+   321→
+   322→  final List<ReadinessAssessment> assessments;
+   323→  final ReadinessAssessment? currentAssessment;
+   324→  final bool isLoading;
+   325→  final String? error;
+   326→
+   327→  /// Overall readiness score (average of all assessments).
+   328→  double get overallReadinessScore {
+   329→    if (assessments.isEmpty) return 0;
+   330→    return assessments
+   331→            .map((a) => a.readinessScore)
+   332→            .reduce((a, b) => a + b) /
+   333→        assessments.length;
+   334→  }
+   335→
+   336→  /// Average readiness level.
+   337→  ReadinessLevel get overallReadinessLevel {
+   338→    if (assessments.isEmpty) return ReadinessLevel.notStarted;
+   339→    final score = overallReadinessScore;
+   340→    if (score >= 90) return ReadinessLevel.examReady;
+   341→    if (score >= 75) return ReadinessLevel.advanced;
+   342→    if (score >= 60) return ReadinessLevel.proficient;
+   343→    if (score >= 40) return ReadinessLevel.developing;
+   344→    if (score >= 20) return ReadinessLevel.beginning;
+   345→    return ReadinessLevel.notStarted;
+   346→  }
+   347→
+   348→  /// All weak topics across assessments.
+   349→  List<String> get allWeakTopics =>
+   350→      assessments.expand((a) => a.weakTopics).toSet().toList();
+   351→
+   352→  /// All strong topics across assessments.
+   353→  List<String> get allStrongTopics =>
+   354→      assessments.expand((a) => a.strongTopics).toSet().toList();
+   355→
+   356→  /// All recommendations across assessments.
+   357→  List<String> get allRecommendations =>
+   358→      assessments.expand((a) => a.recommendations).toSet().toList();
+   359→
+   360→  ReadinessState copyWith({
+   361→    List<ReadinessAssessment>? assessments,
+   362→    ReadinessAssessment? currentAssessment,
+   363→    bool? isLoading,
+   364→    String? error,
+   365→    bool clearCurrentAssessment = false,
+   366→    bool clearError = false,
+   367→  }) {
+   368→    return ReadinessState(
+   369→      assessments: assessments ?? this.assessments,
+   370→      currentAssessment: clearCurrentAssessment
+   371→          ? null
+   372→          : (currentAssessment ?? this.currentAssessment),
+   373→      isLoading: isLoading ?? this.isLoading,
+   374→      error: clearError ? null : (error ?? this.error),
+   375→    );
+   376→  }
+   377→}
+   378→
+   379→/// Notifier for the Readiness feature.
+   380→class ReadinessNotifier extends StateNotifier<ReadinessState> {
+   381→  ReadinessNotifier({
+   382→    required GetReadinessAssessmentUseCase getReadinessAssessment,
+   383→    required CalculateReadinessUseCase calculateReadiness,
+   384→    required GetExamReadinessUseCase getExamReadiness,
+   385→    required ExamEcosystemRepository repository,
+   386→    required String? userId,
+   387→  })  : _getReadinessAssessment = getReadinessAssessment,
+   388→        _calculateReadiness = calculateReadiness,
+   389→        _getExamReadiness = getExamReadiness,
+   390→        _repository = repository,
+   391→        _userId = userId,
+   392→        super(const ReadinessState());
+   393→
+   394→  final GetReadinessAssessmentUseCase _getReadinessAssessment;
+   395→  final CalculateReadinessUseCase _calculateReadiness;
+   396→  final GetExamReadinessUseCase _getExamReadiness;
+   397→  final ExamEcosystemRepository _repository;
+   398→  final String? _userId;
+   399→
+   400→  /// Load readiness assessments for a user.
+   401→  Future<void> loadReadiness({String? examBodyId}) async {
+   402→    if (_userId == null) return;
+   403→
+   404→    state = state.copyWith(isLoading: true, clearError: true);
+   405→
+   406→    final result = await _repository.getUserReadiness(
+   407→      userId: _userId,
+   408→      examBodyId: examBodyId,
+   409→    );
+   410→
+   411→    result.fold(
+   412→      onSuccess: (assessments) {
+   413→        state = state.copyWith(
+   414→          isLoading: false,
+   415→          assessments: assessments,
+   416→          currentAssessment: assessments.isNotEmpty ? assessments.first : null,
+   417→        );
+   418→      },
+   419→      onFailure: (failure) {
+   420→        state = state.copyWith(
+   421→          isLoading: false,
+   422→          error: _mapFailure(failure),
+   423→        );
+   424→      },
+   425→    );
+   426→  }
+   427→
+   428→  /// Calculate readiness for a specific exam.
+   429→  Future<void> calculateReadiness({
+   430→    required String examBodyId,
+   431→    String? subjectId,
+   432→  }) async {
+   433→    if (_userId == null) return;
+   434→
+   435→    state = state.copyWith(isLoading: true, clearError: true);
+   436→
+   437→    final result = await _calculateReadiness(
+   438→      CalculateReadinessParams(
+   439→        userId: _userId,
+   440→        examBodyId: examBodyId,
+   441→        subjectId: subjectId,
+   442→      ),
+   443→    );
+   444→
+   445→    result.fold(
+   446→      onSuccess: (assessment) {
+   447→        state = state.copyWith(
+   448→          isLoading: false,
+   449→          currentAssessment: assessment,
+   450→          assessments: [assessment, ...state.assessments],
+   451→        );
+   452→      },
+   453→      onFailure: (failure) {
+   454→        state = state.copyWith(
+   455→          isLoading: false,
+   456→          error: _mapFailure(failure),
+   457→        );
+   458→      },
+   459→    );
+   460→  }
+   461→
+   462→  /// Get exam-level readiness summary.
+   463→  Future<void> loadExamReadiness({required String examBodyId}) async {
+   464→    if (_userId == null) return;
+   465→
+   466→    state = state.copyWith(isLoading: true, clearError: true);
+   467→
+   468→    final result = await _getExamReadiness(
+   469→      GetExamReadinessParams(userId: _userId, examBodyId: examBodyId),
+   470→    );
+   471→
+   472→    result.fold(
+   473→      onSuccess: (assessments) {
+   474→        state = state.copyWith(
+   475→          isLoading: false,
+   476→          assessments: assessments,
+   477→        );
+   478→      },
+   479→      onFailure: (failure) {
+   480→        state = state.copyWith(
+   481→          isLoading: false,
+   482→          error: _mapFailure(failure),
+   483→        );
+   484→      },
+   485→    );
+   486→  }
+   487→
+   488→  /// Clear the current error.
+   489→  void clearError() {
+   490→    state = state.copyWith(clearError: true);
+   491→  }
+   492→
+   493→  String _mapFailure(Failure failure) {
+   494→    return failure.when(
+   495→      server: (message, _, __) => message,
+   496→      cache: (message) => message,
+   497→      auth: (message, _) => message,
+   498→      network: (message) => message,
+   499→      validation: (message, _) => message,
+   500→      notFound: (message) => message,
+   501→      unauthorized: (message) => message,
+   502→      forbidden: (message) => message,
+   503→    );
+   504→  }
+   505→}
+   506→
+   507→/// Provider for the Readiness notifier.
+   508→final readinessProvider =
+   509→    StateNotifierProvider<ReadinessNotifier, ReadinessState>((ref) {
+   510→  return ReadinessNotifier(
+   511→    getReadinessAssessment:
+   512→        ref.watch(_getReadinessAssessmentUseCaseProvider),
+   513→    calculateReadiness: ref.watch(_calculateReadinessUseCaseProvider),
+   514→    getExamReadiness: ref.watch(_getExamReadinessUseCaseProvider),
+   515→    repository: ref.watch(examEcosystemRepositoryProvider),
+   516→    userId: ref.watch(currentUserIdProvider),
+   517→  );
+   518→});
+   519→
+   520→// ═══════════════════════════════════════════════════════════════════════
+   521→// STUDY PLAN STATE & NOTIFIER
+   522→// ═══════════════════════════════════════════════════════════════════════
+   523→
+   524→/// Immutable state for the Study Plan feature.
+   525→class StudyPlanState {
+   526→  const StudyPlanState({
+   527→    this.plans = const [],
+   528→    this.currentPlan,
+   529→    this.activities = const [],
+   530→    this.isLoading = false,
+   531→    this.isGenerating = false,
+   532→    this.error,
+   533→  });
+   534→
+   535→  final List<StudyPlan> plans;
+   536→  final StudyPlan? currentPlan;
+   537→  final List<StudyPlanActivity> activities;
+   538→  final bool isLoading;
+   539→  final bool isGenerating;
+   540→  final String? error;
+   541→
+   542→  /// Active plans.
+   543→  List<StudyPlan> get activePlans =>
+   544→      plans.where((p) => p.isActive).toList();
+   545→
+   546→  /// Current streak from active plan.
+   547→  int get currentStreak => currentPlan?.currentStreakDays ?? 0;
+   548→
+   549→  /// Longest streak across all plans.
+   550→  int get longestStreak =>
+   551→      plans.fold(0, (max, p) => p.longestStreakDays > max ? p.longestStreakDays : max);
+   552→
+   553→  /// Today's activities.
+   554→  List<StudyPlanActivity> get todayActivities => activities
+   555→      .where((a) => a.isScheduledToday && !a.isCompleted)
+   556→      .toList();
+   557→
+   558→  /// Overdue activities.
+   559→  List<StudyPlanActivity> get overdueActivities =>
+   560→      activities.where((a) => a.isOverdue).toList();
+   561→
+   562→  /// Completed activities.
+   563→  List<StudyPlanActivity> get completedActivities =>
+   564→      activities.where((a) => a.isCompleted).toList();
+   565→
+   566→  StudyPlanState copyWith({
+   567→    List<StudyPlan>? plans,
+   568→    StudyPlan? currentPlan,
+   569→    List<StudyPlanActivity>? activities,
+   570→    bool? isLoading,
+   571→    bool? isGenerating,
+   572→    String? error,
+   573→    bool clearCurrentPlan = false,
+   574→    bool clearError = false,
+   575→  }) {
+   576→    return StudyPlanState(
+   577→      plans: plans ?? this.plans,
+   578→      currentPlan: clearCurrentPlan
+   579→          ? null
+   580→          : (currentPlan ?? this.currentPlan),
+   581→      activities: activities ?? this.activities,
+   582→      isLoading: isLoading ?? this.isLoading,
+   583→      isGenerating: isGenerating ?? this.isGenerating,
+   584→      error: clearError ? null : (error ?? this.error),
+   585→    );
+   586→  }
+   587→}
+   588→
+   589→/// Notifier for the Study Plan feature.
+   590→class StudyPlanNotifier extends StateNotifier<StudyPlanState> {
+   591→  StudyPlanNotifier({
+   592→    required GetStudyPlansUseCase getStudyPlans,
+   593→    required CreateStudyPlanUseCase createStudyPlan,
+   594→    required GenerateAiStudyPlanUseCase generateAiStudyPlan,
+   595→    required GetStudyPlanActivitiesUseCase getStudyPlanActivities,
+   596→    required CompleteStudyPlanActivityUseCase completeStudyPlanActivity,
+   597→    required ExamEcosystemRepository repository,
+   598→    required String? userId,
+   599→  })  : _getStudyPlans = getStudyPlans,
+   600→        _createStudyPlan = createStudyPlan,
+   601→        _generateAiStudyPlan = generateAiStudyPlan,
+   602→        _getStudyPlanActivities = getStudyPlanActivities,
+   603→        _completeStudyPlanActivity = completeStudyPlanActivity,
+   604→        _repository = repository,
+   605→        _userId = userId,
+   606→        super(const StudyPlanState());
+   607→
+   608→  final GetStudyPlansUseCase _getStudyPlans;
+   609→  final CreateStudyPlanUseCase _createStudyPlan;
+   610→  final GenerateAiStudyPlanUseCase _generateAiStudyPlan;
+   611→  final GetStudyPlanActivitiesUseCase _getStudyPlanActivities;
+   612→  final CompleteStudyPlanActivityUseCase _completeStudyPlanActivity;
+   613→  final ExamEcosystemRepository _repository;
+   614→  final String? _userId;
+   615→
+   616→  /// Load all study plans for the current user.
+   617→  Future<void> loadPlans() async {
+   618→    if (_userId == null) return;
+   619→
+   620→    state = state.copyWith(isLoading: true, clearError: true);
+   621→
+   622→    final result = await _getStudyPlans(
+   623→      GetStudyPlansParams(userId: _userId),
+   624→    );
+   625→
+   626→    result.fold(
+   627→      onSuccess: (plans) {
+   628→        state = state.copyWith(
+   629→          isLoading: false,
+   630→          plans: plans,
+   631→          currentPlan: plans.isNotEmpty ? plans.first : null,
+   632→        );
+   633→        if (plans.isNotEmpty) {
+   634→          loadActivities(plans.first.id);
+   635→        }
+   636→      },
+   637→      onFailure: (failure) {
+   638→        state = state.copyWith(
+   639→          isLoading: false,
+   640→          error: _mapFailure(failure),
+   641→        );
+   642→      },
+   643→    );
+   644→  }
+   645→
+   646→  /// Load activities for a specific plan.
+   647→  Future<void> loadActivities(String planId) async {
+   648→    state = state.copyWith(isLoading: true);
+   649→
+   650→    final result = await _getStudyPlanActivities(
+   651→      GetStudyPlanActivitiesParams(studyPlanId: planId),
+   652→    );
+   653→
+   654→    result.fold(
+   655→      onSuccess: (activities) {
+   656→        state = state.copyWith(
+   657→          isLoading: false,
+   658→          activities: activities,
+   659→        );
+   660→      },
+   661→      onFailure: (failure) {
+   662→        state = state.copyWith(
+   663→          isLoading: false,
+   664→          error: _mapFailure(failure),
+   665→        );
+   666→      },
+   667→    );
+   668→  }
+   669→
+   670→  /// Select a plan as the current plan.
+   671→  Future<void> selectPlan(StudyPlan plan) async {
+   672→    state = state.copyWith(currentPlan: plan);
+   673→    await loadActivities(plan.id);
+   674→  }
+   675→
+   676→  /// Create a new study plan.
+   677→  Future<void> createPlan(StudyPlan plan) async {
+   678→    state = state.copyWith(isLoading: true, clearError: true);
+   679→
+   680→    final result = await _createStudyPlan(
+   681→      CreateStudyPlanParams(studyPlan: plan),
+   682→    );
+   683→
+   684→    result.fold(
+   685→      onSuccess: (created) {
+   686→        state = state.copyWith(
+   687→          isLoading: false,
+   688→          plans: [created, ...state.plans],
+   689→          currentPlan: created,
+   690→        );
+   691→        loadActivities(created.id);
+   692→      },
+   693→      onFailure: (failure) {
+   694→        state = state.copyWith(
+   695→          isLoading: false,
+   696→          error: _mapFailure(failure),
+   697→        );
+   698→      },
+   699→    );
+   700→  }
+   701→
+   702→  /// Generate an AI study plan.
+   703→  Future<void> generateAiPlan({
+   704→    required String examBodyId,
+   705→    String? subjectId,
+   706→    String? educationalLevelId,
+   707→    DateTime? targetDate,
+   708→    int dailyStudyMinutes = 60,
+   709→  }) async {
+   710→    if (_userId == null) return;
+   711→
+   712→    state = state.copyWith(isGenerating: true, clearError: true);
+   713→
+   714→    final result = await _generateAiStudyPlan(
+   715→      GenerateAiStudyPlanParams(
+   716→        userId: _userId,
+   717→        examBodyId: examBodyId,
+   718→        subjectId: subjectId,
+   719→        educationalLevelId: educationalLevelId,
+   720→        targetDate: targetDate,
+   721→        dailyStudyMinutes: dailyStudyMinutes,
+   722→      ),
+   723→    );
+   724→
+   725→    result.fold(
+   726→      onSuccess: (generated) {
+   727→        state = state.copyWith(
+   728→          isGenerating: false,
+   729→          plans: [generated, ...state.plans],
+   730→          currentPlan: generated,
+   731→        );
+   732→        loadActivities(generated.id);
+   733→      },
+   734→      onFailure: (failure) {
+   735→        state = state.copyWith(
+   736→          isGenerating: false,
+   737→          error: _mapFailure(failure),
+   738→        );
+   739→      },
+   740→    );
+   741→  }
+   742→
+   743→  /// Complete a study plan activity.
+   744→  Future<void> completeActivity({
+   745→    required String activityId,
+   746→    double? performanceScore,
+   747→    Map<String, dynamic>? metadata,
+   748→  }) async {
+   749→    final result = await _completeStudyPlanActivity(
+   750→      CompleteStudyPlanActivityParams(
+   751→        activityId: activityId,
+   752→        performanceScore: performanceScore,
+   753→        metadata: metadata,
+   754→      ),
+   755→    );
+   756→
+   757→    result.fold(
+   758→      onSuccess: (completed) {
+   759→        state = state.copyWith(
+   760→          activities: state.activities
+   761→              .map((a) => a.id == completed.id ? completed : a)
+   762→              .toList(),
+   763→        );
+   764→      },
+   765→      onFailure: (failure) {
+   766→        AppLogger.warning('Failed to complete activity: $failure');
+   767→      },
+   768→    );
+   769→  }
+   770→
+   771→  /// Delete a study plan.
+   772→  Future<void> deletePlan(String planId) async {
+   773→    final result = await _repository.deleteStudyPlan(planId);
+   774→
+   775→    result.fold(
+   776→      onSuccess: (_) {
+   777→        final updatedPlans =
+   778→            state.plans.where((p) => p.id != planId).toList();
+   779→        state = state.copyWith(
+   780→          plans: updatedPlans,
+   781→          currentPlan: state.currentPlan?.id == planId
+   782→              ? (updatedPlans.isNotEmpty ? updatedPlans.first : null)
+   783→              : state.currentPlan,
+   784→        );
+   785→      },
+   786→      onFailure: (failure) {
+   787→        state = state.copyWith(error: _mapFailure(failure));
+   788→      },
+   789→    );
+   790→  }
+   791→
+   792→  /// Clear the current error.
+   793→  void clearError() {
+   794→    state = state.copyWith(clearError: true);
+   795→  }
+   796→
+   797→  String _mapFailure(Failure failure) {
+   798→    return failure.when(
+   799→      server: (message, _, __) => message,
+   800→      cache: (message) => message,
+   801→      auth: (message, _) => message,
+   802→      network: (message) => message,
+   803→      validation: (message, _) => message,
+   804→      notFound: (message) => message,
+   805→      unauthorized: (message) => message,
+   806→      forbidden: (message) => message,
+   807→    );
+   808→  }
+   809→}
+   810→
+   811→/// Provider for the Study Plan notifier.
+   812→final studyPlanProvider =
+   813→    StateNotifierProvider<StudyPlanNotifier, StudyPlanState>((ref) {
+   814→  return StudyPlanNotifier(
+   815→    getStudyPlans: ref.watch(_getStudyPlansUseCaseProvider),
+   816→    createStudyPlan: ref.watch(_createStudyPlanUseCaseProvider),
+   817→    generateAiStudyPlan: ref.watch(_generateAiStudyPlanUseCaseProvider),
+   818→    getStudyPlanActivities: ref.watch(_getStudyPlanActivitiesUseCaseProvider),
+   819→    completeStudyPlanActivity:
+   820→        ref.watch(_completeStudyPlanActivityUseCaseProvider),
+   821→    repository: ref.watch(examEcosystemRepositoryProvider),
+   822→    userId: ref.watch(currentUserIdProvider),
+   823→  );
+   824→});
+   825→

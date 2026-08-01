@@ -1,0 +1,1549 @@
+     1→-- ============================================================================
+     2→-- ExamForge AI — Billing & Subscription Schema
+     3→-- ============================================================================
+     4→-- Supports three independent billing models:
+     5→--   1. Teacher SaaS  (individual teacher subscribes independently)
+     6→--   2. School SaaS   (school subscribes, manages teachers/students/parents)
+     7→--   3. Enterprise SaaS (organizations, ministries, exam bodies — custom pricing)
+     8→--
+     9→-- Payment provider: Flutterwave (Standard Checkout, Webhooks, Recurring)
+    10→-- AI Credit System, Coupons, Referrals, Invoices, Licenses, Revenue Analytics
+    11→-- ============================================================================
+    12→
+    13→BEGIN;
+    14→
+    15→-- ════════════════════════════════════════════════════════════════════════════
+    16→-- CUSTOM ENUM TYPES
+    17→-- ════════════════════════════════════════════════════════════════════════════
+    18→
+    19→DO $$ BEGIN
+    20→  -- Billing model: who is the subscriber?
+    21→  CREATE TYPE billing_model AS ENUM ('teacher_saas', 'school_saas', 'enterprise_saas');
+    22→
+    23→  -- Subscription plan tier
+    24→  CREATE TYPE plan_tier AS ENUM ('free', 'starter', 'professional', 'enterprise');
+    25→
+    26→  -- Subscription status lifecycle
+    27→  CREATE TYPE subscription_status AS ENUM (
+    28→    'trial', 'active', 'past_due', 'paused',
+    29→    'cancelled', 'expired', 'pending_activation'
+    30→  );
+    31→
+    32→  -- Transaction/payment status
+    33→  CREATE TYPE transaction_status AS ENUM (
+    34→    'pending', 'processing', 'successful', 'failed',
+    35→    'refunded', 'partially_refunded', 'disputed', 'voided'
+    36→  );
+    37→
+    38→  -- Payment channel
+    39→  CREATE TYPE payment_channel AS ENUM (
+    40→    'card', 'bank_transfer', 'ussd', 'mobile_money',
+    41→    'qr_code', 'credit', 'coupon', 'refund'
+    42→  );
+    43→
+    44→  -- Coupon discount type
+    45→  CREATE TYPE coupon_discount_type AS ENUM (
+    46→    'percentage', 'fixed_amount', 'free_trial', 'fixed_per_seat'
+    47→  );
+    48→
+    49→  -- Referral reward type
+    50→  CREATE TYPE referral_reward_type AS ENUM (
+    51→    'credit_days', 'percentage_discount', 'fixed_credit', 'ai_credits'
+    52→  );
+    53→
+    54→  -- AI credit transaction type
+    55→  CREATE TYPE credit_transaction_type AS ENUM (
+    56→    'monthly_allocation', 'purchase', 'usage', 'expiration',
+    57→    'bonus', 'referral_reward', 'admin_adjustment', 'refund'
+    58→  );
+    59→
+    60→  -- License type
+    61→  CREATE TYPE license_type AS ENUM (
+    62→    'school', 'teacher', 'branch', 'seat', 'custom'
+    63→  );
+    64→
+    65→  -- Invoice status
+    66→  CREATE TYPE invoice_status AS ENUM (
+    67→    'draft', 'issued', 'paid', 'partially_paid',
+    68→    'overdue', 'cancelled', 'void', 'credit_note'
+    69→  );
+    70→
+    71→  -- Webhook event processing status
+    72→  CREATE TYPE webhook_status AS ENUM (
+    73→    'received', 'processing', 'processed', 'failed', 'retrying'
+    74→  );
+    75→
+    76→  -- Billing notification type
+    77→  CREATE TYPE billing_notification_type AS ENUM (
+    78→    'payment_success', 'payment_failed', 'trial_ending',
+    79→    'subscription_renewal', 'plan_expiring', 'low_ai_credits',
+    80→    'invoice_generated', 'refund_status', 'card_expiring',
+    81→    'subscription_cancelled', 'upgrade_available'
+    82→  );
+    83→
+    84→EXCEPTION WHEN duplicate_object THEN NULL;
+    85→END $$;
+    86→
+    87→-- ════════════════════════════════════════════════════════════════════════════
+    88→-- SUBSCRIPTION PLANS
+    89→-- ════════════════════════════════════════════════════════════════════════════
+    90→
+    91→CREATE TABLE IF NOT EXISTS subscription_plans (
+    92→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    93→  name              TEXT NOT NULL,
+    94→  tier              plan_tier NOT NULL DEFAULT 'free',
+    95→  billing_model     billing_model NOT NULL DEFAULT 'school_saas',
+    96→  description       TEXT,
+    97→
+    98→  -- Pricing
+    99→  monthly_price     NUMERIC(12,2) NOT NULL DEFAULT 0,
+   100→  annual_price      NUMERIC(12,2) NOT NULL DEFAULT 0,
+   101→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   102→  setup_fee         NUMERIC(12,2) NOT NULL DEFAULT 0,
+   103→
+   104→  -- Feature limits
+   105→  max_students      INT NOT NULL DEFAULT 0,        -- 0 = unlimited
+   106→  max_teachers     INT NOT NULL DEFAULT 0,
+   107→  max_schools       INT NOT NULL DEFAULT 1,
+   108→  max_storage_mb    INT NOT NULL DEFAULT 100,       -- MB
+   109→  max_exams_per_month INT NOT NULL DEFAULT 0,
+   110→  ai_credits_monthly INT NOT NULL DEFAULT 0,
+   111→
+   112→  -- Feature flags
+   113→  includes_ai_workspace       BOOLEAN NOT NULL DEFAULT false,
+   114→  includes_parent_portal      BOOLEAN NOT NULL DEFAULT false,
+   115→  includes_communication      BOOLEAN NOT NULL DEFAULT false,
+   116→  includes_advanced_analytics BOOLEAN NOT NULL DEFAULT false,
+   117→  includes_api_access         BOOLEAN NOT NULL DEFAULT false,
+   118→  includes_white_label        BOOLEAN NOT NULL DEFAULT false,
+   119→  includes_priority_support   BOOLEAN NOT NULL DEFAULT false,
+   120→  includes_dedicated_manager BOOLEAN NOT NULL DEFAULT false,
+   121→
+   122→  -- Trial
+   123→  trial_days        INT NOT NULL DEFAULT 0,
+   124→
+   125→  -- Visibility & ordering
+   126→  is_active         BOOLEAN NOT NULL DEFAULT true,
+   127→  is_popular        BOOLEAN NOT NULL DEFAULT false,
+   128→  sort_order        INT NOT NULL DEFAULT 0,
+   129→
+   130→  -- Metadata
+   131→  features_list     JSONB DEFAULT '[]',     -- Array of feature strings for display
+   132→  metadata          JSONB DEFAULT '{}',
+   133→
+   134→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   135→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   136→);
+   137→
+   138→COMMENT ON TABLE subscription_plans IS 'Configurable subscription plan definitions. Super Admin can create/modify plans.';
+   139→COMMENT ON COLUMN subscription_plans.tier IS 'Plan tier: free, starter, professional, enterprise';
+   140→COMMENT ON COLUMN subscription_plans.billing_model IS 'Which billing model this plan belongs to: teacher, school, or enterprise';
+   141→COMMENT ON COLUMN subscription_plans.max_students IS 'Maximum students allowed. 0 = unlimited';
+   142→COMMENT ON COLUMN subscription_plans.ai_credits_monthly IS 'AI credits allocated per billing cycle';
+   143→
+   144→-- ════════════════════════════════════════════════════════════════════════════
+   145→-- ACTIVE SUBSCRIPTIONS
+   146→-- ════════════════════════════════════════════════════════════════════════════
+   147→
+   148→CREATE TABLE IF NOT EXISTS subscriptions (
+   149→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   150→
+   151→  -- Who is subscribing?
+   152→  subscriber_id     UUID NOT NULL,               -- FK to users or schools
+   153→  subscriber_type   billing_model NOT NULL,       -- determines which table subscriber_id references
+   154→  school_id         UUID,                         -- For school/enterprise, this is the school org
+   155→
+   156→  -- Plan
+   157→  plan_id           UUID NOT NULL REFERENCES subscription_plans(id) ON DELETE RESTRICT,
+   158→  status            subscription_status NOT NULL DEFAULT 'trial',
+   159→
+   160→  -- Billing cycle
+   161→  billing_cycle     TEXT NOT NULL DEFAULT 'monthly',  -- monthly / annual
+   162→  current_period_start TIMESTAMPTZ NOT NULL DEFAULT now(),
+   163→  current_period_end   TIMESTAMPTZ NOT NULL,
+   164→
+   165→  -- Trial
+   166→  trial_start       TIMESTAMPTZ,
+   167→  trial_end         TIMESTAMPTZ,
+   168→
+   169→  -- Flutterwave recurring
+   170→  flutterwave_subscription_id TEXT,
+   171→  flutterwave_plan_code       TEXT,
+   172→
+   173→  -- Coupon applied
+   174→  coupon_id         UUID,
+   175→  coupon_discount_applied NUMERIC(12,2) DEFAULT 0,
+   176→
+   177→  -- Pricing snapshot (frozen at subscription time)
+   178→  price_at_subscription NUMERIC(12,2) NOT NULL DEFAULT 0,
+   179→  currency               TEXT NOT NULL DEFAULT 'NGN',
+   180→
+   181→  -- Seat counts (for seat-based licensing)
+   182→  seats_purchased   INT NOT NULL DEFAULT 1,
+   183→  seats_used        INT NOT NULL DEFAULT 0,
+   184→
+   185→  -- Auto-renew
+   186→  auto_renew        BOOLEAN NOT NULL DEFAULT true,
+   187→  cancelled_at      TIMESTAMPTZ,
+   188→  cancellation_reason TEXT,
+   189→
+   190→  -- Metadata
+   191→  metadata          JSONB DEFAULT '{}',
+   192→
+   193→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   194→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   195→);
+   196→
+   197→COMMENT ON TABLE subscriptions IS 'Active subscriptions for teachers, schools, and enterprises. Tracks billing cycle, status, and Flutterwave integration.';
+   198→COMMENT ON COLUMN subscriptions.subscriber_id IS 'References users.id (for teacher_saas) or schools.id (for school/enterprise)';
+   199→COMMENT ON COLUMN subscriptions.subscriber_type IS 'Determines which billing model: teacher, school, or enterprise';
+   200→
+   201→-- ════════════════════════════════════════════════════════════════════════════
+   202→-- TRANSACTIONS
+   203→-- ════════════════════════════════════════════════════════════════════════════
+   204→
+   205→CREATE TABLE IF NOT EXISTS transactions (
+   206→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   207→
+   208→  subscription_id   UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+   209→  user_id           UUID NOT NULL,                  -- who initiated the payment
+   210→  school_id         UUID,
+   211→
+   212→  -- Flutterwave reference
+   213→  flutterwave_tx_ref     TEXT UNIQUE,               -- Our internal reference
+   214→  flutterwave_transaction_id TEXT,                  -- Flutterwave's ID
+   215→  flutterwave_flw_ref    TEXT,                       -- Flutterwave's FLW reference
+   216→
+   217→  -- Transaction details
+   218→  amount            NUMERIC(12,2) NOT NULL,
+   219→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   220→  channel           payment_channel NOT NULL DEFAULT 'card',
+   221→  status            transaction_status NOT NULL DEFAULT 'pending',
+   222→
+   223→  -- Fee tracking
+   224→  flutterwave_fee   NUMERIC(12,2) DEFAULT 0,
+   225→  app_fee           NUMERIC(12,2) DEFAULT 0,
+   226→  net_amount        NUMERIC(12,2) DEFAULT 0,
+   227→
+   228→  -- Payment details (NOT card info — never store card numbers!)
+   229→  payment_method_summary TEXT,                      -- e.g. "Visa ending 4242"
+   230→  processor_response     JSONB DEFAULT '{}',
+   231→
+   232→  -- Refund tracking
+   233→  refund_amount     NUMERIC(12,2) DEFAULT 0,
+   234→  refund_reason     TEXT,
+   235→  refunded_at       TIMESTAMPTZ,
+   236→
+   237→  -- Fraud detection
+   238→  risk_score        INT DEFAULT 0,                  -- 0-100
+   239→  fraud_flagged     BOOLEAN NOT NULL DEFAULT false,
+   240→  fraud_notes       TEXT,
+   241→
+   242→  -- Metadata
+   243→  description       TEXT,
+   244→  metadata          JSONB DEFAULT '{}',
+   245→
+   246→  -- Timestamps
+   247→  initiated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   248→  completed_at      TIMESTAMPTZ,
+   249→  verified_at       TIMESTAMPTZ,
+   250→
+   251→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   252→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   253→);
+   254→
+   255→COMMENT ON TABLE transactions IS 'Payment transactions processed through Flutterwave. Never stores sensitive card information.';
+   256→COMMENT ON COLUMN transactions.flutterwave_tx_ref IS 'Our internal transaction reference sent to Flutterwave';
+   257→COMMENT ON COLUMN transactions.risk_score IS 'Fraud risk score 0-100, higher = more risky';
+   258→
+   259→-- ════════════════════════════════════════════════════════════════════════════
+   260→-- INVOICES
+   261→-- ════════════════════════════════════════════════════════════════════════════
+   262→
+   263→CREATE TABLE IF NOT EXISTS invoices (
+   264→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   265→
+   266→  subscription_id   UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+   267→  transaction_id    UUID REFERENCES transactions(id) ON DELETE SET NULL,
+   268→  school_id         UUID,
+   269→  user_id           UUID NOT NULL,
+   270→
+   271→  -- Invoice number (auto-generated)
+   272→  invoice_number    TEXT NOT NULL UNIQUE,
+   273→  invoice_type      invoice_status NOT NULL DEFAULT 'draft',
+   274→
+   275→  -- Billing details
+   276→  bill_to_name      TEXT NOT NULL,
+   277→  bill_to_email     TEXT,
+   278→  bill_to_address   TEXT,
+   279→  bill_to_tax_id    TEXT,                           -- Tax identification number
+   280→
+   281→  -- Line items (array of objects)
+   282→  line_items        JSONB NOT NULL DEFAULT '[]',
+   283→  -- Format: [{description, quantity, unit_price, total, tax_rate, tax_amount}]
+   284→
+   285→  -- Totals
+   286→  subtotal          NUMERIC(12,2) NOT NULL DEFAULT 0,
+   287→  tax_amount        NUMERIC(12,2) NOT NULL DEFAULT 0,
+   288→  discount_amount   NUMERIC(12,2) NOT NULL DEFAULT 0,
+   289→  total_amount      NUMERIC(12,2) NOT NULL DEFAULT 0,
+   290→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   291→
+   292→  -- Linked credit note
+   293→  credit_note_for   UUID REFERENCES invoices(id) ON DELETE SET NULL,
+   294→
+   295→  -- Dates
+   296→  issue_date        DATE NOT NULL DEFAULT CURRENT_DATE,
+   297→  due_date          DATE NOT NULL,
+   298→  paid_at           TIMESTAMPTZ,
+   299→
+   300→  -- PDF storage
+   301→  pdf_url           TEXT,
+   302→
+   303→  -- Email delivery
+   304→  email_sent        BOOLEAN NOT NULL DEFAULT false,
+   305→  email_sent_at     TIMESTAMPTZ,
+   306→
+   307→  metadata          JSONB DEFAULT '{}',
+   308→
+   309→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   310→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   311→);
+   312→
+   313→COMMENT ON TABLE invoices IS 'Tax-ready invoices with line items. Supports PDF download, email delivery, and credit notes.';
+   314→
+   315→-- ════════════════════════════════════════════════════════════════════════════
+   316→-- RECEIPTS
+   317→-- ════════════════════════════════════════════════════════════════════════════
+   318→
+   319→CREATE TABLE IF NOT EXISTS receipts (
+   320→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   321→
+   322→  transaction_id    UUID NOT NULL REFERENCES transactions(id) ON DELETE CASCADE,
+   323→  invoice_id        UUID REFERENCES invoices(id) ON DELETE SET NULL,
+   324→  user_id           UUID NOT NULL,
+   325→  school_id         UUID,
+   326→
+   327→  receipt_number    TEXT NOT NULL UNIQUE,
+   328→
+   329→  -- Receipt details
+   330→  amount_paid       NUMERIC(12,2) NOT NULL,
+   331→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   332→  payment_method    TEXT NOT NULL,
+   333→  payment_date      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   334→
+   335→  -- PDF storage
+   336→  pdf_url           TEXT,
+   337→
+   338→  -- Email delivery
+   339→  email_sent        BOOLEAN NOT NULL DEFAULT false,
+   340→  email_sent_at     TIMESTAMPTZ,
+   341→
+   342→  metadata          JSONB DEFAULT '{}',
+   343→
+   344→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   345→);
+   346→
+   347→COMMENT ON TABLE receipts IS 'Payment receipts linked to transactions. Auto-generated on successful payment.';
+   348→
+   349→-- ════════════════════════════════════════════════════════════════════════════
+   350→-- AI CREDITS
+   351→-- ════════════════════════════════════════════════════════════════════════════
+   352→
+   353→CREATE TABLE IF NOT EXISTS ai_credit_balances (
+   354→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   355→
+   356→  -- Owner can be a user (teacher) or school
+   357→  owner_id          UUID NOT NULL,
+   358→  owner_type        billing_model NOT NULL DEFAULT 'teacher_saas',
+   359→  school_id         UUID,
+   360→
+   361→  -- Balance
+   362→  total_credits     INT NOT NULL DEFAULT 0,
+   363→  used_credits      INT NOT NULL DEFAULT 0,
+   364→  remaining_credits INT NOT NULL DEFAULT 0,
+   365→
+   366→  -- Current cycle
+   367→  current_cycle_start TIMESTAMPTZ NOT NULL DEFAULT now(),
+   368→  current_cycle_end   TIMESTAMPTZ NOT NULL,
+   369→
+   370→  -- Expiration policy
+   371→  credits_expire    BOOLEAN NOT NULL DEFAULT true,
+   372→  expiration_date   TIMESTAMPTZ,
+   373→
+   374→  metadata          JSONB DEFAULT '{}',
+   375→
+   376→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   377→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   378→
+   379→  CONSTRAINT uq_credit_balance_owner UNIQUE (owner_id, owner_type)
+   380→);
+   381→
+   382→COMMENT ON TABLE ai_credit_balances IS 'AI credit balances per teacher or school. Monthly allocations + purchased credits.';
+   383→
+   384→-- ════════════════════════════════════════════════════════════════════════════
+   385→-- AI CREDIT TRANSACTIONS (USAGE TRACKING)
+   386→-- ════════════════════════════════════════════════════════════════════════════
+   387→
+   388→CREATE TABLE IF NOT EXISTS ai_credit_transactions (
+   389→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   390→
+   391→  balance_id        UUID NOT NULL REFERENCES ai_credit_balances(id) ON DELETE CASCADE,
+   392→  owner_id          UUID NOT NULL,
+   393→  owner_type        billing_model NOT NULL DEFAULT 'teacher_saas',
+   394→  school_id         UUID,
+   395→
+   396→  -- Transaction details
+   397→  transaction_type  credit_transaction_type NOT NULL,
+   398→  credits           INT NOT NULL,                  -- positive = credit, negative = debit
+   399→  balance_before    INT NOT NULL DEFAULT 0,
+   400→  balance_after     INT NOT NULL DEFAULT 0,
+   401→
+   402→  -- What consumed/added credits
+   403→  feature_name      TEXT,                          -- e.g. 'question_generation', 'smart_marking'
+   404→  reference_id      UUID,                          -- Link to the feature usage record
+   405→
+   406→  -- Cost monitoring
+   407→  estimated_cost_usd NUMERIC(8,4) DEFAULT 0,      -- Internal cost tracking
+   408→
+   409→  description       TEXT,
+   410→  metadata          JSONB DEFAULT '{}',
+   411→
+   412→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   413→);
+   414→
+   415→COMMENT ON TABLE ai_credit_transactions IS 'Audit trail for all AI credit changes: monthly allocation, usage, purchase, expiration, bonus.';
+   416→COMMENT ON COLUMN ai_credit_transactions.credits IS 'Positive for credit additions, negative for usage deductions';
+   417→
+   418→-- ════════════════════════════════════════════════════════════════════════════
+   419→-- COUPONS
+   420→-- ════════════════════════════════════════════════════════════════════════════
+   421→
+   422→CREATE TABLE IF NOT EXISTS coupons (
+   423→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   424→
+   425→  code              TEXT NOT NULL UNIQUE,           -- e.g. BACK2SCHOOL2024
+   426→  name              TEXT NOT NULL,
+   427→  description       TEXT,
+   428→
+   429→  -- Discount
+   430→  discount_type     coupon_discount_type NOT NULL,
+   431→  discount_value    NUMERIC(12,2) NOT NULL,         -- Percentage or fixed amount
+   432→  discount_percent  NUMERIC(5,2),                   -- For percentage type
+   433→  max_discount_amount NUMERIC(12,2),                -- Cap for percentage discounts
+   434→
+   435→  -- Applicability
+   436→  applicable_tiers  JSONB DEFAULT '[]',             -- Array of plan_tier values, empty = all
+   437→  applicable_billing_models JSONB DEFAULT '[]',     -- Array of billing_model values
+   438→  applicable_plans  UUID[] DEFAULT '{}',            -- Specific plan IDs
+   439→
+   440→  -- Usage limits
+   441→  max_redemptions   INT NOT NULL DEFAULT 0,         -- 0 = unlimited
+   442→  current_redemptions INT NOT NULL DEFAULT 0,
+   443→  max_redemptions_per_user INT NOT NULL DEFAULT 1,
+   444→
+   445→  -- Duration
+   446→  duration_months   INT DEFAULT 1,                  -- How many billing cycles the discount applies
+   447→
+   448→  -- Validity
+   449→  valid_from        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   450→  valid_until       TIMESTAMPTZ,
+   451→
+   452→  -- Free trial specific
+   453→  trial_days        INT,                            -- For free_trial discount type
+   454→
+   455→  is_active         BOOLEAN NOT NULL DEFAULT true,
+   456→
+   457→  created_by        UUID,
+   458→  metadata          JSONB DEFAULT '{}',
+   459→
+   460→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   461→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   462→);
+   463→
+   464→COMMENT ON TABLE coupons IS 'Discount codes, free trial codes, seasonal promotions. Configurable by Super Admin.';
+   465→
+   466→-- ════════════════════════════════════════════════════════════════════════════
+   467→-- COUPON REDEMPTIONS
+   468→-- ════════════════════════════════════════════════════════════════════════════
+   469→
+   470→CREATE TABLE IF NOT EXISTS coupon_redemptions (
+   471→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   472→
+   473→  coupon_id         UUID NOT NULL REFERENCES coupons(id) ON DELETE CASCADE,
+   474→  user_id           UUID NOT NULL,
+   475→  school_id         UUID,
+   476→  subscription_id   UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+   477→  transaction_id    UUID REFERENCES transactions(id) ON DELETE SET NULL,
+   478→
+   479→  discount_applied  NUMERIC(12,2) NOT NULL DEFAULT 0,
+   480→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   481→
+   482→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   483→
+   484→  CONSTRAINT uq_coupon_redemption_per_user UNIQUE (coupon_id, user_id)
+   485→);
+   486→
+   487→COMMENT ON TABLE coupons IS 'Tracks each coupon redemption to enforce per-user limits and audit usage.';
+   488→
+   489→-- ════════════════════════════════════════════════════════════════════════════
+   490→-- REFERRAL CODES
+   491→-- ════════════════════════════════════════════════════════════════════════════
+   492→
+   493→CREATE TABLE IF NOT EXISTS referral_codes (
+   494→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   495→
+   496→  referrer_id       UUID NOT NULL,                  -- The user who owns this referral code
+   497→  referrer_type     billing_model NOT NULL DEFAULT 'teacher_saas',
+   498→  school_id         UUID,
+   499→
+   500→  code              TEXT NOT NULL UNIQUE,            -- Unique referral code
+   501→  is_active         BOOLEAN NOT NULL DEFAULT true,
+   502→
+   503→  -- Reward configuration
+   504→  reward_type       referral_reward_type NOT NULL DEFAULT 'credit_days',
+   505→  reward_value      NUMERIC(12,2) NOT NULL DEFAULT 0,
+   506→  reward_description TEXT,
+   507→
+   508→  -- Referee reward (what the referred person gets)
+   509→  referee_reward_type referral_reward_type DEFAULT 'ai_credits',
+   510→  referee_reward_value NUMERIC(12,2) DEFAULT 0,
+   511→
+   512→  -- Tracking
+   513→  total_referrals   INT NOT NULL DEFAULT 0,
+   514→  successful_referrals INT NOT NULL DEFAULT 0,
+   515→  total_rewards_earned NUMERIC(12,2) NOT NULL DEFAULT 0,
+   516→
+   517→  metadata          JSONB DEFAULT '{}',
+   518→
+   519→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   520→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   521→);
+   522→
+   523→COMMENT ON TABLE referral_codes IS 'Referral codes for teachers, schools, and enterprises. Tracks referrals and rewards.';
+   524→
+   525→-- ════════════════════════════════════════════════════════════════════════════
+   526→-- REFERRAL TRACKING
+   527→-- ════════════════════════════════════════════════════════════════════════════
+   528→
+   529→CREATE TABLE IF NOT EXISTS referral_tracking (
+   530→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   531→
+   532→  referral_code_id  UUID NOT NULL REFERENCES referral_codes(id) ON DELETE CASCADE,
+   533→  referrer_id       UUID NOT NULL,
+   534→  referee_id        UUID NOT NULL,                  -- The person who was referred
+   535→  referee_type      billing_model NOT NULL DEFAULT 'teacher_saas',
+   536→
+   537→  -- Status
+   538→  is_successful     BOOLEAN NOT NULL DEFAULT false, -- True once referee makes a payment
+   539→  reward_claimed    BOOLEAN NOT NULL DEFAULT false,
+   540→
+   541→  -- Rewards
+   542→  referrer_reward_applied BOOLEAN NOT NULL DEFAULT false,
+   543→  referee_reward_applied  BOOLEAN NOT NULL DEFAULT false,
+   544→
+   545→  subscription_id   UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+   546→  transaction_id    UUID REFERENCES transactions(id) ON DELETE SET NULL,
+   547→
+   548→  metadata          JSONB DEFAULT '{}',
+   549→
+   550→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   551→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   552→);
+   553→
+   554→COMMENT ON TABLE referral_tracking IS 'Tracks each referral from click to conversion. Rewards applied only after successful payment.';
+   555→
+   556→-- ════════════════════════════════════════════════════════════════════════════
+   557→-- LICENSES
+   558→-- ════════════════════════════════════════════════════════════════════════════
+   559→
+   560→CREATE TABLE IF NOT EXISTS licenses (
+   561→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   562→
+   563→  subscription_id   UUID NOT NULL REFERENCES subscriptions(id) ON DELETE CASCADE,
+   564→  school_id         UUID,
+   565→  user_id           UUID,                           -- NULL for school/branch licenses
+   566→
+   567→  license_type      license_type NOT NULL DEFAULT 'school',
+   568→  license_key       TEXT NOT NULL UNIQUE,
+   569→
+   570→  -- Seat-based
+   571→  seats_total       INT NOT NULL DEFAULT 1,
+   572→  seats_used        INT NOT NULL DEFAULT 0,
+   573→
+   574→  -- Validity
+   575→  issued_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+   576→  expires_at        TIMESTAMPTZ NOT NULL,
+   577→
+   578→  -- Status
+   579→  is_active         BOOLEAN NOT NULL DEFAULT true,
+   580→  revoked_at        TIMESTAMPTZ,
+   581→  revoke_reason     TEXT,
+   582→
+   583→  -- Renewal
+   584→  auto_renew        BOOLEAN NOT NULL DEFAULT true,
+   585→  renewal_reminder_sent BOOLEAN NOT NULL DEFAULT false,
+   586→
+   587→  metadata          JSONB DEFAULT '{}',
+   588→
+   589→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   590→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   591→);
+   592→
+   593→COMMENT ON TABLE licenses IS 'Software licenses: school, teacher, branch, seat-based. Auto-generated on subscription activation.';
+   594→
+   595→-- ════════════════════════════════════════════════════════════════════════════
+   596→-- WEBHOOK EVENTS
+   597→-- ════════════════════════════════════════════════════════════════════════════
+   598→
+   599→CREATE TABLE IF NOT EXISTS webhook_events (
+   600→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   601→
+   602→  event_type        TEXT NOT NULL,                  -- e.g. 'charge.completed', 'transfer.failed'
+   603→  event_id          TEXT,                           -- Flutterwave's event ID
+   604→
+   605→  -- Payload
+   606→  payload           JSONB NOT NULL DEFAULT '{}',
+   607→
+   608→  -- Processing
+   609→  status            webhook_status NOT NULL DEFAULT 'received',
+   610→  processing_attempts INT NOT NULL DEFAULT 0,
+   611→  max_attempts      INT NOT NULL DEFAULT 5,
+   612→  last_error        TEXT,
+   613→  processed_at      TIMESTAMPTZ,
+   614→
+   615→  -- Security: verify webhook signature
+   616→  signature_valid   BOOLEAN NOT NULL DEFAULT false,
+   617→  raw_body          TEXT,                           -- For signature verification
+   618→
+   619→  -- Idempotency
+   620→  idempotency_key   TEXT UNIQUE,
+   621→
+   622→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   623→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   624→);
+   625→
+   626→COMMENT ON TABLE webhook_events IS 'Flutterwave webhook events. Signature-verified, idempotent, with retry mechanism.';
+   627→
+   628→-- ════════════════════════════════════════════════════════════════════════════
+   629→-- BILLING NOTIFICATIONS
+   630→-- ════════════════════════════════════════════════════════════════════════════
+   631→
+   632→CREATE TABLE IF NOT EXISTS billing_notifications (
+   633→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   634→
+   635→  user_id           UUID NOT NULL,
+   636→  school_id         UUID,
+   637→  subscription_id   UUID REFERENCES subscriptions(id) ON DELETE SET NULL,
+   638→  transaction_id    UUID REFERENCES transactions(id) ON DELETE SET NULL,
+   639→
+   640→  notification_type billing_notification_type NOT NULL,
+   641→  title             TEXT NOT NULL,
+   642→  message           TEXT NOT NULL,
+   643→
+   644→  -- Delivery channels
+   645→  in_app_sent       BOOLEAN NOT NULL DEFAULT false,
+   646→  push_sent         BOOLEAN NOT NULL DEFAULT false,
+   647→  email_sent        BOOLEAN NOT NULL DEFAULT false,
+   648→  sms_sent          BOOLEAN NOT NULL DEFAULT false,
+   649→
+   650→  is_read           BOOLEAN NOT NULL DEFAULT false,
+   651→  read_at           TIMESTAMPTZ,
+   652→
+   653→  -- Scheduling
+   654→  scheduled_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   655→  sent_at           TIMESTAMPTZ,
+   656→
+   657→  metadata          JSONB DEFAULT '{}',
+   658→
+   659→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   660→);
+   661→
+   662→COMMENT ON TABLE billing_notifications IS 'Billing-related notifications: payment confirmations, trial warnings, low credits, invoice generated, etc.';
+   663→
+   664→-- ════════════════════════════════════════════════════════════════════════════
+   665→-- USER NOTIFICATION PREFERENCES (billing-specific)
+   666→-- ════════════════════════════════════════════════════════════════════════════
+   667→
+   668→CREATE TABLE IF NOT EXISTS billing_notification_preferences (
+   669→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   670→  user_id           UUID NOT NULL UNIQUE,
+   671→
+   672→  -- Channel preferences
+   673→  enable_in_app     BOOLEAN NOT NULL DEFAULT true,
+   674→  enable_push       BOOLEAN NOT NULL DEFAULT true,
+   675→  enable_email      BOOLEAN NOT NULL DEFAULT true,
+   676→  enable_sms        BOOLEAN NOT NULL DEFAULT false,
+   677→
+   678→  -- Type preferences
+   679→  notify_payment_success   BOOLEAN NOT NULL DEFAULT true,
+   680→  notify_payment_failed    BOOLEAN NOT NULL DEFAULT true,
+   681→  notify_trial_ending      BOOLEAN NOT NULL DEFAULT true,
+   682→  notify_subscription_renewal BOOLEAN NOT NULL DEFAULT true,
+   683→  notify_plan_expiring     BOOLEAN NOT NULL DEFAULT true,
+   684→  notify_low_ai_credits    BOOLEAN NOT NULL DEFAULT true,
+   685→  notify_invoice_generated BOOLEAN NOT NULL DEFAULT true,
+   686→  notify_refund_status     BOOLEAN NOT NULL DEFAULT true,
+   687→
+   688→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   689→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   690→);
+   691→
+   692→COMMENT ON TABLE billing_notification_preferences IS 'Per-user notification preferences for billing events.';
+   693→
+   694→-- ════════════════════════════════════════════════════════════════════════════
+   695→-- REVENUE REPORTS (materialized for dashboard)
+   696→-- ════════════════════════════════════════════════════════════════════════════
+   697→
+   698→CREATE TABLE IF NOT EXISTS revenue_reports (
+   699→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   700→
+   701→  period_type       TEXT NOT NULL,                  -- daily, weekly, monthly, annual
+   702→  period_start      DATE NOT NULL,
+   703→  period_end        DATE NOT NULL,
+   704→
+   705→  -- Revenue breakdown
+   706→  total_revenue     NUMERIC(14,2) NOT NULL DEFAULT 0,
+   707→  subscription_revenue NUMERIC(14,2) NOT NULL DEFAULT 0,
+   708→  ai_credit_revenue NUMERIC(14,2) NOT NULL DEFAULT 0,
+   709→  setup_fee_revenue NUMERIC(14,2) NOT NULL DEFAULT 0,
+   710→  refund_amount     NUMERIC(14,2) NOT NULL DEFAULT 0,
+   711→  net_revenue       NUMERIC(14,2) NOT NULL DEFAULT 0,
+   712→
+   713→  -- Flutterwave fees
+   714→  processor_fees    NUMERIC(12,2) NOT NULL DEFAULT 0,
+   715→  platform_fees     NUMERIC(12,2) NOT NULL DEFAULT 0,
+   716→
+   717→  -- Metrics
+   718→  active_subscriptions INT NOT NULL DEFAULT 0,
+   719→  new_subscriptions    INT NOT NULL DEFAULT 0,
+   720→  cancelled_subscriptions INT NOT NULL DEFAULT 0,
+   721→  churn_rate        NUMERIC(5,4) NOT NULL DEFAULT 0,     -- 0.0 to 1.0
+   722→  trial_conversions INT NOT NULL DEFAULT 0,
+   723→  trial_conversion_rate NUMERIC(5,4) DEFAULT 0,
+   724→
+   725→  -- Billing model breakdown
+   726→  teacher_saas_revenue NUMERIC(14,2) DEFAULT 0,
+   727→  school_saas_revenue  NUMERIC(14,2) DEFAULT 0,
+   728→  enterprise_saas_revenue NUMERIC(14,2) DEFAULT 0,
+   729→
+   730→  -- AI credits
+   731→  ai_credits_sold  INT NOT NULL DEFAULT 0,
+   732→  ai_credits_used  INT NOT NULL DEFAULT 0,
+   733→
+   734→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   735→  metadata          JSONB DEFAULT '{}',
+   736→
+   737→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   738→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   739→
+   740→  CONSTRAINT uq_revenue_report_period UNIQUE (period_type, period_start, period_end)
+   741→);
+   742→
+   743→COMMENT ON TABLE revenue_reports IS 'Aggregated revenue data for Super Admin dashboard. Updated by scheduled jobs.';
+   744→
+   745→-- ════════════════════════════════════════════════════════════════════════════
+   746→-- SCHOOL BILLING PROFILES
+   747→-- ════════════════════════════════════════════════════════════════════════════
+   748→
+   749→CREATE TABLE IF NOT EXISTS school_billing_profiles (
+   750→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   751→  school_id         UUID NOT NULL UNIQUE,
+   752→
+   753→  -- Billing contacts
+   754→  billing_contact_name  TEXT,
+   755→  billing_contact_email TEXT,
+   756→  billing_contact_phone TEXT,
+   757→  billing_address       TEXT,
+   758→
+   759→  -- Tax
+   760→  tax_id_number     TEXT,
+   761→  tax_exempt        BOOLEAN NOT NULL DEFAULT false,
+   762→
+   763→  -- Payment methods on file (Flutterwave tokens — never raw card data)
+   764→  default_payment_method TEXT,                      -- Flutterwave token reference
+   765→  payment_methods   JSONB DEFAULT '[]',
+   766→
+   767→  -- Renewal settings
+   768→  auto_renew        BOOLEAN NOT NULL DEFAULT true,
+   769→  renewal_reminder_days INT NOT NULL DEFAULT 14,    -- Days before expiry to send reminder
+   770→
+   771→  -- Usage tracking
+   772→  current_student_count  INT NOT NULL DEFAULT 0,
+   773→  current_teacher_count  INT NOT NULL DEFAULT 0,
+   774→  current_storage_used_mb NUMERIC(12,2) NOT NULL DEFAULT 0,
+   775→  current_ai_credits_used INT NOT NULL DEFAULT 0,
+   776→
+   777→  metadata          JSONB DEFAULT '{}',
+   778→
+   779→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   780→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   781→);
+   782→
+   783→COMMENT ON TABLE school_billing_profiles IS 'School-specific billing configuration: contacts, payment methods, usage limits, renewal settings.';
+   784→
+   785→-- ════════════════════════════════════════════════════════════════════════════
+   786→-- BILLING AUDIT LOGS
+   787→-- ════════════════════════════════════════════════════════════════════════════
+   788→
+   789→CREATE TABLE IF NOT EXISTS billing_audit_logs (
+   790→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   791→
+   792→  actor_id          UUID,                           -- Who performed the action
+   793→  action            TEXT NOT NULL,                  -- e.g. 'subscription.created', 'payment.refunded'
+   794→  entity_type       TEXT NOT NULL,                  -- e.g. 'subscription', 'transaction', 'coupon'
+   795→  entity_id         UUID,                           -- The entity affected
+   796→
+   797→  -- Context
+   798→  school_id         UUID,
+   799→  ip_address        INET,
+   800→  user_agent        TEXT,
+   801→
+   802→  -- Change tracking
+   803→  old_values        JSONB,
+   804→  new_values        JSONB,
+   805→
+   806→  description       TEXT,
+   807→  metadata          JSONB DEFAULT '{}',
+   808→
+   809→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   810→);
+   811→
+   812→COMMENT ON TABLE billing_audit_logs IS 'Comprehensive audit trail for all billing actions. Immutable — no updates or deletes.';
+   813→
+   814→-- ════════════════════════════════════════════════════════════════════════════
+   815→-- AI CREDIT PACKS (purchasable credit bundles)
+   816→-- ════════════════════════════════════════════════════════════════════════════
+   817→
+   818→CREATE TABLE IF NOT EXISTS ai_credit_packs (
+   819→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   820→
+   821→  name              TEXT NOT NULL,
+   822→  description       TEXT,
+   823→  credits           INT NOT NULL,                   -- Number of AI credits in the pack
+   824→  price             NUMERIC(12,2) NOT NULL,
+   825→  currency          TEXT NOT NULL DEFAULT 'NGN',
+   826→  price_per_credit  NUMERIC(8,4) GENERATED ALWAYS AS (price / NULLIF(credits, 0)) STORED,
+   827→
+   828→  -- Validity
+   829→  validity_days     INT NOT NULL DEFAULT 365,       -- Credits expire after N days
+   830→  is_active         BOOLEAN NOT NULL DEFAULT true,
+   831→  sort_order        INT NOT NULL DEFAULT 0,
+   832→
+   833→  -- Applicability
+   834→  applicable_billing_models JSONB DEFAULT '[]',     -- Which billing models can purchase
+   835→
+   836→  metadata          JSONB DEFAULT '{}',
+   837→
+   838→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   839→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now()
+   840→);
+   841→
+   842→COMMENT ON TABLE ai_credit_packs IS 'Purchasable AI credit bundles. Configurable by Super Admin.';
+   843→
+   844→-- ════════════════════════════════════════════════════════════════════════════
+   845→-- RATE LIMITING (billing-specific)
+   846→-- ════════════════════════════════════════════════════════════════════════════
+   847→
+   848→CREATE TABLE IF NOT EXISTS billing_rate_limits (
+   849→  id                UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+   850→
+   851→  identifier        TEXT NOT NULL,                  -- user_id or IP address
+   852→  action_type       TEXT NOT NULL,                  -- e.g. 'payment_initiate', 'coupon_redeem'
+   853→  attempt_count     INT NOT NULL DEFAULT 1,
+   854→  window_start      TIMESTAMPTZ NOT NULL DEFAULT now(),
+   855→  max_attempts      INT NOT NULL DEFAULT 10,
+   856→  window_minutes    INT NOT NULL DEFAULT 60,
+   857→
+   858→  created_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   859→  updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+   860→
+   861→  CONSTRAINT uq_rate_limit UNIQUE (identifier, action_type)
+   862→);
+   863→
+   864→COMMENT ON TABLE billing_rate_limits IS 'Rate limiting for billing actions to prevent abuse.';
+   865→
+   866→-- ════════════════════════════════════════════════════════════════════════════
+   867→-- INDEXES
+   868→-- ════════════════════════════════════════════════════════════════════════════
+   869→
+   870→-- Subscriptions
+   871→CREATE INDEX IF NOT EXISTS idx_subscriptions_subscriber ON subscriptions(subscriber_id, subscriber_type);
+   872→CREATE INDEX IF NOT EXISTS idx_subscriptions_school ON subscriptions(school_id) WHERE school_id IS NOT NULL;
+   873→CREATE INDEX IF NOT EXISTS idx_subscriptions_status ON subscriptions(status);
+   874→CREATE INDEX IF NOT EXISTS idx_subscriptions_period_end ON subscriptions(current_period_end) WHERE status IN ('active', 'trial');
+   875→CREATE INDEX IF NOT EXISTS idx_subscriptions_plan ON subscriptions(plan_id);
+   876→
+   877→-- Transactions
+   878→CREATE INDEX IF NOT EXISTS idx_transactions_user ON transactions(user_id);
+   879→CREATE INDEX IF NOT EXISTS idx_transactions_school ON transactions(school_id) WHERE school_id IS NOT NULL;
+   880→CREATE INDEX IF NOT EXISTS idx_transactions_subscription ON transactions(subscription_id) WHERE subscription_id IS NOT NULL;
+   881→CREATE INDEX IF NOT EXISTS idx_transactions_status ON transactions(status);
+   882→CREATE INDEX IF NOT EXISTS idx_transactions_flutterwave_ref ON transactions(flutterwave_tx_ref);
+   883→CREATE INDEX IF NOT EXISTS idx_transactions_flutterwave_id ON transactions(flutterwave_transaction_id);
+   884→CREATE INDEX IF NOT EXISTS idx_transactions_initiated_at ON transactions(initiated_at DESC);
+   885→CREATE INDEX IF NOT EXISTS idx_transactions_fraud ON transactions(fraud_flagged) WHERE fraud_flagged = true;
+   886→
+   887→-- Invoices
+   888→CREATE INDEX IF NOT EXISTS idx_invoices_user ON invoices(user_id);
+   889→CREATE INDEX IF NOT EXISTS idx_invoices_school ON invoices(school_id) WHERE school_id IS NOT NULL;
+   890→CREATE INDEX IF NOT EXISTS idx_invoices_subscription ON invoices(subscription_id) WHERE subscription_id IS NOT NULL;
+   891→CREATE INDEX IF NOT EXISTS idx_invoices_number ON invoices(invoice_number);
+   892→CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(invoice_type);
+   893→CREATE INDEX IF NOT EXISTS idx_invoices_due_date ON invoices(due_date) WHERE invoice_type IN ('issued', 'overdue');
+   894→
+   895→-- Receipts
+   896→CREATE INDEX IF NOT EXISTS idx_receipts_transaction ON receipts(transaction_id);
+   897→CREATE INDEX IF NOT EXISTS idx_receipts_user ON receipts(user_id);
+   898→
+   899→-- AI Credit Balances
+   900→CREATE INDEX IF NOT EXISTS idx_credit_balances_owner ON ai_credit_balances(owner_id, owner_type);
+   901→CREATE INDEX IF NOT EXISTS idx_credit_balances_cycle ON ai_credit_balances(current_cycle_end);
+   902→
+   903→-- AI Credit Transactions
+   904→CREATE INDEX IF NOT EXISTS idx_credit_transactions_balance ON ai_credit_transactions(balance_id);
+   905→CREATE INDEX IF NOT EXISTS idx_credit_transactions_owner ON ai_credit_transactions(owner_id, owner_type);
+   906→CREATE INDEX IF NOT EXISTS idx_credit_transactions_type ON ai_credit_transactions(transaction_type);
+   907→CREATE INDEX IF NOT EXISTS idx_credit_transactions_feature ON ai_credit_transactions(feature_name);
+   908→CREATE INDEX IF NOT EXISTS idx_credit_transactions_created ON ai_credit_transactions(created_at DESC);
+   909→
+   910→-- Coupons
+   911→CREATE INDEX IF NOT EXISTS idx_coupons_code ON coupons(code);
+   912→CREATE INDEX IF NOT EXISTS idx_coupons_active ON coupons(is_active) WHERE is_active = true;
+   913→CREATE INDEX IF NOT EXISTS idx_coupons_validity ON coupons(valid_from, valid_until);
+   914→
+   915→-- Coupon Redemptions
+   916→CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_coupon ON coupon_redemptions(coupon_id);
+   917→CREATE INDEX IF NOT EXISTS idx_coupon_redemptions_user ON coupon_redemptions(user_id);
+   918→
+   919→-- Referral Codes
+   920→CREATE INDEX IF NOT EXISTS idx_referral_codes_code ON referral_codes(code);
+   921→CREATE INDEX IF NOT EXISTS idx_referral_codes_referrer ON referral_codes(referrer_id);
+   922→
+   923→-- Referral Tracking
+   924→CREATE INDEX IF NOT EXISTS idx_referral_tracking_code ON referral_tracking(referral_code_id);
+   925→CREATE INDEX IF NOT EXISTS idx_referral_tracking_referee ON referral_tracking(referee_id);
+   926→CREATE INDEX IF NOT EXISTS idx_referral_tracking_successful ON referral_tracking(is_successful) WHERE is_successful = true;
+   927→
+   928→-- Licenses
+   929→CREATE INDEX IF NOT EXISTS idx_licenses_subscription ON licenses(subscription_id);
+   930→CREATE INDEX IF NOT EXISTS idx_licenses_school ON licenses(school_id) WHERE school_id IS NOT NULL;
+   931→CREATE INDEX IF NOT EXISTS idx_licenses_user ON licenses(user_id) WHERE user_id IS NOT NULL;
+   932→CREATE INDEX IF NOT EXISTS idx_licenses_key ON licenses(license_key);
+   933→CREATE INDEX IF NOT EXISTS idx_licenses_expires ON licenses(expires_at) WHERE is_active = true;
+   934→
+   935→-- Webhook Events
+   936→CREATE INDEX IF NOT EXISTS idx_webhooks_status ON webhook_events(status) WHERE status IN ('received', 'processing', 'failed', 'retrying');
+   937→CREATE INDEX IF NOT EXISTS idx_webhooks_event_type ON webhook_events(event_type);
+   938→CREATE INDEX IF NOT EXISTS idx_webhooks_idempotency ON webhook_events(idempotency_key);
+   939→CREATE INDEX IF NOT EXISTS idx_webhooks_created ON webhook_events(created_at DESC);
+   940→
+   941→-- Billing Notifications
+   942→CREATE INDEX IF NOT EXISTS idx_billing_notifications_user ON billing_notifications(user_id);
+   943→CREATE INDEX IF NOT EXISTS idx_billing_notifications_type ON billing_notifications(notification_type);
+   944→CREATE INDEX IF NOT EXISTS idx_billing_notifications_read ON billing_notifications(is_read) WHERE is_read = false;
+   945→CREATE INDEX IF NOT EXISTS idx_billing_notifications_scheduled ON billing_notifications(scheduled_at) WHERE sent_at IS NULL;
+   946→
+   947→-- Revenue Reports
+   948→CREATE INDEX IF NOT EXISTS idx_revenue_reports_period ON revenue_reports(period_type, period_start DESC);
+   949→CREATE INDEX IF NOT EXISTS idx_revenue_reports_date_range ON revenue_reports(period_start, period_end);
+   950→
+   951→-- School Billing Profiles
+   952→CREATE INDEX IF NOT EXISTS idx_school_billing_school ON school_billing_profiles(school_id);
+   953→
+   954→-- Audit Logs
+   955→CREATE INDEX IF NOT EXISTS idx_billing_audit_entity ON billing_audit_logs(entity_type, entity_id);
+   956→CREATE INDEX IF NOT EXISTS idx_billing_audit_actor ON billing_audit_logs(actor_id);
+   957→CREATE INDEX IF NOT EXISTS idx_billing_audit_action ON billing_audit_logs(action);
+   958→CREATE INDEX IF NOT EXISTS idx_billing_audit_created ON billing_audit_logs(created_at DESC);
+   959→
+   960→-- AI Credit Packs
+   961→CREATE INDEX IF NOT EXISTS idx_credit_packs_active ON ai_credit_packs(is_active) WHERE is_active = true;
+   962→
+   963→-- Rate Limits
+   964→CREATE INDEX IF NOT EXISTS idx_rate_limits_identifier ON billing_rate_limits(identifier, action_type);
+   965→
+   966→-- ════════════════════════════════════════════════════════════════════════════
+   967→-- HELPER FUNCTIONS
+   968→-- ════════════════════════════════════════════════════════════════════════════
+   969→
+   970→-- Auto-update updated_at timestamp
+   971→CREATE OR REPLACE FUNCTION update_billing_updated_at()
+   972→RETURNS TRIGGER AS $$
+   973→BEGIN
+   974→  NEW.updated_at = now();
+   975→  RETURN NEW;
+   976→END;
+   977→$$ LANGUAGE plpgsql;
+   978→
+   979→-- Apply to all tables with updated_at
+   980→DO $$ DECLARE t TEXT; BEGIN
+   981→  FOR t IN SELECT table_name FROM information_schema.columns
+   982→    WHERE column_name = 'updated_at'
+   983→    AND table_schema = 'public'
+   984→    AND table_name IN (
+   985→      'subscription_plans', 'subscriptions', 'transactions', 'invoices',
+   986→      'ai_credit_balances', 'coupons', 'referral_codes', 'referral_tracking',
+   987→      'licenses', 'webhook_events', 'billing_notification_preferences',
+   988→      'revenue_reports', 'school_billing_profiles', 'ai_credit_packs',
+   989→      'billing_rate_limits'
+   990→    )
+   991→  LOOP
+   992→    EXECUTE format(
+   993→      'CREATE TRIGGER trg_%s_updated_at
+   994→       BEFORE UPDATE ON %I
+   995→       FOR EACH ROW EXECUTE FUNCTION update_billing_updated_at()',
+   996→      t, t
+   997→    );
+   998→  EXCEPTION WHEN others THEN NULL;
+   999→  END LOOP;
+  1000→END $$;
+  1001→
+  1002→-- Generate invoice number
+  1003→CREATE OR REPLACE FUNCTION generate_invoice_number()
+  1004→RETURNS TEXT AS $$
+  1005→DECLARE
+  1006→  seq_val INT;
+  1007→  year_part TEXT := to_char(now(), 'YY');
+  1008→  month_part TEXT := to_char(now(), 'MM');
+  1009→BEGIN
+  1010→  SELECT nextval('invoice_number_seq') INTO seq_val;
+  1011→  RETURN 'INV-' || year_part || month_part || '-' || lpad(seq_val::text, 6, '0');
+  1012→END;
+  1013→$$ LANGUAGE plpgsql;
+  1014→
+  1015→-- Create sequence for invoice numbers
+  1016→CREATE SEQUENCE IF NOT EXISTS invoice_number_seq START 1;
+  1017→
+  1018→-- Generate receipt number
+  1019→CREATE OR REPLACE FUNCTION generate_receipt_number()
+  1020→RETURNS TEXT AS $$
+  1021→DECLARE
+  1022→  seq_val INT;
+  1023→  year_part TEXT := to_char(now(), 'YY');
+  1024→  month_part TEXT := to_char(now(), 'MM');
+  1025→BEGIN
+  1026→  SELECT nextval('receipt_number_seq') INTO seq_val;
+  1027→  RETURN 'RCT-' || year_part || month_part || '-' || lpad(seq_val::text, 6, '0');
+  1028→END;
+  1029→$$ LANGUAGE plpgsql;
+  1030→
+  1031→CREATE SEQUENCE IF NOT EXISTS receipt_number_seq START 1;
+  1032→
+  1033→-- Generate transaction reference for Flutterwave
+  1034→CREATE OR REPLACE FUNCTION generate_tx_ref()
+  1035→RETURNS TEXT AS $$
+  1036→BEGIN
+  1037→  RETURN 'EF-' || substr(replace(gen_random_uuid()::text, '-', ''), 1, 16);
+  1038→END;
+  1039→$$ LANGUAGE plpgsql;
+  1040→
+  1041→-- Check subscription limits (used by RLS and API)
+  1042→CREATE OR REPLACE FUNCTION check_subscription_limit(
+  1043→  p_school_id UUID,
+  1044→  p_limit_type TEXT  -- 'students', 'teachers', 'storage', 'exams'
+  1045→)
+  1046→RETURNS BOOLEAN AS $$
+  1047→DECLARE
+  1048→  v_plan RECORD;
+  1049→  v_current_count INT;
+  1050→BEGIN
+  1051→  SELECT sp.max_students, sp.max_teachers, sp.max_storage_mb, sp.max_exams_per_month
+  1052→  INTO v_plan
+  1053→  FROM subscriptions s
+  1054→  JOIN subscription_plans sp ON s.plan_id = sp.id
+  1055→  WHERE s.school_id = p_school_id
+  1056→    AND s.status IN ('active', 'trial')
+  1057→  ORDER BY s.created_at DESC LIMIT 1;
+  1058→
+  1059→  IF NOT FOUND THEN RETURN false; END IF;
+  1060→
+  1061→  CASE p_limit_type
+  1062→    WHEN 'students' THEN
+  1063→      SELECT count(*) INTO v_current_count FROM students WHERE school_id = p_school_id AND is_active = true;
+  1064→      RETURN v_plan.max_students = 0 OR v_current_count < v_plan.max_students;
+  1065→    WHEN 'teachers' THEN
+  1066→      SELECT count(*) INTO v_current_count FROM teachers WHERE school_id = p_school_id AND is_active = true;
+  1067→      RETURN v_plan.max_teachers = 0 OR v_current_count < v_plan.max_teachers;
+  1068→    WHEN 'exams' THEN
+  1069→      RETURN v_plan.max_exams_per_month = 0; -- simplified; real impl counts monthly exams
+  1070→    ELSE
+  1071→      RETURN true;
+  1072→  END CASE;
+  1073→END;
+  1074→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1075→
+  1076→-- Consume AI credits (called by feature modules)
+  1077→CREATE OR REPLACE FUNCTION consume_ai_credits(
+  1078→  p_owner_id UUID,
+  1079→  p_owner_type billing_model,
+  1080→  p_credits INT,
+  1081→  p_feature_name TEXT,
+  1082→  p_reference_id UUID DEFAULT NULL,
+  1083→  p_estimated_cost_usd NUMERIC DEFAULT 0
+  1084→)
+  1085→RETURNS BOOLEAN AS $$
+  1086→DECLARE
+  1087→  v_balance RECORD;
+  1088→  v_balance_after INT;
+  1089→BEGIN
+  1090→  -- Lock the balance row for atomic update
+  1091→  SELECT * INTO v_balance
+  1092→  FROM ai_credit_balances
+  1093→  WHERE owner_id = p_owner_id AND owner_type = p_owner_type
+  1094→  FOR UPDATE;
+  1095→
+  1096→  IF NOT FOUND THEN RETURN false; END IF;
+  1097→
+  1098→  IF v_balance.remaining_credits < p_credits THEN
+  1099→    RETURN false;  -- Insufficient credits
+  1100→  END IF;
+  1101→
+  1102→  v_balance_after := v_balance.remaining_credits - p_credits;
+  1103→
+  1104→  -- Update balance
+  1105→  UPDATE ai_credit_balances SET
+  1106→    used_credits = used_credits + p_credits,
+  1107→    remaining_credits = v_balance_after
+  1108→  WHERE id = v_balance.id;
+  1109→
+  1110→  -- Record transaction
+  1111→  INSERT INTO ai_credit_transactions (
+  1112→    balance_id, owner_id, owner_type, school_id,
+  1113→    transaction_type, credits, balance_before, balance_after,
+  1114→    feature_name, reference_id, estimated_cost_usd
+  1115→  ) VALUES (
+  1116→    v_balance.id, p_owner_id, p_owner_type, v_balance.school_id,
+  1117→    'usage', -p_credits, v_balance.remaining_credits, v_balance_after,
+  1118→    p_feature_name, p_reference_id, p_estimated_cost_usd
+  1119→  );
+  1120→
+  1121→  RETURN true;
+  1122→END;
+  1123→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1124→
+  1125→-- Expire old credits (run daily via cron/supabase function)
+  1126→CREATE OR REPLACE FUNCTION expire_ai_credits()
+  1127→RETURNS INT AS $$
+  1128→DECLARE
+  1129→  v_expired_count INT := 0;
+  1130→  v_balance RECORD;
+  1131→BEGIN
+  1132→  FOR v_balance IN
+  1133→    SELECT * FROM ai_credit_balances
+  1134→    WHERE credits_expire = true
+  1135→      AND expiration_date IS NOT NULL
+  1136→      AND expiration_date < now()
+  1137→      AND remaining_credits > 0
+  1138→  LOOP
+  1139→    -- Record expiration transaction
+  1140→    INSERT INTO ai_credit_transactions (
+  1141→      balance_id, owner_id, owner_type, school_id,
+  1142→      transaction_type, credits, balance_before, balance_after,
+  1143→      feature_name
+  1144→    ) VALUES (
+  1145→      v_balance.id, v_balance.owner_id, v_balance.owner_type, v_balance.school_id,
+  1146→      'expiration', -v_balance.remaining_credits, v_balance.remaining_credits, 0,
+  1147→      'credit_expiration'
+  1148→    );
+  1149→
+  1150→    -- Reset balance
+  1151→    UPDATE ai_credit_balances SET
+  1152→      remaining_credits = 0,
+  1153→      used_credits = used_credits + remaining_credits
+  1154→    WHERE id = v_balance.id;
+  1155→
+  1156→    v_expired_count := v_expired_count + 1;
+  1157→  END LOOP;
+  1158→
+  1159→  RETURN v_expired_count;
+  1160→END;
+  1161→$$ LANGUAGE plpgsql SECURITY DEFINER;
+  1162→
+  1163→-- ════════════════════════════════════════════════════════════════════════════
+  1164→-- ROW LEVEL SECURITY
+  1165→-- ════════════════════════════════════════════════════════════════════════════
+  1166→
+  1167→-- Subscription Plans: anyone can read active plans, only super_admin can modify
+  1168→ALTER TABLE subscription_plans ENABLE ROW LEVEL SECURITY;
+  1169→CREATE POLICY "Anyone can read active subscription plans"
+  1170→  ON subscription_plans FOR SELECT
+  1171→  TO authenticated
+  1172→  USING (is_active = true OR get_user_role() = 'super_admin');
+  1173→
+  1174→CREATE POLICY "Super admins can manage subscription plans"
+  1175→  ON subscription_plans FOR ALL
+  1176→  TO authenticated
+  1177→  USING (get_user_role() = 'super_admin')
+  1178→  WITH CHECK (get_user_role() = 'super_admin');
+  1179→
+  1180→-- Subscriptions: users see own subscriptions, school admins see school's
+  1181→ALTER TABLE subscriptions ENABLE ROW LEVEL SECURITY;
+  1182→CREATE POLICY "Users can read own subscriptions"
+  1183→  ON subscriptions FOR SELECT
+  1184→  TO authenticated
+  1185→  USING (
+  1186→    subscriber_id = auth.uid()
+  1187→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1188→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1189→  );
+  1190→
+  1191→CREATE POLICY "Users can create own subscriptions"
+  1192→  ON subscriptions FOR INSERT
+  1193→  TO authenticated
+  1194→  WITH CHECK (
+  1195→    subscriber_id = auth.uid()
+  1196→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1197→  );
+  1198→
+  1199→CREATE POLICY "Users can update own subscriptions"
+  1200→  ON subscriptions FOR UPDATE
+  1201→  TO authenticated
+  1202→  USING (
+  1203→    subscriber_id = auth.uid()
+  1204→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1205→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1206→  );
+  1207→
+  1208→-- Transactions: users see own transactions
+  1209→ALTER TABLE transactions ENABLE ROW LEVEL SECURITY;
+  1210→CREATE POLICY "Users can read own transactions"
+  1211→  ON transactions FOR SELECT
+  1212→  TO authenticated
+  1213→  USING (
+  1214→    user_id = auth.uid()
+  1215→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1216→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1217→  );
+  1218→
+  1219→CREATE POLICY "Users can create own transactions"
+  1220→  ON transactions FOR INSERT
+  1221→  TO authenticated
+  1222→  WITH CHECK (user_id = auth.uid() OR get_user_role() IN ('super_admin', 'school_admin'));
+  1223→
+  1224→CREATE POLICY "Super admins can update transactions"
+  1225→  ON transactions FOR UPDATE
+  1226→  TO authenticated
+  1227→  USING (get_user_role() = 'super_admin');
+  1228→
+  1229→-- Invoices: users see own invoices
+  1230→ALTER TABLE invoices ENABLE ROW LEVEL SECURITY;
+  1231→CREATE POLICY "Users can read own invoices"
+  1232→  ON invoices FOR SELECT
+  1233→  TO authenticated
+  1234→  USING (
+  1235→    user_id = auth.uid()
+  1236→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1237→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1238→  );
+  1239→
+  1240→CREATE POLICY "System can create invoices"
+  1241→  ON invoices FOR INSERT
+  1242→  TO authenticated
+  1243→  WITH CHECK (true);  -- Created by system/background jobs
+  1244→
+  1245→CREATE POLICY "Super admins can update invoices"
+  1246→  ON invoices FOR UPDATE
+  1247→  TO authenticated
+  1248→  USING (get_user_role() IN ('super_admin', 'school_admin'));
+  1249→
+  1250→-- Receipts: users see own receipts
+  1251→ALTER TABLE receipts ENABLE ROW LEVEL SECURITY;
+  1252→CREATE POLICY "Users can read own receipts"
+  1253→  ON receipts FOR SELECT
+  1254→  TO authenticated
+  1255→  USING (
+  1256→    user_id = auth.uid()
+  1257→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1258→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1259→  );
+  1260→
+  1261→-- AI Credit Balances: owners see their own
+  1262→ALTER TABLE ai_credit_balances ENABLE ROW LEVEL SECURITY;
+  1263→CREATE POLICY "Users can read own credit balances"
+  1264→  ON ai_credit_balances FOR SELECT
+  1265→  TO authenticated
+  1266→  USING (
+  1267→    owner_id = auth.uid()
+  1268→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1269→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1270→  );
+  1271→
+  1272→CREATE POLICY "System can modify credit balances"
+  1273→  ON ai_credit_balances FOR ALL
+  1274→  TO authenticated
+  1275→  USING (get_user_role() IN ('super_admin', 'school_admin'));
+  1276→
+  1277→-- AI Credit Transactions: owners see their own
+  1278→ALTER TABLE ai_credit_transactions ENABLE ROW LEVEL SECURITY;
+  1279→CREATE POLICY "Users can read own credit transactions"
+  1280→  ON ai_credit_transactions FOR SELECT
+  1281→  TO authenticated
+  1282→  USING (
+  1283→    owner_id = auth.uid()
+  1284→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1285→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1286→  );
+  1287→
+  1288→-- Coupons: anyone can read active coupons, super_admin manages
+  1289→ALTER TABLE coupons ENABLE ROW LEVEL SECURITY;
+  1290→CREATE POLICY "Anyone can read active coupons"
+  1291→  ON coupons FOR SELECT
+  1292→  TO authenticated
+  1293→  USING (is_active = true OR get_user_role() = 'super_admin');
+  1294→
+  1295→CREATE POLICY "Super admins can manage coupons"
+  1296→  ON coupons FOR ALL
+  1297→  TO authenticated
+  1298→  USING (get_user_role() = 'super_admin')
+  1299→  WITH CHECK (get_user_role() = 'super_admin');
+  1300→
+  1301→-- Coupon Redemptions: users see own redemptions
+  1302→ALTER TABLE coupon_redemptions ENABLE ROW LEVEL SECURITY;
+  1303→CREATE POLICY "Users can read own coupon redemptions"
+  1304→  ON coupon_redemptions FOR SELECT
+  1305→  TO authenticated
+  1306→  USING (
+  1307→    user_id = auth.uid()
+  1308→    OR get_user_role() = 'super_admin'
+  1309→  );
+  1310→
+  1311→CREATE POLICY "Users can redeem coupons"
+  1312→  ON coupon_redemptions FOR INSERT
+  1313→  TO authenticated
+  1314→  WITH CHECK (user_id = auth.uid());
+  1315→
+  1316→-- Referral Codes: users see own codes
+  1317→ALTER TABLE referral_codes ENABLE ROW LEVEL SECURITY;
+  1318→CREATE POLICY "Users can read own referral codes"
+  1319→  ON referral_codes FOR SELECT
+  1320→  TO authenticated
+  1321→  USING (
+  1322→    referrer_id = auth.uid()
+  1323→    OR get_user_role() = 'super_admin'
+  1324→  );
+  1325→
+  1326→CREATE POLICY "Users can create own referral codes"
+  1327→  ON referral_codes FOR INSERT
+  1328→  TO authenticated
+  1329→  WITH CHECK (referrer_id = auth.uid());
+  1330→
+  1331→CREATE POLICY "Users can update own referral codes"
+  1332→  ON referral_codes FOR UPDATE
+  1333→  TO authenticated
+  1334→  USING (referrer_id = auth.uid() OR get_user_role() = 'super_admin');
+  1335→
+  1336→-- Referral Tracking: users see own referrals
+  1337→ALTER TABLE referral_tracking ENABLE ROW LEVEL SECURITY;
+  1338→CREATE POLICY "Users can read own referral tracking"
+  1339→  ON referral_tracking FOR SELECT
+  1340→  TO authenticated
+  1341→  USING (
+  1342→    referrer_id = auth.uid()
+  1343→    OR referee_id = auth.uid()
+  1344→    OR get_user_role() = 'super_admin'
+  1345→  );
+  1346→
+  1347→-- Licenses: users see own licenses, school admins see school licenses
+  1348→ALTER TABLE licenses ENABLE ROW LEVEL SECURITY;
+  1349→CREATE POLICY "Users can read relevant licenses"
+  1350→  ON licenses FOR SELECT
+  1351→  TO authenticated
+  1352→  USING (
+  1353→    user_id = auth.uid()
+  1354→    OR school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1355→    OR get_user_role() IN ('super_admin', 'school_admin')
+  1356→  );
+  1357→
+  1358→CREATE POLICY "Super admins can manage licenses"
+  1359→  ON licenses FOR ALL
+  1360→  TO authenticated
+  1361→  USING (get_user_role() IN ('super_admin', 'school_admin'));
+  1362→
+  1363→-- Webhook Events: only super_admin
+  1364→ALTER TABLE webhook_events ENABLE ROW LEVEL SECURITY;
+  1365→CREATE POLICY "Super admins can manage webhook events"
+  1366→  ON webhook_events FOR ALL
+  1367→  TO authenticated
+  1368→  USING (get_user_role() = 'super_admin');
+  1369→
+  1370→-- Billing Notifications: users see their own
+  1371→ALTER TABLE billing_notifications ENABLE ROW LEVEL SECURITY;
+  1372→CREATE POLICY "Users can read own billing notifications"
+  1373→  ON billing_notifications FOR SELECT
+  1374→  TO authenticated
+  1375→  USING (user_id = auth.uid() OR get_user_role() = 'super_admin');
+  1376→
+  1377→CREATE POLICY "Users can update own billing notifications"
+  1378→  ON billing_notifications FOR UPDATE
+  1379→  TO authenticated
+  1380→  USING (user_id = auth.uid());
+  1381→
+  1382→-- Billing Notification Preferences: users manage their own
+  1383→ALTER TABLE billing_notification_preferences ENABLE ROW LEVEL SECURITY;
+  1384→CREATE POLICY "Users can manage own notification preferences"
+  1385→  ON billing_notification_preferences FOR ALL
+  1386→  TO authenticated
+  1387→  USING (user_id = auth.uid());
+  1388→
+  1389→-- Revenue Reports: only super_admin
+  1390→ALTER TABLE revenue_reports ENABLE ROW LEVEL SECURITY;
+  1391→CREATE POLICY "Super admins can read revenue reports"
+  1392→  ON revenue_reports FOR SELECT
+  1393→  TO authenticated
+  1394→  USING (get_user_role() = 'super_admin');
+  1395→
+  1396→CREATE POLICY "Super admins can manage revenue reports"
+  1397→  ON revenue_reports FOR ALL
+  1398→  TO authenticated
+  1399→  USING (get_user_role() = 'super_admin');
+  1400→
+  1401→-- School Billing Profiles: school admins and super_admin
+  1402→ALTER TABLE school_billing_profiles ENABLE ROW LEVEL SECURITY;
+  1403→CREATE POLICY "School admins can read own billing profile"
+  1404→  ON school_billing_profiles FOR SELECT
+  1405→  TO authenticated
+  1406→  USING (
+  1407→    school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1408→    OR get_user_role() = 'super_admin'
+  1409→  );
+  1410→
+  1411→CREATE POLICY "School admins can update own billing profile"
+  1412→  ON school_billing_profiles FOR UPDATE
+  1413→  TO authenticated
+  1414→  USING (
+  1415→    school_id IN (SELECT id FROM schools WHERE admin_id = auth.uid())
+  1416→    OR get_user_role() = 'super_admin'
+  1417→  );
+  1418→
+  1419→-- Billing Audit Logs: only super_admin can read
+  1420→ALTER TABLE billing_audit_logs ENABLE ROW LEVEL SECURITY;
+  1421→CREATE POLICY "Super admins can read billing audit logs"
+  1422→  ON billing_audit_logs FOR SELECT
+  1423→  TO authenticated
+  1424→  USING (get_user_role() = 'super_admin');
+  1425→
+  1426→CREATE POLICY "System can create audit logs"
+  1427→  ON billing_audit_logs FOR INSERT
+  1428→  TO authenticated
+  1429→  WITH CHECK (true);  -- System-generated
+  1430→
+  1431→-- AI Credit Packs: anyone can read active packs
+  1432→ALTER TABLE ai_credit_packs ENABLE ROW LEVEL SECURITY;
+  1433→CREATE POLICY "Anyone can read active credit packs"
+  1434→  ON ai_credit_packs FOR SELECT
+  1435→  TO authenticated
+  1436→  USING (is_active = true OR get_user_role() = 'super_admin');
+  1437→
+  1438→CREATE POLICY "Super admins can manage credit packs"
+  1439→  ON ai_credit_packs FOR ALL
+  1440→  TO authenticated
+  1441→  USING (get_user_role() = 'super_admin');
+  1442→
+  1443→-- Rate Limits: system only
+  1444→ALTER TABLE billing_rate_limits ENABLE ROW LEVEL SECURITY;
+  1445→CREATE POLICY "System manages rate limits"
+  1446→  ON billing_rate_limits FOR ALL
+  1447→  TO authenticated
+  1448→  USING (get_user_role() = 'super_admin');
+  1449→
+  1450→-- ════════════════════════════════════════════════════════════════════════════
+  1451→-- SEED DATA: DEFAULT SUBSCRIPTION PLANS
+  1452→-- ════════════════════════════════════════════════════════════════════════════
+  1453→
+  1454→INSERT INTO subscription_plans (name, tier, billing_model, description, monthly_price, annual_price, currency, max_students, max_teachers, max_schools, max_storage_mb, max_exams_per_month, ai_credits_monthly, includes_ai_workspace, includes_parent_portal, includes_communication, includes_advanced_analytics, includes_api_access, includes_white_label, includes_priority_support, includes_dedicated_manager, trial_days, is_active, is_popular, sort_order, features_list)
+  1455→VALUES
+  1456→  -- ═══ TEACHER SaaS PLANS ═══
+  1457→  ('Free Teacher', 'free', 'teacher_saas', 'Get started with basic question generation and exam creation tools. Perfect for individual teachers exploring ExamForge AI.', 0, 0, 'NGN', 50, 1, 1, 100, 3, 10, false, false, false, false, false, false, false, false, 0, true, false, 1,
+  1458→   '["Up to 50 students", "3 exams per month", "10 AI credits/month", "100 MB storage", "Basic question bank", "Email support"]'),
+  1459→
+  1460→  ('Starter Teacher', 'starter', 'teacher_saas', 'Expand your teaching toolkit with more AI power, more students, and basic analytics to track performance.', 2500, 25000, 'NGN', 200, 1, 1, 500, 15, 50, true, false, false, false, false, false, false, false, 14, true, true, 2,
+  1461→   '["Up to 200 students", "15 exams per month", "50 AI credits/month", "500 MB storage", "AI Teacher Workspace", "Basic analytics", "Email support"]'),
+  1462→
+  1463→  ('Professional Teacher', 'professional', 'teacher_saas', 'Full teaching power: unlimited exams, advanced AI, parent portal, communication tools, and premium support.', 5000, 50000, 'NGN', 0, 1, 1, 2000, 0, 200, true, true, true, true, false, false, true, false, 14, true, false, 3,
+  1464→   '["Unlimited students", "Unlimited exams", "200 AI credits/month", "2 GB storage", "AI Teacher Workspace", "Parent Portal", "Communication Suite", "Advanced Reports", "Priority support"]'),
+  1465→
+  1466→  -- ═══ SCHOOL SaaS PLANS ═══
+  1467→  ('Free School', 'free', 'school_saas', 'Try ExamForge AI for your school with limited features. Great for small schools getting started.', 0, 0, 'NGN', 100, 5, 1, 500, 10, 50, false, false, false, false, false, false, false, false, 0, true, false, 4,
+  1468→   '["Up to 100 students", "5 teachers", "10 exams per month", "50 AI credits/month", "500 MB storage", "Basic question bank", "Email support"]'),
+  1469→
+  1470→  ('Starter School', 'starter', 'school_saas', 'Empower your school with more capacity, AI tools, and basic analytics for better outcomes.', 15000, 150000, 'NGN', 500, 20, 1, 5000, 0, 300, true, false, false, false, false, false, false, false, 30, true, true, 5,
+  1471→   '["Up to 500 students", "20 teachers", "Unlimited exams", "300 AI credits/month", "5 GB storage", "AI Teacher Workspace", "Basic analytics", "Email support"]'),
+  1472→
+  1473→  ('Professional School', 'professional', 'school_saas', 'The complete school package: unlimited teachers, parent portal, communication suite, advanced reporting, and priority support.', 35000, 350000, 'NGN', 0, 0, 1, 20000, 0, 1000, true, true, true, true, false, false, true, false, 30, true, false, 6,
+  1474→   '["Unlimited students", "Unlimited teachers", "Unlimited exams", "1,000 AI credits/month", "20 GB storage", "AI Teacher Workspace", "Parent Portal", "Communication Suite", "Advanced Reports", "Priority support"]'),
+  1475→
+  1476→  -- ═══ ENTERPRISE SaaS PLANS ═══
+  1477→  ('Enterprise', 'enterprise', 'enterprise_saas', 'For organizations, ministries, and examination bodies needing custom pricing, white-label branding, API access, and dedicated account management.', 0, 0, 'NGN', 0, 0, 0, 0, 0, 0, true, true, true, true, true, true, true, true, 60, true, false, 7,
+  1478→   '["Unlimited everything", "White-label branding", "Full API access", "Custom AI credit packages", "Dedicated account manager", "Priority support", "Advanced security", "Custom integrations", "SLA guarantee", "On-premise option"]')
+  1479→ON CONFLICT DO NOTHING;
+  1480→
+  1481→-- ═══ SEED: AI CREDIT PACKS ═══
+  1482→INSERT INTO ai_credit_packs (name, description, credits, price, currency, validity_days, is_active, sort_order, applicable_billing_models)
+  1483→VALUES
+  1484→  ('Starter Pack', 'Perfect for topping up your monthly allocation. 50 AI credits to power question generation and smart marking.', 50, 1000, 'NGN', 90, true, 1, '["teacher_saas", "school_saas"]'),
+  1485→  ('Growth Pack', 'Great value for active teachers and small schools. 200 AI credits with extended validity.', 200, 3500, 'NGN', 180, true, 2, '["teacher_saas", "school_saas"]'),
+  1486→  ('Professional Pack', 'Best value per credit. 500 AI credits for power users and larger schools.', 500, 7500, 'NGN', 365, true, 3, '["teacher_saas", "school_saas", "enterprise_saas"]'),
+  1487→  ('Enterprise Pack', 'Bulk credits for organizations and examination bodies. 2,000 AI credits at the lowest per-credit rate.', 2000, 25000, 'NGN', 365, true, 4, '["enterprise_saas", "school_saas"]')
+  1488→ON CONFLICT DO NOTHING;
+  1489→
+  1490→-- ════════════════════════════════════════════════════════════════════════════
+  1491→-- VIEWS FOR DASHBOARD QUERIES
+  1492→-- ════════════════════════════════════════════════════════════════════════════
+  1493→
+  1494→-- Active subscription summary
+  1495→CREATE OR REPLACE VIEW v_active_subscriptions AS
+  1496→SELECT
+  1497→  s.id,
+  1498→  s.subscriber_id,
+  1499→  s.subscriber_type,
+  1500→  s.school_id,
+  1501→  s.plan_id,
+  1502→  sp.name AS plan_name,
+  1503→  sp.tier AS plan_tier,
+  1504→  s.status,
+  1505→  s.billing_cycle,
+  1506→  s.current_period_start,
+  1507→  s.current_period_end,
+  1508→  s.seats_purchased,
+  1509→  s.seats_used,
+  1510→  s.auto_renew,
+  1511→  s.price_at_subscription,
+  1512→  s.currency
+  1513→FROM subscriptions s
+  1514→JOIN subscription_plans sp ON s.plan_id = sp.id
+  1515→WHERE s.status IN ('active', 'trial');
+  1516→
+  1517→-- Revenue summary by month
+  1518→CREATE OR REPLACE VIEW v_monthly_revenue AS
+  1519→SELECT
+  1520→  date_trunc('month', t.initiated_at) AS month,
+  1521→  t.currency,
+  1522→  count(*) AS transaction_count,
+  1523→  sum(t.amount) FILTER (WHERE t.status = 'successful') AS successful_volume,
+  1524→  sum(t.net_amount) FILTER (WHERE t.status = 'successful') AS net_revenue,
+  1525→  sum(t.amount) FILTER (WHERE t.status = 'refunded') AS refund_volume,
+  1526→  count(*) FILTER (WHERE t.status = 'failed') AS failed_count
+  1527→FROM transactions t
+  1528→GROUP BY 1, 2
+  1529→ORDER BY 1 DESC;
+  1530→
+  1531→-- Credit usage summary
+  1532→CREATE OR REPLACE VIEW v_credit_usage AS
+  1533→SELECT
+  1534→  act.owner_id,
+  1535→  act.owner_type,
+  1536→  acb.school_id,
+  1537→  act.feature_name,
+  1538→  count(*) AS transaction_count,
+  1539→  sum(abs(act.credits)) AS total_credits_used,
+  1540→  sum(act.estimated_cost_usd) AS total_estimated_cost,
+  1541→  date_trunc('day', act.created_at) AS usage_date
+  1542→FROM ai_credit_transactions act
+  1543→JOIN ai_credit_balances acb ON act.balance_id = acb.id
+  1544→WHERE act.transaction_type = 'usage'
+  1545→GROUP BY 1, 2, 3, 4, 7
+  1546→ORDER BY 7 DESC;
+  1547→
+  1548→COMMIT;
+  1549→

@@ -1,0 +1,827 @@
+     1→import 'package:flutter/material.dart';
+     2→
+     3→import '../../../../core/extensions/context_extensions.dart';
+     4→import '../../../../core/themes/app_colors.dart';
+     5→import '../../../../core/themes/app_typography.dart';
+     6→import '../../../../core/themes/spacings.dart';
+     7→import '../../domain/entities/offline_entities.dart';
+     8→
+     9→// ============================================================================
+    10→// 1. CONNECTIVITY BANNER
+    11→// ============================================================================
+    12→
+    13→/// A colored banner shown at the top of the screen when offline or limited.
+    14→///
+    15→/// - **Red**: Offline — no internet connection
+    16→/// - **Orange**: Limited — poor connection quality
+    17→///
+    18→/// Tapping the banner can navigate to the connectivity details page.
+    19→class ConnectivityBanner extends StatelessWidget {
+    20→  const ConnectivityBanner({
+    21→    super.key,
+    22→    required this.connectivityInfo,
+    23→    this.onTap,
+    24→  });
+    25→
+    26→  final ConnectivityInfo connectivityInfo;
+    27→  final VoidCallback? onTap;
+    28→
+    29→  /// Whether the banner should be shown.
+    30→  bool get shouldShow =>
+    31→      !connectivityInfo.isOnline ||
+    32→      connectivityInfo.connectionQuality == ConnectionQuality.limited;
+    33→
+    34→  @override
+    35→  Widget build(BuildContext context) {
+    36→    if (!shouldShow) return const SizedBox.shrink();
+    37→
+    38→    final isOffline = !connectivityInfo.isOnline;
+    39→    final backgroundColor = isOffline ? AppColors.error : AppColors.warning;
+    40→    const textColor = Colors.white;
+    41→    final icon = isOffline ? Icons.cloud_off : Icons.signal_cellular_alt;
+    42→
+    43→    return Material(
+    44→      color: backgroundColor,
+    45→      child: InkWell(
+    46→        onTap: onTap,
+    47→        child: SafeArea(
+    48→          bottom: false,
+    49→          child: Padding(
+    50→            padding: const EdgeInsets.symmetric(
+    51→              horizontal: Spacings.lg,
+    52→              vertical: Spacings.sm,
+    53→            ),
+    54→            child: Row(
+    55→              children: [
+    56→                Icon(icon, size: Spacings.mdIcon, color: textColor),
+    57→                const SizedBox(width: Spacings.sm),
+    58→                Expanded(
+    59→                  child: Text(
+    60→                    isOffline
+    61→                        ? 'You are offline. Some features may be limited.'
+    62→                        : 'Limited connection. Syncing may be delayed.',
+    63→                    style: AppTypography.buttonSmall.copyWith(color: textColor),
+    64→                  ),
+    65→                ),
+    66→                Icon(
+    67→                  Icons.chevron_right,
+    68→                  size: Spacings.mdIcon,
+    69→                  color: textColor.withValues(alpha: 0.7),
+    70→                ),
+    71→              ],
+    72→            ),
+    73→          ),
+    74→        ),
+    75→      ),
+    76→    );
+    77→  }
+    78→}
+    79→
+    80→// ============================================================================
+    81→// 2. SYNC STATUS CHIP
+    82→// ============================================================================
+    83→
+    84→/// Status variant for the sync chip.
+    85→enum SyncChipStatus {
+    86→  synced,
+    87→  pending,
+    88→  conflict,
+    89→}
+    90→
+    91→/// A small chip showing the current sync status.
+    92→///
+    93→/// - **Synced** (green): All items are synced
+    94→/// - **Pending** (amber): Items are waiting to sync
+    95→/// - **Conflict** (red): There are sync conflicts
+    96→class SyncStatusChip extends StatelessWidget {
+    97→  const SyncStatusChip({
+    98→    super.key,
+    99→    required this.syncStatus,
+   100→    this.label,
+   101→  });
+   102→
+   103→  final SyncChipStatus syncStatus;
+   104→  final String? label;
+   105→
+   106→  @override
+   107→  Widget build(BuildContext context) {
+   108→    final color = _statusColor;
+   109→    final icon = _statusIcon;
+   110→    final text = label ?? _statusLabel;
+   111→
+   112→    return Container(
+   113→      padding: const EdgeInsets.symmetric(
+   114→        horizontal: Spacings.sm,
+   115→        vertical: Spacings.xs,
+   116→      ),
+   117→      decoration: BoxDecoration(
+   118→        color: color.withValues(alpha: 0.12),
+   119→        borderRadius: Spacings.borderRadiusSm,
+   120→      ),
+   121→      child: Row(
+   122→        mainAxisSize: MainAxisSize.min,
+   123→        children: [
+   124→          Icon(icon, size: Spacings.smIcon + 2, color: color),
+   125→          const SizedBox(width: Spacings.xs),
+   126→          Text(
+   127→            text,
+   128→            style: context.textTheme.labelSmall?.copyWith(
+   129→              fontWeight: AppTypography.wSemiBold,
+   130→              color: color,
+   131→            ),
+   132→          ),
+   133→        ],
+   134→      ),
+   135→    );
+   136→  }
+   137→
+   138→  Color get _statusColor {
+   139→    switch (syncStatus) {
+   140→      case SyncChipStatus.synced:
+   141→        return AppColors.success;
+   142→      case SyncChipStatus.pending:
+   143→        return AppColors.warning;
+   144→      case SyncChipStatus.conflict:
+   145→        return AppColors.error;
+   146→    }
+   147→  }
+   148→
+   149→  IconData get _statusIcon {
+   150→    switch (syncStatus) {
+   151→      case SyncChipStatus.synced:
+   152→        return Icons.check_circle;
+   153→      case SyncChipStatus.pending:
+   154→        return Icons.schedule;
+   155→      case SyncChipStatus.conflict:
+   156→        return Icons.error;
+   157→    }
+   158→  }
+   159→
+   160→  String get _statusLabel {
+   161→    switch (syncStatus) {
+   162→      case SyncChipStatus.synced:
+   163→        return 'Synced';
+   164→      case SyncChipStatus.pending:
+   165→        return 'Pending';
+   166→      case SyncChipStatus.conflict:
+   167→        return 'Conflict';
+   168→    }
+   169→  }
+   170→}
+   171→
+   172→// ============================================================================
+   173→// 3. OFFLINE INDICATOR
+   174→// ============================================================================
+   175→
+   176→/// An icon badge showing whether a resource is available offline.
+   177→///
+   178→/// Displays a green download icon with a check when available,
+   179→/// or a grey cloud-off icon when not.
+   180→class OfflineIndicator extends StatelessWidget {
+   181→  const OfflineIndicator({
+   182→    super.key,
+   183→    required this.isAvailable,
+   184→    this.size = Spacings.lgIcon,
+   185→  });
+   186→
+   187→  final bool isAvailable;
+   188→  final double size;
+   189→
+   190→  @override
+   191→  Widget build(BuildContext context) {
+   192→    return Container(
+   193→      width: size + 8,
+   194→      height: size + 8,
+   195→      decoration: BoxDecoration(
+   196→        color: isAvailable
+   197→            ? AppColors.success.withValues(alpha: 0.1)
+   198→            : context.colorScheme.surfaceContainerHighest,
+   199→        shape: BoxShape.circle,
+   200→      ),
+   201→      child: Icon(
+   202→        isAvailable ? Icons.download_done : Icons.cloud_off_outlined,
+   203→        size: size * 0.6,
+   204→        color: isAvailable
+   205→            ? AppColors.success
+   206→            : context.colorScheme.onSurfaceVariant,
+   207→      ),
+   208→    );
+   209→  }
+   210→}
+   211→
+   212→// ============================================================================
+   213→// 4. DOWNLOAD PROGRESS CARD
+   214→// ============================================================================
+   215→
+   216→/// A card showing download progress with cancel/retry buttons.
+   217→///
+   218→/// Displays the file name, size, progress bar, and status-appropriate
+   219→/// action buttons:
+   220→/// - **Downloading**: Cancel button
+   221→/// - **Failed**: Retry button
+   222→/// - **Completed**: No action
+   223→/// - **Expired**: Indicator
+   224→class DownloadProgressCard extends StatelessWidget {
+   225→  const DownloadProgressCard({
+   226→    super.key,
+   227→    required this.download,
+   228→    this.onCancel,
+   229→    this.onRetry,
+   230→  });
+   231→
+   232→  final FileDownload download;
+   233→  final VoidCallback? onCancel;
+   234→  final VoidCallback? onRetry;
+   235→
+   236→  @override
+   237→  Widget build(BuildContext context) {
+   238→    final cs = context.colorScheme;
+   239→    final tt = context.textTheme;
+   240→
+   241→    return Card(
+   242→      margin: const EdgeInsets.only(bottom: Spacings.sm),
+   243→      elevation: Spacings.elevationNone,
+   244→      shape: RoundedRectangleBorder(
+   245→        borderRadius: Spacings.borderRadiusMd,
+   246→        side: BorderSide(
+   247→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   248→        ),
+   249→      ),
+   250→      child: Padding(
+   251→        padding: const EdgeInsets.all(Spacings.md),
+   252→        child: Column(
+   253→          crossAxisAlignment: CrossAxisAlignment.start,
+   254→          children: [
+   255→            // ── Header Row ──────────────────────────────────────────────
+   256→            Row(
+   257→              children: [
+   258→                Expanded(
+   259→                  child: Text(
+   260→                    download.fileName,
+   261→                    style: tt.bodyMedium?.copyWith(
+   262→                      fontWeight: AppTypography.wMedium,
+   263→                      color: cs.onSurface,
+   264→                    ),
+   265→                    maxLines: 1,
+   266→                    overflow: TextOverflow.ellipsis,
+   267→                  ),
+   268→                ),
+   269→                _buildStatusBadge(context),
+   270→              ],
+   271→            ),
+   272→            const SizedBox(height: Spacings.xs),
+   273→
+   274→            // ── Size ────────────────────────────────────────────────────
+   275→            Text(
+   276→              download.fileSizeDisplay,
+   277→              style: tt.bodySmall?.copyWith(
+   278→                color: cs.onSurfaceVariant,
+   279→              ),
+   280→            ),
+   281→            const SizedBox(height: Spacings.sm),
+   282→
+   283→            // ── Progress Bar ────────────────────────────────────────────
+   284→            if (download.isDownloading || download.downloadStatus == DownloadStatus.pending) ...[
+   285→              ClipRRect(
+   286→                borderRadius: Spacings.borderRadiusFull,
+   287→                child: LinearProgressIndicator(
+   288→                  value: download.isDownloading ? download.progress : null,
+   289→                  minHeight: 6,
+   290→                  backgroundColor: cs.surfaceContainerHighest,
+   291→                  valueColor: AlwaysStoppedAnimation<Color>(cs.primary),
+   292→                ),
+   293→              ),
+   294→              const SizedBox(height: Spacings.xs),
+   295→              Row(
+   296→                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   297→                children: [
+   298→                  Text(
+   299→                    download.isDownloading ? download.progressPercent : 'Queued',
+   300→                    style: tt.labelSmall?.copyWith(
+   301→                      color: cs.onSurfaceVariant,
+   302→                    ),
+   303→                  ),
+   304→                  if (onCancel != null)
+   305→                    TextButton(
+   306→                      onPressed: onCancel,
+   307→                      style: TextButton.styleFrom(
+   308→                        padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
+   309→                        minimumSize: Size.zero,
+   310→                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   311→                      ),
+   312→                      child: Text(
+   313→                        'Cancel',
+   314→                        style: tt.labelSmall?.copyWith(color: cs.error),
+   315→                      ),
+   316→                    ),
+   317→                ],
+   318→              ),
+   319→            ],
+   320→
+   321→            // ── Failed Actions ──────────────────────────────────────────
+   322→            if (download.canRetry && onRetry != null) ...[
+   323→              const SizedBox(height: Spacings.xs),
+   324→              Align(
+   325→                alignment: Alignment.centerRight,
+   326→                child: TextButton.icon(
+   327→                  onPressed: onRetry,
+   328→                  icon: const Icon(Icons.refresh, size: Spacings.smIcon + 4),
+   329→                  label: const Text('Retry'),
+   330→                  style: TextButton.styleFrom(
+   331→                    padding: const EdgeInsets.symmetric(horizontal: Spacings.sm),
+   332→                    minimumSize: Size.zero,
+   333→                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+   334→                  ),
+   335→                ),
+   336→              ),
+   337→            ],
+   338→          ],
+   339→        ),
+   340→      ),
+   341→    );
+   342→  }
+   343→
+   344→  Widget _buildStatusBadge(BuildContext context) {
+   345→    final color = _statusColor;
+   346→    final label = download.downloadStatus.label;
+   347→
+   348→    return Container(
+   349→      padding: const EdgeInsets.symmetric(
+   350→        horizontal: Spacings.sm,
+   351→        vertical: Spacings.xs,
+   352→      ),
+   353→      decoration: BoxDecoration(
+   354→        color: color.withValues(alpha: 0.12),
+   355→        borderRadius: Spacings.borderRadiusSm,
+   356→      ),
+   357→      child: Text(
+   358→        label,
+   359→        style: context.textTheme.labelSmall?.copyWith(
+   360→          fontWeight: AppTypography.wSemiBold,
+   361→          color: color,
+   362→        ),
+   363→      ),
+   364→    );
+   365→  }
+   366→
+   367→  Color get _statusColor {
+   368→    switch (download.downloadStatus) {
+   369→      case DownloadStatus.pending:
+   370→        return AppColors.info;
+   371→      case DownloadStatus.downloading:
+   372→        return AppColors.info;
+   373→      case DownloadStatus.completed:
+   374→        return AppColors.success;
+   375→      case DownloadStatus.failed:
+   376→        return AppColors.error;
+   377→      case DownloadStatus.expired:
+   378→        return AppColors.warning;
+   379→    }
+   380→  }
+   381→}
+   382→
+   383→// ============================================================================
+   384→// 5. DRAFT CARD
+   385→// ============================================================================
+   386→
+   387→/// A card showing a saved draft with type icon, title, and last edited time.
+   388→///
+   389→/// Includes edit and delete action buttons.
+   390→class DraftCard extends StatelessWidget {
+   391→  const DraftCard({
+   392→    super.key,
+   393→    required this.draft,
+   394→    this.onEdit,
+   395→    this.onDelete,
+   396→  });
+   397→
+   398→  final DraftWork draft;
+   399→  final VoidCallback? onEdit;
+   400→  final VoidCallback? onDelete;
+   401→
+   402→  @override
+   403→  Widget build(BuildContext context) {
+   404→    final cs = context.colorScheme;
+   405→    final tt = context.textTheme;
+   406→    final isDark = context.isDarkMode;
+   407→
+   408→    return Card(
+   409→      elevation: Spacings.elevationNone,
+   410→      shape: RoundedRectangleBorder(
+   411→        borderRadius: Spacings.borderRadiusMd,
+   412→        side: BorderSide(
+   413→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   414→        ),
+   415→      ),
+   416→      child: Padding(
+   417→        padding: const EdgeInsets.all(Spacings.md),
+   418→        child: Row(
+   419→          children: [
+   420→            // ── Type Icon ────────────────────────────────────────────────
+   421→            Container(
+   422→              width: 44,
+   423→              height: 44,
+   424→              decoration: BoxDecoration(
+   425→                color: _typeColor.withValues(alpha: isDark ? 0.20 : 0.10),
+   426→                borderRadius: Spacings.borderRadiusMd,
+   427→              ),
+   428→              child: Icon(
+   429→                _typeIcon,
+   430→                size: Spacings.mdIcon,
+   431→                color: isDark ? _typeColor : _typeColor,
+   432→              ),
+   433→            ),
+   434→            const SizedBox(width: Spacings.md),
+   435→
+   436→            // ── Content ─────────────────────────────────────────────────
+   437→            Expanded(
+   438→              child: Column(
+   439→                crossAxisAlignment: CrossAxisAlignment.start,
+   440→                children: [
+   441→                  Row(
+   442→                    children: [
+   443→                      Expanded(
+   444→                        child: Text(
+   445→                          draft.title,
+   446→                          style: tt.bodyMedium?.copyWith(
+   447→                            fontWeight: AppTypography.wMedium,
+   448→                            color: cs.onSurface,
+   449→                          ),
+   450→                          maxLines: 1,
+   451→                          overflow: TextOverflow.ellipsis,
+   452→                        ),
+   453→                      ),
+   454→                      if (!draft.isSynced) ...[
+   455→                        const SizedBox(width: Spacings.xs),
+   456→                        const Icon(
+   457→                          Icons.cloud_off,
+   458→                          size: Spacings.smIcon,
+   459→                          color: AppColors.warning,
+   460→                        ),
+   461→                      ],
+   462→                    ],
+   463→                  ),
+   464→                  const SizedBox(height: Spacings.xs),
+   465→                  Text(
+   466→                    '${draft.draftType.label} · ${_formatTimeSince(draft.lastEditedAt)}',
+   467→                    style: tt.bodySmall?.copyWith(
+   468→                      color: cs.onSurfaceVariant,
+   469→                    ),
+   470→                  ),
+   471→                ],
+   472→              ),
+   473→            ),
+   474→
+   475→            // ── Actions ─────────────────────────────────────────────────
+   476→            const SizedBox(width: Spacings.sm),
+   477→            if (onEdit != null)
+   478→              IconButton(
+   479→                icon: const Icon(Icons.edit_outlined, size: Spacings.mdIcon),
+   480→                onPressed: onEdit,
+   481→                tooltip: 'Edit draft',
+   482→                padding: EdgeInsets.zero,
+   483→                constraints: const BoxConstraints(
+   484→                  minWidth: 36,
+   485→                  minHeight: 36,
+   486→                ),
+   487→              ),
+   488→            if (onDelete != null)
+   489→              IconButton(
+   490→                icon: Icon(
+   491→                  Icons.delete_outline,
+   492→                  size: Spacings.mdIcon,
+   493→                  color: cs.error,
+   494→                ),
+   495→                onPressed: onDelete,
+   496→                tooltip: 'Delete draft',
+   497→                padding: EdgeInsets.zero,
+   498→                constraints: const BoxConstraints(
+   499→                  minWidth: 36,
+   500→                  minHeight: 36,
+   501→                ),
+   502→              ),
+   503→          ],
+   504→        ),
+   505→      ),
+   506→    );
+   507→  }
+   508→
+   509→  IconData get _typeIcon {
+   510→    switch (draft.draftType) {
+   511→      case DraftType.exam:
+   512→        return Icons.quiz_outlined;
+   513→      case DraftType.assignment:
+   514→        return Icons.assignment_outlined;
+   515→      case DraftType.lessonPlan:
+   516→        return Icons.menu_book_outlined;
+   517→      case DraftType.question:
+   518→        return Icons.help_outline;
+   519→      case DraftType.resource:
+   520→        return Icons.folder_outlined;
+   521→    }
+   522→  }
+   523→
+   524→  Color get _typeColor {
+   525→    switch (draft.draftType) {
+   526→      case DraftType.exam:
+   527→        return AppColors.info;
+   528→      case DraftType.assignment:
+   529→        return const Color(0xFF8B5CF6); // Violet
+   530→      case DraftType.lessonPlan:
+   531→        return AppColors.success;
+   532→      case DraftType.question:
+   533→        return AppColors.warning;
+   534→      case DraftType.resource:
+   535→        return const Color(0xFF06B6D4); // Cyan
+   536→    }
+   537→  }
+   538→
+   539→  String _formatTimeSince(DateTime dt) {
+   540→    final diff = DateTime.now().difference(dt);
+   541→    if (diff.inMinutes < 1) return 'Just now';
+   542→    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+   543→    if (diff.inHours < 24) return '${diff.inHours}h ago';
+   544→    if (diff.inDays < 7) return '${diff.inDays}d ago';
+   545→    return '${dt.day}/${dt.month}/${dt.year}';
+   546→  }
+   547→}
+   548→
+   549→// ============================================================================
+   550→// 6. STORAGE USAGE BAR
+   551→// ============================================================================
+   552→
+   553→/// A progress bar showing local storage usage.
+   554→///
+   555→/// Displays a linear bar with a label underneath showing the used/total
+   556→/// amount, and a percentage indicator.
+   557→class StorageUsageBar extends StatelessWidget {
+   558→  const StorageUsageBar({
+   559→    super.key,
+   560→    required this.usedBytes,
+   561→    required this.totalBytes,
+   562→    this.label,
+   563→  });
+   564→
+   565→  final int usedBytes;
+   566→  final int totalBytes;
+   567→  final String? label;
+   568→
+   569→  @override
+   570→  Widget build(BuildContext context) {
+   571→    final cs = context.colorScheme;
+   572→    final tt = context.textTheme;
+   573→    final ratio = totalBytes > 0 ? usedBytes / totalBytes : 0.0;
+   574→    final clampedRatio = ratio.clamp(0.0, 1.0);
+   575→    final percent = (clampedRatio * 100).toStringAsFixed(0);
+   576→
+   577→    final barColor = ratio > 0.9
+   578→        ? AppColors.error
+   579→        : ratio > 0.7
+   580→            ? AppColors.warning
+   581→            : AppColors.success;
+   582→
+   583→    return Card(
+   584→      elevation: Spacings.elevationSm,
+   585→      shadowColor: cs.shadow.withValues(alpha: 0.08),
+   586→      shape: RoundedRectangleBorder(
+   587→        borderRadius: Spacings.borderRadiusLg,
+   588→        side: BorderSide(
+   589→          color: cs.outlineVariant.withValues(alpha: 0.5),
+   590→        ),
+   591→      ),
+   592→      child: Padding(
+   593→        padding: const EdgeInsets.all(Spacings.lg),
+   594→        child: Column(
+   595→          crossAxisAlignment: CrossAxisAlignment.start,
+   596→          children: [
+   597→            Row(
+   598→              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+   599→              children: [
+   600→                Text(
+   601→                  label ?? '${_formatBytes(usedBytes)} / ${_formatBytes(totalBytes)}',
+   602→                  style: tt.bodyMedium?.copyWith(
+   603→                    fontWeight: AppTypography.wMedium,
+   604→                    color: cs.onSurface,
+   605→                  ),
+   606→                ),
+   607→                Text(
+   608→                  '$percent%',
+   609→                  style: tt.labelLarge?.copyWith(
+   610→                    fontWeight: AppTypography.wSemiBold,
+   611→                    color: barColor,
+   612→                  ),
+   613→                ),
+   614→              ],
+   615→            ),
+   616→            const SizedBox(height: Spacings.sm),
+   617→            ClipRRect(
+   618→              borderRadius: Spacings.borderRadiusFull,
+   619→              child: LinearProgressIndicator(
+   620→                value: clampedRatio,
+   621→                minHeight: 10,
+   622→                backgroundColor: cs.surfaceContainerHighest,
+   623→                valueColor: AlwaysStoppedAnimation<Color>(barColor),
+   624→              ),
+   625→            ),
+   626→          ],
+   627→        ),
+   628→      ),
+   629→    );
+   630→  }
+   631→
+   632→  String _formatBytes(int bytes) {
+   633→    if (bytes < 1024) return '$bytes B';
+   634→    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+   635→    if (bytes < 1024 * 1024 * 1024) {
+   636→      return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+   637→    }
+   638→    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+   639→  }
+   640→}
+   641→
+   642→// ============================================================================
+   643→// 7. CONNECTION QUALITY INDICATOR
+   644→// ============================================================================
+   645→
+   646→/// An animated indicator showing the current connection quality.
+   647→///
+   648→/// Displays concentric arcs (like a Wi-Fi signal) that fill based on
+   649→/// the connection quality level:
+   650→/// - **Excellent**: 4 arcs, green
+   651→/// - **Good**: 3 arcs, blue
+   652→/// - **Limited**: 2 arcs, orange
+   653→/// - **Offline**: 0 arcs, red with a cross
+   654→class ConnectionQualityIndicator extends StatefulWidget {
+   655→  const ConnectionQualityIndicator({
+   656→    super.key,
+   657→    required this.quality,
+   658→    this.size = 40,
+   659→  });
+   660→
+   661→  final ConnectionQuality? quality;
+   662→  final double size;
+   663→
+   664→  @override
+   665→  State<ConnectionQualityIndicator> createState() =>
+   666→      _ConnectionQualityIndicatorState();
+   667→}
+   668→
+   669→class _ConnectionQualityIndicatorState
+   670→    extends State<ConnectionQualityIndicator>
+   671→    with SingleTickerProviderStateMixin {
+   672→  late final AnimationController _controller;
+   673→
+   674→  @override
+   675→  void initState() {
+   676→    super.initState();
+   677→    _controller = AnimationController(
+   678→      vsync: this,
+   679→      duration: const Duration(milliseconds: 1200),
+   680→    )..repeat(reverse: true);
+   681→  }
+   682→
+   683→  @override
+   684→  void didUpdateWidget(ConnectionQualityIndicator oldWidget) {
+   685→    super.didUpdateWidget(oldWidget);
+   686→    if (oldWidget.quality != widget.quality) {
+   687→      _controller.reset();
+   688→      if (widget.quality != ConnectionQuality.offline) {
+   689→        _controller.repeat(reverse: true);
+   690→      }
+   691→    }
+   692→  }
+   693→
+   694→  @override
+   695→  void dispose() {
+   696→    _controller.dispose();
+   697→    super.dispose();
+   698→  }
+   699→
+   700→  @override
+   701→  Widget build(BuildContext context) {
+   702→    final quality = widget.quality ?? ConnectionQuality.offline;
+   703→    final color = _qualityColor(quality);
+   704→    final arcCount = _arcCount(quality);
+   705→
+   706→    return AnimatedBuilder(
+   707→      animation: _controller,
+   708→      builder: (context, child) {
+   709→        final pulseValue = quality == ConnectionQuality.offline
+   710→            ? 1.0
+   711→            : 0.85 + (_controller.value * 0.15);
+   712→
+   713→        return Transform.scale(
+   714→          scale: pulseValue,
+   715→          child: CustomPaint(
+   716→            size: Size(widget.size, widget.size),
+   717→            painter: _SignalArcPainter(
+   718→              arcCount: arcCount,
+   719→              color: color,
+   720→              isOffline: quality == ConnectionQuality.offline,
+   721→            ),
+   722→          ),
+   723→        );
+   724→      },
+   725→    );
+   726→  }
+   727→
+   728→  int _arcCount(ConnectionQuality quality) {
+   729→    switch (quality) {
+   730→      case ConnectionQuality.excellent:
+   731→        return 4;
+   732→      case ConnectionQuality.good:
+   733→        return 3;
+   734→      case ConnectionQuality.limited:
+   735→        return 2;
+   736→      case ConnectionQuality.offline:
+   737→        return 0;
+   738→    }
+   739→  }
+   740→
+   741→  Color _qualityColor(ConnectionQuality quality) {
+   742→    switch (quality) {
+   743→      case ConnectionQuality.excellent:
+   744→        return AppColors.success;
+   745→      case ConnectionQuality.good:
+   746→        return AppColors.info;
+   747→      case ConnectionQuality.limited:
+   748→        return AppColors.warning;
+   749→      case ConnectionQuality.offline:
+   750→        return AppColors.error;
+   751→    }
+   752→  }
+   753→}
+   754→
+   755→/// Custom painter for the signal arc indicator.
+   756→class _SignalArcPainter extends CustomPainter {
+   757→  _SignalArcPainter({
+   758→    required this.arcCount,
+   759→    required this.color,
+   760→    required this.isOffline,
+   761→  });
+   762→
+   763→  final int arcCount;
+   764→  final Color color;
+   765→  final bool isOffline;
+   766→
+   767→  @override
+   768→  void paint(Canvas canvas, Size size) {
+   769→    final center = Offset(size.width / 2, size.height * 0.85);
+   770→    final baseRadius = size.width * 0.15;
+   771→
+   772→    if (isOffline) {
+   773→      // Draw an X for offline
+   774→      final paint = Paint()
+   775→        ..color = color
+   776→        ..strokeWidth = 2.5
+   777→        ..style = PaintingStyle.stroke
+   778→        ..strokeCap = StrokeCap.round;
+   779→
+   780→      final crossSize = size.width * 0.25;
+   781→      canvas.drawLine(
+   782→        Offset(center.dx - crossSize, center.dy - crossSize),
+   783→        Offset(center.dx + crossSize, center.dy + crossSize),
+   784→        paint,
+   785→      );
+   786→      canvas.drawLine(
+   787→        Offset(center.dx + crossSize, center.dy - crossSize),
+   788→        Offset(center.dx - crossSize, center.dy + crossSize),
+   789→        paint,
+   790→      );
+   791→      return;
+   792→    }
+   793→
+   794→    // Draw signal arcs
+   795→    for (int i = 0; i < 4; i++) {
+   796→      final radius = baseRadius + (i * size.width * 0.12);
+   797→      final isActive = i < arcCount;
+   798→      final paint = Paint()
+   799→        ..color = isActive ? color : color.withValues(alpha: 0.15)
+   800→        ..strokeWidth = 2.5
+   801→        ..style = PaintingStyle.stroke
+   802→        ..strokeCap = StrokeCap.round;
+   803→
+   804→      canvas.drawArc(
+   805→        Rect.fromCircle(center: center, radius: radius),
+   806→        -2.2, // ~-126 degrees
+   807→        1.4, // ~80 degrees sweep
+   808→        false,
+   809→        paint,
+   810→      );
+   811→    }
+   812→
+   813→    // Draw center dot
+   814→    final dotPaint = Paint()
+   815→      ..color = color
+   816→      ..style = PaintingStyle.fill;
+   817→    canvas.drawCircle(center, 2.5, dotPaint);
+   818→  }
+   819→
+   820→  @override
+   821→  bool shouldRepaint(_SignalArcPainter oldDelegate) {
+   822→    return arcCount != oldDelegate.arcCount ||
+   823→        color != oldDelegate.color ||
+   824→        isOffline != oldDelegate.isOffline;
+   825→  }
+   826→}
+   827→

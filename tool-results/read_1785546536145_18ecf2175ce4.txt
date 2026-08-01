@@ -1,0 +1,853 @@
+     1→// ============================================================================
+     2→// ExamForge AI — Accessibility Widgets Library
+     3→// ============================================================================
+     4→// Production-ready accessible widget wrappers that enforce:
+     5→//   - Proper Semantics for screen readers
+     6→//   - Screen reader labels on all interactive elements
+     7→//   - Logical focus order
+     8→//   - Keyboard navigation support
+     9→//   - Minimum 44×44 touch targets (WCAG 2.2 AA)
+    10→//   - Accessible dialogs with focus trapping
+    11→//   - Accessible forms with error announcements
+    12→//   - Accessible loading states
+    13→//   - Accessible error states
+    14→//
+    15→// These widgets are designed to be drop-in replacements for standard
+    16→// Flutter widgets with accessibility built in by default.
+    17→// ============================================================================
+    18→
+    19→import 'package:flutter/material.dart';
+    20→import 'package:flutter/semantics.dart';
+    21→
+    22→// ═══════════════════════════════════════════════════════════════════════
+    23→// MINIMUM TOUCH TARGET SIZE (WCAG 2.2 AA: 44×44 logical pixels)
+    24→// ═══════════════════════════════════════════════════════════════════════
+    25→
+    26→const double kMinTouchTarget = 44.0;
+    27→
+    28→// ═══════════════════════════════════════════════════════════════════════
+    29→// ACCESSIBLE BUTTON
+    30→// ═══════════════════════════════════════════════════════════════════════
+    31→
+    32→/// A button that meets WCAG 2.2 AA accessibility requirements:
+    33→/// - Minimum 44×44 touch target
+    34→/// - Semantic label for screen readers
+    35→/// - Focus indicator for keyboard navigation
+    36→/// - Tooltip for mouse hover
+    37→/// - Enabled/disabled state announced to screen readers
+    38→class AccessiblyButton extends StatelessWidget {
+    39→  final VoidCallback? onPressed;
+    40→  final Widget child;
+    41→  final String? semanticLabel;
+    42→  final String? tooltip;
+    43→  final bool isLoading;
+    44→  final ButtonStyle? style;
+    45→  final FocusNode? focusNode;
+    46→  final bool autofocus;
+    47→
+    48→  const AccessiblyButton({
+    49→    super.key,
+    50→    required this.onPressed,
+    51→    required this.child,
+    52→    this.semanticLabel,
+    53→    this.tooltip,
+    54→    this.isLoading = false,
+    55→    this.style,
+    56→    this.focusNode,
+    57→    this.autofocus = false,
+    58→  });
+    59→
+    60→  @override
+    61→  Widget build(BuildContext context) {
+    62→    final effectiveOnPressed = isLoading ? null : onPressed;
+    63→    final isDisabled = effectiveOnPressed == null;
+    64→
+    65→    return Semantics(
+    66→      button: true,
+    67→      enabled: !isDisabled && !isLoading,
+    68→      label: semanticLabel,
+    69→      child: Tooltip(
+    70→        message: tooltip ?? semanticLabel ?? '',
+    71→        child: ConstrainedBox(
+    72→          constraints: const BoxConstraints(
+    73→            minWidth: kMinTouchTarget,
+    74→            minHeight: kMinTouchTarget,
+    75→          ),
+    76→          child: ElevatedButton(
+    77→            onPressed: effectiveOnPressed,
+    78→            focusNode: focusNode,
+    79→            autofocus: autofocus,
+    80→            style: (style ?? ElevatedButton.styleFrom()).merge(
+    81→              ElevatedButton.styleFrom(
+    82→                minimumSize: const Size(kMinTouchTarget, kMinTouchTarget),
+    83→                // Ensure visible focus indicator
+    84→                visualDensity: VisualDensity.standard,
+    85→              ),
+    86→            ),
+    87→            child: isLoading
+    88→                ? Semantics(
+    89→                    label: 'Loading',
+    90→                    liveRegion: true,
+    91→                    child: SizedBox(
+    92→                      width: 20,
+    93→                      height: 20,
+    94→                      child: CircularProgressIndicator(
+    95→                        strokeWidth: 2,
+    96→                        color: Theme.of(context).colorScheme.onPrimary,
+    97→                      ),
+    98→                    ),
+    99→                  )
+   100→                : child,
+   101→          ),
+   102→        ),
+   103→      ),
+   104→    );
+   105→  }
+   106→}
+   107→
+   108→// ═══════════════════════════════════════════════════════════════════════
+   109→// ACCESSIBLE TEXT FIELD
+   110→// ═══════════════════════════════════════════════════════════════════════
+   111→
+   112→/// A text field that meets WCAG 2.2 AA accessibility requirements:
+   113→/// - Semantic label for screen readers (via decoration)
+   114→/// - Error messages announced to screen readers (live region)
+   115→/// - Minimum touch target height
+   116→/// - Focus indicator
+   117→/// - Keyboard navigation support
+   118→class AccessiblyTextField extends StatelessWidget {
+   119→  final TextEditingController? controller;
+   120→  final String? label;
+   121→  final String? hint;
+   122→  final String? semanticLabel;
+   123→  final String? errorMessage;
+   124→  final bool obscureText;
+   125→  final TextInputType? keyboardType;
+   126→  final FocusNode? focusNode;
+   127→  final ValueChanged<String>? onChanged;
+   128→  final FormFieldValidator<String>? validator;
+   129→  final VoidCallback? onTap;
+   130→  final bool readOnly;
+   131→  final bool autofocus;
+   132→  final int? maxLines;
+   133→  final Widget? prefixIcon;
+   134→  final Widget? suffixIcon;
+   135→  final TextInputAction? textInputAction;
+   136→  final ValueChanged<String>? onFieldSubmitted;
+   137→  final bool enabled;
+   138→
+   139→  const AccessiblyTextField({
+   140→    super.key,
+   141→    this.controller,
+   142→    this.label,
+   143→    this.hint,
+   144→    this.semanticLabel,
+   145→    this.errorMessage,
+   146→    this.obscureText = false,
+   147→    this.keyboardType,
+   148→    this.focusNode,
+   149→    this.onChanged,
+   150→    this.validator,
+   151→    this.onTap,
+   152→    this.readOnly = false,
+   153→    this.autofocus = false,
+   154→    this.maxLines = 1,
+   155→    this.prefixIcon,
+   156→    this.suffixIcon,
+   157→    this.textInputAction,
+   158→    this.onFieldSubmitted,
+   159→    this.enabled = true,
+   160→  });
+   161→
+   162→  @override
+   163→  Widget build(BuildContext context) {
+   164→    final effectiveLabel = semanticLabel ?? label;
+   165→    final hasError = errorMessage != null && errorMessage!.isNotEmpty;
+   166→
+   167→    return Semantics(
+   168→      label: effectiveLabel,
+   169→      textField: true,
+   170→      enabled: enabled,
+   171→      child: Column(
+   172→        crossAxisAlignment: CrossAxisAlignment.start,
+   173→        mainAxisSize: MainAxisSize.min,
+   174→        children: [
+   175→          ConstrainedBox(
+   176→            constraints: const BoxConstraints(
+   177→              minHeight: kMinTouchTarget,
+   178→            ),
+   179→            child: TextFormField(
+   180→              controller: controller,
+   181→              focusNode: focusNode,
+   182→              obscureText: obscureText,
+   183→              keyboardType: keyboardType,
+   184→              onChanged: onChanged,
+   185→              validator: validator,
+   186→              onTap: onTap,
+   187→              readOnly: readOnly,
+   188→              autofocus: autofocus,
+   189→              maxLines: maxLines,
+   190→              enabled: enabled,
+   191→              textInputAction: textInputAction,
+   192→              onFieldSubmitted: onFieldSubmitted,
+   193→              decoration: InputDecoration(
+   194→                labelText: label,
+   195→                hintText: hint,
+   196→                prefixIcon: prefixIcon,
+   197→                suffixIcon: suffixIcon,
+   198→                errorText: errorMessage,
+   199→                // Ensure minimum height for touch target
+   200→                contentPadding: const EdgeInsets.symmetric(
+   201→                  horizontal: 16,
+   202→                  vertical: 14,
+   203→                ),
+   204→              ),
+   205→            ),
+   206→          ),
+   207→          // Announce errors to screen readers via live region
+   208→          if (hasError)
+   209→            Semantics(
+   210→              liveRegion: true,
+   211→              label: 'Error: $errorMessage',
+   212→              child: Padding(
+   213→                padding: const EdgeInsets.only(top: 4, left: 16),
+   214→                child: Text(
+   215→                  errorMessage!,
+   216→                  style: TextStyle(
+   217→                    color: Theme.of(context).colorScheme.error,
+   218→                    fontSize: 12,
+   219→                  ),
+   220→                ),
+   221→              ),
+   222→            ),
+   223→        ],
+   224→      ),
+   225→    );
+   226→  }
+   227→}
+   228→
+   229→// ═══════════════════════════════════════════════════════════════════════
+   230→// ACCESSIBLE CARD (for dashboard metric cards, etc.)
+   231→// ═══════════════════════════════════════════════════════════════════════
+   232→
+   233→/// A card with proper accessibility semantics for screen readers.
+   234→class AccessiblyCard extends StatelessWidget {
+   235→  final Widget child;
+   236→  final String? semanticLabel;
+   237→  final String? semanticHint;
+   238→  final VoidCallback? onTap;
+   239→  final EdgeInsetsGeometry? padding;
+   240→  final EdgeInsetsGeometry? margin;
+   241→  final Color? color;
+   242→
+   243→  const AccessiblyCard({
+   244→    super.key,
+   245→    required this.child,
+   246→    this.semanticLabel,
+   247→    this.semanticHint,
+   248→    this.onTap,
+   249→    this.padding,
+   250→    this.margin,
+   251→    this.color,
+   252→  });
+   253→
+   254→  @override
+   255→  Widget build(BuildContext context) {
+   256→    return Semantics(
+   257→      button: onTap != null,
+   258→      label: semanticLabel,
+   259→      hint: semanticHint,
+   260→      child: Card(
+   261→        margin: margin ?? const EdgeInsets.all(8),
+   262→        color: color,
+   263→        child: InkWell(
+   264→          onTap: onTap,
+   265→          borderRadius: BorderRadius.circular(12),
+   266→          // Ensure minimum touch target
+   267→          child: ConstrainedBox(
+   268→            constraints: onTap != null
+   269→                ? const BoxConstraints(minHeight: kMinTouchTarget)
+   270→                : const BoxConstraints(),
+   271→            child: Padding(
+   272→              padding: padding ?? const EdgeInsets.all(16),
+   273→              child: child,
+   274→            ),
+   275→          ),
+   276→        ),
+   277→      ),
+   278→    );
+   279→  }
+   280→}
+   281→
+   282→// ═══════════════════════════════════════════════════════════════════════
+   283→// ACCESSIBLE LOADING INDICATOR
+   284→// ═══════════════════════════════════════════════════════════════════════
+   285→
+   286→/// A loading indicator that announces its state to screen readers.
+   287→class AccessiblyLoading extends StatelessWidget {
+   288→  final String message;
+   289→  final bool showProgress;
+   290→  final double? progress;
+   291→
+   292→  const AccessiblyLoading({
+   293→    super.key,
+   294→    this.message = 'Loading',
+   295→    this.showProgress = false,
+   296→    this.progress,
+   297→  });
+   298→
+   299→  @override
+   300→  Widget build(BuildContext context) {
+   301→    return Semantics(
+   302→      label: message,
+   303→      liveRegion: true,
+   304→      child: Column(
+   305→        mainAxisSize: MainAxisSize.min,
+   306→        children: [
+   307→          if (showProgress && progress != null)
+   308→            CircularProgressIndicator(value: progress)
+   309→          else
+   310→            const CircularProgressIndicator(),
+   311→          const SizedBox(height: 16),
+   312→          Text(
+   313→            message,
+   314→            style: Theme.of(context).textTheme.bodyMedium,
+   315→          ),
+   316→        ],
+   317→      ),
+   318→    );
+   319→  }
+   320→}
+   321→
+   322→// ═══════════════════════════════════════════════════════════════════════
+   323→// ACCESSIBLE ERROR STATE
+   324→// ═══════════════════════════════════════════════════════════════════════
+   325→
+   326→/// An error state widget that announces the error to screen readers.
+   327→class AccessiblyError extends StatelessWidget {
+   328→  final String title;
+   329→  final String? message;
+   330→  final String? retryLabel;
+   331→  final VoidCallback? onRetry;
+   332→  final IconData icon;
+   333→
+   334→  const AccessiblyError({
+   335→    super.key,
+   336→    this.title = 'Something went wrong',
+   337→    this.message,
+   338→    this.retryLabel = 'Retry',
+   339→    this.onRetry,
+   340→    this.icon = Icons.error_outline,
+   341→  });
+   342→
+   343→  @override
+   344→  Widget build(BuildContext context) {
+   345→    return Semantics(
+   346→      label: 'Error: $title${message != null ? '. $message' : ''}',
+   347→      liveRegion: true,
+   348→      child: Padding(
+   349→        padding: const EdgeInsets.all(24),
+   350→        child: Column(
+   351→          mainAxisSize: MainAxisSize.min,
+   352→          children: [
+   353→            Icon(
+   354→              icon,
+   355→              size: 48,
+   356→              color: Theme.of(context).colorScheme.error,
+   357→            ),
+   358→            const SizedBox(height: 16),
+   359→            Text(
+   360→              title,
+   361→              style: Theme.of(context).textTheme.titleMedium,
+   362→              textAlign: TextAlign.center,
+   363→            ),
+   364→            if (message != null) ...[
+   365→              const SizedBox(height: 8),
+   366→              Text(
+   367→                message!,
+   368→                style: Theme.of(context).textTheme.bodyMedium,
+   369→                textAlign: TextAlign.center,
+   370→              ),
+   371→            ],
+   372→            if (onRetry != null) ...[
+   373→              const SizedBox(height: 16),
+   374→              AccessiblyButton(
+   375→                onPressed: onRetry,
+   376→                semanticLabel: retryLabel,
+   377→                child: Text(retryLabel!),
+   378→              ),
+   379→            ],
+   380→          ],
+   381→        ),
+   382→      ),
+   383→    );
+   384→  }
+   385→}
+   386→
+   387→// ═══════════════════════════════════════════════════════════════════════
+   388→// ACCESSIBLE DIALOG
+   389→// ═══════════════════════════════════════════════════════════════════════
+   390→
+   391→/// Shows an accessible dialog that:
+   392→/// - Traps focus within the dialog
+   393→/// - Announces the dialog title to screen readers
+   394→/// - Supports keyboard navigation (Escape to close)
+   395→/// - Returns focus to the triggering element on close
+   396→Future<T?> showAccessiblyDialog<T>({
+   397→  required BuildContext context,
+   398→  required WidgetBuilder builder,
+   399→  required String semanticLabel,
+   400→  bool barrierDismissible = true,
+   401→}) {
+   402→  return showDialog<T>(
+   403→    context: context,
+   404→    barrierDismissible: barrierDismissible,
+   405→    builder: (context) {
+   406→      return Semantics(
+   407→        label: semanticLabel,
+   408→        scopesRoute: true,
+   409→        explicitChildNodes: true,
+   410→        child: builder(context),
+   411→      );
+   412→    },
+   413→  );
+   414→}
+   415→
+   416→/// Shows an accessible confirmation dialog.
+   417→Future<bool> showAccessiblyConfirm({
+   418→  required BuildContext context,
+   419→  required String title,
+   420→  required String message,
+   421→  String confirmLabel = 'Confirm',
+   422→  String cancelLabel = 'Cancel',
+   423→  bool isDestructive = false,
+   424→}) async {
+   425→  final result = await showAccessiblyDialog<bool>(
+   426→    context: context,
+   427→    semanticLabel: '$title. $message',
+   428→    builder: (context) => AlertDialog(
+   429→      title: Text(title),
+   430→      content: Semantics(
+   431→        liveRegion: true,
+   432→        child: Text(message),
+   433→      ),
+   434→      actions: [
+   435→        TextButton(
+   436→          onPressed: () => Navigator.of(context).pop(false),
+   437→          child: Text(cancelLabel),
+   438→        ),
+   439→        TextButton(
+   440→          onPressed: () => Navigator.of(context).pop(true),
+   441→          style: isDestructive
+   442→              ? TextButton.styleFrom(
+   443→                  foregroundColor: Theme.of(context).colorScheme.error,)
+   444→              : null,
+   445→          child: Text(confirmLabel),
+   446→        ),
+   447→      ],
+   448→    ),
+   449→  );
+   450→
+   451→  return result ?? false;
+   452→}
+   453→
+   454→// ═══════════════════════════════════════════════════════════════════════
+   455→// ACCESSIBLE STATUS INDICATOR
+   456→// ═══════════════════════════════════════════════════════════════════════
+   457→
+   458→/// A status indicator that uses both color AND text/icons for accessibility.
+   459→/// Color-blind users can still understand the status from the text label.
+   460→class AccessiblyStatusIndicator extends StatelessWidget {
+   461→  final String label;
+   462→  final StatusType type;
+   463→
+   464→  const AccessiblyStatusIndicator({
+   465→    super.key,
+   466→    required this.label,
+   467→    required this.type,
+   468→  });
+   469→
+   470→  @override
+   471→  Widget build(BuildContext context) {
+   472→    final (color, icon) = _getStatusStyle(context);
+   473→
+   474→    return Semantics(
+   475→      label: '${type.name}: $label',
+   476→      child: Container(
+   477→        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+   478→        decoration: BoxDecoration(
+   479→          color: color.withValues(alpha: 0.1),
+   480→          borderRadius: BorderRadius.circular(8),
+   481→        ),
+   482→        child: Row(
+   483→          mainAxisSize: MainAxisSize.min,
+   484→          children: [
+   485→            Icon(icon, size: 16, color: color),
+   486→            const SizedBox(width: 4),
+   487→            Text(
+   488→              label,
+   489→              style: TextStyle(color: color, fontWeight: FontWeight.w600, fontSize: 12),
+   490→            ),
+   491→          ],
+   492→        ),
+   493→      ),
+   494→    );
+   495→  }
+   496→
+   497→  (Color, IconData) _getStatusStyle(BuildContext context) {
+   498→    return switch (type) {
+   499→      StatusType.success => (Colors.green, Icons.check_circle),
+   500→      StatusType.warning => (Colors.orange, Icons.warning),
+   501→      StatusType.error => (Theme.of(context).colorScheme.error, Icons.error),
+   502→      StatusType.info => (Colors.blue, Icons.info),
+   503→      StatusType.loading => (Colors.grey, Icons.hourglass_empty),
+   504→    };
+   505→  }
+   506→}
+   507→
+   508→enum StatusType { success, warning, error, info, loading }
+   509→
+   510→// ═══════════════════════════════════════════════════════════════════════
+   511→// ACCESSIBLE SECTION HEADING
+   512→// ═══════════════════════════════════════════════════════════════════════
+   513→
+   514→/// A section heading that is properly announced as a header by screen readers.
+   515→class AccessiblyHeading extends StatelessWidget {
+   516→  final String text;
+   517→  final HeadingLevel level;
+   518→  final TextStyle? style;
+   519→
+   520→  const AccessiblyHeading({
+   521→    super.key,
+   522→    required this.text,
+   523→    this.level = HeadingLevel.h2,
+   524→    this.style,
+   525→  });
+   526→
+   527→  @override
+   528→  Widget build(BuildContext context) {
+   529→    final effectiveStyle = style ??
+   530→        switch (level) {
+   531→          HeadingLevel.h1 => Theme.of(context).textTheme.headlineLarge,
+   532→          HeadingLevel.h2 => Theme.of(context).textTheme.headlineMedium,
+   533→          HeadingLevel.h3 => Theme.of(context).textTheme.headlineSmall,
+   534→        };
+   535→
+   536→    return Semantics(
+   537→      header: true,
+   538→      headingLevel: level._toSemanticsLevel,
+   539→      child: Text(text, style: effectiveStyle),
+   540→    );
+   541→  }
+   542→}
+   543→
+   544→enum HeadingLevel { h1, h2, h3 }
+   545→
+   546→extension on HeadingLevel {
+   547→  int get _toSemanticsLevel => switch (this) {
+   548→        HeadingLevel.h1 => 1,
+   549→        HeadingLevel.h2 => 2,
+   550→        HeadingLevel.h3 => 3,
+   551→      };
+   552→}
+   553→
+   554→// ═══════════════════════════════════════════════════════════════════════
+   555→// ACCESSIBLE TIMER DISPLAY (for CBT exam)
+   556→// ═══════════════════════════════════════════════════════════════════════
+   557→
+   558→/// A timer display that announces time changes to screen readers.
+   559→/// Critical for CBT exam accessibility — visually impaired students
+   560→/// must be able to track remaining time.
+   561→class AccessiblyTimerDisplay extends StatefulWidget {
+   562→  final Duration remaining;
+   563→  final bool isWarning;
+   564→  final bool isCritical;
+   565→  final VoidCallback? onTimeUp;
+   566→
+   567→  const AccessiblyTimerDisplay({
+   568→    super.key,
+   569→    required this.remaining,
+   570→    this.isWarning = false,
+   571→    this.isCritical = false,
+   572→    this.onTimeUp,
+   573→  });
+   574→
+   575→  @override
+   576→  State<AccessiblyTimerDisplay> createState() => _AccessiblyTimerDisplayState();
+   577→}
+   578→
+   579→class _AccessiblyTimerDisplayState extends State<AccessiblyTimerDisplay> {
+   580→  Duration? _lastAnnounced;
+   581→  String _lastLiveRegionText = '';
+   582→
+   583→  @override
+   584→  Widget build(BuildContext context) {
+   585→    final timeText = _formatDuration(widget.remaining);
+   586→
+   587→    // Determine announcement frequency based on urgency
+   588→    final shouldAnnounce = _shouldAnnounceTime(widget.remaining);
+   589→
+   590→    if (shouldAnnounce) {
+   591→      _lastAnnounced = widget.remaining;
+   592→      _lastLiveRegionText = _getAnnouncementText(timeText);
+   593→    }
+   594→
+   595→    final textColor = widget.isCritical
+   596→        ? Theme.of(context).colorScheme.error
+   597→        : widget.isWarning
+   598→            ? Colors.orange
+   599→            : Theme.of(context).colorScheme.onSurface;
+   600→
+   601→    return Semantics(
+   602→      label: 'Time remaining: $timeText',
+   603→      liveRegion: true,
+   604→      value: _lastLiveRegionText,
+   605→      child: Container(
+   606→        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+   607→        decoration: BoxDecoration(
+   608→          color: widget.isCritical
+   609→              ? Theme.of(context).colorScheme.error.withValues(alpha: 0.1)
+   610→              : widget.isWarning
+   611→                  ? Colors.orange.withValues(alpha: 0.1)
+   612→                  : null,
+   613→          borderRadius: BorderRadius.circular(8),
+   614→          border: widget.isCritical
+   615→              ? Border.all(color: Theme.of(context).colorScheme.error)
+   616→              : null,
+   617→        ),
+   618→        child: Row(
+   619→          mainAxisSize: MainAxisSize.min,
+   620→          children: [
+   621→            Icon(
+   622→              Icons.timer,
+   623→              size: 20,
+   624→              color: textColor,
+   625→              semanticLabel: 'Timer icon',
+   626→            ),
+   627→            const SizedBox(width: 8),
+   628→            Text(
+   629→              timeText,
+   630→              style: TextStyle(
+   631→                color: textColor,
+   632→                fontWeight: FontWeight.bold,
+   633→                fontSize: 18,
+   634→              ),
+   635→            ),
+   636→            if (widget.isCritical)
+   637→              Padding(
+   638→                padding: const EdgeInsets.only(left: 8),
+   639→                child: Text(
+   640→                  'URGENT',
+   641→                  style: TextStyle(
+   642→                    color: Theme.of(context).colorScheme.error,
+   643→                    fontWeight: FontWeight.bold,
+   644→                    fontSize: 12,
+   645→                  ),
+   646→                ),
+   647→              ),
+   648→          ],
+   649→        ),
+   650→      ),
+   651→    );
+   652→  }
+   653→
+   654→  bool _shouldAnnounceTime(Duration remaining) {
+   655→    if (_lastAnnounced == null) return true;
+   656→
+   657→    // Always announce when entering warning zone
+   658→    if (widget.isCritical && !_wasCritical()) return true;
+   659→    if (widget.isWarning && !_wasWarning()) return true;
+   660→
+   661→    // Announce every minute during normal time
+   662→    if (remaining.inMinutes != _lastAnnounced!.inMinutes) return true;
+   663→
+   664→    // Announce every 10 seconds in critical zone
+   665→    if (widget.isCritical) {
+   666→      final secondsBucket = (remaining.inSeconds / 10).floor();
+   667→      final lastBucket = (_lastAnnounced!.inSeconds / 10).floor();
+   668→      if (secondsBucket != lastBucket) return true;
+   669→    }
+   670→
+   671→    return false;
+   672→  }
+   673→
+   674→  bool _wasCritical() {
+   675→    return _lastAnnounced != null && _lastAnnounced!.inMinutes < 5;
+   676→  }
+   677→
+   678→  bool _wasWarning() {
+   679→    return _lastAnnounced != null && _lastAnnounced!.inMinutes < 15;
+   680→  }
+   681→
+   682→  String _getAnnouncementText(String timeText) {
+   683→    if (widget.isCritical) {
+   684→      return 'Warning: Only $timeText remaining!';
+   685→    }
+   686→    if (widget.isWarning) {
+   687→      return 'Time remaining: $timeText';
+   688→    }
+   689→    return 'Time remaining: $timeText';
+   690→  }
+   691→
+   692→  String _formatDuration(Duration duration) {
+   693→    final hours = duration.inHours;
+   694→    final minutes = duration.inMinutes.remainder(60);
+   695→    final seconds = duration.inSeconds.remainder(60);
+   696→
+   697→    if (hours > 0) {
+   698→      return '${hours.toString().padLeft(2, '0')}:${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+   699→    }
+   700→    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+   701→  }
+   702→}
+   703→
+   704→// ═══════════════════════════════════════════════════════════════════════
+   705→// ACCESSIBLE QUESTION NAVIGATOR (for CBT exam)
+   706→// ═══════════════════════════════════════════════════════════════════════
+   707→
+   708→/// A question navigator that is fully accessible to screen readers.
+   709→/// Each question button announces its status (answered/unanswered/flagged).
+   710→class AccessiblyQuestionNavigator extends StatelessWidget {
+   711→  final int totalQuestions;
+   712→  final int currentQuestion;
+   713→  final Set<int> answeredQuestions;
+   714→  final Set<int> flaggedQuestions;
+   715→  final ValueChanged<int> onQuestionTap;
+   716→
+   717→  const AccessiblyQuestionNavigator({
+   718→    super.key,
+   719→    required this.totalQuestions,
+   720→    required this.currentQuestion,
+   721→    required this.answeredQuestions,
+   722→    required this.flaggedQuestions,
+   723→    required this.onQuestionTap,
+   724→  });
+   725→
+   726→  @override
+   727→  Widget build(BuildContext context) {
+   728→    return Semantics(
+   729→      label: 'Question navigator. $totalQuestions questions total. '
+   730→          '${answeredQuestions.length} answered. '
+   731→          '${flaggedQuestions.length} flagged for review. '
+   732→          'Currently on question ${currentQuestion + 1}',
+   733→      child: Wrap(
+   734→        spacing: 4,
+   735→        runSpacing: 4,
+   736→        children: List.generate(totalQuestions, (index) {
+   737→          final isAnswered = answeredQuestions.contains(index);
+   738→          final isFlagged = flaggedQuestions.contains(index);
+   739→          final isCurrent = index == currentQuestion;
+   740→
+   741→          return _QuestionButton(
+   742→            index: index,
+   743→            isAnswered: isAnswered,
+   744→            isFlagged: isFlagged,
+   745→            isCurrent: isCurrent,
+   746→            onTap: () => onQuestionTap(index),
+   747→          );
+   748→        }),
+   749→      ),
+   750→    );
+   751→  }
+   752→}
+   753→
+   754→class _QuestionButton extends StatelessWidget {
+   755→  final int index;
+   756→  final bool isAnswered;
+   757→  final bool isFlagged;
+   758→  final bool isCurrent;
+   759→  final VoidCallback onTap;
+   760→
+   761→  const _QuestionButton({
+   762→    required this.index,
+   763→    required this.isAnswered,
+   764→    required this.isFlagged,
+   765→    required this.isCurrent,
+   766→    required this.onTap,
+   767→  });
+   768→
+   769→  @override
+   770→  Widget build(BuildContext context) {
+   771→    final semanticLabel = _buildSemanticLabel();
+   772→
+   773→    return Semantics(
+   774→      button: true,
+   775→      label: semanticLabel,
+   776→      selected: isCurrent,
+   777→      child: InkWell(
+   778→        onTap: onTap,
+   779→        borderRadius: BorderRadius.circular(8),
+   780→        child: ConstrainedBox(
+   781→          constraints: const BoxConstraints(
+   782→            minWidth: kMinTouchTarget,
+   783→            minHeight: kMinTouchTarget,
+   784→          ),
+   785→          child: Container(
+   786→            width: 44,
+   787→            height: 44,
+   788→            decoration: BoxDecoration(
+   789→              color: _getBackgroundColor(context),
+   790→              borderRadius: BorderRadius.circular(8),
+   791→              border: isCurrent
+   792→                  ? Border.all(color: Theme.of(context).colorScheme.primary, width: 2)
+   793→                  : isFlagged
+   794→                      ? Border.all(color: Colors.orange, width: 2)
+   795→                      : null,
+   796→            ),
+   797→            child: Center(
+   798→              child: Stack(
+   799→                alignment: Alignment.center,
+   800→                children: [
+   801→                  Text(
+   802→                    '${index + 1}',
+   803→                    style: TextStyle(
+   804→                      fontWeight: isCurrent ? FontWeight.bold : FontWeight.normal,
+   805→                    ),
+   806→                  ),
+   807→                  if (isFlagged)
+   808→                    Positioned(
+   809→                      top: 2,
+   810→                      right: 2,
+   811→                      child: Semantics(
+   812→                        label: 'Flagged',
+   813→                        child: const Icon(Icons.flag, size: 10, color: Colors.orange),
+   814→                      ),
+   815→                    ),
+   816→                ],
+   817→              ),
+   818→            ),
+   819→          ),
+   820→        ),
+   821→      ),
+   822→    );
+   823→  }
+   824→
+   825→  String _buildSemanticLabel() {
+   826→    final parts = <String>['Question ${index + 1}'];
+   827→    if (isCurrent) parts.add('current');
+   828→    if (isAnswered) parts.add('answered');
+   829→    if (isFlagged) parts.add('flagged for review');
+   830→    if (!isAnswered && !isCurrent) parts.add('not answered');
+   831→    return parts.join(', ');
+   832→  }
+   833→
+   834→  Color? _getBackgroundColor(BuildContext context) {
+   835→    if (isCurrent) return Theme.of(context).colorScheme.primary.withValues(alpha: 0.2);
+   836→    if (isFlagged) return Colors.orange.withValues(alpha: 0.1);
+   837→    if (isAnswered) return Colors.green.withValues(alpha: 0.1);
+   838→    return null;
+   839→  }
+   840→}
+   841→
+   842→// ═══════════════════════════════════════════════════════════════════════
+   843→// SCREEN READER ANNOUNCEMENT UTILITY
+   844→// ═══════════════════════════════════════════════════════════════════════
+   845→
+   846→/// Announces a message to screen readers using the LiveRegion semantics.
+   847→class ScreenReaderAnnouncer {
+   848→  static void announce(BuildContext context, String message) {
+   849→    // Use the semantics system to make an announcement
+   850→    SemanticsService.announce(message, TextDirection.ltr);
+   851→  }
+   852→}
+   853→
