@@ -1,5 +1,6 @@
-'use client'
-
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ROUTES } from '@/lib/constants/routes'
 import { type ColumnDef } from '@tanstack/react-table'
 import { BookOpen, Plus, Users, GraduationCap, Award } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -7,129 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getTeachersData } from '@/lib/services/users-service'
+import type { TeacherListItem } from '@/lib/services/users-service'
 
 // ============================================================================
 // ExamForge AI — Teachers Page
 // ============================================================================
-// Server Component. Displays a list of teachers with filters,
-// stats overview, and data table.
+// Server Component. Displays teachers from Supabase with real data.
 // ============================================================================
 
-// ──────────────────────────────────────────────────────────────
-// Types
-// ──────────────────────────────────────────────────────────────
-
-interface Teacher {
-  id: string
-  name: string
-  email: string
-  department: string
-  subjects: string[]
-  classes: string[]
-  examCount: number
-  avgStudentScore: number
-  status: 'active' | 'on_leave' | 'inactive'
-  joinedAt: string
-}
-
-// ──────────────────────────────────────────────────────────────
-// Mock Data
-// ──────────────────────────────────────────────────────────────
-
-const MOCK_TEACHERS: Teacher[] = [
-  {
-    id: '1',
-    name: 'Dr. Akinola Babatunde',
-    email: 'akinola@school.edu',
-    department: 'Science',
-    subjects: ['Physics', 'Further Mathematics'],
-    classes: ['SS3A', 'SS3B'],
-    examCount: 24,
-    avgStudentScore: 82.5,
-    status: 'active',
-    joinedAt: '2021-09-01T08:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Mrs. Okonkwo Grace',
-    email: 'grace@school.edu',
-    department: 'Arts',
-    subjects: ['English', 'Literature'],
-    classes: ['SS2A', 'SS2B', 'SS1A'],
-    examCount: 18,
-    avgStudentScore: 78.3,
-    status: 'active',
-    joinedAt: '2020-09-01T08:00:00Z',
-  },
-  {
-    id: '3',
-    name: 'Mr. Ibrahim Musa',
-    email: 'ibrahim@school.edu',
-    department: 'Science',
-    subjects: ['Chemistry', 'Biology'],
-    classes: ['SS2A', 'SS2B'],
-    examCount: 15,
-    avgStudentScore: 75.0,
-    status: 'active',
-    joinedAt: '2022-01-15T10:00:00Z',
-  },
-  {
-    id: '4',
-    name: 'Ms. Adeyemi Funke',
-    email: 'funke@school.edu',
-    department: 'Commercial',
-    subjects: ['Economics', 'Accounting'],
-    classes: ['SS1A', 'SS1B'],
-    examCount: 10,
-    avgStudentScore: 88.2,
-    status: 'on_leave',
-    joinedAt: '2023-03-01T08:00:00Z',
-  },
-  {
-    id: '5',
-    name: 'Mr. Chukwuemeka Nnamdi',
-    email: 'nnamdi@school.edu',
-    department: 'Science',
-    subjects: ['Mathematics'],
-    classes: ['SS3A', 'SS3B', 'SS2A'],
-    examCount: 30,
-    avgStudentScore: 71.8,
-    status: 'active',
-    joinedAt: '2019-09-01T08:00:00Z',
-  },
-  {
-    id: '6',
-    name: 'Mrs. Bello Hauwa',
-    email: 'hauwa@school.edu',
-    department: 'Arts',
-    subjects: ['Government', 'History'],
-    classes: ['SS1A', 'SS1C'],
-    examCount: 8,
-    avgStudentScore: 80.5,
-    status: 'inactive',
-    joinedAt: '2022-09-01T08:00:00Z',
-  },
-]
-
-// ──────────────────────────────────────────────────────────────
-// Column Definitions
-// ──────────────────────────────────────────────────────────────
-
-const statusVariantMap: Record<Teacher['status'], 'default' | 'secondary' | 'destructive'> = {
-  active: 'default',
-  on_leave: 'secondary',
-  inactive: 'destructive',
-}
-
-const statusLabelMap: Record<Teacher['status'], string> = {
-  active: 'Active',
-  on_leave: 'On Leave',
-  inactive: 'Inactive',
-}
-
-const columns: ColumnDef<Teacher, unknown>[] = [
+const columns: ColumnDef<TeacherListItem, unknown>[] = [
   {
     accessorKey: 'name',
     header: 'Teacher',
@@ -142,6 +32,7 @@ const columns: ColumnDef<Teacher, unknown>[] = [
       return (
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
+            {row.original.avatar_url && <AvatarImage src={row.original.avatar_url} alt={row.original.name} />}
             <AvatarFallback className="text-xs bg-primary/10 text-primary">
               {initials}
             </AvatarFallback>
@@ -157,54 +48,51 @@ const columns: ColumnDef<Teacher, unknown>[] = [
   {
     accessorKey: 'department',
     header: 'Department',
-    cell: ({ row }) => (
-      <Badge variant="outline">{row.getValue('department')}</Badge>
-    ),
+    cell: ({ row }) => {
+      const dept = row.getValue('department') as string | null
+      return dept ? <Badge variant="outline">{dept}</Badge> : <span className="text-muted-foreground text-sm">—</span>
+    },
   },
   {
     accessorKey: 'subjects',
     header: 'Subjects',
-    cell: ({ row }) => (
-      <div className="flex flex-wrap gap-1">
-        {row.original.subjects.map((subject) => (
-          <Badge key={subject} variant="secondary" className="text-[10px]">
-            {subject}
-          </Badge>
-        ))}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const subjects = row.original.subjects
+      if (!subjects || subjects.length === 0) return <span className="text-muted-foreground text-sm">—</span>
+      return (
+        <div className="flex flex-wrap gap-1">
+          {subjects.map((subject) => (
+            <Badge key={subject} variant="secondary" className="text-[10px]">
+              {subject}
+            </Badge>
+          ))}
+        </div>
+      )
+    },
   },
   {
     accessorKey: 'classes',
     header: 'Classes',
-    cell: ({ row }) => (
-      <span className="text-sm">{row.original.classes.length} classes</span>
-    ),
-  },
-  {
-    accessorKey: 'examCount',
-    header: 'Exams Created',
-    cell: ({ row }) => (
-      <span className="text-sm">{row.getValue('examCount')}</span>
-    ),
-  },
-  {
-    accessorKey: 'avgStudentScore',
-    header: 'Avg Score',
     cell: ({ row }) => {
-      const score = row.getValue('avgStudentScore') as number
-      const color = score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'
-      return <span className={`font-medium ${color}`}>{score}%</span>
+      const classes = row.original.classes
+      return <span className="text-sm">{classes?.length ?? 0} classes</span>
     },
   },
   {
-    accessorKey: 'status',
+    accessorKey: 'exam_count',
+    header: 'Exams Created',
+    cell: ({ row }) => (
+      <span className="text-sm">{row.getValue('exam_count')}</span>
+    ),
+  },
+  {
+    accessorKey: 'is_active',
     header: 'Status',
     cell: ({ row }) => {
-      const status = row.getValue('status') as Teacher['status']
+      const isActive = row.getValue('is_active') as boolean
       return (
-        <Badge variant={statusVariantMap[status]}>
-          {statusLabelMap[status]}
+        <Badge variant={isActive ? 'default' : 'secondary'}>
+          {isActive ? 'Active' : 'Inactive'}
         </Badge>
       )
     },
@@ -220,14 +108,27 @@ const columns: ColumnDef<Teacher, unknown>[] = [
   },
 ]
 
-// ──────────────────────────────────────────────────────────────
-// Page Component
-// ──────────────────────────────────────────────────────────────
+export default async function TeachersPage() {
+  const supabase = await createClient()
 
-export default function TeachersPage() {
-  const activeTeachers = MOCK_TEACHERS.filter((t) => t.status === 'active').length
-  const totalExams = MOCK_TEACHERS.reduce((sum, t) => sum + t.examCount, 0)
-  const avgScore = MOCK_TEACHERS.reduce((sum, t) => sum + t.avgStudentScore, 0) / MOCK_TEACHERS.length
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect(ROUTES.LOGIN)
+  }
+
+  // Get the user's school_id for school-scoped queries
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('school_id, role')
+    .eq('id', user.id)
+    .single()
+
+  const profileData = profile as { school_id: string | null; role: string } | null
+  const schoolId = profileData?.role === 'super_admin' ? undefined : profileData?.school_id
+
+  // Fetch real data from Supabase
+  const data = await getTeachersData(schoolId)
 
   return (
     <div className="space-y-6">
@@ -249,34 +150,26 @@ export default function TeachersPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Teachers"
-          value={MOCK_TEACHERS.length}
+          value={data.total}
           icon={Users}
-          trend="up"
-          trendValue="+10%"
           description="Registered on platform"
         />
         <StatCard
           title="Active Teachers"
-          value={activeTeachers}
+          value={data.activeTeachers}
           icon={BookOpen}
-          trend="up"
-          trendValue="+8%"
           description="Currently teaching"
         />
         <StatCard
           title="Exams Created"
-          value={totalExams}
+          value={data.totalExams}
           icon={Award}
-          trend="up"
-          trendValue="+25%"
           description="Total by all teachers"
         />
         <StatCard
           title="Avg Student Score"
-          value={`${avgScore.toFixed(1)}%`}
+          value={`${data.avgScore}%`}
           icon={GraduationCap}
-          trend="up"
-          trendValue="+4%"
           description="Across all classes"
         />
       </div>
@@ -308,7 +201,6 @@ export default function TeachersPage() {
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="on_leave">On Leave</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
                 </SelectContent>
               </Select>
@@ -318,7 +210,7 @@ export default function TeachersPage() {
         <CardContent>
           <DataTable
             columns={columns}
-            data={MOCK_TEACHERS}
+            data={data.teachers}
             searchKey="name"
             searchPlaceholder="Search teachers..."
             emptyMessage="No teachers found"

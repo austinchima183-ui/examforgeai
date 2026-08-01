@@ -52,10 +52,10 @@ function success(title: string, options?: ToastOptions): void {
     duration: options?.duration ?? 4000,
     dismissible: options?.dismissible ?? true,
     action: options?.action
-      ? { label: options.action.label, onClick: options.action.onClick }
+      ? { label: options.action.label, onClick: options.action.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
     cancel: options?.cancel
-      ? { label: options.cancel.label, onClick: options.cancel.onClick }
+      ? { label: options.cancel.label, onClick: options.cancel.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
   })
 }
@@ -78,10 +78,10 @@ function error(title: string, options?: ToastOptions): void {
     duration: options?.duration ?? 6000,
     dismissible: options?.dismissible ?? true,
     action: options?.action
-      ? { label: options.action.label, onClick: options.action.onClick }
+      ? { label: options.action.label, onClick: options.action.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
     cancel: options?.cancel
-      ? { label: options.cancel.label, onClick: options.cancel.onClick }
+      ? { label: options.cancel.label, onClick: options.cancel.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
   })
 }
@@ -103,10 +103,10 @@ function warning(title: string, options?: ToastOptions): void {
     duration: options?.duration ?? 5000,
     dismissible: options?.dismissible ?? true,
     action: options?.action
-      ? { label: options.action.label, onClick: options.action.onClick }
+      ? { label: options.action.label, onClick: options.action.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
     cancel: options?.cancel
-      ? { label: options.cancel.label, onClick: options.cancel.onClick }
+      ? { label: options.cancel.label, onClick: options.cancel.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
   })
 }
@@ -128,10 +128,10 @@ function info(title: string, options?: ToastOptions): void {
     duration: options?.duration ?? 4000,
     dismissible: options?.dismissible ?? true,
     action: options?.action
-      ? { label: options.action.label, onClick: options.action.onClick }
+      ? { label: options.action.label, onClick: options.action.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
     cancel: options?.cancel
-      ? { label: options.cancel.label, onClick: options.cancel.onClick }
+      ? { label: options.cancel.label, onClick: options.cancel.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
   })
 }
@@ -148,10 +148,10 @@ function message(title: string, options?: ToastOptions): void {
     duration: options?.duration ?? 4000,
     dismissible: options?.dismissible ?? true,
     action: options?.action
-      ? { label: options.action.label, onClick: options.action.onClick }
+      ? { label: options.action.label, onClick: options.action.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
     cancel: options?.cancel
-      ? { label: options.cancel.label, onClick: options.cancel.onClick }
+      ? { label: options.cancel.label, onClick: options.cancel.onClick as (e: React.MouseEvent<HTMLButtonElement>) => void }
       : undefined,
   })
 }

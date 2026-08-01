@@ -17,54 +17,28 @@ import {
   ClipboardList,
 } from 'lucide-react'
 import Link from 'next/link'
+import { getStudentStats, getStudentActivities } from '@/lib/services/dashboard-service'
 
 // ============================================================================
 // ExamForge AI — Student Dashboard
 // ============================================================================
-// Server Component. Welcome section with student name, stats cards,
-// quick actions, and recent activity list.
+// Server Component. Reads live student data from Supabase.
 // ============================================================================
 
-interface ActivityItem {
-  id: string
-  description: string
-  timestamp: string
-  type: 'exam' | 'practice' | 'result' | 'achievement'
-}
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
 
-// Placeholder data — in production, these would be fetched from Supabase
-const PLACEHOLDER_STATS = {
-  upcomingExams: 3,
-  completed: 8,
-  averageScore: 76,
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins} min ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
 }
-
-const PLACEHOLDER_ACTIVITIES: ActivityItem[] = [
-  {
-    id: '1',
-    description: 'Completed "Mathematics Mid-Term" exam — scored 82%',
-    timestamp: '1 hour ago',
-    type: 'result',
-  },
-  {
-    id: '2',
-    description: 'Started AI practice session for Physics',
-    timestamp: '3 hours ago',
-    type: 'practice',
-  },
-  {
-    id: '3',
-    description: 'Achieved 7-day study streak! 🔥',
-    timestamp: '1 day ago',
-    type: 'achievement',
-  },
-  {
-    id: '4',
-    description: 'Submitted English Essay assignment',
-    timestamp: '2 days ago',
-    type: 'exam',
-  },
-]
 
 export default async function StudentDashboard() {
   const supabase = await createClient()
@@ -78,13 +52,19 @@ export default async function StudentDashboard() {
   const fullName = user.user_metadata?.full_name ?? user.email?.split('@')[0] ?? 'Student'
   const firstName = fullName.split(' ')[0]
 
+  // Fetch live data from Supabase
+  const [stats, activities] = await Promise.all([
+    getStudentStats(user.id),
+    getStudentActivities(user.id),
+  ])
+
   return (
     <div className="space-y-6">
       {/* Welcome Section */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">
-            Welcome back, {firstName} 👋
+            Welcome back, {firstName}
           </h1>
           <p className="text-muted-foreground mt-1">
             Ready to continue your learning journey?
@@ -104,7 +84,7 @@ export default async function StudentDashboard() {
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{PLACEHOLDER_STATS.upcomingExams}</div>
+            <div className="text-2xl font-bold">{stats.upcomingExams}</div>
             <p className="text-xs text-muted-foreground">Scheduled exams</p>
           </CardContent>
         </Card>
@@ -115,7 +95,7 @@ export default async function StudentDashboard() {
             <CheckCircle2 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{PLACEHOLDER_STATS.completed}</div>
+            <div className="text-2xl font-bold">{stats.completed}</div>
             <p className="text-xs text-muted-foreground">Exams taken</p>
           </CardContent>
         </Card>
@@ -126,7 +106,7 @@ export default async function StudentDashboard() {
             <BarChart3 className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{PLACEHOLDER_STATS.averageScore}%</div>
+            <div className="text-2xl font-bold">{stats.averageScore}%</div>
             <p className="text-xs text-muted-foreground">Across all exams</p>
           </CardContent>
         </Card>
@@ -244,25 +224,31 @@ export default async function StudentDashboard() {
       <div>
         <h2 className="text-lg font-semibold mb-4">Recent Activity</h2>
         <Card>
-          <div className="divide-y">
-            {PLACEHOLDER_ACTIVITIES.map((activity) => (
-              <div key={activity.id} className="flex items-center gap-3 p-4">
-                <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
-                  {activity.type === 'exam' && <FileText className="h-4 w-4 text-muted-foreground" />}
-                  {activity.type === 'practice' && <Target className="h-4 w-4 text-muted-foreground" />}
-                  {activity.type === 'result' && <CheckCircle2 className="h-4 w-4 text-muted-foreground" />}
-                  {activity.type === 'achievement' && <Sparkles className="h-4 w-4 text-muted-foreground" />}
+          {activities.length === 0 ? (
+            <CardContent className="p-8 text-center">
+              <p className="text-muted-foreground">No recent activity. Take an exam to get started!</p>
+            </CardContent>
+          ) : (
+            <div className="divide-y">
+              {activities.map((activity) => (
+                <div key={activity.id} className="flex items-center gap-3 p-4">
+                  <div className="h-8 w-8 rounded-full bg-muted flex items-center justify-center shrink-0">
+                    {activity.type === 'exam' && <FileText className="h-4 w-4 text-muted-foreground" />}
+                    {activity.type === 'practice' && <Target className="h-4 w-4 text-muted-foreground" />}
+                    {activity.type === 'result' && <CheckCircle2 className="h-4 w-4 text-muted-foreground" />}
+                    {activity.type === 'achievement' && <Sparkles className="h-4 w-4 text-muted-foreground" />}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm truncate">{activity.description}</p>
+                  </div>
+                  <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
+                    <Clock className="h-3 w-3" />
+                    {formatRelativeTime(activity.timestamp)}
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm truncate">{activity.description}</p>
-                </div>
-                <div className="flex items-center gap-1 text-xs text-muted-foreground shrink-0">
-                  <Clock className="h-3 w-3" />
-                  {activity.timestamp}
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
     </div>

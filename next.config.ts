@@ -2,11 +2,16 @@ import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
   output: "standalone",
-  /* config options here */
-  typescript: {
-    ignoreBuildErrors: true,
+  reactStrictMode: true,
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "pzfnptrrnxkgodclyhft.supabase.co",
+        pathname: "/storage/v1/object/public/**",
+      },
+    ],
   },
-  reactStrictMode: false,
 };
 
 export default nextConfig;

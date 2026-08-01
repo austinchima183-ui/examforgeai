@@ -1,5 +1,6 @@
-'use client'
-
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ROUTES } from '@/lib/constants/routes'
 import { type ColumnDef } from '@tanstack/react-table'
 import { GraduationCap, Plus, Users, BookOpen, Trophy } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -7,116 +8,18 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+import { getStudentsData } from '@/lib/services/users-service'
+import type { StudentListItem } from '@/lib/services/users-service'
 
 // ============================================================================
 // ExamForge AI — Students Page
 // ============================================================================
-// Server Component. Displays a list of students with filters (class, subject),
-// stats overview, and data table.
+// Server Component. Displays students from Supabase with real data.
 // ============================================================================
 
-// ──────────────────────────────────────────────────────────────
-// Types
-// ──────────────────────────────────────────────────────────────
-
-interface Student {
-  id: string
-  name: string
-  email: string
-  class: string
-  subjects: string[]
-  avgScore: number
-  examsCompleted: number
-  status: 'active' | 'inactive' | 'suspended'
-  enrolledAt: string
-}
-
-// ──────────────────────────────────────────────────────────────
-// Mock Data
-// ──────────────────────────────────────────────────────────────
-
-const MOCK_STUDENTS: Student[] = [
-  {
-    id: '1',
-    name: 'Adebayo Johnson',
-    email: 'adebayo@school.edu',
-    class: 'SS3A',
-    subjects: ['Mathematics', 'Physics', 'Chemistry'],
-    avgScore: 87.5,
-    examsCompleted: 12,
-    status: 'active',
-    enrolledAt: '2023-09-01T08:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Chioma Nwosu',
-    email: 'chioma@school.edu',
-    class: 'SS2B',
-    subjects: ['English', 'Biology', 'Economics'],
-    avgScore: 92.3,
-    examsCompleted: 15,
-    status: 'active',
-    enrolledAt: '2023-09-01T08:00:00Z',
-  },
-  {
-    id: '3',
-    name: 'Emeka Okafor',
-    email: 'emeka@school.edu',
-    class: 'SS3A',
-    subjects: ['Mathematics', 'Physics', 'Further Mathematics'],
-    avgScore: 78.0,
-    examsCompleted: 10,
-    status: 'active',
-    enrolledAt: '2023-09-01T08:00:00Z',
-  },
-  {
-    id: '4',
-    name: 'Fatima Abdullahi',
-    email: 'fatima@school.edu',
-    class: 'SS1C',
-    subjects: ['English', 'Government', 'Literature'],
-    avgScore: 85.6,
-    examsCompleted: 8,
-    status: 'active',
-    enrolledAt: '2024-01-15T10:00:00Z',
-  },
-  {
-    id: '5',
-    name: 'David Adekunle',
-    email: 'david@school.edu',
-    class: 'SS2A',
-    subjects: ['Mathematics', 'Chemistry', 'Biology'],
-    avgScore: 65.2,
-    examsCompleted: 6,
-    status: 'inactive',
-    enrolledAt: '2023-09-01T08:00:00Z',
-  },
-  {
-    id: '6',
-    name: 'Blessing Okonkwo',
-    email: 'blessing@school.edu',
-    class: 'SS3B',
-    subjects: ['Physics', 'Chemistry', 'Mathematics'],
-    avgScore: 94.1,
-    examsCompleted: 18,
-    status: 'active',
-    enrolledAt: '2022-09-01T08:00:00Z',
-  },
-]
-
-// ──────────────────────────────────────────────────────────────
-// Column Definitions
-// ──────────────────────────────────────────────────────────────
-
-const statusVariantMap: Record<Student['status'], 'default' | 'secondary' | 'destructive'> = {
-  active: 'default',
-  inactive: 'secondary',
-  suspended: 'destructive',
-}
-
-const columns: ColumnDef<Student, unknown>[] = [
+const columns: ColumnDef<StudentListItem, unknown>[] = [
   {
     accessorKey: 'name',
     header: 'Student',
@@ -128,6 +31,7 @@ const columns: ColumnDef<Student, unknown>[] = [
       return (
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
+            {row.original.avatar_url && <AvatarImage src={row.original.avatar_url} alt={row.original.name} />}
             <AvatarFallback className="text-xs bg-primary/10 text-primary">
               {initials}
             </AvatarFallback>
@@ -141,54 +45,60 @@ const columns: ColumnDef<Student, unknown>[] = [
     },
   },
   {
-    accessorKey: 'class',
+    accessorKey: 'class_name',
     header: 'Class',
-    cell: ({ row }) => (
-      <Badge variant="outline">{row.getValue('class')}</Badge>
-    ),
+    cell: ({ row }) => {
+      const className = row.getValue('class_name') as string | null
+      return className ? <Badge variant="outline">{className}</Badge> : <span className="text-muted-foreground text-sm">—</span>
+    },
   },
   {
     accessorKey: 'subjects',
     header: 'Subjects',
-    cell: ({ row }) => (
-      <div className="flex flex-wrap gap-1">
-        {row.original.subjects.slice(0, 2).map((subject) => (
-          <Badge key={subject} variant="secondary" className="text-[10px]">
-            {subject}
-          </Badge>
-        ))}
-        {row.original.subjects.length > 2 && (
-          <Badge variant="secondary" className="text-[10px]">
-            +{row.original.subjects.length - 2}
-          </Badge>
-        )}
-      </div>
-    ),
+    cell: ({ row }) => {
+      const subjects = row.original.subjects
+      if (!subjects || subjects.length === 0) return <span className="text-muted-foreground text-sm">—</span>
+      return (
+        <div className="flex flex-wrap gap-1">
+          {subjects.slice(0, 2).map((subject) => (
+            <Badge key={subject} variant="secondary" className="text-[10px]">
+              {subject}
+            </Badge>
+          ))}
+          {subjects.length > 2 && (
+            <Badge variant="secondary" className="text-[10px]">
+              +{subjects.length - 2}
+            </Badge>
+          )}
+        </div>
+      )
+    },
   },
   {
-    accessorKey: 'avgScore',
+    accessorKey: 'avg_score',
     header: 'Avg Score',
     cell: ({ row }) => {
-      const score = row.getValue('avgScore') as number
+      const score = row.getValue('avg_score') as number
+      if (score === 0) return <span className="text-muted-foreground text-sm">—</span>
       const color = score >= 80 ? 'text-emerald-600' : score >= 60 ? 'text-amber-600' : 'text-red-600'
       return <span className={`font-medium ${color}`}>{score}%</span>
     },
   },
   {
-    accessorKey: 'examsCompleted',
+    accessorKey: 'exams_completed',
     header: 'Exams Taken',
     cell: ({ row }) => (
-      <span className="text-sm">{row.getValue('examsCompleted')}</span>
+      <span className="text-sm">{row.getValue('exams_completed')}</span>
     ),
   },
   {
-    accessorKey: 'status',
+    accessorKey: 'is_active',
     header: 'Status',
     cell: ({ row }) => {
-      const status = row.getValue('status') as Student['status']
+      const isActive = row.getValue('is_active') as boolean
       return (
-        <Badge variant={statusVariantMap[status]}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
+        <Badge variant={isActive ? 'default' : 'secondary'}>
+          {isActive ? 'Active' : 'Inactive'}
         </Badge>
       )
     },
@@ -204,14 +114,27 @@ const columns: ColumnDef<Student, unknown>[] = [
   },
 ]
 
-// ──────────────────────────────────────────────────────────────
-// Page Component
-// ──────────────────────────────────────────────────────────────
+export default async function StudentsPage() {
+  const supabase = await createClient()
 
-export default function StudentsPage() {
-  const activeStudents = MOCK_STUDENTS.filter((s) => s.status === 'active').length
-  const avgScore = MOCK_STUDENTS.reduce((sum, s) => sum + s.avgScore, 0) / MOCK_STUDENTS.length
-  const totalExams = MOCK_STUDENTS.reduce((sum, s) => sum + s.examsCompleted, 0)
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect(ROUTES.LOGIN)
+  }
+
+  // Get the user's school_id for school-scoped queries
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('school_id, role')
+    .eq('id', user.id)
+    .single()
+
+  const profileData = profile as { school_id: string | null; role: string } | null
+  const schoolId = profileData?.role === 'super_admin' ? undefined : profileData?.school_id
+
+  // Fetch real data from Supabase
+  const data = await getStudentsData(schoolId)
 
   return (
     <div className="space-y-6">
@@ -233,34 +156,26 @@ export default function StudentsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Students"
-          value={MOCK_STUDENTS.length}
+          value={data.total}
           icon={GraduationCap}
-          trend="up"
-          trendValue="+18%"
-          description="Enrolled this term"
+          description="Enrolled students"
         />
         <StatCard
           title="Active Students"
-          value={activeStudents}
+          value={data.activeStudents}
           icon={Users}
-          trend="up"
-          trendValue="+12%"
           description="Currently active"
         />
         <StatCard
           title="Average Score"
-          value={`${avgScore.toFixed(1)}%`}
+          value={`${data.avgScore}%`}
           icon={Trophy}
-          trend="up"
-          trendValue="+5%"
           description="Across all exams"
         />
         <StatCard
           title="Exams Completed"
-          value={totalExams}
+          value={data.totalExams}
           icon={BookOpen}
-          trend="up"
-          trendValue="+22%"
           description="Total submissions"
         />
       </div>
@@ -304,7 +219,7 @@ export default function StudentsPage() {
         <CardContent>
           <DataTable
             columns={columns}
-            data={MOCK_STUDENTS}
+            data={data.students}
             searchKey="name"
             searchPlaceholder="Search students..."
             emptyMessage="No students found"

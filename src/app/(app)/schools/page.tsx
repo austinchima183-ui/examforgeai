@@ -1,5 +1,6 @@
-'use client'
-
+import { createClient } from '@/lib/supabase/server'
+import { redirect } from 'next/navigation'
+import { ROUTES } from '@/lib/constants/routes'
 import { type ColumnDef } from '@tanstack/react-table'
 import { School, Plus, MapPin, Users, Phone, Mail } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -8,116 +9,29 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { getSchoolsData } from '@/lib/services/schools-service'
+import type { SchoolListItem } from '@/lib/services/schools-service'
 
 // ============================================================================
 // ExamForge AI — Schools Management Page
 // ============================================================================
-// Server Component. Displays a list of schools with search/filter,
-// stats overview, and an add school button for admin roles.
+// Server Component. Displays schools from Supabase with real data.
 // ============================================================================
 
-// ──────────────────────────────────────────────────────────────
-// Types
-// ──────────────────────────────────────────────────────────────
-
-interface School {
-  id: string
-  name: string
-  location: string
-  type: 'primary' | 'secondary' | 'tertiary' | 'mixed'
-  status: 'active' | 'inactive' | 'suspended'
-  studentCount: number
-  teacherCount: number
-  adminEmail: string
-  adminPhone: string
-  createdAt: string
-}
-
-// ──────────────────────────────────────────────────────────────
-// Mock Data
-// ──────────────────────────────────────────────────────────────
-
-const MOCK_SCHOOLS: School[] = [
-  {
-    id: '1',
-    name: 'Springfield Academy',
-    location: 'Lagos, Nigeria',
-    type: 'secondary',
-    status: 'active',
-    studentCount: 1240,
-    teacherCount: 85,
-    adminEmail: 'admin@springfield.edu',
-    adminPhone: '+234-801-234-5678',
-    createdAt: '2023-01-15T10:00:00Z',
-  },
-  {
-    id: '2',
-    name: 'Greenfield International School',
-    location: 'Abuja, Nigeria',
-    type: 'mixed',
-    status: 'active',
-    studentCount: 890,
-    teacherCount: 62,
-    adminEmail: 'admin@greenfield.edu',
-    adminPhone: '+234-802-345-6789',
-    createdAt: '2023-03-22T14:30:00Z',
-  },
-  {
-    id: '3',
-    name: 'Riverside Primary School',
-    location: 'Port Harcourt, Nigeria',
-    type: 'primary',
-    status: 'active',
-    studentCount: 450,
-    teacherCount: 32,
-    adminEmail: 'admin@riverside.edu',
-    adminPhone: '+234-803-456-7890',
-    createdAt: '2023-06-10T08:15:00Z',
-  },
-  {
-    id: '4',
-    name: 'Hilltop College',
-    location: 'Ibadan, Nigeria',
-    type: 'tertiary',
-    status: 'inactive',
-    studentCount: 0,
-    teacherCount: 0,
-    adminEmail: 'admin@hilltop.edu',
-    adminPhone: '+234-804-567-8901',
-    createdAt: '2022-11-05T16:45:00Z',
-  },
-  {
-    id: '5',
-    name: 'Sunrise Academy',
-    location: 'Kano, Nigeria',
-    type: 'secondary',
-    status: 'suspended',
-    studentCount: 320,
-    teacherCount: 24,
-    adminEmail: 'admin@sunrise.edu',
-    adminPhone: '+234-805-678-9012',
-    createdAt: '2023-09-01T12:00:00Z',
-  },
-]
-
-// ──────────────────────────────────────────────────────────────
-// Column Definitions
-// ──────────────────────────────────────────────────────────────
-
-const statusVariantMap: Record<School['status'], 'default' | 'secondary' | 'destructive'> = {
+const statusVariantMap: Record<string, 'default' | 'secondary' | 'destructive'> = {
   active: 'default',
   inactive: 'secondary',
   suspended: 'destructive',
 }
 
-const typeLabelMap: Record<School['type'], string> = {
+const typeLabelMap: Record<string, string> = {
   primary: 'Primary',
   secondary: 'Secondary',
   tertiary: 'Tertiary',
   mixed: 'Mixed',
 }
 
-const columns: ColumnDef<School, unknown>[] = [
+const columns: ColumnDef<SchoolListItem, unknown>[] = [
   {
     accessorKey: 'name',
     header: 'School Name',
@@ -128,7 +42,7 @@ const columns: ColumnDef<School, unknown>[] = [
         </div>
         <div>
           <p className="font-medium">{row.getValue('name')}</p>
-          <p className="text-xs text-muted-foreground">{row.original.adminEmail}</p>
+          <p className="text-xs text-muted-foreground">{row.original.admin_email ?? row.original.code}</p>
         </div>
       </div>
     ),
@@ -139,42 +53,44 @@ const columns: ColumnDef<School, unknown>[] = [
     cell: ({ row }) => (
       <div className="flex items-center gap-1.5 text-sm">
         <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-        {row.getValue('location')}
+        {row.getValue('location') || 'Not specified'}
       </div>
     ),
   },
   {
-    accessorKey: 'type',
+    accessorKey: 'school_type',
     header: 'Type',
-    cell: ({ row }) => (
-      <Badge variant="outline">{typeLabelMap[row.getValue('type') as School['type']]}</Badge>
-    ),
+    cell: ({ row }) => {
+      const type = row.getValue('school_type') as string | null
+      return type ? <Badge variant="outline">{typeLabelMap[type] ?? type}</Badge> : <span className="text-muted-foreground text-sm">—</span>
+    },
   },
   {
-    accessorKey: 'studentCount',
+    accessorKey: 'student_count',
     header: 'Students',
     cell: ({ row }) => (
       <div className="flex items-center gap-1.5 text-sm">
         <Users className="h-3.5 w-3.5 text-muted-foreground" />
-        {Number(row.getValue('studentCount')).toLocaleString()}
+        {Number(row.getValue('student_count')).toLocaleString()}
       </div>
     ),
   },
   {
-    accessorKey: 'teacherCount',
+    accessorKey: 'teacher_count',
     header: 'Teachers',
     cell: ({ row }) => (
       <div className="flex items-center gap-1.5 text-sm">
         <Users className="h-3.5 w-3.5 text-muted-foreground" />
-        {Number(row.getValue('teacherCount')).toLocaleString()}
+        {Number(row.getValue('teacher_count')).toLocaleString()}
       </div>
     ),
   },
   {
-    accessorKey: 'status',
+    accessorKey: 'is_active',
     header: 'Status',
     cell: ({ row }) => {
-      const status = row.getValue('status') as School['status']
+      const isActive = row.getValue('is_active') as boolean
+      const status = isActive ? 'active' : 'inactive'
       return (
         <Badge variant={statusVariantMap[status]}>
           {status.charAt(0).toUpperCase() + status.slice(1)}
@@ -193,14 +109,17 @@ const columns: ColumnDef<School, unknown>[] = [
   },
 ]
 
-// ──────────────────────────────────────────────────────────────
-// Page Component
-// ──────────────────────────────────────────────────────────────
+export default async function SchoolsPage() {
+  const supabase = await createClient()
 
-export default function SchoolsPage() {
-  const activeSchools = MOCK_SCHOOLS.filter((s) => s.status === 'active').length
-  const totalStudents = MOCK_SCHOOLS.reduce((sum, s) => sum + s.studentCount, 0)
-  const totalTeachers = MOCK_SCHOOLS.reduce((sum, s) => sum + s.teacherCount, 0)
+  const { data: { user } } = await supabase.auth.getUser()
+
+  if (!user) {
+    redirect(ROUTES.LOGIN)
+  }
+
+  // Fetch real data from Supabase
+  const data = await getSchoolsData()
 
   return (
     <div className="space-y-6">
@@ -222,34 +141,26 @@ export default function SchoolsPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Total Schools"
-          value={MOCK_SCHOOLS.length}
+          value={data.total}
           icon={School}
-          trend="up"
-          trendValue="+12%"
           description="Registered on platform"
         />
         <StatCard
           title="Active Schools"
-          value={activeSchools}
+          value={data.activeSchools}
           icon={School}
-          trend="up"
-          trendValue="+8%"
           description="Currently active"
         />
         <StatCard
           title="Total Students"
-          value={totalStudents.toLocaleString()}
+          value={data.totalStudents.toLocaleString()}
           icon={Users}
-          trend="up"
-          trendValue="+15%"
           description="Across all schools"
         />
         <StatCard
           title="Total Teachers"
-          value={totalTeachers.toLocaleString()}
+          value={data.totalTeachers.toLocaleString()}
           icon={Users}
-          trend="neutral"
-          trendValue="+3%"
           description="Across all schools"
         />
       </div>
@@ -283,7 +194,6 @@ export default function SchoolsPage() {
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>
                   <SelectItem value="inactive">Inactive</SelectItem>
-                  <SelectItem value="suspended">Suspended</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -292,7 +202,7 @@ export default function SchoolsPage() {
         <CardContent>
           <DataTable
             columns={columns}
-            data={MOCK_SCHOOLS}
+            data={data.schools}
             searchKey="name"
             searchPlaceholder="Search schools..."
             emptyMessage="No schools found"

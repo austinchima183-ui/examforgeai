@@ -83,7 +83,7 @@ export function BarChart({
         />
         {showLegend && (
           <ChartLegend
-            content={<ChartLegendContent />}
+            content={<ChartLegendContent payload={[]} />}
           />
         )}
         {yKeys.map((key, index) => (

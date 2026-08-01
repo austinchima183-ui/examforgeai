@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useSupabase } from '@/lib/hooks/use-supabase'
@@ -23,13 +23,6 @@ import {
   FormLabel,
   FormMessage,
 } from '@/components/ui/form'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select'
 import { toast } from 'sonner'
 import {
   User,
@@ -41,12 +34,15 @@ import {
   Moon,
   Sun,
   Monitor,
+  Upload,
 } from 'lucide-react'
 
 // ============================================================================
 // ExamForge AI — Settings Page
 // ============================================================================
 // Client component with profile, theme, notification, and security sections.
+// Notification preferences are persisted to Supabase profiles.preferences.
+// Avatar upload uses Supabase Storage.
 // ============================================================================
 
 interface NotificationPreferences {
@@ -63,6 +59,8 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme()
   const [savingProfile, setSavingProfile] = useState(false)
   const [savingPassword, setSavingPassword] = useState(false)
+  const [savingNotifications, setSavingNotifications] = useState(false)
+  const [uploadingAvatar, setUploadingAvatar] = useState(false)
 
   const [notifications, setNotifications] = useState<NotificationPreferences>({
     emailNotifications: true,
@@ -88,6 +86,30 @@ export default function SettingsPage() {
     },
   })
 
+  // Load notification preferences from Supabase
+  useEffect(() => {
+    async function loadPreferences() {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', authUser.id)
+        .single()
+
+      const profileData = profile as { preferences: Record<string, unknown> | null } | null
+      if (profileData?.preferences) {
+        const prefs = profileData.preferences
+        const notifPrefs = prefs.notifications as NotificationPreferences | undefined
+        if (notifPrefs) {
+          setNotifications(notifPrefs)
+        }
+      }
+    }
+    loadPreferences()
+  }, [supabase])
+
   const onProfileSubmit = async (values: UpdateProfileInput) => {
     setSavingProfile(true)
 
@@ -105,6 +127,20 @@ export default function SettingsPage() {
         return
       }
 
+      // Also update the profiles table
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (authUser) {
+        await supabase
+          .from('profiles')
+          .update({
+            full_name: values.fullName,
+            phone: values.phone ?? null,
+            avatar_url: values.avatarUrl ?? null,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', authUser.id)
+      }
+
       // Update local auth store
       if (user) {
         setUser({
@@ -120,6 +156,110 @@ export default function SettingsPage() {
       toast.error('An unexpected error occurred')
     } finally {
       setSavingProfile(false)
+    }
+  }
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error('File too large', { description: 'Avatar must be under 2MB' })
+      return
+    }
+
+    // Validate file type
+    if (!['image/jpeg', 'image/png', 'image/webp', 'image/gif'].includes(file.type)) {
+      toast.error('Invalid file type', { description: 'Only JPEG, PNG, WebP, and GIF are allowed' })
+      return
+    }
+
+    setUploadingAvatar(true)
+
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      const fileExt = file.name.split('.').pop()
+      const filePath = `avatars/${authUser.id}/${Date.now()}.${fileExt}`
+
+      // Upload to Supabase Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true })
+
+      if (uploadError) {
+        toast.error('Upload failed', { description: uploadError.message })
+        return
+      }
+
+      // Get public URL
+      const { data: urlData } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath)
+
+      const avatarUrl = urlData.publicUrl
+
+      // Update user metadata
+      await supabase.auth.updateUser({
+        data: { avatar_url: avatarUrl },
+      })
+
+      // Update profiles table
+      await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl, updated_at: new Date().toISOString() })
+        .eq('id', authUser.id)
+
+      // Update form and local state
+      profileForm.setValue('avatarUrl', avatarUrl)
+      if (user) {
+        setUser({ ...user, avatarUrl })
+      }
+
+      toast.success('Avatar uploaded successfully')
+    } catch {
+      toast.error('An unexpected error occurred during upload')
+    } finally {
+      setUploadingAvatar(false)
+    }
+  }
+
+  const handleSaveNotifications = async () => {
+    setSavingNotifications(true)
+
+    try {
+      const { data: { user: authUser } } = await supabase.auth.getUser()
+      if (!authUser) return
+
+      // Get current preferences and merge
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('preferences')
+        .eq('id', authUser.id)
+        .single()
+
+      const currentPrefs = (profile?.preferences as Record<string, unknown>) ?? {}
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          preferences: { ...currentPrefs, notifications },
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', authUser.id)
+
+      if (error) {
+        toast.error('Failed to save notification preferences', { description: error.message })
+        return
+      }
+
+      toast.success('Notification preferences saved')
+    } catch {
+      toast.error('An unexpected error occurred')
+    } finally {
+      setSavingNotifications(false)
     }
   }
 
@@ -226,7 +366,7 @@ export default function SettingsPage() {
                           <FormLabel>Phone Number</FormLabel>
                           <FormControl>
                             <Input
-                              placeholder="+1 (555) 000-0000"
+                              placeholder="+234 800 000 0000"
                               {...field}
                               value={field.value ?? ''}
                             />
@@ -249,26 +389,52 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  <FormField
-                    control={profileForm.control}
-                    name="avatarUrl"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabel>Avatar URL</FormLabel>
-                        <FormControl>
-                          <Input
-                            placeholder="https://example.com/avatar.jpg"
-                            {...field}
-                            value={field.value ?? ''}
-                          />
-                        </FormControl>
-                        <FormDescription>
-                          Enter a URL for your profile picture
-                        </FormDescription>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
+                  {/* Avatar Upload via Supabase Storage */}
+                  <div className="space-y-3">
+                    <Label>Profile Picture</Label>
+                    <div className="flex items-center gap-4">
+                      <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center overflow-hidden">
+                        {user?.avatarUrl ? (
+                          <img src={user.avatarUrl} alt="Avatar" className="h-full w-full object-cover" />
+                        ) : (
+                          <User className="h-6 w-6 text-muted-foreground" />
+                        )}
+                      </div>
+                      <div>
+                        <label htmlFor="avatar-upload">
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            disabled={uploadingAvatar}
+                            onClick={() => document.getElementById('avatar-upload')?.click()}
+                          >
+                            {uploadingAvatar ? (
+                              <>
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                                Uploading...
+                              </>
+                            ) : (
+                              <>
+                                <Upload className="h-4 w-4" />
+                                Upload Avatar
+                              </>
+                            )}
+                          </Button>
+                        </label>
+                        <input
+                          id="avatar-upload"
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp,image/gif"
+                          className="hidden"
+                          onChange={handleAvatarUpload}
+                        />
+                        <p className="text-xs text-muted-foreground mt-1">
+                          JPEG, PNG, WebP or GIF. Max 2MB.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
 
                   <div className="flex justify-end">
                     <Button type="submit" disabled={savingProfile}>
@@ -339,13 +505,13 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-        {/* Notifications Tab */}
+        {/* Notifications Tab — persisted to Supabase */}
         <TabsContent value="notifications">
           <Card>
             <CardHeader>
               <CardTitle>Notification Preferences</CardTitle>
               <CardDescription>
-                Choose what notifications you want to receive.
+                Choose what notifications you want to receive. Preferences are saved to your account.
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
@@ -430,6 +596,22 @@ export default function SettingsPage() {
                     setNotifications((prev) => ({ ...prev, marketingEmails: checked }))
                   }
                 />
+              </div>
+
+              <div className="flex justify-end">
+                <Button onClick={handleSaveNotifications} disabled={savingNotifications}>
+                  {savingNotifications ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4" />
+                      Save Preferences
+                    </>
+                  )}
+                </Button>
               </div>
             </CardContent>
           </Card>

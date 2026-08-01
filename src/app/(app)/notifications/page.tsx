@@ -1,11 +1,10 @@
 'use client'
 
-import { useState } from 'react'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useState, useEffect, useCallback } from 'react'
+import { createClient } from '@/lib/supabase/client'
+import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Separator } from '@/components/ui/separator'
-import { ScrollArea } from '@/components/ui/scroll-area'
 import {
   Select,
   SelectContent,
@@ -24,122 +23,238 @@ import {
   Trash2,
   CheckCheck,
   Filter,
+  DollarSign,
+  Sparkles,
+  GraduationCap,
 } from 'lucide-react'
+import { markNotificationReadAction, markAllNotificationsReadAction, deleteNotificationAction } from '@/features/notifications/actions'
+import type { NotificationRow } from '@/lib/supabase/types'
 
 // ============================================================================
 // ExamForge AI — Notifications Page
 // ============================================================================
-// Client component with list of notifications, mark as read,
-// and filter by type.
+// Client component with real Supabase Realtime subscriptions.
+// No polling — uses onPostgresChange for live updates.
 // ============================================================================
 
-type NotificationType = 'exam' | 'result' | 'system' | 'social' | 'reminder'
-type NotificationPriority = 'low' | 'medium' | 'high'
+type NotificationType = 'exam_reminder' | 'exam_result' | 'assignment' | 'announcement' | 'message' | 'subscription' | 'payment' | 'system' | 'ai_generation' | 'marketplace' | 'enrollment'
 
-interface Notification {
+interface DisplayNotification {
   id: string
   title: string
   description: string
-  type: NotificationType
-  priority: NotificationPriority
+  type: string
+  priority: string | null
   read: boolean
   createdAt: string
+  actionUrl: string | null
 }
 
-// Placeholder data — in production, these would be fetched from Supabase
-const INITIAL_NOTIFICATIONS: Notification[] = [
-  {
-    id: '1',
-    title: 'Exam Published',
-    description: 'Your "Mathematics Mid-Term" exam has been published and is now available to students.',
-    type: 'exam',
-    priority: 'high',
-    read: false,
-    createdAt: '10 minutes ago',
-  },
-  {
-    id: '2',
-    title: 'Results Available',
-    description: 'Results for "Physics Chapter 4 Quiz" are now available for review.',
-    type: 'result',
-    priority: 'medium',
-    read: false,
-    createdAt: '1 hour ago',
-  },
-  {
-    id: '3',
-    title: 'System Update',
-    description: 'ExamForge AI has been updated to version 2.5. Check out the new AI question generation features.',
-    type: 'system',
-    priority: 'low',
-    read: false,
-    createdAt: '3 hours ago',
-  },
-  {
-    id: '4',
-    title: 'New Student Enrolled',
-    description: 'A new student, Alex Johnson, has been added to your SS2A class.',
-    type: 'social',
-    priority: 'medium',
-    read: true,
-    createdAt: '5 hours ago',
-  },
-  {
-    id: '5',
-    title: 'Exam Reminder',
-    description: 'The "English Essay" exam is scheduled for tomorrow at 9:00 AM.',
-    type: 'reminder',
-    priority: 'high',
-    read: false,
-    createdAt: '1 day ago',
-  },
-  {
-    id: '6',
-    title: 'Assignment Submitted',
-    description: '15 students have submitted their responses for the Biology assignment.',
-    type: 'result',
-    priority: 'medium',
-    read: true,
-    createdAt: '1 day ago',
-  },
-  {
-    id: '7',
-    title: 'AI Credits Low',
-    description: 'Your AI generation credits are running low. Consider upgrading your plan.',
-    type: 'system',
-    priority: 'high',
-    read: false,
-    createdAt: '2 days ago',
-  },
-]
-
-const TYPE_ICONS: Record<NotificationType, typeof Bell> = {
-  exam: FileText,
-  result: CheckCircle2,
+const TYPE_ICONS: Record<string, typeof Bell> = {
+  exam_reminder: FileText,
+  exam_result: CheckCircle2,
+  assignment: FileText,
+  announcement: Info,
+  message: Users,
+  subscription: Settings,
+  payment: DollarSign,
   system: Settings,
-  social: Users,
-  reminder: AlertCircle,
+  ai_generation: Sparkles,
+  marketplace: GraduationCap,
+  enrollment: Users,
 }
 
-const TYPE_COLORS: Record<NotificationType, string> = {
-  exam: 'text-blue-600 bg-blue-50',
-  result: 'text-green-600 bg-green-50',
+const TYPE_COLORS: Record<string, string> = {
+  exam_reminder: 'text-blue-600 bg-blue-50',
+  exam_result: 'text-green-600 bg-green-50',
+  assignment: 'text-blue-600 bg-blue-50',
+  announcement: 'text-gray-600 bg-gray-50',
+  message: 'text-purple-600 bg-purple-50',
+  subscription: 'text-amber-600 bg-amber-50',
+  payment: 'text-green-600 bg-green-50',
   system: 'text-gray-600 bg-gray-50',
-  social: 'text-purple-600 bg-purple-50',
-  reminder: 'text-amber-600 bg-amber-50',
+  ai_generation: 'text-indigo-600 bg-indigo-50',
+  marketplace: 'text-pink-600 bg-pink-50',
+  enrollment: 'text-teal-600 bg-teal-50',
 }
 
-const TYPE_LABELS: Record<NotificationType, string> = {
-  exam: 'Exams',
-  result: 'Results',
+const TYPE_LABELS: Record<string, string> = {
+  exam_reminder: 'Exams',
+  exam_result: 'Results',
+  assignment: 'Assignment',
+  announcement: 'Announcement',
+  message: 'Messages',
+  subscription: 'Subscription',
+  payment: 'Payment',
   system: 'System',
-  social: 'Social',
-  reminder: 'Reminders',
+  ai_generation: 'AI',
+  marketplace: 'Marketplace',
+  enrollment: 'Enrollment',
+}
+
+function formatRelativeTime(dateString: string): string {
+  const date = new Date(dateString)
+  const now = new Date()
+  const diffMs = now.getTime() - date.getTime()
+  const diffMins = Math.floor(diffMs / 60000)
+  const diffHours = Math.floor(diffMs / 3600000)
+  const diffDays = Math.floor(diffMs / 86400000)
+
+  if (diffMins < 1) return 'Just now'
+  if (diffMins < 60) return `${diffMins}m ago`
+  if (diffHours < 24) return `${diffHours}h ago`
+  if (diffDays < 7) return `${diffDays}d ago`
+  return date.toLocaleDateString()
 }
 
 export default function NotificationsPage() {
-  const [notifications, setNotifications] = useState<Notification[]>(INITIAL_NOTIFICATIONS)
-  const [filter, setFilter] = useState<'all' | NotificationType>('all')
+  const [notifications, setNotifications] = useState<DisplayNotification[]>([])
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState<'all' | string>('all')
+
+  // Fetch initial notifications from Supabase
+  const fetchNotifications = useCallback(async () => {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return
+
+    const { data, error } = await supabase
+      .from('notifications')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+
+    if (error) {
+      console.error('Error fetching notifications:', error)
+      setLoading(false)
+      return
+    }
+
+    const items: DisplayNotification[] = ((data as NotificationRow[] | null) ?? []).map(n => ({
+      id: n.id,
+      title: n.title,
+      description: n.body,
+      type: n.type,
+      priority: n.priority,
+      read: n.is_read,
+      createdAt: n.created_at,
+      actionUrl: n.action_url,
+    }))
+
+    setNotifications(items)
+    setLoading(false)
+  }, [])
+
+  // Subscribe to realtime notifications
+  useEffect(() => {
+    // Fetch initial data — setState is called inside the async callback, not directly in the effect
+    let cancelled = false
+
+    async function load() {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user || cancelled) return
+
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50)
+
+      if (cancelled) return
+
+      if (error) {
+        console.error('Error fetching notifications:', error)
+        setLoading(false)
+        return
+      }
+
+      const items: DisplayNotification[] = ((data as NotificationRow[] | null) ?? []).map(n => ({
+        id: n.id,
+        title: n.title,
+        description: n.body,
+        type: n.type,
+        priority: n.priority,
+        read: n.is_read,
+        createdAt: n.created_at,
+        actionUrl: n.action_url,
+      }))
+
+      setNotifications(items)
+      setLoading(false)
+    }
+
+    load()
+
+    const supabase = createClient()
+
+    // Subscribe to new notifications via Realtime
+    const channel = supabase
+      .channel('notifications-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload: { new: NotificationRow }) => {
+          const newNotification = payload.new
+          const display: DisplayNotification = {
+            id: newNotification.id,
+            title: newNotification.title,
+            description: newNotification.body,
+            type: newNotification.type,
+            priority: newNotification.priority,
+            read: newNotification.is_read,
+            createdAt: newNotification.created_at,
+            actionUrl: newNotification.action_url,
+          }
+          setNotifications(prev => [display, ...prev])
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload: { new: NotificationRow }) => {
+          const updated = payload.new
+          setNotifications(prev =>
+            prev.map(n =>
+              n.id === updated.id
+                ? {
+                    ...n,
+                    read: updated.is_read,
+                    priority: updated.priority,
+                  }
+                : n
+            )
+          )
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'notifications',
+        },
+        (payload: { old: { id: string } }) => {
+          setNotifications(prev => prev.filter(n => n.id !== payload.old.id))
+        }
+      )
+      .subscribe()
+
+    return () => {
+      cancelled = true
+      supabase.removeChannel(channel)
+    }
+  }, [fetchNotifications])
 
   const filteredNotifications =
     filter === 'all'
@@ -148,18 +263,33 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.read).length
 
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+  const handleMarkAsRead = async (id: string) => {
+    // Optimistic update
+    setNotifications(prev =>
+      prev.map(n => (n.id === id ? { ...n, read: true } : n))
     )
+    await markNotificationReadAction(id)
   }
 
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })))
+  const handleMarkAllAsRead = async () => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })))
+    await markAllNotificationsReadAction()
   }
 
-  const deleteNotification = (id: string) => {
-    setNotifications((prev) => prev.filter((n) => n.id !== id))
+  const handleDelete = async (id: string) => {
+    // Optimistic update
+    setNotifications(prev => prev.filter(n => n.id !== id))
+    await deleteNotificationAction(id)
+  }
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center justify-center p-12">
+          <div className="animate-spin h-6 w-6 border-2 border-primary border-t-transparent rounded-full" />
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -174,7 +304,7 @@ export default function NotificationsPage() {
 
         <div className="flex items-center gap-2">
           {unreadCount > 0 && (
-            <Button variant="outline" size="sm" onClick={markAllAsRead}>
+            <Button variant="outline" size="sm" onClick={handleMarkAllAsRead}>
               <CheckCheck className="h-4 w-4 mr-1" />
               Mark all read
             </Button>
@@ -188,19 +318,27 @@ export default function NotificationsPage() {
       {/* Filter */}
       <div className="flex items-center gap-2">
         <Filter className="h-4 w-4 text-muted-foreground" />
-        <Select value={filter} onValueChange={(value) => setFilter(value as typeof filter)}>
+        <Select value={filter} onValueChange={setFilter}>
           <SelectTrigger className="w-[180px]">
             <SelectValue placeholder="Filter by type" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Notifications</SelectItem>
-            <SelectItem value="exam">Exams</SelectItem>
-            <SelectItem value="result">Results</SelectItem>
+            <SelectItem value="exam_reminder">Exams</SelectItem>
+            <SelectItem value="exam_result">Results</SelectItem>
             <SelectItem value="system">System</SelectItem>
-            <SelectItem value="social">Social</SelectItem>
-            <SelectItem value="reminder">Reminders</SelectItem>
+            <SelectItem value="message">Messages</SelectItem>
+            <SelectItem value="payment">Payment</SelectItem>
+            <SelectItem value="ai_generation">AI</SelectItem>
+            <SelectItem value="marketplace">Marketplace</SelectItem>
           </SelectContent>
         </Select>
+      </div>
+
+      {/* Realtime indicator */}
+      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+        <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
+        Live — receiving updates in real-time
       </div>
 
       {/* Notifications List */}
@@ -215,8 +353,8 @@ export default function NotificationsPage() {
             <h3 className="text-lg font-medium">No notifications</h3>
             <p className="text-sm text-muted-foreground mt-1">
               {filter === 'all'
-                ? 'You&apos;re all caught up! Check back later for new notifications.'
-                : `No ${TYPE_LABELS[filter as NotificationType]?.toLowerCase() ?? ''} notifications found.`}
+                ? "You're all caught up! New notifications will appear here in real-time."
+                : `No ${TYPE_LABELS[filter]?.toLowerCase() ?? ''} notifications found.`}
             </p>
           </CardContent>
         </Card>
@@ -224,8 +362,8 @@ export default function NotificationsPage() {
         <Card>
           <div className="divide-y">
             {filteredNotifications.map((notification) => {
-              const Icon = TYPE_ICONS[notification.type]
-              const colorClass = TYPE_COLORS[notification.type]
+              const Icon = TYPE_ICONS[notification.type] ?? Bell
+              const colorClass = TYPE_COLORS[notification.type] ?? 'text-gray-600 bg-gray-50'
 
               return (
                 <div
@@ -252,10 +390,10 @@ export default function NotificationsPage() {
                     </p>
                     <div className="flex items-center gap-2 mt-1.5">
                       <span className="text-xs text-muted-foreground">
-                        {notification.createdAt}
+                        {formatRelativeTime(notification.createdAt)}
                       </span>
                       <Badge variant="outline" className="text-[10px] px-1.5 py-0">
-                        {TYPE_LABELS[notification.type]}
+                        {TYPE_LABELS[notification.type] ?? notification.type}
                       </Badge>
                       {notification.priority === 'high' && (
                         <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
@@ -271,7 +409,7 @@ export default function NotificationsPage() {
                         variant="ghost"
                         size="icon"
                         className="h-8 w-8"
-                        onClick={() => markAsRead(notification.id)}
+                        onClick={() => handleMarkAsRead(notification.id)}
                         title="Mark as read"
                       >
                         <CheckCheck className="h-4 w-4" />
@@ -281,7 +419,7 @@ export default function NotificationsPage() {
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-muted-foreground hover:text-destructive"
-                      onClick={() => deleteNotification(notification.id)}
+                      onClick={() => handleDelete(notification.id)}
                       title="Delete notification"
                     >
                       <Trash2 className="h-4 w-4" />
