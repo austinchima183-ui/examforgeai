@@ -91,7 +91,8 @@ export default function ForgotPasswordPage() {
               setSuccess(false)
               form.reset()
             }}
-            className="text-foreground hover:underline font-medium"
+            className="text-foreground hover:underline font-medium focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            aria-label="Try sending the reset link again"
           >
             try again
           </button>
@@ -119,33 +120,32 @@ export default function ForgotPasswordPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" aria-label="Forgot password form">
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="relative">
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="email"
-                      placeholder="you@example.com"
-                      className="pl-9"
-                      autoComplete="email"
-                      disabled={loading}
-                      {...field}
-                    />
-                  </div>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    className="pl-9"
+                    autoComplete="email"
+                    aria-required="true"
+                    disabled={loading}
+                    {...field}
+                  />
                 </FormControl>
+                <Mail className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <FormMessage />
               </FormItem>
             )}
           />
 
           {error && (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div role="alert" aria-live="assertive" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -166,7 +166,7 @@ export default function ForgotPasswordPage() {
       <div className="text-center">
         <Link
           href={ROUTES.LOGIN}
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Sign In

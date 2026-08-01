@@ -97,26 +97,25 @@ export default function LoginPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" aria-label="Sign in form">
           <FormField
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="relative">
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="email"
-                      placeholder="you@example.com"
-                      className="pl-9"
-                      autoComplete="email"
-                      disabled={loading}
-                      {...field}
-                    />
-                  </div>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    className="pl-9"
+                    autoComplete="email"
+                    aria-required="true"
+                    disabled={loading}
+                    {...field}
+                  />
                 </FormControl>
+                <Mail className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <FormMessage />
               </FormItem>
             )}
@@ -126,36 +125,35 @@ export default function LoginPage() {
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="relative">
                 <div className="flex items-center justify-between">
                   <FormLabel>Password</FormLabel>
                   <Link
                     href={ROUTES.FORGOT_PASSWORD}
-                    className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
                   >
                     Forgot password?
                   </Link>
                 </div>
                 <FormControl>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="password"
-                      placeholder="Enter your password"
-                      className="pl-9"
-                      autoComplete="current-password"
-                      disabled={loading}
-                      {...field}
-                    />
-                  </div>
+                  <Input
+                    type="password"
+                    placeholder="Enter your password"
+                    className="pl-9"
+                    autoComplete="current-password"
+                    aria-required="true"
+                    disabled={loading}
+                    {...field}
+                  />
                 </FormControl>
+                <Lock className="absolute left-3 top-[2.25rem] h-4 w-4 text-muted-foreground pointer-events-none" />
                 <FormMessage />
               </FormItem>
             )}
           />
 
           {error && (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div role="alert" aria-live="assertive" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -182,9 +180,9 @@ export default function LoginPage() {
         Don&apos;t have an account?{' '}
         <Link
           href={ROUTES.REGISTER}
-          className="font-medium text-foreground hover:underline"
+          className="font-medium text-foreground hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
-          Create one
+          Create an account
         </Link>
       </p>
     </div>

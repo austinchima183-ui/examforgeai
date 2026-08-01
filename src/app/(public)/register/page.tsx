@@ -109,7 +109,8 @@ export default function RegisterPage() {
           Didn&apos;t receive the email? Check your spam folder or{' '}
           <button
             onClick={() => setSuccess(false)}
-            className="text-foreground hover:underline font-medium"
+            className="text-foreground hover:underline font-medium focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
+            aria-label="Try registering again"
           >
             try again
           </button>
@@ -136,25 +137,24 @@ export default function RegisterPage() {
       </div>
 
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4" aria-label="Create account form">
           <FormField
             control={form.control}
             name="fullName"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="relative">
                 <FormLabel>Full Name</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      placeholder="Enter your full name"
-                      className="pl-9"
-                      autoComplete="name"
-                      disabled={loading}
-                      {...field}
-                    />
-                  </div>
+                  <Input
+                    placeholder="Enter your full name"
+                    className="pl-9"
+                    autoComplete="name"
+                    aria-required="true"
+                    disabled={loading}
+                    {...field}
+                  />
                 </FormControl>
+                <User className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <FormMessage />
               </FormItem>
             )}
@@ -164,21 +164,20 @@ export default function RegisterPage() {
             control={form.control}
             name="email"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="relative">
                 <FormLabel>Email</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="email"
-                      placeholder="you@example.com"
-                      className="pl-9"
-                      autoComplete="email"
-                      disabled={loading}
-                      {...field}
-                    />
-                  </div>
+                  <Input
+                    type="email"
+                    placeholder="you@example.com"
+                    className="pl-9"
+                    autoComplete="email"
+                    aria-required="true"
+                    disabled={loading}
+                    {...field}
+                  />
                 </FormControl>
+                <Mail className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <FormMessage />
               </FormItem>
             )}
@@ -188,21 +187,20 @@ export default function RegisterPage() {
             control={form.control}
             name="password"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="relative">
                 <FormLabel>Password</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="password"
-                      placeholder="Create a password"
-                      className="pl-9"
-                      autoComplete="new-password"
-                      disabled={loading}
-                      {...field}
-                    />
-                  </div>
+                  <Input
+                    type="password"
+                    placeholder="Create a password"
+                    className="pl-9"
+                    autoComplete="new-password"
+                    aria-required="true"
+                    disabled={loading}
+                    {...field}
+                  />
                 </FormControl>
+                <Lock className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <FormDescription>
                   At least 8 characters with uppercase, lowercase, and a number
                 </FormDescription>
@@ -215,28 +213,27 @@ export default function RegisterPage() {
             control={form.control}
             name="confirmPassword"
             render={({ field }) => (
-              <FormItem>
+              <FormItem className="relative">
                 <FormLabel>Confirm Password</FormLabel>
                 <FormControl>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
-                    <Input
-                      type="password"
-                      placeholder="Confirm your password"
-                      className="pl-9"
-                      autoComplete="new-password"
-                      disabled={loading}
-                      {...field}
-                    />
-                  </div>
+                  <Input
+                    type="password"
+                    placeholder="Confirm your password"
+                    className="pl-9"
+                    autoComplete="new-password"
+                    aria-required="true"
+                    disabled={loading}
+                    {...field}
+                  />
                 </FormControl>
+                <Lock className="absolute left-3 top-9 h-4 w-4 text-muted-foreground pointer-events-none" />
                 <FormMessage />
               </FormItem>
             )}
           />
 
           {error && (
-            <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            <div role="alert" aria-live="assertive" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
               {error}
             </div>
           )}
@@ -263,7 +260,7 @@ export default function RegisterPage() {
         Already have an account?{' '}
         <Link
           href={ROUTES.LOGIN}
-          className="font-medium text-foreground hover:underline"
+          className="font-medium text-foreground hover:underline focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
           Sign in
         </Link>

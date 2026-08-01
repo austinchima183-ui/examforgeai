@@ -97,7 +97,7 @@ function VerifyEmailContent() {
       </div>
 
       {resendSuccess ? (
-        <div className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary flex items-center justify-center gap-2">
+        <div role="status" className="rounded-md bg-primary/10 px-3 py-2 text-sm text-primary flex items-center justify-center gap-2">
           <CheckCircle2 className="h-4 w-4" />
           Verification email sent! Check your inbox.
         </div>
@@ -123,7 +123,7 @@ function VerifyEmailContent() {
       )}
 
       {error && (
-        <div className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+        <div role="alert" aria-live="assertive" className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {error}
         </div>
       )}
@@ -131,7 +131,7 @@ function VerifyEmailContent() {
       <div className="pt-2">
         <Link
           href={ROUTES.LOGIN}
-          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+          className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors focus-visible:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring rounded-sm"
         >
           <ArrowLeft className="h-4 w-4 mr-1" />
           Back to Sign In
@@ -143,7 +143,7 @@ function VerifyEmailContent() {
 
 function VerifyEmailFallback() {
   return (
-    <div className="space-y-6 text-center">
+    <div className="space-y-6 text-center" aria-busy="true" aria-label="Loading...">
       <div className="flex justify-center">
         <Skeleton className="h-16 w-16 rounded-full" />
       </div>
