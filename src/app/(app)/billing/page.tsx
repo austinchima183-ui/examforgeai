@@ -1,9 +1,8 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { CreditCard, Download, ArrowUpRight, CheckCircle2, Clock, AlertCircle, Receipt, Crown } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import Link from 'next/link'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Separator } from '@/components/ui/separator'
@@ -50,13 +49,7 @@ function formatDate(dateStr: string): string {
 }
 
 export default async function BillingPage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
+  const { user } = await requireAuth()
 
   // Fetch live billing data from Supabase
   const data = await getBillingData(user.id)
@@ -137,9 +130,8 @@ export default async function BillingPage() {
                   Unlock unlimited exams, AI questions, and premium support.
                 </p>
               </div>
-              <Button className="w-full">
-                <ArrowUpRight className="h-4 w-4 mr-2" />
-                Upgrade Now
+              <Button className="w-full" asChild>
+                <Link href="/billing/plans"><ArrowUpRight className="h-4 w-4 mr-2" />Upgrade Now</Link>
               </Button>
             </div>
           </CardContent>
@@ -221,9 +213,11 @@ export default async function BillingPage() {
                       <Badge variant={statusVariantMap[invoice.status] ?? 'secondary'}>
                         {invoice.status.charAt(0).toUpperCase() + invoice.status.slice(1)}
                       </Badge>
-                      <Button variant="ghost" size="sm" className="h-8">
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      <a href={`/api/billing/invoice/${invoice.id}`} target="_blank" rel="noopener noreferrer">
+                        <Button variant="ghost" size="sm" className="h-8">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </a>
                     </div>
                   </div>
                 )

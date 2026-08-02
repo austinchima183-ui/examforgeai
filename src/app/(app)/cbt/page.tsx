@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
-import { FileText, Plus, Users, Clock, CheckCircle2, BarChart3 } from 'lucide-react'
+import { FileText, Users, Clock, CheckCircle2, BarChart3 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ViewButton } from '@/components/buttons/view-button'
+import { CreateExamDialog } from '@/components/dialogs/create-exam-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
@@ -125,13 +125,9 @@ const columns: ColumnDef<ExamListItem, unknown>[] = [
     header: '',
     cell: ({ row }) => (
       <div className="flex items-center gap-1">
-        <Button variant="ghost" size="sm" className="h-8">
-          View
-        </Button>
+        <ViewButton href={`/cbt/${row.original.id}`} />
         {row.original.status === 'active' && (
-          <Button variant="ghost" size="sm" className="h-8">
-            Monitor
-          </Button>
+          <ViewButton href={`/cbt/${row.original.id}/monitor`} label="Monitor" />
         )}
       </div>
     ),
@@ -139,24 +135,9 @@ const columns: ColumnDef<ExamListItem, unknown>[] = [
 ]
 
 export default async function CBTPage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
-
-  // Get user role and school
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profileData = profile as { school_id: string | null; role: string } | null
-  const role = profileData?.role ?? 'student'
-  const schoolId = profileData?.school_id ?? null
+  const { user } = await requireAuth()
+  const role = user.role
+  const schoolId = user.schoolId
 
   // Fetch live data from Supabase
   const data = await getCBTData(role, user.id, schoolId)
@@ -176,10 +157,7 @@ export default async function CBTPage() {
             Manage and monitor computer-based tests and examinations.
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Create Exam
-        </Button>
+        <CreateExamDialog schoolId={schoolId} />
       </div>
 
       {/* Stats Overview */}

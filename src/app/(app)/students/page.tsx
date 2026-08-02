@@ -1,15 +1,18 @@
+import { Suspense } from 'react'
 import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
-import { GraduationCap, Plus, Users, BookOpen, Trophy } from 'lucide-react'
+import { GraduationCap, Users, BookOpen, Trophy } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FilterSelect } from '@/components/filters/filter-select'
 import { getStudentsData } from '@/lib/services/users-service'
 import type { StudentListItem } from '@/lib/services/users-service'
+import { AddStudentDialog } from '@/components/dialogs/add-student-dialog'
+import { ViewButton } from '@/components/buttons/view-button'
 
 export const dynamic = 'force-dynamic'
 
@@ -87,12 +90,13 @@ const columns: ColumnDef<StudentListItem, unknown>[] = [
   {
     id: 'actions',
     header: '',
-    cell: () => (<Button variant="ghost" size="sm" className="h-8">View</Button>),
+    cell: ({ row }) => (<ViewButton href={`/students/${row.original.id}`} />),
   },
 ]
 
-export default async function StudentsPage() {
+export default async function StudentsPage({ searchParams }: { searchParams: Promise<{ class?: string; subject?: string }> }) {
   const { user } = await requireAuth()
+  const _filters = await searchParams // Used by FilterSelect client components
 
   // Fetch data scoped by role — school_admin/teacher see only their school
   const data = await getStudentsData(user.schoolId, user.role)
@@ -104,7 +108,7 @@ export default async function StudentsPage() {
           <h1 className="text-2xl font-bold tracking-tight">Students</h1>
           <p className="text-sm text-muted-foreground">View and manage student records, performance, and enrollment.</p>
         </div>
-        <Button className="gap-2"><Plus className="h-4 w-4" />Add Student</Button>
+        <AddStudentDialog schoolId={user.schoolId} />
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -121,28 +125,12 @@ export default async function StudentsPage() {
               <CardTitle>All Students</CardTitle>
               <CardDescription>Browse and manage student records.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Filter by class" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Classes</SelectItem>
-                  <SelectItem value="ss1">SS1</SelectItem>
-                  <SelectItem value="ss2">SS2</SelectItem>
-                  <SelectItem value="ss3">SS3</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[160px]"><SelectValue placeholder="Filter by subject" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Subjects</SelectItem>
-                  <SelectItem value="math">Mathematics</SelectItem>
-                  <SelectItem value="english">English</SelectItem>
-                  <SelectItem value="physics">Physics</SelectItem>
-                  <SelectItem value="chemistry">Chemistry</SelectItem>
-                  <SelectItem value="biology">Biology</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Suspense fallback={<div className="h-9 w-[300px]" />}>
+              <div className="flex items-center gap-2">
+                <FilterSelect name="class" placeholder="All Classes" options={[{label:'SS1',value:'SS1'},{label:'SS2',value:'SS2'},{label:'SS3',value:'SS3'}]} className="h-9 w-[140px]" />
+                <FilterSelect name="subject" placeholder="All Subjects" options={[{label:'Mathematics',value:'Mathematics'},{label:'English',value:'English'},{label:'Physics',value:'Physics'},{label:'Chemistry',value:'Chemistry'},{label:'Biology',value:'Biology'}]} className="h-9 w-[160px]" />
+              </div>
+            </Suspense>
           </div>
         </CardHeader>
         <CardContent>

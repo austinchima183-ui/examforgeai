@@ -1,10 +1,10 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
-import { Users, Plus, Phone, Mail, GraduationCap } from 'lucide-react'
+import { Users, Phone, Mail, GraduationCap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ViewButton } from '@/components/buttons/view-button'
+import { AddParentDialog } from '@/components/dialogs/add-parent-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
@@ -100,32 +100,15 @@ const columns: ColumnDef<ParentListItem, unknown>[] = [
   {
     id: 'actions',
     header: '',
-    cell: () => (
-      <Button variant="ghost" size="sm" className="h-8">
-        View
-      </Button>
+    cell: ({ row }) => (
+      <ViewButton href={`/parents/${row.original.id}`} />
     ),
   },
 ]
 
 export default async function ParentsPage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
-
-  // Get the user's school_id for school-scoped queries
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profileData = profile as { school_id: string | null; role: string } | null
-  const schoolId = profileData?.role === 'super_admin' ? undefined : profileData?.school_id
+  const { user } = await requireAuth()
+  const schoolId = user.schoolId
 
   // Fetch real data from Supabase
   const data = await getParentsData(schoolId)
@@ -140,10 +123,7 @@ export default async function ParentsPage() {
             View and manage parent records and their associated students.
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Parent
-        </Button>
+        <AddParentDialog schoolId={schoolId} />
       </div>
 
       {/* Stats Overview */}

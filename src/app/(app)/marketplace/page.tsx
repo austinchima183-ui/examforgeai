@@ -1,14 +1,12 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { Store, Search, Star, Download, ShoppingBag } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { getMarketplaceData } from '@/lib/services/marketplace-service'
 import type { MarketplaceProduct } from '@/lib/services/marketplace-service'
+import { MarketplaceSearch } from '@/components/filters/marketplace-search'
 
 export const dynamic = 'force-dynamic'
 
@@ -80,13 +78,7 @@ function ProductCard({ product }: { product: MarketplaceProduct }) {
 }
 
 export default async function MarketplacePage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
+  const { user } = await requireAuth()
 
   // Fetch live data from Supabase
   const data = await getMarketplaceData()
@@ -104,13 +96,7 @@ export default async function MarketplacePage() {
       </div>
 
       {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search marketplace..."
-          className="pl-9 h-10"
-        />
-      </div>
+      <MarketplaceSearch />
 
       {/* Featured Products */}
       {data.featured.length > 0 && (

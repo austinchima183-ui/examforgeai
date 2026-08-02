@@ -1,15 +1,16 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { Suspense } from 'react'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
-import { BookOpen, Plus, Users, GraduationCap, Award } from 'lucide-react'
+import { BookOpen, Users, GraduationCap, Award } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ViewButton } from '@/components/buttons/view-button'
+import { AddTeacherDialog } from '@/components/dialogs/add-teacher-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FilterSelect } from '@/components/filters/filter-select'
 import { getTeachersData } from '@/lib/services/users-service'
 import type { TeacherListItem } from '@/lib/services/users-service'
 
@@ -102,32 +103,16 @@ const columns: ColumnDef<TeacherListItem, unknown>[] = [
   {
     id: 'actions',
     header: '',
-    cell: () => (
-      <Button variant="ghost" size="sm" className="h-8">
-        View
-      </Button>
+    cell: ({ row }) => (
+      <ViewButton href={`/teachers/${row.original.id}`} />
     ),
   },
 ]
 
-export default async function TeachersPage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
-
-  // Get the user's school_id for school-scoped queries
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profileData = profile as { school_id: string | null; role: string } | null
-  const schoolId = profileData?.role === 'super_admin' ? undefined : profileData?.school_id
+export default async function TeachersPage({ searchParams }: { searchParams: Promise<{ department?: string; status?: string }> }) {
+  const { user } = await requireAuth()
+  const schoolId = user.schoolId
+  const _filters = await searchParams // Used by FilterSelect client components
 
   // Fetch real data from Supabase
   const data = await getTeachersData(schoolId)
@@ -142,10 +127,7 @@ export default async function TeachersPage() {
             Manage teacher profiles, assignments, and performance metrics.
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add Teacher
-        </Button>
+        <AddTeacherDialog schoolId={schoolId} />
       </div>
 
       {/* Stats Overview */}
@@ -184,29 +166,12 @@ export default async function TeachersPage() {
               <CardTitle>All Teachers</CardTitle>
               <CardDescription>Browse and manage teacher records.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[160px]">
-                  <SelectValue placeholder="Filter by department" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Departments</SelectItem>
-                  <SelectItem value="science">Science</SelectItem>
-                  <SelectItem value="arts">Arts</SelectItem>
-                  <SelectItem value="commercial">Commercial</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[140px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Suspense fallback={<div className="h-9 w-[300px]" />}>
+              <div className="flex items-center gap-2">
+                <FilterSelect name="department" placeholder="All Departments" options={[{label:'Science',value:'Science'},{label:'Arts',value:'Arts'},{label:'Commercial',value:'Commercial'}]} className="h-9 w-[160px]" />
+                <FilterSelect name="status" placeholder="All Status" options={[{label:'Active',value:'active'},{label:'Inactive',value:'inactive'}]} className="h-9 w-[140px]" />
+              </div>
+            </Suspense>
           </div>
         </CardHeader>
         <CardContent>

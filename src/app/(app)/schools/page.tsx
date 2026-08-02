@@ -1,12 +1,15 @@
+import { Suspense } from 'react'
 import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
-import { School, Plus, MapPin, Users } from 'lucide-react'
+import { School, MapPin, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ViewButton } from '@/components/buttons/view-button'
+import { AddSchoolDialog } from '@/components/dialogs/add-school-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { FilterSelect } from '@/components/filters/filter-select'
 import { getSchoolsData } from '@/lib/services/schools-service'
 import type { SchoolListItem } from '@/lib/services/schools-service'
 
@@ -101,14 +104,15 @@ const columns: ColumnDef<SchoolListItem, unknown>[] = [
   {
     id: 'actions',
     header: '',
-    cell: () => (
-      <Button variant="ghost" size="sm" className="h-8">View</Button>
+    cell: ({ row }) => (
+      <ViewButton href={`/schools/${row.original.id}`} />
     ),
   },
 ]
 
-export default async function SchoolsPage() {
+export default async function SchoolsPage({ searchParams }: { searchParams: Promise<{ type?: string; status?: string }> }) {
   const { user } = await requireAuth()
+  const _filters = await searchParams // Used by FilterSelect client components
 
   // Fetch data scoped by role — school_admin sees only their school
   const data = await getSchoolsData(user.role, user.schoolId)
@@ -121,7 +125,7 @@ export default async function SchoolsPage() {
           <p className="text-sm text-muted-foreground">Manage and monitor all registered schools on the platform.</p>
         </div>
         {(user.role === 'super_admin' || user.role === 'school_admin') && (
-          <Button className="gap-2"><Plus className="h-4 w-4" />Add School</Button>
+          <AddSchoolDialog />
         )}
       </div>
 
@@ -139,26 +143,12 @@ export default async function SchoolsPage() {
               <CardTitle>All Schools</CardTitle>
               <CardDescription>A list of all registered schools and their details.</CardDescription>
             </div>
-            <div className="flex items-center gap-2">
-              <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Filter by type" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Types</SelectItem>
-                  <SelectItem value="primary">Primary</SelectItem>
-                  <SelectItem value="secondary">Secondary</SelectItem>
-                  <SelectItem value="tertiary">Tertiary</SelectItem>
-                  <SelectItem value="mixed">Mixed</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Filter by status" /></SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Status</SelectItem>
-                  <SelectItem value="active">Active</SelectItem>
-                  <SelectItem value="inactive">Inactive</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+            <Suspense fallback={<div className="h-9 w-[280px]" />}>
+              <div className="flex items-center gap-2">
+                <FilterSelect name="type" placeholder="All Types" options={[{label:'Primary',value:'primary'},{label:'Secondary',value:'secondary'},{label:'Tertiary',value:'tertiary'},{label:'Mixed',value:'mixed'}]} className="h-9 w-[140px]" />
+                <FilterSelect name="status" placeholder="All Status" options={[{label:'Active',value:'active'},{label:'Inactive',value:'inactive'}]} className="h-9 w-[140px]" />
+              </div>
+            </Suspense>
           </div>
         </CardHeader>
         <CardContent>

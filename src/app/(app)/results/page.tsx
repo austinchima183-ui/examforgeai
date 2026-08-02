@@ -3,6 +3,7 @@ import { type ColumnDef } from '@tanstack/react-table'
 import { CheckCircle2, XCircle, Trophy, BarChart3, Users, GraduationCap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ViewButton } from '@/components/buttons/view-button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
@@ -103,7 +104,7 @@ const columns: ColumnDef<ResultListItem, unknown>[] = [
   {
     id: 'actions',
     header: '',
-    cell: () => (<Button variant="ghost" size="sm" className="h-8">View Details</Button>),
+    cell: ({ row }) => (<ViewButton href={`/results/${row.original.id}`} label="View Details" />),
   },
 ]
 

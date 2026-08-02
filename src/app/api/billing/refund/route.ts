@@ -1,11 +1,17 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextResponse, type NextRequest } from 'next/server'
+import type { UserRole } from '@/lib/types'
 
 // ============================================================================
 // ExamForge AI — Process Refund Edge Function Proxy
 // ============================================================================
+// Only school_admin and super_admin can initiate refunds.
+// The Edge Function also enforces this, but we enforce at the proxy
+// layer as defense-in-depth.
 
 const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!
+
+const REFUND_ALLOWED_ROLES: UserRole[] = ['school_admin', 'super_admin']
 
 export async function POST(request: NextRequest) {
   const supabase = await createClient()
@@ -13,6 +19,22 @@ export async function POST(request: NextRequest) {
 
   if (!user) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  // ─── Role check: only admins can initiate refunds ─────────────
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
+
+  const role = (profile?.role as UserRole) ?? (user.app_metadata?.role as UserRole) ?? 'student'
+
+  if (!REFUND_ALLOWED_ROLES.includes(role)) {
+    return NextResponse.json(
+      { error: 'Forbidden — only administrators can process refunds' },
+      { status: 403 }
+    )
   }
 
   try {

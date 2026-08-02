@@ -121,10 +121,7 @@ export function Header({ sidebarCollapsed, onToggleSidebar }: HeaderProps) {
           size="icon"
           className="hidden sm:flex"
           aria-label="Search"
-          onClick={() => {
-            // Command palette will be triggered by keyboard shortcut
-            // This is a placeholder for the command palette integration
-          }}
+          onClick={() => window.location.href = '/search'}
         >
           <Search className="h-4 w-4" />
         </Button>

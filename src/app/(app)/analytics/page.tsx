@@ -29,6 +29,25 @@ export default function AnalyticsPage() {
   const [error, setError] = useState<string | null>(null)
   const [dateRange, setDateRange] = useState<DateRange>('30d')
 
+  function generateCSV(data: AnalyticsOverview): string {
+    const rows = [['Metric', 'Value']]
+    rows.push(['Total Exams', String(data.stats.totalExams)])
+    rows.push(['Active Students', String(data.stats.activeStudents)])
+    rows.push(['Avg Pass Rate', `${data.stats.avgPassRate}%`])
+    rows.push(['Avg Score', `${data.stats.avgScore}%`])
+    return rows.map(r => r.join(',')).join('\n')
+  }
+
+  function downloadFile(content: string, filename: string) {
+    const blob = new Blob([content], { type: 'text/csv' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
   useEffect(() => {
     async function fetchAnalytics() {
       setLoading(true)
@@ -147,7 +166,7 @@ export default function AnalyticsPage() {
               <SelectItem value="all">All time</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="gap-2">
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => { const csv = generateCSV(data); downloadFile(csv, 'analytics-report.csv') }}>
             <Download className="h-4 w-4" />
             Export Report
           </Button>

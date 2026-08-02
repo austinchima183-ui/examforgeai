@@ -19,7 +19,7 @@ export interface TextFieldProps<
   name: TName
   label: string
   placeholder?: string
-  type?: 'text' | 'email' | 'password' | 'number' | 'url' | 'tel' | 'search'
+  type?: 'text' | 'email' | 'password' | 'number' | 'url' | 'tel' | 'search' | 'datetime-local' | 'date' | 'time'
   control: Control<TFieldValues>
   error?: string
   description?: string

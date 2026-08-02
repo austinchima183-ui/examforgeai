@@ -23,7 +23,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
   // Prevents XSS by disallowing inline scripts from unknown sources.
   'Content-Security-Policy': [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://cdn.jsdelivr.net",
+    "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: blob: https://*.supabase.co https://examforge.ai",
@@ -85,7 +85,7 @@ export const SECURITY_HEADERS: Record<string, string> = {
 export function getCspForEnvironment(env: string): string {
   const basePolicy = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+    "script-src 'self' 'unsafe-inline'",
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
     "img-src 'self' data: blob:",

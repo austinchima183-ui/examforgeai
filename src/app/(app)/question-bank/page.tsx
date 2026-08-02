@@ -1,10 +1,11 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
-import { HelpCircle, Plus, Sparkles, BookOpen, FileText } from 'lucide-react'
+import { HelpCircle, Sparkles, BookOpen, FileText } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { ViewButton } from '@/components/buttons/view-button'
+import { QuestionBankActions } from '@/components/buttons/question-bank-actions'
+import { CreateQuestionDialog } from '@/components/dialogs/create-question-dialog'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { DataTable } from '@/components/tables/data-table'
 import { StatCard } from '@/components/dashboard/stat-card'
@@ -105,33 +106,16 @@ const columns: ColumnDef<QuestionListItem, unknown>[] = [
   {
     id: 'actions',
     header: '',
-    cell: () => (
-      <Button variant="ghost" size="sm" className="h-8">
-        View
-      </Button>
+    cell: ({ row }) => (
+      <ViewButton href={`/question-bank/${row.original.id}`} />
     ),
   },
 ]
 
 export default async function QuestionBankPage() {
-  const supabase = await createClient()
-
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
-
-  // Get user role and school
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profileData = profile as { school_id: string | null; role: string } | null
-  const role = profileData?.role ?? 'student'
-  const schoolId = profileData?.school_id ?? null
+  const { user } = await requireAuth()
+  const role = user.role
+  const schoolId = user.schoolId
 
   // Fetch live data from Supabase
   const data = await getQuestionBankData(role, user.id, schoolId)
@@ -147,18 +131,8 @@ export default async function QuestionBankPage() {
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" className="gap-2">
-            <FileText className="h-4 w-4" />
-            Import
-          </Button>
-          <Button variant="outline" className="gap-2">
-            <BookOpen className="h-4 w-4" />
-            Export
-          </Button>
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Create Question
-          </Button>
+          <QuestionBankActions schoolId={schoolId} />
+          <CreateQuestionDialog schoolId={schoolId} />
         </div>
       </div>
 
