@@ -2,6 +2,7 @@
 // ExamForge AI — Global Search Service
 // ============================================================================
 // Unified search across all entities in the ExamForge AI platform.
+// All queries are scoped by role and school_id to prevent data leakage.
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
@@ -39,30 +40,40 @@ export async function globalSearch(
     return { results: [], total: 0, query }
   }
 
-  const supabase = await createClient()
-  const searchTerm = `%${query.trim()}%`
+  // Sanitize query: trim and limit length
+  const sanitizedQuery = query.trim().slice(0, 100)
+  const searchTerm = `%${sanitizedQuery}%`
   const results: SearchResult[] = []
 
-  // Search schools
+  const supabase = await createClient()
+
+  // Search schools (only for super_admin and school_admin)
   if (role === 'super_admin' || role === 'school_admin') {
-    const { data } = await supabase
+    let schoolQuery = supabase
       .from('schools')
-      .select('id, name, location')
+      .select('id, name')
       .ilike('name', searchTerm)
       .limit(5)
+
+    // School admin can only search their own school
+    if (role === 'school_admin' && schoolId) {
+      schoolQuery = schoolQuery.eq('id', schoolId)
+    }
+
+    const { data } = await schoolQuery
     for (const item of data ?? []) {
       results.push({
         id: item.id,
         title: item.name,
-        subtitle: item.location ?? 'School',
+        subtitle: 'School',
         type: 'school',
-        href: `/schools`,
+        href: '/schools',
         icon: 'School',
       })
     }
   }
 
-  // Search students
+  // Search students (scoped by school)
   const studentQuery = supabase
     .from('profiles')
     .select('id, full_name, email')
@@ -84,7 +95,7 @@ export async function globalSearch(
     })
   }
 
-  // Search teachers
+  // Search teachers (scoped by school)
   const teacherQuery = supabase
     .from('profiles')
     .select('id, full_name, email')
@@ -106,29 +117,31 @@ export async function globalSearch(
     })
   }
 
-  // Search parents
-  const parentQuery = supabase
-    .from('profiles')
-    .select('id, full_name, email')
-    .eq('role', 'parent')
-    .ilike('full_name', searchTerm)
-    .limit(5)
-  if (schoolId && role !== 'super_admin') {
-    parentQuery.eq('school_id', schoolId)
-  }
-  const { data: parents } = await parentQuery
-  for (const item of parents ?? []) {
-    results.push({
-      id: item.id,
-      title: item.full_name ?? item.email,
-      subtitle: item.email,
-      type: 'parent',
-      href: '/parents',
-      icon: 'Users',
-    })
+  // Search parents (scoped by school, only for super_admin and school_admin)
+  if (role === 'super_admin' || role === 'school_admin') {
+    const parentQuery = supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .eq('role', 'parent')
+      .ilike('full_name', searchTerm)
+      .limit(5)
+    if (schoolId && role !== 'super_admin') {
+      parentQuery.eq('school_id', schoolId)
+    }
+    const { data: parents } = await parentQuery
+    for (const item of parents ?? []) {
+      results.push({
+        id: item.id,
+        title: item.full_name ?? item.email,
+        subtitle: item.email,
+        type: 'parent',
+        href: '/parents',
+        icon: 'Users',
+      })
+    }
   }
 
-  // Search questions
+  // Search questions (scoped by school)
   const questionQuery = supabase
     .from('questions')
     .select('id, question_text, question_type')
@@ -136,6 +149,10 @@ export async function globalSearch(
     .limit(5)
   if (schoolId && role !== 'super_admin') {
     questionQuery.eq('school_id', schoolId)
+  }
+  if (role === 'teacher') {
+    // Teachers only see their own questions
+    questionQuery.eq('created_by', userId)
   }
   const { data: questions } = await questionQuery
   for (const item of questions ?? []) {
@@ -149,7 +166,7 @@ export async function globalSearch(
     })
   }
 
-  // Search exams
+  // Search exams (scoped by school)
   const examQuery = supabase
     .from('exams')
     .select('id, title, subject')
@@ -157,6 +174,12 @@ export async function globalSearch(
     .limit(5)
   if (schoolId && role !== 'super_admin') {
     examQuery.eq('school_id', schoolId)
+  }
+  if (role === 'teacher') {
+    examQuery.eq('created_by', userId)
+  }
+  if (role === 'student') {
+    examQuery.in('status', ['published', 'active', 'completed'])
   }
   const { data: exams } = await examQuery
   for (const item of exams ?? []) {
@@ -170,25 +193,27 @@ export async function globalSearch(
     })
   }
 
-  // Search marketplace
-  const { data: marketplaceItems } = await supabase
-    .from('marketplace_products')
-    .select('id, title, category')
-    .eq('status', 'published')
-    .ilike('title', searchTerm)
-    .limit(5)
-  for (const item of marketplaceItems ?? []) {
-    results.push({
-      id: item.id,
-      title: item.title,
-      subtitle: item.category ?? 'Marketplace',
-      type: 'marketplace',
-      href: '/marketplace',
-      icon: 'Store',
-    })
+  // Search marketplace (public, no school scoping)
+  if (role !== 'student') {
+    const { data: marketplaceItems } = await supabase
+      .from('marketplace_products')
+      .select('id, title, category')
+      .eq('status', 'published')
+      .ilike('title', searchTerm)
+      .limit(5)
+    for (const item of marketplaceItems ?? []) {
+      results.push({
+        id: item.id,
+        title: item.title,
+        subtitle: item.category ?? 'Marketplace',
+        type: 'marketplace',
+        href: '/marketplace',
+        icon: 'Store',
+      })
+    }
   }
 
-  // Search notifications
+  // Search notifications (only user's own)
   const { data: notifs } = await supabase
     .from('notifications')
     .select('id, title, type')

@@ -2,10 +2,12 @@
 // ExamForge AI — Schools Data Service
 // ============================================================================
 // Real Supabase queries for schools CRUD, pagination, search, filters.
+// All queries are scoped by role to prevent data leakage.
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
 import type { SchoolRow, SchoolInsert, SchoolUpdate } from '@/lib/supabase/types'
+import type { UserRole } from '@/lib/types'
 
 // ──────────────────────────────────────────────────────────────
 // Types
@@ -34,39 +36,43 @@ export interface SchoolsPageData {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Get Schools with Stats
+// Get Schools with Stats (scoped by role)
 // ──────────────────────────────────────────────────────────────
 
-export async function getSchoolsData(): Promise<SchoolsPageData> {
+export async function getSchoolsData(role?: UserRole, schoolId?: string | null): Promise<SchoolsPageData> {
   const supabase = await createClient()
 
-  // Get all schools
-  const { data: schools, error: schoolsError } = await supabase
+  // Scope: school_admin sees only their school, super_admin sees all
+  let schoolsQuery = supabase
     .from('schools')
     .select('*')
     .order('created_at', { ascending: false })
 
+  if (role === 'school_admin' && schoolId) {
+    schoolsQuery = schoolsQuery.eq('id', schoolId)
+  }
+
+  const { data: schools, error: schoolsError } = await schoolsQuery
+
   if (schoolsError) {
-    console.error('Error fetching schools:', schoolsError)
     return { schools: [], total: 0, activeSchools: 0, totalStudents: 0, totalTeachers: 0 }
   }
 
-  // Get student and teacher counts per school
-  const { data: studentCounts } = await supabase
-    .from('profiles')
-    .select('school_id')
-    .eq('role', 'student')
-    .eq('is_active', true)
+  // Get student and teacher counts per school (batch query, no N+1)
+  const schoolIds = (schools ?? []).map(s => s.id)
 
-  const { data: teacherCounts } = await supabase
-    .from('profiles')
-    .select('school_id')
-    .eq('role', 'teacher')
-    .eq('is_active', true)
+  const [studentCountsResult, teacherCountsResult] = await Promise.all([
+    schoolIds.length > 0
+      ? supabase.from('profiles').select('school_id').eq('role', 'student').eq('is_active', true).in('school_id', schoolIds)
+      : Promise.resolve({ data: [] }),
+    schoolIds.length > 0
+      ? supabase.from('profiles').select('school_id').eq('role', 'teacher').eq('is_active', true).in('school_id', schoolIds)
+      : Promise.resolve({ data: [] }),
+  ])
 
   // Count students per school
   const studentsBySchool = new Map<string, number>()
-  for (const s of studentCounts ?? []) {
+  for (const s of studentCountsResult.data ?? []) {
     if (s.school_id) {
       studentsBySchool.set(s.school_id, (studentsBySchool.get(s.school_id) ?? 0) + 1)
     }
@@ -74,7 +80,7 @@ export async function getSchoolsData(): Promise<SchoolsPageData> {
 
   // Count teachers per school
   const teachersBySchool = new Map<string, number>()
-  for (const t of teacherCounts ?? []) {
+  for (const t of teacherCountsResult.data ?? []) {
     if (t.school_id) {
       teachersBySchool.set(t.school_id, (teachersBySchool.get(t.school_id) ?? 0) + 1)
     }
@@ -120,7 +126,6 @@ export async function getSchoolById(id: string) {
     .single()
 
   if (error) {
-    console.error('Error fetching school:', error)
     return null
   }
 
@@ -128,7 +133,7 @@ export async function getSchoolById(id: string) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Create School
+// Create School (server action should verify auth)
 // ──────────────────────────────────────────────────────────────
 
 export async function createSchool(school: SchoolInsert) {
@@ -140,7 +145,6 @@ export async function createSchool(school: SchoolInsert) {
     .single()
 
   if (error) {
-    console.error('Error creating school:', error)
     return { data: null, error: error.message }
   }
 
@@ -148,7 +152,7 @@ export async function createSchool(school: SchoolInsert) {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Update School
+// Update School (server action should verify auth + ownership)
 // ──────────────────────────────────────────────────────────────
 
 export async function updateSchool(id: string, updates: SchoolUpdate) {
@@ -161,7 +165,6 @@ export async function updateSchool(id: string, updates: SchoolUpdate) {
     .single()
 
   if (error) {
-    console.error('Error updating school:', error)
     return { data: null, error: error.message }
   }
 
@@ -182,7 +185,6 @@ export async function deactivateSchool(id: string) {
     .single()
 
   if (error) {
-    console.error('Error deactivating school:', error)
     return { data: null, error: error.message }
   }
 

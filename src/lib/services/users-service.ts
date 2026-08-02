@@ -2,10 +2,12 @@
 // ExamForge AI — Users Data Service (Students, Teachers, Parents)
 // ============================================================================
 // Real Supabase queries for user management with role-based filtering.
+// All queries are scoped by role and school_id to prevent data leakage.
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
 import type { ProfileRow } from '@/lib/supabase/types'
+import type { UserRole } from '@/lib/types'
 
 // ──────────────────────────────────────────────────────────────
 // Types
@@ -77,11 +79,20 @@ export interface ParentsPageData {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Students
+// Students (scoped by role and schoolId)
 // ──────────────────────────────────────────────────────────────
 
-export async function getStudentsData(schoolId?: string | null): Promise<StudentsPageData> {
+export async function getStudentsData(
+  schoolId?: string | null,
+  role?: UserRole | null
+): Promise<StudentsPageData> {
   const supabase = await createClient()
+
+  // CRITICAL: If schoolId is not provided and role is not super_admin,
+  // return empty data to prevent cross-school data leakage
+  if (!schoolId && role !== 'super_admin') {
+    return { students: [], total: 0, activeStudents: 0, avgScore: 0, totalExams: 0 }
+  }
 
   let query = supabase
     .from('profiles')
@@ -89,6 +100,7 @@ export async function getStudentsData(schoolId?: string | null): Promise<Student
     .eq('role', 'student')
     .order('created_at', { ascending: false })
 
+  // Scope by school unless super_admin with no schoolId
   if (schoolId) {
     query = query.eq('school_id', schoolId)
   }
@@ -96,11 +108,10 @@ export async function getStudentsData(schoolId?: string | null): Promise<Student
   const { data: students, error } = await query
 
   if (error) {
-    console.error('Error fetching students:', error)
     return { students: [], total: 0, activeStudents: 0, avgScore: 0, totalExams: 0 }
   }
 
-  // Get exam session stats for students
+  // Get exam session stats for students (batch query)
   const studentIds = (students ?? []).map(s => s.id)
   const { data: sessions } = await supabase
     .from('exam_sessions')
@@ -156,11 +167,19 @@ export async function getStudentsData(schoolId?: string | null): Promise<Student
 }
 
 // ──────────────────────────────────────────────────────────────
-// Teachers
+// Teachers (scoped by role and schoolId)
 // ──────────────────────────────────────────────────────────────
 
-export async function getTeachersData(schoolId?: string | null): Promise<TeachersPageData> {
+export async function getTeachersData(
+  schoolId?: string | null,
+  role?: UserRole | null
+): Promise<TeachersPageData> {
   const supabase = await createClient()
+
+  // CRITICAL: Prevent cross-school data leakage
+  if (!schoolId && role !== 'super_admin') {
+    return { teachers: [], total: 0, activeTeachers: 0, totalExams: 0, avgScore: 0 }
+  }
 
   let query = supabase
     .from('profiles')
@@ -175,11 +194,10 @@ export async function getTeachersData(schoolId?: string | null): Promise<Teacher
   const { data: teachers, error } = await query
 
   if (error) {
-    console.error('Error fetching teachers:', error)
     return { teachers: [], total: 0, activeTeachers: 0, totalExams: 0, avgScore: 0 }
   }
 
-  // Get exam counts per teacher
+  // Get exam counts per teacher (batch query)
   const teacherIds = (teachers ?? []).map(t => t.id)
   const { data: exams } = await supabase
     .from('exams')
@@ -226,11 +244,19 @@ export async function getTeachersData(schoolId?: string | null): Promise<Teacher
 }
 
 // ──────────────────────────────────────────────────────────────
-// Parents
+// Parents (scoped by role and schoolId)
 // ──────────────────────────────────────────────────────────────
 
-export async function getParentsData(schoolId?: string | null): Promise<ParentsPageData> {
+export async function getParentsData(
+  schoolId?: string | null,
+  role?: UserRole | null
+): Promise<ParentsPageData> {
   const supabase = await createClient()
+
+  // CRITICAL: Prevent cross-school data leakage
+  if (!schoolId && role !== 'super_admin') {
+    return { parents: [], total: 0, activeParents: 0, totalChildren: 0, avgChildrenPerParent: 0 }
+  }
 
   let query = supabase
     .from('profiles')
@@ -245,11 +271,9 @@ export async function getParentsData(schoolId?: string | null): Promise<ParentsP
   const { data: parents, error } = await query
 
   if (error) {
-    console.error('Error fetching parents:', error)
     return { parents: [], total: 0, activeParents: 0, totalChildren: 0, avgChildrenPerParent: 0 }
   }
 
-  // Get children for each parent (stored in metadata.children)
   const parentList: ParentListItem[] = (parents ?? []).map(parent => {
     const metadata = (parent.metadata as Record<string, unknown>) ?? {}
     const children = (metadata.children as { id: string; name: string; class_name: string | null }[]) ?? []
@@ -294,7 +318,6 @@ export async function getUserProfile(userId: string) {
     .single()
 
   if (error) {
-    console.error('Error fetching user profile:', error)
     return null
   }
 
@@ -311,7 +334,6 @@ export async function updateUserProfile(userId: string, updates: Partial<Profile
     .single()
 
   if (error) {
-    console.error('Error updating user profile:', error)
     return { data: null, error: error.message }
   }
 

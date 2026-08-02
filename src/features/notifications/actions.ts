@@ -1,14 +1,32 @@
 // ============================================================================
 // ExamForge AI — Notification Server Actions
 // ============================================================================
+// All mutations verify the authenticated user and enforce ownership.
 
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
+import { getAuthUser } from '@/lib/auth/require-auth'
+import type { UserRole } from '@/lib/types'
 
 export async function markNotificationReadAction(notificationId: string) {
-  const supabase = await createClient()
+  const authResult = await getAuthUser()
+  if (!authResult) return { error: 'Unauthorized' }
+
+  const { user, supabase } = authResult
+
+  // Verify the notification belongs to the current user
+  const { data: notification } = await supabase
+    .from('notifications')
+    .select('user_id')
+    .eq('id', notificationId)
+    .single()
+
+  if (!notification || notification.user_id !== user.id) {
+    return { error: 'Notification not found or access denied' }
+  }
+
   const { error } = await supabase
     .from('notifications')
     .update({ is_read: true, read_at: new Date().toISOString(), updated_at: new Date().toISOString() })
@@ -22,10 +40,10 @@ export async function markNotificationReadAction(notificationId: string) {
 }
 
 export async function markAllNotificationsReadAction() {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+  const authResult = await getAuthUser()
+  if (!authResult) return { error: 'Unauthorized' }
 
-  if (!user) return { error: 'Unauthorized' }
+  const { user, supabase } = authResult
 
   const { error } = await supabase
     .from('notifications')
@@ -41,7 +59,22 @@ export async function markAllNotificationsReadAction() {
 }
 
 export async function deleteNotificationAction(notificationId: string) {
-  const supabase = await createClient()
+  const authResult = await getAuthUser()
+  if (!authResult) return { error: 'Unauthorized' }
+
+  const { user, supabase } = authResult
+
+  // Verify the notification belongs to the current user
+  const { data: notification } = await supabase
+    .from('notifications')
+    .select('user_id')
+    .eq('id', notificationId)
+    .single()
+
+  if (!notification || notification.user_id !== user.id) {
+    return { error: 'Notification not found or access denied' }
+  }
+
   const { error } = await supabase
     .from('notifications')
     .delete()

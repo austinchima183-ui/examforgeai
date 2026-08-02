@@ -1,33 +1,48 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { getAuthUser } from '@/lib/auth/require-auth'
 import { globalSearch } from '@/lib/services/search-service'
 
-export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+// ============================================================================
+// ExamForge AI — Global Search API Route
+// ============================================================================
+// Returns role-scoped search results. Requires authentication.
+// Input validation: minimum 2 characters, maximum 100 characters.
+// ============================================================================
 
-  if (!user) {
+export const dynamic = 'force-dynamic'
+
+export async function GET(request: NextRequest) {
+  const authResult = await getAuthUser()
+
+  if (!authResult) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const query = searchParams.get('q') ?? ''
+  const { user } = authResult
 
-  if (query.trim().length < 2) {
-    return NextResponse.json({ results: [], total: 0, query })
+  try {
+    const { searchParams } = new URL(request.url)
+    const query = searchParams.get('q') ?? ''
+
+    // Input validation
+    if (query.trim().length < 2) {
+      return NextResponse.json({ results: [], total: 0, query })
+    }
+
+    if (query.length > 100) {
+      return NextResponse.json(
+        { error: 'Search query too long (max 100 characters)' },
+        { status: 400 }
+      )
+    }
+
+    const data = await globalSearch(query, user.id, user.schoolId, user.role)
+
+    return NextResponse.json(data)
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Search failed' },
+      { status: 500 }
+    )
   }
-
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profileData = profile as { school_id: string | null; role: string } | null
-  const role = profileData?.role ?? 'student'
-  const schoolId = profileData?.school_id ?? null
-
-  const data = await globalSearch(query, user.id, schoolId, role)
-
-  return NextResponse.json(data)
 }

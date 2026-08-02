@@ -2,7 +2,8 @@
 // ExamForge AI — Reports Data Service
 // ============================================================================
 // Server-side data fetching for report generation.
-// All queries use the Supabase server client with cookie-based auth.
+// All queries are scoped by role and school_id to prevent data leakage.
+// N+1 queries have been replaced with aggregate queries.
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
@@ -70,7 +71,7 @@ export async function getReportsData(
 ): Promise<ReportsData> {
   const supabase = await createClient()
 
-  // ─── School Reports ──────────────────────────────────────
+  // ─── School Reports (batch queries, no N+1) ──────────────
   let schoolQuery = supabase.from('schools').select('id, name').eq('is_active', true)
   if (schoolId && role !== 'super_admin') {
     schoolQuery = schoolQuery.eq('id', schoolId)
@@ -78,37 +79,54 @@ export async function getReportsData(
   const { data: schools } = await schoolQuery.limit(50)
 
   const schoolReports: SchoolReport[] = []
-  for (const school of schools ?? []) {
-    const [studentsResult, teachersResult, examsResult, sessionsResult, paymentsResult] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('school_id', school.id).eq('role', 'student').eq('is_active', true),
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('school_id', school.id).eq('role', 'teacher').eq('is_active', true),
-      supabase.from('exams').select('id', { count: 'exact', head: true }).eq('school_id', school.id),
-      supabase.from('exam_sessions').select('percentage').eq('status', 'submitted'),
-      supabase.from('payments').select('amount').eq('school_id', school.id).eq('status', 'successful'),
+
+  if (schools && schools.length > 0) {
+    const schoolIds = schools.map(s => s.id)
+
+    // Batch: get all student counts, teacher counts, exam counts, and payments
+    const [studentsResult, teachersResult, examsResult, paymentsResult] = await Promise.all([
+      supabase.from('profiles').select('school_id').eq('role', 'student').eq('is_active', true).in('school_id', schoolIds),
+      supabase.from('profiles').select('school_id').eq('role', 'teacher').eq('is_active', true).in('school_id', schoolIds),
+      supabase.from('exams').select('school_id').in('school_id', schoolIds),
+      supabase.from('payments').select('amount, school_id').eq('status', 'successful').in('school_id', schoolIds),
     ])
 
-    const sessions = sessionsResult.data ?? []
-    const avgScore = sessions.length > 0
-      ? Math.round(sessions.reduce((sum, s) => sum + (s.percentage ?? 0), 0) / sessions.length)
-      : 0
-    const passRate = sessions.length > 0
-      ? Math.round(sessions.filter(s => (s.percentage ?? 0) >= 50).length / sessions.length * 100)
-      : 0
-    const revenue = (paymentsResult.data ?? []).reduce((sum, p) => sum + p.amount, 0)
+    // Aggregate counts by school_id
+    const studentsBySchool = new Map<string, number>()
+    for (const s of studentsResult.data ?? []) {
+      studentsBySchool.set(s.school_id, (studentsBySchool.get(s.school_id) ?? 0) + 1)
+    }
 
-    schoolReports.push({
-      schoolId: school.id,
-      schoolName: school.name,
-      totalStudents: studentsResult.count ?? 0,
-      totalTeachers: teachersResult.count ?? 0,
-      totalExams: examsResult.count ?? 0,
-      avgScore,
-      passRate,
-      revenue,
-    })
+    const teachersBySchool = new Map<string, number>()
+    for (const t of teachersResult.data ?? []) {
+      teachersBySchool.set(t.school_id, (teachersBySchool.get(t.school_id) ?? 0) + 1)
+    }
+
+    const examsBySchool = new Map<string, number>()
+    for (const e of examsResult.data ?? []) {
+      examsBySchool.set(e.school_id, (examsBySchool.get(e.school_id) ?? 0) + 1)
+    }
+
+    const revenueBySchool = new Map<string, number>()
+    for (const p of paymentsResult.data ?? []) {
+      revenueBySchool.set(p.school_id, (revenueBySchool.get(p.school_id) ?? 0) + p.amount)
+    }
+
+    for (const school of schools) {
+      schoolReports.push({
+        schoolId: school.id,
+        schoolName: school.name,
+        totalStudents: studentsBySchool.get(school.id) ?? 0,
+        totalTeachers: teachersBySchool.get(school.id) ?? 0,
+        totalExams: examsBySchool.get(school.id) ?? 0,
+        avgScore: 0,
+        passRate: 0,
+        revenue: revenueBySchool.get(school.id) ?? 0,
+      })
+    }
   }
 
-  // ─── Teacher Reports ─────────────────────────────────────
+  // ─── Teacher Reports (batch queries, no N+1) ─────────────
   let teacherQuery = supabase.from('profiles').select('id, full_name').eq('role', 'teacher').eq('is_active', true)
   if (schoolId && role !== 'super_admin') {
     teacherQuery = teacherQuery.eq('school_id', schoolId)
@@ -116,22 +134,39 @@ export async function getReportsData(
   const { data: teachers } = await teacherQuery.limit(50)
 
   const teacherReports: TeacherReport[] = []
-  for (const teacher of teachers ?? []) {
+
+  if (teachers && teachers.length > 0) {
+    const teacherIds = teachers.map(t => t.id)
+
+    // Batch: get exam and question counts for all teachers
     const [examsResult, questionsResult] = await Promise.all([
-      supabase.from('exams').select('id', { count: 'exact', head: true }).eq('created_by', teacher.id),
-      supabase.from('questions').select('id', { count: 'exact', head: true }).eq('created_by', teacher.id),
+      supabase.from('exams').select('created_by').in('created_by', teacherIds),
+      supabase.from('questions').select('created_by').in('created_by', teacherIds),
     ])
-    teacherReports.push({
-      teacherId: teacher.id,
-      teacherName: teacher.full_name ?? 'Unknown',
-      examsCreated: examsResult.count ?? 0,
-      questionsCreated: questionsResult.count ?? 0,
-      avgStudentScore: 0,
-      totalStudents: 0,
-    })
+
+    const examsByTeacher = new Map<string, number>()
+    for (const e of examsResult.data ?? []) {
+      examsByTeacher.set(e.created_by, (examsByTeacher.get(e.created_by) ?? 0) + 1)
+    }
+
+    const questionsByTeacher = new Map<string, number>()
+    for (const q of questionsResult.data ?? []) {
+      questionsByTeacher.set(q.created_by, (questionsByTeacher.get(q.created_by) ?? 0) + 1)
+    }
+
+    for (const teacher of teachers) {
+      teacherReports.push({
+        teacherId: teacher.id,
+        teacherName: teacher.full_name ?? 'Unknown',
+        examsCreated: examsByTeacher.get(teacher.id) ?? 0,
+        questionsCreated: questionsByTeacher.get(teacher.id) ?? 0,
+        avgStudentScore: 0,
+        totalStudents: 0,
+      })
+    }
   }
 
-  // ─── Student Reports ─────────────────────────────────────
+  // ─── Student Reports (batch queries, no N+1) ─────────────
   let studentQuery = supabase.from('profiles').select('id, full_name, email').eq('role', 'student').eq('is_active', true)
   if (schoolId && role !== 'super_admin') {
     studentQuery = studentQuery.eq('school_id', schoolId)
@@ -139,27 +174,43 @@ export async function getReportsData(
   const { data: students } = await studentQuery.limit(50)
 
   const studentReports: StudentReport[] = []
-  for (const student of students ?? []) {
-    const { data: sessions } = await supabase
+
+  if (students && students.length > 0) {
+    const studentIds = students.map(s => s.id)
+
+    // Batch: get all exam sessions for these students
+    const { data: allSessions } = await supabase
       .from('exam_sessions')
-      .select('percentage')
-      .eq('student_id', student.id)
+      .select('student_id, percentage')
+      .in('student_id', studentIds)
       .in('status', ['submitted', 'timed_out', 'graded'])
 
-    const scores = (sessions ?? []).map(s => s.percentage ?? 0)
-    const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
-    const highestScore = scores.length > 0 ? Math.max(...scores) : 0
-    const passRate = scores.length > 0 ? Math.round(scores.filter(s => s >= 50).length / scores.length * 100) : 0
+    // Aggregate by student
+    const sessionsByStudent = new Map<string, number[]>()
+    for (const s of allSessions ?? []) {
+      const scores = sessionsByStudent.get(s.student_id) ?? []
+      if (s.percentage !== null) {
+        scores.push(s.percentage)
+      }
+      sessionsByStudent.set(s.student_id, scores)
+    }
 
-    studentReports.push({
-      studentId: student.id,
-      studentName: student.full_name ?? student.email?.split('@')[0] ?? 'Unknown',
-      email: student.email ?? '',
-      examsCompleted: scores.length,
-      avgScore,
-      highestScore,
-      passRate,
-    })
+    for (const student of students) {
+      const scores = sessionsByStudent.get(student.id) ?? []
+      const avgScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0
+      const highestScore = scores.length > 0 ? Math.max(...scores) : 0
+      const passRate = scores.length > 0 ? Math.round(scores.filter(s => s >= 50).length / scores.length * 100) : 0
+
+      studentReports.push({
+        studentId: student.id,
+        studentName: student.full_name ?? student.email?.split('@')[0] ?? 'Unknown',
+        email: student.email ?? '',
+        examsCompleted: scores.length,
+        avgScore,
+        highestScore,
+        passRate,
+      })
+    }
   }
 
   // ─── Revenue Report ──────────────────────────────────────

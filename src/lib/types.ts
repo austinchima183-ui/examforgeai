@@ -9,7 +9,7 @@
 // User Roles
 // ──────────────────────────────────────────────────────────────
 
-export type UserRole = 'student' | 'teacher' | 'school_admin' | 'super_admin';
+export type UserRole = 'student' | 'parent' | 'teacher' | 'school_admin' | 'super_admin';
 
 // ──────────────────────────────────────────────────────────────
 // User

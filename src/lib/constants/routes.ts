@@ -847,6 +847,19 @@ export const ROLE_ROUTE_ACCESS: Record<UserRole, string[]> = {
     ROUTES.SETTINGS,
     ROUTES.NOTIFICATIONS,
   ],
+  parent: [
+    ROUTES.DASHBOARD,
+    ROUTES.EXAMS,
+    ROUTES.STUDENT_DASHBOARD,
+    ROUTES.STUDENT_PRACTICE,
+    ROUTES.STUDENT_PROGRESS,
+    ROUTES.STUDENT_RESOURCES,
+    ROUTES.MARKETPLACE,
+    ROUTES.BILLING,
+    ROUTES.PROFILE,
+    ROUTES.SETTINGS,
+    ROUTES.NOTIFICATIONS,
+  ],
 }
 
 // ──────────────────────────────────────────────────────────────

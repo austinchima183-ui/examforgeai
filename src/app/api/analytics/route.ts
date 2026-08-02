@@ -1,29 +1,36 @@
-import { NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { NextResponse, type NextRequest } from 'next/server'
+import { getAuthUser } from '@/lib/auth/require-auth'
 import { getAnalyticsData } from '@/lib/services/analytics-service'
 
-export async function GET(request: Request) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+// ============================================================================
+// ExamForge AI — Analytics API Route
+// ============================================================================
+// Returns role-scoped analytics data. Requires authentication.
+// ============================================================================
 
-  if (!user) {
+export const dynamic = 'force-dynamic'
+
+export async function GET(request: NextRequest) {
+  const authResult = await getAuthUser()
+
+  if (!authResult) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const { searchParams } = new URL(request.url)
-  const range = (searchParams.get('range') ?? '30d') as '7d' | '30d' | '90d' | '1y' | 'all'
+  const { user } = authResult
 
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id, role')
-    .eq('id', user.id)
-    .single()
+  try {
+    const { searchParams } = new URL(request.url)
+    const range = searchParams.get('range') as '7d' | '30d' | '90d' | '1y' | 'all' | null
+    const validRange = range && ['7d', '30d', '90d', '1y', 'all'].includes(range) ? range : '30d'
 
-  const profileData = profile as { school_id: string | null; role: string } | null
-  const role = (profileData?.role ?? 'student') as 'student' | 'teacher' | 'school_admin' | 'super_admin'
-  const schoolId = profileData?.school_id ?? null
+    const data = await getAnalyticsData(user.role, user.id, user.schoolId, validRange)
 
-  const data = await getAnalyticsData(role, user.id, schoolId, range)
-
-  return NextResponse.json(data)
+    return NextResponse.json(data)
+  } catch (error) {
+    return NextResponse.json(
+      { error: 'Failed to fetch analytics data' },
+      { status: 500 }
+    )
+  }
 }

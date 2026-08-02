@@ -2,7 +2,8 @@
 // ExamForge AI — Dashboard Data Service
 // ============================================================================
 // Server-side data fetching for role-specific dashboards.
-// All queries use the Supabase server client with cookie-based auth.
+// All queries are scoped by role and school_id to prevent data leakage.
+// N+1 queries have been replaced with aggregate queries.
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
@@ -90,65 +91,30 @@ export async function getSuperAdminStats(): Promise<SuperAdminStats> {
 export async function getSuperAdminActivities(): Promise<ActivityItem[]> {
   const supabase = await createClient()
 
-  // Get recent school registrations
-  const { data: recentSchools } = await supabase
-    .from('schools')
-    .select('id, name, created_at')
-    .order('created_at', { ascending: false })
-    .limit(3)
-
-  // Get recent payments
-  const { data: recentPayments } = await supabase
-    .from('payments')
-    .select('id, amount, currency, created_at, status')
-    .eq('status', 'successful')
-    .order('created_at', { ascending: false })
-    .limit(3)
-
-  // Get recent user registrations
-  const { data: recentUsers } = await supabase
-    .from('profiles')
-    .select('id, full_name, role, created_at')
-    .order('created_at', { ascending: false })
-    .limit(3)
+  const [recentSchools, recentPayments, recentUsers] = await Promise.all([
+    supabase.from('schools').select('id, name, created_at').order('created_at', { ascending: false }).limit(3),
+    supabase.from('payments').select('id, amount, currency, created_at, status').eq('status', 'successful').order('created_at', { ascending: false }).limit(3),
+    supabase.from('profiles').select('id, full_name, role, created_at').order('created_at', { ascending: false }).limit(3),
+  ])
 
   const activities: ActivityItem[] = []
 
-  for (const school of recentSchools ?? []) {
-    activities.push({
-      id: `school-${school.id}`,
-      description: `New school registered: ${school.name}`,
-      timestamp: school.created_at,
-      type: 'school',
-    })
+  for (const school of recentSchools.data ?? []) {
+    activities.push({ id: `school-${school.id}`, description: `New school registered: ${school.name}`, timestamp: school.created_at, type: 'school' })
+  }
+  for (const payment of recentPayments.data ?? []) {
+    activities.push({ id: `payment-${payment.id}`, description: `Payment received: ${payment.currency?.toUpperCase() ?? 'NGN'} ${payment.amount.toLocaleString()}`, timestamp: payment.created_at, type: 'revenue' })
+  }
+  for (const user of recentUsers.data ?? []) {
+    activities.push({ id: `user-${user.id}`, description: `New ${user.role} joined: ${user.full_name ?? 'Unknown'}`, timestamp: user.created_at, type: 'user' })
   }
 
-  for (const payment of recentPayments ?? []) {
-    activities.push({
-      id: `payment-${payment.id}`,
-      description: `Payment received: ${payment.currency?.toUpperCase() ?? 'NGN'} ${payment.amount.toLocaleString()}`,
-      timestamp: payment.created_at,
-      type: 'revenue',
-    })
-  }
-
-  for (const user of recentUsers ?? []) {
-    activities.push({
-      id: `user-${user.id}`,
-      description: `New ${user.role} joined: ${user.full_name ?? 'Unknown'}`,
-      timestamp: user.created_at,
-      type: 'user',
-    })
-  }
-
-  // Sort by timestamp descending
   activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-
   return activities.slice(0, 10)
 }
 
 // ──────────────────────────────────────────────────────────────
-// School Admin Dashboard
+// School Admin Dashboard (scoped by schoolId)
 // ──────────────────────────────────────────────────────────────
 
 export async function getSchoolAdminStats(schoolId: string): Promise<SchoolAdminStats> {
@@ -163,10 +129,12 @@ export async function getSchoolAdminStats(schoolId: string): Promise<SchoolAdmin
 
   const revenue = (paymentsResult.data ?? []).reduce((sum, p) => sum + p.amount, 0)
 
+  // Scope pending submissions to this school's exams
   const pendingSubmissionsResult = await supabase
     .from('exam_sessions')
-    .select('id', { count: 'exact', head: true })
+    .select('id, exams!inner(school_id)')
     .eq('status', 'submitted')
+    .eq('exams.school_id', schoolId)
 
   return {
     teachers: teachersResult.count ?? 0,
@@ -174,85 +142,61 @@ export async function getSchoolAdminStats(schoolId: string): Promise<SchoolAdmin
     exams: examsResult.count ?? 0,
     revenue,
     activeClasses: 0,
-    pendingSubmissions: pendingSubmissionsResult.count ?? 0,
+    pendingSubmissions: pendingSubmissionsResult.data?.length ?? 0,
   }
 }
 
 export async function getSchoolAdminActivities(schoolId: string): Promise<ActivityItem[]> {
   const supabase = await createClient()
 
-  const { data: recentExams } = await supabase
-    .from('exams')
-    .select('id, title, status, created_at')
-    .eq('school_id', schoolId)
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  const { data: recentUsers } = await supabase
-    .from('profiles')
-    .select('id, full_name, role, created_at')
-    .eq('school_id', schoolId)
-    .order('created_at', { ascending: false })
-    .limit(5)
+  const [recentExams, recentUsers] = await Promise.all([
+    supabase.from('exams').select('id, title, status, created_at').eq('school_id', schoolId).order('created_at', { ascending: false }).limit(5),
+    supabase.from('profiles').select('id, full_name, role, created_at').eq('school_id', schoolId).order('created_at', { ascending: false }).limit(5),
+  ])
 
   const activities: ActivityItem[] = []
 
-  for (const exam of recentExams ?? []) {
-    activities.push({
-      id: `exam-${exam.id}`,
-      description: `Exam "${exam.title}" status changed to ${exam.status}`,
-      timestamp: exam.created_at,
-      type: 'exam',
-    })
+  for (const exam of recentExams.data ?? []) {
+    activities.push({ id: `exam-${exam.id}`, description: `Exam "${exam.title}" status changed to ${exam.status}`, timestamp: exam.created_at, type: 'exam' })
   }
-
-  for (const user of recentUsers ?? []) {
-    activities.push({
-      id: `user-${user.id}`,
-      description: `New ${user.role} joined: ${user.full_name ?? 'Unknown'}`,
-      timestamp: user.created_at,
-      type: user.role === 'teacher' ? 'teacher' : 'student',
-    })
+  for (const user of recentUsers.data ?? []) {
+    activities.push({ id: `user-${user.id}`, description: `New ${user.role} joined: ${user.full_name ?? 'Unknown'}`, timestamp: user.created_at, type: user.role === 'teacher' ? 'teacher' : 'student' })
   }
 
   activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-
   return activities.slice(0, 10)
 }
 
 // ──────────────────────────────────────────────────────────────
-// Teacher Dashboard
+// Teacher Dashboard (scoped by userId)
 // ──────────────────────────────────────────────────────────────
 
 export async function getTeacherStats(userId: string): Promise<TeacherStats> {
   const supabase = await createClient()
 
-  const [examsResult, questionsResult, sessionsResult] = await Promise.all([
+  // Get teacher's exam IDs first
+  const { data: teacherExams } = await supabase
+    .from('exams')
+    .select('id')
+    .eq('created_by', userId)
+
+  const teacherExamIds = (teacherExams ?? []).map(e => e.id)
+
+  // Parallel queries for all stats
+  const [examsResult, questionsResult, activeExamsResult, pendingGradingResult, sessionsResult] = await Promise.all([
     supabase.from('exams').select('id', { count: 'exact', head: true }).eq('created_by', userId),
     supabase.from('questions').select('id', { count: 'exact', head: true }).eq('created_by', userId),
-    supabase.from('exam_sessions').select('id, exam_id').eq('status', 'submitted'),
+    supabase.from('exams').select('id', { count: 'exact', head: true }).eq('created_by', userId).eq('status', 'active'),
+    teacherExamIds.length > 0
+      ? supabase.from('exam_sessions').select('id', { count: 'exact', head: true }).eq('status', 'submitted').in('exam_id', teacherExamIds)
+      : Promise.resolve({ count: 0, data: null, error: null }),
+    teacherExamIds.length > 0
+      ? supabase.from('exam_sessions').select('student_id').in('exam_id', teacherExamIds)
+      : Promise.resolve({ count: 0, data: [], error: null }),
   ])
 
-  // Get unique student count from exam sessions for this teacher's exams
-  const teacherExamIds = (await supabase.from('exams').select('id').eq('created_by', userId)).data?.map(e => e.id) ?? []
-  const uniqueStudents = new Set<string>()
-
-  for (const session of sessionsResult.data ?? []) {
-    if (teacherExamIds.includes(session.exam_id)) {
-      uniqueStudents.add(session.exam_id)
-    }
-  }
-
-  const pendingGradingResult = await supabase
-    .from('exam_sessions')
-    .select('id', { count: 'exact', head: true })
-    .eq('status', 'submitted')
-
-  const activeExamsResult = await supabase
-    .from('exams')
-    .select('id', { count: 'exact', head: true })
-    .eq('created_by', userId)
-    .eq('status', 'active')
+  // Count unique students from teacher's exam sessions
+  const uniqueStudents = new Set((sessionsResult.data ?? []).map(s => s.student_id))
 
   return {
     classes: 0,
@@ -267,53 +211,32 @@ export async function getTeacherStats(userId: string): Promise<TeacherStats> {
 export async function getTeacherActivities(userId: string): Promise<ActivityItem[]> {
   const supabase = await createClient()
 
-  const { data: recentExams } = await supabase
-    .from('exams')
-    .select('id, title, status, created_at')
-    .eq('created_by', userId)
-    .order('created_at', { ascending: false })
-    .limit(5)
-
-  const { data: recentQuestions } = await supabase
-    .from('questions')
-    .select('id, question_type, created_at, ai_generated')
-    .eq('created_by', userId)
-    .order('created_at', { ascending: false })
-    .limit(3)
+  const [recentExams, recentQuestions] = await Promise.all([
+    supabase.from('exams').select('id, title, status, created_at').eq('created_by', userId).order('created_at', { ascending: false }).limit(5),
+    supabase.from('questions').select('id, question_type, created_at, ai_generated').eq('created_by', userId).order('created_at', { ascending: false }).limit(3),
+  ])
 
   const activities: ActivityItem[] = []
 
-  for (const exam of recentExams ?? []) {
-    activities.push({
-      id: `exam-${exam.id}`,
-      description: `Exam "${exam.title}" — ${exam.status}`,
-      timestamp: exam.created_at,
-      type: 'exam',
-    })
+  for (const exam of recentExams.data ?? []) {
+    activities.push({ id: `exam-${exam.id}`, description: `Exam "${exam.title}" — ${exam.status}`, timestamp: exam.created_at, type: 'exam' })
   }
-
-  for (const question of recentQuestions ?? []) {
-    activities.push({
-      id: `question-${question.id}`,
-      description: `${question.ai_generated ? 'AI-generated' : 'Created'} ${question.question_type} question`,
-      timestamp: question.created_at,
-      type: 'question',
-    })
+  for (const question of recentQuestions.data ?? []) {
+    activities.push({ id: `question-${question.id}`, description: `${question.ai_generated ? 'AI-generated' : 'Created'} ${question.question_type} question`, timestamp: question.created_at, type: 'question' })
   }
 
   activities.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
-
   return activities.slice(0, 10)
 }
 
 // ──────────────────────────────────────────────────────────────
-// Student Dashboard
+// Student Dashboard (scoped by userId — own data only)
 // ──────────────────────────────────────────────────────────────
 
 export async function getStudentStats(userId: string): Promise<StudentStats> {
   const supabase = await createClient()
 
-  // Get completed sessions
+  // Get completed sessions (only student's own)
   const { data: completedSessions } = await supabase
     .from('exam_sessions')
     .select('id, percentage, total_score, max_score')
@@ -326,7 +249,7 @@ export async function getStudentStats(userId: string): Promise<StudentStats> {
     ? Math.round(scoresWithPercentage.reduce((sum, s) => sum + (s.percentage ?? 0), 0) / scoresWithPercentage.length)
     : 0
 
-  // Get upcoming exams (exams that are published/active and not yet taken)
+  // Get upcoming exams (only exams the student hasn't taken yet)
   const { data: takenExamIds } = await supabase
     .from('exam_sessions')
     .select('exam_id')
@@ -385,12 +308,7 @@ export async function getStudentActivities(userId: string): Promise<ActivityItem
       type = 'exam'
     }
 
-    return {
-      id: `session-${session.id}`,
-      description,
-      timestamp: session.created_at,
-      type,
-    }
+    return { id: `session-${session.id}`, description, timestamp: session.created_at, type }
   })
 
   return activities.slice(0, 10)

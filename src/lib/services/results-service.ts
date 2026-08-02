@@ -2,10 +2,11 @@
 // ExamForge AI — Results Data Service
 // ============================================================================
 // Server-side data fetching for exam results, grades, and analytics.
-// All queries use the Supabase server client with cookie-based auth.
+// All queries are scoped by role and school_id to prevent data leakage.
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
+import type { UserRole } from '@/lib/types'
 
 // ──────────────────────────────────────────────────────────────
 // Types
@@ -43,7 +44,7 @@ export interface ResultsPageData {
 }
 
 // ──────────────────────────────────────────────────────────────
-// Results Service
+// Results Service (scoped by role)
 // ──────────────────────────────────────────────────────────────
 
 export async function getResultsData(
@@ -53,7 +54,7 @@ export async function getResultsData(
 ): Promise<ResultsPageData> {
   const supabase = await createClient()
 
-  // Build exam sessions query
+  // Build exam sessions query with role-based scoping
   let sessionQuery = supabase
     .from('exam_sessions')
     .select(`
@@ -73,20 +74,27 @@ export async function getResultsData(
 
   // Scope by role
   if (role === 'student') {
+    // Students can only see their own results
     sessionQuery = sessionQuery.eq('student_id', userId)
+  } else if (role === 'teacher' && schoolId) {
+    // Teachers can only see results for exams in their school
+    sessionQuery = sessionQuery.eq('exams.school_id', schoolId)
+  } else if (role === 'school_admin' && schoolId) {
+    // School admins can only see results for their school
+    sessionQuery = sessionQuery.eq('exams.school_id', schoolId)
   }
+  // super_admin sees all (no filter)
 
   const { data: sessions, error: sessionsError } = await sessionQuery.limit(100)
 
   if (sessionsError) {
-    console.error('Error fetching exam sessions:', sessionsError)
     return {
       stats: { passRate: 0, averageScore: 0, highestScore: 0, totalSubmissions: 0, passedCount: 0, failedCount: 0, absentCount: 0 },
       results: [],
     }
   }
 
-  // Get student profiles for names
+  // Get student profiles and exam details (batch queries)
   const studentIds = [...new Set((sessions ?? []).map(s => s.student_id))]
   const examIds = [...new Set((sessions ?? []).map(s => s.exam_id))]
 

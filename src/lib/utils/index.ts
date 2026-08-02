@@ -22,5 +22,4 @@ export {
   uuidSchema,
   phoneSchema,
 } from './validate'
-export { logger, Logger } from './logger'
-export type { LogLevel, LogContext, LogEntry } from './logger'
+export { logger } from './logger'

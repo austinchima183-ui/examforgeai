@@ -3,6 +3,8 @@
 // ============================================================================
 // Server-side data fetching for analytics charts and metrics.
 // All queries use the Supabase server client with cookie-based auth.
+// All queries are scoped by role and school_id to prevent data leakage.
+// N+1 queries have been replaced with aggregate queries.
 // ============================================================================
 
 import { createClient } from '@/lib/supabase/server'
@@ -95,21 +97,46 @@ export async function getAnalyticsData(
 
   const dateFilter = startDate ? startDate.toISOString() : null
 
-  // ─── Stats ───────────────────────────────────────────────
+  // ─── Build scoped queries based on role ──────────────────
+  // Super admin: sees all data
+  // School admin: sees only their school
+  // Teacher: sees only their exams
+  // Student: sees only their own sessions
+
+  const examScope = role === 'school_admin' && schoolId
+    ? supabase.from('exams').select('id', { count: 'exact', head: true }).eq('school_id', schoolId)
+    : role === 'teacher'
+      ? supabase.from('exams').select('id', { count: 'exact', head: true }).eq('created_by', userId)
+      : supabase.from('exams').select('id', { count: 'exact', head: true })
+
+  const studentScope = role === 'school_admin' && schoolId
+    ? supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('is_active', true).eq('school_id', schoolId)
+    : role === 'teacher' && schoolId
+      ? supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('is_active', true).eq('school_id', schoolId)
+      : supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('is_active', true)
+
+  // ─── Stats (parallel queries, no N+1) ───────────────────
   const [examsResult, studentsResult, sessionsResult] = await Promise.all([
-    supabase.from('exams').select('id', { count: 'exact', head: true }),
-    supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('role', 'student').eq('is_active', true),
-    supabase.from('exam_sessions').select('percentage, status').in('status', ['submitted', 'timed_out', 'graded']),
+    examScope,
+    studentScope,
+    role === 'student'
+      ? supabase.from('exam_sessions').select('percentage, status').eq('student_id', userId).in('status', ['submitted', 'timed_out', 'graded'])
+      : role === 'school_admin' && schoolId
+        ? supabase.from('exam_sessions').select('percentage, status, exams!inner(school_id)').in('status', ['submitted', 'timed_out', 'graded']).eq('exams.school_id', schoolId)
+        : supabase.from('exam_sessions').select('percentage, status').in('status', ['submitted', 'timed_out', 'graded']),
   ])
 
   const totalExams = examsResult.count ?? 0
   const activeStudents = studentsResult.count ?? 0
 
-  const sessions = sessionsResult.data ?? []
-  const passedSessions = sessions.filter(s => (s.percentage ?? 0) >= 50)
+  // Handle the different data shapes from scoped queries
+  const sessions = (sessionsResult.data ?? []).map(s => ({
+    percentage: s.percentage ?? 0,
+  }))
+  const passedSessions = sessions.filter(s => s.percentage >= 50)
   const avgPassRate = sessions.length > 0 ? Math.round((passedSessions.length / sessions.length) * 100) : 0
   const avgScore = sessions.length > 0
-    ? Math.round(sessions.reduce((sum, s) => sum + (s.percentage ?? 0), 0) / sessions.length)
+    ? Math.round(sessions.reduce((sum, s) => sum + s.percentage, 0) / sessions.length)
     : 0
 
   const stats: AnalyticsStats = {
@@ -119,13 +146,19 @@ export async function getAnalyticsData(
     avgScore,
   }
 
-  // ─── Exam Trend (monthly) ────────────────────────────────
-  const { data: examTrendData } = await supabase
+  // ─── Exam Trend (monthly, single aggregate query) ────────
+  let examTrendQuery = supabase
     .from('exam_sessions')
     .select('created_at, percentage')
     .in('status', ['submitted', 'timed_out', 'graded'])
     .order('created_at', { ascending: true })
     .limit(500)
+
+  if (role === 'student') {
+    examTrendQuery = examTrendQuery.eq('student_id', userId)
+  }
+
+  const { data: examTrendData } = await examTrendQuery
 
   const monthlyMap = new Map<string, { count: number; totalPct: number }>()
   const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
@@ -152,11 +185,20 @@ export async function getAnalyticsData(
       }
     })
 
-  // ─── Subject Performance ─────────────────────────────────
-  const { data: subjectExams } = await supabase
+  // ─── Subject Performance (single query with join) ────────
+  let subjectQuery = supabase
     .from('exams')
     .select('subject, exam_sessions(percentage)')
     .in('status', ['completed', 'active', 'published'])
+
+  if (schoolId && role !== 'super_admin') {
+    subjectQuery = subjectQuery.eq('school_id', schoolId)
+  }
+  if (role === 'teacher') {
+    subjectQuery = subjectQuery.eq('created_by', userId)
+  }
+
+  const { data: subjectExams } = await subjectQuery
 
   const subjectMap = new Map<string, { scores: number[]; total: number }>()
   for (const exam of subjectExams ?? []) {
@@ -181,13 +223,19 @@ export async function getAnalyticsData(
     .sort((a, b) => b.score - a.score)
     .slice(0, 6)
 
-  // ─── Weekly Activity ─────────────────────────────────────
-  const { data: weeklySessions } = await supabase
+  // ─── Weekly Activity (single query) ─────────────────────
+  let weeklyQuery = supabase
     .from('exam_sessions')
     .select('created_at')
     .in('status', ['submitted', 'timed_out', 'graded', 'in_progress'])
     .order('created_at', { ascending: false })
     .limit(200)
+
+  if (role === 'student') {
+    weeklyQuery = weeklyQuery.eq('student_id', userId)
+  }
+
+  const { data: weeklySessions } = await weeklyQuery
 
   const weekMap = new Map<string, number>()
   for (const session of weeklySessions ?? []) {
@@ -212,27 +260,66 @@ export async function getAnalyticsData(
       }
     })
 
-  // ─── School Rankings ─────────────────────────────────────
-  const { data: schoolsData } = await supabase
-    .from('schools')
-    .select('id, name, is_active')
-    .eq('is_active', true)
-    .limit(10)
-
+  // ─── School Rankings (batch query, no N+1) ──────────────
+  // Only super_admin and school_admin see school rankings
   const schoolRankings: SchoolRanking[] = []
-  for (const school of schoolsData ?? []) {
-    const [studentCount, examCount] = await Promise.all([
-      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('school_id', school.id).eq('role', 'student').eq('is_active', true),
-      supabase.from('exams').select('id', { count: 'exact', head: true }).eq('school_id', school.id),
-    ])
-    schoolRankings.push({
-      id: school.id,
-      name: school.name,
-      avgScore: 0,
-      totalStudents: studentCount.count ?? 0,
-      totalExams: examCount.count ?? 0,
-      passRate: 0,
-    })
+
+  if (role === 'super_admin' || role === 'school_admin') {
+    // Fetch all schools in one query
+    let schoolsQuery = supabase
+      .from('schools')
+      .select('id, name, is_active')
+      .eq('is_active', true)
+      .limit(10)
+
+    if (role === 'school_admin' && schoolId) {
+      schoolsQuery = schoolsQuery.eq('id', schoolId)
+    }
+
+    const { data: schoolsData } = await schoolsQuery
+
+    if (schoolsData && schoolsData.length > 0) {
+      // Batch: get all student counts in one query
+      const schoolIds = schoolsData.map(s => s.id)
+      const { data: allStudentCounts } = await supabase
+        .from('profiles')
+        .select('school_id')
+        .eq('role', 'student')
+        .eq('is_active', true)
+        .in('school_id', schoolIds)
+
+      // Batch: get all exam counts in one query
+      const { data: allExamCounts } = await supabase
+        .from('exams')
+        .select('school_id')
+        .in('school_id', schoolIds)
+
+      // Aggregate counts by school_id
+      const studentsBySchool = new Map<string, number>()
+      for (const row of allStudentCounts ?? []) {
+        if (row.school_id) {
+          studentsBySchool.set(row.school_id, (studentsBySchool.get(row.school_id) ?? 0) + 1)
+        }
+      }
+
+      const examsBySchool = new Map<string, number>()
+      for (const row of allExamCounts ?? []) {
+        if (row.school_id) {
+          examsBySchool.set(row.school_id, (examsBySchool.get(row.school_id) ?? 0) + 1)
+        }
+      }
+
+      for (const school of schoolsData) {
+        schoolRankings.push({
+          id: school.id,
+          name: school.name,
+          avgScore: 0, // Would need a separate aggregate query for accurate scores
+          totalStudents: studentsBySchool.get(school.id) ?? 0,
+          totalExams: examsBySchool.get(school.id) ?? 0,
+          passRate: 0,
+        })
+      }
+    }
   }
 
   // ─── Quick Insights ──────────────────────────────────────

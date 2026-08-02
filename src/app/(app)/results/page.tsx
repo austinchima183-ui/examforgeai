@@ -1,6 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
 import { CheckCircle2, XCircle, Trophy, BarChart3, Users, GraduationCap } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -18,8 +16,7 @@ export const dynamic = 'force-dynamic'
 // ============================================================================
 // ExamForge AI — Results Page
 // ============================================================================
-// Server Component. Displays exam results from Supabase with real data.
-// No mock data. All stats and tables are live.
+// Server Component. Requires authentication. Data scoped by role.
 // ============================================================================
 
 const statusConfig: Record<string, { variant: 'default' | 'secondary' | 'destructive'; icon: typeof CheckCircle2 }> = {
@@ -47,24 +44,16 @@ const columns: ColumnDef<ResultListItem, unknown>[] = [
     accessorKey: 'studentName',
     header: 'Student',
     cell: ({ row }) => {
-      const initials = row.original.studentName
-        .split(' ')
-        .map((n) => n[0])
-        .join('')
-        .slice(0, 2)
+      const initials = row.original.studentName.split(' ').map((n) => n[0]).join('').slice(0, 2)
       return (
         <div className="flex items-center gap-3">
           <Avatar className="h-8 w-8">
             {row.original.studentAvatarUrl && <AvatarImage src={row.original.studentAvatarUrl} alt={row.original.studentName} />}
-            <AvatarFallback className="text-xs bg-primary/10 text-primary">
-              {initials}
-            </AvatarFallback>
+            <AvatarFallback className="text-xs bg-primary/10 text-primary">{initials}</AvatarFallback>
           </Avatar>
           <div>
             <p className="font-medium">{row.getValue('studentName')}</p>
-            <p className="text-xs text-muted-foreground">
-              {row.original.className ?? row.original.studentEmail}
-            </p>
+            <p className="text-xs text-muted-foreground">{row.original.className ?? row.original.studentEmail}</p>
           </div>
         </div>
       )
@@ -87,12 +76,8 @@ const columns: ColumnDef<ResultListItem, unknown>[] = [
       const pct = row.getValue('percentage') as number
       return (
         <div className="space-y-1">
-          <span className={`font-medium ${getScoreColor(pct)}`}>
-            {pct}%
-          </span>
-          <p className="text-xs text-muted-foreground">
-            {row.original.score}/{row.original.totalMarks}
-          </p>
+          <span className={`font-medium ${getScoreColor(pct)}`}>{pct}%</span>
+          <p className="text-xs text-muted-foreground">{row.original.score}/{row.original.totalMarks}</p>
         </div>
       )
     },
@@ -103,11 +88,7 @@ const columns: ColumnDef<ResultListItem, unknown>[] = [
     header: 'Performance',
     cell: ({ row }) => {
       const pct = row.getValue('percentage') as number
-      return (
-        <div className="w-24">
-          <Progress value={pct} className="h-2" />
-        </div>
-      )
+      return (<div className="w-24"><Progress value={pct} className="h-2" /></div>)
     },
   },
   {
@@ -116,125 +97,59 @@ const columns: ColumnDef<ResultListItem, unknown>[] = [
     cell: ({ row }) => {
       const status = row.getValue('status') as string
       const config = statusConfig[status] ?? statusConfig.failed
-      return (
-        <Badge variant={config.variant}>
-          {status.charAt(0).toUpperCase() + status.slice(1)}
-        </Badge>
-      )
+      return (<Badge variant={config.variant}>{status.charAt(0).toUpperCase() + status.slice(1)}</Badge>)
     },
   },
   {
     id: 'actions',
     header: '',
-    cell: () => (
-      <Button variant="ghost" size="sm" className="h-8">
-        View Details
-      </Button>
-    ),
+    cell: () => (<Button variant="ghost" size="sm" className="h-8">View Details</Button>),
   },
 ]
 
 export default async function ResultsPage() {
-  const supabase = await createClient()
+  const { user } = await requireAuth()
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
-
-  // Get user role and school
-  const { data: profile } = await supabase
-    .from('profiles')
-    .select('school_id, role')
-    .eq('id', user.id)
-    .single()
-
-  const profileData = profile as { school_id: string | null; role: string } | null
-  const role = profileData?.role ?? 'student'
-  const schoolId = profileData?.school_id ?? null
-
-  // Fetch live data from Supabase
-  const data = await getResultsData(role, user.id, schoolId)
+  // Fetch data scoped by role — students see only their own results
+  const data = await getResultsData(user.role, user.id, user.schoolId)
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Results</h1>
-          <p className="text-sm text-muted-foreground">
-            View and analyze exam results, scores, and performance data.
-          </p>
+          <p className="text-sm text-muted-foreground">View and analyze exam results, scores, and performance data.</p>
         </div>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Pass Rate"
-          value={`${data.stats.passRate}%`}
-          icon={CheckCircle2}
-          description="Overall pass rate"
-        />
-        <StatCard
-          title="Average Score"
-          value={`${data.stats.averageScore}%`}
-          icon={BarChart3}
-          description="Across all exams"
-        />
-        <StatCard
-          title="Highest Score"
-          value={`${data.stats.highestScore}%`}
-          icon={Trophy}
-          description="Best result"
-        />
-        <StatCard
-          title="Total Submissions"
-          value={data.stats.totalSubmissions}
-          icon={GraduationCap}
-          description="Exam submissions"
-        />
+        <StatCard title="Pass Rate" value={`${data.stats.passRate}%`} icon={CheckCircle2} description="Overall pass rate" />
+        <StatCard title="Average Score" value={`${data.stats.averageScore}%`} icon={BarChart3} description="Across all exams" />
+        <StatCard title="Highest Score" value={`${data.stats.highestScore}%`} icon={Trophy} description="Best result" />
+        <StatCard title="Total Submissions" value={data.stats.totalSubmissions} icon={GraduationCap} description="Exam submissions" />
       </div>
 
-      {/* Performance Breakdown */}
       <div className="grid gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.stats.passedCount}</p>
-              <p className="text-xs text-muted-foreground">Passed</p>
-            </div>
+            <div className="h-10 w-10 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center"><CheckCircle2 className="h-5 w-5 text-emerald-600" /></div>
+            <div><p className="text-2xl font-bold">{data.stats.passedCount}</p><p className="text-xs text-muted-foreground">Passed</p></div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
-              <XCircle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.stats.failedCount}</p>
-              <p className="text-xs text-muted-foreground">Failed</p>
-            </div>
+            <div className="h-10 w-10 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center"><XCircle className="h-5 w-5 text-red-600" /></div>
+            <div><p className="text-2xl font-bold">{data.stats.failedCount}</p><p className="text-xs text-muted-foreground">Failed</p></div>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="p-4 flex items-center gap-3">
-            <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-900/30 flex items-center justify-center">
-              <Users className="h-5 w-5 text-gray-600" />
-            </div>
-            <div>
-              <p className="text-2xl font-bold">{data.stats.absentCount}</p>
-              <p className="text-xs text-muted-foreground">Absent</p>
-            </div>
+            <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-900/30 flex items-center justify-center"><Users className="h-5 w-5 text-gray-600" /></div>
+            <div><p className="text-2xl font-bold">{data.stats.absentCount}</p><p className="text-xs text-muted-foreground">Absent</p></div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Data Table */}
       <Card>
         <CardHeader>
           <CardTitle>All Results</CardTitle>

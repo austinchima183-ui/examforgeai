@@ -17,22 +17,25 @@ const ROLE_DASHBOARD_MAP: Record<UserRole, string> = {
   teacher: '/dashboard/teacher',
   school_admin: '/dashboard/school-admin',
   super_admin: '/dashboard/super-admin',
+  parent: '/dashboard/student',
 }
 
 export default async function DashboardPage() {
   const supabase = await createClient()
-
   const { data: { user } } = await supabase.auth.getUser()
 
-  // If not authenticated, redirect to login
   if (!user) {
     redirect(ROUTES.LOGIN)
   }
 
-  // Determine role from app_metadata or default to student
-  const role = (user.app_metadata?.role as UserRole) ?? 'student'
+  // Get role from profile (more reliable than app_metadata)
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('role')
+    .eq('id', user.id)
+    .single()
 
-  // Redirect to role-specific dashboard
+  const role = (profile?.role as UserRole) ?? (user.app_metadata?.role as UserRole) ?? 'student'
   const targetPath = ROLE_DASHBOARD_MAP[role] ?? ROLE_DASHBOARD_MAP.student
   redirect(targetPath)
 }

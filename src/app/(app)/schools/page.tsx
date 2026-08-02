@@ -1,8 +1,6 @@
-import { createClient } from '@/lib/supabase/server'
-import { redirect } from 'next/navigation'
-import { ROUTES } from '@/lib/constants/routes'
+import { requireAuth } from '@/lib/auth/require-auth'
 import { type ColumnDef } from '@tanstack/react-table'
-import { School, Plus, MapPin, Users, Phone, Mail } from 'lucide-react'
+import { School, Plus, MapPin, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
@@ -17,7 +15,7 @@ export const dynamic = 'force-dynamic'
 // ============================================================================
 // ExamForge AI — Schools Management Page
 // ============================================================================
-// Server Component. Displays schools from Supabase with real data.
+// Server Component. Requires authentication. Data scoped by role.
 // ============================================================================
 
 const statusVariantMap: Record<string, 'default' | 'secondary' | 'destructive'> = {
@@ -104,70 +102,36 @@ const columns: ColumnDef<SchoolListItem, unknown>[] = [
     id: 'actions',
     header: '',
     cell: () => (
-      <Button variant="ghost" size="sm" className="h-8">
-        View
-      </Button>
+      <Button variant="ghost" size="sm" className="h-8">View</Button>
     ),
   },
 ]
 
 export default async function SchoolsPage() {
-  const supabase = await createClient()
+  const { user } = await requireAuth()
 
-  const { data: { user } } = await supabase.auth.getUser()
-
-  if (!user) {
-    redirect(ROUTES.LOGIN)
-  }
-
-  // Fetch real data from Supabase
-  const data = await getSchoolsData()
+  // Fetch data scoped by role — school_admin sees only their school
+  const data = await getSchoolsData(user.role, user.schoolId)
 
   return (
     <div className="space-y-6">
-      {/* Page Header */}
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-bold tracking-tight">Schools</h1>
-          <p className="text-sm text-muted-foreground">
-            Manage and monitor all registered schools on the platform.
-          </p>
+          <p className="text-sm text-muted-foreground">Manage and monitor all registered schools on the platform.</p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          Add School
-        </Button>
+        {(user.role === 'super_admin' || user.role === 'school_admin') && (
+          <Button className="gap-2"><Plus className="h-4 w-4" />Add School</Button>
+        )}
       </div>
 
-      {/* Stats Overview */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Total Schools"
-          value={data.total}
-          icon={School}
-          description="Registered on platform"
-        />
-        <StatCard
-          title="Active Schools"
-          value={data.activeSchools}
-          icon={School}
-          description="Currently active"
-        />
-        <StatCard
-          title="Total Students"
-          value={data.totalStudents.toLocaleString()}
-          icon={Users}
-          description="Across all schools"
-        />
-        <StatCard
-          title="Total Teachers"
-          value={data.totalTeachers.toLocaleString()}
-          icon={Users}
-          description="Across all schools"
-        />
+        <StatCard title="Total Schools" value={data.total} icon={School} description="Registered on platform" />
+        <StatCard title="Active Schools" value={data.activeSchools} icon={School} description="Currently active" />
+        <StatCard title="Total Students" value={data.totalStudents.toLocaleString()} icon={Users} description="Across all schools" />
+        <StatCard title="Total Teachers" value={data.totalTeachers.toLocaleString()} icon={Users} description="Across all schools" />
       </div>
 
-      {/* Data Table */}
       <Card>
         <CardHeader>
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -177,9 +141,7 @@ export default async function SchoolsPage() {
             </div>
             <div className="flex items-center gap-2">
               <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[140px]">
-                  <SelectValue placeholder="Filter by type" />
-                </SelectTrigger>
+                <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Filter by type" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Types</SelectItem>
                   <SelectItem value="primary">Primary</SelectItem>
@@ -189,9 +151,7 @@ export default async function SchoolsPage() {
                 </SelectContent>
               </Select>
               <Select defaultValue="all">
-                <SelectTrigger className="h-9 w-[140px]">
-                  <SelectValue placeholder="Filter by status" />
-                </SelectTrigger>
+                <SelectTrigger className="h-9 w-[140px]"><SelectValue placeholder="Filter by status" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="all">All Status</SelectItem>
                   <SelectItem value="active">Active</SelectItem>

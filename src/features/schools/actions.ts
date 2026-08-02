@@ -1,12 +1,16 @@
 // ============================================================================
 // ExamForge AI — School Server Actions
 // ============================================================================
+// All mutations verify the authenticated user, their role, and school
+// ownership before allowing any changes.
 
 'use server'
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { z } from 'zod'
+import { getAuthUser } from '@/lib/auth/require-auth'
+import type { UserRole } from '@/lib/types'
 
 const createSchoolSchema = z.object({
   name: z.string().min(1, 'School name is required'),
@@ -22,11 +26,31 @@ const createSchoolSchema = z.object({
   educational_level: z.string().optional(),
 })
 
-export async function createSchoolAction(formData: FormData) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
+const updateSchoolSchema = z.object({
+  name: z.string().min(1).optional(),
+  code: z.string().min(1).optional(),
+  address: z.string().optional(),
+  city: z.string().optional(),
+  state: z.string().optional(),
+  country: z.string().optional(),
+  phone: z.string().optional(),
+  email: z.string().email().optional().or(z.literal('')).optional(),
+  motto: z.string().optional(),
+  school_type: z.string().optional(),
+  educational_level: z.string().optional(),
+  is_active: z.boolean().optional(),
+})
 
-  if (!user) return { error: 'Unauthorized' }
+export async function createSchoolAction(formData: FormData) {
+  const authResult = await getAuthUser()
+  if (!authResult) return { error: 'Unauthorized' }
+
+  const { user, supabase } = authResult
+
+  // Only super_admin and school_admin can create schools
+  if (user.role !== 'super_admin' && user.role !== 'school_admin') {
+    return { error: 'Insufficient permissions to create schools' }
+  }
 
   const rawData = {
     name: formData.get('name') as string,
@@ -63,8 +87,22 @@ export async function createSchoolAction(formData: FormData) {
 }
 
 export async function updateSchoolAction(id: string, formData: FormData) {
-  const supabase = await createClient()
+  const authResult = await getAuthUser()
+  if (!authResult) return { error: 'Unauthorized' }
 
+  const { user, supabase } = authResult
+
+  // Only super_admin and school_admin can update schools
+  if (user.role !== 'super_admin' && user.role !== 'school_admin') {
+    return { error: 'Insufficient permissions to update schools' }
+  }
+
+  // School admin can only update their own school
+  if (user.role === 'school_admin' && user.schoolId !== id) {
+    return { error: 'You can only update your own school' }
+  }
+
+  // Build validated updates from FormData
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() }
 
   const fields = ['name', 'code', 'address', 'city', 'state', 'country', 'phone', 'email', 'motto', 'school_type', 'educational_level', 'is_active']
@@ -79,9 +117,15 @@ export async function updateSchoolAction(id: string, formData: FormData) {
     }
   }
 
+  // Validate the updates against schema
+  const validated = updateSchoolSchema.safeParse(updates)
+  if (!validated.success) {
+    return { error: validated.error.issues[0].message }
+  }
+
   const { error } = await supabase
     .from('schools')
-    .update(updates)
+    .update(validated.data)
     .eq('id', id)
 
   if (!error) {
@@ -92,7 +136,16 @@ export async function updateSchoolAction(id: string, formData: FormData) {
 }
 
 export async function deactivateSchoolAction(id: string) {
-  const supabase = await createClient()
+  const authResult = await getAuthUser()
+  if (!authResult) return { error: 'Unauthorized' }
+
+  const { user, supabase } = authResult
+
+  // Only super_admin can deactivate schools
+  if (user.role !== 'super_admin') {
+    return { error: 'Only super administrators can deactivate schools' }
+  }
+
   const { error } = await supabase
     .from('schools')
     .update({ is_active: false, updated_at: new Date().toISOString() })

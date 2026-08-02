@@ -1,21 +1,18 @@
-// ============================================================================
-// ExamForge AI — Root Middleware
-// ============================================================================
-// Handles authentication, onboarding, and role-based access control.
-// Uses the Supabase SSR updateSession pattern for session refresh.
-//
-// Guard Chain (executed in order):
-//   1. AuthGuard    — Ensures user has a valid session on protected routes
-//   2. OnboardingGuard — Redirects un-onboarded users to /onboarding
-//   3. RoleBasedGuard  — Enforces role-based access to specific routes
-// ============================================================================
-
 import { createClient } from '@/lib/supabase/middleware'
 import { NextResponse, type NextRequest } from 'next/server'
 import type { UserRole } from '@/lib/types'
 
+// ============================================================================
+// ExamForge AI — Production Middleware
+// ============================================================================
+// Auth guard + RBAC enforcement. Runs on every request.
+// 1. Refreshes the Supabase session (cookie-based)
+// 2. Redirects unauthenticated users to /login
+// 3. Enforces role-based access control on protected routes
+// ============================================================================
+
 // ──────────────────────────────────────────────────────────────
-// Route Definitions
+// Public routes (no auth required)
 // ──────────────────────────────────────────────────────────────
 
 const PUBLIC_ROUTES = [
@@ -25,82 +22,59 @@ const PUBLIC_ROUTES = [
   '/reset-password',
   '/verify-email',
   '/api/auth/callback',
+  '/api/billing/webhook',
 ]
 
-const AUTH_ROUTES = [
-  '/login',
-  '/register',
-  '/forgot-password',
-  '/reset-password',
-  '/verify-email',
-]
-
-const ONBOARDING_ROUTE = '/onboarding'
-const DASHBOARD_ROUTE = '/dashboard'
-
 // ──────────────────────────────────────────────────────────────
-// Role-Based Route Prefixes
+// Route-to-Role Access Map (same as require-auth.ts)
 // ──────────────────────────────────────────────────────────────
 
-const ROLE_ROUTE_PREFIXES: Record<string, UserRole[]> = {
-  '/admin': ['super_admin'],
-  '/school': ['school_admin', 'super_admin'],
-  '/teacher': ['teacher', 'school_admin', 'super_admin'],
-  '/student': ['student'],
+const ROUTE_ROLE_MAP: Record<string, UserRole[]> = {
+  '/dashboard/super-admin': ['super_admin'],
+  '/dashboard/school-admin': ['school_admin', 'super_admin'],
+  '/dashboard/teacher': ['teacher', 'school_admin', 'super_admin'],
+  '/dashboard/student': ['student', 'parent'],
+  '/schools': ['super_admin', 'school_admin'],
+  '/billing': ['super_admin', 'school_admin'],
+  '/analytics': ['super_admin', 'school_admin', 'teacher'],
+  '/reports': ['super_admin', 'school_admin', 'teacher'],
+  '/question-bank': ['teacher', 'school_admin', 'super_admin'],
+  '/cbt': ['teacher', 'school_admin', 'super_admin', 'student'],
+  '/marketplace': ['super_admin', 'school_admin', 'teacher', 'student'],
+  '/results': ['super_admin', 'school_admin', 'teacher', 'student'],
+  '/students': ['super_admin', 'school_admin', 'teacher'],
+  '/teachers': ['super_admin', 'school_admin'],
+  '/parents': ['super_admin', 'school_admin'],
+  '/search': ['super_admin', 'school_admin', 'teacher', 'student'],
+  '/settings': ['super_admin', 'school_admin', 'teacher', 'student'],
+  '/profile': ['super_admin', 'school_admin', 'teacher', 'student', 'parent'],
+  '/notifications': ['super_admin', 'school_admin', 'teacher', 'student', 'parent'],
 }
 
 // ──────────────────────────────────────────────────────────────
-// Helper Functions
+// Role Dashboard Map
 // ──────────────────────────────────────────────────────────────
 
-function isPublicRoute(pathname: string): boolean {
-  return PUBLIC_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + '/')
-  )
+const ROLE_DASHBOARD_MAP: Record<string, string> = {
+  student: '/dashboard/student',
+  parent: '/dashboard/student',
+  teacher: '/dashboard/teacher',
+  school_admin: '/dashboard/school-admin',
+  super_admin: '/dashboard/super-admin',
 }
 
-function isAuthRoute(pathname: string): boolean {
-  return AUTH_ROUTES.some(
-    (route) => pathname === route || pathname.startsWith(route + '/')
-  )
-}
+// ──────────────────────────────────────────────────────────────
+// Helper: Find the most specific matching route
+// ──────────────────────────────────────────────────────────────
 
-function isOnboardingRoute(pathname: string): boolean {
-  return pathname === ONBOARDING_ROUTE || pathname.startsWith(ONBOARDING_ROUTE + '/')
-}
+function findMatchingRoute(pathname: string): string | null {
+  const matchingRoutes = Object.keys(ROUTE_ROLE_MAP)
+    .filter(route => pathname === route || pathname.startsWith(route + '/'))
 
-function isApiRoute(pathname: string): boolean {
-  return pathname.startsWith('/api/')
-}
+  if (matchingRoutes.length === 0) return null
 
-/**
- * Extract the user's role from the JWT app_metadata.
- * Supabase stores custom claims in app_metadata.role.
- */
-function getUserRole(user: { app_metadata?: Record<string, unknown> } | null): UserRole | null {
-  if (!user?.app_metadata) return null
-  const role = user.app_metadata.role as UserRole | undefined
-  if (role && ['student', 'teacher', 'school_admin', 'super_admin'].includes(role)) {
-    return role
-  }
-  return null
-}
-
-/**
- * Check if a user's role has access to a given pathname.
- */
-function hasRoleAccess(pathname: string, role: UserRole | null): boolean {
-  // If no role is defined, allow access to non-restricted routes
-  if (!role) return true
-
-  for (const [prefix, allowedRoles] of Object.entries(ROLE_ROUTE_PREFIXES)) {
-    if (pathname === prefix || pathname.startsWith(prefix + '/')) {
-      return allowedRoles.includes(role)
-    }
-  }
-
-  // Routes not in the prefix map are accessible to all authenticated users
-  return true
+  // Return the longest (most specific) match
+  return matchingRoutes.sort((a, b) => b.length - a.length)[0]
 }
 
 // ──────────────────────────────────────────────────────────────
@@ -110,67 +84,73 @@ function hasRoleAccess(pathname: string, role: UserRole | null): boolean {
 export async function middleware(request: NextRequest) {
   const { supabase, response } = await createClient(request)
 
-  // ─── Step 1: Refresh session & get user ───
+  // ─── Step 1: Refresh session ──────────────────────────────
   const { data: { user } } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+  const pathname = request.nextUrl.pathname
 
-  // ─── Step 2: AuthGuard ───
-  // If user is NOT authenticated and tries to access a protected route,
-  // redirect to /login
-  if (!user && !isPublicRoute(pathname) && !isApiRoute(pathname)) {
-    const redirectUrl = new URL('/login', request.url)
+  // ─── Step 2: Allow public routes ─────────────────────────
+  const isPublicRoute = PUBLIC_ROUTES.some(
+    route => pathname === route || pathname.startsWith(route + '/')
+  )
+
+  if (isPublicRoute) {
+    // If authenticated and trying to access login/register, redirect to dashboard
+    if (user && (pathname === '/login' || pathname === '/register')) {
+      const role = (user.app_metadata?.role as string) ?? 'student'
+      const dashboardPath = ROLE_DASHBOARD_MAP[role] ?? '/dashboard'
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = dashboardPath
+      return NextResponse.redirect(redirectUrl)
+    }
+    return response
+  }
+
+  // ─── Step 3: Allow static assets and API routes ───────────
+  if (
+    pathname.startsWith('/_next/') ||
+    pathname.startsWith('/api/') ||
+    pathname.includes('.') // static files
+  ) {
+    return response
+  }
+
+  // ─── Step 4: Auth guard ───────────────────────────────────
+  if (!user) {
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = '/login'
     redirectUrl.searchParams.set('redirect', pathname)
     return NextResponse.redirect(redirectUrl)
   }
 
-  // If user IS authenticated and visits a public auth route (login, register, etc.),
-  // redirect to /dashboard
-  if (user && isAuthRoute(pathname)) {
-    return NextResponse.redirect(new URL(DASHBOARD_ROUTE, request.url))
-  }
+  // ─── Step 5: Get user role from app_metadata ─────────────
+  const role = (user.app_metadata?.role as UserRole) ?? 'student'
 
-  // ─── Step 3: OnboardingGuard ───
-  // If user is authenticated but hasn't completed onboarding,
-  // redirect to /onboarding (unless they're already there)
-  if (user && !isOnboardingRoute(pathname) && !isPublicRoute(pathname)) {
-    const onboardingComplete = user.app_metadata?.onboarding_complete as boolean | undefined
+  // ─── Step 6: RBAC guard ──────────────────────────────────
+  const matchingRoute = findMatchingRoute(pathname)
 
-    if (onboardingComplete === false) {
-      return NextResponse.redirect(new URL(ONBOARDING_ROUTE, request.url))
+  if (matchingRoute) {
+    const allowedRoles = ROUTE_ROLE_MAP[matchingRoute]
+
+    if (!allowedRoles.includes(role)) {
+      // User doesn't have access to this route — redirect to their dashboard
+      const dashboardPath = ROLE_DASHBOARD_MAP[role] ?? '/dashboard'
+      const redirectUrl = request.nextUrl.clone()
+      redirectUrl.pathname = dashboardPath
+      return NextResponse.redirect(redirectUrl)
     }
   }
 
-  // If user is on /onboarding but has already completed it, redirect to dashboard
-  if (user && isOnboardingRoute(pathname)) {
-    const onboardingComplete = user.app_metadata?.onboarding_complete as boolean | undefined
-
-    if (onboardingComplete === true) {
-      return NextResponse.redirect(new URL(DASHBOARD_ROUTE, request.url))
-    }
+  // ─── Step 7: Redirect /dashboard to role-specific dashboard ─
+  if (pathname === '/dashboard') {
+    const dashboardPath = ROLE_DASHBOARD_MAP[role] ?? '/dashboard/student'
+    const redirectUrl = request.nextUrl.clone()
+    redirectUrl.pathname = dashboardPath
+    return NextResponse.redirect(redirectUrl)
   }
 
-  // ─── Step 4: RoleBasedGuard ───
-  // Check if the user's role allows access to the current route
-  if (user && !isPublicRoute(pathname) && !isApiRoute(pathname) && !isOnboardingRoute(pathname)) {
-    const role = getUserRole(user)
-
-    if (!hasRoleAccess(pathname, role)) {
-      // User doesn't have the required role — redirect to their dashboard
-      return NextResponse.redirect(new URL(DASHBOARD_ROUTE, request.url))
-    }
-  }
-
-  // ─── Step 5: Allow request through ───
   return response
 }
-
-// ──────────────────────────────────────────────────────────────
-// Matcher Config
-// ──────────────────────────────────────────────────────────────
-// Excludes static files, images, and other non-page assets from
-// running through the middleware.
-// ──────────────────────────────────────────────────────────────
 
 export const config = {
   matcher: [
@@ -179,8 +159,8 @@ export const config = {
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico (favicon file)
-     * - public files (images, fonts, etc.)
+     * - public files (images, etc.)
      */
-    '/((?!_next/static|_next/image|favicon\\.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico|tiff|bmp|webm|mp4|woff|woff2|ttf|eot|otf)$).*)',
+    '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }

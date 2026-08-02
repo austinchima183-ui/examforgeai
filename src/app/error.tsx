@@ -4,12 +4,13 @@ import { useEffect } from 'react'
 import { AlertTriangle, RotateCw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { logger } from '@/lib/utils/logger'
 
 // ============================================================================
 // ExamForge AI — Global Error Boundary
 // ============================================================================
 // Client component that catches unexpected errors at the root level.
-// Provides a retry button and reports errors to console.error.
+// Uses the enterprise logger instead of console.error.
 // ============================================================================
 
 export default function GlobalError({
@@ -20,19 +21,18 @@ export default function GlobalError({
   reset: () => void
 }) {
   useEffect(() => {
-    // Report to error tracking service
-    console.error('[ExamForge AI] Unhandled error:', {
-      message: error.message,
+    // Report to enterprise logger (structured, sanitized)
+    logger.error('Unhandled client error', error, {
       digest: error.digest,
-      stack: error.stack,
+      component: 'GlobalErrorBoundary',
     })
   }, [error])
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background p-4">
+    <div className="flex min-h-screen items-center justify-center bg-background p-4" role="alert" aria-live="assertive">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center pb-2">
-          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10">
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-destructive/10" aria-hidden="true">
             <AlertTriangle className="h-7 w-7 text-destructive" />
           </div>
           <CardTitle className="mt-4 text-xl">Something went wrong</CardTitle>
@@ -48,7 +48,7 @@ export default function GlobalError({
             </p>
           )}
           <Button onClick={reset} className="mt-2">
-            <RotateCw className="mr-2 h-4 w-4" />
+            <RotateCw className="mr-2 h-4 w-4" aria-hidden="true" />
             Try again
           </Button>
         </CardContent>
